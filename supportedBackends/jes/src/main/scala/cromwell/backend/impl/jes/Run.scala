@@ -9,13 +9,14 @@ import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
+import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object Run  {
+object Run {
   private val GenomicsScopes = List(
     "https://www.googleapis.com/auth/genomics",
     "https://www.googleapis.com/auth/compute"
@@ -25,6 +26,8 @@ object Run  {
   private lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   private val InitialPollingInterval = 5 seconds
   private val PollingBackoffFactor = 1.1
+
+  val slf4jLogger = LoggerFactory.getLogger(Run.getClass)
 
   def apply(runIdForResumption: Option[String],
             jobDescriptor: BackendJobDescriptor,
@@ -36,7 +39,7 @@ object Run  {
             projectId: String,
             preemptible: Boolean,
             genomicsInterface: Genomics): Run = {
-    val logger = LoggerFactory.getLogger(Run.getClass)
+    val logger = new JobLogger("JesRun", jobDescriptor.descriptor.id, jobDescriptor.key.tag, None, Set(slf4jLogger))
 
     lazy val workflow = jobDescriptor.descriptor
     val runtimeInfoBuilder = if (preemptible) PreemptibleJesRuntimeInfoBuilder else NonPreemptibleJesRuntimeInfoBuilder

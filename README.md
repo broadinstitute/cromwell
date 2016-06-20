@@ -846,7 +846,7 @@ And this set of workflow options:
 
 ```json
 {
-  "default_runtime_options": {
+  "default_runtime_attributes": {
     "docker": "ubuntu:latest",
     "zones": "us-central1-a us-central1-b"
   }
@@ -1060,7 +1060,7 @@ Valid keys and their meanings:
     * **final_workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
     * **final_workflow_outputs_dir** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
     * **final_call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
-    * **default_runtime_options** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
+    * **default_runtime_attributes** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
     * **workflow_failure_mode** - What happens after a task fails. Choose from:
         * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
         * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish

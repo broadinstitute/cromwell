@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
+import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
@@ -129,7 +130,10 @@ object WorkflowActor {
             startMode: StartMode,
             wdlSource: WorkflowSourceFiles,
             conf: Config,
-            serviceRegistryActor: ActorRef): Props = Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor))
+            serviceRegistryActor: ActorRef,
+            workflowLogCopyRouter: ActorRef): Props = {
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter))
+  }
 }
 
 /**
@@ -139,7 +143,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     startMode: StartMode,
                     workflowSources: WorkflowSourceFiles,
                     conf: Config,
-                    serviceRegistryActor: ActorRef)
+                    serviceRegistryActor: ActorRef,
+                    workflowLogCopyRouter: ActorRef)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
   implicit val actorSystem = context.system
@@ -272,9 +277,12 @@ class WorkflowActor(val workflowId: WorkflowId,
       // Copy/Delete workflow logs
       if (WorkflowLogger.isEnabled) {
         stateData.workflowDescriptor foreach { wd =>
-          // Create the actor in the system context because this WorkflowActor is going to die right after
-          val copyWorkflowLogsActor: ActorRef = context.system.actorOf(CopyWorkflowLogsActor.props(wd), s"CopyWorkflowLogsActor-$workflowId")
-          copyWorkflowLogsActor ! CopyWorkflowLogsActor.Start
+          wd.getWorkflowOption(FinalWorkflowLogDir) match {
+            case Some(destinationDir) =>
+              workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(wd.id, buildPath(destinationDir, wd.engineFilesystems))
+            case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile()
+            case _ =>
+          }
         }
       }
 

@@ -2,50 +2,50 @@ package cromwell.engine.workflow.lifecycle
 
 import java.nio.file.Path
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import better.files._
-import cromwell.core.WorkflowOptions._
 import cromwell.core._
-import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
+import cromwell.core.logging.WorkflowLogger
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.services.MetadataServiceActor.PutMetadataAction
-import cromwell.services.{MetadataValue, MetadataKey, MetadataEvent, ServiceRegistryClient}
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 
 object CopyWorkflowLogsActor {
   // Commands
-  case object Start
+  case class Copy(workflowId: WorkflowId, destinationDirPath: Path)
 
-  def props(workflowDescriptor: EngineWorkflowDescriptor) = Props(
-    new CopyWorkflowLogsActor(workflowDescriptor)
-  )
+  def props = Props(new CopyWorkflowLogsActor())
 }
 
-class CopyWorkflowLogsActor(val workflowDescriptor: EngineWorkflowDescriptor) extends Actor with PathFactory with WorkflowLogging with ServiceRegistryClient {
+// This could potentially be turned into a more generic "Copy/Move something from A to B"
+// Which could be used for other copying work (outputs, call logs..)
+class CopyWorkflowLogsActor extends Actor with ActorLogging with PathFactory with ServiceRegistryClient {
 
-  override lazy val workflowId = workflowDescriptor.id
-  val destinationPath = {
-    workflowDescriptor.getWorkflowOption(FinalWorkflowLogDir) map { path =>
-      buildPath(path, workflowDescriptor.engineFilesystems)
-    }
-  }
+  // Return the destination Path if copying happened
+  def copyAndClean(dest: Path, workflowLogger: WorkflowLogger): Option[Path] = {
+    workflowLogger.workflowLogPath map { src =>
+      dest.createDirectories()
 
-  def copyAndClean(dest: Path) = {
-    workflowLogger.workflowLogPath foreach { src =>
-      val destPath = dest.toAbsolutePath.resolve(src.getFileName)
+      val destPath = dest.resolve(src.getFileName)
       workflowLogger.info(s"Copying workflow logs from ${src.toAbsolutePath} to $destPath")
 
-      PathCopier.copy(src.toAbsolutePath, destPath)
-      if (WorkflowLogger.workflowLogConfiguration exists { _.temporary }) src.delete(ignoreIOExceptions = false)
+      src.copyTo(destPath)
+      if (WorkflowLogger.isTemporary) src.delete()
 
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(destPath.toAbsolutePath))
-      serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+      destPath
     }
   }
 
   override def receive = {
-    case CopyWorkflowLogsActor.Start =>
-      destinationPath foreach copyAndClean
+    case CopyWorkflowLogsActor.Copy(workflowId, destinationDir) =>
+
+      val workflowLogger = new WorkflowLogger(self.path.name, workflowId, Option(log))
+
+      copyAndClean(destinationDir, workflowLogger) foreach { destinationPath =>
+        val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(destinationPath))
+        serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+      }
+
       context stop self
   }
 }

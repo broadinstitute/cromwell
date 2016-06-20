@@ -38,7 +38,7 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
-      "default_runtime_options" -> JsObject(defaults)
+      "default_runtime_attributes" -> JsObject(defaults)
     )))
   }
 

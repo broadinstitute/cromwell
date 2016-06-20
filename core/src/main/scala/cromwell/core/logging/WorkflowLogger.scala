@@ -26,6 +26,7 @@ object WorkflowLogger {
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
     val name = path.getFileName.toString
 
+    // This *should* be thread-safe according to logback implementation.
     Option(ctx.exists(name)) match {
       case Some(existingLogger) => existingLogger
       case None =>
@@ -62,6 +63,7 @@ object WorkflowLogger {
   }
 
   val isEnabled = workflowLogConfiguration.isDefined
+  val isTemporary = workflowLogConfiguration exists { _.temporary }
 }
 
 /**
@@ -85,6 +87,10 @@ class WorkflowLogger(name: String,
                      override val akkaLogger: Option[LoggingAdapter],
                      otherLoggers: Set[Logger] = Set.empty[Logger])
   extends LoggerWrapper {
+
+  import better.files._
+
+  def deleteLogFile() = workflowLogPath foreach { _.delete(ignoreIOExceptions = false) }
 
   import WorkflowLogger._
 

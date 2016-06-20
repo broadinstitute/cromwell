@@ -66,6 +66,13 @@ object CromwellTestkitSpec {
       |    debug {
       |       receive = on
       |    }
+      |
+      |    deployment {
+      |      /WorkflowManagerActor/WorkflowLogCopyRouter {
+      |        router = round-robin-pool
+      |        nr-of-instances = 0
+      |      }
+      |    }
       |  }
       |  dispatchers {
       |    slow-actor-dispatcher {
@@ -82,6 +89,8 @@ object CromwellTestkitSpec {
       |    default-timeout = 10s
       |  }
       |}
+      |
+      |services {}
     """.stripMargin
 
   val timeoutDuration = 30 seconds
@@ -331,7 +340,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   private def buildWorkflowManagerActor(config: Config) = {
-    TestActorRef(new WorkflowManagerActor(config))
+    TestActorRef(new WorkflowManagerActor(config), name = "WorkflowManagerActor")
   }
 
   def runWdl(sampleWdl: SampleWdl,

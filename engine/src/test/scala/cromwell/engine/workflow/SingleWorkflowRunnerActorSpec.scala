@@ -45,7 +45,7 @@ object SingleWorkflowRunnerActorSpec {
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load())))
+    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load())), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
@@ -209,7 +209,9 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
           Await.ready(futureResult, Duration.Inf)
           futureResult.value.get match {
             case Success(_) =>
-            case Failure(e) => fail(e)
+            case Failure(e) =>
+              e.printStackTrace()
+              fail(e)
           }
         }
       }

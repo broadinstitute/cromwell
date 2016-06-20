@@ -43,20 +43,20 @@ import scala.util.{Failure, Success, Try}
 
 object WorkflowOptions {
 
-  sealed trait WorkflowOption { def name: String }
+  sealed abstract class WorkflowOption(val name: String)
   // Caching
-  case object WriteToCache extends WorkflowOption { override def name = "write_to_cache" }
-  case object ReadFromCache extends WorkflowOption { override def name = "read_from_cache" }
+  case object WriteToCache extends WorkflowOption("write_to_cache")
+  case object ReadFromCache extends WorkflowOption("read_from_cache")
 
   // Copying
-  case object FinalWorkflowLogDir extends WorkflowOption { override def name = "final_workflow_log_dir" }
-  case object FinalCallLogsDir extends WorkflowOption { override def name = "final_call_logs_dir" }
-  case object FinalWorkflowOutputsDir extends WorkflowOption { override def name = "final_workflow_outputs_dir" }
+  case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")
+  case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
+  case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
 
   // Misc.
-  case object DefaultRuntimeOptions extends WorkflowOption { override def name = "default_runtime_options" }
-  case object WorkflowFailureMode extends WorkflowOption { override def name = "workflow_failure_mode" }
-  case object Backend extends WorkflowOption { override def name = "backend" }
+  case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
+  case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
+  case object Backend extends WorkflowOption("backend")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala

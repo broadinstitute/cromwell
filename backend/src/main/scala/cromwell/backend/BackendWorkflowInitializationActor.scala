@@ -5,6 +5,9 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.wdl.OnlyPureFunctions
+import cromwell.database.obj.WorkflowMetadataKeys
+import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 import wdl4s.{NoLookup, Task, WdlExpression}
 import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
@@ -30,7 +33,7 @@ object BackendWorkflowInitializationActor {
 /**
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
-trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
+trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ServiceRegistryClient with ActorLogging {
 
   /**
     * Answers the question "does this expression evaluate to a type which matches the predicate".
@@ -68,6 +71,10 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   }
 
   protected def runtimeAttributeValidators: Map[String, Option[WdlExpression] => Boolean]
+
+  protected def publishWorkflowRoot(workflowRoot: String) = {
+    serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot), MetadataValue(workflowRoot)))
+  }
 
   private def validateRuntimeAttributes: Future[Unit] = {
 

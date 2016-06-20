@@ -15,4 +15,5 @@ object CallMetadataKeys {
   val Stdout = "stdout"
   val Stderr = "stderr"
   val BackendLogsPrefix = "backendLogs"
+  val CallRoot = "callRoot"
 }

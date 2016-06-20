@@ -60,6 +60,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     * A call which happens before anything else runs
     */
   override def beforeAll(): Future[Unit] = {
+    publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
     if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile()
     else Future.successful(())
   }

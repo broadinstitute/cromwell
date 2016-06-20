@@ -379,6 +379,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       JesFileOutput(s"$MonitoringParamName-out", defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), workingDisk)
     }
 
+    tellMetadata(CallMetadataKeys.CallRoot, callRootPath)
+    tellMetadata(JesMetadataKeys.GoogleProject, jesAttributes.project)
+    tellMetadata(JesMetadataKeys.ExecutionBucket, jesAttributes.executionBucket)
+    tellMetadata(JesMetadataKeys.EndpointUrl, jesAttributes.endpointUrl)
+    monitoringOutput foreach { o => tellMetadata(JesMetadataKeys.MonitoringLog, o.gcs) }
+
     // Force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     Try(runtimeAttributes) match {
       case Success(_) => startExecuting(monitoringOutput)
@@ -405,7 +411,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     previous match {
       case handle: JesPendingExecutionHandle =>
-        val wfId = handle.jobDescriptor.descriptor.id.shortString
         val runId = handle.run.runId
         log.debug(s"$tag Polling JES Job $runId")
         val previousStatus = handle.previousStatus

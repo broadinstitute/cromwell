@@ -130,7 +130,8 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       metadataEvent(Stdout, jobPaths.stdout.toAbsolutePath),
       metadataEvent(Stderr, jobPaths.stderr.toAbsolutePath),
     // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
-      metadataEvent("cache:allowResultReuse", true)
+      metadataEvent("cache:allowResultReuse", true),
+      metadataEvent(CallMetadataKeys.CallRoot, jobPaths.callRoot)
     )
 
     serviceRegistryActor ! PutMetadataAction(events)

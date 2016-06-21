@@ -83,7 +83,7 @@ class WorkflowManagerActor(config: Config)
   private val donePromise = Promise[Unit]()
 
   private val workflowLogCopyRouter: ActorRef = {
-    context.actorOf(FromConfig.props(Props[CopyWorkflowLogsActor].withDispatcher("akka.dispatchers.slow-actor-dispatcher")), "WorkflowLogCopyRouter")
+    context.actorOf(FromConfig.withSupervisorStrategy(CopyWorkflowLogsActor.strategy).props(Props[CopyWorkflowLogsActor].withDispatcher("akka.dispatchers.slow-actor-dispatcher")), "WorkflowLogCopyRouter")
   }
 
   override def preStart() {

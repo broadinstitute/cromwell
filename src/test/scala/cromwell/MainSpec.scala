@@ -25,66 +25,66 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
 
   override val timeLimit: Span = CromwellTestkitSpec.timeoutDuration
 
-  it should "print usage" ignore {
+  it should "print usage" in {
     assert(traceMain(_.usageAndExit()).out.contains(UsageSnippet))
   }
 
-  it should "print usage when no args" ignore {
+  it should "print usage when no args" in {
     val result = traceAction()
     assert(result.out.contains(UsageSnippet))
   }
 
-  it should "run" ignore {
+  it should "run" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
-      traceInfoRun(wdl, inputs)("transitioning from Running to Succeeded.") should be(0)
+      traceInfoRun(wdl, inputs)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
     }
   }
 
-  it should "run using args" ignore {
+  it should "run using args" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
-      traceInfoAction("run", wdl, inputs)("transitioning from Running to Succeeded.") should be(0)
+      traceInfoAction("run", wdl, inputs)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
     }
   }
 
-  it should "run and locate the default inputs path" ignore {
+  it should "run and locate the default inputs path" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       wdlAndInputs.inputs
-      traceInfoRun(wdl)("transitioning from Running to Succeed.") should be(0)
+      traceInfoRun(wdl)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
     }
   }
 
-  it should "run if the inputs path is \"-\"" ignore {
+  it should "run if the inputs path is \"-\"" in {
     testWdl(GoodbyeWorld) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       traceErrorWithExceptionRun(wdl, "-", "-", "-")("transitioned to state Failed") should be(1)
     }
   }
 
-  it should "run reading options" ignore {
+  it should "run reading options" in {
     testWdl(ThreeStep, optionsJson = """{ foobar bad json! }""") { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val options = wdlAndInputs.options
-      traceErrorWithExceptionRun(wdl, inputs, options)(".*Workflow failed submission:", classOf[IllegalArgumentException]) should be(1)
+      traceErrorWithExceptionRun(wdl, inputs, options)("Workflow input processing failed") should be(1)
     }
   }
 
-  it should "run writing metadata" ignore {
+  it should "run writing metadata" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val metadata = wdlAndInputs.metadata
-      traceInfoRun(wdl, inputs, "-", metadata)("transitioning from Running to Succeeded.") should be(0)
+      traceInfoRun(wdl, inputs, "-", metadata)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
       assert(wdlAndInputs.metadataPath.contentAsString.contains("\"three_step.cgrep.pattern\""))
     }
   }
 
-  it should "fail run if the inputs path is not found, and not set to -" ignore {
+  it should "fail run if the inputs path is not found, and not set to -" in {
     testWdl(EmptyWorkflow) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val result = traceMain(_.run(Array(wdl)))
@@ -93,7 +93,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "fail run if the inputs path is not readable" ignore {
+  it should "fail run if the inputs path is not readable" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       wdlAndInputs.inputsPath setPermissions Set.empty
       val wdl = wdlAndInputs.wdl
@@ -104,24 +104,22 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     }
   }
 
-  it should "fail run if the inputs path is not valid inputs json" ignore {
+  it should "fail run if the inputs path is not valid inputs json" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       wdlAndInputs.inputsPath write "[]"
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
-      val result = traceMain(_.run(Array(wdl, inputs)))
-      assert(result.err.contains("Workflow inputs JSON cannot be parsed to JsObject"))
-      result.returnCode should be(1)
+      traceErrorWithExceptionRun(wdl, inputs)("Workflow inputs JSON cannot be parsed to JsObject") should be (1)
     }
   }
 
-  it should "fail run with not enough args" ignore {
+  it should "fail run with not enough args" in {
     val result = traceMain(_.run(Array.empty[String]))
     assert(result.out.contains(UsageSnippet))
     result.returnCode should be(-1)
   }
 
-  it should "fail run with too many args" ignore {
+  it should "fail run with too many args" in {
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs

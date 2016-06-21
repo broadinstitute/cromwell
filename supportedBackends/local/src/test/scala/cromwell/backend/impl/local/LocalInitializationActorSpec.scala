@@ -39,13 +39,11 @@ class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializat
     |  }
     |}
     |""".stripMargin)))
-  with BackendTestkitSpec with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+  with BackendTestkitSpec with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender with HasLocalBackendConfig {
 
-  val globalConfig = ConfigFactory.load()
-  val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
-  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(localBackendConfig, globalConfig = null)
 
-  val Timeout = 5.second.dilated
+  val Timeout = 5.seconds.dilated
 
   val HelloWorld =
     """

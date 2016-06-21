@@ -19,11 +19,10 @@ import wdl4s.values._
 
 import scala.concurrent.duration._
 
-class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with MockitoSugar with TestFileUtil with TableDrivenPropertyChecks {
+class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with MockitoSugar with TestFileUtil
+  with TableDrivenPropertyChecks with HasLocalBackendConfig {
 
-  val globalConfig = ConfigFactory.load()
-  val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
-  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(localBackendConfig, globalConfig = null)
 
   def localBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) =
     TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor)).underlyingActor

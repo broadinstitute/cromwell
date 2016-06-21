@@ -8,7 +8,6 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import wdl4s.types.{WdlBooleanType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
-import wdl4s.values.WdlString
 
 import scala.concurrent.Future
 
@@ -41,6 +40,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
     * A call which happens before anything else runs
     */
   override def beforeAll(): Future[Unit] = {
+    publishWorkflowRoot(workflowPaths.workflowRoot.toString)
     Future.successful(workflowPaths.workflowRoot.createDirectories())
   }
 

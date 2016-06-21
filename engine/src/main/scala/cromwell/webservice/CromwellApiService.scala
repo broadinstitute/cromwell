@@ -49,10 +49,6 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     complete(StatusCodes.BadRequest, APIResponse.fail(new Throwable(s"Invalid workflow ID: '$id'.")).toJson.prettyPrint)
   }
 
-  private def unsupportedEndpoint(endpoint: String) = respondWithMediaType(`application/json`) {
-    complete(StatusCodes.BadRequest, APIResponse.fail(new UnsupportedOperationException(s"Unsupported endpoint: '$endpoint'. If this is unexpected, is your API version correct?")).toJson.prettyPrint)
-  }
-
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
     workflowStdoutStderrRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~
     callCachingRoute ~ statusRoute

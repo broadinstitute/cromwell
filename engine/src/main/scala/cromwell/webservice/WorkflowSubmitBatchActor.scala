@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import akka.actor.{Actor, ActorRef, Props}
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.webservice.CromwellApiHandler.{WorkflowManagerBatchSubmitResponse, WorkflowManagerResponse}
 
 /** Submits a sequence of sources, then messages back the respective sequence of responses. */
@@ -34,7 +35,9 @@ case class WorkflowManagerBatchIndexedResponse(response: WorkflowManagerResponse
 class WorkflowSubmitIndexedActor(batchSubmitActor: ActorRef, requestHandlerActor: ActorRef,
                                  source: WorkflowSourceFiles, index: Int) extends Actor {
 
-  override def preStart() = ???
+  override def preStart() = {
+    requestHandlerActor ! WorkflowManagerActor.SubmitWorkflowCommand(source)
+  }
 
   override def receive = {
     case response: WorkflowManagerResponse =>

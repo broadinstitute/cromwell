@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.lifecycle
 
 import java.io.IOException
-import java.nio.file.{FileAlreadyExistsException, Path}
+import java.nio.file.Path
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{OneForOneStrategy, Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props}
 import better.files._
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogger
@@ -49,8 +49,6 @@ class CopyWorkflowLogsActor extends Actor with ActorLogging with PathFactory wit
           serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
         }
       }
-
-      context stop self
   }
 
   override def preRestart(t: Throwable, message: Option[Any]) = {

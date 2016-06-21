@@ -2,7 +2,7 @@ package cromwell.services
 
 import java.time.OffsetDateTime
 
-import akka.actor.ActorRef
+import akka.actor.{DeadLetterSuppression, ActorRef}
 import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import spray.http.Uri
@@ -48,7 +48,7 @@ object MetadataServiceActor {
     def reason: Throwable
   }
 
-  case class MetadataPutAcknowledgement(putRequest: PutMetadataAction) extends MetadataServiceResponse
+  case class MetadataPutAcknowledgement(putRequest: PutMetadataAction) extends MetadataServiceResponse with DeadLetterSuppression
   case class MetadataPutFailed(putRequest: PutMetadataAction, reason: Throwable) extends MetadataServiceFailure
 
   case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse

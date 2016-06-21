@@ -7,6 +7,7 @@ import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.validation._
 import cromwell.core._
 import lenthall.exception.MessageAggregation
+import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values._
 import cromwell.backend.validation.RuntimeAttributesDefault._
@@ -77,9 +78,11 @@ object JesRuntimeAttributes {
     DockerKey -> Set(WdlStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): JesRuntimeAttributes = {
+  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions, logger: Logger): JesRuntimeAttributes = {
     val defaultsFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultsFromOptions, staticDefaults))
+
+    withDefaultValues.keySet.diff(coercionMap.keySet) map { k => s"Unrecognized runtime attribute key: $k" } foreach logger.warn
 
     val cpu = validateCpu(withDefaultValues.get(CpuKey), noValueFoundFor(CpuKey))
     val memory = validateMemory(withDefaultValues.get(MemoryKey), noValueFoundFor(MemoryKey))

@@ -6,6 +6,7 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core.WorkflowOptions
 import lenthall.exception.MessageAggregation
+import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values.{WdlBoolean, WdlInteger, WdlValue}
 
@@ -24,10 +25,12 @@ object LocalRuntimeAttributes {
     DockerKey -> Set(WdlStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): LocalRuntimeAttributes = {
+  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions, logger: Logger): LocalRuntimeAttributes = {
     // Fail now if some workflow options are specified but can't be parsed correctly
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
+
+    withDefaultValues.keySet.diff(coercionMap.keySet) map { k => s"Unrecognized runtime attribute key: $k" } foreach logger.warn
 
     val docker = validateDocker(withDefaultValues.get(DockerKey), None.successNel)
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))

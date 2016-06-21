@@ -6,6 +6,7 @@ import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCo
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.helpers.NOPLogger
 import spray.json._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
@@ -274,6 +275,12 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       val workflowOptions = workflowOptionsWithDefaultRA(Map(MemoryKey -> JsString("65 GB")))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, expectedRuntimeAttributes)
     }
+
+    "use reasonable default values" in {
+      val expectedRuntimeAttributes = staticDefaultsWithUbuntu
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" }""").head
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
   }
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
@@ -308,7 +315,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], options: WorkflowOptions, expectedRuntimeAttributes: JesRuntimeAttributes): Unit = {
     try {
-      assert(JesRuntimeAttributes(runtimeAttributes, options) == expectedRuntimeAttributes)
+      assert(JesRuntimeAttributes(runtimeAttributes, options, NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
@@ -316,7 +323,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
     try {
-      JesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
+      JesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, NOPLogger.NOP_LOGGER)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))

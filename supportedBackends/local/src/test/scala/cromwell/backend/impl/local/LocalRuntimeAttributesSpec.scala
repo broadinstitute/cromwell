@@ -5,6 +5,7 @@ import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.helpers.NOPLogger
 import spray.json._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
@@ -139,7 +140,7 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: LocalRuntimeAttributes): Unit = {
     try {
-      assert(LocalRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
+      assert(LocalRuntimeAttributes(runtimeAttributes, workflowOptions, NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
@@ -147,7 +148,7 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertLocalRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
     try {
-      LocalRuntimeAttributes(runtimeAttributes, WorkflowOptions(JsObject(Map.empty[String, JsValue])))
+      LocalRuntimeAttributes(runtimeAttributes, WorkflowOptions(JsObject(Map.empty[String, JsValue])), NOPLogger.NOP_LOGGER)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))

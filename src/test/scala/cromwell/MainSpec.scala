@@ -38,7 +38,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
-      traceInfoRun(wdl, inputs)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
+      traceInfoRun(wdl, inputs)(SuccessMessage) should be(0)
     }
   }
 
@@ -46,7 +46,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
-      traceInfoAction("run", wdl, inputs)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
+      traceInfoAction("run", wdl, inputs)(SuccessMessage) should be(0)
     }
   }
 
@@ -54,7 +54,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
     testWdl(ThreeStep) { wdlAndInputs =>
       val wdl = wdlAndInputs.wdl
       wdlAndInputs.inputs
-      traceInfoRun(wdl)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
+      traceInfoRun(wdl)(SuccessMessage) should be(0)
     }
   }
 
@@ -79,7 +79,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TimeLi
       val wdl = wdlAndInputs.wdl
       val inputs = wdlAndInputs.inputs
       val metadata = wdlAndInputs.metadata
-      traceInfoRun(wdl, inputs, "-", metadata)("SingleWorkflowRunnerActor workflow finished with status 'Succeeded'.") should be(0)
+      traceInfoRun(wdl, inputs, "-", metadata)(SuccessMessage) should be(0)
       assert(wdlAndInputs.metadataPath.contentAsString.contains("\"three_step.cgrep.pattern\""))
     }
   }
@@ -134,6 +134,8 @@ object MainSpec {
   import CromwellTestkitSpec._
 
   implicit val AskTimeout = Timeout(5 seconds)
+
+  private val SuccessMessage = "SingleWorkflowRunnerActor workflow finished with status 'Succeeded'."
 
   /** The return code, plus any captured text from Console.stdout and Console.stderr while executing a block. */
   case class TraceResult(returnCode: Int, out: String, err: String)

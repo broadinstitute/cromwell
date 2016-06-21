@@ -188,7 +188,11 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], executionConte
 
   override def delete(path: Path): Unit = {
     path match {
-      case gcs: NioGcsPath => withRetry(client.objects.delete(gcs.bucket, gcs.objectName).execute())
+      case gcs: NioGcsPath => try {
+        withRetry(client.objects.delete(gcs.bucket, gcs.objectName).execute())
+      } catch {
+        case ex: GoogleJsonResponseException if ex.getStatusCode == 404 => throw new NoSuchFileException(path.toString)
+      }
       case _ => notAGcsPath(path)
     }
   }

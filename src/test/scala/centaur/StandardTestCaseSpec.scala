@@ -6,7 +6,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.traverse._
 import cats.std.list._
 import centaur.test.Test
-import centaur.test.standard.StandardTestCase
+import centaur.test.standard.{StandardTestCase}
 import centaur.test.workflow.Workflow
 
 import scala.language.postfixOps
@@ -28,7 +28,6 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
   }
 
   def executeStandardTest(testCase: StandardTestCase, f: Workflow => Test[_]): Unit = {
-
     def nameTest = it should s"${testCase.testFormat.testSpecString} ${testCase.workflow.name}"
     def runTest = f(testCase.workflow).run.get
 

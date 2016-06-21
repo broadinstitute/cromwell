@@ -11,6 +11,7 @@ import spray.client.pipelining._
 import spray.http.{FormData, HttpRequest, HttpResponse}
 import spray.httpx.PipelineException
 import spray.httpx.unmarshalling._
+import spray.json.{DefaultJsonProtocol, JsArray, JsString, JsValue}
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
@@ -109,11 +110,10 @@ object Operations {
     }
   }
 
-  def validateMetadata(retrievedMetadata: WorkflowMetadata, expectedMetadata: WorkflowMetadata): Test[Unit] = {
+  def validateMetadata(retrievedMetadata: WorkflowMetadata, expectedMetadata: WorkflowMetadata, workflowID: UUID): Test[Unit] = {
     new Test[Unit] {
       override def run: Try[Unit] = {
-        val diffs = expectedMetadata diff retrievedMetadata
-
+        val diffs = expectedMetadata diff(retrievedMetadata, workflowID)
         if (diffs.isEmpty) Success(())
         else Failure(throw new Exception(s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"))
       }

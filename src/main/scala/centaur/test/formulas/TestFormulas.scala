@@ -31,7 +31,7 @@ object TestFormulas {
         for {
           w <- runSuccessfulWorkflow(r)
           m <- retrieveMetadata(w)
-          _ <- validateMetadata(m, r.metadata)
+          _ <- validateMetadata(m, r.metadata, w.id)
         } yield ()
     }
   }
@@ -44,7 +44,7 @@ object TestFormulas {
         for {
           w <- runFailingWorkflow(r)
           m <- retrieveMetadata(w)
-          _ <- validateMetadata(m, r.metadata)
+          _ <- validateMetadata(m, r.metadata, w.id)
         } yield ()
     }
   }

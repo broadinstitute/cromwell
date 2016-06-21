@@ -1,0 +1,17 @@
+#Test against a different functional backend in the future
+
+name: backend
+testFormat: workflowsuccess
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  options: backend/backend.options
+}
+
+metadata {
+  workflowName: hello
+  status: Succeeded
+  "calls.hello.hello.executionStatus": Done
+  "calls.hello.hello.backend": "Local"
+}

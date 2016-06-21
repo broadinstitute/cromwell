@@ -1,0 +1,20 @@
+#Currently failing since the workflow fails without completing task 'shouldSucceed'
+#and no information about tasks that weren't started.
+
+name: cont_while_possible
+testFormat: workflowfailure
+tags: ignore
+
+files {
+  wdl: cont_while_possible/cont_while_possible.wdl
+  options: cont_while_possible/cont_while_possible.options
+}
+
+metadata {
+  workflowName: cont_while_possible
+  status: Failed
+  "calls.cont_while_possible.boundToFail.executionStatus": Failed
+  "calls.cont_while_possible.shouldNotStart.executionStatus": NotStarted
+  "calls.cont_while_possible.shouldSucceed.executionStatus": Done
+  "calls.cont_while_possible.delayedTask.executionStatus": Done
+}

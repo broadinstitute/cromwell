@@ -1,0 +1,20 @@
+#Currently failing since the workflow fails without completing task 'shouldSucceed'
+#and no information about tasks that weren't started.
+
+name: no_new_calls
+testFormat: workflowfailure
+tags: ignore
+
+files {
+  wdl: no_new_calls/no_new_calls.wdl
+  options: no_new_calls/no_new_calls.options
+}
+
+metadata {
+  workflowName: no_new_calls
+  status: Failed
+  "calls.no_new_calls.boundToFail.executionStatus": Failed
+  "calls.no_new_calls.shouldNotStart.executionStatus": NotStarted
+  "calls.no_new_calls.shouldSucceed.executionStatus": Done
+  "calls.no_new_calls.delayedTask.executionStatus": NotStarted
+}

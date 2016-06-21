@@ -1,0 +1,20 @@
+//Currently on 0.20 WorkflowFinalizingInProgress state fails the workflow
+name: direct_logs
+testFormat: workflowsuccess
+tags: ignore
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  //options: direct_logs/direct_logs.options
+}
+
+metadata {
+  workflowName: hello
+  status: Succeeded
+
+  //Eventually looking to confirm for these new paths from metadata:
+  //"gs://cloud-cromwell-dev/centaur-tests/direct_wf_logs"
+  //"gs://cloud-cromwell-dev/centaur-tests/direct_call_logs"
+  //"gs://cloud-cromwell-dev/centaur-tests/direct_outputs"
+}

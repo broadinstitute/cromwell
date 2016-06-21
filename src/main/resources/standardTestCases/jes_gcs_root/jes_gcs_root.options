@@ -1,0 +1,3 @@
+{
+  "jes_gcs_root": "gs://cloud-cromwell-dev/centaur-tests/jes_gcs_root"
+}

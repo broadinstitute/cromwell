@@ -1,0 +1,16 @@
+#Currently doesn't work in 0.20, monitoring log is empty
+
+name: monitoring
+testFormat: workflowsuccess
+tags: ignore
+
+files {
+  wdl: monitoring/monitoring.wdl
+  #options: monitoring/monitoring.options
+}
+
+metadata {
+  workflowName: monitoring
+  status: Succeeded
+  #"calls.monitoring.simpleNeasy.monitoring_script": "gs://cloud-cromwell-dev/cromwell_execution/monitoring/<<UUID>>/call-simpleNeasy/monitoring.log"
+}

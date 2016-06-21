@@ -3,7 +3,7 @@ package cromwell.engine.backend
 import java.nio.file.{Files, Paths}
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ActorSystem, Props}
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec
@@ -52,9 +52,9 @@ trait WorkflowDescriptorBuilder {
     implicit val ec = actorSystem.dispatcher
 
     val serviceRegistryIgnorer = actorSystem.actorOf(Props.empty)
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer), "MaterializeWorkflowDescriptorActor-" + id.id)
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
-      MaterializeWorkflowDescriptorCommand(id, workflowSources, ConfigFactory.load)
+      MaterializeWorkflowDescriptorCommand(workflowSources, ConfigFactory.load)
     ).mapTo[WorkflowDescriptorMaterializationResult]
 
     Await.result(workflowDescriptorFuture map {
@@ -139,7 +139,7 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
 //
 //      val tmpDir = Files.createTempDirectory("wf-outputs").toAbsolutePath
 //      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-//        s"""{ "outputs_path": "$tmpDir" }""")
+//        s"""{ "final_workflow_outputs_dir": "$tmpDir" }""")
 //
 //      val workflowOutputs = Map(
 //        "wfoutputs.A.out" -> "call-A/out",
@@ -253,7 +253,7 @@ class WorkflowDescriptorSpec extends CromwellTestkitSpec with WorkflowDescriptor
 //
 //      val tmpDir = Files.createTempDirectory("workflow-log").toAbsolutePath
 //      val sources = WorkflowSourceFiles(SampleWdl.WorkflowOutputsWithFiles.wdlSource(), "{}",
-//        s"""{ "workflow_log_dir": "$tmpDir" }""")
+//        s"""{ "final_workflow_log_dir": "$tmpDir" }""")
 //
 //      val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = sources, conf = ConfigFactory.load)
 //      descriptor.copyWorkflowLog().futureValue

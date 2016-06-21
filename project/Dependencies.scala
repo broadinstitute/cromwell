@@ -69,6 +69,7 @@ object Dependencies {
     "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.typesafe" % "config" % "1.3.0",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
+    "ch.qos.logback" % "logback-classic" % "1.1.3",
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies ++ googleApiClientDependencies
 

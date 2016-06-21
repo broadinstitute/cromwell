@@ -5,6 +5,8 @@ import java.time.OffsetDateTime
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
+import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
+import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
@@ -128,20 +130,22 @@ object WorkflowActor {
             startMode: StartMode,
             wdlSource: WorkflowSourceFiles,
             conf: Config,
-            serviceRegistryActor: ActorRef): Props = Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor))
+            serviceRegistryActor: ActorRef,
+            workflowLogCopyRouter: ActorRef): Props = {
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter))
+  }
 }
 
 /**
   * Class that orchestrates a single workflow.
   */
-class WorkflowActor(workflowId: WorkflowId,
+class WorkflowActor(val workflowId: WorkflowId,
                     startMode: StartMode,
                     workflowSources: WorkflowSourceFiles,
                     conf: Config,
-                    serviceRegistryActor: ActorRef)
-  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with ActorLogging {
-
-  val tag = s"WorkflowActor [UUID(${workflowId.shortString})]"
+                    serviceRegistryActor: ActorRef,
+                    workflowLogCopyRouter: ActorRef)
+  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
   implicit val actorSystem = context.system
   implicit val ec = context.dispatcher
@@ -154,12 +158,12 @@ class WorkflowActor(workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor), s"MaterializeWorkflowDescriptorActor-$workflowId")
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId), s"MaterializeWorkflowDescriptorActor-$workflowId")
       // Is this the right place for startTime ?
       val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
       serviceRegistryActor ! PutMetadataAction(startEvent)
 
-      actor ! MaterializeWorkflowDescriptorCommand(workflowId, workflowSources, conf)
+      actor ! MaterializeWorkflowDescriptorCommand(workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)
   }
@@ -232,20 +236,20 @@ class WorkflowActor(workflowId: WorkflowId,
   whenUnhandled {
     case Event(MetadataPutFailed(action, error), _) =>
       // Do something useful here??
-      log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
+      workflowLogger.warn(s"Put failed for Metadata action $action : ${error.getMessage}")
       stay
     case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)
     case unhandledMessage =>
-      log.warning(s"$tag received an unhandled message $unhandledMessage in state $stateName")
+      workflowLogger.warn(s"received an unhandled message $unhandledMessage in state $stateName")
       stay
   }
 
   onTransition {
     case fromState -> toState =>
-      log.info(s"$tag transitioning from $fromState to $toState")
+      workflowLogger.info(s"transitioning from $fromState to $toState")
       // This updates the workflow status
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
@@ -256,11 +260,10 @@ class WorkflowActor(workflowId: WorkflowId,
 
   onTransition {
     case oldState -> terminalState if terminalState.terminal =>
-      log.info(s"$tag transition from $oldState to $terminalState: shutting down")
+      workflowLogger.info(s"transition from $oldState to $terminalState: shutting down")
       // Add the end time of the workflow in the MetadataService
       val now = OffsetDateTime.now
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime),
-        MetadataValue(now))
+      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(now))
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
         case WorkflowSucceededState =>
@@ -268,8 +271,22 @@ class WorkflowActor(workflowId: WorkflowId,
         case WorkflowFailedState => // The failure will already have been sent. So just kick back and relax here.
         case WorkflowAbortedState =>
           context.parent ! WorkflowAbortedResponse(workflowId)
-        case unknownState => log.warning(s"$tag $unknownState is an unhandled terminal state!")
+        case unknownState => workflowLogger.warn(s"$unknownState is an unhandled terminal state!")
       }
+
+      // Copy/Delete workflow logs
+      if (WorkflowLogger.isEnabled) {
+        stateData.workflowDescriptor foreach { wd =>
+          wd.getWorkflowOption(FinalWorkflowLogDir) match {
+            case Some(destinationDir) =>
+              workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(wd.id, buildPath(destinationDir, wd.engineFilesystems))
+            case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile()
+            case _ =>
+          }
+        }
+      }
+
+      context stop self
   }
 
   private def finalizationSucceeded(data: WorkflowActorData) = {

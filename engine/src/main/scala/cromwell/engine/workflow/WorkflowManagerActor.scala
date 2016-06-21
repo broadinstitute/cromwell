@@ -5,22 +5,21 @@ import java.time.OffsetDateTime
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
+import akka.routing.{FromConfig, RoundRobinPool}
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.{WorkflowId, _}
+import cromwell.core.WorkflowId
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
-import cromwell.engine.backend._
-import cromwell.engine.db.DataAccess._
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
-import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
 
 object WorkflowManagerActor {
@@ -82,6 +81,10 @@ class WorkflowManagerActor(config: Config)
   private val tag = self.path.name
 
   private val donePromise = Promise[Unit]()
+
+  private val workflowLogCopyRouter: ActorRef = {
+    context.actorOf(FromConfig.withSupervisorStrategy(CopyWorkflowLogsActor.strategy).props(Props[CopyWorkflowLogsActor].withDispatcher("akka.dispatchers.slow-actor-dispatcher")), "WorkflowLogCopyRouter")
+  }
 
   override def preStart() {
     addShutdownHook()
@@ -203,7 +206,7 @@ class WorkflowManagerActor(config: Config)
       StartNewWorkflow
     }
 
-    val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config, serviceRegistryActor), name = s"WorkflowActor-$workflowId")
+    val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config, serviceRegistryActor, workflowLogCopyRouter), name = s"WorkflowActor-$workflowId")
 
     // We have a valid workflowId for the workflow, send it over to the metadata service
     val submissionEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString))

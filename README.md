@@ -846,7 +846,7 @@ And this set of workflow options:
 
 ```json
 {
-  "defaultRuntimeOptions": {
+  "default_runtime_attributes": {
     "docker": "ubuntu:latest",
     "zones": "us-central1-a us-central1-b"
   }
@@ -1036,7 +1036,7 @@ workflow-options {
 }
 ```
 
-The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `workflow_log_dir`.
+The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `final_workflow_log_dir`.
 
 # Workflow Options
 
@@ -1057,11 +1057,11 @@ Valid keys and their meanings:
 * Global *(use with any backend)*
     * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
     * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
-    * **workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
-    * **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
-    * **call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
-    * **defaultRuntimeOptions** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
-    * **workflowFailureMode** - What happens after a task fails. Choose from:
+    * **final_workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
+    * **final_workflow_outputs_dir** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
+    * **final_call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
+    * **default_runtime_attributes** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
+    * **workflow_failure_mode** - What happens after a task fails. Choose from:
         * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
         * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish
         * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.

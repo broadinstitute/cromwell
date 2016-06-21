@@ -38,7 +38,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
-      "defaultRuntimeOptions" -> JsObject(defaults)
+      "default_runtime_attributes" -> JsObject(defaults)
     )))
   }
 

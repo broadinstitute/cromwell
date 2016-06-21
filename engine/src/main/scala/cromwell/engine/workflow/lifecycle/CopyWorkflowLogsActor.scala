@@ -1,34 +1,57 @@
 package cromwell.engine.workflow.lifecycle
 
+import java.io.IOException
 import java.nio.file.Path
 
-import akka.actor.Props
-import cromwell.core.{ExecutionStore, OutputStore, PathCopier, WorkflowId}
-import cromwell.engine.EngineWorkflowDescriptor
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props}
+import better.files._
+import cromwell.core._
+import cromwell.core.logging.WorkflowLogger
+import cromwell.database.obj.WorkflowMetadataKeys
+import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 
 object CopyWorkflowLogsActor {
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = Props(
-    new CopyWorkflowLogsActor(workflowId, workflowDescriptor, executionStore, outputStore)
-  )
-}
+  // Commands
+  case class Copy(workflowId: WorkflowId, destinationDirPath: Path)
 
-class CopyWorkflowLogsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor,
-                            executionStore: ExecutionStore, outputStore: OutputStore)
-  extends EngineWorkflowCopyFinalizationActor {
-
-  override def copyFiles(): Unit = {
-    for {
-      workflowLogDirString <- getWorkflowOption("workflow_log_dir")
-      tempLogFilePath <- getTempLogFilePathOption
-    } yield copyWorkflowLog(tempLogFilePath, workflowLogDirString)
+  val strategy = OneForOneStrategy(maxNrOfRetries = 3) {
+    case _: IOException => Restart
   }
 
-  // TODO: PBE: https://github.com/broadinstitute/cromwell/issues/814
-  private def getTempLogFilePathOption: Option[Path] = ???
+  def props = Props(new CopyWorkflowLogsActor())
+}
 
-  private def copyWorkflowLog(tempLogFilePath: Path, workflowLogDirString: String): Unit = {
-    val workflowLogDirPath = convertStringToPath(workflowLogDirString)
-    val destinationFilePath = workflowLogDirPath.resolve(tempLogFilePath.getFileName.toString)
-    PathCopier.copy(tempLogFilePath, destinationFilePath)
+// This could potentially be turned into a more generic "Copy/Move something from A to B"
+// Which could be used for other copying work (outputs, call logs..)
+class CopyWorkflowLogsActor extends Actor with ActorLogging with PathFactory with ServiceRegistryClient {
+
+  def copyAndClean(src: Path, dest: Path): Unit = {
+    dest.parent.createDirectories()
+
+    src.copyTo(dest, overwrite = true)
+    if (WorkflowLogger.isTemporary) src.delete()
+  }
+
+  override def receive = {
+    case CopyWorkflowLogsActor.Copy(workflowId, destinationDir) =>
+      val workflowLogger = new WorkflowLogger(self.path.name, workflowId, Option(log))
+
+      workflowLogger.workflowLogPath foreach { src =>
+        if (src.exists) {
+          val destPath = destinationDir.resolve(src.getFileName)
+          workflowLogger.info(s"Copying workflow logs from ${src.toAbsolutePath} to $destPath")
+
+          copyAndClean(src, destPath)
+
+          val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(destPath))
+          serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+        }
+      }
+  }
+
+  override def preRestart(t: Throwable, message: Option[Any]) = {
+    message foreach self.forward
   }
 }

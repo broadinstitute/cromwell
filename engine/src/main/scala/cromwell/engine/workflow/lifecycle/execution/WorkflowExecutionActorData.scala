@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.nio.file.FileSystem
+
 import akka.actor.ActorRef
 import cromwell.core.ExecutionStatus._
 import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
@@ -22,7 +24,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
                                       outputStore: OutputStore) extends WdlLookup {
 
-  override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.backendDescriptor.workflowOptions)
+  override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.engineFilesystems)
 
   def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = this.copy(
     executionStore = executionStore.add(Map(jobKey -> Done)),

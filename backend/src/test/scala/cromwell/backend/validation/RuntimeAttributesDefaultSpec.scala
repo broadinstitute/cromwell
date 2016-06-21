@@ -20,7 +20,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
   it should "coerce workflow options from Json to WdlValues" in {
     val workflowOptions = WorkflowOptions(JsObject(
-      "defaultRuntimeOptions" -> JsObject(map))
+      "default_runtime_attributes" -> JsObject(map))
     )
 
     val coercionMap: Map[String, Set[WdlType]] = Map(
@@ -42,7 +42,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
   it should "only return default values if they're in the coercionMap" in {
     val workflowOptions = WorkflowOptions(JsObject(
-      "defaultRuntimeOptions" -> JsObject(map))
+      "default_runtime_attributes" -> JsObject(map))
     )
 
     val coercionMap: Map[String, Set[WdlType]] = Map(
@@ -68,7 +68,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
   it should "throw an exception if a value can't be coerced" in {
     val workflowOptions = WorkflowOptions(JsObject(
-      "defaultRuntimeOptions" -> JsObject(map))
+      "default_runtime_attributes" -> JsObject(map))
     )
 
     val coercionMap: Map[String, Set[WdlType]] = Map(

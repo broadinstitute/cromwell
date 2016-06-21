@@ -48,6 +48,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   }
 
   private def copyCallOutputs(): Future[Unit] = {
+    import cromwell.core.WorkflowOptions._
     /*
     NOTE: Only using one thread pool slot here to upload all the files for all the calls.
     Using the slow-actor-dispatcher defined in application.conf because this might take a while.
@@ -56,7 +57,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
     Measure and optimize as necessary. Will likely need retry code at some level as well.
      */
-    Future(getWorkflowOption("call_logs_dir") foreach copyCallOutputs)(context.system.dispatcher)
+    Future(workflowDescriptor.getWorkflowOption(FinalCallLogsDir) foreach copyCallOutputs)(context.system.dispatcher)
   }
 
   private def copyCallOutputs(callLogsDir: String): Unit = {

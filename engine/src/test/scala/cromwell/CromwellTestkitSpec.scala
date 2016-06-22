@@ -426,7 +426,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
     val maxRetries = 3
     def isFatal(e: Throwable) = e match {
-      case _: OutputNotFoundException => false
+      case _: LogNotFoundException => false
       case _ => true
     }
     eventFilter.intercept {

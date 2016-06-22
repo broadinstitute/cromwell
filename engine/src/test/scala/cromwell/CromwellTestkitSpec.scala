@@ -343,8 +343,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     TestActorRef(new WorkflowManagerActor(config), name = "WorkflowManagerActor")
   }
 
+  def workflowSuccessFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1)
+
   def runWdl(sampleWdl: SampleWdl,
-             eventFilter: EventFilter,
+             eventFilter: EventFilter = workflowSuccessFilter,
              runtime: String = "",
              workflowOptions: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,

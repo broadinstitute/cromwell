@@ -213,5 +213,15 @@ class MaterializeWorkflowDescriptorActorSpec
 //      }
 //      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
     }
+
+    // TODO: PBE These tests have migrated here from WorkflowManagerActorSpec:
+    "Handle coercion failures gracefully" ignore {
+
+    }
+
+    "error when running a workflowless WDL" ignore {
+
+    }
+
   }
 }

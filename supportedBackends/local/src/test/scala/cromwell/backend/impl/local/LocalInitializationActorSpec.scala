@@ -4,8 +4,9 @@ import akka.actor.ActorSystem
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
+import cromwell.backend.ConfigResourceString.usingAsConfigFile
 import cromwell.backend.io.BackendTestkitSpec
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, ConfigResourceString}
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s.Call
@@ -74,11 +75,13 @@ class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializat
 
   "LocalInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
-      within(Timeout) {
-        EventFilter.warning(pattern = escapePattern(s"Key/s [memory] is/are not supported by LocalBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
-          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
-          val backend = getLocalBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfigDescriptor)
-          backend ! Initialize
+      usingAsConfigFile("services-application.conf") {
+        within(Timeout) {
+          EventFilter.warning(pattern = escapePattern(s"Key/s [memory] is/are not supported by LocalBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
+            val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
+            val backend = getLocalBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfigDescriptor)
+            backend ! Initialize
+          }
         }
       }
     }

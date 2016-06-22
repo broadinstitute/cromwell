@@ -59,4 +59,21 @@ package object backend {
   }
 
   case class PreemptedException(msg: String) extends Exception(msg)
+
+  object ConfigResourceString {
+    def usingAsConfigFile[T](string: String)(block: => T): T = {
+      val config = getClass.getClassLoader.getResource(string)
+      val configUrlProperty  = "config.url"
+      val original = Option(System.getProperty(configUrlProperty))
+      System.setProperty(configUrlProperty, config.toURI.toString)
+      try {
+        block
+      } finally {
+        original match {
+          case Some(o) => System.setProperty(configUrlProperty, o)
+          case None => System.clearProperty(configUrlProperty)
+        }
+      }
+    }
+  }
 }

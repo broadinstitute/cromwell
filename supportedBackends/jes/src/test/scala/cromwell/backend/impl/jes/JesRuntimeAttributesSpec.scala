@@ -6,6 +6,9 @@ import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCo
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.Logger
+import org.slf4j.helpers.NOPLogger
+import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
@@ -14,7 +17,7 @@ import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, NamespaceWithWorkflow, WdlExpression, WdlSource}
 
-class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
+class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
   val HelloWorld =
     """
@@ -274,6 +277,28 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       val workflowOptions = workflowOptionsWithDefaultRA(Map(MemoryKey -> JsString("65 GB")))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, expectedRuntimeAttributes)
     }
+
+    "use reasonable default values" in {
+      val expectedRuntimeAttributes = staticDefaultsWithUbuntu
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" }""").head
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "warn for unrecognized keys" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" whatIsThis: "noIdea" andThis: "donno" }""").head
+      val mockLogger = mock[Logger]
+      mockLogger.warn(anyString).answers { _ match {
+        case message: String =>
+          // The order cannot be guaranteed because runtime attributes come as an unordered map
+          // So manually check for keys independently
+          message should include("Unrecognized runtime attribute keys:")
+          message should include("whatIsThis")
+          message should include("andThis")
+      }
+      }
+
+      assert(JesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, mockLogger) == staticDefaultsWithUbuntu)
+    }
   }
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
@@ -308,7 +333,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], options: WorkflowOptions, expectedRuntimeAttributes: JesRuntimeAttributes): Unit = {
     try {
-      assert(JesRuntimeAttributes(runtimeAttributes, options) == expectedRuntimeAttributes)
+      assert(JesRuntimeAttributes(runtimeAttributes, options, NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
@@ -316,7 +341,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
     try {
-      JesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
+      JesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, NOPLogger.NOP_LOGGER)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))

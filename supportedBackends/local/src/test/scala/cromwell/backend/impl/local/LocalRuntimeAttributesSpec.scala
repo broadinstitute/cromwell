@@ -5,6 +5,9 @@ import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.Logger
+import org.slf4j.helpers.NOPLogger
+import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
@@ -12,7 +15,7 @@ import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, NamespaceWithWorkflow, WdlExpression, WdlSource}
 
-class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
+class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
   val HelloWorld =
     """
@@ -107,6 +110,28 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, staticDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2))))
     }
 
+    "use reasonable default values" in {
+      val expectedRuntimeAttributes = staticDefaults
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "warn for unrecognized keys" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { whatIsThis: "noIdea" andThis: "donno" }""").head
+      val mockLogger = mock[Logger]
+      mockLogger.warn(anyString).answers { _ match {
+          case message: String =>
+            // The order cannot be guaranteed because runtime attributes come as an unordered map
+            // So manually check for keys independently
+            message should include("Unrecognized runtime attribute keys:")
+            message should include("whatIsThis")
+            message should include("andThis")
+        }
+      }
+
+      assert(LocalRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, mockLogger) == staticDefaults)
+    }
+
   }
 
   private def buildWorkflowDescriptor(wdl: WdlSource,
@@ -139,7 +164,7 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: LocalRuntimeAttributes): Unit = {
     try {
-      assert(LocalRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
+      assert(LocalRuntimeAttributes(runtimeAttributes, workflowOptions, NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
@@ -147,7 +172,7 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private def assertLocalRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
     try {
-      LocalRuntimeAttributes(runtimeAttributes, WorkflowOptions(JsObject(Map.empty[String, JsValue])))
+      LocalRuntimeAttributes(runtimeAttributes, WorkflowOptions(JsObject(Map.empty[String, JsValue])), NOPLogger.NOP_LOGGER)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))

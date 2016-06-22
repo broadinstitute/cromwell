@@ -69,7 +69,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     // Fail the call if runtime attributes can't be evaluated
     val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    LocalRuntimeAttributes(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions)
+    LocalRuntimeAttributes(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions, jobLogger)
   }
 
   lazy val runsOnDocker = runtimeAttributes.dockerImage.isDefined

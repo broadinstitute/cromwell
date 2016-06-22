@@ -85,7 +85,6 @@ trait MetadataComponent {
   val metadataAutoInc = metadata returning metadata.map(_.metadataId)
 
   def queryMetadataMatchingAnyWildcardKeys(workflowUuid: String, keys: NonEmptyList[String], requireEmptyJobKey: Boolean) = {
-    def hasEmptyJobKey(m: Metadata): Rep[Boolean] = m.callFqn.isEmpty && m.index.isEmpty && m.attempt.isEmpty
     val repRequireEmptyJobKey: Rep[Boolean] = requireEmptyJobKey
 
     for {
@@ -95,4 +94,21 @@ trait MetadataComponent {
       if !repRequireEmptyJobKey || hasEmptyJobKey(m)
     } yield m
   }
+
+  def queryMetadataNotMatchingAnyWildcardKeys(workflowUuid: String, keys: NonEmptyList[String],
+                                              requireEmptyJobKey: Boolean) = {
+    val repRequireEmptyJobKey: Rep[Boolean] = requireEmptyJobKey
+
+    for {
+      metadatum <- metadata
+      if metadatum.workflowExecutionUuid === workflowUuid
+      if !(keys.list map { metadatum.key like _ } reduce (_ || _))
+      if !repRequireEmptyJobKey || hasEmptyJobKey(metadatum)
+    } yield metadatum
+  }
+
+  private[this] def hasEmptyJobKey(metadatum: Metadata): Rep[Boolean] = {
+    metadatum.callFqn.isEmpty && metadatum.index.isEmpty && metadatum.attempt.isEmpty
+  }
+
 }

@@ -81,7 +81,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
 
   private def requestMetadata: State = {
     val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${stateData.id.get}")
-    metadataBuilder ! GetSingleWorkflowMetadataAction(stateData.id.get)
+    metadataBuilder ! GetSingleWorkflowMetadataAction(stateData.id.get, None, None)
     goto (RequestingMetadata)
   }
 

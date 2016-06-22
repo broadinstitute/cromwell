@@ -23,7 +23,7 @@ object Settings {
     https://github.com/scala/pickling/issues/10
   */
   val compilerSettings = List(
-    "-deprecation",
+    //"-deprecation", // TODO: PBE: Re-enable deprecation warnings
     "-unchecked",
     "-feature",
     "-Xmax-classfile-name",

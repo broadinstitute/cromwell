@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
+import cromwell.backend.ConfigResourceString._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -55,7 +56,9 @@ class HtCondorInitializationActorSpec extends TestKit(ActorSystem("CondorInitial
   }
 
   private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf))
+    usingAsConfigFile("services-application.conf") {
+      system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf))
+    }
   }
 
   "HtCondorInitializationActor" should {

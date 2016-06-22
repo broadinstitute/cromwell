@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
+import cromwell.backend.ConfigResourceString._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.core.logging.LoggingTest._
@@ -87,11 +88,13 @@ class SgeInitializationActorSpec extends TestKit(ActorSystem("SgeInitializationA
 
   "SgeInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
-      within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
-        val backend = getSgeBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        EventFilter.warning(pattern = escapePattern(s"Key/s [memory] is/are not supported by SgeBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
-          backend ! Initialize
+      usingAsConfigFile("services-application.conf") {
+        within(Timeout) {
+          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
+          val backend = getSgeBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
+          EventFilter.warning(pattern = escapePattern(s"Key/s [memory] is/are not supported by SgeBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
+            backend ! Initialize
+          }
         }
       }
     }

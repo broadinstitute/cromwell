@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
+import cromwell.backend.ConfigResourceString._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -128,31 +129,35 @@ class JesInitializationActorSpec extends TestKit(ActorSystem("JesInitializationA
 
   "JesInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
-      within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-        val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        EventFilter.warning(pattern = escapePattern(s"Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
-          backend ! Initialize
-        }
-        expectMsgPF() {
-          case InitializationSuccess => //Docker entry is present.
-          case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+      usingAsConfigFile("services-application.conf") {
+        within(Timeout) {
+          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
+          val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
+          EventFilter.warning(pattern = escapePattern(s"Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."), occurrences = 1) intercept {
+            backend ! Initialize
+          }
+          expectMsgPF() {
+            case InitializationSuccess => //Docker entry is present.
+            case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+          }
         }
       }
     }
 
     "return InitializationFailed when docker runtime attribute key is not present" in {
-      within(Timeout) {
-        val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-        val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
-        backend ! Initialize
-        expectMsgPF() {
-          case InitializationFailed(failure) =>
-            failure match {
-              case exception: IllegalArgumentException =>
-                if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
-                  fail("Exception message does not contains 'Runtime attribute validation failed'.")
-            }
+      usingAsConfigFile("services-application.conf") {
+        within(Timeout) {
+          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+          val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
+          backend ! Initialize
+          expectMsgPF() {
+            case InitializationFailed(failure) =>
+              failure match {
+                case exception: IllegalArgumentException =>
+                  if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
+                    fail("Exception message does not contains 'Runtime attribute validation failed'.")
+              }
+          }
         }
       }
     }

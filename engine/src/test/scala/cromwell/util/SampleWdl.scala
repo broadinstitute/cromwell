@@ -1983,6 +1983,25 @@ object SampleWdl {
     val rawInputs = Map.empty[String, Any]
   }
 
+  object StdoutStderr extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+        |task echoStdoutStderr {
+        |  command {
+        |    echo somethingOnStdout
+        |    echo somethingOnStderr >&2
+        |  }
+        |  RUNTIME
+        |}
+        |
+        |workflow echo_wf {
+        |  call echoStdoutStderr
+        |}
+      """.stripMargin.replaceAll("RUNTIME", runtime)
+
+    val rawInputs = Map.empty[String, Any]
+  }
+
   object WorkflowWithContinueOnReturnCode extends SampleWdl {
     override def wdlSource(runtime: String = "") =
       """

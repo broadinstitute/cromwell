@@ -6,11 +6,9 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
-import better.files.File
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
-import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
@@ -55,6 +53,7 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
 }
 
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
+case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")
 
 object CromwellTestkitSpec {
   val ConfigText =
@@ -412,79 +411,45 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     }
   }
 
-  /*
-     FIXME: I renamed this as it appears to be asserting the stdout/stderr of a single call which is kinda weird for
-     a full workflow type of thing
-  */
-  def runSingleCallWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor],
-                                               sources: WorkflowSourceFiles,
-                                               eventFilter: EventFilter,
-                                               fqn: FullyQualifiedName,
-                                               index: ExecutionIndex,
-                                               stdout: Option[Seq[String]],
-                                               stderr: Option[Seq[String]],
-                                               expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty)(implicit ec: ExecutionContext) = {
-    eventFilter.intercept {
-      within(timeoutDuration) {
-        val workflowId = wma.submit(sources)
-        verifyWorkflowState(wma, workflowId, WorkflowSucceeded)
-      }
+  def runWdlAndAssertLogs(sampleWdl: SampleWdl,
+                          eventFilter: EventFilter,
+                          expectedStdoutContent: String,
+                          expectedStderrContent: String,
+                          runtime: String = "",
+                          workflowOptions: String = "{}",
+                          allowOtherOutputs: Boolean = true,
+                          terminalState: WorkflowState = WorkflowSucceeded,
+                          config: Config = DefaultConfig,
+                          workflowManagerActor: Option[TestActorRef[WorkflowManagerActor]] = None)
+                         (implicit ec: ExecutionContext): WorkflowId = {
+    val workflowManager = workflowManagerActor.getOrElse(buildWorkflowManagerActor(config))
+    val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
+    val maxRetries = 3
+    def isFatal(e: Throwable) = e match {
+      case _: OutputNotFoundException => false
+      case _ => true
     }
-  }
-
-  def runWdlWithWorkflowManagerActor(wma: TestActorRef[WorkflowManagerActor],
-                                     sources: WorkflowSourceFiles,
-                                     eventFilter: EventFilter,
-                                     stdout: Map[FullyQualifiedName, Seq[String]],
-                                     stderr: Map[FullyQualifiedName, Seq[String]],
-                                     expectedOutputs: Map[FullyQualifiedName, WdlValue] = Map.empty,
-                                     terminalState: WorkflowState = WorkflowSucceeded,
-                                     assertStdoutStderr: Boolean = false)(implicit ec: ExecutionContext) = {
     eventFilter.intercept {
       within(timeoutDuration) {
-        val workflowId = wma.submit(sources)
-        verifyWorkflowState(wma, workflowId, terminalState)
+        val workflowId = workflowManager.submit(sources)
+        verifyWorkflowState(workflowManager, workflowId, terminalState)
 
-        if (assertStdoutStderr) {
-          //val standardStreams = wma.workflowStdoutStderr(workflowId)
-          stdout foreach { ???
-//            case (fqn, out) if standardStreams.contains(fqn) =>
-//              out shouldEqual (standardStreams(fqn) map { s => File(s.stdout.value).contentAsString })
-          }
-          stderr foreach { ???
-//            case (fqn, err) if standardStreams.contains(fqn) =>
-//              err shouldEqual (standardStreams(fqn) map { s => File(s.stderr.value).contentAsString })
-          }
+        def checkLogs(): Future[WorkflowId] = Future {
+          import better.files._
+          val (stdout, stderr) = getFirstCallLogs(workflowId)
+          Paths.get(stdout).contentAsString shouldBe expectedStdoutContent
+          Paths.get(stderr).contentAsString shouldBe expectedStderrContent
+          workflowId
         }
+
+        // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
+        Await.result(Retry.withRetry(
+          checkLogs,
+          maxRetries = Some(maxRetries),
+          isFatal = isFatal,
+          backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), timeoutDuration)
       }
     }
-  }
-
-  def runWdlAndAssertStdoutStderr(sampleWdl: SampleWdl,
-                                  eventFilter: EventFilter,
-                                  fqn: FullyQualifiedName,
-                                  index: ExecutionIndex,
-                                  runtime: String = "",
-                                  stdout: Option[Seq[String]] = None,
-                                  stderr: Option[Seq[String]] = None,
-                                  config: Config = DefaultConfig)
-                                 (implicit ec: ExecutionContext) = {
-    val actor = buildWorkflowManagerActor(config)
-    val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    runSingleCallWdlWithWorkflowManagerActor(actor, sources, eventFilter, fqn, index, stdout, stderr)
-  }
-
-  def runWdlAndAssertWorkflowStdoutStderr(sampleWdl: SampleWdl,
-                                          eventFilter: EventFilter,
-                                          runtime: String = "",
-                                          stdout: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
-                                          stderr: Map[FullyQualifiedName, Seq[String]] = Map.empty[FullyQualifiedName, Seq[String]],
-                                          terminalState: WorkflowState = WorkflowSucceeded,
-                                          config: Config = DefaultConfig)
-                                         (implicit ec: ExecutionContext) = {
-    val actor = buildWorkflowManagerActor(config)
-    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, "{}")
-    runWdlWithWorkflowManagerActor(actor, workflowSources, eventFilter, stdout, stderr, Map.empty, terminalState)
   }
 
   def getWorkflowMetadata(workflowId: WorkflowId, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
@@ -520,6 +485,17 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       case f => throw new RuntimeException(s"Unexpected status response: $f")
     }
     Await.result(statusResponse, Duration.Inf)
+  }
+
+  def getFirstCallLogs(workflowId: WorkflowId)(implicit ec: ExecutionContext): (String, String) = {
+    val logsResponse = serviceRegistryActor.ask(GetLogs(workflowId)).collect {
+      case LogsResponse(_, logs) =>
+        val stdout = logs.find { _.key.key.endsWith("stdout") } flatMap { _.value map { _.value } } getOrElse { throw new LogNotFoundException("stdout") }
+        val stderr = logs.find { _.key.key.endsWith("stderr") } flatMap { _.value map { _.value } } getOrElse { throw new LogNotFoundException("stderr") }
+        (stdout, stderr)
+      case f => throw new RuntimeException(s"Unexpected logs response: $f")
+    }
+    Await.result(logsResponse, Duration.Inf)
   }
 
   def getWorkflowOutputsFromMetadata(id: WorkflowId): Map[FullyQualifiedName, WdlValue] = {

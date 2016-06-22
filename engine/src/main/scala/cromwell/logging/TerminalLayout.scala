@@ -7,9 +7,11 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.pattern.ThrowableProxyConverter
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.LayoutBase
-import cromwell.util.TerminalUtil
 
 object TerminalLayout {
+  val HighlightedError = fansi.Color.Red("error")
+  val HighlightedWarn = fansi.Color.Yellow("warn")
+
   val Converter = new ThrowableProxyConverter
   Converter.start()
 
@@ -22,14 +24,11 @@ object TerminalLayout {
   implicit class ColorString(msg: String) {
     def colorizeUuids: String = {
       "UUID\\((.*?)\\)".r.findAllMatchIn(msg).foldLeft(msg) {
-        case (l, r) =>
-          val color = if (Option(System.getProperty("RAINBOW_UUID")).isDefined)
-            Math.abs(17 * r.group(1).substring(0,8).map(_.toInt).product) % 209 + 22
-          else 2
-          l.replace(r.group(0), TerminalUtil.highlight(color, r.group(1)))
+        case (l, r) => l.replace(r.group(0), fansi.Color.Green(r.group(1)).render)
       }
     }
-    def colorizeCommand: String = msg.replaceAll("`([^`]*?)`", TerminalUtil.highlight(5, "$1"))
+
+    def colorizeCommand: String = msg.replaceAll("`([^`]*?)`", fansi.Color.Magenta("$1").render)
   }
 }
 
@@ -37,10 +36,11 @@ class TerminalLayout extends LayoutBase[ILoggingEvent] {
   import TerminalLayout._
   def doLayout(event: ILoggingEvent): String = {
     val level = event.getLevel match {
-      case Level.WARN => TerminalUtil.highlight(220, "warn")
-      case Level.ERROR => TerminalUtil.highlight(1, "error")
+      case Level.WARN => HighlightedWarn
+      case Level.ERROR => HighlightedError
       case x => x.toString.toLowerCase
     }
+
     val timestamp = OffsetDateTime.now.format(dateTimeFormatter)
     val highlightedMessage = event.getFormattedMessage.colorizeUuids.colorizeCommand
     s"[$timestamp] [$level] $highlightedMessage\n${event.toStackTrace}"

@@ -120,12 +120,12 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { whatIsThis: "noIdea" andThis: "donno" }""").head
       val mockLogger = mock[Logger]
       mockLogger.warn(anyString).answers { _ match {
-          case s: String =>
+          case message: String =>
             // The order cannot be guaranteed because runtime attributes come as an unordered map
             // So manually check for keys independently
-            s should include("Unrecognized runtime attribute keys:")
-            s should include("whatIsThis")
-            s should include("andThis")
+            message should include("Unrecognized runtime attribute keys:")
+            message should include("whatIsThis")
+            message should include("andThis")
         }
       }
 

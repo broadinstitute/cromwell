@@ -5,7 +5,9 @@ import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.Logger
 import org.slf4j.helpers.NOPLogger
+import org.specs2.mock.Mockito
 import spray.json._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.NoFunctions
@@ -13,7 +15,7 @@ import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, NamespaceWithWorkflow, WdlExpression, WdlSource}
 
-class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
+class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
   val HelloWorld =
     """
@@ -106,6 +108,28 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers {
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
       val workflowOptions = workflowOptionsWithDefaultRA(Map(ContinueOnReturnCodeKey -> JsArray(Vector(JsNumber(1), JsNumber(2)))))
       assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, staticDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2))))
+    }
+
+    "use reasonable default values" in {
+      val expectedRuntimeAttributes = staticDefaults
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "warn for unrecognized keys" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { whatIsThis: "noIdea" andThis: "donno" }""").head
+      val mockLogger = mock[Logger]
+      mockLogger.warn(anyString).answers { _ match {
+          case s: String =>
+            // The order cannot be guaranteed because runtime attributes come as an unordered map
+            // So manually check for keys independently
+            s should include("Unrecognized runtime attribute keys:")
+            s should include("whatIsThis")
+            s should include("andThis")
+        }
+      }
+
+      assert(LocalRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, mockLogger) == staticDefaults)
     }
 
   }

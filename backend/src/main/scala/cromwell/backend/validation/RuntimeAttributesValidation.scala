@@ -3,6 +3,7 @@ package cromwell.backend.validation
 import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core._
+import org.slf4j.Logger
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.WdlIntegerType
 import wdl4s.values._
@@ -13,6 +14,11 @@ import scalaz.{Failure, NonEmptyList}
 object RuntimeAttributesValidation {
   val MemoryWrongAmountMsg = "Expecting %s runtime attribute value greater than 0 but got %s"
   val MemoryWrongFormatMsg = s"Expecting $MemoryKey runtime attribute to be an Integer or String with format '8 GB'. Exception: %s"
+
+  def warnUnrecognized(actual: Set[String], expected: Set[String], logger: Logger) = {
+    val unrecognized = actual.diff(expected).mkString(", ")
+    if(unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
+  }
 
   def validateDocker(docker: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     docker match {

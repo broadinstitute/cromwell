@@ -30,7 +30,7 @@ object LocalRuntimeAttributes {
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
 
-    withDefaultValues.keySet.diff(coercionMap.keySet) map { k => s"Unrecognized runtime attribute key: $k" } foreach logger.warn
+    warnUnrecognized(withDefaultValues.keySet, coercionMap.keySet, logger)
 
     val docker = validateDocker(withDefaultValues.get(DockerKey), None.successNel)
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))

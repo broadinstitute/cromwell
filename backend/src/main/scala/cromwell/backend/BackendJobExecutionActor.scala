@@ -78,6 +78,6 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
 
     })
 
-    TryUtil.sequenceMap(evaluatedOutputs, s"Workflow $jobDescriptor.descriptor.id post processing failed")
+    TryUtil.sequenceMap(evaluatedOutputs, s"Workflow ${jobDescriptor.descriptor.id} post processing failed.")
   }
 }

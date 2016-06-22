@@ -782,4 +782,17 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+
+  // TODO PBE: These tests have migrated here from WorkflowManagerActorSpec:
+  ignore should "error when asked for outputs of a nonexistent workflow" in {
+
+  }
+
+  ignore should "error when asked for call logs of a nonexistent workflow" in {
+
+  }
+
+  ignore should "error when asked for logs of a nonexistent workflow" in {
+
+  }
 }

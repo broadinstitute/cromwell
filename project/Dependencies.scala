@@ -84,6 +84,7 @@ object Dependencies {
     "ch.qos.logback" % "logback-access" % "1.1.3",
     "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" %% "scalaz-core" % scalazCoreV,
-    "com.github.pathikrit" %% "better-files" % betterFilesV
+    "com.github.pathikrit" %% "better-files" % betterFilesV,
+    "com.lihaoyi" %% "fansi" % "0.1.3"
   ) ++ sprayDependencies
 }

@@ -93,7 +93,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
     val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
 
-    localizeInputs(jobPaths, runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+    localizeInputs(jobPaths.callRoot, runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }
   }
@@ -224,7 +224,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def processSuccess(rc: Int) = {
-    processOutputs(callEngineFunction, jobPaths) match {
+    evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) => SucceededResponse(jobDescriptor.key, Some(rc), outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map { ": " + _ } getOrElse ""

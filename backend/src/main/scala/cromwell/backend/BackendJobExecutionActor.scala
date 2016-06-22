@@ -7,6 +7,7 @@ import cromwell.backend.BackendLifecycleActor._
 import cromwell.core.{JobOutput, JobOutputs}
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
@@ -65,7 +66,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   def evaluateOutputs(wdlFunctions: WdlStandardLibraryFunctions,
                       postMapper: WdlValue => Try[WdlValue] = v => Success(v)) = {
     val inputs = jobDescriptor.inputs
-    jobDescriptor.call.task.outputs.foldLeft(Map.empty[LocallyQualifiedName, Try[JobOutput]])((outputMap, output) => {
+    val evaluatedOutputs = jobDescriptor.call.task.outputs.foldLeft(Map.empty[LocallyQualifiedName, Try[JobOutput]])((outputMap, output) => {
       val currentOutputs = outputMap collect {
         case (name, value) if value.isSuccess => name -> value.get.wdlValue
       }
@@ -76,5 +77,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
       outputMap + jobOutput
 
     })
+
+    TryUtil.sequenceMap(evaluatedOutputs, s"Workflow $jobDescriptor.descriptor.id post processing failed")
   }
 }

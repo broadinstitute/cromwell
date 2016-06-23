@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit._
 import cromwell.core.WorkflowState
 import cromwell.engine._
-import cromwell.engine.backend.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 

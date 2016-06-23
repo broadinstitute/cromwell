@@ -2,7 +2,7 @@ package cromwell.engine
 
 import akka.testkit._
 import cromwell.CromwellTestkitSpec
-import cromwell.engine.backend.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.util.SampleWdl
 
 import scala.concurrent.duration._

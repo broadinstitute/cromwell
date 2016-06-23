@@ -7,8 +7,8 @@ import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
-import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.db.DataAccess
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}

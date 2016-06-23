@@ -1,0 +1,14 @@
+name: default_runtime_attributes
+testFormat: workflowsuccess
+
+files {
+  wdl: default_runtime_attributes/default_runtime_attributes.wdl
+  options: default_runtime_attributes/default_runtime_attributes.options
+}
+
+metadata {
+  workflowName: default_runtime_attributes
+  status: Succeeded
+  "calls.default_runtime_attributes.default_runtime_attributes.executionStatus": Done
+  "outputs.default_runtime_attributes.default_runtime_attributes.ohno": "OH NO!"
+}

@@ -361,6 +361,15 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     }
   }
 
+  def eventually[T](isFatal: Throwable => Boolean, maxRetries: Int = 3)(f: => T): T = {
+    // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
+    Await.result(Retry.withRetry(
+      () => Future(f),
+      maxRetries = Some(maxRetries),
+      isFatal = isFatal,
+      backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), timeoutDuration)
+  }
+
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
                              eventFilter: EventFilter,
                              expectedOutputs: Map[FullyQualifiedName, WdlValue],
@@ -373,7 +382,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                             (implicit ec: ExecutionContext): WorkflowId = {
     val workflowManager = workflowManagerActor.getOrElse(buildWorkflowManagerActor(config))
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
-    val maxRetries = 3
     def isFatal(e: Throwable) = e match {
       case _: OutputNotFoundException => false
       case _ => true
@@ -383,7 +391,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         val workflowId = workflowManager.submit(sources)
         verifyWorkflowState(workflowManager, workflowId, terminalState)
 
-        def checkOutputs() = Future {
+        eventually(isFatal) {
           val outputs = getWorkflowOutputsFromMetadata(workflowId)
           val actualOutputNames = outputs.keys mkString ", "
           val expectedOutputNames = expectedOutputs.keys mkString " "
@@ -400,13 +408,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
           }
           workflowId
         }
-
-        // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
-        Await.result(Retry.withRetry(
-          checkOutputs,
-          maxRetries = Some(maxRetries),
-          isFatal = isFatal,
-          backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), timeoutDuration)
       }
     }
   }
@@ -424,7 +425,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
                          (implicit ec: ExecutionContext): WorkflowId = {
     val workflowManager = workflowManagerActor.getOrElse(buildWorkflowManagerActor(config))
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
-    val maxRetries = 3
     def isFatal(e: Throwable) = e match {
       case _: LogNotFoundException => false
       case _ => true
@@ -434,20 +434,13 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         val workflowId = workflowManager.submit(sources)
         verifyWorkflowState(workflowManager, workflowId, terminalState)
 
-        def checkLogs(): Future[WorkflowId] = Future {
+        eventually(isFatal) {
           import better.files._
           val (stdout, stderr) = getFirstCallLogs(workflowId)
           Paths.get(stdout).contentAsString shouldBe expectedStdoutContent
           Paths.get(stderr).contentAsString shouldBe expectedStderrContent
           workflowId
         }
-
-        // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
-        Await.result(Retry.withRetry(
-          checkLogs,
-          maxRetries = Some(maxRetries),
-          isFatal = isFatal,
-          backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), timeoutDuration)
       }
     }
   }

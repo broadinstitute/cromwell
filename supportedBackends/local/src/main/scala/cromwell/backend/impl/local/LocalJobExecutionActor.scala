@@ -12,7 +12,7 @@ import cromwell.services._
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.util.TryUtil
-import wdl4s.values.{WdlFile, WdlValue}
+import wdl4s.values.{WdlMap, WdlArray, WdlFile, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -89,11 +89,13 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   lazy val instantiatedScript = {
     def toDockerPath(path: WdlValue): WdlValue = path match {
       case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toAbsolutePath.toString)
+      case array: WdlArray => WdlArray(array.wdlType, array.value map toDockerPath)
+      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toDockerPath)
       case v => v
     }
     val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
 
-    localizeInputs(jobPaths, runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+    localizeInputs(jobPaths.callRoot, runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }
   }
@@ -224,7 +226,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def processSuccess(rc: Int) = {
-    processOutputs(callEngineFunction, jobPaths) match {
+    evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) => SucceededResponse(jobDescriptor.key, Some(rc), outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map { ": " + _ } getOrElse ""

@@ -131,7 +131,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   private def processSuccess(rc: Int) = {
-    processOutputs(callEngineFunction, jobPaths) match {
+    evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) => SucceededResponse(jobDescriptor.key, Some(rc), outputs)
       case Failure(e) =>
         val message = Option(e.getMessage) map {
@@ -150,7 +150,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     log.debug("{} Creating execution folder: {}", tag, executionDir)
     executionDir.toString.toFile.createIfNotExists(true)
     try {
-      val command = localizeInputs(jobPaths, false, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+      val command = localizeInputs(jobPaths.callRoot, docker = false, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
         call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
       }
       log.debug("{} Creating bash script for executing command: {}", tag, command)

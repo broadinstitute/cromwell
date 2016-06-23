@@ -57,20 +57,19 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
     testWorkflow(wf, backend)
   }
 
-  it should "execute calls with input files and localize them appropriately" in {
-
+  def localizationSpec(docker: Boolean) = {
     def templateConf(localizers: String) = BackendConfigurationDescriptor(
       ConfigFactory.parseString(
         s"""{
-           |  root = "local-cromwell-executions"
-           |  filesystems {
-           |    local {
-           |      localization = [
-           |        $localizers
-           |      ]
-           |    }
-           |  }
-           |}
+            |  root = "local-cromwell-executions"
+            |  filesystems {
+            |    local {
+            |      localization = [
+            |        $localizers
+            |      ]
+            |    }
+            |  }
+            |}
         """.stripMargin),
       ConfigFactory.parseString("{}")
     )
@@ -94,15 +93,19 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
       ), None)
     )
 
+    val confs = List(
+      (hardConf, false),
+      (copyConf, false)
+    ) ++ (if (!docker) List((symConf, true)) else List.empty)
+
     val localizers = Table(
       ("conf", "isSymLink"),
-      (hardConf, false),
-      (copyConf, false),
-      (symConf, true)
+      confs:_*
     )
 
     forAll(localizers) { (conf, isSymlink) =>
-      val wf = buildWorkflowDescriptor(InputFiles, inputs)
+      val runtime = if (docker) """runtime { docker: "ubuntu:latest" } """ else ""
+      val wf = buildWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val backend = localBackend(jobDescriptorFromSingleCallWorkflow(wf, inputs), conf)
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
       val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
@@ -123,6 +126,14 @@ class LocalJobExecutionActorSpec extends FlatSpec with BackendTestkitSpec with M
         realCallInputFile.exists() shouldBe true
       }
     }
+  }
+
+  it should "execute calls with input files and localize them appropriately" in {
+    localizationSpec(docker = false)
+  }
+
+  it should "execute calls with input files and localize them appropriately (in Docker)" taggedAs DockerTest in {
+    localizationSpec(docker = true)
   }
 
   it should "abort a job and kill a process" in {

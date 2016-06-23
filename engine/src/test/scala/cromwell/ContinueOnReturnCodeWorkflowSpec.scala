@@ -6,54 +6,44 @@ import cromwell.util.SampleWdl
 
 class ContinueOnReturnCodeWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with tasks that produce non-zero return codes" should {
-    "have correct contents in stdout/stderr files for a call that implicitly continues on return code" in {
-      runWdlAndAssertWorkflowStdoutStderr(
+    "Fail if the return code is undefined in the continueOnReturnCode runtime attribute and the return code is non zero" in {
+      runWdl(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1),
-        stdout = Map("w.A" -> Seq("321\n")),
-        stderr = Map("w.A" -> Seq("")),
         terminalState = WorkflowFailed
       )
     }
 
-    "have correct contents in stdout/stderr files for a call that explicitly mentions continue on return code" in {
-      runWdlAndAssertWorkflowStdoutStderr(
+    "Fail if the return code is false in the continueOnReturnCode runtime attribute and the return code is non zero" in {
+      runWdl(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: false}",
         eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1),
-        stdout = Map("w.A" -> Seq("321\n")),
-        stderr = Map("w.A" -> Seq("")),
         terminalState = WorkflowFailed
       )
     }
 
-    "have correct contents in stdout/stderr files for a call that does not continue on return code flag" in {
-      runWdlAndAssertWorkflowStdoutStderr(
+    "Succeed if the return code is true in the continueOnReturnCode runtime attribute" in {
+      runWdl(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: true}",
-        eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
-        stdout = Map("w.A" -> Seq("321\n"), "w.B" -> Seq("321\n")),
-        stderr = Map("w.A" -> Seq(""), "w.B" -> Seq(""))
+        eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1)
       )
     }
 
-    "have correct contents in stdout/stderr files for a call that does not continue on return code value" in {
-      runWdlAndAssertWorkflowStdoutStderr(
+    "Succeed if the return code is defined in the continueOnReturnCode runtime attribute" in {
+      runWdl(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: 123}",
-        eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
-        stdout = Map("w.A" -> Seq("321\n"), "w.B" -> Seq("321\n")),
-        stderr = Map("w.A" -> Seq(""), "w.B" -> Seq(""))
+        eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1)
       )
     }
 
-    "have correct contents in stdout/stderr files for a call that does not continue on return code list" in {
-      runWdlAndAssertWorkflowStdoutStderr(
+    "Succeed if the return code is present in the continueOnReturnCode runtime attributes list" in {
+      runWdl(
         sampleWdl = SampleWdl.ContinueOnReturnCode,
         runtime = "runtime {continueOnReturnCode: [123]}",
-        eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
-        stdout = Map("w.A" -> Seq("321\n"), "w.B" -> Seq("321\n")),
-        stderr = Map("w.A" -> Seq(""), "w.B" -> Seq(""))
+        eventFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1)
       )
     }
   }

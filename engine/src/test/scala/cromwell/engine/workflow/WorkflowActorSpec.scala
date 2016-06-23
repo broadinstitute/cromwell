@@ -37,7 +37,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "run Finalization actor if Initialization fails" in {
       val actor = createWorkflowActor(InitializingWorkflowState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1).intercept {
           actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Materialization Failed")))
         }
@@ -49,10 +49,10 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "run Finalization actor if Initialization is aborted" in {
       val actor = createWorkflowActor(InitializingWorkflowState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowAbortedState", occurrences = 1).intercept {
           actor ! AbortWorkflowCommand
-          currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.timeoutDuration) {
+          currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.TimeoutDuration) {
             case EngineLifecycleActorAbortCommand => actor ! WorkflowInitializationAbortedResponse
           }
         }
@@ -64,7 +64,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "run Finalization if Execution fails" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowFailedState", occurrences = 1).intercept {
           actor ! WorkflowExecutionFailedResponse(ExecutionStore.empty, OutputStore.empty,
             Seq(new Exception("Execution Failed")))
@@ -77,10 +77,10 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "run Finalization actor if Execution is aborted" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowAbortedState", occurrences = 1).intercept {
           actor ! AbortWorkflowCommand
-          currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.timeoutDuration) {
+          currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.TimeoutDuration) {
             case EngineLifecycleActorAbortCommand =>
               actor ! WorkflowExecutionAbortedResponse(ExecutionStore.empty, OutputStore.empty)
           }
@@ -93,7 +93,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "run Finalization actor if Execution succeeds" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1).intercept {
           actor ! WorkflowExecutionSucceededResponse(ExecutionStore.empty, OutputStore.empty)
         }
@@ -105,7 +105,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "not run Finalization actor if aborted when in WorkflowUnstartedState" in {
       val actor = createWorkflowActor(WorkflowUnstartedState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from WorkflowUnstartedState to WorkflowAbortedState", occurrences = 1).intercept {
           actor ! AbortWorkflowCommand
         }
@@ -117,7 +117,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     "not run Finalization actor if aborted when in MaterializingWorkflowDescriptorState" in {
       val actor = createWorkflowActor(MaterializingWorkflowDescriptorState)
 
-      within(CromwellTestkitSpec.timeoutDuration) {
+      within(CromwellTestkitSpec.TimeoutDuration) {
         EventFilter.info(pattern = "transitioning from MaterializingWorkflowDescriptorState to WorkflowAbortedState", occurrences = 1).intercept {
           actor ! AbortWorkflowCommand
         }

@@ -64,12 +64,12 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         waitForInfo("workflow finished with status 'Succeeded'.") {
           singleWorkflowActor()
         }
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }
@@ -81,12 +81,12 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
 
   private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Int, Int], workflowInputs: Int, workflowOutputs: Int) = {
     val testStart = OffsetDateTime.now
-    within(timeoutDuration) {
+    within(TimeoutDuration) {
       singleWorkflowActor(
         sampleWdl = wdlFile,
         outputFile = Option(metadataFile))
     }
-    TestKit.shutdownActorSystem(system, timeoutDuration)
+    TestKit.shutdownActorSystem(system, TimeoutDuration)
 
     val metadata = metadataFile.contentAsString.parseJson.asJsObject.fields
     metadata.get("id") shouldNot be(empty)
@@ -153,10 +153,10 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
   "A SingleWorkflowRunnerActor" should {
     "fail to run a workflow and still output metadata" in {
       val testStart = OffsetDateTime.now
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
 
       val metadata = metadataFile.contentAsString.parseJson.asJsObject.fields
       metadata.get("id") shouldNot be(empty)
@@ -202,7 +202,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow requesting a bad metadata path" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val runner = createRunnerActor(outputFile = Option(metadataDir))
         waitForErrorWithException(s"Specified metadata path is a directory, should be a file: $metadataDir") {
           val futureResult = runner ? RunWorkflow
@@ -215,7 +215,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
           }
         }
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }
@@ -223,7 +223,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
 class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully terminate the system on an exception" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val runner = createRunnerActor()
         val futureResult = runner ? RunWorkflow
         val ex = new RuntimeException("expected error")
@@ -235,7 +235,7 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
           case Failure(e) => e.getMessage should include("expected error")
         }
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }
@@ -243,7 +243,7 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
 class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully warn about unexpected output" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val runner = createRunnerActor()
         waitForWarning("SingleWorkflowRunnerActor: received unexpected message: expected unexpected") {
           runner ? RunWorkflow
@@ -251,7 +251,7 @@ class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorS
         }
         assert(!system.isTerminated)
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }

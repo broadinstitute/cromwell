@@ -25,7 +25,7 @@ import scala.concurrent.Await
 
 trait WorkflowDescriptorBuilder {
 
-  implicit val awaitTimeout = CromwellTestkitSpec.timeoutDuration
+  implicit val awaitTimeout = CromwellTestkitSpec.TimeoutDuration
   implicit val actorSystem: ActorSystem
 
 //  def materializeWorkflowDescriptorFromSources(id: WorkflowId = WorkflowId.randomId(),
@@ -55,7 +55,7 @@ trait WorkflowDescriptorBuilder {
     val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
       MaterializeWorkflowDescriptorCommand(workflowSources, ConfigFactory.load)
-    ).mapTo[WorkflowDescriptorMaterializationResult]
+    )(CromwellTestkitSpec.TimeoutDuration).mapTo[WorkflowDescriptorMaterializationResult]
 
     Await.result(workflowDescriptorFuture map {
       case MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor) => workflowDescriptor

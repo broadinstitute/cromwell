@@ -11,51 +11,50 @@ trap "shutdown" EXIT
 
 set -e
 
-EXIT_CODE=31
+EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-b branch] [-r rundir] [-c config file] [-p parallelism factor]
+$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-p parallelism factor]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
 Arguments:
-    -b    Branch of Cromwell to test
+    -b    Branch of Cromwell to test. Mutually exclusive with -j
+    -j    Path of a cromwell jar to use. Mutually exclusive with -b
     -r    Directory where script is run (defaults to current directory)
     -c    If supplied, the config file to pass to Cromwell
     -p    Number of simultaneous tests to run. Defaults to 3
 "
 
 INITIAL_DIR=$(pwd)
-
-PARALLELISM_FACTOR=3
-CROMWELL_BRANCH="develop"
 RUN_DIR=$(pwd)
-CONFIG_STRING=""
 
-while getopts ":hb:r:c:p:" option; do
+while getopts ":hb:r:c:p:j:" option; do
     case "$option" in
-	h) echo "$usage"
-	   exit
-	   ;;
-	b) CROMWELL_BRANCH=$OPTARG
-	   ;;
+        h) echo "$usage"
+            exit
+            ;;
+        b) CROMWELL_BRANCH="${OPTARG}"
+            ;;
         r) RUN_DIR=$OPTARG
-	   mkdir -p "${RUN_DIR}"
-	   ;;
-        c) CONFIG_STRING="-Dconfig.file=$OPTARG"
-	   ;;
-        p) PARALLELISM_FACTOR=$OPTARG
-	   ;;
-	:) printf "Missing argument for -%s\n" "$OPTARG" >&2
-	   echo "$usage" >&2
-	   exit 1
-	   ;;
-       \?) printf "Illegal option: -%s\n" "$OPTARG" >&2
-           echo "$usage" >&2
-           exit 1
-	   ;;
-    esac
+            mkdir -p "${RUN_DIR}"
+            ;;
+        c) CONFIG_STRING=-Dconfig.file="${OPTARG}"
+            ;;
+        p) PARALLELISM_FACTOR="${OPTARG}"
+            ;;
+        j) CROMWELL_JAR="${OPTARG}"
+            ;;
+        :) printf "Missing argument for -%s\n" "$OPTARG" >&2
+            echo "$usage" >&2
+            exit 1
+            ;;
+        \?) printf "Illegal option: -%s\n" "$OPTARG" >&2
+            echo "$usage" >&2
+            exit 1
+            ;;
+        esac
 done
 shift $((OPTIND - 1))
 
@@ -67,26 +66,35 @@ CENTAUR_LOG=${LOG_DIR}/centaur.log
 cd "${RUN_DIR}"
 mkdir -p ${LOG_DIR}
 
-# Build and run cromwell
-if [ ! -d "cromwell" ]; then
-    echo "Cloning Cromwell"
-    git clone https://github.com/broadinstitute/cromwell.git
-else
-    echo "Using existing Cromwell directory"
+if [[ -n ${CROMWELL_BRANCH} ]]; then
+    if [[ -n ${CROMWELL_JAR} ]]; then
+        echo "Do not specify both a branch and a jar" >&2
+        exit 1
+    fi
+
+    if [ ! -d "cromwell" ]; then
+        echo "Cloning Cromwell"
+        git clone https://github.com/broadinstitute/cromwell.git
+    else
+        echo "Using existing Cromwell directory"
+    fi
+
+    cd cromwell
+    git checkout "${CROMWELL_BRANCH}"
+    git pull
+    echo "Building Cromwell"
+    sbt clean assembly >> ../${ASSEMBLY_LOG} 2>&1
+    cd ..
+    CROMWELL_JAR="cromwell/target/scala-2.11/cromwell-*.jar"
 fi
 
-cd cromwell
-git checkout "${CROMWELL_BRANCH}"
-git pull
-echo "Building Cromwell"
-sbt clean assembly >> ../${ASSEMBLY_LOG} 2>&1
-
-java "${CONFIG_STRING}" -jar target/scala-2.11/cromwell-*.jar server >> ../${CROMWELL_LOG} 2>&1 &
+echo "Starting Cromwell, jar is ${CROMWELL_JAR}"
+java "${CONFIG_STRING}" -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
 
 # Build and run centaur
-cd ..
+cd "${RUN_DIR}"
 
-if [ ! -d "centaur" ]; then
+if [[ ! -d "centaur" ]]; then
     echo "Cloning Centaur"
     git clone https://github.com/broadinstitute/centaur.git
 else
@@ -94,10 +102,17 @@ else
 fi
 
 cd centaur
-
-echo "Running Centaur with ${PARALLELISM_FACTOR}-way parallelism"
 TEST_STATUS="failed"
-./run_tests_parallel.sh "${PARALLELISM_FACTOR}"  >> ../${CENTAUR_LOG} 2>&1
+
+if [[ -n ${PARALLELISM_FACTOR} ]]; then
+    echo "Running Centaur with ${PARALLELISM_FACTOR}-way parallelism"
+    TEST_COMMAND="./run_tests_parallel.sh ${PARALLELISM_FACTOR}"
+else
+    echo "Running Centaur with sbt test"
+    TEST_COMMAND="sbt test"
+fi
+
+${TEST_COMMAND}  >> ../${CENTAUR_LOG} 2>&1
 
 if [ $? -eq 0 ]; then
     EXIT_CODE=0

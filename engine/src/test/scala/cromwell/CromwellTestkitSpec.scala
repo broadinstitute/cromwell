@@ -1,8 +1,9 @@
 package cromwell
 
 import java.nio.file.Paths
+import java.util.UUID
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -15,8 +16,8 @@ import cromwell.engine._
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.server.WorkflowManagerSystem
+import cromwell.services.MetadataQuery
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.{MetadataQuery, ServiceRegistryClient}
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
@@ -25,6 +26,7 @@ import org.scalactic.Equality
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
+import spray.http.StatusCode
 import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
@@ -245,7 +247,7 @@ object CromwellTestkitSpec {
 }
 
 abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
-  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with ServiceRegistryClient {
+  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
 
   val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
@@ -352,8 +354,8 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     eventFilter.intercept {
       within(TimeoutDuration) {
         val workflowId = wma.submit(sources)
-        verifyWorkflowState(wma, workflowId, terminalState)
-        getWorkflowOutputsFromMetadata(workflowId)
+        verifyWorkflowState(wma, wma.underlyingActor.serviceRegistryActor, workflowId, terminalState)
+        getWorkflowOutputsFromMetadata(workflowId, wma.underlyingActor.serviceRegistryActor)
       }
     }
   }
@@ -383,13 +385,13 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       case _: OutputNotFoundException => false
       case _ => true
     }
-    eventFilter.intercept {
+    val id = eventFilter.intercept {
       within(TimeoutDuration) {
         val workflowId = workflowManager.submit(sources)
-        verifyWorkflowState(workflowManager, workflowId, terminalState)
+        verifyWorkflowState(workflowManager, workflowManager.underlyingActor.serviceRegistryActor, workflowId, terminalState)
 
         eventually(isFatal) {
-          val outputs = getWorkflowOutputsFromMetadata(workflowId)
+          val outputs = getWorkflowOutputsFromMetadata(workflowId, workflowManager.underlyingActor.serviceRegistryActor)
           val actualOutputNames = outputs.keys mkString ", "
           val expectedOutputNames = expectedOutputs.keys mkString " "
 
@@ -407,6 +409,9 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
         }
       }
     }
+
+    if (workflowManagerActor.isEmpty) system.stop(workflowManager)
+    id
   }
 
   def runWdlAndAssertLogs(sampleWdl: SampleWdl,
@@ -429,11 +434,11 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     eventFilter.intercept {
       within(TimeoutDuration) {
         val workflowId = workflowManager.submit(sources)
-        verifyWorkflowState(workflowManager, workflowId, terminalState)
+        verifyWorkflowState(workflowManager, workflowManager.underlyingActor.serviceRegistryActor, workflowId, terminalState)
 
         eventually(isFatal) {
           import better.files._
-          val (stdout, stderr) = getFirstCallLogs(workflowId)
+          val (stdout, stderr) = getFirstCallLogs(workflowId, workflowManager.underlyingActor.serviceRegistryActor)
           Paths.get(stdout).contentAsString shouldBe expectedStdoutContent
           Paths.get(stderr).contentAsString shouldBe expectedStderrContent
           workflowId
@@ -442,33 +447,28 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     }
   }
 
-  def getWorkflowMetadata(workflowId: WorkflowId, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
+  def getWorkflowMetadata(workflowId: WorkflowId, key: Option[String] = None, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): JsObject = {
     // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
-    val supervisor = TestActorRef(new Actor() {
-      var originalSender = system.deadLetters
-
-      override def receive: Receive = {
-        case m: RequestComplete[_] =>
-          originalSender ! m
-        case m: GetMetadataQueryAction =>
-          originalSender = sender
-          val mdba = TestActorRef(MetadataBuilderActor.props(serviceRegistryActor), self, "mdba" )
-          mdba ! m
-      }
-    })
-
     val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None))
-    Await.result(supervisor.ask(message).mapTo[RequestComplete[(String,JsObject)]], Duration.Inf).response._2
+    val parentProbe = TestProbe()
+
+    TestActorRef(MetadataBuilderActor.props(serviceRegistryActor), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}") ! message
+    val metadata = parentProbe.expectMsgPF(TimeoutDuration) {
+      case response: RequestComplete[(StatusCode, JsObject)] @unchecked => response.response._2
+    }
+
+    system.stop(parentProbe.ref)
+    metadata
   }
 
-  def verifyWorkflowState(wma: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
+  def verifyWorkflowState(wma: ActorRef, serviceRegistryActor: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
     // Continuously check the state of the workflow until it is in a terminal state
-    awaitCond(getWorkflowState(workflowId).isTerminal)
+    awaitCond(getWorkflowState(workflowId, serviceRegistryActor).isTerminal)
     // Now that it's complete verify that we ended up in the state we're expecting
-    getWorkflowState(workflowId) should equal (expectedState)
+    getWorkflowState(workflowId, serviceRegistryActor) should equal (expectedState)
   }
 
-  def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): WorkflowState = {
+  def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
     val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
       case StatusLookupResponse(_, state) => state
       case StatusLookupNotFound(_) => WorkflowSubmitted
@@ -477,7 +477,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     Await.result(statusResponse, Duration.Inf)
   }
 
-  def getFirstCallLogs(workflowId: WorkflowId)(implicit ec: ExecutionContext): (String, String) = {
+  def getFirstCallLogs(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): (String, String) = {
     val logsResponse = serviceRegistryActor.ask(GetLogs(workflowId)).collect {
       case LogsResponse(_, logs) =>
         val stdout = logs.find { _.key.key.endsWith("stdout") } flatMap { _.value map { _.value } } getOrElse { throw new LogNotFoundException("stdout") }
@@ -488,8 +488,8 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     Await.result(logsResponse, Duration.Inf)
   }
 
-  def getWorkflowOutputsFromMetadata(id: WorkflowId): Map[FullyQualifiedName, WdlValue] = {
-    getWorkflowMetadata(id).getFields(WorkflowMetadataKeys.Outputs).toList match {
+  def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {
+    getWorkflowMetadata(id, None, serviceRegistryActor).getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))
       case _ => Map.empty
     }

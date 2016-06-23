@@ -1,80 +1,147 @@
 package cromwell
 
+import java.util.UUID
+
+import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
-import cromwell.core.WorkflowState
+import com.typesafe.config.ConfigFactory
+import cromwell.SimpleWorkflowActorSpec._
+import cromwell.core.WorkflowId
 import cromwell.engine._
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowActor
+import cromwell.engine.workflow.WorkflowActor.{StartNewWorkflow, StartWorkflowCommand}
+import cromwell.services.MetadataEvent
+import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
 
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
+object SimpleWorkflowActorSpec {
 
-  override implicit val actorSystem = system
+  object MetadataWatchActor {
+    def props(matcher: Option[FailureMatcher], promise: Promise[Unit]): Props = Props(MetadataWatchActor(matcher, promise))
+  }
 
-//  private def buildWorkflowFSMRef(sampleWdl: SampleWdl, rawInputsOverride: String):
-//  TestFSMRef[WorkflowState, WorkflowData, OldStyleWorkflowActor] = {
-//    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
-//    val descriptor = materializeWorkflowDescriptorFromSources(workflowSources = workflowSources)
-//    TestFSMRef(new OldStyleWorkflowActor(descriptor))
-//  }
+  // This actor stands in for the service registry and watches for metadata messages that match the optional `matcher`.
+  // If there is no predicate then use `emptyBehavior` which ignores all messages.  This is here because there is no
+  // WorkflowManagerActor in this test that would spin up a real ServiceRegistry.
+  case class MetadataWatchActor(matcher: Option[FailureMatcher], promise: Promise[Unit]) extends Actor {
+    override def receive = matcher match {
+      case None =>
+        promise.trySuccess(())
+        Actor.emptyBehavior
+      case Some(m) => {
+        case PutMetadataAction(events) if m.matches(events) =>
+          promise.trySuccess(())
+          context.stop(self)
+      }
+    }
+  }
+
+  case class FailureMatcher(value: String) {
+    def matches(events: Traversable[MetadataEvent]): Boolean = {
+      events.exists(e => e.key.key == "failures[0]" && e.value.exists { v => v.value.contains(value) })
+    }
+  }
+
+  case class WorkflowActorAndMetadataPromise(workflowActor: ActorRef, promise: Promise[Unit])
+}
+
+class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
+
+  private def buildWorkflowActor(sampleWdl: SampleWdl, rawInputsOverride: String,
+                                 workflowId: WorkflowId = WorkflowId.randomId(),
+                                 matcher: Option[FailureMatcher] = None): WorkflowActorAndMetadataPromise = {
+    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
+    val promise = Promise[Unit]()
+    val watchActor = system.actorOf(MetadataWatchActor.props(matcher, promise), s"service-registry-$workflowId-${UUID.randomUUID()}")
+    val workflowActor = TestFSMRef(new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
+      watchActor,
+      system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}")),
+      name = s"workflow-actor-$workflowId")
+    WorkflowActorAndMetadataPromise(workflowActor, promise)
+  }
 
   val TestExecutionTimeout = 10.seconds.dilated
 
   "A WorkflowActor" should {
-    "start, run, succeed and die" ignore {
-//      startingCallsFilter("hello.hello") {
-//        val fsm = buildWorkflowFSMRef(SampleWdl.HelloWorld, SampleWdl.HelloWorld.wdlJson)
-//        val probe = TestProbe()
-//        probe watch fsm
-//        within(TestExecutionTimeout) {
-//          waitForPattern("transitioning from Submitted to Running") {
-//            waitForPattern("transitioning from Running to Succeeded") {
-//              fsm ! Start()
-//            }
-//          }
-//        }
-//        probe.expectTerminated(fsm, 10.seconds.dilated)
-//      }
+    "start, run, succeed and die" in {
+      startingCallsFilter("hello.hello") {
+        val WorkflowActorAndMetadataPromise(workflowActor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.wdlJson)
+        val probe = TestProbe()
+        probe watch workflowActor
+        within(TestExecutionTimeout) {
+          waitForPattern("transition from ReadyToMaterializeState to MaterializationSuccessfulState") {
+            waitForPattern("transition from FinalizingWorkflowState to WorkflowSucceededState") {
+              workflowActor ! StartWorkflowCommand
+            }
+          }
+        }
+        probe.expectTerminated(workflowActor, 10.seconds.dilated)
+      }
     }
 
-    "fail to construct with missing inputs" ignore {
-//      intercept[IllegalArgumentException] {
-//        buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = "{}")
-//      }
+    "fail to construct with missing inputs" in {
+      val workflowId = WorkflowId.randomId()
+      val failureMatcher = FailureMatcher("Required workflow input 'hello.hello.addressee' not specified.")
+      val WorkflowActorAndMetadataPromise(workflowActor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, Option(failureMatcher))
+      val probe = TestProbe()
+      probe watch workflowActor
+      within(TestExecutionTimeout) {
+        waitForPattern("transition from MaterializingWorkflowDescriptorState to WorkflowFailedState") {
+          workflowActor ! StartWorkflowCommand
+          Await.result(promise.future, Duration.Inf)
+        }
+      }
+      probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
 
-    "fail to construct with inputs of the wrong type" ignore {
-//      intercept[IllegalArgumentException] {
-//        buildWorkflowFSMRef(SampleWdl.HelloWorld, rawInputsOverride = s""" { "$Addressee" : 3} """)
-//      }
+    "fail to construct with inputs of the wrong type" in {
+      val failureMatcher = FailureMatcher("Could not coerce value for 'hello.hello.addressee' into: WdlStringType")
+      val WorkflowActorAndMetadataPromise(workflowActor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
+        WorkflowId.randomId(), Option(failureMatcher))
+
+      val probe = TestProbe()
+      probe watch workflowActor
+      within(TestExecutionTimeout) {
+        waitForPattern("transition from MaterializingWorkflowDescriptorState to WorkflowFailedState") {
+          workflowActor ! StartWorkflowCommand
+          Await.result(promise.future, Duration.Inf)
+        }
+      }
+      probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
 
-    "fail when a call fails" ignore {
-//      startingCallsFilter("goodbye.goodbye") {
-//        waitForPattern("WorkflowActor .+ transitioning from Submitted to Running\\.") {
-//          waitForPattern("persisting status of goodbye to Starting.") {
-//            waitForPattern("persisting status of goodbye to Running.") {
-//              waitForPattern("persisting status of goodbye to Failed.") {
-//                val fsm = buildWorkflowFSMRef(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson)
-//                fsm ! Start()
-//              }
-//            }
-//          }
-//        }
-//      }
+    "fail when a call fails" in {
+      startingCallsFilter("goodbye.goodbye") {
+        val WorkflowActorAndMetadataPromise(workflowActor, _) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson)
+        val probe = TestProbe()
+        probe watch workflowActor
+        within(TestExecutionTimeout) {
+          waitForPattern("transitioning from WorkflowExecutionInProgressState to WorkflowExecutionFailedState.") {
+            waitForPattern("transitioning from FinalizationInProgressState to FinalizationSucceededState.") {
+              workflowActor ! StartWorkflowCommand
+            }
+          }
+        }
+        probe.expectTerminated(workflowActor, 10.seconds.dilated)
+      }
     }
 
-    "gracefully handle malformed WDL" ignore {
-//      within(TestExecutionTimeout) {
-//        val fsm = buildWorkflowFSMRef(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
-//        waitForPattern("transitioning from Running to Failed") {
-//          fsm ! Start()
-//        }
-//      }
+    "gracefully handle malformed WDL" in {
+      val WorkflowActorAndMetadataPromise(workflowActor, _) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
+      val probe = TestProbe()
+      probe watch workflowActor
+      within(TestExecutionTimeout) {
+        waitForPattern("transitioning from WorkflowExecutionInProgressState to WorkflowExecutionFailedState") {
+          workflowActor ! StartWorkflowCommand
+        }
+      }
+      probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
   }
 }

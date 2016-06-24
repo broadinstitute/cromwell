@@ -1,4 +1,4 @@
-task default_runtime_options {
+task default_runtime_attributes {
     command <<<
         echo "echo 'OH NO!'" > script.sh
         echo "exit 1" >> script.sh
@@ -10,10 +10,10 @@ task default_runtime_options {
     }
     runtime {
         docker: "ubuntu:latest"
-        # continueOnReturnCode is combined from the defaultRuntimeOptions in the options file.
+        # continueOnReturnCode is combined from the default_runtime_attributes in the options file.
     }
 }
 
-workflow default_runtime_options {
-    call default_runtime_options
+workflow default_runtime_attributes {
+    call default_runtime_attributes
 }

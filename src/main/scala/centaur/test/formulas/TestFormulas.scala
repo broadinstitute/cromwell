@@ -23,28 +23,17 @@ object TestFormulas {
   def runSuccessfulWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Succeeded)
   def runFailingWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Failed)
 
-  def runSuccessfulWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = {
-    // FIXME: This is horrible, but I want to get the issue closed, will come back and make this more type safe
-    workflow match {
-      case _: WorkflowWithoutMetadata => throw new Exception("Scala type system: 1, Jeff: 0")
-      case r: WorkflowWithMetadata =>
-        for {
-          w <- runSuccessfulWorkflow(r)
-          m <- retrieveMetadata(w)
-          _ <- validateMetadata(m, r.metadata, w.id)
-        } yield ()
-    }
-  }
+  def runSuccessfulWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = runWorkflowAndVerifyMetadata(workflow, runSuccessfulWorkflow)
+  def runFailingWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = runWorkflowAndVerifyMetadata(workflow, runFailingWorkflow)
 
-  def runFailingWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = {
+  def runWorkflowAndVerifyMetadata(workflow: Workflow, f: Workflow => Test[SubmittedWorkflow]): Test[Unit] = {
     // FIXME: This is horrible, but I just wanted to add this and copy/paste was easier than thinking
     workflow match {
-      case _: WorkflowWithoutMetadata => throw new Exception("Scala type system: 2, Jeff: 0")
+      case _: WorkflowWithoutMetadata => throw new Exception("Scala type system: 3, Jeff: 0")
       case r: WorkflowWithMetadata =>
         for {
-          w <- runFailingWorkflow(r)
-          m <- retrieveMetadata(w)
-          _ <- validateMetadata(m, r.metadata, w.id)
+          w <- f(r)
+          _ <- validateMetadata(w, r.metadata)
         } yield ()
     }
   }

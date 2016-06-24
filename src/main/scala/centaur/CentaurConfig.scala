@@ -12,6 +12,7 @@ object CentaurConfig {
   lazy val cromwellUrl = new URL(conf.getString("centaur.cromwellUrl"))
   lazy val sendReceiveTimeout = conf.getDuration("centaur.sendReceiveTimeout").toScala
   lazy val maxWorkflowLength = conf.getDuration("centaur.maxWorkflowLength").toScala
+  lazy val metadataConsistencyTimeout = conf.getDuration("centaur.metadataConsistencyTimeout").toScala
 
   lazy val standardTestCasePath = Paths.get(conf.getString("centaur.standardTestCasePath"))
   lazy val callCacheTestCasePath = Paths.get(conf.getString("centaur.callCacheTestCasePath"))

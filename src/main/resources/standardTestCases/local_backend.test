@@ -6,7 +6,7 @@ testFormat: workflowsuccess
 files {
   wdl: hello/hello.wdl
   inputs: hello/hello.inputs
-  options: local_backend/backend.options
+  options: local_backend/local_backend.options
 }
 
 metadata {

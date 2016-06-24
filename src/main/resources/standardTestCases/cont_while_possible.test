@@ -3,7 +3,7 @@
 
 name: cont_while_possible
 testFormat: workflowfailure
-tags: ignore
+ignore: true
 
 files {
   wdl: cont_while_possible/cont_while_possible.wdl

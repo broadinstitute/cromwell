@@ -3,7 +3,7 @@
 
 name: no_new_calls
 testFormat: workflowfailure
-tags: ignore
+ignore: true
 
 files {
   wdl: no_new_calls/no_new_calls.wdl

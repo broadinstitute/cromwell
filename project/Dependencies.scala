@@ -73,6 +73,11 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies ++ googleApiClientDependencies
 
+  val htCondorBackendDependencies = List(
+    "com.twitter" % "chill_2.11" % "0.8.0",
+    "org.mongodb" %% "casbah" % "3.0.0"
+  )
+
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.webjars" % "swagger-ui" % "2.1.1",

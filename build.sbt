@@ -56,6 +56,7 @@ lazy val engine = (project in file("engine"))
   .dependsOn(backend % "test->test;compile->compile")
   .dependsOn(jesBackend % "test->test;compile->compile")
   .dependsOn(localBackend % "test->test;compile->compile")
+  .dependsOn(htCondorBackend % "test->test;compile->compile")
   .dependsOn(database % "test->test;compile->compile")
   .withTestSettings
 

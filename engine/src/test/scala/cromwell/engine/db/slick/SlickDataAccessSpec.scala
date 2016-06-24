@@ -43,6 +43,7 @@ object SlickDataAccessSpec {
   val Workflow1Name = "test1"
   val Workflow2Name = "test2"
 
+//TODO: Why is this still here?
 //  implicit class EnhancedEngineWorkflowDescriptor(val workflowDescriptor: EngineWorkflowDescriptor) extends AnyVal {
 //    def fileHasher: FileHasher = { wdlFile: WdlFile =>
 //        SymbolHash(wdlFile.value.toPath(FileSystems.getDefault).hash)
@@ -75,31 +76,31 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   val test1Sources = WorkflowSourceFiles("workflow test1 {}", "{}", "{}")
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
-  it should "not deadlock" ignore {
-//    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
-//    val databaseConfig = ConfigFactory.parseString(
-//      s"""
-//         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
-//         |db.driver = "org.hsqldb.jdbcDriver"
-//         |db.numThreads = 2
-//         |driver = "slick.driver.HsqldbDriver$$"
-//         |""".stripMargin)
-//
-//    for {
-//      dataAccess <- (new SlickDatabase(databaseConfig) with DataAccess).autoClosed
-//    } {
-//      val futures = 1 to 20 map { _ =>
-//        val workflowId = WorkflowId.randomId()
-//        val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
-//        for {
-//          _ <- dataAccess.createWorkflow(workflowInfo, test1Sources, Nil, Nil, localBackend)
-//          _ <- dataAccess.getWorkflowExecutionAndAux(workflowInfo.id) map { result =>
-//            result.execution.workflowExecutionUuid should be(workflowId.toString)
-//          }
-//        } yield ()
-//      }
-//      Future.sequence(futures).futureValue(Timeout(10.seconds))
-//    }
+  it should "not deadlock" in {
+    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
+    val databaseConfig = ConfigFactory.parseString(
+      s"""
+         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+         |db.driver = "org.hsqldb.jdbcDriver"
+         |db.numThreads = 2
+         |driver = "slick.driver.HsqldbDriver$$"
+         |""".stripMargin)
+
+    for {
+      dataAccess <- (new SlickDatabase(databaseConfig) with DataAccess).autoClosed
+    } {
+      val futures = 1 to 20 map { _ =>
+        val workflowId = WorkflowId.randomId()
+        val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
+        for {
+          _ <- dataAccess.createWorkflow(workflowInfo, test1Sources, Nil, Nil, localBackend)
+          _ <- dataAccess.getWorkflowExecutionAndAux(workflowInfo.id) map { result =>
+            result.execution.workflowExecutionUuid should be(workflowId.toString)
+          }
+        } yield ()
+      }
+      Future.sequence(futures).futureValue(Timeout(10.seconds))
+    }
   }
 
   "SlickDataAccess (main.hsqldb)" should behave like testWith("main.hsqldb")

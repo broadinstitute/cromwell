@@ -12,7 +12,7 @@ import scala.concurrent.Await
 
 trait WorkflowDescriptorBuilder {
 
-  implicit val awaitTimeout = CromwellTestkitSpec.timeoutDuration
+  implicit val awaitTimeout = CromwellTestkitSpec.TimeoutDuration
   implicit val actorSystem: ActorSystem
 
   def createMaterializedEngineWorkflowDescriptor(id: WorkflowId, workflowSources: WorkflowSourceFiles): EngineWorkflowDescriptor = {

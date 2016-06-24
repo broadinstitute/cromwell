@@ -1,12 +1,12 @@
-#Test against a different functional backend in the future
+# Test against a different functional backend in the future
 
-name: backend
+name: local_backend
 testFormat: workflowsuccess
 
 files {
   wdl: hello/hello.wdl
   inputs: hello/hello.inputs
-  options: backend/backend.options
+  options: local_backend/backend.options
 }
 
 metadata {

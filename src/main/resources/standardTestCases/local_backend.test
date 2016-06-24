@@ -2,6 +2,7 @@
 
 name: local_backend
 testFormat: workflowsuccess
+ignore: true
 
 files {
   wdl: hello/hello.wdl

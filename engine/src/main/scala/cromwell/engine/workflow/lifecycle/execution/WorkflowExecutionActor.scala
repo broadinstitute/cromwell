@@ -269,7 +269,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
-    s"${jobDescriptor.descriptor.id}-BackendExecutionActor-${jobDescriptor.key.tag}"
+    s"${jobDescriptor.descriptor.id}-BackendJobExecutionActor-${jobDescriptor.key.tag}"
   }
 
   when(WorkflowExecutionPendingState) {
@@ -284,11 +284,11 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   when(WorkflowExecutionInProgressState) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
       pushPreparedJobMetadata(jobDescriptor.key, jobDescriptor.inputs)
-      val backendExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
-      backendExecutionActor ! ExecuteJobCommand
+      val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
+      backendJobExecutionActor ! ExecuteJobCommand
       pushRunningJobMetadata(jobDescriptor.key)
       stay() using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
-        .addBackendJobExecutionActor(jobDescriptor.key, backendExecutionActor)
+        .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       workflowLogger.error(throwable, "Failed to start job {}", jobKey) // TODO: This log is a candidate for removal. It's now recorded in metadata
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
@@ -410,7 +410,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def handleJobSuccessful(jobKey: JobKey, outputs: JobOutputs, data: WorkflowExecutionActorData) = {
-    workflowLogger.info(s"Job ${jobKey.tag} succeeded! Outputs: ${outputs.mkString("\n")}")
+    workflowLogger.info(s"Job ${jobKey.tag} succeeded!")
     val newData = data.jobExecutionSuccess(jobKey, outputs)
 
     if (newData.isWorkflowComplete) {

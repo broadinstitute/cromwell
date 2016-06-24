@@ -1,0 +1,6 @@
+{
+  "centaur.centaur.cromwell_jar":"gs://cloud-cromwell-dev/travis-centaur/CROMWELL_JAR",
+  "centaur.centaur.cromwell_branch":"BRANCH",
+  "centaur.centaur.conf":"gs://cloud-cromwell-dev/travis-centaur/jes.conf",
+  "centaur.centaur.pem":"gs://cloud-cromwell-dev/travis-centaur/cromwell-account.pem"
+}

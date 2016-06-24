@@ -5,7 +5,6 @@ import java.nio.file.Paths
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
-import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
@@ -92,7 +91,7 @@ object CromwellTestkitSpec {
       |services {}
     """.stripMargin
 
-  val timeoutDuration = 30 seconds
+  val TimeoutDuration = 60 seconds
 
   class TestWorkflowManagerSystem extends WorkflowManagerSystem {
     override protected def systemName: String = "test-system"
@@ -114,7 +113,7 @@ object CromwellTestkitSpec {
     try {
       block(testWorkflowManagerSystem)
     } finally {
-      TestKit.shutdownActorSystem(testWorkflowManagerSystem.actorSystem, timeoutDuration)
+      TestKit.shutdownActorSystem(testWorkflowManagerSystem.actorSystem, TimeoutDuration)
     }
   }
 
@@ -172,12 +171,10 @@ object CromwellTestkitSpec {
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 
   implicit class EnhancedWorkflowManagerActor(val manager: TestActorRef[WorkflowManagerActor]) extends AnyVal {
-    // `implicit` for the asks below.
-    private implicit def timeout: Timeout = 30 seconds
 
     def submit(sources: WorkflowSourceFiles): WorkflowId = {
       val submitMessage = WorkflowManagerActor.SubmitWorkflowCommand(sources)
-      Await.result(manager.ask(submitMessage), Duration.Inf).asInstanceOf[WorkflowManagerSubmitSuccess].id
+      Await.result(manager.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowManagerSubmitSuccess].id
     }
   }
 
@@ -323,7 +320,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
    */
   def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
     val futureAny = actorRef ? message
-    Await.result(futureAny.mapTo[M], timeoutDuration)
+    Await.result(futureAny.mapTo[M], TimeoutDuration)
   }
 
   /**
@@ -331,7 +328,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
    * time. The block is in its own parameter list for usage syntax reasons.
    */
   def waitForPattern[T](pattern: String, occurrences: Int = 1)(block: => T): T = {
-    within(timeoutDuration) {
+    within(TimeoutDuration) {
       waitForInfo(pattern, occurrences) {
         block
       }
@@ -353,7 +350,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     val wma = buildWorkflowManagerActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
     eventFilter.intercept {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val workflowId = wma.submit(sources)
         verifyWorkflowState(wma, workflowId, terminalState)
         getWorkflowOutputsFromMetadata(workflowId)
@@ -367,7 +364,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       () => Future(f),
       maxRetries = Some(maxRetries),
       isFatal = isFatal,
-      backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), timeoutDuration)
+      backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), TimeoutDuration)
   }
 
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
@@ -387,7 +384,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       case _ => true
     }
     eventFilter.intercept {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val workflowId = workflowManager.submit(sources)
         verifyWorkflowState(workflowManager, workflowId, terminalState)
 
@@ -430,7 +427,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
       case _ => true
     }
     eventFilter.intercept {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val workflowId = workflowManager.submit(sources)
         verifyWorkflowState(workflowManager, workflowId, terminalState)
 
@@ -472,10 +469,10 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   def getWorkflowState(workflowId: WorkflowId)(implicit ec: ExecutionContext): WorkflowState = {
-    val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId)).collect {
+    val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
       case StatusLookupResponse(_, state) => state
       case StatusLookupNotFound(_) => WorkflowSubmitted
-      case f => throw new RuntimeException(s"Unexpected status response: $f")
+      case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
     }
     Await.result(statusResponse, Duration.Inf)
   }

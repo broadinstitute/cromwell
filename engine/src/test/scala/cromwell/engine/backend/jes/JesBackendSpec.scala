@@ -12,6 +12,7 @@ import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.core.{OldCallContext, OldWorkflowContext, WorkflowId, WorkflowOptions}
 import cromwell.engine._
 import cromwell.engine.backend._
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.filesystems.gcs._
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}

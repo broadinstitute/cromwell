@@ -6,8 +6,8 @@ import cromwell.CromwellSpec.PostMVP
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.core.{ExecutionStatus, WorkflowId, WorkflowRunning, WorkflowSucceeded}
 import cromwell.engine._
-import cromwell.engine.backend.WorkflowDescriptorBuilder
 import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 
 class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
 

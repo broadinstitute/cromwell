@@ -6,7 +6,7 @@ import java.util.UUID
 import akka.actor.{Actor, Props}
 import akka.util.Timeout
 import cromwell.core.{JobOutput, WorkflowAborted, WorkflowId, WorkflowRunning}
-import cromwell.engine.backend.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataServiceActor, MetadataValue}

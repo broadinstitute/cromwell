@@ -17,6 +17,7 @@ import cromwell.engine._
 import cromwell.engine.backend._
 import cromwell.engine.backend.io._
 import cromwell.engine.db.DataAccess
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.util.SampleWdl
 import cromwell.webservice.{WorkflowQueryKey, WorkflowQueryParameters}

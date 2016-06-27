@@ -5,6 +5,7 @@ import cromwell.backend.PreemptedException
 import cromwell.core.WorkflowSucceeded
 import cromwell.engine._
 import cromwell.engine.backend._
+import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.util.SampleWdl
 import cromwell.webservice.CromwellApiHandler._
 import org.specs2.mock.Mockito

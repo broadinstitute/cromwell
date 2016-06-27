@@ -1,227 +1,392 @@
 package cromwell.engine.workflow
 
-import akka.actor.ActorRef
+import akka.actor.Props
 import akka.testkit.TestDuration
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.util.SampleWdl.HelloWorld
-import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mock.MockitoSugar
 import spray.json.DefaultJsonProtocol._
 import spray.json._
-import wdl4s.ThrowableWithErrors
+import wdl4s.values.{WdlInteger, WdlString}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class MaterializeWorkflowDescriptorActorSpec
-  extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
-  val MissingInputsJson = "{}"
-  val MalformedJson = "foobar bad json!"
-  val MalformedWdl = "foobar bad wdl!"
+class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
 
-  val customizedLocalBackendOptions =
+  val workflowId = WorkflowId.randomId
+  val minimumConf = ConfigFactory.parseString("")
+  val differentDefaultBackendConf = ConfigFactory.parseString(
     """
-      |{
-      |  "backend": "retryableCallsSpecBackend"
-      |}""".stripMargin
+      |backend {
+      |  default = "DefaultBackend"
+      |  // These providers are empty here because the MaterializeWorkflowDescriptorActor won't introspect them:
+      |  providers {
+      |    DefaultBackend {}
+      |    SpecifiedBackend {}
+      |  }
+      |}
+    """.stripMargin)
+  val unstructuredFile = "fubar badness!"
+  val validOptionsFile =""" { "write_to_cache": "true" } """
 
-  val malformedOptionsJson = MalformedJson
   val validInputsJson = HelloWorld.rawInputs.toJson.toString()
-  val malformedInputsJson = MalformedJson
-  val invalidInputJson = Map("llo.addsee" -> "wod").toJson.toString()
-  val validRunAttr =
-    """
-      |runtime {
-      |  docker: "ubuntu:latest"
-      |}
-    """.stripMargin
-  val invalidRunAttr =
-    """
-      |runtime {
-      |  asda: "sda"
-      |}
-    """.stripMargin
-  val validWdlSource = HelloWorld.wdlSource(validRunAttr)
-  val invalidWdlSource = HelloWorld.wdlSource(invalidRunAttr)
-
-  val Timeout = 1.second.dilated
-  var materializeWfActor: ActorRef = _
-  var validWorkflowSources = WorkflowSourceFiles(
-    validWdlSource, validInputsJson, customizedLocalBackendOptions)
+  val wdlSourceWithDocker = HelloWorld.wdlSource(""" runtime { docker: "ubuntu:latest" } """)
+  val wdlSourceNoDocker = HelloWorld.wdlSource(""" runtime { } """)
+  val Timeout = 10.second.dilated
+  val NoBehaviourActor = system.actorOf(Props.empty)
 
   before {
-
-    // Needed since we might want to run this test as test-only
-    val local = CromwellTestkitSpec.DefaultLocalBackendConfigEntry
   }
 
   after {
-    system.stop(materializeWfActor)
+    system.stop(NoBehaviourActor)
   }
 
   "MaterializeWorkflowDescriptorActor" should {
-    "return MaterializationSuccess when Namespace, options, runtime attributes and inputs are valid" ignore {
-//      within(Timeout) {
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), validWorkflowSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorSuccess(wfDesc) =>
-//            if (wfDesc.namespace.tasks.size != 1) fail("Number of tasks is not equals to one.")
-//            if (!wfDesc.coercedInputs.head._1.contains("hello.hello.addressee")) fail("Input does not contains 'hello.hello.addressee'.")
-//            if (!wfDesc.workflowOptions.get("backend").get.contains("retryableCallsSpecBackend"))
-//              fail("Workflow option does not comply with 'backend' entry.")
-//          case unknown =>
-//            fail(s"Response is not equal to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+    "accept valid WDL, inputs and options files" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdlSourceNoDocker, validInputsJson, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
+            wfDesc.id shouldBe workflowId
+            wfDesc.name shouldBe "hello"
+            wfDesc.namespace.tasks.size shouldBe 1
+            wfDesc.workflowInputs.head shouldBe ("hello.hello.addressee", WdlString("world"))
+            wfDesc.backendDescriptor.inputs.head shouldBe ("hello.hello.addressee", WdlString("world"))
+            wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Some("true")
+            wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
+            // Default backend assignment is "Local":
+            wfDesc.backendAssignments foreach {
+              case (call, assignment) if call.task.name.equals("hello") => assignment shouldBe "Local"
+              case (call, assignment) => fail(s"Unexpected call: ${call.task.name}")
+            }
+            wfDesc.engineFilesystems.size shouldBe 2
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "return MaterializationFailure when there is an invalid Namespace coming from a WDL source" ignore {
-//      within(Timeout) {
-//        val malformedSources =
-//          validWorkflowSources.copy(wdlSource = MalformedWdl)
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorFailure(failure) =>
-//            failure match {
-//              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-//                if (!validationException.message.contains("Workflow input processing failed."))
-//                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-//                if (validationException.errors.size != 1) fail("Number of errors coming from validation exception is not equals to one.")
-//                if (!validationException.errors.head.contains("Unable to load namespace from workflow"))
-//                  fail("Message from error nr 1 in validation exception does not contains 'Unable to load namespace from workflow'.")
-//            }
-//          case unknown => fail(s"Response is not equals to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+    // Note to whoever comes next: I don't really know why this distinction exists. I've added this test but would
+    // not be at all upset if the whole thing gets removed.
+    "differently construct engine workflow inputs and backend inputs" in {
+      val wdl =
+        """
+          |task bar { command { echo foobar } }
+          |workflow foo {
+          |  Int i
+          |  Int j = 5
+          |}
+        """.stripMargin
+      val inputs =
+        """
+          |{ "foo.i": "17" }
+        """.stripMargin
+
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdl, inputs, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
+
+
+            wfDesc.workflowInputs foreach {
+              case ("foo.i", wdlValue) => wdlValue shouldBe WdlInteger(17)
+              case ("foo.j", wdlValue) => fail("Workflow declarations should not appear as workflow inputs")
+              case (x, y) => fail(s"Unexpected input $x -> $y")
+            }
+
+            wfDesc.backendDescriptor.inputs foreach {
+              case ("foo.i", wdlValue) => wdlValue shouldBe WdlInteger(17)
+              case ("foo.j", wdlValue) => wdlValue shouldBe WdlInteger(5)
+              case (x, y) => fail(s"Unexpected input $x -> $y")
+            }
+          case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Unexpected materialization failure: $reason")
+          case unknown => fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "return MaterializationFailure when there are workflow options coming from a malformed workflow options JSON file" ignore {
-//      within(Timeout) {
-//        val malformedSources =
-//          validWorkflowSources.copy(workflowOptionsJson = malformedOptionsJson)
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorFailure(failure) =>
-//            failure match {
-//              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-//                if (!validationException.message.contains("Workflow input processing failed."))
-//                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-//                if (validationException.errors.size != 1) fail("Number of errors coming from validation exception is not equals to one.")
-//                if (!validationException.errors.head.contains("Workflow contains invalid options JSON"))
-//                  fail("Message from error nr 1 in validation exception does not contains 'Workflow contains invalid options JSON'.")
-//            }
-//          case unknown =>
-//            fail(s"Response is not equals to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(0)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+
+    // TODO PBE: this should be done by MWDA (ticket #1076)
+    "assign default runtime attributes" ignore {
+      val wdl =
+        """
+          |task a {
+          | command {}
+          | runtime { docker: "specified:docker" }
+          |}
+          |task b { command {} }
+          |workflow foo {
+          | call a
+          | call b
+          |}
+        """.stripMargin
+
+      val defaultDocker =
+        """
+          |{
+          |  "default_runtime_attributes": {
+          |    "docker": "default:docker"
+          |  }
+          |}
+        """.stripMargin
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdl, "{}", defaultDocker)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
+            wfDesc.namespace.tasks foreach {
+              case task if task.name.equals("a") =>
+                task.runtimeAttributes.attrs.size shouldBe 1
+                task.runtimeAttributes.attrs.head._2 shouldBe "\"specified:docker\""
+              case task if task.name.equals("b") =>
+                task.runtimeAttributes.attrs.size shouldBe 1
+                task.runtimeAttributes.attrs.head._2 shouldBe "\"default:docker\""
+              case task => fail(s"Unexpected task: ${task.name}")
+            }
+          case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"This materialization should not have failed (reason: $reason)")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "return MaterializationFailure when there are invalid workflow options coming from a workflow options JSON file" ignore {
-//      when(backendMock.assertWorkflowOptions(
-//        WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get))
-//        .thenThrow(new IllegalStateException("Some exception"))
-//      within(Timeout) {
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), validWorkflowSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorFailure(failure) =>
-//            failure match {
-//              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-//                if (!validationException.message.contains("Workflow input processing failed."))
-//                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-//                if (validationException.errors.size != 1)  fail("Number of errors coming from validation exception is not equals to one.")
-//                if (!validationException.errors.head.contains("Workflow has invalid options for backend"))
-//                  fail("Message from error nr 1 in validation exception does not contains 'Workflow has invalid options for backend'.")
-//            }
-//          case unknown =>
-//            fail(s"Response is not equals to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+    // TODO: PBE: Backend assignment should happen based on passed-in configuration (ticket #1075)
+    "assign backends based on runtime attributes" ignore {
+      val wdl =
+        """
+          |task a {
+          | command {}
+          | runtime { backend: "SpecifiedBackend" }
+          |}
+          |task b { command {} }
+          |workflow foo {
+          | call a
+          | call b
+          |}
+        """.stripMargin
+
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdl, "{}", "{}")
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
+            wfDesc.namespace.workflow.calls foreach {
+              case call if call.task.name.equals("a") =>
+                wfDesc.backendAssignments(call) shouldBe "SpecifiedBackend"
+              case call if call.task.name.equals("b") =>
+                wfDesc.backendAssignments(call) shouldBe "DefaultBackend"
+              case call => fail(s"Unexpected task: ${call.task.name}")
+            }
+          case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization unexpectedly failed ($reason)")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "return MaterializationFailure when there are workflow inputs coming from a malformed workflow inputs JSON file" ignore {
-//      within(Timeout) {
-//        val malformedSources =
-//          validWorkflowSources.copy(inputsJson = malformedInputsJson)
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorFailure(failure) =>
-//            failure match {
-//              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-//                if (!validationException.message.contains("Workflow input processing failed."))
-//                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-//                if (validationException.errors.size != 1) fail("Number of errors coming from validation exception is not equals to one.")
-//                if (!validationException.errors.head.contains("Workflow contains invalid inputs JSON"))
-//                  fail("Message from error nr 1 in validation exception does not contains 'Workflow contains invalid inputs JSON'")
-//            }
-//          case unknown =>
-//            fail(s"Response is not equals to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+    "reject backend assignment to non-existent backends" in {
+      val wdl =
+        """
+          |task a {
+          | command {}
+          | runtime { backend: "NoSuchBackend" }
+          |}
+          |workflow foo {
+          | call a
+          |}
+        """.stripMargin
+
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdl, "{}", "{}")
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            if (!reason.getMessage.contains("Backend not found in configuration file for call foo.a: NoSuchBackend"))
+              fail(s"Unexpected failure message from MaterializeWorkflowDescriptorActor: ${reason.getMessage}")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "return MaterializationFailure when there are invalid workflow inputs coming from a workflow inputs JSON file" ignore {
-//      within(Timeout) {
-//        val malformedSources =
-//          validWorkflowSources.copy(inputsJson = invalidInputJson)
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(),
-//          malformedSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorFailure(failure) =>
-//            failure match {
-//              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-//                if (!validationException.message.contains("Workflow input processing failed."))
-//                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-//                if (validationException.errors.size != 1) fail("Number of errors coming from validation exception is not equals to one.")
-//                if (!validationException.errors.head.contains("Required workflow input 'hello.hello.addressee' not specified."))
-//                  fail("Message from error nr 1 in validation exception does not contains 'Required workflow input 'hello.hello.addressee' not specified'.")
-//            }
-//          case unknown =>
-//            fail(s"Response is not equals to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(1)).assertWorkflowOptions(
-//        WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+    "reject an invalid WDL source" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(unstructuredFile, validInputsJson, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nUnable to load namespace from workflow: ERROR: Finished parsing without consuming all tokens.")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "return MaterializationFailure when there are invalid runtime requirements coming from WDL file" ignore {
-//      when(backendMock.backendType).thenReturn(BackendType.JES)
-//      within(Timeout) {
-//        val malformedSources =
-//          validWorkflowSources.copy(wdlSource = invalidWdlSource)
-//        materializeWfActor ! MaterializeWorkflow(WorkflowId.randomId(), malformedSources)
-//        expectMsgPF() {
-//          case MaterializeWorkflowDescriptorFailure(failure) =>
-//            failure match {
-//              case validationException: IllegalArgumentException with ThrowableWithErrors =>
-//                if (!validationException.message.contains("Workflow input processing failed."))
-//                  fail("Message coming from validation exception does not contains 'Workflow input processing failed'.")
-//                if (validationException.errors.size != 1)  fail("Number of errors coming from validation exception is not equals to one.")
-//                if (!validationException.errors.head.contains("Failed to validate runtime attributes."))
-//                  fail("Message from error nr 1 in validation exception does not contains 'Failed to validate runtime attributes'.")
-//            }
-//          case unknown =>
-//            fail(s"Response is not equals to the expected one. Response: $unknown")
-//        }
-//      }
-//      verify(backendMock, times(1)).assertWorkflowOptions(WorkflowOptions.fromJsonString(customizedLocalBackendOptions).get)
+    "reject a workflowless WDL source" in {
+      val noWorkflowWdl =
+        """
+          |task hello { command <<< echo blah >>> }
+          |
+          |# no workflow foo { ... } block!!
+        """.stripMargin
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(noWorkflowWdl, validInputsJson, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nUnable to load namespace from workflow: Namespace does not have a local workflow to run")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    // TODO: PBE These tests have migrated here from WorkflowManagerActorSpec:
-    "Handle coercion failures gracefully" ignore {
+    // TODO: PBE: Re-enable (ticket #1063)
+    "reject a taskless WDL source" ignore {
+      val noWorkflowWdl =
+        """
+          |# no task foo { ... } block!!
+          |
+          |workflow foo {  }
+        """.stripMargin
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val badWdlSources = WorkflowSourceFiles(noWorkflowWdl, validInputsJson, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(badWdlSources, minimumConf)
 
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nUnable to load namespace from workflow: Namespace does not have a local workflow to run")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
-    "error when running a workflowless WDL" ignore {
 
+    "reject an invalid options file" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdlSourceNoDocker, validInputsJson, unstructuredFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nWorkflow contains invalid options JSON")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
     }
 
+    "reject an invalid workflow inputs file" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdlSourceNoDocker, unstructuredFile, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nWorkflow contains invalid inputs JSON")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
+
+    "reject requests if any required inputs are missing" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val noInputsJson = "{}"
+      val badOptionsSources = WorkflowSourceFiles(wdlSourceNoDocker, noInputsJson, validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nRequired workflow input 'hello.hello.addressee' not specified")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
+
+    // TODO: PBE: Re-enable (ticket #1067)
+    "handle coercion failures gracefully" ignore {
+      val wdl =
+        """
+          |task bar { command { echo foobar } }
+          |workflow foo {
+          |  Int j = "twenty-seven point five recurring"
+          |  call bar
+          |}
+        """.stripMargin
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      val sources = WorkflowSourceFiles(wdl, "{}", validOptionsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed.\nUnable to load namespace from workflow: ERROR: Finished parsing without consuming all tokens.")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown => fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
   }
 }

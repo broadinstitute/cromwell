@@ -172,7 +172,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
         backendPriorities.flatten.headOption match {
           case Some(backendName) if CromwellBackends.isValidBackendName(backendName) => call -> backendName
-          case Some(backendName) => throw new Exception(s"Invalid backend for call ${call.fullyQualifiedName}: $backendName")
+          case Some(backendName) => throw new Exception(s"Backend not found in configuration file for call ${call.fullyQualifiedName}: $backendName")
           case None => throw new Exception(s"No backend could be found for call ${call.fullyQualifiedName}")
         }
       } toMap

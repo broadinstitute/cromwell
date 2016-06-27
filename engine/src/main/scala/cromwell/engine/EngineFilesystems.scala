@@ -18,7 +18,7 @@ object EngineFilesystems {
 
   private val config = ConfigFactory.load
 
-  def filesystemsForWorkflow(workflowOptions: WorkflowOptions, workflowLogger: WorkflowLogger): List[FileSystem] = {
+  def filesystemsForWorkflow(workflowOptions: WorkflowOptions): List[FileSystem] = {
     def gcsFileSystem: Option[GcsFileSystem] = {
       for {
         authModeString <- config.getStringOption("engine.filesystems.gcs.auth")

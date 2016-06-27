@@ -75,7 +75,7 @@ object Run {
 
     // If runIdForResumption is defined use that, otherwise we'll create a new Run with an ephemeral pipeline.
     val runId = runIdForResumption getOrElse runPipeline
-    new Run(runId, jobDescriptor, genomicsInterface)
+    new Run(runId, genomicsInterface)
   }
 
   private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
@@ -85,12 +85,8 @@ object Run {
   }
 }
 
-// PBE hacked out loggers
-case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInterface: Genomics/*, logger: WorkflowLogger */) {
+case class Run(runId: String, genomicsInterface: Genomics) {
   import Run._
-
-  lazy val workflowId = jobDescriptor.descriptor.id
-  lazy val call = jobDescriptor.key.scope
 
   def status(): RunStatus = {
     val op = genomicsInterface.operations().get(runId).execute
@@ -108,7 +104,7 @@ case class Run(runId: String,  jobDescriptor: BackendJobDescriptor, genomicsInte
     }
   }
 
-  private def getEventList(op: Operation): Seq[EventStartTime] = {
+  def getEventList(op: Operation): Seq[EventStartTime] = {
     val metadata = op.getMetadata.asScala.toMap
 
     val starterEvents: Seq[EventStartTime] = Seq(

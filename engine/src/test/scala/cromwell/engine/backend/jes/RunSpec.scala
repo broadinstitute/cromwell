@@ -3,14 +3,18 @@ package cromwell.engine.backend.jes
 import java.time.OffsetDateTime
 import java.util
 
+import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential
 import com.google.api.client.util.ArrayMap
+import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
-import org.scalatest.{Matchers, FlatSpec}
+import cromwell.backend.impl.jes.{EventStartTime, Run}
+import org.scalatest.{FlatSpec, Matchers}
+import org.specs2.mock.{Mockito => MockitoTrait}
+
 import scala.collection.JavaConverters._
 
-// PBE do we need an equivalent test in the New Worlde?
-class RunSpec extends FlatSpec with Matchers {
-  "JES Run" should "parse events from Operation metadata" ignore {
+class RunSpec extends FlatSpec with Matchers with MockitoTrait {
+  "JES Run" should "parse events from Operation metadata" in {
     val op: Operation = new Operation()
 
     val event1: ArrayMap[String, String] = ArrayMap.create(2)
@@ -30,14 +34,19 @@ class RunSpec extends FlatSpec with Matchers {
       "events" -> events
     )
 
-
     op.setMetadata(metadata.asJava)
 
-//    Run.getEventList(op) should have size 5
-//    Run.getEventList(op) filter { x => x.description == "blah" } foreach { x =>
-//      x.startTime.toInstant should be (OffsetDateTime.parse("2015-12-05T00:00:01.000Z").toInstant)
-//      x.endTime.toInstant should be (OffsetDateTime.parse("2015-12-05T00:01:00.000Z").toInstant)
-//    }
+    val mockedCredentials = new MockGoogleCredential.Builder().build()
+    val genomics = new Genomics(mockedCredentials.getTransport, mockedCredentials.getJsonFactory, mockedCredentials)
+    val run = new Run("runId", genomics)
+    val list = run.getEventList(op)
+    list should contain theSameElementsAs List(
+      EventStartTime("waiting for quota", OffsetDateTime.parse("2015-12-05T00:00:00+00:00")),
+      EventStartTime("initializing VM", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
+      EventStartTime("blah", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
+      EventStartTime("blah2", OffsetDateTime.parse("2015-12-05T00:01:00+00:00")),
+      EventStartTime("cromwell poll interval", OffsetDateTime.parse("2015-12-05T11:00:00+00:00"))
+    )
 
   }
 }

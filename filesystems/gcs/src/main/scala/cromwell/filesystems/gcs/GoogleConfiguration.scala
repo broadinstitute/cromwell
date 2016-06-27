@@ -14,6 +14,7 @@ import scalaz._
 
 
 final case class GoogleConfiguration private (applicationName: String, authsByName: Map[String, GoogleAuthMode]) {
+
   def auth(name: String): ErrorOr[GoogleAuthMode] = {
     authsByName.get(name) match {
       case None =>

@@ -43,6 +43,7 @@ object SlickDataAccessSpec {
   val Workflow1Name = "test1"
   val Workflow2Name = "test2"
 
+//TODO: Why is this still here?
 //  implicit class EnhancedEngineWorkflowDescriptor(val workflowDescriptor: EngineWorkflowDescriptor) extends AnyVal {
 //    def fileHasher: FileHasher = { wdlFile: WdlFile =>
 //        SymbolHash(wdlFile.value.toPath(FileSystems.getDefault).hash)
@@ -76,7 +77,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
   it should "not deadlock" ignore {
-//    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
+    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
 //    val databaseConfig = ConfigFactory.parseString(
 //      s"""
 //         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"

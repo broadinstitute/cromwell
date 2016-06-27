@@ -57,10 +57,10 @@ object Run {
       val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount)
 
       rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
-      logger.info(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")
+      logger.debug(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")
 
       rpargs.setOutputs(jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
-      logger.info(s"Outputs:\n${stringifyMap(rpargs.getOutputs.asScala.toMap)}")
+      logger.debug(s"Outputs:\n${stringifyMap(rpargs.getOutputs.asScala.toMap)}")
 
       val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 

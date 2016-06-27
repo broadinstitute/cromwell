@@ -125,7 +125,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     (namespaceValidation |@| workflowOptionsValidation) {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
-      val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions)
+      val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions, workflowLogger)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, engineFileSystems)
     }
   }

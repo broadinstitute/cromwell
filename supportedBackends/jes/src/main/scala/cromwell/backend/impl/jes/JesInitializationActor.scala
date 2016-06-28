@@ -40,7 +40,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     JesRuntimeAttributes.DisksKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom))
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
-  private lazy val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+  private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
 
   private lazy val refreshTokenAuth: Option[JesAuthInformation] = {
     for {

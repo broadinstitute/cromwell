@@ -26,7 +26,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 
-  private lazy val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+  private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
 
   override def afterAll(): Future[Unit] = {
     for {

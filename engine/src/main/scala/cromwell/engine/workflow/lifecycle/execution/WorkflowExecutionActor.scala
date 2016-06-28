@@ -2,7 +2,8 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -22,6 +23,7 @@ import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, Eng
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import lenthall.exception.ThrowableAggregation
+import wdl4s.Scope
 import wdl4s._
 import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
@@ -226,6 +228,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
+
+  override def supervisorStrategy = OneForOneStrategy() {
+    case ex: ActorInitializationException =>
+      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(ex))
+      Stop
+  }
 
   val tag = s"WorkflowExecutionActor [UUID(${workflowId.shortString})]"
   private lazy val DefaultMaxRetriesFallbackValue = 10

@@ -229,9 +229,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   import WorkflowExecutionActor._
   import lenthall.config.ScalaConfig._
 
-  override def supervisorStrategy = OneForOneStrategy() {
+  override def supervisorStrategy = AllForOneStrategy() {
     case ex: ActorInitializationException =>
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(ex))
+      context.stop(self)
       Stop
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }

@@ -167,7 +167,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       workflowEnd should be >= metadata.get("start").toOffsetDateTime
       metadata.get("submission").toOffsetDateTime should be >= testStart
       metadata.get("inputs").toFields should have size 0
-      metadata.get("outputs") shouldBe empty
+      metadata.get("outputs").toFields should have size 0
       val calls = metadata.get("calls").toFields
       calls should not be empty
 

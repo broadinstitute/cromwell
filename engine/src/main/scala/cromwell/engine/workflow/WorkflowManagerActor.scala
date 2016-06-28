@@ -208,9 +208,13 @@ class WorkflowManagerActor(config: Config)
 
     val wfActor = context.actorOf(WorkflowActor.props(workflowId, startMode, source, config, serviceRegistryActor, workflowLogCopyRouter), name = s"WorkflowActor-$workflowId")
 
-    // We have a valid workflowId for the workflow, send it over to the metadata service
-    val submissionEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString))
-    serviceRegistryActor ! PutMetadataAction(submissionEvent)
+    // We have a valid workflowId for the workflow, send it over to the metadata service with default empty values for inputs/outputs
+    val submissionEvents = List(
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
+      MetadataEvent.empty(MetadataKey(workflowId, None, WorkflowMetadataKeys.Inputs)),
+      MetadataEvent.empty(MetadataKey(workflowId, None, WorkflowMetadataKeys.Outputs))
+    )
+    serviceRegistryActor ! PutMetadataAction(submissionEvents)
 
     replyTo.foreach { _ ! WorkflowManagerSubmitSuccess(id = workflowId) }
     wfActor ! SubscribeTransitionCallBack(self)

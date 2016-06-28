@@ -17,10 +17,12 @@ import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
+import scala.util.Random
 
 object WorkflowManagerActor {
 
@@ -137,6 +139,8 @@ class WorkflowManagerActor(config: Config)
     /*
      Responses from services
      */
+      // TODO Restart: to be verified after restart is implemented but these WorkflowSucceededResponse/WorkflowFailedResponse seem useless
+      // Watching the transition should be enough for the WMA to do what it needs to
     case Event(WorkflowSucceededResponse(workflowId), data) =>
       log.info(s"$tag Workflow $workflowId succeeded!")
       stay()

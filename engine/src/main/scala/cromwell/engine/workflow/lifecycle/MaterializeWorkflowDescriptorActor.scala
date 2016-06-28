@@ -87,9 +87,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
             val message = s"Workflow input processing failed."
             val errors = error
           })
-          error.zipWithIndex.foreach { case (err: String, idx: Int) =>
-            serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[$idx]"), MetadataValue(err)))
-          }
           goto(MaterializationFailedState)
       }
     case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>

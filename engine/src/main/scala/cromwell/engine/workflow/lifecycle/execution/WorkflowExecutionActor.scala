@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import java.time.OffsetDateTime
 
-import akka.actor.SupervisorStrategy.Stop
+import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
@@ -233,6 +233,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case ex: ActorInitializationException =>
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(ex))
       Stop
+    case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 
   val tag = s"WorkflowExecutionActor [UUID(${workflowId.shortString})]"

@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
-import akka.routing.{FromConfig, RoundRobinPool}
+import akka.routing.FromConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.database.obj.WorkflowMetadataKeys
@@ -17,12 +17,10 @@ import cromwell.services.MetadataServiceActor._
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
-import scala.util.Random
 
 object WorkflowManagerActor {
 

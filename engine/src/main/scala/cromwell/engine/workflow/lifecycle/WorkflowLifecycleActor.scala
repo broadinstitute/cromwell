@@ -1,9 +1,8 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
-import akka.actor.{ActorInitializationException, OneForOneStrategy, ActorRef, LoggingFSM}
+import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.WorkflowInitializationFailedResponse
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 
 object WorkflowLifecycleActor {

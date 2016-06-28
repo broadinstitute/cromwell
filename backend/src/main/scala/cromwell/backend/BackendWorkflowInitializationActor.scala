@@ -25,7 +25,7 @@ object BackendWorkflowInitializationActor {
   // Responses
   sealed trait BackendWorkflowInitializationActorResponse extends BackendWorkflowLifecycleActorResponse
   sealed trait InitializationResponse extends BackendWorkflowInitializationActorResponse
-  case object InitializationSuccess extends InitializationResponse
+  case class InitializationSuccess(backendInitializationData: Option[BackendInitializationData]) extends InitializationResponse
   case class InitializationFailed(reason: Throwable) extends Exception with InitializationResponse
 
 }
@@ -106,8 +106,8 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   final def initSequence() = for {
     _ <- validateRuntimeAttributes
     _ <- validate()
-    _ <- beforeAll()
-  } yield InitializationSuccess
+    data <- beforeAll()
+  } yield InitializationSuccess(data)
 
   /**
     * Abort all initializations.
@@ -117,13 +117,11 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   /**
     * A call which happens before anything else runs
     */
-  def beforeAll(): Future[Unit]
+  def beforeAll(): Future[Option[BackendInitializationData]]
 
   /**
     * Validate that this WorkflowBackendActor can run all of the calls that it's been assigned
     */
   def validate(): Future[Unit]
-
-
 
 }

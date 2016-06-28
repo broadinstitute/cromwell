@@ -110,7 +110,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
       val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
 
-      val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key)
+      val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key, None)
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
@@ -178,7 +178,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
     val wf = buildWorkflowDescriptor(OutputProcess, inputs)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf, inputs)
     val backend = localBackend(jobDescriptor, defaultBackendConfigDescriptor)
-    val jobPaths = new JobPaths(wf, defaultBackendConfigDescriptor.backendConfig, jobDescriptor.key)
+    val jobPaths = new JobPaths(wf, defaultBackendConfigDescriptor.backendConfig, jobDescriptor.key, None)
     val expectedA = WdlFile(jobPaths.callRoot.resolve("a").toAbsolutePath.toString)
     val expectedB = WdlFile(jobPaths.callRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
     val expectedOutputs = Map (

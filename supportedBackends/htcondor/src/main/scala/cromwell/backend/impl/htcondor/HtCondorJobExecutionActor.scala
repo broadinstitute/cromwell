@@ -45,7 +45,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.descriptor
-  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key, None)
 
   // Files
   private val executionDir = jobPaths.callRoot

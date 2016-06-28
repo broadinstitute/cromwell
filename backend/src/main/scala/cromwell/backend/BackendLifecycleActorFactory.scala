@@ -13,17 +13,19 @@ trait BackendLifecycleActorFactory {
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        calls: Seq[Call]): Option[Props]
 
-  def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor): Props
+  def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],
                                      executionStore: ExecutionStore,
-                                     outputStore: OutputStore): Option[Props] = None
+                                     outputStore: OutputStore,
+                                     initializationData: Option[BackendInitializationData]): Option[Props] = None
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                  jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions
+                                  jobKey: BackendJobDescriptorKey,
+                                  initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions
 
-  def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config): Path = {
-      new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot
+  def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
+      new WorkflowPaths(workflowDescriptor, backendConfig, initializationData).executionRoot
   }
 }

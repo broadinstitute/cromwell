@@ -14,13 +14,14 @@ import scala.language.postfixOps
 object JesJobExecutionActor {
   val logger = LoggerFactory.getLogger("JesBackend")
 
-  def props(jobDescriptor: BackendJobDescriptor, jesWorkflowInfo: JesConfiguration): Props =
-    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo))
-
+  def props(jobDescriptor: BackendJobDescriptor, jesWorkflowInfo: JesConfiguration, initializationData: JesBackendInitializationData): Props = {
+    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData))
+  }
 }
 
 case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                                jesConfiguration: JesConfiguration)
+                                jesConfiguration: JesConfiguration,
+                                initializationData: JesBackendInitializationData)
   extends BackendJobExecutionActor {
 
   override def receive: Receive = LoggingReceive {
@@ -48,7 +49,7 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   override def recover: Future[BackendJobExecutionResponse] = ???
 
   override def execute: Future[BackendJobExecutionResponse] = {
-    val executorRef = context.actorOf(JesAsyncBackendJobExecutionActor.props(jobDescriptor, completionPromise, jesConfiguration))
+    val executorRef = context.actorOf(JesAsyncBackendJobExecutionActor.props(jobDescriptor, completionPromise, jesConfiguration, initializationData))
     executor = Option(executorRef)
     executorRef ! Execute
     completionPromise.future

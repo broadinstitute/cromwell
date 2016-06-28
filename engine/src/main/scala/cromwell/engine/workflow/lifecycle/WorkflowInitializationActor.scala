@@ -1,9 +1,9 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{FSM, Props}
+import akka.actor.{ActorRef, FSM, Props}
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
-import cromwell.backend.BackendWorkflowInitializationActor
 import cromwell.backend.BackendWorkflowInitializationActor._
+import cromwell.backend.{AllBackendInitializationData, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
@@ -37,14 +37,17 @@ object WorkflowInitializationActor {
   /**
     * Responses
     */
-  case object WorkflowInitializationSucceededResponse extends WorkflowLifecycleSuccessResponse
+  final case class WorkflowInitializationSucceededResponse(initializationData: AllBackendInitializationData) extends WorkflowLifecycleSuccessResponse
   case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse
   final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(new WorkflowInitializationActor(workflowId, workflowDescriptor))
+
+  case class BackendActorAndBackend(actor: ActorRef, backend: String)
 }
 
-case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor) extends AbortableWorkflowLifecycleActor[WorkflowInitializationActorState] {
+case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor)
+  extends AbortableWorkflowLifecycleActor[WorkflowInitializationActorState] {
 
   startWith(InitializationPendingState, WorkflowLifecycleActorData.empty)
   val tag = self.path.name
@@ -54,9 +57,16 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
   override val failureState = InitializationFailedState
   override val abortedState = InitializationsAbortedState
 
-  override val successResponse = WorkflowInitializationSucceededResponse
+  override def successResponse(data: WorkflowLifecycleActorData) = {
+    val actorsToBackends = backendActorsAndBackends.map(ab => ab.actor -> ab.backend).toMap
+    val actorsToData = data.successes.map(ad => ad.actor -> ad.data).toMap
+    val allBackendInitializationData = AllBackendInitializationData(actorsToBackends collect { case (a, b) => b -> actorsToData.get(a).get })
+    WorkflowInitializationSucceededResponse(allBackendInitializationData)
+  }
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowInitializationFailedResponse(reasons)
   override val abortedResponse = WorkflowInitializationAbortedResponse
+
+  private var backendActorsAndBackends: Traversable[BackendActorAndBackend] = _
 
   when(InitializationPendingState) {
     case Event(StartInitializationCommand, _) =>
@@ -67,18 +77,20 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls)
           ).get
           actor = context.actorOf(props)
-        } yield actor
+        } yield BackendActorAndBackend(actor, backend)
       }
 
       backendInitializationActors match {
         case Failure(ex) =>
           sender ! WorkflowInitializationFailedResponse(Seq(ex))
           goto(InitializationFailedState)
-        case Success(actors) if actors.isEmpty=>
-          sender ! WorkflowInitializationSucceededResponse
+        case Success(actors) if actors.isEmpty =>
+          backendActorsAndBackends = List.empty
+          sender ! WorkflowInitializationSucceededResponse(AllBackendInitializationData.empty)
           goto(InitializationSucceededState)
         case Success(actors) =>
-          val actorSet = actors.toSet
+          backendActorsAndBackends = actors
+          val actorSet: Set[ActorRef] = actors.map(_.actor).toSet
           actorSet.foreach(_ ! Initialize)
           goto(InitializationInProgressState) using stateData.withActors(actorSet)
       }
@@ -89,7 +101,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
   }
 
   when(InitializationInProgressState) {
-    case Event(InitializationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender))
+    case Event(InitializationSuccess(initData), stateData) => checkForDoneAndTransition(stateData.withSuccess(sender, initData))
     case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
       stateData.actors foreach { _ ! BackendWorkflowInitializationActor.Abort }
@@ -97,7 +109,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
   }
 
   when(InitializationAbortingState) {
-    case Event(InitializationSuccess, stateData) => checkForDoneAndTransition(stateData.withSuccess(sender))
+    case Event(InitializationSuccess(initData), stateData) => checkForDoneAndTransition(stateData.withSuccess(sender, initData))
     case Event(InitializationFailed(reason), stateData) => checkForDoneAndTransition(stateData.withFailure(sender, reason))
     case Event(BackendActorAbortedResponse, stateData) => checkForDoneAndTransition(stateData.withAborted(sender))
   }

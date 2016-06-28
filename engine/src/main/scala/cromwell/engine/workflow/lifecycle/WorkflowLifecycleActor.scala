@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, LoggingFSM}
+import akka.actor.{ActorRef, LoggingFSM, _}
+import cromwell.backend.BackendInitializationData
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 
@@ -16,20 +17,22 @@ object WorkflowLifecycleActor {
     def empty = WorkflowLifecycleActorData(Set.empty, List.empty, Map.empty, List.empty)
   }
 
+  case class BackendActorAndInitializationData(actor: ActorRef, data: Option[BackendInitializationData])
+
   /**
     * State data
     */
   case class WorkflowLifecycleActorData(actors: Set[ActorRef],
-                                        successes: Seq[ActorRef],
+                                        successes: Seq[BackendActorAndInitializationData],
                                         failures: Map[ActorRef, Throwable],
                                         aborted: Seq[ActorRef]) {
 
     def withActors(actors: Set[ActorRef]) = this.copy(
       actors = this.actors ++ actors
     )
-    def withSuccess(successfulActor: ActorRef) = this.copy(
+    def withSuccess(successfulActor: ActorRef, data: Option[BackendInitializationData] = None) = this.copy(
       actors = this.actors - successfulActor,
-      successes = successes :+ successfulActor)
+      successes = successes :+ BackendActorAndInitializationData(successfulActor, data))
     def withFailure(failedActor: ActorRef, reason: Throwable) = this.copy(
       actors = this.actors - failedActor,
       failures = failures + (failedActor -> reason))
@@ -62,7 +65,7 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
   val successState: S
   val failureState: S
 
-  def successResponse: WorkflowLifecycleSuccessResponse
+  def successResponse(data: WorkflowLifecycleActorData): WorkflowLifecycleSuccessResponse
   def failureResponse(reasons: Seq[Throwable]): WorkflowLifecycleFailureResponse
 
 
@@ -84,7 +87,7 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
   protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {
     if (checkForDone(newData)) {
       if (newData.failures.isEmpty) {
-        context.parent ! successResponse
+        context.parent ! successResponse(newData)
         goto(successState) using newData
       } else {
         context.parent ! failureResponse(newData.failures.values.toSeq)

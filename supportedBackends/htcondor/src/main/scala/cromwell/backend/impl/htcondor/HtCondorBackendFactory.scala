@@ -15,13 +15,14 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
     Option(HtCondorInitializationActor.props(workflowDescriptor, calls, configurationDescriptor))
   }
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
     HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, resolveCacheProviderProps())
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = {
-    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
+                                           jobKey: BackendJobDescriptorKey,
+                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
+    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey, None)
     val callContext = new CallContext(
       jobPaths.callRoot,
       jobPaths.stdout.toAbsolutePath.toString,

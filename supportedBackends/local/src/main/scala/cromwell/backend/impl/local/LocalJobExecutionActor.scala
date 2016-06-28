@@ -54,7 +54,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
     MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
   }
-  val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key, None)
   val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
 

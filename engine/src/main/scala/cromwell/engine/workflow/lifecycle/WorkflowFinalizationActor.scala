@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{FSM, Props}
+import cromwell.backend.AllBackendInitializationData
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
@@ -37,14 +38,13 @@ object WorkflowFinalizationActor {
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore,
-  outputStore: OutputStore): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore))
+  outputStore: OutputStore, initializationData: AllBackendInitializationData): Props = {
+    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore, initializationData))
   }
-
 }
 
 case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor,
-                                     executionStore: ExecutionStore, outputStore: OutputStore)
+                                     executionStore: ExecutionStore, outputStore: OutputStore, initializationData: AllBackendInitializationData)
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
 
   val tag = self.path.name
@@ -53,7 +53,7 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
   override val successState = FinalizationSucceededState
   override val failureState = WorkflowFinalizationFailedState
 
-  override val successResponse = WorkflowFinalizationSucceededResponse
+  override def successResponse(data: WorkflowLifecycleActorData) = WorkflowFinalizationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowFinalizationFailedResponse(reasons)
 
   startWith(FinalizationPendingState, WorkflowLifecycleActorData.empty)
@@ -64,14 +64,14 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
-            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, executionStore, outputStore)
+            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, executionStore, outputStore, initializationData.get(backend))
           ).get
           actor = context.actorOf(props)
         } yield actor
       }
 
       val engineFinalizationActor = Try {
-        context.actorOf(CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, outputStore))
+        context.actorOf(CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, outputStore, initializationData))
       }
 
       val allActors = for {

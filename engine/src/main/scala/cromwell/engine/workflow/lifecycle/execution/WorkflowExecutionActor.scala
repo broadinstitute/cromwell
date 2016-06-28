@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
@@ -129,7 +129,10 @@ object WorkflowExecutionActor {
 
   def props(workflowId: WorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
-            serviceRegistryActor: ActorRef): Props = Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor))
+            serviceRegistryActor: ActorRef,
+            initializationData: AllBackendInitializationData): Props = {
+    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, initializationData))
+  }
 
   private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
     /** Find currently runnable scopes */
@@ -221,7 +224,8 @@ object WorkflowExecutionActor {
 
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         workflowDescriptor: EngineWorkflowDescriptor,
-                                        serviceRegistryActor: ActorRef)
+                                        serviceRegistryActor: ActorRef,
+                                        initializationData: AllBackendInitializationData)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
 
   import WorkflowExecutionActor._
@@ -551,7 +555,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val jobPreparationActorName = s"${workflowDescriptor.id}-BackendPreparationActor-${jobKey.tag}"
-            val jobPreparationActor = context.actorOf(JobPreparationActor.props(data, jobKey, factory), jobPreparationActorName)
+            val jobPreparationActor = context.actorOf(JobPreparationActor.props(data, jobKey, factory, initializationData.get(backendName)), jobPreparationActorName)
             pushNewJobMetadata(jobKey, backendName)
             jobPreparationActor ! JobPreparationActor.Start
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))

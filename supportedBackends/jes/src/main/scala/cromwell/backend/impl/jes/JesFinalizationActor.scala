@@ -14,8 +14,8 @@ import scala.concurrent.Future
 
 object JesFinalizationActor {
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
-            executionStore: ExecutionStore, outputStore: OutputStore) = {
-    Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore))
+            executionStore: ExecutionStore, outputStore: OutputStore, initializationData: JesBackendInitializationData) = {
+    Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData))
       .withDispatcher("akka.dispatchers.slow-actor-dispatcher")
   }
 }
@@ -23,11 +23,12 @@ object JesFinalizationActor {
 class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDescriptor,
                             override val calls: Seq[Call],
                             jesConfiguration: JesConfiguration, executionStore: ExecutionStore,
-                            outputStore: OutputStore) extends BackendWorkflowFinalizationActor {
+                            outputStore: OutputStore,
+                            initializationData: JesBackendInitializationData) extends BackendWorkflowFinalizationActor {
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 
-  private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+  private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, initializationData.backendFilesystem)
 
   override def afterAll(): Future[Unit] = {
     for {
@@ -64,27 +65,17 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
     copyLogs(toJesPath(callLogsDir), logPaths)
   }
 
-  private def toJesPath(value: String): Path = {
-    val fileSystem = buildFilesystem(workflowDescriptor,
-      jesConfiguration.jesAttributes.gcsFilesystemAuth, jesConfiguration.googleConfig)
-
-    fileSystem.getPath(value)
-  }
+  private def toJesPath(value: String): Path = initializationData.backendFilesystem.getPath(value)
 
   private lazy val logPaths: Seq[Path] = {
     val allCallPaths = executionStore.store.toSeq collect {
       case (backendJobDescriptorKey: BackendJobDescriptorKey, _) =>
-        JesCallPaths(backendJobDescriptorKey, workflowDescriptor, jesConfiguration)
+        JesCallPaths(backendJobDescriptorKey, workflowDescriptor, jesConfiguration, initializationData.backendFilesystem)
     }
 
     allCallPaths flatMap { callPaths =>
       Seq(callPaths.stdoutPath, callPaths.stderrPath, callPaths.jesLogPath)
     }
-  }
-
-  private def getWorkflowOption(key: String): Option[String] = {
-    val workflowOptions = workflowDescriptor.workflowOptions
-    workflowOptions.get(key).toOption
   }
 
   private def copyLogs(callLogsDirPath: Path, logPaths: Seq[Path]): Unit = {

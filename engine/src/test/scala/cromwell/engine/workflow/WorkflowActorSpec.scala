@@ -4,6 +4,7 @@ import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
+import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -27,7 +28,8 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
 
   private def createWorkflowActor(state: WorkflowActorState) = {
     val actor = TestFSMRef(new WorkflowActor(WorkflowId.randomId(), StartNewWorkflow, wdlSources, ConfigFactory.load, mockServiceRegistryActor, TestProbe().ref))
-    actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor), StateCheckpoint(InitializingWorkflowState)))
+    actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
+      AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))
     actor
   }
 

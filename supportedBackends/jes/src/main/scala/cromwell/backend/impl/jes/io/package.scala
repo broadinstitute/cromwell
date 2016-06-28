@@ -21,13 +21,6 @@ package object io {
     }
   }
 
-  private [jes] def buildFilesystem(workflowDescriptor: BackendWorkflowDescriptor, authMode: GoogleAuthMode, googleConfig: GoogleConfiguration) = {
-    val authOptions = workflowDescriptor.workflowOptions.toGoogleAuthOptions
-    val storage = authMode.buildStorage(authOptions, googleConfig)
-
-    GcsFileSystemProvider(storage).getFileSystem
-  }
-
   private [jes] def isFatalJesException(t: Throwable): Boolean = t match {
     case e: HttpResponseException if e.getStatusCode == 403 => true
     case e: HttpResponseException if e.getStatusCode == 400 && e.getContent.contains("INVALID_ARGUMENT") => true

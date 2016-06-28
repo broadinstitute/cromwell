@@ -124,7 +124,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
         backend ! Initialize
       }
       expectMsgPF() {
-        case InitializationSuccess => //Docker entry is present.
+        case InitializationSuccess(_) => //Docker entry is present.
         case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
       }
     }

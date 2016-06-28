@@ -4,15 +4,16 @@ import java.nio.file.Path
 
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.CallContext
+import cromwell.filesystems.gcs.GcsFileSystem
 
 object JesCallPaths {
-  def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration): JesCallPaths = {
-    new JesCallPaths(jobKey, workflowDescriptor, jesConfiguration)
+  def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration, gcsFileSystem: GcsFileSystem): JesCallPaths = {
+    new JesCallPaths(jobKey, workflowDescriptor, jesConfiguration, gcsFileSystem)
   }
 }
 
-class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration
-                  ) extends JesWorkflowPaths(workflowDescriptor, jesConfiguration) {
+class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration,
+                   val gcsFileSystem: GcsFileSystem) extends JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem) {
 
   val CallPrefix = "call"
   val ShardPrefix = "shard"

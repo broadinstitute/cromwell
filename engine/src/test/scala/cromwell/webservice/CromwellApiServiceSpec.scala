@@ -479,7 +479,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     publishMetadata(events)
     forceSummary()
 
-    Get(s"/workflows/$version/query?status=Succeeded") ~>
+    Get(s"/workflows/$version/query?status=Succeeded&id=${workflowId}") ~>
       queryRoute ~>
       check {
         status should be(StatusCodes.OK)
@@ -499,11 +499,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     publishMetadata(events)
     forceSummary()
 
-    Get(s"/workflows/$version/query?status=Succeeded&page=1&pagesize=5") ~>
+    Get(s"/workflows/$version/query?status=Succeeded&id=${workflowId}&page=1&pagesize=5") ~>
       queryRoute ~>
       check {
         status should be(StatusCodes.OK)
         val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+
+        results.head.fields("id") should be(JsString(workflowId.toString))
+        results.head.fields("status") should be(JsString("Succeeded"))
 
         assertResult(4) {
           headers count { header => header.is("link") }

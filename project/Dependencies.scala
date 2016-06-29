@@ -5,7 +5,7 @@ object Dependencies {
   lazy val wdl4sV = "0.5-ed015a6-SNAPSHOT"
   lazy val sprayV = "1.3.2"
   lazy val DowngradedSprayV = "1.3.1"
-  lazy val akkaV = "2.3.12"
+  lazy val akkaV = "2.3.15"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
   lazy val betterFilesV = "2.13.0"

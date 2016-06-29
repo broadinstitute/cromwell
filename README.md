@@ -41,26 +41,17 @@ centaur {
 
 Each test case file is a HOCON file with the following structure:
 ```
-Required: Name of the test:
-name: NAME
-Required: One of WorkflowSuccessTest, WorkflowFailureTest:
-testFormat: TESTFORMAT
+name: NAME  // Required: Name of the test
+testFormat: TESTFORMAT // Required: One of WorkflowSuccessTest, WorkflowFailureTest
 
-// Optional, location for the files {} entries to be found relative to:
-basePath: /an/optional/field
-// Optional, a set of custom tags to apply to this test:
-tags: [ "any", "custom", "tags" ]
-// Optional, whether centaur will ignore this test when running:
-ignore: false
+basePath: /an/optional/field  // Optional, location for the files {} entries to be found relative to
+tags: [ "any", "custom", "tags" ]  // Optional, a set of custom tags to apply to this test
+ignore: false  // Optional, whether centaur will ignore this test when running
 
 files {
-  // Required: path to the WDL file to submit
-  wdl: path/to/wdl
-  
-  // Optional, a path to an inputs JSON to include in the submission:
-  inputs: optional/path/to/inputs
-  // Optional, a path to an options JSON to include in the submission:
-  options: optional/path/to/options
+  wdl: path/to/wdl  // Required: path to the WDL file to submit
+  inputs: optional/path/to/inputs  // Optional, a path to an inputs JSON to include in the submission
+  options: optional/path/to/options  // Optional, a path to an options JSON to include in the submission
 }
 
 // Optional, some metadata to verify on workflow completion:

@@ -317,7 +317,8 @@ A backend represents a way to run the user's command specified in the `task` sec
 * Platform Load Sharing Facility - Use `bsub` and job monitoring to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
 
-Backends are specified via the configuration option `backend.backend` which can accept the values: `sge`, `lsf`, `local`, and `jes` (e.g. `java -Dbackend.backend=sge`).
+The default backend for a workflow is specified via the configuration option `backend.defaultBackend` which can accept the values: `sge`, `lsf`, `local`, and `jes` (e.g. `java -Dbackend.defaultBackend=sge`).
+This can be overridden by adding a `backend` entry to a submission's workflow options file.
 
 ## Backend Filesystems
 

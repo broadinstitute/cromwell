@@ -33,9 +33,7 @@ which contains one or more test case files.
 The same result can be achieved more permanently by adding the custom directory into the application.conf file directly: 
 ```
 centaur {
-  ...
   optionalTestPath = "/some/path/to/tests"
-
 }
 ```
 
@@ -43,20 +41,25 @@ centaur {
 
 Each test case file is a HOCON file with the following structure:
 ```
+Required: Name of the test:
 name: NAME
+Required: One of WorkflowSuccessTest, WorkflowFailureTest:
 testFormat: TESTFORMAT
+
 // Optional, location for the files {} entries to be found relative to:
 basePath: /an/optional/field
 // Optional, a set of custom tags to apply to this test:
 tags: [ "any", "custom", "tags" ]
 // Optional, whether centaur will ignore this test when running:
-ignored: false
+ignore: false
 
 files {
+  // Required: path to the WDL file to submit
   wdl: path/to/wdl
-  // Optional, a path to the inputs JSON:
+  
+  // Optional, a path to an inputs JSON to include in the submission:
   inputs: optional/path/to/inputs
-  // Optional, a path to the options JSON:
+  // Optional, a path to an options JSON to include in the submission:
   options: optional/path/to/options
 }
 

@@ -7,6 +7,7 @@ import cromwell.CromwellSpec.PostMVP
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
+import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.util.SampleWdl.HelloWorld
@@ -22,7 +23,12 @@ import scala.language.postfixOps
 class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
 
   val workflowId = WorkflowId.randomId
-  val minimumConf = ConfigFactory.parseString("")
+  val minimumConf = ConfigFactory.parseString(
+    """
+      |backend {
+      |  default = "Local"
+      |}
+    """.stripMargin)
   val differentDefaultBackendConf = ConfigFactory.parseString(
     """
       |backend {
@@ -72,6 +78,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
               case (call, assignment) => fail(s"Unexpected call: ${call.task.name}")
             }
             wfDesc.engineFilesystems.size shouldBe 2
+          case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
         }
@@ -173,8 +180,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       system.stop(materializeWfActor)
     }
 
-    // TODO: PBE: Backend assignment should happen based on passed-in configuration (ticket #1075)
-    "assign backends based on runtime attributes" ignore {
+    "assign backends based on runtime attributes" in {
       val wdl =
         """
           |task a {
@@ -188,7 +194,15 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
           |}
         """.stripMargin
 
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId))
+      // The backends need to be in CromwellBackends in order for MaterializeWorkflowDescriptorActor to accept them:
+      val placeholdingActorFactoryClass = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
+      val fauxBackendEntries = List(
+        BackendConfigurationEntry("SpecifiedBackend", placeholdingActorFactoryClass, ConfigFactory.parseString("")),
+        BackendConfigurationEntry("DefaultBackend", placeholdingActorFactoryClass, ConfigFactory.parseString("")))
+      val cromwellBackends = CromwellBackends(fauxBackendEntries)
+
+      // Run the test:
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, cromwellBackends))
       val sources = WorkflowSourceFiles(wdl, "{}", "{}")
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
@@ -230,7 +244,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            if (!reason.getMessage.contains("Backend not found in configuration file for call foo.a: NoSuchBackend"))
+            if (!reason.getMessage.contains("Backend for call foo.a ('NoSuchBackend') not registered in configuration file"))
               fail(s"Unexpected failure message from MaterializeWorkflowDescriptorActor: ${reason.getMessage}")
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
           case unknown =>

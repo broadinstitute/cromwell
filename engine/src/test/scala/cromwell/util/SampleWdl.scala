@@ -1294,6 +1294,7 @@ object SampleWdl {
         |  Int int
         |  command {echo ${int}}
         |  output {Int out = read_int(stdout())}
+        |  RUNTIME_PLACEHOLDER
         |}
         |
         |workflow scatter0 {
@@ -1305,7 +1306,7 @@ object SampleWdl {
         |    }
         |  }
         |}
-      """.stripMargin
+      """.stripMargin.replace("RUNTIME_PLACEHOLDER", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }

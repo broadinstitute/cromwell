@@ -447,13 +447,15 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
     }
   }
 
-  def getWorkflowMetadata(workflowId: WorkflowId, key: Option[String] = None, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): JsObject = {
+  def getWorkflowMetadata(workflowId: WorkflowId, serviceRegistryActor: ActorRef, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
     // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
     val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None))
     val parentProbe = TestProbe()
 
     TestActorRef(MetadataBuilderActor.props(serviceRegistryActor), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}") ! message
     val metadata = parentProbe.expectMsgPF(TimeoutDuration) {
+      // Because of type erasure the scala compiler can't check that the RequestComplete generic type will be (StatusCode, JsObject), which would generate a warning
+      // As long as Metadata sends back a JsObject this is safe
       case response: RequestComplete[(StatusCode, JsObject)] @unchecked => response.response._2
     }
 
@@ -489,7 +491,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {
-    getWorkflowMetadata(id, None, serviceRegistryActor).getFields(WorkflowMetadataKeys.Outputs).toList match {
+    getWorkflowMetadata(id, serviceRegistryActor, None).getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))
       case _ => Map.empty
     }

@@ -53,7 +53,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
         }
       }
 
-      val metadata = getWorkflowMetadata(workflowId, None, serviceRegistryActor)
+      val metadata = getWorkflowMetadata(workflowId, serviceRegistryActor, None)
       val attempts: Vector[JsValue] = metadata.fields("calls").asJsObject.fields("hello.hello").asInstanceOf[JsArray].elements
 
       attempts.length shouldBe 3

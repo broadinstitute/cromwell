@@ -13,10 +13,10 @@ import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._
 import spray.http.MediaTypes._
 import spray.http.StatusCodes
-import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing.Directive.pimpApply
 import spray.routing._
+import spray.httpx.SprayJsonSupport._
 
 import scala.util.{Failure, Success, Try}
 
@@ -44,6 +44,7 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 
 trait CromwellApiService extends HttpService with PerRequestCreator with ServiceRegistryClient {
   val workflowManager: ActorRef
+  def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
 
   private def invalidWorkflowId(id: String) = failBadRequest(new RuntimeException(s"Invalid workflow ID: '$id'."))
 
@@ -60,7 +61,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       get {
         Try(WorkflowId.fromString(workflowId)) match {
           case Success(w) =>
-            requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), GetStatus(w))
+            requestContext => perRequest(requestContext, metadataBuilderProps, GetStatus(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -71,7 +72,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       parameterSeq { parameters =>
         get {
           requestContext =>
-            perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), WorkflowQuery(requestContext.request.uri, parameters))
+            perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameters))
         }
       }
     }
@@ -81,7 +82,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       entity(as[Seq[Map[String, String]]]) { parameterMap =>
         post {
           requestContext =>
-            perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), WorkflowQuery(requestContext.request.uri, parameterMap.flatMap(_.toSeq)))
+            perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameterMap.flatMap(_.toSeq)))
         }
       }
     }
@@ -140,7 +141,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     path("workflows" / Segment / Segment / "logs") { (version, workflowId) =>
       Try(WorkflowId.fromString(workflowId)) match {
         case Success(w) =>
-          requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), GetLogs(w))
+          requestContext => perRequest(requestContext, metadataBuilderProps, GetLogs(w))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
@@ -162,7 +163,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
                   case _ =>
                     requestContext =>
                       perRequest(requestContext,
-                        MetadataBuilderActor.props(serviceRegistryActor),
+                        metadataBuilderProps,
                         GetSingleWorkflowMetadataAction(workflowIdFromString, includeKeysOption, excludeKeysOption))
                 }
               case Failure(_) => invalidWorkflowId(workflowId)

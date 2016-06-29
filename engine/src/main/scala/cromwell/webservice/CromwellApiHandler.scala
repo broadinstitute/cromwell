@@ -33,8 +33,8 @@ object CromwellApiHandler {
   final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowMetadata(id: WorkflowId,
-                                              parameters: WorkflowMetadataQueryParameters) extends ApiHandlerMessage
+//  final case class ApiHandlerWorkflowMetadata(id: WorkflowId,
+//                                              parameters: WorkflowMetadataQueryParameters) extends ApiHandlerMessage
 
   sealed trait WorkflowManagerResponse
 
@@ -89,8 +89,8 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
       context.parent ! RequestComplete(StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
     case WorkflowManagerAbortFailure(_, e) =>
       error(e) {
-        //case _: WorkflowNotFoundException => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
         case _: IllegalStateException => RequestComplete(StatusCodes.Forbidden, APIResponse.error(e))
+        case _: Exception if e.getMessage.endsWith("because no workflow with that ID is in progress") => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 

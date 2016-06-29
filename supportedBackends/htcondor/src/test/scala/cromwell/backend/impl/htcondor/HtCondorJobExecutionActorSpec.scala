@@ -1,35 +1,33 @@
 package cromwell.backend.impl.htcondor
 
-import java.io.Writer
-import java.nio.file.{Path, Paths}
+import java.io.{File, FileWriter, Writer}
+import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
-import org.mockito.Mockito
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.impl.htcondor.caching.CacheActor
 import cromwell.backend.impl.htcondor.caching.exception.CachedResultNotFoundException
 import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
-import cromwell.backend.impl.htcondor.caching.CacheActor
-import cromwell.backend.io.JobPaths
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend.io.{BackendTestkitSpec, JobPaths}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core._
 import org.mockito.Matchers._
+import org.mockito.Mockito
 import org.mockito.Mockito._
-import org.scalatest.concurrent.ScalaFutures._
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
-import spray.json.{JsObject, JsValue}
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.concurrent.duration._
-
+import scala.io.Source
 import scala.sys.process.{Process, ProcessLogger}
 
 class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExecutionActorSpec"))
+  with BackendTestkitSpec
   with WordSpecLike
   with Matchers
   with MockitoSugar
@@ -39,13 +37,33 @@ class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExec
 
   private val htCondorCommands: HtCondorCommands = new HtCondorCommands
   private val htCondorProcess: HtCondorProcess = mock[HtCondorProcess]
-  private val cacheActorMockProps =  Props(new CacheActorMock())
+  private val cacheActorMockProps = Props(new CacheActorMock())
 
   private val helloWorldWdl =
     """
       |task hello {
+      |
       |  command {
       |    echo "Hello World!"
+      |  }
+      |  output {
+      |    String salutation = read_string(stdout())
+      |  }
+      |  RUNTIME
+      |}
+      |
+      |workflow hello {
+      |  call hello
+      |}
+    """.stripMargin
+
+  private val helloWorldWdlWithFileInput =
+    """
+      |task hello {
+      |  File inputFile
+      |
+      |  command {
+      |    echo ${inputFile}
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -200,33 +218,76 @@ class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExec
 
       cleanUpJob(jobPaths)
     }
+
+    "return a successful task status when it runs a docker command with working and output directory" in {
+      val runtime =
+        """
+          |runtime {
+          | docker: "ubuntu/latest"
+          | dockerWorkingDir: "/workingDir"
+          | dockerOutputDir: "/outputDir"
+          |}
+        """.stripMargin
+      val jsonInputFile = createCannedFile("testFile", "some content").toPath.toAbsolutePath.toString
+      val inputs = Map(
+        "inputFile" -> WdlFile(jsonInputFile)
+      )
+      val jobDescriptor = prepareJob(helloWorldWdlWithFileInput, runtime, Option(inputs))
+      val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
+
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+        override lazy val cmds = htCondorCommands
+        override lazy val extProcess = htCondorProcess
+      }).underlyingActor
+      val stubProcess = mock[Process]
+      val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
+      val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
+      val stderrResult = ""
+
+      when(htCondorProcess.externalProcess(any[Seq[String]], any[ProcessLogger])).thenReturn(stubProcess)
+      when(stubProcess.exitValue()).thenReturn(0)
+      when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
+      when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
+      when(htCondorProcess.processStderr).thenReturn(stderrResult)
+
+      whenReady(backend.execute) { response =>
+        response shouldBe a[SucceededResponse]
+      }
+
+      val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
+
+      assert(bashScript.contains("docker run -w /workingDir -v"))
+      assert(bashScript.contains("/tmp:"))
+      assert(bashScript.contains("/tmp:ro"))
+      assert(bashScript.contains("/call-hello:/outputDir --rm ubuntu/latest echo"))
+
+      cleanUpJob(jobPaths)
+    }
   }
 
-  private def buildWorkflowDescriptor(wdl: WdlSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
-                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                      runtime: String = "") = {
-    new BackendWorkflowDescriptor(
-      WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
-      options
-    )
+  private def cleanUpJob(jobPaths: JobPaths): Unit = jobPaths.workflowRoot.delete(true)
+
+  private def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
+    val suffix = ".out"
+    val file = dir match {
+      case Some(path) => Files.createTempFile(path, prefix, suffix)
+      case None => Files.createTempFile(prefix, suffix)
+    }
+    write(file.toFile, contents)
   }
 
-  private def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
-                                                  inputs: Map[String, WdlValue] = Map.empty) = {
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
-    val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    new BackendJobDescriptor(workflowDescriptor, jobKey, inputs)
+  private def write(file: File, contents: String) = {
+    val writer = new FileWriter(file)
+    writer.write(contents)
+    writer.flush()
+    writer.close()
+    file
   }
 
-  private case class TestJobDescriptor(jobDescriptor: BackendJobDescriptor, jobPaths: JobPaths, backendConfigurationDescriptor: BackendConfigurationDescriptor)
-
-  private def prepareJob(runtimeString: String = ""): TestJobDescriptor = {
-    val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = helloWorldWdl, runtime = runtimeString)
+  private def prepareJob(source: String = helloWorldWdl, runtimeString: String = "", inputFiles: Option[Map[String, WdlValue]] = None): TestJobDescriptor = {
+    val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = source, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, ConfigFactory.load)
-    val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor)
+    val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty))
     val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key)
     val executionDir = jobPaths.callRoot
     val stdout = Paths.get(executionDir.path.toString, "stdout")
@@ -239,10 +300,10 @@ class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExec
         |1 job(s) submitted to cluster 88.
       """.stripMargin.trim
     submitFileStderr.toString.toFile.createIfNotExists(false)
-    TestJobDescriptor(jobDesc,jobPaths, backendConfigurationDescriptor)
+    TestJobDescriptor(jobDesc, jobPaths, backendConfigurationDescriptor)
   }
 
-  private def cleanUpJob(jobPaths: JobPaths): Unit = jobPaths.workflowRoot.delete(true)
+  private case class TestJobDescriptor(jobDescriptor: BackendJobDescriptor, jobPaths: JobPaths, backendConfigurationDescriptor: BackendConfigurationDescriptor)
 
   trait MockWriter extends Writer {
     var closed = false
@@ -264,4 +325,5 @@ class HtCondorJobExecutionActorSpec extends TestKit(ActorSystem("HtCondorJobExec
 
     override def storeExecutionResult(cachedExecutionResult: CachedExecutionResult): Unit = ()
   }
+
 }

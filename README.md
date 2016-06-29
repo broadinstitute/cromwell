@@ -649,6 +649,26 @@ cache {
 * forceRewrite: it allows to invalidate the cache entry and store result again.
 * db section: configuration related to MongoDB provider. It may not exists for other implementations. 
 
+### Docker
+This backend supports the following optional runtime attributes / workflow options for working with Docker:
+* docker: Docker image to use such as "Ubuntu".
+* dockerWorkingDir: defines the working directory in the container. 
+* dockerOutputDir: defiles the output directory in the container when there is the need to define a volume for outputs within the container. By default if this attribute is not set, dockerOutputDir will be the job working directory. 
+
+Inputs: 
+HtCondor backend analyzes all inputs and do a distinct of the folders in order to mount input folders into the container.
+
+Outputs: 
+It will use dockerOutputDir runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no dockerOutputDir defined it will use the current working directory.
+
+### CPU, Memory and Disk
+This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
+* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
+* memory: defines the amount of memory to use. Default value: "512 MB". Type: String. Ex: "4 GB" or "4096 MB"
+* disk: defines the amount of disk to use. Default value: "1024 MB". Type: String. Ex: "1 GB" or "1024 MB"
+
+It they are not set, HtCondor backend will use default values.
+
 ## Google JES Backend
 
 Google JES (Job Execution Service) is a Docker-as-a-service from Google.

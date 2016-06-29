@@ -51,7 +51,21 @@ object HtCondorCommands {
 
 class HtCondorCommands extends StrictLogging {
 
-  def generateSubmitFile(path: Path, attributes: Map[String, String]): String = {
+  /**
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
+  def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path): Unit = {
+    logger.debug(s"Writing bash script for execution. Command: $instantiatedCommand.")
+    filePath.write(
+      s"""#!/bin/sh
+          |cd $containerRoot
+          |$instantiatedCommand
+          |echo $$? > rc
+          |""".stripMargin)
+  }
+
+  def generateSubmitFile(path: Path, attributes: Map[String, Any]): String = {
     def htCondorSubmitCommand(filePath: Path) = {
       s"${HtCondorCommands.Submit} ${filePath.toString}"
     }
@@ -134,7 +148,9 @@ object HtCondorRuntimeKeys {
   val Queue = "queue"
   val Rank = "rank"
   val Requirements = "requirements"
-  val RequestMemory = "request_memory"
   val Cpu = "request_cpus"
+  val Memory = "request_memory"
   val Disk = "request_disk"
+  val LogXml = "log_xml"
+  val LeaveInQueue = "leave_in_queue"
 }

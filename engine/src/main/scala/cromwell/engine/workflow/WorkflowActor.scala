@@ -179,12 +179,10 @@ class WorkflowActor(val workflowId: WorkflowId,
       val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor), name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
-    case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), _) =>
-      context.parent ! WorkflowFailedResponse(workflowId, MaterializingWorkflowDescriptorState, Seq(reason))
-      goto(WorkflowFailedState)
+    case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), data) =>
+      goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(MaterializingWorkflowDescriptorState, Option(List(reason))))
     case Event(AbortWorkflowCommand, stateData) =>
       // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
-      sender ! WorkflowAbortedResponse(workflowId)
       goto(WorkflowAbortedState)
   }
 
@@ -201,10 +199,6 @@ class WorkflowActor(val workflowId: WorkflowId,
       executionActor ! commandToSend
       goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      val failureEvent = MetadataEvent(
-        MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"),
-        MetadataValue(reason.map(_.getMessage).mkString(". ")))
-      serviceRegistryActor ! PutMetadataAction(failureEvent)
       finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, Option(reason.toList))
   }
 
@@ -221,9 +215,7 @@ class WorkflowActor(val workflowId: WorkflowId,
     case Event(WorkflowFinalizationSucceededResponse, data) => finalizationSucceeded(data)
     case Event(WorkflowFinalizationFailedResponse(finalizationFailures), data) =>
       val failures = data.lastStateReached.failures.getOrElse(List.empty) ++ finalizationFailures
-      context.parent ! WorkflowFailedResponse(workflowId, FinalizingWorkflowState, failures)
-
-      goto(WorkflowFailedState)
+      goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(FinalizingWorkflowState, Option(failures)))
   }
 
   when(WorkflowAbortingState) {
@@ -274,7 +266,12 @@ class WorkflowActor(val workflowId: WorkflowId,
       terminalState match {
         case WorkflowSucceededState =>
           context.parent ! WorkflowSucceededResponse(workflowId)
-        case WorkflowFailedState => // The failure will already have been sent. So just kick back and relax here.
+        case WorkflowFailedState =>
+          val failures = nextStateData.lastStateReached.failures.getOrElse(List.empty)
+          val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"), r) }
+          serviceRegistryActor ! PutMetadataAction(failureEvents)
+
+          context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, failures)
         case WorkflowAbortedState =>
           context.parent ! WorkflowAbortedResponse(workflowId)
         case unknownState => workflowLogger.warn(s"$unknownState is an unhandled terminal state!")
@@ -297,15 +294,9 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   private def finalizationSucceeded(data: WorkflowActorData) = {
     val finalState = data.lastStateReached match {
-      case StateCheckpoint(WorkflowAbortingState, None) =>
-        context.parent ! WorkflowAbortedResponse(workflowId)
-        WorkflowAbortedState
-      case StateCheckpoint(state, Some(failures)) =>
-        context.parent ! WorkflowFailedResponse(workflowId, state, failures)
-        WorkflowFailedState
-      case StateCheckpoint(state, None) =>
-        context.parent ! WorkflowSucceededResponse(workflowId)
-        WorkflowSucceededState
+      case StateCheckpoint(WorkflowAbortingState, None) => WorkflowAbortedState
+      case StateCheckpoint(state, Some(failures)) => WorkflowFailedState
+      case StateCheckpoint(state, None) => WorkflowSucceededState
     }
 
     goto(finalState) using data.copy(currentLifecycleStateActor = None)

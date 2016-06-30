@@ -31,6 +31,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
   * [Local Backend](#local-backend)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
+  * [HtCondor Backend](#htcondor-backend)
   * [Google JES Backend](#google-jes-backend)
     * [Configuring Google Project](#configuring-google-project)
     * [Configuring Authentication](#configuring-authentication)
@@ -590,6 +591,63 @@ the `<call_dir>` contains the following special files added by the SGE backend:
 The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
 
 Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+## HtCondor Backend
+
+Allows to execute jobs using HTCondor which is a specialized workload management system for compute-intensive jobs created by the Center for High Throughput Computing in the Department of Computer Sciences at the University of Wisconsin-Madison (UW-Madison).
+
+This backend creates six files in the `<call_dir>` (see previous section):
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `stdout` - The standard output of the process
+* `stderr` - The standard error of the process
+* `submitfile` - A submit file that HtCondor understands in order to submit a job
+* `submitfile.stdout` - The standard output of the submit file
+* `submitfile.stderr` - The standard error of the submit file
+
+The `script` file contains:
+
+```
+cd <container_call_root>
+<user_command>
+echo $? > rc
+```
+
+The `submitfile` file contains:
+
+```
+executable=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/script
+output=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stdout
+error=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stderr
+log=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/merge_files.log
+queue
+
+```
+
+### Caching configuration
+This implementation also add basic caching support. It relies in a cache provider to store successful job results.
+By default a MongoDB based cache implementation is provided but there is the option of implementing a new provider based on CacheActorFactory and CacheActor interfaces.
+
+From application.conf file:
+```
+cache {
+  provider = "cromwell.backend.impl.htcondor.caching.provider.mongodb.MongoCacheActorFactory"
+  enabled = true
+  forceRewrite = false
+  db {
+    host = "127.0.0.1"
+    port = 27017
+    name = "htcondor"
+    collection = "cache"
+  }
+}
+
+```
+
+* provider: it defines the provider to use based on CacheActorFactory and CacheActor interfaces.
+* enabled: enables or disables cache.
+* forceRewrite: it allows to invalidate the cache entry and store result again.
+* db section: configuration related to MongoDB provider. It may not exists for other implementations. 
 
 ## Google JES Backend
 

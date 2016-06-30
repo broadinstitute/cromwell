@@ -45,6 +45,9 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 trait CromwellApiService extends HttpService with PerRequestCreator with ServiceRegistryClient {
   val workflowManager: ActorRef
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
+  def handleMetadataRequest(message: AnyRef)(requestContext: RequestContext): Unit = {
+    perRequest(requestContext, metadataBuilderProps, message)
+  }
 
   private def invalidWorkflowId(id: String) = failBadRequest(new RuntimeException(s"Invalid workflow ID: '$id'."))
 
@@ -60,8 +63,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     path("workflows" / Segment / Segment / "status") { (version, workflowId) =>
       get {
         Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) =>
-            requestContext => perRequest(requestContext, metadataBuilderProps, GetStatus(w))
+          case Success(w) => handleMetadataRequest(GetStatus(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -130,8 +132,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     path("workflows" / Segment / Segment / "outputs") { (version, workflowId) =>
       get {
         Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) =>
-            requestContext => perRequest(requestContext, MetadataBuilderActor.props(serviceRegistryActor), WorkflowOutputs(w))
+          case Success(w) => handleMetadataRequest(WorkflowOutputs(w))
           case Failure(ex) => invalidWorkflowId(workflowId)
         }
       }
@@ -140,8 +141,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
   def workflowStdoutStderrRoute =
     path("workflows" / Segment / Segment / "logs") { (version, workflowId) =>
       Try(WorkflowId.fromString(workflowId)) match {
-        case Success(w) =>
-          requestContext => perRequest(requestContext, metadataBuilderProps, GetLogs(w))
+        case Success(w) => handleMetadataRequest(GetLogs(w))
         case Failure(_) => invalidWorkflowId(workflowId)
       }
     }
@@ -160,10 +160,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
             Try(WorkflowId.fromString(workflowId)) match {
               case Success(workflowIdFromString) =>
                 version match {
-                  case _ =>
-                    requestContext =>
-                      perRequest(requestContext,
-                        metadataBuilderProps,
+                  case _ => handleMetadataRequest(
                         GetSingleWorkflowMetadataAction(workflowIdFromString, includeKeysOption, excludeKeysOption))
                 }
               case Failure(_) => invalidWorkflowId(workflowId)

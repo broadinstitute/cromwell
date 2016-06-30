@@ -9,7 +9,7 @@ import cromwell.CromwellSpec.PostMVP
 import cromwell.core.WorkflowId
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
-import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, SubmitWorkflowCommand}
+import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, SubmitWorkflowCommand, WorkflowNotFoundException}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
@@ -44,7 +44,7 @@ class MockWorkflowManagerActor extends Actor {
         case MockWorkflowManagerActor.abortedWorkflowId =>
           WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
         case x =>
-          WorkflowManagerAbortFailure(id, new Exception(s"Couldn't abort $id because no workflow with that ID is in progress"))
+          WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
       }
       sender ! message
   }

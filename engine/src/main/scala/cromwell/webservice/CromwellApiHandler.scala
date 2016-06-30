@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowState, WorkflowSubmitted}
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.{core, engine}
@@ -33,8 +34,6 @@ object CromwellApiHandler {
   final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
-//  final case class ApiHandlerWorkflowMetadata(id: WorkflowId,
-//                                              parameters: WorkflowMetadataQueryParameters) extends ApiHandlerMessage
 
   sealed trait WorkflowManagerResponse
 
@@ -56,11 +55,8 @@ object CromwellApiHandler {
   final case class WorkflowManagerQueryFailure(override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallOutputsSuccess(id: WorkflowId, callFqn: FullyQualifiedName, outputs: core.JobOutputs) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallOutputsFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  //final case class WorkflowManagerCallStdoutStderrSuccess(id: WorkflowId, callFqn: FullyQualifiedName, logs: Seq[CallLogs]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallStdoutStderrFailure(id: WorkflowId, callFqn: FullyQualifiedName, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  //final case class WorkflowManagerWorkflowStdoutStderrSuccess(id: WorkflowId, logs: Map[FullyQualifiedName, Seq[CallLogs]]) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowStdoutStderrFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  //final case class WorkflowManagerWorkflowMetadataSuccess(id: WorkflowId, response: WorkflowMetadataResponse) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowMetadataFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallCachingSuccess(id: WorkflowId, updateCount: Int) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
@@ -90,7 +86,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
     case WorkflowManagerAbortFailure(_, e) =>
       error(e) {
         case _: IllegalStateException => RequestComplete(StatusCodes.Forbidden, APIResponse.error(e))
-        case _: Exception if e.getMessage.endsWith("because no workflow with that ID is in progress") => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
+        case _: WorkflowNotFoundException => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 

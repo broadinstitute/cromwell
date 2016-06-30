@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
-import akka.routing.FromConfig
+import akka.routing.{FromConfig, RoundRobinPool}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.database.obj.WorkflowMetadataKeys
@@ -137,8 +137,6 @@ class WorkflowManagerActor(config: Config)
     /*
      Responses from services
      */
-      // TODO Restart: to be verified after restart is implemented but these WorkflowSucceededResponse/WorkflowFailedResponse seem useless
-      // Watching the transition should be enough for the WMA to do what it needs to
     case Event(WorkflowSucceededResponse(workflowId), data) =>
       log.info(s"$tag Workflow $workflowId succeeded!")
       stay()

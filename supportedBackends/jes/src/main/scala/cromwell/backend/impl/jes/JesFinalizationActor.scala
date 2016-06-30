@@ -7,6 +7,7 @@ import better.files._
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
 import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
+import cromwell.core.retry.Retry
 import wdl4s.Call
 
 import scala.concurrent.Future
@@ -38,7 +39,9 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     if (jesConfiguration.needAuthFileUpload) {
-      Future(workflowPaths.gcsAuthFilePath.delete(false)) map { _ => () }
+      val delete = () => Future(workflowPaths.gcsAuthFilePath.delete(false))
+
+      Retry.withRetry(delete, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () }
     } else {
       Future.successful(())
     }

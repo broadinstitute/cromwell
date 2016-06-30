@@ -8,9 +8,9 @@ import cromwell.core.CromwellFatalException
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.services.MetadataServiceActor.MetadataServiceResponse
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
-
 
 object AsyncBackendJobExecutionActor {
 
@@ -65,7 +65,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case mode: ExecutionMode => robustExecuteOrRecover(mode)
     case IssuePollRequest(handle) => robustPoll(handle)
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
-    case PollResponseReceived(handle) => robustPoll(handle)
+    case PollResponseReceived(handle) =>
+      context.system.scheduler.scheduleOnce(pollBackoff.backoffMillis.millis, self, IssuePollRequest(handle))
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, hash, resultsClonedFrom)) =>
       completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs))
       context.stop(self)

@@ -90,6 +90,12 @@ object Settings {
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
   ) ++ commonSettings
 
+  val sparkBackendSettings = List(
+    name := "cromwell-spark-backend",
+    version := "0.1",
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+  ) ++ commonSettings
+
   val sgeBackendSettings = List(
     name := "cromwell-sge-backend",
     version := "0.1",

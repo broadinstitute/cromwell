@@ -37,6 +37,11 @@ lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .dependsOn(backend % "test->test;compile->compile")
   .withTestSettings
 
+lazy val sparkBackend = (project in backendRoot / "spark")
+  .settings(sparkBackendSettings:_*)
+  .dependsOn(backend % "test->test;compile->compile")
+  .withTestSettings
+
 lazy val sgeBackend = (project in backendRoot / "sge")
   .settings(sgeBackendSettings:_*)
   .dependsOn(backend % "test->test;compile->compile")
@@ -63,5 +68,5 @@ lazy val root = (project in file("."))
   .settings(rootSettings: _*)
   .dependsOn(core % "test->test;compile->compile")
   .dependsOn(engine % "test->test;compile->compile")
-  .aggregate(core, database, backend, engine, localBackend, sgeBackend, jesBackend, htCondorBackend, gcsfilesystem)
+  .aggregate(core, database, backend, engine, localBackend, sgeBackend, jesBackend, htCondorBackend, sparkBackend, gcsfilesystem)
   .withTestSettings

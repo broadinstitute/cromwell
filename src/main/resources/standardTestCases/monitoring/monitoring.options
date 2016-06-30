@@ -1,3 +1,0 @@
-{
-   "monitoring_script": "gs://cloud-cromwell-dev/centaur-tests/monitoring/monitoring_script.sh"
-}

@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.Actor
-import akka.testkit.{TestActorRef, EventFilter}
+import akka.testkit.{EventFilter, TestActorRef}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
@@ -9,6 +9,7 @@ import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.StartExecutingWorkflowCommand
+import cromwell.services.ServiceRegistryActor
 import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfter
 
@@ -33,7 +34,8 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
   "WorkflowExecutionActor" should {
     "retry a job 2 times and succeed in the third attempt" in {
-      val serviceRegistry = mockServiceRegistryActor
+      import spray.json._
+      val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load()))
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -43,14 +45,23 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection))
-      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry), "WorkflowExecutionActor")
+      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor), "WorkflowExecutionActor")
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
         EventFilter.info(pattern = "Starting calls: hello.hello", occurrences = 3).intercept {
           workflowExecutionActor ! StartExecutingWorkflowCommand
         }
       }
-      system.stop(serviceRegistry)
+
+      val metadata = getWorkflowMetadata(workflowId, serviceRegistryActor, None)
+      val attempts: Vector[JsValue] = metadata.fields("calls").asJsObject.fields("hello.hello").asInstanceOf[JsArray].elements
+
+      attempts.length shouldBe 3
+      attempts.head.asJsObject.fields("attempt") shouldBe JsNumber(1)
+      attempts(1).asJsObject.fields("attempt") shouldBe JsNumber(2)
+      attempts(2).asJsObject.fields("attempt") shouldBe JsNumber(3)
+
+      system.stop(serviceRegistryActor)
     }
 
     "execute a workflow with scatters" in {

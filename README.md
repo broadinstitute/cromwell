@@ -28,19 +28,33 @@ sbt "test-only * -- -l tagFoo"
 
 You can add your own tests to the test suite by adding `-Dcentaur.optionalTestPath=DIR` on your sbt invocation, 
 e.g. `sbt -Dcentaur.optionalTestPath=/some/path/to/tests test`. The value of `DIR` is expected to be a directory
-which contains one or more test case files. Each test case file is a HOCON file with the following structure:
+which contains one or more test case files.
+ 
+The same result can be achieved more permanently by adding the custom directory into the application.conf file directly: 
 ```
-name: NAME
-testFormat: TESTFORMAT
-basePath: /an/optional/field
-tags: [ "any", "custom", "tags" ]
+centaur {
+  optionalTestPath = "/some/path/to/tests"
+}
+```
+
+# Defining test cases
+
+Each test case file is a HOCON file with the following structure:
+```
+name: NAME  // Required: Name of the test
+testFormat: TESTFORMAT // Required: One of WorkflowSuccessTest, WorkflowFailureTest
+
+basePath: /an/optional/field  // Optional, location for the files {} entries to be found relative to
+tags: [ "any", "custom", "tags" ]  // Optional, a set of custom tags to apply to this test
+ignore: false  // Optional, whether centaur will ignore this test when running
 
 files {
-  wdl: path/to/wdl
-  inputs: optional/path/to/inputs
-  options: optional/path/to/options
+  wdl: path/to/wdl  // Required: path to the WDL file to submit
+  inputs: optional/path/to/inputs  // Optional, a path to an inputs JSON to include in the submission
+  options: optional/path/to/options  // Optional, a path to an options JSON to include in the submission
 }
 
+// Optional, some metadata to verify on workflow completion:
 metadata {
   fully.qualified.key.name1: VALUE1
   fully.qualified.key.name2: VALUE2

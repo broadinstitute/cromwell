@@ -230,6 +230,9 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(WorkflowQuerySuccess(uri, response, metadata), _) =>
       context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
       allDone
+    case Event(failure: WorkflowQueryFailure, _) =>
+      context.parent ! RequestComplete(StatusCodes.BadRequest, APIResponse.fail(failure.reason))
+      allDone
     case Event(WorkflowOutputsResponse(w, metadata), _) =>
       context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, metadata, includeCallsIfEmpty = false))
       allDone

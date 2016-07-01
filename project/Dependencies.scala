@@ -5,7 +5,7 @@ object Dependencies {
   lazy val wdl4sV = "0.5-ed015a6-SNAPSHOT"
   lazy val sprayV = "1.3.2"
   lazy val DowngradedSprayV = "1.3.1"
-  lazy val akkaV = "2.3.12"
+  lazy val akkaV = "2.3.15"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
   lazy val betterFilesV = "2.13.0"
@@ -72,6 +72,11 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "org.apache.commons" % "commons-lang3" % "3.4"
   ) ++ testDependencies ++ googleApiClientDependencies
+
+  val htCondorBackendDependencies = List(
+    "com.twitter" % "chill_2.11" % "0.8.0",
+    "org.mongodb" %% "casbah" % "3.0.0"
+  )
 
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",

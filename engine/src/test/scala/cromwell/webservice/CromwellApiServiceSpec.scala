@@ -1,131 +1,53 @@
 package cromwell.webservice
 
-import java.time.OffsetDateTime
 import java.util.UUID
 
+import akka.pattern.ask
 import akka.actor.{Actor, Props}
 import akka.util.Timeout
-import cromwell.core.{JobOutput, WorkflowAborted, WorkflowId, WorkflowRunning}
+import cromwell.CromwellSpec.PostMVP
+import cromwell.core.WorkflowId
+import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, SubmitWorkflowCommand, WorkflowNotFoundException}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataServiceActor, MetadataValue}
+import cromwell.services.MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
-import cromwell.webservice.MockWorkflowManagerActor.{WorkflowStatus, submittedWorkflowId, unknownId}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import spray.testkit.ScalatestRouteTest
-import wdl4s._
-import wdl4s.values.{SymbolHash, WdlFile, WdlInteger, WdlValue}
 
 object MockWorkflowManagerActor {
-  sealed trait WorkflowManagerMessage
-  case class SubmitWorkflow(wdl: WdlSource, inputs: WorkflowRawInputs) extends WorkflowManagerMessage
-  case class WorkflowStatus(id: WorkflowId) extends WorkflowManagerMessage
-  case class WorkflowOutputs(id: WorkflowId) extends WorkflowManagerMessage
-
-  val createdWorkflowId = WorkflowId(UUID.randomUUID())
   val runningWorkflowId = WorkflowId(UUID.randomUUID())
   val unknownId = WorkflowId(UUID.randomUUID())
   val submittedWorkflowId = WorkflowId(UUID.randomUUID())
   val submittedScatterWorkflowId = WorkflowId(UUID.randomUUID())
   val abortedWorkflowId = WorkflowId(UUID.randomUUID())
-
-  def props: Props = Props(classOf[MockWorkflowManagerActor])
 }
 
 class MockWorkflowManagerActor extends Actor {
-  this: WorkflowDescriptorBuilder =>
-
-  implicit lazy val hasher: WdlValue => SymbolHash = { x => SymbolHash("NOT REALLY IMPORTANT IN THESE TESTs!!") }
-
-  val int8 = WdlInteger(8)
-  val int8hash = int8.computeHash
-
-  val file = WdlFile("/tmp/ps.stdout.tmp")
-  val fileHash = file.computeHash
 
   def receive = {
-//    case SubmitWorkflow(sources) =>
-//      val id = MockWorkflowManagerActor.submittedWorkflowId
-//      /*
-//        id will always succeed, but WorkflowDescriptor might not. If all of this works we
-//        want to pass Future[WorkflowId] but otherwise we want to pass the error. Try the
-//        WorkflowDescriptor - if it succeeds hand the id back in a future, otherwise the error
-//        from WorkflowDescriptor's validation
-//       */
-//      val message = Try(materializeWorkflowDescriptorFromSources(id = id, workflowSources = sources)) match {
-//        case Success(w) => WorkflowManagerSubmitSuccess(w.id)
-//        case Failure(e) => WorkflowManagerSubmitFailure(e)
-//      }
-//      sender ! message
-    case WorkflowStatus(id) =>
+    case SubmitWorkflowCommand(source) =>
+      val id = MockWorkflowManagerActor.submittedWorkflowId
+      val message = WorkflowManagerSubmitSuccess(id)
+      sender ! message
+    case AbortWorkflowCommand(id) =>
       val message = id match {
-        case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerStatusSuccess(id, WorkflowRunning)
-        case MockWorkflowManagerActor.abortedWorkflowId => WorkflowManagerStatusSuccess(id, WorkflowAborted)
-        //case _ => WorkflowManagerStatusFailure(id, new WorkflowNotFoundException("Cromwell knows not this workflow"))
+        case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerAbortSuccess(id)
+        case MockWorkflowManagerActor.abortedWorkflowId =>
+          WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
+        case x =>
+          WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
       }
       sender ! message
-//    case WorkflowAbort(id) =>
-//      val message = id match {
-//        case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerAbortSuccess(id)
-//        case MockWorkflowManagerActor.abortedWorkflowId =>
-//          WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
-//        case x => WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Workflow '$x' not found."))
-//      }
-//      sender ! message
-    case WorkflowOutputs(id) =>
-      val message = id match {
-        case MockWorkflowManagerActor.submittedWorkflowId =>
-          WorkflowManagerWorkflowOutputsSuccess(id, Map(
-            "three_step.cgrep.count" -> JobOutput(int8, Option(int8hash)),
-            "three_step.ps.procs" -> JobOutput(file, Option(fileHash)),
-            "three_step.wc.count" -> JobOutput(int8, Option(int8hash))))
-        //case w => WorkflowManagerWorkflowOutputsFailure(id, new WorkflowNotFoundException(s"Workflow '$w' not found"))
-      }
-      sender ! message
-//    case CallOutputs(id, callFqn) =>
-//      val message = id match {
-//        case MockWorkflowManagerActor.submittedWorkflowId =>
-//          callFqn match {
-//            case "three_step.cgrep" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
-//            case "three_step.ps" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("procs" -> JobOutput(file, Option(fileHash))))
-//            case "three_step.wc" => WorkflowManagerCallOutputsSuccess(id, callFqn, Map("count" -> JobOutput(int8, Option(int8hash))))
-//            case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new CallNotFoundException(s"Bad call FQN: $callFqn"))
-//          }
-//        case _ => WorkflowManagerCallOutputsFailure(id, callFqn, new WorkflowNotFoundException(s"Bad workflow ID: $id"))
-//      }
-//      sender ! message
-    case WorkflowQuery(uri, rawParameters) =>
-      val head = rawParameters.head
-      head match {
-        case ("BadKey", _) =>
-          // The exception text is rendered as the body, so there must be exception text or Spray will 500 (!)
-          sender ! WorkflowManagerQueryFailure(new IllegalArgumentException("Unrecognized query keys: BadKey"))
-        case ("status", _) =>
-          sender ! WorkflowManagerQuerySuccess(uri, WorkflowQueryResponse(
-            Seq(
-              MetadataServiceActor.WorkflowQueryResult(
-                id = UUID.randomUUID().toString,
-                name = Option("w"),
-                status = Option("Succeeded"),
-                start = Option(OffsetDateTime.parse("2015-11-01T12:12:11Z")),
-                end = Option(OffsetDateTime.parse("2015-11-01T12:12:12Z"))))),
-            rawParameters.collectFirst { case (p, _) if p.contains("page") => QueryMetadata(Option(1), Option(5), Option(1)) })
-
-      }
-
   }
-}
-
-object CromwellApiServiceSpec {
-  val MissingInputsJson: String = "{}"
-  val MalformedInputsJson : String = "foobar bad json!"
-  val MalformedWdl : String = "foobar bad wdl!"
 }
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers
@@ -140,18 +62,47 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   import scala.concurrent.duration._
 
   // The submit route takes a bit longer than the default 1 s while things initialize, when this spec is run by itself
-  implicit val defaultTimeout = RouteTestTimeout(5.seconds.dilated)
+  implicit val defaultTimeout = RouteTestTimeout(30.seconds.dilated)
 
   override def actorRefFactory = system
+  val summaryActor = system.actorOf(MetadataSummaryRefreshActor.props(None), "metadata-summary-actor")
+
+
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
     override implicit  val actorSystem = context.system
   }))
   val version = "v1"
 
-  // s"CromwellApiService $version" should "return 404 for get of unknown workflow" in {
-  ignore should "return 404 for get of unknown workflow" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}") ~>
-      sealRoute(statusRoute) ~>
+  def publishMetadata(events: Seq[MetadataEvent]): Unit = {
+    val timeout: Timeout = 5.seconds.dilated
+    val patienceConfig = PatienceConfig(timeout.duration)
+
+    import akka.pattern.ask
+    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
+    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+  }
+
+  def forceSummary(): Unit = {
+    val timeout: Timeout = 5.seconds.dilated
+    val patienceConfig = PatienceConfig(timeout.duration)
+    val summaryResult = summaryActor.ask(SummarizeMetadata)(timeout)
+
+    val askResult = summaryResult.futureValue(patienceConfig)
+    askResult match {
+      case MetadataSummarySuccess =>
+      case _ =>
+        fail()
+    }
+
+  }
+
+  behavior of "REST API /status endpoint"
+
+  it should "return 404 for get of unknown workflow" in {
+    val workflowId = WorkflowId.randomId()
+
+    Get(s"/workflows/$version/$workflowId/status") ~>
+      statusRoute ~>
       check {
         assertResult(StatusCodes.NotFound) {
           status
@@ -159,7 +110,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 400 for get of a malformed workflow id's status" in {
+   it should "return 400 for get of a malformed workflow id's status" in {
     Get(s"/workflows/$version/foobar/status") ~>
       statusRoute ~>
       check {
@@ -177,25 +128,26 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 200 for get of a known workflow id" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/status") ~>
+  it should "return 200 for get of a known workflow id" in {
+    val workflowId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue("Submitted"))
+    )
+
+    publishMetadata(events)
+
+    Get(s"/workflows/$version/$workflowId/status") ~>
       statusRoute ~>
       check {
-        assertResult(
-          s"""{
-              |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
-              |  "status": "Running"
-              |}""".stripMargin
-        ) {
-          responseAs[String]
-        }
-        assertResult(StatusCodes.OK) {
-          status
-        }
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
       }
   }
 
-  ignore should "return 404 for abort of unknown workflow" in {
+  behavior of "REST API /abort endpoint"
+
+  it should "return 404 for abort of unknown workflow" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/abort") ~>
       abortRoute ~>
       check {
@@ -205,7 +157,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(
           s"""{
               |  "status": "error",
-              |  "message": "Workflow '${MockWorkflowManagerActor.unknownId}' not found."
+              |  "message": "Couldn't abort ${MockWorkflowManagerActor.unknownId} because no workflow with that ID is in progress"
               |}""".stripMargin
         ) {
           responseAs[String]
@@ -213,7 +165,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 400 for abort of a malformed workflow id" in {
+  it should "return 400 for abort of a malformed workflow id" in {
     Post(s"/workflows/$version/foobar/abort") ~>
       abortRoute ~>
       check {
@@ -231,7 +183,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 403 for abort of a workflow in a terminal state" in {
+  it should "return 403 for abort of a workflow in a terminal state" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.abortedWorkflowId}/abort") ~>
     abortRoute ~>
     check {
@@ -249,7 +201,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     }
   }
 
-  ignore should "return 200 for abort of a known workflow id" in {
+  it should "return 200 for abort of a known workflow id" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/abort") ~>
       abortRoute ~>
       check {
@@ -267,7 +219,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 201 for a successful workflow submission " in {
+  behavior of "REST API submission endpoint"
+
+  it should "return 201 for a successful workflow submission " in {
     Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
@@ -284,57 +238,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 400 for a malformed workflow inputs JSON " in {
-    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
-      submitRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
-        assertResult(true) {
-          val fields: Map[String, JsValue] = responseAs[Map[String, JsValue]]
-          fields.get("status").isDefined &&
-          fields.get("status").get.asInstanceOf[JsString].value.equals("fail") &&
-          fields.get("message").isDefined &&
-          fields.get("message").get.asInstanceOf[JsString].value.contains("Workflow input processing failed.") &&
-          fields.get("errors").isDefined &&
-            (fields.get("errors").get match {
-              case array: JsArray if array.elements.length == 1 =>
-                array.elements.head.asInstanceOf[JsString].value.contains("contains invalid inputs JSON")
-              case _ => false
-            })
-        }
-      }
-  }
+  behavior of "REST API batch submission endpoint"
 
-  ignore should "return 400 for a malformed workflow options JSON " in {
-    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString(), "workflowOptions" -> CromwellApiServiceSpec.MalformedInputsJson))) ~>
-      submitRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
-        val fields: Map[String, JsValue] = responseAs[Map[String, JsValue]]
-        assertResult(true) {
-          fields.get("status").isDefined &&
-            fields.get("status").get.asInstanceOf[JsString].value.equals("fail")
-        }
-        assertResult(true) {
-          fields.get("message").isDefined &&
-            fields.get("message").get.asInstanceOf[JsString].value.contains("Workflow input processing failed")
-        }
-        assertResult(true) {
-          fields.get("errors").isDefined &&
-            (fields.get("errors").get match {
-              case array: JsArray if array.elements.length == 1 =>
-                array.elements.head.asInstanceOf[JsString].value.contains("contains invalid options JSON")
-              case _ => false
-            })
-        }
-      }
-  }
-
-  ignore should "return 200 for a successful workflow submission " in {
+  it should "return 200 for a successful workflow submission " in {
     val inputs = HelloWorld.rawInputs.toJson
 
     Post("/workflows/$version/batch",
@@ -360,46 +266,36 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   // TODO: Test tha batch submission returns expected workflow ids in order
   // TODO: Also (assuming we still validate on submit) test a batch of mixed inputs that return submitted and failed
 
-  ignore should "return 200 with GET of outputs on successful execution of workflow" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
+  behavior of "REST API /outputs endpoint"
+
+  it should "return 200 with GET of outputs on successful execution of workflow" in {
+    val workflowId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Outputs}:myfirst"), MetadataValue("myOutput"))
+    )
+
+    publishMetadata(events)
+
+    Get(s"/workflows/$version/$workflowId/outputs") ~>
       workflowOutputsRoute ~>
       check {
-        assertResult(
-          s"""{
-              |  "id": "${MockWorkflowManagerActor.submittedWorkflowId.toString}",
-              |  "outputs": {
-              |    "three_step.cgrep.count": 8,
-              |    "three_step.ps.procs": "/tmp/ps.stdout.tmp",
-              |    "three_step.wc.count": 8
-              |  }
-              |}""".stripMargin) {
-          responseAs[String]
-        }
-        assertResult(StatusCodes.OK) {
-          status
-        }
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
       }
   }
 
-  ignore should "return 404 with outputs on unknown workflow" in {
-    Get(s"/workflows/$version/$unknownId/outputs") ~>
+  it should "return 404 with outputs on unknown workflow" in {
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/outputs") ~>
     workflowOutputsRoute ~>
     check {
       assertResult(StatusCodes.NotFound) {
         status
       }
-      assertResult(
-        s"""{
-            |  "status": "error",
-            |  "message": "Workflow '$unknownId' not found."
-            |}""".stripMargin
-      ) {
-        responseAs[String]
-      }
     }
   }
 
-  ignore should "return 405 with POST of outputs on successful execution of workflow" in {
+  it should "return 405 with POST of outputs on successful execution of workflow" in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId.toString}/outputs") ~>
       sealRoute(workflowOutputsRoute) ~>
       check {
@@ -409,52 +305,46 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 200 with paths to stdout/stderr" in {
-    Get(s"/workflows/$version/$submittedWorkflowId/logs") ~>
+  behavior of "REST API /logs endpoint"
+
+  it should "return 200 with paths to stdout/stderr" in {
+
+    val workflowId = WorkflowId.randomId()
+    val jobKey = Option(MetadataJobKey("mycall", None, 1))
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, jobKey, CallMetadataKeys.Stdout), MetadataValue("stdout.txt")),
+      MetadataEvent(MetadataKey(workflowId, jobKey, CallMetadataKeys.Stderr), MetadataValue("stderr.txt")),
+      MetadataEvent(MetadataKey(workflowId, jobKey, s"${CallMetadataKeys.BackendLogsPrefix}:log"), MetadataValue("backend.log"))
+    )
+
+    publishMetadata(events)
+
+    Get(s"/workflows/$version/$workflowId/logs") ~>
       workflowStdoutStderrRoute ~>
       check {
-        assertResult(
-          s"""{
-              |  "id": "$submittedWorkflowId",
-              |  "logs": {
-              |    "three_step.ps": [{
-              |      "stdout": "/path/to/ps-stdout",
-              |      "stderr": "/path/to/ps-stderr"
-              |    }]
-              |  }
-              |}""".stripMargin) {
-          responseAs[String]
-        }
-        assertResult(StatusCodes.OK) {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+
+        val call = result.fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
+        call.fields("stdout") should be(JsString("stdout.txt"))
+        call.fields("stderr") should be(JsString("stderr.txt"))
+        call.fields("stdout") should be(JsString("stdout.txt"))
+        call.fields("backendLogs").convertTo[JsObject].fields("log") should be (JsString("backend.log"))
+      }
+  }
+
+  it should "return 404 with logs on unknown workflow" in {
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/logs") ~>
+      workflowStdoutStderrRoute ~>
+      check {
+        assertResult(StatusCodes.NotFound) {
           status
         }
       }
   }
 
-  ignore should "return 200 with paths to stdout/stderr with scattered calls" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/logs") ~>
-      workflowStdoutStderrRoute ~>
-      check {
-        assertResult(
-          s"""{
-              |  "id": "${MockWorkflowManagerActor.submittedScatterWorkflowId}",
-              |  "logs": {
-              |    "scatterwf.inside-scatter": [{
-              |      "stdout": "/path/to/inside-scatter/shard0-stdout",
-              |      "stderr": "/path/to/inside-scatter/shard0-stderr"
-              |    }, {
-              |      "stdout": "/path/to/inside-scatter/shard1-stdout",
-              |      "stderr": "/path/to/inside-scatter/shard1-stderr"
-              |    }]
-              |  }
-              |}""".stripMargin) {
-          responseAs[String]
-        }
-        assertResult(StatusCodes.OK) {
-          status
-        }
-      }
-  }
+
+  behavior of "REST API /metadata endpoint"
 
   it should "return with full metadata from the metadata route" in {
     val workflowId = WorkflowId.randomId()
@@ -463,12 +353,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       MetadataEvent(MetadataKey(workflowId, None, "testKey2"), MetadataValue("myValue2"))
     )
 
-    val timeout: Timeout = 5.seconds.dilated
-    val patienceConfig = PatienceConfig(timeout.duration)
-
-    import akka.pattern.ask
-    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
-    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+    publishMetadata(events)
 
     Get(s"/workflows/$version/$workflowId/metadata") ~>
       metadataRoute ~>
@@ -491,12 +376,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       MetadataEvent(MetadataKey(workflowId, None, "testKey2b"), MetadataValue("myValue2b"))
     )
 
-    val timeout: Timeout = 5.seconds.dilated
-    val patienceConfig = PatienceConfig(timeout.duration)
-
-    import akka.pattern.ask
-    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
-    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+    publishMetadata(events)
 
     Get(s"/workflows/$version/$workflowId/metadata?includeKey=testKey1&includeKey=testKey2a") ~>
       metadataRoute ~>
@@ -520,12 +400,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       MetadataEvent(MetadataKey(workflowId, None, "testKey2b"), MetadataValue("myValue2b"))
     )
 
-    val timeout: Timeout = 5.seconds.dilated
-    val patienceConfig = PatienceConfig(timeout.duration)
-
-    import akka.pattern.ask
-    val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
-    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+    publishMetadata(events)
 
     Get(s"/workflows/$version/$workflowId/metadata?excludeKey=testKey2b&excludeKey=testKey3") ~>
       metadataRoute ~>
@@ -560,8 +435,10 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  behavior of "REST API /timing endpoint"
+
   it should "return 200 with an HTML document for the timings route" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/timing") ~>
+    Get(s"/workflows/$version/${MockWorkflowManagerActor.submittedWorkflowId}/timing") ~>
       timingRoute ~>
       check {
         assertResult(StatusCodes.OK) { status }
@@ -571,7 +448,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return 400 for a bad query" in {
+  behavior of "REST API /query GET endpoint"
+
+  it should "return 400 for a bad query" in {
     Get(s"/workflows/$version/query?BadKey=foo") ~>
       queryRoute ~>
       check {
@@ -589,36 +468,55 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return good results for a good query" in {
-    Get(s"/workflows/$version/query?status=Succeeded") ~>
+  it should "return good results for a good query" in {
+    val workflowId = WorkflowId.randomId()
+    val runningId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue("Succeeded")),
+      MetadataEvent(MetadataKey(runningId, None, WorkflowMetadataKeys.Status), MetadataValue("Running"))
+    )
+
+    publishMetadata(events)
+    forceSummary()
+
+    Get(s"/workflows/$version/query?status=Succeeded&id=${workflowId}") ~>
       queryRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-        assertResult(true) {
-          body.asString.contains("\"status\": \"Succeeded\",")
-        }
+        status should be(StatusCodes.OK)
+        val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+
+        results.head.fields("id") should be(JsString(workflowId.toString))
+        results.head.fields("status") should be(JsString("Succeeded"))
       }
   }
 
   it should "return link headers for pagination when page and pagesize are set for a good query" in {
-    Get(s"/workflows/$version/query?status=Succeeded&page=1&pagesize=5") ~>
+    val workflowId = WorkflowId.randomId()
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue("Succeeded"))
+    )
+
+    publishMetadata(events)
+    forceSummary()
+
+    Get(s"/workflows/$version/query?status=Succeeded&id=${workflowId}&page=1&pagesize=5") ~>
       queryRoute ~>
       check {
-        assertResult(StatusCodes.OK) {
-          status
-        }
-        assertResult(true) {
-          body.asString.contains("\"status\": \"Succeeded\",")
-          (headers count { header => header.is("link") }) == 4
+        status should be(StatusCodes.OK)
+        val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
+
+        results.head.fields("id") should be(JsString(workflowId.toString))
+        results.head.fields("status") should be(JsString("Succeeded"))
+
+        assertResult(4) {
+          headers count { header => header.is("link") }
         }
       }
   }
 
-  behavior of "Cromwell query post API"
+  behavior of "REST API /query POST endpoint"
 
-  ignore should "return 400 for a bad query map body" in {
+  it should "return 400 for a bad query map body" in {
     Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"BadKey":"foo"}]""")) ~>
       queryPostRoute ~>
       check {
@@ -636,7 +534,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "return good results for a good query map body" in {
+  it should "return good results for a good query map body" in {
     Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
       queryPostRoute ~>
       check {
@@ -644,7 +542,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           status
         }
         assertResult(true) {
-          body.asString.contains("\"status\": \"Succeeded\",")
+          body.asString.contains("\"status\": \"Succeeded\"")
         }
       }
   }
@@ -657,14 +555,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           status
         }
         assertResult(true) {
-          body.asString.contains("\"status\": \"Succeeded\",")
+          body.asString.contains("\"status\": \"Succeeded\"")
           (headers count { header => header.is("link") }) == 4
         }
       }
   }
 
 
-  ignore should "return good results for a multiple query map body" in {
+  it should "return good results for a multiple query map body" in {
     Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`,
       """[{"status":"Succeeded"}, {"status":"Failed"}]""")) ~>
       queryPostRoute ~>
@@ -673,12 +571,12 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           status
         }
         assertResult(true) {
-          body.asString.contains("\"status\": \"Succeeded\",")
+          body.asString.contains("\"status\": \"Succeeded\"")
         }
       }
   }
 
-  ignore should "return 400 bad request for a bad query format body" in {
+  it should "return 400 bad request for a bad query format body" in {
     Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":["Succeeded"]}]""")) ~>
       sealRoute(queryPostRoute) ~>
       check {
@@ -688,9 +586,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  behavior of "Cromwell single call caching API"
+  behavior of "REST API /call-caching endpoint"
 
-  ignore should "disallow call caching for a call" in {
+  ignore should "disallow call caching for a call" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>
     callCachingRoute ~>
     check {
@@ -698,7 +596,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     }
   }
 
-  ignore should "reject missing 'allow' when disabling call caching for a call" in {
+  ignore should "reject missing 'allow' when disabling call caching for a call" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call") ~>
     callCachingRoute ~>
     check {
@@ -709,7 +607,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     }
   }
 
-  ignore should "reject bogus calls" in {
+  ignore should "reject bogus calls" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/bogus?allow=true") ~>
       callCachingRoute ~>
       check {
@@ -720,7 +618,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "reject invalid parameter keys when enabling call caching for a call" in {
+  ignore should "reject invalid parameter keys when enabling call caching for a call" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=true&bogusKey=foo") ~>
       callCachingRoute ~>
       check {
@@ -731,7 +629,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "reject bogus workflows when enabling call caching for a call" in {
+  ignore should "reject bogus workflows when enabling call caching for a call" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/call-caching/w.good_call?allow=true") ~>
       callCachingRoute ~>
       check {
@@ -742,7 +640,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "disallow call caching for a workflow" in {
+  ignore should "disallow call caching for a workflow" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching?allow=false") ~>
       callCachingRoute ~>
       check {
@@ -750,7 +648,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "reject missing 'allow' when disabling call caching for a workflow" in {
+  ignore should "reject missing 'allow' when disabling call caching for a workflow" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching") ~>
       callCachingRoute ~>
       check {
@@ -761,7 +659,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "reject invalid parameter keys when enabling call caching for a workflow" in {
+  ignore should "reject invalid parameter keys when enabling call caching for a workflow" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching?allow=true&bogusKey=foo") ~>
       callCachingRoute ~>
       check {
@@ -772,7 +670,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
-  ignore should "reject bogus workflows when enabling call caching for a workflow" in {
+  ignore should "reject bogus workflows when enabling call caching for a workflow" taggedAs PostMVP in {
     Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/call-caching?allow=true") ~>
       callCachingRoute ~>
       check {
@@ -782,17 +680,5 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
-
-  // TODO PBE: These tests have migrated here from WorkflowManagerActorSpec:
-  ignore should "error when asked for outputs of a nonexistent workflow" in {
-
-  }
-
-  ignore should "error when asked for call logs of a nonexistent workflow" in {
-
-  }
-
-  ignore should "error when asked for logs of a nonexistent workflow" in {
-
-  }
 }
+

@@ -7,7 +7,7 @@ import java.time.OffsetDateTime
 import better.files._
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.DbmsTest
+import cromwell.CromwellSpec.{DbmsTest, PostMVP}
 import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
 import cromwell.core._
 import cromwell.database.SqlConverters._
@@ -77,8 +77,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   val test1Sources = WorkflowSourceFiles("workflow test1 {}", "{}", "{}")
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
-  it should "not deadlock" ignore {
-    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
+  it should "not deadlock" taggedAs PostMVP ignore {
+//    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
 //    val databaseConfig = ConfigFactory.parseString(
 //      s"""
 //         |db.url = "jdbc:hsqldb:mem:$${slick.uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
@@ -162,7 +162,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
       } yield ()).futureValue
     }
 
-    it should "create and retrieve the workflow for just reading" taggedAs DbmsTest ignore {
+    // TODO: PBE: May not be relevant in the new database
+    it should "create and retrieve the workflow for just reading" taggedAs (DbmsTest, PostMVP) ignore {
 //      val workflowId = WorkflowId.randomId()
 //      val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
 //
@@ -180,7 +181,8 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
 //      } yield ()).futureValue
     }
 
-    it should "store and retrieve an empty String as a WdlValue" taggedAs DbmsTest ignore {
+    // TODO: PBE: May not be relevant in the new database
+    it should "store and retrieve an empty String as a WdlValue" taggedAs (DbmsTest, PostMVP) ignore {
 //      val workflowId = WorkflowId.randomId()
 //      val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
 //      val call = mock[Call]

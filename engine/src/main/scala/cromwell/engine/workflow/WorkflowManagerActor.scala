@@ -25,6 +25,7 @@ import scala.language.postfixOps
 object WorkflowManagerActor {
 
   case class WorkflowIdToActorRef(workflowId: WorkflowId, workflowActor: ActorRef)
+  class WorkflowNotFoundException(s: String) extends Exception(s)
 
   sealed trait WorkflowManagerActorMessage
   /**
@@ -125,7 +126,7 @@ class WorkflowManagerActor(config: Config)
           actor ! WorkflowActor.AbortWorkflowCommand
           stay()
         case None =>
-          sender ! WorkflowManagerAbortFailure(id, new Exception(s"Couldn't abort $id because no workflow with that ID is in progress"))
+          sender ! WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           stay()
       }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
@@ -223,3 +224,4 @@ class WorkflowManagerActor(config: Config)
     WorkflowIdToActorRef(workflowId, wfActor)
   }
 }
+

@@ -86,7 +86,10 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
     dataAccess.queryWorkflowOutputs(id) onComplete {
-      case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
+      case Success(o) if o.isEmpty =>
+        self ! HandleNotFound(id, replyTo)
+      case Success(o) =>
+        replyTo ! WorkflowOutputsResponse(id, o)
       case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
     }
   }
@@ -94,7 +97,11 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   private def queryLogsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
     dataAccess.queryLogs(id) onComplete {
-      case Success(l) => replyTo ! LogsResponse(id, l)
+      case Success(l) if l.isEmpty =>
+        self ! HandleNotFound(id, replyTo)
+      case Success(l) =>
+        replyTo ! LogsResponse(id, l)
+
       case Failure(t) => replyTo ! LogsFailure(id, t)
     }
   }

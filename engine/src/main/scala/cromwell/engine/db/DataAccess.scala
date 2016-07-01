@@ -148,7 +148,7 @@ trait DataAccess extends AutoCloseable {
   def queryWorkflowOutputs(id: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
-    queryMetadataEventsWithWildcardKeys(uuid, s"${WorkflowMetadataKeys.Outputs}:".wrapNel, requireEmptyJobKey = true).
+    queryMetadataEventsWithWildcardKeys(uuid, s"${WorkflowMetadataKeys.Outputs}:%".wrapNel, requireEmptyJobKey = true).
       map(metadataToMetadataEvents(id))
   }
 

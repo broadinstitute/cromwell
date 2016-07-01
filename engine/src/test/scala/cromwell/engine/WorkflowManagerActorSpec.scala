@@ -1,6 +1,7 @@
 package cromwell.engine
 
 import akka.testkit._
+import cromwell.CromwellSpec.PostMVP
 import cromwell.CromwellTestkitSpec
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.util.SampleWdl
@@ -15,13 +16,13 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
 
     val TestExecutionTimeout = 5.seconds.dilated
 
-    // TODO PBE: Restart workflows tests: re-add (but maybe somewhere else?) in 0.21
-    "Not try to restart any workflows when there are no workflows in restartable states" ignore {
+    // TODO PBE: Restart workflows tests: re-add (but somewhere else?) in 0.21
+    "Not try to restart any workflows when there are no workflows in restartable states" taggedAs PostMVP ignore {
 
     }
 
 
-    "Try to restart workflows when there are workflows in restartable states" ignore {
+    "Try to restart workflows when there are workflows in restartable states" taggedAs PostMVP ignore {
 
     }
 

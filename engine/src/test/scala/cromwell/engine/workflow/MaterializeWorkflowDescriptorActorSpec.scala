@@ -3,6 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
+import cromwell.CromwellSpec.PostMVP
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import cromwell.engine.WorkflowSourceFiles
@@ -125,7 +126,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
 
 
     // TODO PBE: this should be done by MWDA (ticket #1076)
-    "assign default runtime attributes" ignore {
+    "assign default runtime attributes" taggedAs PostMVP ignore {
       val wdl =
         """
           |task a {
@@ -283,7 +284,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
     }
 
     // TODO: PBE: Re-enable (ticket #1063)
-    "reject a taskless WDL source" ignore {
+    "reject a taskless WDL source" taggedAs PostMVP ignore {
       val noWorkflowWdl =
         """
           |# no task foo { ... } block!!
@@ -364,7 +365,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
     }
 
     // TODO: PBE: Re-enable (ticket #1067)
-    "handle coercion failures gracefully" ignore {
+    "handle coercion failures gracefully" taggedAs PostMVP ignore {
       val wdl =
         """
           |task bar { command { echo foobar } }

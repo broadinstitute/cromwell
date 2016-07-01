@@ -59,17 +59,5 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
         allowOtherOutputs = false
       )
     }
-
-    "Allow explicitly named inputs in the output section" ignore {
-      runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.ThreeStepWithInputsInTheOutputsSection,
-        eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
-        runtime = "",
-        expectedOutputs = Map(
-          "three_step.cgrep.pattern" -> AnyValueIsFine
-        ),
-        allowOtherOutputs = false
-      )
-    }
   }
 }

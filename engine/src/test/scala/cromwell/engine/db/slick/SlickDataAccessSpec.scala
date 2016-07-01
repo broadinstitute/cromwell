@@ -77,7 +77,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
   val test1Sources = WorkflowSourceFiles("workflow test1 {}", "{}", "{}")
   val test2Sources = WorkflowSourceFiles("workflow test2 {}", "{}", "{}")
 
-  it should "not deadlock" taggedAs PostMVP in {
+  it should "not deadlock" taggedAs PostMVP ignore {
 //    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
 //    val databaseConfig = ConfigFactory.parseString(
 //      s"""
@@ -163,7 +163,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
 
     // TODO: PBE: May not be relevant in the new database
-    it should "create and retrieve the workflow for just reading" taggedAs (DbmsTest, PostMVP) in {
+    it should "create and retrieve the workflow for just reading" taggedAs (DbmsTest, PostMVP) ignore {
 //      val workflowId = WorkflowId.randomId()
 //      val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
 //
@@ -182,7 +182,7 @@ class SlickDataAccessSpec extends FlatSpec with Matchers with ScalaFutures with 
     }
 
     // TODO: PBE: May not be relevant in the new database
-    it should "store and retrieve an empty String as a WdlValue" taggedAs (DbmsTest, PostMVP) in {
+    it should "store and retrieve an empty String as a WdlValue" taggedAs (DbmsTest, PostMVP) ignore {
 //      val workflowId = WorkflowId.randomId()
 //      val workflowInfo = createMaterializedEngineWorkflowDescriptor(id = workflowId, workflowSources = test1Sources)
 //      val call = mock[Call]

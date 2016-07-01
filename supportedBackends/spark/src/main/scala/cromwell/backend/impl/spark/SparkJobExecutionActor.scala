@@ -36,9 +36,6 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   // Files
   private val executionDir = jobPaths.callRoot
-  private val returnCodePath = jobPaths.returnCode
-  private val stdoutPath = jobPaths.stdout
-  private val stderrPath = jobPaths.stderr
   private val scriptPath = jobPaths.script
 
   private val processStderr = executionDir.resolve("process.stderr")

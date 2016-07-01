@@ -21,7 +21,6 @@ trait WorkflowManagerSystem {
 
   CromwellBackends.initBackends(
     BackendConfiguration.AllBackendEntries,
-    BackendConfiguration.DefaultBackendEntry,
     actorSystem
   )
 

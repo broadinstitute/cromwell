@@ -241,7 +241,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private val factories = TryUtil.sequenceMap(workflowDescriptor.backendAssignments.values.toSet[String] map { backendName =>
-    backendName -> CromwellBackends.shadowBackendLifecycleFactory(backendName)
+    backendName -> CromwellBackends.backendLifecycleFactoryActorByName(backendName)
   } toMap) recover {
     case e => throw new RuntimeException("Could not instantiate backend factories", e)
   } get

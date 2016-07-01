@@ -62,7 +62,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
   }
 
   private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] = {
-    CromwellBackends.shadowBackendLifecycleFactory(backend).toOption
+    CromwellBackends.backendLifecycleFactoryActorByName(backend).toOption
   }
 
   private def getRootPath(config: BackendConfigurationDescriptor)

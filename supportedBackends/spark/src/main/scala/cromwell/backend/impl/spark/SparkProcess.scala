@@ -5,7 +5,23 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.{TailedWriter, UntailedWriter}
 import cromwell.core.PathFactory.EnhancedPath
 import scala.sys.process._
+import better.files._
 import scala.language.postfixOps
+
+class SparkCommands extends StrictLogging {
+  /**
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
+  def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path) = {
+    filePath.write(
+      s"""#!/bin/sh
+          |cd $containerRoot
+          |$instantiatedCommand
+          |echo $$? > rc
+          |""".stripMargin)
+  }
+}
 
 class SparkProcess extends StrictLogging {
   private val stdout = new StringBuilder

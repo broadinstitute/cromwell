@@ -4,27 +4,31 @@ import cromwell.backend.validation.ContinueOnReturnCode
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
-import cromwell.core.WorkflowOptions
+import cromwell.core._
 import lenthall.exception.MessageAggregation
-import wdl4s.types.{WdlStringType, WdlBooleanType, WdlType}
-import wdl4s.values.{WdlValue, WdlInteger, WdlBoolean}
+import wdl4s.types.{WdlBooleanType, WdlStringType, WdlType}
+import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 import scalaz.Scalaz._
 import scalaz._
 
 object SparkRuntimeAttributes {
-  val FailOnStderrDefaultValue = false
-  val ContinueOnRcDefaultValue = 0
+  private val FailOnStderrDefaultValue = false
+  private val ContinueOnRcDefaultValue = 0
+  private val DockerWorkingDirKey = "dockerWorkingDir"
+  private val DockerOutputDirKey = "dockerOutputDir"
 
   val staticDefaults = Map(
     FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
     ContinueOnReturnCodeKey -> WdlInteger(ContinueOnRcDefaultValue)
   )
 
-  val coercionMap: Map[String, Set[WdlType]] = Map (
+  val coercionMap: Map[String, Set[WdlType]] = Map(
     FailOnStderrKey -> Set[WdlType](WdlBooleanType),
     ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
-    DockerKey -> Set(WdlStringType)
+    DockerKey -> Set(WdlStringType),
+    DockerWorkingDirKey -> Set(WdlStringType),
+    DockerOutputDirKey -> Set(WdlStringType)
   )
 
   def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): SparkRuntimeAttributes = {
@@ -33,19 +37,45 @@ object SparkRuntimeAttributes {
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
 
     val docker = validateDocker(withDefaultValues.get(DockerKey), None.successNel)
+    val dockerWorkingDir = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.successNel)
+    val dockerOutputDir = validateDockerOutputDir(withDefaultValues.get(DockerOutputDirKey), None.successNel)
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
     val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
-    (continueOnReturnCode |@| docker |@| failOnStderr) {
-      new SparkRuntimeAttributes(_, _, _)
+
+
+    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| dockerOutputDir |@| failOnStderr) {
+      new SparkRuntimeAttributes(_, _, _, _, _)
     } match {
       case Success(x) => x
       case Failure(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
+
         override def errorMessages: Traversable[String] = nel.list
       }
     }
   }
+
+  private def validateDockerWorkingDir(dockerWorkingDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+    dockerWorkingDir match {
+      case Some(WdlString(s)) => Some(s).successNel
+      case None => onMissingKey
+      case _ => s"Expecting $DockerWorkingDirKey runtime attribute to be a String".failureNel
+    }
+  }
+
+  private def validateDockerOutputDir(dockerOutputDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
+    dockerOutputDir match {
+      case Some(WdlString(s)) => Some(s).successNel
+      case None => onMissingKey
+      case _ => s"Expecting $DockerOutputDirKey runtime attribute to be a String".failureNel
+    }
+  }
 }
 
-case class SparkRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode, dockerImage: Option[String], failOnStderr: Boolean)
+
+case class SparkRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
+                                  dockerImage: Option[String],
+                                  dockerWorkingDir: Option[String],
+                                  dockerOutputDir: Option[String],
+                                  failOnStderr: Boolean)
 

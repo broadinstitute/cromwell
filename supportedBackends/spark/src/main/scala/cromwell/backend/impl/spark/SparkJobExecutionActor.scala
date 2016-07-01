@@ -1,17 +1,20 @@
 package cromwell.backend.impl.spark
 
-import java.nio.file.{Path, FileSystems}
+import java.nio.file.{FileSystems, Path}
 import java.nio.file.attribute.PosixFilePermission
 
 import akka.actor.Props
-import cromwell.backend.BackendJobExecutionActor.{SucceededResponse, FailedNonRetryableResponse, BackendJobExecutionResponse}
-import cromwell.backend.io.{SharedFsExpressionFunctions, JobPaths, SharedFileSystem}
-import cromwell.backend.{BackendJobExecutionActor, BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.io.{JobPaths, SharedFileSystem, SharedFsExpressionFunctions}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import wdl4s._
+import wdl4s.types.WdlFileType
 import wdl4s.util.TryUtil
 
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
+import scala.language.postfixOps
 
 object SparkJobExecutionActor {
   val fileSystems = List(FileSystems.getDefault)
@@ -28,6 +31,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private val tag = s"CondorJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
 
+  lazy val cmds = new SparkCommands
   lazy val extProcess = new SparkProcess
   private val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
@@ -48,6 +52,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private val lookup = jobDescriptor.inputs.apply _
 
+  private val executionResponse = Promise[BackendJobExecutionResponse]()
+
   private val runtimeAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
     // Fail the call if runtime attributes can't be evaluated
@@ -66,7 +72,10 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   /**
     * Execute a new job.
     */
-  override def execute: Future[BackendJobExecutionResponse] = Future(executeTask())
+  override def execute: Future[BackendJobExecutionResponse] = {
+    prepareAndExecute
+    executionResponse.future
+  }
 
   private def executeTask(): BackendJobExecutionResponse = {
     val argv = Seq(scriptPath.toString)
@@ -98,15 +107,19 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     */
   override def abort(): Unit = Future.failed(new UnsupportedOperationException("HtCondorBackend currently doesn't support aborting jobs."))
 
-  override def preStart(): Unit = {
-    log.debug("{} Creating execution folder: {}", tag, executionDir)
-    executionDir.toString.toFile.createIfNotExists(true)
+
+  private def createExecutionFolderAndScript(): Unit = {
     try {
-      val command = localizeInputs(jobPaths.callRoot, docker = false, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
-        call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
+      log.debug("{} Creating execution folder: {}", tag, executionDir)
+      executionDir.toString.toFile.createIfNotExists(true)
+
+      log.debug("{} Resolving job command", tag)
+      val command = localizeInputs(jobPaths.callRoot, docker = false, fileSystems, jobDescriptor.inputs) flatMap {
+        localizedInputs => resolveJobCommand(localizedInputs)
       }
+
       log.debug("{} Creating bash script for executing command: {}", tag, command)
-      writeScript(command.get, scriptPath, executionDir) // Writes the bash script for executing the command
+      cmds.writeScript(command.get, scriptPath, executionDir) // Writes the bash script for executing the command
       scriptPath.addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
     } catch {
       case ex: Exception =>
@@ -115,16 +128,36 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
   }
 
-  /**
-    * Writes the script file containing the user's command from the WDL as well
-    * as some extra shell code for monitoring jobs
-    */
-  private def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path) = {
-    filePath.write(
-      s"""#!/bin/sh
-          |cd $containerRoot
-          |$instantiatedCommand
-          |echo $$? > rc
-          |""".stripMargin)
+  private def resolveJobCommand(localizedInputs: CallInputs): Try[String] = {
+    if (runtimeAttributes.dockerImage.isDefined)
+      modifyCommandForDocker(call.task.instantiateCommand(localizedInputs, callEngineFunction, identity), localizedInputs)
+    else
+      call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
   }
+
+  private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {
+    Try {
+      val inputFiles = localizedInputs.filter { case (k,v) => v.wdlType.equals(WdlFileType) }
+      val dockerInputDataVol: Seq[String] = inputFiles.values.map { value =>
+        val limit = value.valueString.lastIndexOf("/")
+        value.valueString.substring(0, limit)
+      } toSeq
+      val dockerCmd = "docker run -w %s %s %s --rm %s %s"
+      val dockerVolume = "-v %s:%s"
+      val dockerVolumeInputs = s"$dockerVolume:ro"
+      // `v.get` is safe below since we filtered the list earlier with only defined elements
+      val inputVolumes = dockerInputDataVol.distinct.map(v => dockerVolumeInputs.format(v, v)).mkString(" ")
+      val outputVolume = dockerVolume.format(executionDir.toAbsolutePath.toString, runtimeAttributes.dockerOutputDir.getOrElse(executionDir.toAbsolutePath.toString))
+      val cmd = dockerCmd.format(runtimeAttributes.dockerWorkingDir.getOrElse(executionDir.toAbsolutePath.toString), inputVolumes, outputVolume, runtimeAttributes.dockerImage.get, jobCmd.get)
+      log.debug(s"Docker command line to be used for task execution: $cmd.")
+      cmd
+    }
+  }
+
+  private def prepareAndExecute: Unit = {
+    createExecutionFolderAndScript()
+    executionResponse success executeTask()
+  }
+
+
 }

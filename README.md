@@ -25,12 +25,14 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Configuring Cromwell](#configuring-cromwell)
   * [Database](#database)
   * [SIGINT abort handler](#sigint-abort-handler)
+  * [Workflow Restarts] (#restart-workflow)
 * [Backends](#backends)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
     * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
   * [Local Backend](#local-backend)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
+  * [Platform Load Sharing Facility Backend](#platform-load-sharing-facility-backend)
   * [Google JES Backend](#google-jes-backend)
     * [Configuring Google Project](#configuring-google-project)
     * [Configuring Authentication](#configuring-authentication)
@@ -295,15 +297,28 @@ backend {
 
 Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
 
+## Workflow Restarts
+
+For backends that support restarting incomplete tasks, Cromwell can be configured such that when it's instantiated, it can prevent any previously incomplete workflows from restarting. This configuration is only applicable when running Cromwell in server mode. To turn this feature on, set the configuration option
+```
+backend {
+  restart-workflow = false
+}
+```
+
+Or, via `-Dbackend.restart-workflow=false` command line option.
+
 # Backends
 
 A backend represents a way to run the user's command specified in the `task` section.  Currently three backends are supported:
 
 * Local - Run jobs as subprocesses.  Supports launching in Docker containers.
 * Sun GridEngine - Use `qsub` and job monitoring to run scripts.
+* Platform Load Sharing Facility - Use `bsub` and job monitoring to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
 
-Backends are specified via the configuration option `backend.backend` which can accept the values: `sge`, `local`, and `jes` (e.g. `java -Dbackend.backend=sge`).
+The default backend for a workflow is specified via the configuration option `backend.defaultBackend` which can accept the values: `sge`, `lsf`, `local`, and `jes` (e.g. `java -Dbackend.defaultBackend=sge`).
+This can be overridden by adding a `backend` entry to a submission's workflow options file.
 
 ## Backend Filesystems
 
@@ -313,14 +328,16 @@ The backend/filesystem pairings are as follows:
 
 * [Local Backend](#local-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
 * [SGE Backend](#sun-gridengine-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
+* [LSF Backend](#platform-load-sharing-facility-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
 * [JES Backend](#google-jes-backend) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
 
 ### Shared Local Filesystem
 
-For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) backends, the following is required of the underlying filesystem:
+For the [local](#local-backend), [Sun GridEngine](#sun-gridengine-backend), and [Platform Sharing Facility](#platform-load-sharing-facility-backend) backends, the following is required of the underlying filesystem:
 
 * (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
 * (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
+* (`lsf` backend) Jobs launched with `bsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
 
 The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line, or via [Cromwell's configuration file](#configuring-cromwell)
 
@@ -498,10 +515,25 @@ echo $? > rc
 The job is launched using the following command:
 
 ```
-qsub -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
+qsub -q <queue_name> -P <project_name> -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
 ```
 
 `<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
+
+`<queue_name>` is an optional parameter; (e.g., `long`).
+
+`<project_name>` is an optional parameter; (e.g., `MyProjectName`). These optional parameters can be configured in the Cromwell configuration file as follows: 
+
+```hocon
+backend {
+ 
+  sge {
+    queue: "long"
+    project: "MyProjectName"
+  }
+}
+```
+
 
 the `<call_dir>` contains the following special files added by the SGE backend:
 
@@ -511,6 +543,65 @@ the `<call_dir>` contains the following special files added by the SGE backend:
 * `rc` - Return code of the SGE job, populated when the job has finished.
 
 The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
+
+Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+## Platform Load Sharing Facility Backend
+
+The Platform Load Sharing Facility backend uses `bsub` to launch a job and will poll the filesystem to determine if a job is completed.
+
+This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
+
+The CWD will contain a `script.sh` file which will contain:
+
+```
+\#!/bin/sh
+<user_command>
+echo $? > rc
+```
+
+The job is launched using the following command:
+
+```
+bsub -q <queue_name> -P <project_name> -J <job_name> -cwd <call_dir> -o stdout -e stderr <call_dir>/script.sh
+```
+
+`<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
+
+`<queue_name>` is an optional parameter; (e.g., `long`).
+
+`<project_name>` is an optional parameter; (e.g., `MyProjectName`). 
+
+In addition to the above options,  it supports all options in the `bsub`
+command.
+
+These optional parameters can be configured in the Cromwell configuration file as follows: 
+
+```hocon
+backend {
+  shared-filesystem {
+    root = /my/share/filesystem/root
+    localization = {
+      0 = copy
+    }
+  }
+  backend = lsf
+  lsf {
+    -q = "long"
+    -P = "MyProjectName"
+  }
+}
+```
+
+
+the `<call_dir>` contains the following special files added by the LSF backend:
+
+* `bsub.stdout`, `bsub.stderr` - The results of the qsub command.
+* `script.sh` - File containing the user's command and some wrapper code.
+* `stdout`, `stderr` - Standard output streams of the actual job.
+* `rc` - Return code of the LSF job, populated when the job has finished.
+
+The LSF backend gets the job ID from parsing the `bsub.stdout` text file.
 
 Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
 
@@ -951,7 +1042,7 @@ runtime {
 }
 ```
 
-Defaults to "false".
+Defaults to 0 which means that only non-preembtible instances shall be used.
 
 # Logging
 

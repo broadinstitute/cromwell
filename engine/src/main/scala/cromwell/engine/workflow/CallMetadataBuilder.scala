@@ -5,6 +5,7 @@ import cromwell.engine.backend.jes.JesBackend
 import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.pbs.PbsBackend
 import cromwell.engine.backend.sge.SgeBackend
+import cromwell.engine.backend.lsf.LsfBackend
 import cromwell.engine.backend.{CallLogs, CallMetadata}
 import cromwell.engine.db.slick._
 import cromwell.engine.db.{ExecutionDatabaseKey, ExecutionInfosByExecution}
@@ -54,6 +55,7 @@ object CallMetadataBuilder {
         case "JES" => BackendValues("JES", jobId = extractValue(JesBackend.InfoKeys.JesRunId), status = extractValue(JesBackend.InfoKeys.JesStatus))
         case "PBS" => BackendValues("PBS", jobId = extractValue(PbsBackend.InfoKeys.JobNumber))
         case "SGE" => BackendValues("SGE", jobId = extractValue(SgeBackend.InfoKeys.JobNumber))
+        case "LSF" => BackendValues("LSF", jobId = extractValue(LsfBackend.InfoKeys.JobNumber))
       }
     }
   }

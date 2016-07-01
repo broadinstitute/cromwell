@@ -8,6 +8,7 @@ public enum BackendType {
         }
     },
     JES,
+    LSF,
     PBS,
     SGE;
 

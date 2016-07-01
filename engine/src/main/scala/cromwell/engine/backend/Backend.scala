@@ -11,6 +11,7 @@ import cromwell.engine.backend.local.LocalBackend
 import cromwell.engine.backend.pbs.PbsBackend
 import cromwell.engine.backend.runtimeattributes.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, CromwellRuntimeAttributes}
 import cromwell.engine.backend.sge.SgeBackend
+import cromwell.engine.backend.lsf.LsfBackend
 import cromwell.engine.db.DataAccess.ExecutionKeyToJobKey
 import cromwell.logging.WorkflowLogger
 import cromwell.util.docker.SprayDockerRegistryApiClient
@@ -32,6 +33,7 @@ object Backend {
     case BackendType.JES => JesBackend(actorSystem)
     case BackendType.PBS => PbsBackend(actorSystem)
     case BackendType.SGE => SgeBackend(actorSystem)
+    case BackendType.LSF => LsfBackend(actorSystem)
     case doh => throw new IllegalArgumentException(s"$doh is not a recognized backend")
   }
 

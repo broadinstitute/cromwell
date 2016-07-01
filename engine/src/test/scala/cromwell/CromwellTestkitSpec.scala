@@ -208,7 +208,7 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   private def buildWorkflowManagerActor(config: Config) = {
-    TestActorRef(new WorkflowManagerActor(config))
+    TestActorRef(new WorkflowManagerActor(isServerMode = false, config))
   }
 
   // Not great, but this is so we can test matching data structures that have WdlFiles in them more easily

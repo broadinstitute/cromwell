@@ -80,7 +80,10 @@ object SharedFileSystem {
     Try(Paths.get(originalPath)) map { srcPath =>
       if (srcPath.toFile.isDirectory)
         Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
-      else Files.createSymbolicLink(executionPath, srcPath.toAbsolutePath)
+      else {
+        executionPath.getParent.createDirectories()
+        Files.createSymbolicLink(executionPath, srcPath.toAbsolutePath)
+      }
     }
   }
 

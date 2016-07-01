@@ -182,12 +182,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
       parameterSeq { parameters =>
         val queryParameters = parameters map { case (k, v) => QueryParameter(k, v) }
         post {
-          Try(WorkflowId.fromString(workflowId)) match {
-            case Success(w) =>
-              requestContext =>
-                perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerCallCaching(w, queryParameters, callFqn))
-            case Failure(_) => invalidWorkflowId(workflowId)
-          }
+          // TODO: PBE: Certainly want to do something for this! But probably not to the WMA
+          failBadRequest(new UnsupportedOperationException(s"Call caching is currently unsupported."))
         }
       }
     }

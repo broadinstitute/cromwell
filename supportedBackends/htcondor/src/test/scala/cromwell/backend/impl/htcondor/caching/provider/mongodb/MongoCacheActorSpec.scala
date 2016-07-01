@@ -7,7 +7,7 @@ import com.mongodb.casbah.commons.MongoDBObject
 import com.mongodb.util.JSON
 import com.mongodb.{DBObject, WriteResult}
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.{MemorySize, BackendJobDescriptorKey}
 import cromwell.backend.BackendJobExecutionActor.SucceededResponse
 import cromwell.backend.impl.htcondor.HtCondorRuntimeAttributes
 import cromwell.backend.impl.htcondor.caching.CacheActor._
@@ -31,7 +31,9 @@ class MongoCacheActorSpec extends TestKit(ActorSystem("MongoCacheProviderActorSp
 
   val config: Config = ConfigFactory.load()
   val mongoDbCollectionMock = mock[MongoCollection]
-  val runtimeConfig = HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), Some("tool-name"), true)
+  val memorySize = MemorySize.parse("0.512 GB").get
+  val diskSize = MemorySize.parse("1.024 GB").get
+  val runtimeConfig = HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), Some("tool-name"), Some("/workingDir"), Some("/outputDir"), true, 1, memorySize, diskSize)
   val jobHash = "88dde49db10f1551299fb9937f313c10"
   val taskStatus = "done"
   val succeededResponseMock = SucceededResponse(BackendJobDescriptorKey(Call(None, "TestJob", null, null, null, None), None, 0), None, Map("test" -> JobOutput(WdlString("Test"))))

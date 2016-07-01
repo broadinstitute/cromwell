@@ -1,6 +1,6 @@
 package cromwell.backend.impl.htcondor
 
-import cromwell.backend.BackendWorkflowDescriptor
+import cromwell.backend.{MemorySize, BackendWorkflowDescriptor}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.{WorkflowId, WorkflowOptions}
@@ -34,7 +34,10 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     """.stripMargin
 
   val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
-  val staticDefaults = new HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), None, false)
+
+  val memorySize = MemorySize.parse("0.512 GB").get
+  val diskSize = MemorySize.parse("1.024 GB").get
+  val staticDefaults = new HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), None, None, None, false, 1, memorySize, diskSize)
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
@@ -42,7 +45,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     )))
   }
 
-  "LocalRuntimeAttributes" should {
+  "HtCondorRuntimeAttributes" should {
     "return an instance of itself when there are no runtime attributes defined." in {
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, staticDefaults)
@@ -69,6 +72,52 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     "throw an exception when tries to validate an invalid Docker entry" in {
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: 1 }""").head
       assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+    }
+
+    "return an instance of itself when tries to validate a valid docker working directory entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(dockerWorkingDir = Option("/workingDir"))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerWorkingDir: "/workingDir" }""").head
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "return an instance of itself when tries to validate a valid docker working directory entry based on input" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(dockerWorkingDir = Option("you"))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerWorkingDir: "\${addressee}" }""").head
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "use workflow options as default if docker working directory key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val workflowOptions = workflowOptionsWithDefaultRA(Map("dockerWorkingDir" -> JsString("/workingDir")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, staticDefaults.copy(dockerWorkingDir = Some("/workingDir")))
+    }
+
+    "throw an exception when tries to validate an invalid docker working directory entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerWorkingDir: 1 }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting dockerWorkingDir runtime attribute to be a String")
+    }
+
+    "return an instance of itself when tries to validate a valid docker output directory entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(dockerOutputDir = Option("/outputDir"))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerOutputDir: "/outputDir" }""").head
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "return an instance of itself when tries to validate a valid docker output directory entry based on input" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(dockerOutputDir = Option("you"))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerOutputDir: "\${addressee}" }""").head
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "use workflow options as default if docker output directory key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val workflowOptions = workflowOptionsWithDefaultRA(Map("dockerOutputDir" -> JsString("/outputDir")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, staticDefaults.copy(dockerOutputDir = Some("/outputDir")))
+    }
+
+    "throw an exception when tries to validate an invalid docker output directory entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerOutputDir: 1 }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting dockerOutputDir runtime attribute to be a String")
     }
 
     "return an instance of itself when tries to validate a valid failOnStderr entry" in {
@@ -105,6 +154,86 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
       val workflowOptions = workflowOptionsWithDefaultRA(Map(ContinueOnReturnCodeKey -> JsArray(Vector(JsNumber(1), JsNumber(2)))))
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, staticDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2))))
+    }
+
+    "return an instance of itself when tries to validate a valid cpu entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(cpu = 2)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { cpu: 2 }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(CpuKey -> JsString("6")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "throw an exception when tries to validate an invalid cpu entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { cpu: "value" }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting cpu runtime attribute to be an Integer")
+    }
+
+    "use workflow options as default if cpu key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val expectedRuntimeAttributes = staticDefaults.copy(cpu = 6)
+      val workflowOptions = workflowOptionsWithDefaultRA(Map(CpuKey -> JsString("6")))
+      val workflowOptions2 = workflowOptionsWithDefaultRA(Map(CpuKey -> JsNumber("6")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, expectedRuntimeAttributes)
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions2, expectedRuntimeAttributes)
+    }
+
+    "use default cpu value when there is no cpu key entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(cpu = 1)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map())
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "return an instance of itself when tries to validate a valid memory entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(memory = MemorySize.parse("1 GB").get)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { memory: "1 GB" }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(MemoryKey -> JsString("blahaha")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "throw an exception when tries to validate an invalid memory entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" memory: "value" }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+    }
+
+    "use workflow options as default if memory key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val expectedRuntimeAttributes = staticDefaults.copy(memory = MemorySize.parse("65 GB").get)
+      val workflowOptions = workflowOptionsWithDefaultRA(Map(MemoryKey -> JsString("65 GB")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, expectedRuntimeAttributes)
+    }
+
+    "use default memory value when there is no memory key entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(memory = MemorySize.parse("0.512 GB").get)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map())
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "return an instance of itself when tries to validate a valid disk entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(disk = MemorySize.parse("1 GB").get)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { disk: "1 GB" }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map("disk" -> JsString("blahaha")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "throw an exception when tries to validate an invalid disk entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" disk: "value" }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+    }
+
+    "use workflow options as default if disk key is missing" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val expectedRuntimeAttributes = staticDefaults.copy(disk = MemorySize.parse("65 GB").get)
+      val workflowOptions = workflowOptionsWithDefaultRA(Map("disk" -> JsString("65 GB")))
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, workflowOptions, expectedRuntimeAttributes)
+    }
+
+    "use default disk value when there is no disk key entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(disk = MemorySize.parse("1.024 GB").get)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map())
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
     }
   }
 

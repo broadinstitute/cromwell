@@ -1,7 +1,7 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorRef, Props}
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.webservice.CromwellApiHandler.{WorkflowManagerBatchSubmitResponse, WorkflowManagerResponse}
 

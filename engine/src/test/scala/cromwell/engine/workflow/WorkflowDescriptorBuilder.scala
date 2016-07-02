@@ -3,10 +3,10 @@ package cromwell.engine.workflow
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse, WorkflowDescriptorMaterializationResult}
-import cromwell.engine.{EngineWorkflowDescriptor, WorkflowSourceFiles}
 
 import scala.concurrent.Await
 

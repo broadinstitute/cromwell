@@ -1,45 +1,18 @@
 package cromwell.backend.impl.local
 
-import akka.actor.ActorSystem
-import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
+import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
-import cromwell.backend.io.BackendTestkitSpec
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
+import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 import wdl4s.Call
 
 import scala.concurrent.duration._
 
-class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializationActorSpec", ConfigFactory.parseString(
-  // TODO: PBE: 5s leeway copy of CromwellTestkitSpec. Refactor to D.R.Y. this code, and rename Testkit to TestKit
-  """
-    |akka {
-    |  loggers = ["akka.testkit.TestEventListener"]
-    |  loglevel = "INFO"
-    |  actor {
-    |    debug {
-    |       receive = on
-    |    }
-    |  }
-    |  dispatchers {
-    |    slow-actor-dispatcher {
-    |      type = Dispatcher
-    |      executor = "fork-join-executor"
-    |    }
-    |  }
-    |  test {
-    |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
-    |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
-    |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
-    |    filter-leeway = 5s
-    |    single-expect-default = 5s
-    |    default-timeout = 10s
-    |  }
-    |}
-    |""".stripMargin)))
-  with BackendTestkitSpec with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+class LocalInitializationActorSpec extends TestKitSuite("LocalInitializationActorSpec") with BackendSpec
+  with WordSpecLike with Matchers with ImplicitSender {
 
   val globalConfig = ConfigFactory.load()
   val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
@@ -68,10 +41,6 @@ class LocalInitializationActorSpec extends TestKit(ActorSystem("LocalInitializat
 
   private def getLocalBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(LocalInitializationActor.props(workflowDescriptor, calls, conf))
-  }
-
-  override def afterAll {
-    system.shutdown()
   }
 
   "LocalInitializationActor" should {

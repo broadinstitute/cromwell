@@ -1,18 +1,14 @@
 package cromwell.backend.impl.sge
 
-import cromwell.backend.BackendWorkflowDescriptor
+import cromwell.backend.BackendSpec
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.{ContinueOnReturnCode, ContinueOnReturnCodeSet}
-import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
-import spray.json.{JsValue, JsObject}
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
-import wdl4s.{Call, WdlExpression, WdlSource, NamespaceWithWorkflow}
 
 class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
+
+  import BackendSpec._
 
   val HelloWorld =
     """
@@ -83,34 +79,6 @@ class SgeRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertSgeRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
     }
 
-  }
-
-  private def buildWorkflowDescriptor(wdl: WdlSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
-                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                      runtime: String = "") = {
-    new BackendWorkflowDescriptor(
-      WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
-      options
-    )
-  }
-
-  private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
-
-    def createLookup(call: Call): ScopedLookupFunction = {
-      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-      val knownInputs = workflowDescriptor.inputs
-      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
-    }
-
-    workflowDescriptor.workflowNamespace.workflow.calls map {
-      call =>
-        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
-    }
   }
 
   private def assertSgeRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], expectedRuntimeAttributes: Map[String, Any]): Unit = {

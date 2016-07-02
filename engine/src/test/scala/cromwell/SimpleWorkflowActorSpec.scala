@@ -6,8 +6,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.WorkflowId
-import cromwell.engine._
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.{StartNewWorkflow, StartWorkflowCommand}
 import cromwell.services.MetadataEvent

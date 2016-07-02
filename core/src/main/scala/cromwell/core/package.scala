@@ -16,8 +16,12 @@ package object core {
 
   type ErrorOr[+A] = ValidationNel[String, A]
   type LocallyQualifiedName = String
+  type FullyQualifiedName = String
+  type WorkflowOutputs = Map[FullyQualifiedName, JobOutput]
+  type WorkflowOptionsJson = String
   case class JobOutput(wdlValue: WdlValue, @deprecated("Don't return hashes to the engine!", "PBE") hash: Option[SymbolHash] = None) // TODO: Remove this hash
   type JobOutputs = Map[LocallyQualifiedName, JobOutput]
+  type HostInputs = Map[String, WdlValue]
   type EvaluatedRuntimeAttributes = Map[String, WdlValue]
 
   class CromwellFatalException(exception: Throwable) extends Exception(exception)

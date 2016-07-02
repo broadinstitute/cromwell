@@ -5,9 +5,9 @@ import java.time.OffsetDateTime
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
-import akka.routing.{FromConfig, RoundRobinPool}
+import akka.routing.FromConfig
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
@@ -77,7 +77,6 @@ class WorkflowManagerActor(config: Config)
   def this() = this(ConfigFactory.load)
   implicit val actorSystem = context.system
 
-  private val RestartDelay: FiniteDuration = 200 milliseconds
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 

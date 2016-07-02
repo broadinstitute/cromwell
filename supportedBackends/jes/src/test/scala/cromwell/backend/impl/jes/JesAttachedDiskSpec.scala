@@ -1,9 +1,9 @@
-package cromwell.engine.backend.jes
+package cromwell.backend.impl.jes
 
 import java.nio.file.Paths
 
 import com.google.api.services.genomics.model.Disk
-import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk, DiskType, JesEmptyMountedDisk}
+import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesEmptyMountedDisk, JesWorkingDisk}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers, TryValues}
@@ -32,11 +32,11 @@ class JesAttachedDiskSpec extends FlatSpec with Matchers with TryValues {
   }
 
   val invalidTable = Table(
-    ("unparsed"),
-    ("local-disk BAD HDD"),
-    ("local-disk 10 BAD"),
-    ("BAD 100 SSD"),
-    ("foobar")
+    "unparsed",
+    "local-disk BAD HDD",
+    "local-disk 10 BAD",
+    "BAD 100 SSD",
+    "foobar"
   )
 
   it should "reject malformed disk mounts" in {

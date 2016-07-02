@@ -4,13 +4,12 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowState, WorkflowSubmitted}
-import cromwell.engine._
+import cromwell.core
+import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.{core, engine}
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
@@ -45,7 +44,7 @@ object CromwellApiHandler {
 
   final case class WorkflowManagerSubmitSuccess(id: WorkflowId) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerSubmitFailure(override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerWorkflowOutputsSuccess(id: WorkflowId, outputs: engine.WorkflowOutputs) extends WorkflowManagerSuccessResponse
+  final case class WorkflowManagerWorkflowOutputsSuccess(id: WorkflowId, outputs: core.WorkflowOutputs) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerWorkflowOutputsFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerStatusSuccess(id: WorkflowId, state: WorkflowState) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerStatusFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse

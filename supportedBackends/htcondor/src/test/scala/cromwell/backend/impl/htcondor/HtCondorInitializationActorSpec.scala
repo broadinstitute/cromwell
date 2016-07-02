@@ -1,21 +1,19 @@
 package cromwell.backend.impl.htcondor
 
-import akka.actor.ActorSystem
-import akka.testkit.{EventFilter, ImplicitSender, TestDuration, TestKit}
-import com.typesafe.config.ConfigFactory
+import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import spray.json.{JsObject, JsValue}
-import wdl4s.values.WdlValue
-import wdl4s.{Call, NamespaceWithWorkflow, WdlSource}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
+import cromwell.core.TestKitSuite
+import org.scalatest.{Matchers, WordSpecLike}
+import wdl4s.Call
 
 import scala.concurrent.duration._
 
-class HtCondorInitializationActorSpec extends TestKit(ActorSystem("CondorInitializationActorSpec", ConfigFactory.parseString(
-  """akka.loggers = ["akka.testkit.TestEventListener"]"""))) with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+class HtCondorInitializationActorSpec extends TestKitSuite("HtCondorInitializationActorSpec") with WordSpecLike
+  with Matchers with ImplicitSender {
   val Timeout = 5.second.dilated
+
+  import BackendSpec._
 
   val HelloWorld =
     """
@@ -36,24 +34,6 @@ class HtCondorInitializationActorSpec extends TestKit(ActorSystem("CondorInitial
       |}
     """.stripMargin
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor(ConfigFactory.parseString("{}"), ConfigFactory.load())
-
-  private def buildWorkflowDescriptor(wdl: WdlSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
-                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                      runtime: String = "") = {
-    new BackendWorkflowDescriptor(
-      WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
-      options
-    )
-  }
-
-  override def afterAll {
-    system.shutdown()
-  }
-
   private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf))
   }
@@ -63,7 +43,8 @@ class HtCondorInitializationActorSpec extends TestKit(ActorSystem("CondorInitial
       within(Timeout) {
         EventFilter.warning(message = s"Key/s [memory] is/are not supported by HtCondorBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
           val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
-          val backend = getHtCondorBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, defaultBackendConfig)
+          val backend = getHtCondorBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
+            emptyBackendConfig)
           backend ! Initialize
         }
       }

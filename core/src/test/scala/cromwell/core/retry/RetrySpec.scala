@@ -1,20 +1,18 @@
 package cromwell.core.retry
 
-import akka.actor.ActorSystem
-import cromwell.core.CromwellFatalException
+import cromwell.core.retry.Retry._
+import cromwell.core.{CromwellFatalException, TestKitSuite}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpec, Matchers}
-import Retry._
-import scala.concurrent.duration._
+import org.scalatest.{FlatSpecLike, Matchers}
+
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
-class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
-  implicit val actorSystem = ActorSystem("retry-spec")
-
+class RetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matchers with ScalaFutures {
   class TransientException extends Exception
   class MockWork(n: Int, transients: Int = 0) {
-    implicit val ec = actorSystem.dispatcher
+    implicit val ec = system.dispatcher
 
     var counter = n
 
@@ -35,7 +33,7 @@ class RetrySpec extends FlatSpec with Matchers with ScalaFutures {
                        work: MockWork,
                        isTransient: Throwable => Boolean = Retry.throwableToFalse,
                        isFatal: Throwable => Boolean = Retry.throwableToFalse): Future[Int] = {
-    implicit val ec = actorSystem.dispatcher
+    implicit val ec = system.dispatcher
 
     val backoff = SimpleExponentialBackoff(1.millis, 2.millis, 1)
 

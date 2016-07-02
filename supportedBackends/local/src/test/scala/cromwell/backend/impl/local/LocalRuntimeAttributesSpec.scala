@@ -1,21 +1,19 @@
 package cromwell.backend.impl.local
 
-import cromwell.backend.BackendWorkflowDescriptor
+import cromwell.backend.BackendSpec
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.Logger
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
-import wdl4s.{Call, NamespaceWithWorkflow, WdlExpression, WdlSource}
 
 class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
+
+  import BackendSpec._
 
   val HelloWorld =
     """
@@ -132,34 +130,6 @@ class LocalRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito
       assert(LocalRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions, mockLogger) == staticDefaults)
     }
 
-  }
-
-  private def buildWorkflowDescriptor(wdl: WdlSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
-                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                      runtime: String = "") = {
-    new BackendWorkflowDescriptor(
-      WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
-      options
-    )
-  }
-
-  private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
-
-    def createLookup(call: Call): ScopedLookupFunction = {
-      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-      val knownInputs = workflowDescriptor.inputs
-      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
-    }
-
-    workflowDescriptor.workflowNamespace.workflow.calls map {
-      call =>
-        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
-    }
   }
 
   private def assertLocalRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: LocalRuntimeAttributes): Unit = {

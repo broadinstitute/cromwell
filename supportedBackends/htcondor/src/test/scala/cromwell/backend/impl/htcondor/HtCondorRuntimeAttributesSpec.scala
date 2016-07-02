@@ -1,18 +1,16 @@
 package cromwell.backend.impl.htcondor
 
-import cromwell.backend.{MemorySize, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendSpec, MemorySize}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json._
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
-import wdl4s.{Call, NamespaceWithWorkflow, WdlExpression, WdlSource}
 
 class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
+
+  import BackendSpec._
 
   val HelloWorld =
     """
@@ -237,34 +235,6 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
   }
 
-  private def buildWorkflowDescriptor(wdl: WdlSource,
-                                      inputs: Map[String, WdlValue] = Map.empty,
-                                      options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
-                                      runtime: String = "") = {
-    new BackendWorkflowDescriptor(
-      WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
-      inputs,
-      options
-    )
-  }
-
-  private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
-
-    def createLookup(call: Call): ScopedLookupFunction = {
-      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-      val knownInputs = workflowDescriptor.inputs
-      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
-    }
-
-    workflowDescriptor.workflowNamespace.workflow.calls map {
-      call =>
-        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
-    }
-  }
-
   private def assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: HtCondorRuntimeAttributes): Unit = {
     try {
       assert(HtCondorRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
@@ -282,4 +252,3 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     }
   }
 }
-

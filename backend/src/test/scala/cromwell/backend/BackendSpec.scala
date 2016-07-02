@@ -1,23 +1,20 @@
-package cromwell.backend.io
+package cromwell.backend
 
-import akka.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
-import cromwell.backend._
 import cromwell.backend.io.TestWorkflows.TestWorkflow
 import cromwell.core.{WorkflowId, WorkflowOptions}
+import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{Matchers, Tag}
 import spray.json.{JsObject, JsValue}
+import wdl4s.WdlExpression._
 import wdl4s._
+import wdl4s.expression.NoFunctions
+import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
-object BackendTestkitSpec {
-  implicit val testActorSystem = ActorSystem("BackendTestActorSystem")
-  object DockerTest extends Tag("DockerTest")
-}
-
-trait BackendTestkitSpec extends ScalaFutures with Matchers {
+trait BackendSpec extends ScalaFutures with Matchers {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(500, Millis))
 
@@ -38,10 +35,24 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
   }
 
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
-                                          inputs: Map[String, WdlValue] = Map.empty) = {
+                                          inputs: Map[String, WdlValue] = Map.empty): BackendJobDescriptor = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = new BackendJobDescriptorKey(call, None, 1)
     new BackendJobDescriptor(workflowDescriptor, jobKey, inputs)
+  }
+
+  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource): BackendJobDescriptor = {
+    val workflowDescriptor = buildWorkflowDescriptor(wdl)
+    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val jobKey = new BackendJobDescriptorKey(call, None, 1)
+    new BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
+  }
+
+  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource, runtime: String, attempt: Int): BackendJobDescriptor = {
+    val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
+    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val jobKey = new BackendJobDescriptorKey(call, None, attempt)
+    new BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -71,4 +82,34 @@ trait BackendTestkitSpec extends ScalaFutures with Matchers {
     }
   }
 
+  lazy val emptyBackendConfig = new BackendConfigurationDescriptor(
+    ConfigFactory.parseString("{}"), ConfigFactory.load())
+
+  def firstJobDescriptorKey(workflowDescriptor: BackendWorkflowDescriptor): BackendJobDescriptorKey = {
+    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    new BackendJobDescriptorKey(call, None, 1)
+  }
+
+  def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
+                         inputs: Map[String, WdlValue] = Map.empty) = {
+    new BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), inputs)
+  }
+
+  def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {
+    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
+
+    def createLookup(call: Call): ScopedLookupFunction = {
+      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
+      val knownInputs = workflowDescriptor.inputs
+      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
+    }
+
+    workflowDescriptor.workflowNamespace.workflow.calls map {
+      call =>
+        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
+        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
+    }
+  }
 }
+
+object BackendSpec extends BackendSpec

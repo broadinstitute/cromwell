@@ -2,8 +2,7 @@ package cromwell.webservice
 
 import akka.actor._
 import com.typesafe.config.Config
-import cromwell.core.WorkflowId
-import cromwell.engine.WorkflowSourceFiles
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.WorkflowJsonSupport._

@@ -24,7 +24,8 @@ object JesInitializationActor {
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                              override val calls: Seq[Call],
-                             jesConfiguration: JesConfiguration) extends BackendWorkflowInitializationActor {
+                             private[jes] val jesConfiguration: JesConfiguration)
+  extends BackendWorkflowInitializationActor {
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
     CpuKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),
@@ -42,7 +43,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
   private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
 
-  private lazy val refreshTokenAuth: Option[JesAuthInformation] = {
+  private[jes] lazy val refreshTokenAuth: Option[JesAuthInformation] = {
     for {
       clientSecrets <- List(jesConfiguration.jesAttributes.gcsFilesystemAuth) collectFirst { case s: ClientSecrets => s }
       token <- workflowDescriptor.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption

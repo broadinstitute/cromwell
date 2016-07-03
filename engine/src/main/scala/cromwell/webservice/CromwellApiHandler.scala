@@ -4,17 +4,18 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.core
 import cromwell.core._
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowStoreActor}
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.core
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scalaz.NonEmptyList
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
@@ -24,7 +25,7 @@ object CromwellApiHandler {
   sealed trait ApiHandlerMessage
 
   final case class ApiHandlerWorkflowSubmit(source: WorkflowSourceFiles) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowSubmitBatch(sources: Seq[WorkflowSourceFiles]) extends ApiHandlerMessage
+  final case class ApiHandlerWorkflowSubmitBatch(sources: NonEmptyList[WorkflowSourceFiles]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStatus(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowOutputs(id: WorkflowId) extends ApiHandlerMessage
@@ -59,7 +60,6 @@ object CromwellApiHandler {
   final case class WorkflowManagerWorkflowMetadataFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
   final case class WorkflowManagerCallCachingSuccess(id: WorkflowId, updateCount: Int) extends WorkflowManagerSuccessResponse
   final case class WorkflowManagerCallCachingFailure(id: WorkflowId, override val failure: Throwable) extends WorkflowManagerFailureResponse
-  final case class WorkflowManagerBatchSubmitResponse(responses: Seq[WorkflowManagerResponse]) extends WorkflowManagerResponse
 }
 
 class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with WorkflowQueryPagination {
@@ -89,32 +89,15 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
         case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
       }
 
-    case ApiHandlerWorkflowSubmit(source) =>
-      val submitMsg = WorkflowManagerActor.SubmitWorkflowCommand(source)
-      requestHandlerActor ! submitMsg
-    case WorkflowManagerSubmitSuccess(id) =>
+    case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowStoreActor.SubmitWorkflow(source)
+
+    case WorkflowStoreActor.WorkflowSubmittedToStore(id) =>
       context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString))
-    case WorkflowManagerSubmitFailure(e) =>
-      error(e) {
-        case _: IllegalArgumentException => RequestComplete(StatusCodes.BadRequest, APIResponse.fail(e))
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
-      }
 
-    case ApiHandlerWorkflowSubmitBatch(sources) =>
-      context.actorOf(
-        Props(new WorkflowSubmitBatchActor(self, requestHandlerActor, sources)),
-        "WorkflowSubmitBatchActor")
+    case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor ! WorkflowStoreActor.BatchSubmitWorkflows(sources)
 
-    case WorkflowManagerBatchSubmitResponse(responses) =>
-      val requestResponse: Seq[Either[WorkflowSubmitResponse, FailureResponse]] = responses.map {
-        case WorkflowManagerSubmitSuccess(id) => Left(WorkflowSubmitResponse(id.toString, core.WorkflowSubmitted.toString))
-        case WorkflowManagerSubmitFailure(e) =>
-          Right(e match {
-            case _: IllegalArgumentException => APIResponse.fail(e)
-            case _ => APIResponse.error(e)
-          })
-        case unexpected => Right(FailureResponse("error", s"unexpected message: $unexpected", None))
-      }
-      context.parent ! RequestComplete(StatusCodes.OK, requestResponse)
+    case WorkflowStoreActor.WorkflowsBatchSubmittedToStore(ids) =>
+      val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
+      context.parent ! RequestComplete(StatusCodes.OK, responses.list)
   }
 }

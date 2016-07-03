@@ -4,7 +4,7 @@ package cromwell.server
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowStoreActor}
 import org.slf4j.LoggerFactory
 
 trait WorkflowManagerSystem {
@@ -24,7 +24,9 @@ trait WorkflowManagerSystem {
     actorSystem
   )
 
+  lazy val workflowStoreActor = actorSystem.actorOf(WorkflowStoreActor.props(), "WorkflowStoreActor")
+
   // For now there's only one WorkflowManagerActor so no need to dynamically name it
-  val workflowManagerProps = WorkflowManagerActor.props()
+  val workflowManagerProps = WorkflowManagerActor.props(workflowStoreActor)
   lazy val workflowManagerActor = actorSystem.actorOf(workflowManagerProps, "WorkflowManagerActor")
 }

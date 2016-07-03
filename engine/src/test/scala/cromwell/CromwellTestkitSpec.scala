@@ -12,14 +12,15 @@ import cromwell.backend._
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.engine._
 import cromwell.engine.backend.BackendConfigurationEntry
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
+import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowStoreActor}
+import cromwell.engine.workflow.WorkflowStore.{Submitted, WorkflowToStart}
+import cromwell.engine.workflow.WorkflowStoreActor.WorkflowSubmittedToStore
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataQuery
 import cromwell.services.MetadataServiceActor._
 import cromwell.util.SampleWdl
-import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalactic.Equality
@@ -174,10 +175,11 @@ object CromwellTestkitSpec {
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
 
   implicit class EnhancedWorkflowManagerActor(val manager: TestActorRef[WorkflowManagerActor]) extends AnyVal {
-
     def submit(sources: WorkflowSourceFiles): WorkflowId = {
-      val submitMessage = WorkflowManagerActor.SubmitWorkflowCommand(sources)
-      Await.result(manager.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowManagerSubmitSuccess].id
+      val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
+      val result = Await.result(manager.underlyingActor.workflowStore.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId
+      manager ! RetrieveNewWorkflows
+      result
     }
   }
 
@@ -339,7 +341,8 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   }
 
   private def buildWorkflowManagerActor(config: Config) = {
-    TestActorRef(new WorkflowManagerActor(config), name = "WorkflowManagerActor")
+    val workflowStore = system.actorOf(WorkflowStoreActor.props())
+    TestActorRef(new WorkflowManagerActor(config, workflowStore), name = "WorkflowManagerActor")
   }
 
   def workflowSuccessFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1)

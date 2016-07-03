@@ -11,7 +11,9 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{WorkflowId, ExecutionStore => _, _}
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
-import cromwell.engine.workflow.WorkflowManagerActor.SubmitWorkflowCommand
+import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
+import cromwell.engine.workflow.WorkflowStore.{Submitted, WorkflowToStart}
+import cromwell.engine.workflow.WorkflowStoreActor.{NewWorkflowsToStart, SubmitWorkflow}
 import cromwell.services.MetadataServiceActor.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
 import cromwell.services.ServiceRegistryClient
 import cromwell.util.PromiseActor._
@@ -27,8 +29,11 @@ import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path], workflowManager: ActorRef): Props = {
-    Props(classOf[SingleWorkflowRunnerActor], source, metadataOutputFile, workflowManager)
+  def props(source: WorkflowSourceFiles,
+            metadataOutputFile: Option[Path],
+            workflowManager: ActorRef,
+            workflowStore: ActorRef): Props = {
+    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile, workflowManager, workflowStore))
   }
 
   sealed trait RunnerMessage
@@ -46,8 +51,8 @@ object SingleWorkflowRunnerActor {
   case object Done extends RunnerState
 
   final case class RunnerData(replyTo: Option[ActorRef] = None,
-                              id: Option[WorkflowId] = None,
                               terminalState: Option[WorkflowState] = None,
+                              id: Option[WorkflowId] = None,
                               failures: Seq[Throwable] = Seq.empty) {
 
     def addFailure(message: String): RunnerData = addFailure(new Throwable(message))
@@ -69,7 +74,8 @@ object SingleWorkflowRunnerActor {
  */
 case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                      metadataOutputPath: Option[Path],
-                                     workflowManager: ActorRef)
+                                     workflowManager: ActorRef,
+                                     workflowStore: ActorRef)
   extends LoggingFSM[RunnerState, RunnerData] with CromwellActor with ServiceRegistryClient {
 
   import SingleWorkflowRunnerActor._
@@ -104,15 +110,16 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
 
   when (NotStarted) {
     case Event(RunWorkflow, data) =>
-      log.info(s"$Tag: Launching workflow")
-      val submitMessage = SubmitWorkflowCommand(source)
-      workflowManager ! submitMessage
+      log.info(s"$Tag: Submitting workflow")
+      workflowStore ! SubmitWorkflow(source)
       goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
   }
 
   when (RunningWorkflow) {
-    case Event(WorkflowManagerSubmitSuccess(id), data) =>
+    case Event(WorkflowStoreActor.WorkflowSubmittedToStore(id), data) =>
       log.info(s"$Tag: Workflow submitted UUID($id)")
+      // Since we only have a single workflow, force the WorkflowManagerActor's hand in case the polling rate is long
+      workflowManager ! RetrieveNewWorkflows
       schedulePollRequest()
       stay() using data.copy(id = Option(id))
     case Event(IssuePollRequest, _) =>
@@ -152,6 +159,10 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
       val message = data.terminalState collect { case WorkflowSucceeded => () } getOrElse Status.Failure(data.failures.head)
       data.replyTo foreach  { _ ! message }
       stay()
+  }
+
+  onTransition {
+    case NotStarted -> RunningWorkflow => schedulePollRequest()
   }
 
   private def failAndFinish(e: Throwable): State = {

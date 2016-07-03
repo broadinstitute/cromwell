@@ -23,6 +23,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [server](#server)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
+  * [Workflow Submission](#workflow-submission)
   * [Database](#database)
   * [SIGINT abort handler](#sigint-abort-handler)
 * [Backends](#backends)
@@ -251,6 +252,12 @@ It is recommended that one copies `src/main/resources/application.conf`, modify 
 ```
 java -Dconfig.file=/path/to/application.conf cromwell.jar ...
 ```
+
+## Workflow Submission
+
+Cromwell has a configurable cap on the number of workflows running at a time. To set this value provide an integer value to the `system.max-concurrent-workflows` config value.
+
+Cromwell will look for new workflows to start on a regular interval which can be modified by setting the `system.new-workflow-poll-rate` config value, which is the number of seconds between workflow launches. On every poll, Cromwell will take at most `system.max-workflow-launch-count` new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached.
 
 ## Database
 

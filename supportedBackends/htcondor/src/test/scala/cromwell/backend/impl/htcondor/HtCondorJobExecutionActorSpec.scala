@@ -11,7 +11,7 @@ import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, Su
 import cromwell.backend.impl.htcondor.caching.CacheActor
 import cromwell.backend.impl.htcondor.caching.exception.CachedResultNotFoundException
 import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
-import cromwell.backend.io._
+import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
 import org.mockito.Matchers._
@@ -255,8 +255,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
 
       assert(bashScript.contains("docker run -w /workingDir -v"))
-      assert(bashScript.contains("/tmp:"))
-      assert(bashScript.contains("/tmp:ro"))
+      assert(bashScript.contains(":ro"))
       assert(bashScript.contains("/call-hello:/outputDir --rm ubuntu/latest echo"))
 
       cleanUpJob(jobPaths)

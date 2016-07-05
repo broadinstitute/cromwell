@@ -10,6 +10,7 @@ import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
+import cromwell.jobstore.JobStoreService.RegisterWorkflowCompleted
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.CromwellApiHandler._
@@ -162,9 +163,11 @@ class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
       // Watching the transition should be enough for the WMA to do what it needs to
     case Event(WorkflowSucceededResponse(workflowId), data) =>
       log.info(s"$tag Workflow $workflowId succeeded!")
+      serviceRegistryActor ! RegisterWorkflowCompleted(workflowId)
       stay()
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), data) =>
       log.error(s"$tag Workflow $workflowId failed (during $inState): ${reasons.mkString("\n")}")
+      serviceRegistryActor ! RegisterWorkflowCompleted(workflowId)
       stay()
     /*
      Watched transitions

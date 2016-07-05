@@ -6,7 +6,9 @@ import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, Backen
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
-import cromwell.jobstore._
+import cromwell.jobstore.JobStoreService.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
+import cromwell.jobstore.{Pending => _, _}
+import cromwell.services.ServiceRegistryClient
 
 object EngineJobExecutionActor {
   /** States */
@@ -18,29 +20,31 @@ object EngineJobExecutionActor {
 
   /** Commands */
   sealed trait EngineJobExecutionActorCommand
-  case class Execute(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
+  case object Execute extends EngineJobExecutionActorCommand
 
-  case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
+  final case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
 
-  def props(executionData: WorkflowExecutionActorData, factory: BackendLifecycleActorFactory,
+  def props(jobDescriptorKey: BackendJobDescriptorKey, executionData: WorkflowExecutionActorData, factory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData], restarting: Boolean) = {
-    Props(new EngineJobExecutionActor(executionData, factory, initializationData, restarting)).withDispatcher("akka.dispatchers.engine-dispatcher")
+    Props(new EngineJobExecutionActor(jobDescriptorKey, executionData, factory, initializationData, restarting)).withDispatcher("akka.dispatchers.engine-dispatcher")
   }
 }
 
-class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
+class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
+                              executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
-                              restarting: Boolean) extends LoggingFSM[EngineJobExecutionActorState, Unit] with WorkflowLogging {
+                              restarting: Boolean) extends LoggingFSM[EngineJobExecutionActorState, Unit] with WorkflowLogging with ServiceRegistryClient {
 
   override val workflowId = executionData.workflowDescriptor.id
 
   startWith(Pending, ())
 
   when(Pending) {
-    case Event(Execute(jobKey), _) =>
+    case Event(Execute, _) =>
       if (restarting) {
-        context.actorOf(JobStoreReader.props()) ! QueryJobCompletion(jobKey)
+        val jobStoreKey = jobKey.toJobStoreKey(workflowId)
+        serviceRegistryActor ! QueryJobCompletion(jobStoreKey)
         goto(CheckingJobStatus)
       } else {
         prepareJob(jobKey)
@@ -48,19 +52,23 @@ class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
   }
 
   when(CheckingJobStatus) {
-    case Event(JobNotComplete(jobKey), _) =>
+    case Event(JobNotComplete, _) =>
       prepareJob(jobKey)
-    case Event(JobComplete(jobKey, jobResult), _) =>
+    case Event(JobComplete(jobResult), _) =>
       jobResult match {
         case JobResultSuccess(returnCode, jobOutputs) =>
-          context.parent ! new SucceededResponse(jobKey, returnCode, jobOutputs)
+          context.parent ! SucceededResponse(jobKey, returnCode, jobOutputs)
           context stop self
           stay()
         case JobResultFailure(returnCode, reason) =>
-          context.parent ! new FailedNonRetryableResponse(jobKey, reason, returnCode)
+          context.parent ! FailedNonRetryableResponse(jobKey, reason, returnCode)
           context stop self
           stay()
       }
+    case Event(f: JobStoreReadFailure, _) =>
+      log.error(f.reason, "Error reading from JobStore for " + jobKey)
+      // Escalate
+      throw new RuntimeException(f.reason)
   }
 
   when(PreparingJob) {

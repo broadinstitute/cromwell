@@ -1,25 +1,22 @@
 package cromwell.engine.db
 
 import java.time.OffsetDateTime
-import java.util.UUID
 
 import akka.actor.ActorSystem
+import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.retry._
 import cromwell.database.SqlConverters._
 import cromwell.database.SqlDatabase
 import cromwell.database.obj._
 import cromwell.database.slick.SlickDatabase
-import cromwell.engine._
-import cromwell.engine.db.DataAccess.{RetryBackoff, WorkflowExecutionAndAux}
+import cromwell.engine.db.DataAccess.RetryBackoff
 import cromwell.services.CallMetadataKeys.{ExecutionStatus => _, _}
 import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services._
 import cromwell.webservice.WorkflowQueryParameters
-import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
 import org.slf4j.LoggerFactory
 import wdl4s.Call
-import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -110,7 +107,7 @@ trait DataAccess extends AutoCloseable {
       val metadataJobKey: Option[MetadataJobKey] = for {
         callFqn <- m.callFqn
         attempt <- m.attempt
-      } yield new MetadataJobKey(callFqn, m.index, attempt)
+      } yield MetadataJobKey(callFqn, m.index, attempt)
 
       val key = MetadataKey(workflowId, metadataJobKey, m.key)
       val value =  for {

@@ -1,11 +1,11 @@
 name: invalid_runtime_attributes
 testFormat: workflowfailure
-# ignore: true
+ignore: true
 
 files {
   wdl: invalid_runtime_attributes/invalid_runtime_attributes.wdl
 }
 
 metadata {
-    "failures.0": "Task invalid_runtime_attributes has an invalid runtime attribute continueOnReturnCode = \"oops\""
+    "failures.0.message": "Task invalid_runtime_attributes has an invalid runtime attribute continueOnReturnCode = \"oops\""
 }

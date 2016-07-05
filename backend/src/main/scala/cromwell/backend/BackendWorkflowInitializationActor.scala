@@ -112,7 +112,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   /**
     * Abort all initializations.
     */
-  def abortInitialization(): Unit
+  def abortInitialization(): Unit = {}
 
   /**
     * A call which happens before anything else runs

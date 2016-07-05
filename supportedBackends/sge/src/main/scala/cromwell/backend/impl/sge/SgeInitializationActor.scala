@@ -19,11 +19,6 @@ class SgeInitializationActor(override val workflowDescriptor: BackendWorkflowDes
                              override val calls: Seq[Call],
                              override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
   /**
-    * Abort all initializations.
-    */
-  override def abortInitialization(): Unit = ???
-
-  /**
     * A call which happens before anything else runs
     */
   override def beforeAll(): Future[Option[BackendInitializationData]] = Future.successful(None)

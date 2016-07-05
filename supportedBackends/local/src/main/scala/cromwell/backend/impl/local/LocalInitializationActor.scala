@@ -32,12 +32,6 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, None)
 
   /**
-    * Abort all initializations.
-    */
-  // TODO PBE
-  override def abortInitialization(): Unit = ???
-
-  /**
     * A call which happens before anything else runs
     */
   override def beforeAll(): Future[Option[BackendInitializationData]] = {

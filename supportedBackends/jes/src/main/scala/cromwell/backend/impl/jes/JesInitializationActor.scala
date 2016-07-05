@@ -59,12 +59,6 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     } yield GcsLocalizing(clientSecrets, token)
   }
 
-  /**
-    * Abort all initializations.
-    */
-  // TODO PBE ??? is not cool
-  override def abortInitialization(): Unit = ???
-
   //TODO PBE: Workflow options may need to be validated for JES.
 
   /**

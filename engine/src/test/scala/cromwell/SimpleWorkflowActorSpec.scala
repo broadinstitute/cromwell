@@ -21,6 +21,8 @@ import scala.language.postfixOps
 
 object SimpleWorkflowActorSpec {
 
+  val failurePatternMatcher = """failures\[\d*\].message""".r
+
   object MetadataWatchActor {
     def props(matcher: Option[FailureMatcher], promise: Promise[Unit]): Props = Props(MetadataWatchActor(matcher, promise))
   }
@@ -43,7 +45,7 @@ object SimpleWorkflowActorSpec {
 
   case class FailureMatcher(value: String) {
     def matches(events: Traversable[MetadataEvent]): Boolean = {
-      events.exists(e => e.key.key == "failures[0]" && e.value.exists { v => v.value.contains(value) })
+      events.exists(e => failurePatternMatcher.findFirstIn(e.key.key).isDefined && e.value.exists { v => v.value.contains(value) })
     }
   }
 

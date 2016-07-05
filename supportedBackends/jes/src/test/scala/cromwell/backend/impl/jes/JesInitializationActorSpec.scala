@@ -3,13 +3,13 @@ package cromwell.backend.impl.jes
 import java.util.UUID
 
 import akka.testkit._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.impl.jes.authentication.GcsLocalizing
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.SimpleClientSecrets
+import cromwell.filesystems.gcs.{RefreshTokenMode, SimpleClientSecrets}
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -94,6 +94,34 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |[DOCKERHUBCONFIG]
       |""".stripMargin
 
+  val refreshTokenConfigTemplate =
+    """
+      |  // Google project
+      |  project = "my-cromwell-workflows"
+      |
+      |  // Base bucket for workflow executions
+      |  root = "gs://my-cromwell-workflows-bucket"
+      |
+      |  // Polling for completion backs-off gradually for slower-running jobs.
+      |  // This is the maximum polling interval (in seconds):
+      |  maximum-polling-interval = 600
+      |
+      |  genomics {
+      |  // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
+      |  // Pipelines and manipulate auth JSONs.
+      |     auth = "application-default"
+      |     // Endpoint for APIs, no reason to change this unless directed by Google.
+      |     endpoint-url = "https://genomics.googleapis.com/"
+      |  }
+      |
+      |  filesystems {
+      |    gcs {
+      |      // A reference to a potentially different auth for manipulating files via engine functions.
+      |      auth = "user-via-refresh"
+      |    }
+      |  }
+      |""".stripMargin
+
   val backendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
 
   val dockerBackendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
@@ -105,6 +133,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       | """.stripMargin))
 
   val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+
+  val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf)))
@@ -147,17 +177,29 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     }
   }
 
-  it should "generate the correct json content for no docker token and no refresh token" in {
+  private case class TestingBits(actorRef: TestActorRef[JesInitializationActor], jesConfiguration: JesConfiguration)
+
+  private def buildJesInitializationTestingBits(backendConfig: Config = dockerBackendConfig): TestingBits = {
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
     val calls = workflowDescriptor.workflowNamespace.workflow.calls
-    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
-      dockerBackendConfig, globalConfig)
+    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 
     val actorRef = TestActorRef[JesInitializationActor](
       JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
       "TestableJesInitializationActor-" + UUID.randomUUID)
+    TestingBits(actorRef, jesConfiguration)
+  }
+
+  it should "create a GcsLocalizing instance" in {
+    val TestingBits(actorRef, _) = buildJesInitializationTestingBits(refreshTokenConfig)
+    val actor = actorRef.underlyingActor
+    actor.refreshTokenAuth should be(Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret"), "mytoken")))
+  }
+
+  it should "generate the correct json content for no docker token and no refresh token" in {
+    val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
     actor.generateAuthJson(None, None) should be(empty)
@@ -169,16 +211,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "generate the correct json content for a docker token and no refresh token" in {
-    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
-    val calls = workflowDescriptor.workflowNamespace.workflow.calls
-    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
-      dockerBackendConfig, globalConfig)
-    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
-
-    val actorRef = TestActorRef[JesInitializationActor](
-      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
-      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
     val authJsonOption = actor.generateAuthJson(jesConfiguration.dockerCredentials, None)
@@ -201,16 +234,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "generate the correct json content for no docker token and a refresh token" in {
-    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
-    val calls = workflowDescriptor.workflowNamespace.workflow.calls
-    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
-      dockerBackendConfig, globalConfig)
-    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
-
-    val actorRef = TestActorRef[JesInitializationActor](
-      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
-      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
@@ -235,16 +259,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "generate the correct json content for a docker token and a refresh token" in {
-    val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
-    val calls = workflowDescriptor.workflowNamespace.workflow.calls
-    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(
-      dockerBackendConfig, globalConfig)
-    val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
-
-    val actorRef = TestActorRef[JesInitializationActor](
-      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
-      "TestableJesInitializationActor-" + UUID.randomUUID)
+    val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))

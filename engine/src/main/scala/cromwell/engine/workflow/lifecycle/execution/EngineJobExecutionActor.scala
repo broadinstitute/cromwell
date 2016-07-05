@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor._
-import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{ExecutionStatus, JobKey, WorkflowId}
@@ -27,6 +26,8 @@ object EngineJobExecutionActor {
   sealed trait EngineJobExecutionActorCommand
   case class Start(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
   case class Restart(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
+
+  case class JobRunning(jobKey: JobKey, backendJobExecutionActor: ActorRef)
 
   protected object EngineJobExecutionActorData {
     def apply(currentActor: ActorRef) = new EngineJobExecutionActorData(Option(currentActor))
@@ -81,6 +82,7 @@ class EngineJobExecutionActor(val workflowId: WorkflowId,
       pushPreparedJobMetadata(jobDescriptor.key, jobDescriptor.inputs)
       val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
       backendJobExecutionActor ! ExecuteJobCommand
+      context.parent ! JobRunning(jobDescriptor.key, backendJobExecutionActor)
       pushRunningJobMetadata(jobDescriptor.key)
       goto(RunningJob) using EngineJobExecutionActorData(backendJobExecutionActor)
     case Event(response: BackendJobPreparationFailed, stateData) =>
@@ -92,13 +94,6 @@ class EngineJobExecutionActor(val workflowId: WorkflowId,
   when(RunningJob) {
     case Event(response: BackendJobExecutionResponse, stateData) =>
       context.parent forward response
-      context stop self
-      stay()
-  }
-
-  whenUnhandled {
-    case Event(abort@AbortJobCommand, data) =>
-      data.currentActor foreach { _ forward abort }
       context stop self
       stay()
   }

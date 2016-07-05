@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey}
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
@@ -16,6 +16,7 @@ import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
@@ -282,6 +283,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionInProgressState) {
+    case Event(JobRunning(jobKey, backendJobExecutionActor), stateData) =>
+      stay() using stateData
+        .addBackendJobExecutionActor(jobKey, backendJobExecutionActor)
+        .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Running)))
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
@@ -529,7 +534,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
             val ejeActor = context.actorOf(EngineJobExecutionActor.props(workflowId, data, factory, initializationData.get(backendName)), ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
             ejeActor ! EngineJobExecutionActor.Start(jobKey)
-            Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Running)))
+            Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>
             throw new WorkflowExecutionException(List(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
         }

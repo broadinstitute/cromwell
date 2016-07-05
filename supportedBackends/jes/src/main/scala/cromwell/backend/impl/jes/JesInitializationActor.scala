@@ -1,25 +1,35 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.Props
+import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.{BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
-import cromwell.filesystems.gcs.{ClientSecrets, GoogleAuthMode}
+import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
+import cromwell.filesystems.gcs.{ClientSecrets, GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 object JesInitializationActor {
   val SupportedKeys = Set(CpuKey, MemoryKey, DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey, JesRuntimeAttributes.ZonesKey,
     JesRuntimeAttributes.PreemptibleKey, JesRuntimeAttributes.BootDiskSizeKey, JesRuntimeAttributes.DisksKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration): Props =
-    Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration))
+    Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration)).withDispatcher("akka.dispatchers.slow-actor-dispatcher")
+
+  implicit class GoogleAuthWorkflowOptions(val workflowOptions: WorkflowOptions) extends AnyVal {
+    def toGoogleAuthOptions: GoogleAuthMode.GoogleAuthOptions = new GoogleAuthOptions {
+      override def get(key: String): Try[String] = workflowOptions.get(key)
+    }
+  }
 }
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
@@ -41,7 +51,6 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     JesRuntimeAttributes.DisksKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom))
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
-  private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
 
   private[jes] lazy val refreshTokenAuth: Option[JesAuthInformation] = {
     for {
@@ -53,22 +62,41 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   /**
     * Abort all initializations.
     */
+  // TODO PBE ??? is not cool
   override def abortInitialization(): Unit = ???
 
-  //TODO: Workflow options may need to be validated for JES.
+  //TODO PBE: Workflow options may need to be validated for JES.
 
   /**
     * A call which happens before anything else runs
     */
-  override def beforeAll(): Future[Unit] = {
-    publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
-    if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile()
-    else Future.successful(())
+  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+
+    def buildGenomics: Future[Genomics] = Future {
+      val jesAttributes = jesConfiguration.jesAttributes
+      GenomicsFactory(
+        jesConfiguration.googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl)
+    }
+
+    def buildGcsFileSystem: Future[GcsFileSystem] = Future {
+      val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(
+        workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
+      GcsFileSystem(GcsFileSystemProvider(storage))
+    }
+
+    for {
+      // generate single filesystem and genomics instances
+      gcsFileSystem <- buildGcsFileSystem
+      genomics <- buildGenomics
+      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem)
+      _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
+      _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
+    } yield Option(JesBackendInitializationData(gcsFileSystem, genomics))
   }
 
-  private def writeAuthenticationFile(): Future[Unit] = {
+  private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
-      val path = workflowPaths.gcsAuthFilePath
+      val path = workflowPath.gcsAuthFilePath
       val upload = () => Future(path.writeAsJson(content))
 
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")

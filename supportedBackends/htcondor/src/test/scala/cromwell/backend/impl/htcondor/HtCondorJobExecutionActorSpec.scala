@@ -285,7 +285,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = source, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty))
-    val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key)
+    val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key, None)
     val executionDir = jobPaths.callRoot
     val stdout = Paths.get(executionDir.path.toString, "stdout")
     stdout.toString.toFile.createIfNotExists(false)

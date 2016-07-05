@@ -3,8 +3,8 @@ package cromwell.engine.workflow.lifecycle
 import java.nio.file.Path
 
 import akka.actor.Props
-import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationSuccess, FinalizationResponse}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
+import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
+import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
 import cromwell.core._
 import cromwell.core.WorkflowOptions._
 import cromwell.engine.EngineWorkflowDescriptor
@@ -12,15 +12,17 @@ import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wdl4s.ReportableSymbol
 import wdl4s.values.WdlSingleFile
 
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.{ExecutionContext, Future}
 
 object CopyWorkflowOutputsActor {
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore) = Props(
-    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, outputStore)
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,
+            initializationData: AllBackendInitializationData) = Props(
+    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, outputStore, initializationData)
   )
 }
 
-class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore)
+class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,
+                               initializationData: AllBackendInitializationData)
   extends EngineWorkflowFinalizationActor with PathFactory {
 
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Unit = {
@@ -58,16 +60,16 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
   }
 
   private def getBackendRootPath(backend: String, config: BackendConfigurationDescriptor): Option[Path] = {
-    getBackendFactory(backend) map getRootPath(config)
+    getBackendFactory(backend) map getRootPath(config, initializationData.get(backend))
   }
 
   private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] = {
     CromwellBackends.backendLifecycleFactoryActorByName(backend).toOption
   }
 
-  private def getRootPath(config: BackendConfigurationDescriptor)
+  private def getRootPath(config: BackendConfigurationDescriptor, initializationData: Option[BackendInitializationData])
                          (backendFactory: BackendLifecycleActorFactory): Path = {
-    backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig)
+    backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig, initializationData)
   }
 
   final override def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = Future {

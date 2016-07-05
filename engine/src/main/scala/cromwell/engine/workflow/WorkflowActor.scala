@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
+import cromwell.backend.AllBackendInitializationData
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.{WorkflowId, _}
@@ -114,9 +115,14 @@ object WorkflowActor {
     */
   case class WorkflowActorData(currentLifecycleStateActor: Option[ActorRef],
                                workflowDescriptor: Option[EngineWorkflowDescriptor],
+                               initializationData: AllBackendInitializationData,
                                lastStateReached: StateCheckpoint)
   object WorkflowActorData {
-    def empty = WorkflowActorData(currentLifecycleStateActor = None, workflowDescriptor = None, StateCheckpoint(WorkflowUnstartedState))
+    def empty = WorkflowActorData(
+      currentLifecycleStateActor = None,
+      workflowDescriptor = None,
+      initializationData = AllBackendInitializationData.empty,
+      lastStateReached = StateCheckpoint(WorkflowUnstartedState))
   }
 
   /**
@@ -159,7 +165,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId), s"MaterializeWorkflowDescriptorActor-$workflowId")
-      // Is this the right place for startTime ?
+      // TODO PBE Is this the right place for startTime ?
       val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
       serviceRegistryActor ! PutMetadataAction(startEvent)
 
@@ -183,18 +189,18 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       // Add Workflow name and inputs to the metadata
       pushWfNameAndInputsToMetadataService(workflowDescriptor)
 
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor, serviceRegistryActor), name = s"WorkflowExecutionActor-$workflowId")
+      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor, serviceRegistryActor, initializationData), name = s"WorkflowExecutionActor-$workflowId")
       val commandToSend = startMode match {
         case StartNewWorkflow => StartExecutingWorkflowCommand
         case RestartExistingWorkflow => RestartExecutingWorkflowCommand
       }
       executionActor ! commandToSend
-      goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor))
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+      goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       val failureEvent = MetadataEvent(
         MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"),
         MetadataValue(reason.map(_.getMessage).mkString(". ")))
@@ -204,10 +210,10 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(ExecutingWorkflowState) {
     case Event(WorkflowExecutionSucceededResponse(executionStore, outputStore),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, None)
     case Event(WorkflowExecutionFailedResponse(executionStore, outputStore, failures),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, Option(failures.toList))
   }
 
@@ -221,7 +227,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   when(WorkflowAbortingState) {
-    case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _)) =>
+    case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       // TODO: PBE: some of the x-es have an actually execution & output stores.
       // But do we want the finalization to operate on that data during state aborting?
       finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, failures = None)
@@ -239,7 +245,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       workflowLogger.warn(s"Put failed for Metadata action $action : ${error.getMessage}")
       stay
     case Event(MetadataPutAcknowledgement(_), _) => stay()
-    case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _)) =>
+    case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)
     case unhandledMessage =>
@@ -312,7 +318,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                                executionStore: ExecutionStore, outputStore: OutputStore,
                                failures: Option[List[Throwable]]) = {
     val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor,
-      executionStore, outputStore), name = s"WorkflowFinalizationActor-$workflowId")
+      executionStore, outputStore, stateData.initializationData), name = s"WorkflowFinalizationActor-$workflowId")
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
   }

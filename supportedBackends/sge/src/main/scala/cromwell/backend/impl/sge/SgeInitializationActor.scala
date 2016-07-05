@@ -2,15 +2,11 @@ package cromwell.backend.impl.sge
 
 import akka.actor.Props
 import cromwell.backend.impl.sge.SgeInitializationActor._
-import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.validation.RuntimeAttributesValidation._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
-import scalaz.Scalaz._
 
 object SgeInitializationActor {
   val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
@@ -30,7 +26,7 @@ class SgeInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   /**
     * A call which happens before anything else runs
     */
-  override def beforeAll(): Future[Unit] = Future.successful(())
+  override def beforeAll(): Future[Option[BackendInitializationData]] = Future.successful(None)
 
   /**
     * Validate that this WorkflowBackendActor can run all of the calls that it's been assigned

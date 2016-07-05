@@ -3,7 +3,7 @@ package cromwell.backend.impl.htcondor
 import akka.actor.Props
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import wdl4s.types.{WdlBooleanType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
 
@@ -29,12 +29,13 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
   /**
     * Abort all initializations.
     */
+  // TODO PBE
   override def abortInitialization(): Unit = ???
 
   /**
     * A call which happens before anything else runs
     */
-  override def beforeAll(): Future[Unit] = Future.successful(())
+  override def beforeAll(): Future[Option[BackendInitializationData]] = Future.successful(None)
 
   /**
     * Validate that this WorkflowBackendActor can run all of the calls that it's been assigned

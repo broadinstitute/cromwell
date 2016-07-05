@@ -5,7 +5,7 @@ import better.files._
 import cromwell.backend.impl.local.LocalInitializationActor._
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import wdl4s.types.{WdlBooleanType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
 
@@ -29,19 +29,21 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
     ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false)
   )
 
-  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig)
+  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, None)
 
   /**
     * Abort all initializations.
     */
+  // TODO PBE
   override def abortInitialization(): Unit = ???
 
   /**
     * A call which happens before anything else runs
     */
-  override def beforeAll(): Future[Unit] = {
+  override def beforeAll(): Future[Option[BackendInitializationData]] = {
     publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-    Future.successful(workflowPaths.workflowRoot.createDirectories())
+    workflowPaths.workflowRoot.createDirectories()
+    Future.successful(None)
   }
 
   /**

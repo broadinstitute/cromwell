@@ -15,9 +15,11 @@ import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException}
 import cromwell.core._
 import cromwell.core.logging.LoggerWrapper
-import cromwell.filesystems.gcs.{GcsFileSystem, NioGcsPath}
+import cromwell.filesystems.gcs._
 import cromwell.util.SampleWdl
 import org.scalatest._
+import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
@@ -68,10 +70,24 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     new JesExpressionFunctions(List(GcsFileSystem.defaultGcsFileSystem), TestableCallContext)
   }
 
-  class TestableJesJobExecutionActor(jobDescriptor: BackendJobDescriptor, promise: Promise[BackendJobExecutionResponse],
+  private def buildInitializationData = {
+    def gcsFileSystem = {
+      val authOptions = new GoogleAuthOptions {
+        override def get(key: String): Try[String] = Try(throw new RuntimeException(s"key '$key' not found"))
+      }
+
+      val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(authOptions, jesConfiguration.googleConfig)
+      GcsFileSystem(GcsFileSystemProvider(storage))
+    }
+
+    JesBackendInitializationData(gcsFileSystem, null)
+  }
+
+  class TestableJesJobExecutionActor(jobDescriptor: BackendJobDescriptor,
+                                     promise: Promise[BackendJobExecutionResponse],
                                      jesConfiguration: JesConfiguration,
                                      functions: JesExpressionFunctions = TestableJesExpressionFunctions)
-    extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration) {
+    extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration, buildInitializationData) {
     // TODO: PBE: services are currently implemented in the engine, so we can't spin them up in specs
     override val serviceRegistryActor = system.actorOf(Props.empty)
 

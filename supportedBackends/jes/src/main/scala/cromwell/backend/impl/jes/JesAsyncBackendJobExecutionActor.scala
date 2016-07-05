@@ -13,7 +13,7 @@ import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExe
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
-import cromwell.backend.impl.jes.JesImplicits.{GoogleAuthWorkflowOptions, PathString}
+import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
@@ -41,8 +41,10 @@ object JesAsyncBackendJobExecutionActor {
 
   def props(jobDescriptor: BackendJobDescriptor,
             completionPromise: Promise[BackendJobExecutionResponse],
-            jesWorkflowInfo: JesConfiguration): Props = {
-    Props(new JesAsyncBackendJobExecutionActor(jobDescriptor, completionPromise, jesWorkflowInfo))
+            jesWorkflowInfo: JesConfiguration,
+            initializationData: JesBackendInitializationData): Props = {
+    Props(new JesAsyncBackendJobExecutionActor(jobDescriptor, completionPromise, jesWorkflowInfo, initializationData))
+      .withDispatcher("akka.dispatchers.slow-actor-dispatcher")
   }
 
   object WorkflowOptionKeys {
@@ -75,7 +77,8 @@ object JesAsyncBackendJobExecutionActor {
 
 class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                        override val completionPromise: Promise[BackendJobExecutionResponse],
-                                       jesConfiguration: JesConfiguration)
+                                       jesConfiguration: JesConfiguration,
+                                       initializationData: JesBackendInitializationData)
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with ServiceRegistryClient with JobLogging {
 
   import JesAsyncBackendJobExecutionActor._
@@ -91,15 +94,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   val jobTag = jobDescriptor.key.tag
 
   private lazy val jesAttributes = jesConfiguration.jesAttributes
-  private[jes] lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, workflowDescriptor, jesConfiguration)
+  private[jes] lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, workflowDescriptor, jesConfiguration, initializationData.backendFilesystem)
   private[jes] lazy val monitoringScript: Option[JesInput] = {
     jobDescriptor.descriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
       JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, Paths.get(JesMonitoringScript), workingDisk)
     } toOption
   }
-  private lazy val genomicsInterface = GenomicsFactory(
-    jesConfiguration.googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl
-  )
+
   private def callRootPath: Path = jesCallPaths.callRootPath
   private def returnCodeFilename = jesCallPaths.returnCodeFilename
   private def returnCodeGcsPath = jesCallPaths.returnCodePath
@@ -150,7 +151,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           case Some(jobIdMetadata) =>
             val jobId = jobIdMetadata.value
             jobLogger.info(s"$tag Aborting $jobId")
-            Try(Run(jobId, genomicsInterface).abort()) match {
+            Try(Run(jobId, initializationData.genomics).abort()) match {
               case Success(_) => jobLogger.info(s"$tag Aborted $jobId")
               case Failure(ex) => jobLogger.warn(s"$tag Failed to abort $jobId: ${ex.getMessage}")
             }
@@ -346,7 +347,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       jesParameters,
       googleProject(jobDescriptor.descriptor),
       retryable,
-      genomicsInterface
+      initializationData.genomics
     ))
 
     implicit val system = context.system
@@ -594,7 +595,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       errorCode == 10 && errorMessage.isDefined && isPreemptionCode(extractErrorCodeFromErrorMessage(errorMessage.get)) && preemptible
     } catch {
       case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
-        jobLogger.warn(s"Unable to parse JES error code from error message: ${}, assuming this was not a preempted VM.", errorMessage.get)
+        jobLogger.warn(s"Unable to parse JES error code from error message: {}, assuming this was not a preempted VM.", errorMessage.get)
         false
     }
   }

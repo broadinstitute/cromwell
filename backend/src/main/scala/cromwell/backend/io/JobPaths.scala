@@ -3,7 +3,7 @@ package cromwell.backend.io
 import java.nio.file.Path
 
 import com.typesafe.config.Config
-import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendInitializationData, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 
 object JobPaths {
   private val CallPrefix = "call"
@@ -13,7 +13,8 @@ object JobPaths {
 
 class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
                config: Config,
-               jobKey: BackendJobDescriptorKey) extends WorkflowPaths(workflowDescriptor, config) {
+               jobKey: BackendJobDescriptorKey,
+               initializationData: Option[BackendInitializationData]) extends WorkflowPaths(workflowDescriptor, config, initializationData) {
   import JobPaths._
 
   private def callPathBuilder(root: Path) = {

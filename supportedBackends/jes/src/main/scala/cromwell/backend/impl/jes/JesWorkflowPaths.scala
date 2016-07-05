@@ -4,18 +4,18 @@ import java.nio.file.Path
 
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.impl.jes.io._
+import cromwell.filesystems.gcs.GcsFileSystem
 
 object JesWorkflowPaths {
   private val GcsRootOptionKey = "jes_gcs_root"
   private val AuthFilePathOptionKey = "auth_bucket"
 
-  def apply(workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration) = {
-    new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+  def apply(workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration, gcsFileSystem: GcsFileSystem) = {
+    new JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem)
   }
 }
 
-class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration) {
-  val gcsFileSystem = buildFilesystem(workflowDescriptor, jesConfiguration.jesAttributes.gcsFilesystemAuth, jesConfiguration.googleConfig)
+class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration, gcsFileSystem: GcsFileSystem) {
 
   val rootPath: Path =
     gcsFileSystem.getPath(workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root))
@@ -28,8 +28,7 @@ class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfigu
      * This is an "exception". The filesystem used here is built from genomicsAuth
      * unlike everywhere else where the filesystem used is built from gcsFileSystemAuth
      */
-    val fs = buildFilesystem(workflowDescriptor, jesConfiguration.jesAttributes.genomicsAuth, jesConfiguration.googleConfig)
     val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse workflowRootPath.toString
-    fs.getPath(bucket).resolve(s"${workflowDescriptor.id}_auth.json")
+    gcsFileSystem.getPath(bucket).resolve(s"${workflowDescriptor.id}_auth.json")
   }
 }

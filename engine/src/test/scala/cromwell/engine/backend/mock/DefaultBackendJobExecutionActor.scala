@@ -25,11 +25,12 @@ class DefaultBackendLifecycleActorFactory(configurationDescriptor: BackendConfig
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call]): Option[Props] = None
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
     DefaultBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey): WdlStandardLibraryFunctions = NoFunctions
+                                           jobKey: BackendJobDescriptorKey,
+                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = NoFunctions
 }
 

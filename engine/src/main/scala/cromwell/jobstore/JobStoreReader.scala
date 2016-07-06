@@ -10,7 +10,11 @@ object JobStoreReader {
 
 class JobStoreReader extends Actor with ActorLogging {
   override def receive = LoggingReceive {
-    case QueryJobCompletion(jobKey) => sender ! JobNotComplete(jobKey)
+    case QueryJobCompletion(jobKey) =>
+      sender ! JobNotComplete(jobKey)
+      // TODO PBE Decide if we want to make this a singleton that stays alive or a do-and-die actor
+      // For now it kills itself after responding
+      context stop self
     case unknownMessage => log.error(s"Unexpected message to JobStoreReader: $unknownMessage")
   }
 }

@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
-import cromwell.core.WorkflowId
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
@@ -24,41 +23,34 @@ object EngineJobExecutionActor {
 
   case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
 
-  protected object EngineJobExecutionActorData {
-    def apply(currentActor: ActorRef) = new EngineJobExecutionActorData(Option(currentActor))
-    def apply() = new EngineJobExecutionActorData(None)
+  def props(executionData: WorkflowExecutionActorData, factory: BackendLifecycleActorFactory,
+            initializationData: Option[BackendInitializationData]) = {
+    Props(new EngineJobExecutionActor(executionData, factory, initializationData))
   }
 
-  protected case class EngineJobExecutionActorData(currentActor: Option[ActorRef])
-
-  def props(workflowId: WorkflowId, executionData: WorkflowExecutionActorData,
-            factory: BackendLifecycleActorFactory, initializationData: Option[BackendInitializationData]) = {
-    Props(new EngineJobExecutionActor(workflowId, executionData, factory, initializationData))
-  }
+  /** Data */
+  case class EngineJobExecutionActorData(restarting: Boolean = false)
 }
 
-class EngineJobExecutionActor(val workflowId: WorkflowId,
-                              executionData: WorkflowExecutionActorData,
+class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData]) extends LoggingFSM[EngineJobExecutionActorState, EngineJobExecutionActorData] with WorkflowLogging {
+
+  override val workflowId = executionData.workflowDescriptor.id
 
   startWith(Pending, EngineJobExecutionActorData())
 
   when(Pending) {
     case Event(Start(jobKey), _) =>
-      val jobPreparationActorName = s"$workflowId-BackendPreparationActor-${jobKey.tag}"
-      val jobPreparationActor = context.actorOf(JobPreparationActor.props(executionData, jobKey, factory, initializationData), jobPreparationActorName)
-      jobPreparationActor ! JobPreparationActor.Start
-      goto(PreparingJob) using EngineJobExecutionActorData(jobPreparationActor)
+      prepareJob(jobKey) using EngineJobExecutionActorData(restarting = false)
     case Event(Restart(jobKey), _) =>
       context.actorOf(JobStoreReader.props()) ! QueryJobCompletion(jobKey)
-      goto(CheckingJobStatus)
+      goto(CheckingJobStatus) using EngineJobExecutionActorData(restarting = true)
   }
 
   when(CheckingJobStatus) {
     case Event(JobNotComplete(jobKey), _) =>
-      self ! Start(jobKey)
-      goto(Pending)
+      prepareJob(jobKey)
     case Event(JobComplete(jobKey, jobResult), _) =>
       jobResult match {
         case JobResultSuccess(returnCode, jobOutputs) =>
@@ -75,21 +67,30 @@ class EngineJobExecutionActor(val workflowId: WorkflowId,
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
       val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
-      backendJobExecutionActor ! ExecuteJobCommand
+      if (stateData.restarting) backendJobExecutionActor ! RecoverJobCommand
+      else backendJobExecutionActor ! ExecuteJobCommand
       context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
-      goto(RunningJob) using EngineJobExecutionActorData(backendJobExecutionActor)
-    case Event(response: BackendJobPreparationFailed, stateData) =>
+      goto(RunningJob)
+    case Event(response: BackendJobPreparationFailed, _) =>
       context.parent forward response
       context stop self
       stay()
   }
 
   when(RunningJob) {
-    case Event(response: BackendJobExecutionResponse, stateData) =>
+    case Event(response: BackendJobExecutionResponse, _) =>
       context.parent forward response
       context stop self
       stay()
   }
+
+  def prepareJob(jobKey: BackendJobDescriptorKey) = {
+    val jobPreparationActorName = s"$workflowId-BackendPreparationActor-${jobKey.tag}"
+    val jobPreparationActor = context.actorOf(JobPreparationActor.props(executionData, jobKey, factory, initializationData), jobPreparationActorName)
+    jobPreparationActor ! JobPreparationActor.Start
+    goto(PreparingJob)
+  }
+
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
   }

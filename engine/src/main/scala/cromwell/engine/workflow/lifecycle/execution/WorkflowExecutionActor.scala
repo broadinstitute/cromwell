@@ -549,7 +549,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeActorName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-            val ejeActor = context.actorOf(EngineJobExecutionActor.props(workflowId, data, factory, initializationData.get(backendName)), ejeActorName)
+            val ejeActor = context.actorOf(EngineJobExecutionActor.props(data, factory, initializationData.get(backendName)), ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
 
             if (data.restarting) ejeActor ! EngineJobExecutionActor.Restart(jobKey)

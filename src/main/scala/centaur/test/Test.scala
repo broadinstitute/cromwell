@@ -1,29 +1,27 @@
 package centaur.test
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.ActorSystem
-import centaur.api.CromwellStatusJsonSupport
 import cats.Monad
 import centaur._
+import centaur.api.CromwellStatusJsonSupport._
+import centaur.api.FailedWorkflowSubmissionJsonSupport._
 import centaur.api.{CromwellStatus, _}
+import centaur.test.metadata.WorkflowMetadata
+import centaur.test.workflow.Workflow
 import spray.client.pipelining._
 import spray.http.{FormData, HttpRequest, HttpResponse}
 import spray.httpx.PipelineException
+import spray.httpx.SprayJsonSupport._
 import spray.httpx.unmarshalling._
-import spray.json.{DefaultJsonProtocol, JsArray, JsString, JsValue}
 
 import scala.annotation.tailrec
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
-import spray.httpx.SprayJsonSupport._
-import FailedWorkflowSubmissionJsonSupport._
-import CromwellStatusJsonSupport._
-import centaur.test.metadata.WorkflowMetadata
-import centaur.test.workflow.Workflow
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -100,16 +98,25 @@ object Operations {
   }
 
   def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): Test[Unit] = {
-    val consistencyTimeout = Future { Thread.sleep(CentaurConfig.metadataConsistencyTimeout.toMillis) }
+
+    @tailrec
+    def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[Unit]): Try[Unit] = {
+      import scala.concurrent.duration._
+
+      f match {
+        case Failure(_) if OffsetDateTime.now().isBefore(startTime.plusSeconds(timeout.toSeconds)) =>
+          Thread.sleep(1.second.toMillis)
+          eventually(startTime, timeout)(f)
+        case t => t
+      }
+    }
 
     new Test[Unit] {
-      def validateMetadataUntilTimeout(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): Try[Unit] = {
-        def checkDiff(diffs: Iterable[String]): Try[Unit] = {
+      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): Try[Unit] = {
+        def checkDiff(diffs: Iterable[String]): Unit = {
           diffs match {
-            case d if d.isEmpty => Success()
-            case d if consistencyTimeout.isCompleted =>
-              Failure(throw new Exception(s"Invalid metadata response:\n -${d.mkString("\n -")}\n"))
-            case _ => validateMetadataUntilTimeout(workflow, expectedMetadata)
+            case d if d.nonEmpty => throw new Exception(s"Invalid metadata response:\n -${d.mkString("\n -")}\n")
+            case _ =>
           }
         }
 
@@ -117,11 +124,13 @@ object Operations {
         // Try to convert the response to a Metadata in our return Try.
         // Currently any error msg will be opaque as it's unlikely to be an issue (can flesh out later)
         val metadata = sendReceiveFutureCompletion(response map { r => WorkflowMetadata.fromMetadataJson(r).toOption.get })
-        metadata.map(expectedMetadata.diff(_, workflow.id)) flatMap checkDiff
+        metadata.map(expectedMetadata.diff(_, workflow.id)) map checkDiff
       }
 
       override def run: Try[Unit] = {
-        validateMetadataUntilTimeout(workflow, expectedMetadata)
+        eventually(OffsetDateTime.now(), CentaurConfig.metadataConsistencyTimeout) {
+          validateMetadata(workflow, expectedMetadata)
+        }
       }
     }
   }

@@ -42,10 +42,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val executionDir = jobPaths.callRoot
   private val scriptPath = jobPaths.script
 
-  private val processStderr = executionDir.resolve("process.stderr")
-  private val processStdout = executionDir.resolve("process.stdout")
-  private lazy val stdoutWriter = extProcess.untailedWriter(processStdout)
-  private lazy val stderrWriter = extProcess.tailedWriter(100, processStderr)
+  private lazy val stdoutWriter = extProcess.untailedWriter(jobPaths.stdout)
+  private lazy val stderrWriter = extProcess.tailedWriter(100, jobPaths.stderr)
 
   private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFsExpressionFunctions(jobPaths, fileSystems)
@@ -105,7 +103,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   /**
     * Abort a running job.
     */
-  override def abort(): Unit = Future.failed(new UnsupportedOperationException("HtCondorBackend currently doesn't support aborting jobs."))
+  override def abort(): Unit = Future.failed(new UnsupportedOperationException("SparkBackend currently doesn't support aborting jobs."))
 
 
   private def createExecutionFolderAndScript(): Unit = {

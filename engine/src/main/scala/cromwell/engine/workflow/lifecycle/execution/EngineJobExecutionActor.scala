@@ -67,8 +67,8 @@ class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
       val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
-      if (stateData.restarting) backendJobExecutionActor ! RecoverJobCommand
-      else backendJobExecutionActor ! ExecuteJobCommand
+      val message = if (stateData.restarting) RecoverJobCommand else ExecuteJobCommand
+      backendJobExecutionActor ! message
       context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
       goto(RunningJob)
     case Event(response: BackendJobPreparationFailed, _) =>

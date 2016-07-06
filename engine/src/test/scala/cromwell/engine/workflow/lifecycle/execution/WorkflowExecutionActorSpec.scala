@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef}
@@ -8,7 +8,6 @@ import cromwell.backend.AllBackendInitializationData
 import cromwell.core.WorkflowId
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.StartExecutingWorkflowCommand
 import cromwell.services.ServiceRegistryActor
 import cromwell.util.SampleWdl

@@ -137,7 +137,7 @@ class WorkflowManagerActor(config: Config)
     /*
      Responses from services
      */
-      // TODO Restart: to be verified after restart is implemented but these WorkflowSucceededResponse/WorkflowFailedResponse seem useless
+      // TODO PBE Restart: to be verified after restart is implemented but these WorkflowSucceededResponse/WorkflowFailedResponse seem useless
       // Watching the transition should be enough for the WMA to do what it needs to
     case Event(WorkflowSucceededResponse(workflowId), data) =>
       log.info(s"$tag Workflow $workflowId succeeded!")

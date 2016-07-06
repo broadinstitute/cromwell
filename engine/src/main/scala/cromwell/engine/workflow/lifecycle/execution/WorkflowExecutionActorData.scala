@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import java.nio.file.FileSystem
-
 import akka.actor.ActorRef
 import cromwell.core.ExecutionStatus._
 import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
@@ -22,7 +20,8 @@ final case class WorkflowExecutionDiff(executionStore: Map[JobKey, ExecutionStat
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
-                                      outputStore: OutputStore) extends WdlLookup {
+                                      outputStore: OutputStore,
+                                      restarting: Boolean) extends WdlLookup {
 
   override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.engineFilesystems)
 

@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey}
+import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
@@ -258,7 +258,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       workflowDescriptor,
       executionStore = buildInitialExecutionStore(),
       backendJobExecutionActors = Map.empty,
-      outputStore = OutputStore.empty
+      outputStore = OutputStore.empty,
+      restarting = false
     )
   )
 
@@ -277,16 +278,17 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(StartExecutingWorkflowCommand, stateData) =>
       val data = startRunnableScopes(stateData)
       goto(WorkflowExecutionInProgressState) using data
-    case Event(RestartExecutingWorkflowCommand, _) =>
-      // TODO: Restart executing
-      goto(WorkflowExecutionInProgressState)
+    case Event(RestartExecutingWorkflowCommand, stateData) =>
+      self ! StartExecutingWorkflowCommand
+      stay() using stateData.copy(restarting = true)
   }
 
   when(WorkflowExecutionInProgressState) {
-    case Event(JobRunning(jobKey, backendJobExecutionActor), stateData) =>
+    case Event(JobRunning(jobDescriptor, backendJobExecutionActor), stateData) =>
+      pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
-        .addBackendJobExecutionActor(jobKey, backendJobExecutionActor)
-        .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Running)))
+        .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
+        .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
@@ -520,6 +522,22 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     serviceRegistryActor ! PutMetadataAction(startEvents)
   }
 
+  private def pushRunningJobMetadata(jobDescriptor: BackendJobDescriptor) = {
+    val inputEvents = jobDescriptor.inputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(metadataKey(jobDescriptor.key, s"${CallMetadataKeys.Inputs}")))
+      case inputs =>
+        inputs flatMap {
+          case (inputName, inputValue) =>
+            wdlValueToMetadataEvents(metadataKey(jobDescriptor.key, s"${CallMetadataKeys.Inputs}:$inputName"), inputValue)
+        }
+    }
+
+    val runningEvent = List(MetadataEvent(metadataKey(jobDescriptor.key, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Running)))
+
+    serviceRegistryActor ! PutMetadataAction(runningEvent ++ inputEvents)
+  }
+
   private def processRunnableJob(jobKey: BackendJobDescriptorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     workflowDescriptor.backendAssignments.get(jobKey.call) match {
       case None =>
@@ -533,7 +551,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
             val ejeActorName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val ejeActor = context.actorOf(EngineJobExecutionActor.props(workflowId, data, factory, initializationData.get(backendName)), ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
-            ejeActor ! EngineJobExecutionActor.Start(jobKey)
+
+            if (data.restarting) ejeActor ! EngineJobExecutionActor.Restart(jobKey)
+            else ejeActor ! EngineJobExecutionActor.Start(jobKey)
+
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>
             throw new WorkflowExecutionException(List(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))

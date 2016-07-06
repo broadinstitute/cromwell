@@ -3,18 +3,13 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
+import cromwell.core.WorkflowId
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.{ExecutionStatus, JobKey, WorkflowId}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.jobstore._
-import cromwell.services.MetadataServiceActor._
-import cromwell.services._
-import wdl4s._
-import wdl4s.values.WdlValue
 
 object EngineJobExecutionActor {
-
   /** States */
   sealed trait EngineJobExecutionActorState
   case object Pending extends EngineJobExecutionActorState
@@ -27,7 +22,7 @@ object EngineJobExecutionActor {
   case class Start(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
   case class Restart(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
 
-  case class JobRunning(jobKey: JobKey, backendJobExecutionActor: ActorRef)
+  case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
 
   protected object EngineJobExecutionActorData {
     def apply(currentActor: ActorRef) = new EngineJobExecutionActorData(Option(currentActor))
@@ -45,7 +40,7 @@ object EngineJobExecutionActor {
 class EngineJobExecutionActor(val workflowId: WorkflowId,
                               executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
-                              initializationData: Option[BackendInitializationData]) extends LoggingFSM[EngineJobExecutionActorState, EngineJobExecutionActorData] with WorkflowLogging with ServiceRegistryClient {
+                              initializationData: Option[BackendInitializationData]) extends LoggingFSM[EngineJobExecutionActorState, EngineJobExecutionActorData] with WorkflowLogging {
 
   startWith(Pending, EngineJobExecutionActorData())
 
@@ -67,11 +62,11 @@ class EngineJobExecutionActor(val workflowId: WorkflowId,
     case Event(JobComplete(jobKey, jobResult), _) =>
       jobResult match {
         case JobResultSuccess(returnCode, jobOutputs) =>
-          context.parent ! SucceededResponse(jobKey, returnCode, jobOutputs)
+          context.parent ! new SucceededResponse(jobKey, returnCode, jobOutputs)
           context stop self
           stay()
         case JobResultFailure(returnCode, reason) =>
-          context.parent ! FailedNonRetryableResponse(jobKey, reason, returnCode)
+          context.parent ! new FailedNonRetryableResponse(jobKey, reason, returnCode)
           context stop self
           stay()
       }
@@ -79,11 +74,9 @@ class EngineJobExecutionActor(val workflowId: WorkflowId,
 
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
-      pushPreparedJobMetadata(jobDescriptor.key, jobDescriptor.inputs)
       val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
       backendJobExecutionActor ! ExecuteJobCommand
-      context.parent ! JobRunning(jobDescriptor.key, backendJobExecutionActor)
-      pushRunningJobMetadata(jobDescriptor.key)
+      context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
       goto(RunningJob) using EngineJobExecutionActorData(backendJobExecutionActor)
     case Event(response: BackendJobPreparationFailed, stateData) =>
       context.parent forward response
@@ -97,28 +90,7 @@ class EngineJobExecutionActor(val workflowId: WorkflowId,
       context stop self
       stay()
   }
-
-  private def pushPreparedJobMetadata(jobKey: BackendJobDescriptorKey, jobInputs: Map[LocallyQualifiedName, WdlValue]) = {
-    val inputEvents = jobInputs match {
-      case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}")))
-      case inputs =>
-        inputs flatMap {
-          case (inputName, inputValue) =>
-            wdlValueToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Inputs}:$inputName"), inputValue)
-        }
-    }
-
-    serviceRegistryActor ! PutMetadataAction(inputEvents)
-  }
-
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
   }
-
-  private def pushRunningJobMetadata(jobKey: JobKey) = {
-    serviceRegistryActor ! PutMetadataAction(MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Running)))
-  }
-
-  private def metadataKey(jobKey: JobKey, myKey: String) = MetadataKey(workflowId, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
 }

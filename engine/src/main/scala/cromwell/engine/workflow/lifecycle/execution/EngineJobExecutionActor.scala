@@ -18,34 +18,33 @@ object EngineJobExecutionActor {
 
   /** Commands */
   sealed trait EngineJobExecutionActorCommand
-  case class Start(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
-  case class Restart(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
+  case class Execute(jobKey: BackendJobDescriptorKey) extends EngineJobExecutionActorCommand
 
   case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
 
   def props(executionData: WorkflowExecutionActorData, factory: BackendLifecycleActorFactory,
-            initializationData: Option[BackendInitializationData]) = {
-    Props(new EngineJobExecutionActor(executionData, factory, initializationData))
+            initializationData: Option[BackendInitializationData], restarting: Boolean) = {
+    Props(new EngineJobExecutionActor(executionData, factory, initializationData, restarting))
   }
-
-  /** Data */
-  case class EngineJobExecutionActorData(restarting: Boolean = false)
 }
 
 class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
-                              initializationData: Option[BackendInitializationData]) extends LoggingFSM[EngineJobExecutionActorState, EngineJobExecutionActorData] with WorkflowLogging {
+                              initializationData: Option[BackendInitializationData],
+                              restarting: Boolean) extends LoggingFSM[EngineJobExecutionActorState, Unit] with WorkflowLogging {
 
   override val workflowId = executionData.workflowDescriptor.id
 
-  startWith(Pending, EngineJobExecutionActorData())
+  startWith(Pending, ())
 
   when(Pending) {
-    case Event(Start(jobKey), _) =>
-      prepareJob(jobKey) using EngineJobExecutionActorData(restarting = false)
-    case Event(Restart(jobKey), _) =>
-      context.actorOf(JobStoreReader.props()) ! QueryJobCompletion(jobKey)
-      goto(CheckingJobStatus) using EngineJobExecutionActorData(restarting = true)
+    case Event(Execute(jobKey), _) =>
+      if (restarting) {
+        context.actorOf(JobStoreReader.props()) ! QueryJobCompletion(jobKey)
+        goto(CheckingJobStatus)
+      } else {
+        prepareJob(jobKey)
+      }
   }
 
   when(CheckingJobStatus) {
@@ -67,7 +66,7 @@ class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
       val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
-      val message = if (stateData.restarting) RecoverJobCommand else ExecuteJobCommand
+      val message = if (restarting) RecoverJobCommand else ExecuteJobCommand
       backendJobExecutionActor ! message
       context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
       goto(RunningJob)

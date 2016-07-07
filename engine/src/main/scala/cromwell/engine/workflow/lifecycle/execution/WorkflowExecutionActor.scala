@@ -51,7 +51,7 @@ object WorkflowExecutionActor {
     * Commands
     */
   sealed trait WorkflowExecutionActorCommand
-  case object StartExecutingWorkflowCommand extends WorkflowExecutionActorCommand
+  case object ExecuteWorkflowCommand extends WorkflowExecutionActorCommand
   case object RestartExecutingWorkflowCommand extends WorkflowExecutionActorCommand
 
   /**
@@ -131,8 +131,9 @@ object WorkflowExecutionActor {
   def props(workflowId: WorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
             serviceRegistryActor: ActorRef,
-            initializationData: AllBackendInitializationData): Props = {
-    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, initializationData))
+            initializationData: AllBackendInitializationData,
+            restarting: Boolean): Props = {
+    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, initializationData, restarting))
   }
 
   private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
@@ -226,7 +227,8 @@ object WorkflowExecutionActor {
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         workflowDescriptor: EngineWorkflowDescriptor,
                                         serviceRegistryActor: ActorRef,
-                                        initializationData: AllBackendInitializationData)
+                                        initializationData: AllBackendInitializationData,
+                                        restarting: Boolean)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
 
   import WorkflowExecutionActor._
@@ -258,8 +260,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       workflowDescriptor,
       executionStore = buildInitialExecutionStore(),
       backendJobExecutionActors = Map.empty,
-      outputStore = OutputStore.empty,
-      restarting = false
+      outputStore = OutputStore.empty
     )
   )
 
@@ -275,12 +276,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionPendingState) {
-    case Event(StartExecutingWorkflowCommand, stateData) =>
+    case Event(ExecuteWorkflowCommand, stateData) =>
       val data = startRunnableScopes(stateData)
       goto(WorkflowExecutionInProgressState) using data
-    case Event(RestartExecutingWorkflowCommand, stateData) =>
-      self ! StartExecutingWorkflowCommand
-      stay() using stateData.copy(restarting = true)
   }
 
   when(WorkflowExecutionInProgressState) {
@@ -549,11 +547,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeActorName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-            val ejeActor = context.actorOf(EngineJobExecutionActor.props(data, factory, initializationData.get(backendName)), ejeActorName)
+            val ejeActor = context.actorOf(EngineJobExecutionActor.props(data, factory, initializationData.get(backendName), restarting), ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
 
-            val message = if (data.restarting) EngineJobExecutionActor.Restart(jobKey) else EngineJobExecutionActor.Start(jobKey)
-            ejeActor ! message
+            ejeActor ! EngineJobExecutionActor.Execute(jobKey)
 
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>

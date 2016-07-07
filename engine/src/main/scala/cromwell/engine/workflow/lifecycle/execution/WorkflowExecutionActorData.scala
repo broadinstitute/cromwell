@@ -20,8 +20,7 @@ final case class WorkflowExecutionDiff(executionStore: Map[JobKey, ExecutionStat
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
-                                      outputStore: OutputStore,
-                                      restarting: Boolean) extends WdlLookup {
+                                      outputStore: OutputStore) extends WdlLookup {
 
   override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.engineFilesystems)
 

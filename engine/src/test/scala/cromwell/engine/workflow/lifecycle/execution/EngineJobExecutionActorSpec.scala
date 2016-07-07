@@ -37,15 +37,16 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     }
   }
 
-  def buildEJEA() = new TestFSMRef[EngineJobExecutionActorState, EngineJobExecutionActorData, EngineJobExecutionActor](system, EngineJobExecutionActor.props(
-    WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty), restarting = false),
+  def buildEJEA(restarting: Boolean) = new TestFSMRef[EngineJobExecutionActorState, Unit, EngineJobExecutionActor](system, EngineJobExecutionActor.props(
+    WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty)),
     factory,
-    None
+    None,
+    restarting = restarting
   ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
 
   "EngineJobExecutionActorSpec" should {
     "send a Job SucceededResponse if the job is already complete and successful" in {
-      val ejea = buildEJEA()
+      val ejea = buildEJEA(restarting = true)
       ejea.setState(CheckingJobStatus)
       val returnCode: Option[Int] = Option(0)
       val jobOutputs: JobOutputs = Map.empty
@@ -62,7 +63,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     }
 
     "send a Job FailedNonRetryableResponse if the job is already complete and failed" in {
-      val ejea = buildEJEA()
+      val ejea = buildEJEA(restarting = true)
       ejea.setState(CheckingJobStatus)
       val returnCode: Option[Int] = Option(1)
       val reason: Throwable = new Exception("something horrible happened...")
@@ -78,9 +79,9 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       ejea.stop()
     }
 
-    "send a RecoverJobCommand to the backend if the job is not complete" in {
-      val ejea = buildEJEA()
-      ejea.setState(CheckingJobStatus, EngineJobExecutionActorData(true))
+    "send a RecoverJobCommand to the backend if the job is not complete and EJEA is in restarting mode" in {
+      val ejea = buildEJEA(restarting = true)
+      ejea.setState(CheckingJobStatus)
       val task = mock[Task]
       task.declarations returns Seq.empty
 
@@ -94,28 +95,28 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
     // This test is bit redundant with the one above, hoever this one tests the behaviour when getting a Restart message
     // whereas the test above tests the behaviour when getting a JobNotComplete response from JobReader
-    "send an RecoverJobCommand to the backend when getting a Restart message if the Job is not complete" in {
-      val ejea = buildEJEA()
+    "send an RecoverJobCommand to the backend when getting an Execute message if the Job is not complete and EJEA is in restarting mode" in {
+      val ejea = buildEJEA(restarting = true)
       ejea.setState(Pending)
       val task = mock[Task]
       task.declarations returns Seq.empty
 
       val jobKey = BackendJobDescriptorKey(Call(None, "wf.call", task, Set.empty, Map.empty, None), None, 1)
-      ejea ! EngineJobExecutionActor.Restart(jobKey)
+      ejea ! EngineJobExecutionActor.Execute(jobKey)
 
       backendProbe.expectMsg(awaitTimeout, RecoverJobCommand)
 
       ejea.stop()
     }
 
-    "send an ExecuteJobCommand to the backend when getting a Start message" in {
-      val ejea = buildEJEA()
+    "send an ExecuteJobCommand to the backend when getting an Execute message if the Job is not complete and EJEA is NOT in restarting mode" in {
+      val ejea = buildEJEA(restarting = false)
       ejea.setState(Pending)
       val task = mock[Task]
       task.declarations returns Seq.empty
 
       val jobKey = BackendJobDescriptorKey(Call(None, "wf.call", task, Set.empty, Map.empty, None), None, 1)
-      ejea ! EngineJobExecutionActor.Start(jobKey)
+      ejea ! EngineJobExecutionActor.Execute(jobKey)
 
       backendProbe.expectMsg(awaitTimeout, ExecuteJobCommand)
 
@@ -126,7 +127,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       val deathWatch = TestProbe()
       val jobKey = mock[BackendJobDescriptorKey]
 
-      val ejea = buildEJEA()
+      val ejea = buildEJEA(restarting = true)
       ejea.setState(PreparingJob)
 
       val failed = BackendJobPreparationFailed(jobKey, new scala.Exception("Failed"))
@@ -145,7 +146,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       val jobKey = mock[BackendJobDescriptorKey]
 
       def ejeaInRunningState() = {
-        val ejea = buildEJEA()
+        val ejea = buildEJEA(restarting = true)
         ejea.setState(RunningJob)
         ejea
       }

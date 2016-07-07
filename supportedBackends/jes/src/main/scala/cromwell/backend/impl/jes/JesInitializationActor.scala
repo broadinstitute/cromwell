@@ -85,7 +85,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
       _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
-    } yield Option(JesBackendInitializationData(gcsFileSystem, genomics))
+    } yield Option(JesBackendInitializationData(workflowPaths, genomics))
   }
 
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {

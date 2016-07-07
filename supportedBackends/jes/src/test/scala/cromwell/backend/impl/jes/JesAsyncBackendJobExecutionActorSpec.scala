@@ -70,7 +70,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     new JesExpressionFunctions(List(GcsFileSystem.defaultGcsFileSystem), TestableCallContext)
   }
 
-  private def buildInitializationData = {
+  private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
     def gcsFileSystem = {
       val authOptions = new GoogleAuthOptions {
         override def get(key: String): Try[String] = Try(throw new RuntimeException(s"key '$key' not found"))
@@ -80,14 +80,15 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       GcsFileSystem(GcsFileSystemProvider(storage))
     }
 
-    JesBackendInitializationData(gcsFileSystem, null)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.descriptor, configuration, gcsFileSystem)
+    JesBackendInitializationData(workflowPaths, null)
   }
 
   class TestableJesJobExecutionActor(jobDescriptor: BackendJobDescriptor,
                                      promise: Promise[BackendJobExecutionResponse],
                                      jesConfiguration: JesConfiguration,
                                      functions: JesExpressionFunctions = TestableJesExpressionFunctions)
-    extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration, buildInitializationData) {
+    extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration, buildInitializationData(jobDescriptor, jesConfiguration)) {
     // TODO: PBE: services are currently implemented in the engine, so we can't spin them up in specs
     override val serviceRegistryActor = system.actorOf(Props.empty)
 

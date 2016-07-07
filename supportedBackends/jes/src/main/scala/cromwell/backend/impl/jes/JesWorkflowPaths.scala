@@ -2,11 +2,11 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.backend.impl.jes.io._
+import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
+import cromwell.core.WorkflowOptions.FinalCallLogsDir
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
-import cromwell.filesystems.gcs.{GoogleAuthMode, GcsFileSystemProvider, GcsFileSystem}
+import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
 
 import scala.util.Try
 
@@ -25,13 +25,15 @@ object JesWorkflowPaths {
   }
 }
 
-class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration, gcsFileSystem: GcsFileSystem) {
+class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration, val gcsFileSystem: GcsFileSystem) {
 import JesWorkflowPaths._
   val rootPath: Path =
     gcsFileSystem.getPath(workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root))
 
   val workflowRootPath: Path = rootPath.resolve(workflowDescriptor.workflowNamespace.workflow.unqualifiedName)
     .resolve(workflowDescriptor.id.toString)
+
+  val finalCallLogsPath = workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map { gcsFileSystem.getPath(_) }
 
   val gcsAuthFilePath: Path = {
     /*
@@ -40,10 +42,11 @@ import JesWorkflowPaths._
      */
     val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse workflowRootPath.toString
 
-    val storage = jesConfiguration.jesAttributes.genomicsAuth.buildStorage(
-      workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
-    val fs = GcsFileSystem(GcsFileSystemProvider(storage))
+    val storage = jesConfiguration.jesAttributes.genomicsAuth.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
+    val fileSystemWithGenomicsAuth = GcsFileSystem(GcsFileSystemProvider(storage))
 
-    fs.getPath(bucket).resolve(s"${workflowDescriptor.id}_auth.json")
+    fileSystemWithGenomicsAuth.getPath(bucket).resolve(s"${workflowDescriptor.id}_auth.json")
   }
+
+  def toJesCallPaths(jobKey: BackendJobDescriptorKey) = JesCallPaths(jobKey, workflowDescriptor, jesConfiguration, gcsFileSystem)
 }

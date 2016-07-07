@@ -94,7 +94,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   val jobTag = jobDescriptor.key.tag
 
   private lazy val jesAttributes = jesConfiguration.jesAttributes
-  private[jes] lazy val jesCallPaths = JesCallPaths(jobDescriptor.key, workflowDescriptor, jesConfiguration, initializationData.backendFilesystem)
+  private[jes] lazy val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
   private[jes] lazy val monitoringScript: Option[JesInput] = {
     jobDescriptor.descriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
       JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, Paths.get(JesMonitoringScript), workingDisk)

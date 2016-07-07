@@ -1607,8 +1607,8 @@ This endpoint allows for querying workflows based on the following criteria:
 * `name`
 * `id`
 * `status`
-* `start` (start datetime)
-* `end` (end datetime)
+* `start` (start datetime with mandatory offset)
+* `end` (end datetime with mandatory offset)
 * `page` (page of results)
 * `pagesize` (# of results per page)
 
@@ -1621,18 +1621,18 @@ statuses, the results must match both the one of the specified names and
 one of the statuses. Using page and pagesize will enable server side pagination.
 
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
-be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format and `start` cannot be after `end`.
+be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format with *mandatory offset* and `start` cannot be after `end`.
 
 cURL:
 
 ```
-$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded&page=1&pagesize=10""
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01T00%3A00%3A00-04%3A00&end=2015-11-04T00%3A00%3A00-04%3A00&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 HTTPie:
 
 ```
-$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded&page=1&pagesize=10""
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01T00%3A00%3A00-04%3A00&end=2015-11-04T00%3A00%3A00-04%3A00&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 Response:
@@ -1700,13 +1700,13 @@ object should contain a different criterion.
 cURL:
 
 ```
-$ curl -X POST --header "Content-Type: application/json" -d "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": "1"}, {\"pagesize\": "10"}]" "http://localhost:8000/api/workflows/v1/query"
+$ curl -X POST --header "Content-Type: application/json" -d "[{\"start\": \"2015-11-01T00:00:00-04:00\"}, {\"end\": \"2015-11-04T00:00:00-04:00\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": \"1\"}, {\"pagesize\": \"10\"}]" "http://localhost:8000/api/workflows/v1/query"
 ```
 
 HTTPie:
 
 ```
-$ echo "[{\"start\": \"2015-11-01\"}, {\"end\": \"2015-11-03\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": "1"}, {\"pagesize\": "10"}]" | http "http://localhost:8000/api/workflows/v1/query"
+$ echo "[{\"start\": \"2015-11-01T00:00:00-04:00\"}, {\"end\": \"2015-11-04T00:00:00-04:00\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": \"1\"}, {\"pagesize\": \"10\"}]" | http "http://localhost:8000/api/workflows/v1/query"
 ```
 
 Response:

@@ -377,8 +377,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       system.stop(materializeWfActor)
     }
 
-    // TODO: PBE: Re-enable (ticket #1067)
-    "handle coercion failures gracefully" taggedAs PostMVP ignore {
+    "handle coercion failures gracefully" in {
       val wdl =
         """
           |task bar { command { echo foobar } }
@@ -394,7 +393,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed.\nUnable to load namespace from workflow: ERROR: Finished parsing without consuming all tokens.")
+            reason.getMessage should startWith("Workflow input processing failed.\nInvalid right-side type of 'foo.j'.  Expecting Int, got String")
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

@@ -155,10 +155,22 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       workflowOptions: WorkflowOptions,
                                       failureMode: WorkflowFailureMode,
                                       engineFileSystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
+
+    def checkTypes(inputs: Map[FullyQualifiedName, WdlValue]): ErrorOr[Map[FullyQualifiedName, WdlValue]] = {
+      val allDeclarations = namespace.workflow.scopedDeclarations ++ namespace.workflow.calls.flatMap(_.scopedDeclarations)
+      inputs.map({ case (k, v) =>
+        allDeclarations.find(_.fullyQualifiedName == k) match {
+          case Some(decl) if decl.wdlType.coerceRawValue(v).isFailure =>
+            s"Invalid right-side type of '$k'.  Expecting ${decl.wdlType.toWdlString}, got ${v.wdlType.toWdlString}".failureNel
+          case _ => (k, v).successNel
+        }
+      }).toList.sequence[ErrorOr, (FullyQualifiedName, WdlValue)].map(_.toMap)
+    }
+
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
       declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, engineFileSystems)
-      declarationsAndInputs = declarations ++ coercedInputs
+      declarationsAndInputs <- checkTypes(declarations ++ coercedInputs)
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
     } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, engineFileSystems)
   }

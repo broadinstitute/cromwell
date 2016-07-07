@@ -37,11 +37,11 @@ object SlickDatabase {
 
     /**
       * Modifies config.getString("url") to return a unique schema, if the original url contains the text
-      * "${slick.uniqueSchema}".
+      * "\${slick.uniqueSchema}".
       *
       * This allows each instance of a SlickDataAccess object to use a clean, and different, in memory database.
       *
-      * @return Config with ${slick.uniqueSchema} in url replaced with a unique string.
+      * @return Config with \${slick.uniqueSchema} in url replaced with a unique string.
       */
     def withUniqueSchema: Config = {
       if (urlValue.contains("${slick.uniqueSchema}")) {

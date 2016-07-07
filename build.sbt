@@ -15,54 +15,68 @@ lazy val database = (project in file("database"))
 
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(database % "test->test;compile->compile") // Assuming services impl in services
   .withTestSettings
+  .dependsOn(core)
+  .dependsOn(database) // Assuming services impl in services
+  .dependsOn(core % "test->test")
+  .dependsOn(database % "test->test")
 
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = (project in file("backend"))
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(services % "test->test;compile->compile")
   .settings(backendSettings:_*)
   .withTestSettings
+  .dependsOn(core)
+  .dependsOn(services)
+  .dependsOn(core % "test->test")
 
 lazy val localBackend = (project in backendRoot / "local")
-  .dependsOn(backend % "test->test;compile->compile")
   .settings(localBackendSettings:_*)
   .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(backend % "test->test")
 
 lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .settings(htCondorBackendSettings:_*)
-  .dependsOn(backend % "test->test;compile->compile")
   .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(backend % "test->test")
 
 lazy val sgeBackend = (project in backendRoot / "sge")
   .settings(sgeBackendSettings:_*)
-  .dependsOn(backend % "test->test;compile->compile")
   .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(backend % "test->test")
 
 lazy val jesBackend = (project in backendRoot / "jes")
   .settings(jesBackendSettings:_*)
-  .dependsOn(backend % "test->test;compile->compile")
-  .dependsOn(gcsfilesystem % "test->test;compile->compile")
   .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(gcsfilesystem)
+  .dependsOn(backend % "test->test")
+  .dependsOn(gcsfilesystem % "test->test")
 
 //TODO: remove jesBackend once refactoring has finished.
 lazy val engine = (project in file("engine"))
   .settings(engineSettings: _*)
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(services % "test->test;compile->compile")
-  .dependsOn(backend % "test->test;compile->compile")
-  .dependsOn(jesBackend % "test->test;compile->compile")
-  .dependsOn(localBackend % "test->test;compile->compile")
-  .dependsOn(htCondorBackend % "test->test;compile->compile")
-  .dependsOn(database % "test->test;compile->compile")
   .withTestSettings
+  .dependsOn(core)
+  .dependsOn(services)
+  .dependsOn(backend)
+  .dependsOn(database)
+  .dependsOn(gcsfilesystem)
+  .dependsOn(core % "test->test")
+  .dependsOn(backend % "test->test")
+  .dependsOn(localBackend % "test->compile")
+  .dependsOn(jesBackend % "test->compile")
+  .dependsOn(gcsfilesystem % "test->test")
 
 lazy val root = (project in file("."))
   .settings(rootSettings: _*)
-  .dependsOn(core % "test->test;compile->compile")
-  .dependsOn(engine % "test->test;compile->compile")
-  .aggregate(core, database, backend, engine, localBackend, sgeBackend, jesBackend, htCondorBackend, gcsfilesystem)
   .withTestSettings
+  .dependsOn(engine)
+  .dependsOn(jesBackend)
+  .dependsOn(localBackend)
+  .dependsOn(htCondorBackend)
+  .dependsOn(engine % "test->test")
+  .aggregate(core, database, backend, engine, localBackend, sgeBackend, jesBackend, htCondorBackend, gcsfilesystem)

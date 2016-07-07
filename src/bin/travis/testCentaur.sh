@@ -1,11 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
-set -x
 
 removeCromwellJar() {
-    gsutil rm "${JAR_GCS_PATH}"
+    gsutil rm "${JAR_GCS_PATH}" || true
 }
+
+printTravisHeartbeat() {
+    # Sleep one minute between printouts, but don't zombie for more than two hours
+    for ((i=0; i < 120; i++)); do
+        sleep 60
+        printf "…"
+    done &
+    TRAVIS_HEARTBEAT_PID=$!
+}
+
+killTravisHeartbeat() {
+    if [ -n "${TRAVIS_HEARTBEAT_PID+set}" ]; then
+        kill ${TRAVIS_HEARTBEAT_PID} || true
+    fi
+}
+
+exitScript() {
+    killTravisHeartbeat
+    removeCromwellJar
+}
+
+trap exitScript EXIT
+printTravisHeartbeat
+
+set -x
 
 # Unpack our credentials and such
 openssl aes-256-cbc -K "$encrypted_fb828d0791bd_key" -iv "$encrypted_fb828d0791bd_iv" -in src/bin/travis/resources/jesConf.tar.enc -out jesConf.tar -d
@@ -37,6 +61,5 @@ sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.input
 # Upload the built Cromwell jar to GCS so we can use it in our centaur test. Set an exit trap to clean it up on failure
 JAR_GCS_PATH=gs://cloud-cromwell-dev/travis-centaur/${CROMWELL_JAR}
 gsutil cp target/scala-2.11/cromwell-*.jar "${JAR_GCS_PATH}"
-trap "removeCromwellJar" EXIT
 
 java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run src/bin/travis/resources/centaur.wdl src/bin/travis/resources/centaur.inputs

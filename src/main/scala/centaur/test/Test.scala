@@ -78,17 +78,22 @@ object Operations {
     * stops with a failure.
     */
   def pollUntilStatus(workflow: SubmittedWorkflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+    def pollDelay() = Thread.sleep(10000) // This could be a lot smarter, including cromwell style backoff
     new Test[SubmittedWorkflow] {
       @tailrec
-      def doPerform(): SubmittedWorkflow = {
+      def doPerform(allowed404s: Int = 2): SubmittedWorkflow = {
         val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
         val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
         status match {
           case Success(s) if s == expectedStatus => workflow
           case Success(s: TerminalStatus) => throw new Exception(s"Unexpected terminal status $s but was waiting for $expectedStatus")
+          case Failure(f) if f.getMessage.contains("Status: 404 Not Found") && allowed404s > 0 =>
+            // It's possible that we've started polling prior to the metadata service learning of this workflow
+            pollDelay()
+            doPerform(allowed404s = allowed404s - 1)
           case Failure(f) => throw f
           case _ =>
-            Thread.sleep(10000) // This could be a lot smarter including cromwell style backoff
+            pollDelay()
             doPerform()
         }
       }

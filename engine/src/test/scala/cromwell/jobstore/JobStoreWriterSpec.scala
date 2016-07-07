@@ -2,10 +2,11 @@ package cromwell.jobstore
 
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
+import cromwell.jobstore.JobStoreWriterService.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.Matchers
+
 import scala.concurrent.duration._
 import language.postfixOps
-
 import scala.concurrent.Future
 
 class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
@@ -13,9 +14,9 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
   "JobStoreWriter" should {
     "be able to collapse writes together if they arrive while a database access is ongoing" in {
       val database = WriteCountingJobStoreDatabase.makeNew
-      val jsw = system.actorOf(JobStoreWriter.props(database))
+      val jsw = system.actorOf(JobStoreWriterActor.props(database))
       val wfid = WorkflowId.randomId()
-      def jobKey(number: Int): JobStoreKey = JobStoreKey(wfid, s"call.fqn_$number", None)
+      def jobKey(attempt: Int): JobStoreKey = JobStoreKey(wfid, s"call.fqn", None, attempt)
       val jobResult: JobResult = JobResultSuccess(Some(0), Map.empty)
 
       jsw ! RegisterJobCompleted(jobKey(0), jobResult)
@@ -23,9 +24,10 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
       jsw ! RegisterJobCompleted(jobKey(2), jobResult)
       val received = receiveN(3, 10 seconds)
       received foreach {
-        case JobStoreWriteSuccess(RegisterJobCompleted(JobStoreKey(jsk_wfid, jsk_callfqn, None), result)) =>
+        case JobStoreWriteSuccess(RegisterJobCompleted(JobStoreKey(jsk_wfid, jsk_callfqn, jsk_index, _), result)) =>
           jsk_wfid shouldBe wfid
-          jsk_callfqn should startWith("call.fqn")
+          jsk_callfqn shouldBe "call.fqn"
+          jsk_index shouldBe None
           result shouldBe jobResult
         case message => fail(s"Unexpected response message: $message")
       }
@@ -37,9 +39,9 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
 
     "be able to skip job-completion writes if the workflow completes, but still respond appropriately" in {
       val database = WriteCountingJobStoreDatabase.makeNew
-      val jsw = system.actorOf(JobStoreWriter.props(database))
+      val jsw = system.actorOf(JobStoreWriterActor.props(database))
       val wfid = WorkflowId.randomId()
-      def jobKey(number: Int): JobStoreKey = JobStoreKey(wfid, s"call.fqn_$number", None)
+      def jobKey(attempt: Int): JobStoreKey = JobStoreKey(wfid, s"call.fqn", None, attempt)
       val jobResult: JobResult = JobResultSuccess(Some(0), Map.empty)
 
       jsw ! RegisterJobCompleted(jobKey(0), jobResult)
@@ -47,9 +49,10 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
       jsw ! RegisterWorkflowCompleted(wfid)
       val received = receiveN(3, 10 seconds)
       received foreach {
-        case JobStoreWriteSuccess(RegisterJobCompleted(JobStoreKey(jsk_wfid, jsk_callfqn, None), result)) =>
+        case JobStoreWriteSuccess(RegisterJobCompleted(JobStoreKey(jsk_wfid, jsk_callfqn, jsk_index, _), result)) =>
           jsk_wfid shouldBe wfid
-          jsk_callfqn should startWith("call.fqn_")
+          jsk_callfqn shouldBe "call.fqn"
+          jsk_index shouldBe None
           result shouldBe jobResult
         case JobStoreWriteSuccess(RegisterWorkflowCompleted(rwc_wfid)) =>
           rwc_wfid shouldBe wfid

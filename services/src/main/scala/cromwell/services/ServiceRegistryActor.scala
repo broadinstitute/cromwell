@@ -19,7 +19,9 @@ object ServiceRegistryActor {
   def serviceNameToPropsMap(globalConfig: Config): Map[String, Props] = {
     val serviceNamesToConfigStanzas = globalConfig.getObject("services").entrySet.asScala.map(x => x.getKey -> x.getValue).toMap
     serviceNamesToConfigStanzas map {
-      case (serviceName, config: ConfigObject) => serviceName -> serviceProps(serviceName, globalConfig, config.toConfig)
+      case (serviceName, config: ConfigObject) =>
+        System.out.println(s"Make me a service! $serviceName")
+        serviceName -> serviceProps(serviceName, globalConfig, config.toConfig)
       case (serviceName, _) => throw new Exception(s"Invalid configuration for service $serviceName")
     }
   }

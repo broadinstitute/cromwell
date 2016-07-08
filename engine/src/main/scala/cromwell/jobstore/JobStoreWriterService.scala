@@ -6,7 +6,7 @@ import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreWriterService.JobStoreWriterServiceCommand
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * Joins the service registry API to the JobStoreWriterActor.
@@ -16,7 +16,7 @@ import scala.concurrent.Future
 case class JobStoreWriterService(serviceConfig: Config, globalConfig: Config) extends Actor {
 
   // TODO: Replace with a real database, probably from config.
-  val database = new ConsoleOutputJobStoreDatabase()
+  val database = FilesystemJobStoreDatabase
   var JSWActor = context.actorOf(JobStoreWriterActor.props(database))
 
   override def receive: Receive = {
@@ -32,13 +32,4 @@ object JobStoreWriterService {
   sealed trait JobStoreWriterServiceResponse
   case class JobStoreWriteSuccess(originalCommand: JobStoreWriterServiceCommand) extends JobStoreWriterServiceResponse
   case class JobStoreWriteFailure(originalCommand: JobStoreWriterServiceCommand, reason: Throwable) extends JobStoreWriterServiceResponse
-}
-
-class ConsoleOutputJobStoreDatabase extends JobStoreDatabase {
-
-  override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId]): Future[Unit] = {
-    System.out.println(s"Jobs completed: ${jobCompletions.mkString}")
-    System.out.println(s"Workflows completed: ${workflowCompletions.mkString}")
-    Future.successful(())
-  }
 }

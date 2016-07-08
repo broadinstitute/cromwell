@@ -57,9 +57,13 @@ case class JobStoreWriterActor(jsd: JobStoreDatabase) extends LoggingFSM[JobStor
     if (!(workflowCompletions.isEmpty && jobCompletions.isEmpty)) {
       jsd.writeToDatabase(jobCompletions.toMap, workflowCompletions) onComplete {
         case Success(_) =>
-          newData.currentOperation foreach { case (actor, message) => actor ! JobStoreWriteSuccess(message) }
+          newData.currentOperation foreach { case (actor, message) =>
+            val msg = JobStoreWriteSuccess(message)
+            log.info("*** Sending $msg")
+            actor ! msg }
           self ! WriteComplete
         case Failure(reason) =>
+          log.error(s"Failed to write to database: $reason")
           newData.currentOperation foreach { case (actor, message) => actor ! JobStoreWriteFailure(message, reason) }
           self ! WriteComplete
       }

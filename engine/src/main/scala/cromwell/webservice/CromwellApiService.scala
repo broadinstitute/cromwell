@@ -1,5 +1,7 @@
 package cromwell.webservice
 
+import java.util.concurrent.TimeoutException
+
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
@@ -10,10 +12,10 @@ import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._
+import spray.http.HttpHeaders.`Content-Type`
 import spray.http.MediaTypes._
-import spray.http.StatusCodes
+import spray.http._
 import spray.json._
-import spray.routing.Directive.pimpApply
 import spray.routing._
 import spray.httpx.SprayJsonSupport._
 
@@ -37,8 +39,14 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
   def actorRefFactory = context
 
   val possibleRoutes = workflowRoutes.wrapped("api", config.getBooleanOr("api.routeUnwrapped")) ~ swaggerUiResourceRoute
+  val timeoutError = APIResponse.error(new TimeoutException("The server was not able to produce a timely response to your request.")).toJson.prettyPrint
 
-  def receive = runRoute(possibleRoutes)
+  def receive = handleTimeouts orElse runRoute(possibleRoutes)
+
+  def handleTimeouts: Receive = {
+    case Timedout(_: HttpRequest) =>
+      sender() ! HttpResponse(StatusCodes.InternalServerError, HttpEntity(ContentType(MediaTypes.`application/json`), timeoutError)).withHeaders(`Content-Type`(`application/json`))
+  }
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator with ServiceRegistryClient {

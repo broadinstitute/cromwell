@@ -16,4 +16,5 @@ object CromwellSpec {
   object PostMVP extends Tag("PostMVP")
   object IntegrationTest extends Tag("CromwellIntegrationTest")
   object DbmsTest extends Tag("DbmsTest")
+  object MainSpecWdlRunner extends Tag("MainSpecWdlRunner")
 }

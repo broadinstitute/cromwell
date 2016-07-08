@@ -5,11 +5,11 @@ import java.util.UUID
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
-import cromwell.CromwellSpec.{PostMVP, DockerTest}
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.CromwellSpec.{DockerTest, PostMVP}
+import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowStoreActor}
 import cromwell.core.WorkflowSucceeded
 import cromwell.util.SampleWdl
-import cromwell.webservice.CromwellApiHandler.{WorkflowManagerStatusSuccess}
+import cromwell.webservice.CromwellApiHandler.WorkflowManagerStatusSuccess
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
@@ -143,7 +143,7 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
 
     "show valid values for call caching in metadata" taggedAs PostMVP ignore {
       implicit val workflowManagerActor = TestActorRef(
-        new WorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig)
+        new WorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig, system.actorOf(WorkflowStoreActor.props))
       )
 
       val workflowId = runWdlAndAssertOutputs(

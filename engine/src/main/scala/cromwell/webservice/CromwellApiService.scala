@@ -20,6 +20,7 @@ import spray.routing._
 import spray.httpx.SprayJsonSupport._
 
 import scala.util.{Failure, Success, Try}
+import scalaz.NonEmptyList
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromwell"
@@ -28,12 +29,12 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 object CromwellApiServiceActor {
-  def props(workflowManagerActorRef: ActorRef, config: Config): Props = {
-    Props(new CromwellApiServiceActor(workflowManagerActorRef, config))
+  def props(workflowManagerActorRef: ActorRef, workflowStoreActorRef: ActorRef, config: Config): Props = {
+    Props(new CromwellApiServiceActor(workflowManagerActorRef, workflowStoreActorRef, config))
   }
 }
 
-class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
+class CromwellApiServiceActor(val workflowManager: ActorRef, val workflowStoreActor: ActorRef, config: Config)
   extends Actor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
   def actorRefFactory = context
@@ -51,6 +52,8 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, config: Config)
 
 trait CromwellApiService extends HttpService with PerRequestCreator with ServiceRegistryClient {
   val workflowManager: ActorRef
+  val workflowStoreActor: ActorRef
+
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
   def handleMetadataRequest(message: AnyRef)(requestContext: RequestContext): Unit = {
     perRequest(requestContext, metadataBuilderProps, message)
@@ -113,7 +116,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
         formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
           requestContext =>
             val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
-            perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
+            perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
         }
       }
     }
@@ -126,9 +129,11 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
             requestContext =>
               import spray.json._
               workflowInputs.parseJson match {
-                case JsArray(inputses) =>
-                  val sources = inputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
-                  perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
+                case JsArray(Seq(x, xs@_*)) =>
+                  val nelInputses = NonEmptyList.nel(x, xs.toList)
+                  val sources = nelInputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
+                  perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
+                case JsArray(_) => failBadRequest(new RuntimeException("Nothing was submitted"))
                 case _ => reject
               }
         }

@@ -159,12 +159,15 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   private[this] def runWorkflow(workflowSourceFiles: WorkflowSourceFiles, metadataPath: Option[Path]): Int = {
     val workflowManagerSystem = managerSystem
     implicit val actorSystem = workflowManagerSystem.actorSystem
-    val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles, metadataPath,
-      workflowManagerSystem.workflowManagerActor)
+
+    val runnerProps = SingleWorkflowRunnerActor.props(workflowSourceFiles,
+      metadataPath,
+      workflowManagerSystem.workflowManagerActor,
+      workflowManagerSystem.workflowStoreActor)
+
     val runner = workflowManagerSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import PromiseActor.EnhancedActorRef
-
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val promise = runner.askNoTimeout(RunWorkflow)

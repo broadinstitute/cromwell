@@ -24,7 +24,7 @@ object Settings {
     https://github.com/scala/pickling/issues/10
   */
   val compilerSettings = List(
-    "-deprecation",
+    //"-deprecation", // TODO: PBE: Re-enable deprecation warnings
     "-unchecked",
     "-feature",
     "-Xmax-classfile-name",
@@ -78,6 +78,11 @@ object Settings {
   val htCondorBackendSettings = List(
     name := "cromwell-htcondor-backend",
     libraryDependencies ++= htCondorBackendDependencies
+  ) ++ commonSettings
+
+  val sparkBackendSettings = List(
+    name := "cromwell-spark-backend",
+    libraryDependencies ++= sparkBackendDependencies
   ) ++ commonSettings
 
   val jesBackendSettings = List(

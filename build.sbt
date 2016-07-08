@@ -11,7 +11,6 @@ lazy val gcsFileSystem = (project in file("filesystems/gcs"))
 
 lazy val database = (project in file("database"))
   .settings(databaseSettings:_*)
-  .dependsOn(core) // used for migration
   .dependsOn(core % "test->test") // TODO: PBE: Remove once PostMVP tag removed from test
   .withTestSettings
 
@@ -41,6 +40,12 @@ lazy val sfsBackend = (project in backendRoot / "sfs")
 
 lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .settings(htCondorBackendSettings:_*)
+  .withTestSettings
+  .dependsOn(sfsBackend)
+  .dependsOn(backend % "test->test")
+
+lazy val sparkBackend = (project in backendRoot / "spark")
+  .settings(sparkBackendSettings:_*)
   .withTestSettings
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
@@ -79,11 +84,13 @@ lazy val root = (project in file("."))
   .aggregate(backend)
   .aggregate(sfsBackend)
   .aggregate(htCondorBackend)
+  .aggregate(sparkBackend)
   .aggregate(jesBackend)
   .aggregate(engine)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
   .dependsOn(htCondorBackend)
+  .dependsOn(sparkBackend)
   // Dependencies for tests
   .dependsOn(engine % "test->test")

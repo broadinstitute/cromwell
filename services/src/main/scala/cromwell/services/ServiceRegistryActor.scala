@@ -28,7 +28,7 @@ object ServiceRegistryActor {
     val serviceConfigStanza = serviceStanza.getConfigOr("config", ConfigFactory.parseString(""))
     val className = serviceStanza.getStringOr(
       "class",
-      throw new Exception(s"Invalid configuration for service $serviceName: missing 'class' definition")
+      throw new IllegalArgumentException(s"Invalid configuration for service $serviceName: missing 'class' definition")
     )
     Props.create(Class.forName(className), serviceConfigStanza, globalConfig)
   }

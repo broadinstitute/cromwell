@@ -59,7 +59,11 @@ case object FilesystemJobStoreDatabase extends JobStoreDatabase {
     Future {
       val path = Paths.get(s"${fsroot.toString}$separator$workflowId").toAbsolutePath
       if (Files.exists(path)) {
-        //Files.delete(path)
+        path.toFile.listFiles foreach { x =>
+          System.out.println(s"Nuking $path from orbit!")
+          Files.delete(x.toPath) }
+        System.out.println(s"Nuking $path from orbit!")
+        Files.delete(path)
       }
     }
   }

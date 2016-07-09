@@ -18,7 +18,11 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case e: WdlExpression => JsString(e.toWdlString)
     }
-    // NOTE: This is NOT a completely safe way to read values from JSON. Should only be used for testing.
+
+    // NOTE: This assumes a map's keys are strings. Since we're coming from JSON this is fine.
+    // This won't support a map with complex keys (e.g. WdlMapType(WdlMapType(WdlIntegerType, WdlIntegerType), WdlStringType)
+    // That would require a more inventive JSON which splits out the key and value as full fields in their own right...
+    // In addition, we make a lot of assumptions about what type of WdlValue to create. Oh well... it should all fall out in the coercion (fingercrossed)!
     def read(value: JsValue): WdlValue = value match {
       case JsObject(fields) =>
         val wdlFields: Map[WdlValue, WdlValue] = fields map {case (k, v) => WdlString(k) -> read(v)}

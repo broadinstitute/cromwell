@@ -59,7 +59,7 @@ case class JobStoreWriterActor(jsd: JobStoreDatabase) extends LoggingFSM[JobStor
         case Success(_) =>
           newData.currentOperation foreach { case (actor, message) =>
             val msg = JobStoreWriteSuccess(message)
-            log.info("*** Sending $msg")
+            log.info(s"*** Sending $msg")
             actor ! msg }
           self ! WriteComplete
         case Failure(reason) =>

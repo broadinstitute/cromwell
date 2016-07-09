@@ -6,7 +6,6 @@ import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreWriterService.JobStoreWriterServiceCommand
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 
-import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * Joins the service registry API to the JobStoreWriterActor.

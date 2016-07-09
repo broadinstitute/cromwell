@@ -7,7 +7,7 @@ import org.scalatest.Matchers
 
 import scala.concurrent.duration._
 import language.postfixOps
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
 
@@ -68,7 +68,8 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers {
 
 class WriteCountingJobStoreDatabase(var totalWritesCalled: Int, var jobCompletionsRecorded: Int, var workflowCompletionsRecorded: Int) extends JobStoreDatabase {
 
-  override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId]): Future[Unit] = {
+  override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])
+                              (implicit ec: ExecutionContext): Future[Unit] = {
     totalWritesCalled += 1
     jobCompletionsRecorded += jobCompletions.size
     workflowCompletionsRecorded += workflowCompletions.size

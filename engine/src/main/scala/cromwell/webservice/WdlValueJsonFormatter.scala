@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import spray.json._
 import wdl4s.WdlExpression
-import wdl4s.types.WdlArrayType
+import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType}
 import wdl4s.values._
 
 object WdlValueJsonFormatter extends DefaultJsonProtocol {
@@ -20,7 +20,10 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
     }
     // NOTE: This is NOT a completely safe way to read values from JSON. Should only be used for testing.
     def read(value: JsValue): WdlValue = value match {
-      case JsObject(fields) => WdlObject(fields map {case (k, v) => k -> read(value)})
+      case JsObject(fields) =>
+        val wdlFields: Map[WdlValue, WdlValue] = fields map {case (k, v) => WdlString(k) -> read(v)}
+        if (fields.isEmpty) WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty[WdlValue, WdlValue])
+        else WdlMap(WdlMapType(wdlFields.head._1.wdlType, wdlFields.head._2.wdlType), wdlFields)
       case JsArray(vector) if vector.nonEmpty => WdlArray(WdlArrayType(read(vector.head).wdlType), vector map read)
       case JsString(str) => WdlString(str)
       case JsBoolean(bool) => WdlBoolean(bool)

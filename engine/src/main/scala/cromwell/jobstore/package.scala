@@ -19,7 +19,7 @@ package object jobstore {
   object JobResultJsonFormatter extends DefaultJsonProtocol {
     implicit object ThrowableFormat extends RootJsonFormat[Throwable] {
       def write(value: Throwable) = value.getMessage.toJson
-      def read(value: JsValue): Throwable = new Exception(value.toString())
+      def read(value: JsValue): Throwable = new Exception(value.convertTo[String])
     }
 
     implicit object JobOutputFormat extends RootJsonFormat[JobOutput] {

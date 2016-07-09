@@ -1,13 +1,14 @@
 import Dependencies._
 import Merging.customMergeStrategy
+import Publishing._
 import Testing._
+import Version._
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtrelease.ReleasePlugin._
 
 object Settings {
-  val engineVersion = "0.20"
 
   val commonResolvers = List(
     "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
@@ -31,12 +32,15 @@ object Settings {
   )
 
   lazy val assemblySettings = Seq(
-    test in assembly     := {},
+    assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
+    aggregate in assembly := false,
+    test in assembly := {},
     logLevel in assembly := Level.Info,
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
 
-  val commonSettings = releaseSettings ++ testSettings ++ assemblySettings ++ List(
+  val commonSettings = releaseSettings ++ testSettings ++ assemblySettings ++
+    cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := "2.11.7",
     resolvers ++= commonResolvers,
@@ -46,73 +50,51 @@ object Settings {
 
   val coreSettings = List(
     name := "cromwell-core",
-    version := engineVersion,
-    libraryDependencies ++= coreDependencies,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    libraryDependencies ++= coreDependencies
   ) ++ commonSettings
 
   val servicesSettings = List(
     name := "cromwell-services",
-    version := engineVersion,
-    libraryDependencies ++= sprayDependencies,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    libraryDependencies ++= sprayDependencies
   ) ++ commonSettings
 
   val gcsFileSystemSettings = List(
     name := "cromwell-gcsfilesystem",
-    version := "0.1",
-    libraryDependencies ++= gcsFileSystemDependencies,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    libraryDependencies ++= gcsFileSystemDependencies
   ) ++ commonSettings
 
   val databaseSettings = List(
     name := "cromwell-database",
-    version := "0.1",
-    libraryDependencies ++= databaseDependencies,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    libraryDependencies ++= databaseDependencies
   ) ++ commonSettings
 
   val backendSettings = List(
-    name := "cromwell-backend",
-    version := "0.1",
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    name := "cromwell-backend"
   ) ++ commonSettings
 
   val localBackendSettings = List(
-    name := "cromwell-local-backend",
-    version := "0.1",
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    name := "cromwell-local-backend"
   ) ++ commonSettings
 
   val htCondorBackendSettings = List(
     name := "cromwell-htcondor-backend",
-    version := "0.1",
-    libraryDependencies ++= htCondorBackendDependencies,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    libraryDependencies ++= htCondorBackendDependencies
   ) ++ commonSettings
 
   val sgeBackendSettings = List(
-    name := "cromwell-sge-backend",
-    version := "0.1",
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    name := "cromwell-sge-backend"
   ) ++ commonSettings
 
   val jesBackendSettings = List(
-    name := "cromwell-jes-backend",
-    version := "0.1",
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    name := "cromwell-jes-backend"
   ) ++ commonSettings
 
   val engineSettings = List(
     name := "cromwell-engine",
-    version := engineVersion,
-    libraryDependencies ++= engineDependencies,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    libraryDependencies ++= engineDependencies
   ) ++ commonSettings
 
   val rootSettings = List(
-    name := "cromwell",
-    version := engineVersion,
-    assemblyJarName in assembly := name.value + "-" + version.value + ".jar"
+    name := "cromwell"
   ) ++ commonSettings
 }

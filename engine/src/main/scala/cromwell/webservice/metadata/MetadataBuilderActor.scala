@@ -220,9 +220,6 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(StatusLookupResponse(w, status), _) =>
       context.parent ! RequestComplete(StatusCodes.OK, processStatusResponse(w, status))
       allDone
-    case Event(StatusLookupNotFound(w), _) =>
-      context.parent ! APIResponse.workflowNotFound(w)
-      allDone
     case Event(failure: ServiceRegistryFailure, _) =>
       val response = APIResponse.fail(new RuntimeException("Can't find metadata service"))
       context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
@@ -233,8 +230,11 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     case Event(failure: WorkflowQueryFailure, _) =>
       context.parent ! RequestComplete(StatusCodes.BadRequest, APIResponse.fail(failure.reason))
       allDone
-    case Event(WorkflowOutputsResponse(w, metadata), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, metadata, includeCallsIfEmpty = false))
+    case Event(WorkflowOutputsResponse(id, events), _) =>
+      // Add in an empty output event if there aren't already any output events.
+      val hasOutputs = events collectFirst { case MetadataEvent(MetadataKey(_, _, key), _, _) if key == WorkflowMetadataKeys.Outputs => () } isDefined
+      val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
+      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false))
       allDone
     case Event(LogsResponse(w, l), _) =>
       context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false))

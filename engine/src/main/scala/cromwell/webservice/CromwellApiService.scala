@@ -5,7 +5,7 @@ import java.util.concurrent.TimeoutException
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
-import cromwell.services.MetadataServiceActor._
+import cromwell.services.MetadataServiceActor.{ValidateWorkflowIdAndExecute, _}
 import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -15,11 +15,10 @@ import lenthall.spray.WrappedRoute._
 import spray.http.HttpHeaders.`Content-Type`
 import spray.http.MediaTypes._
 import spray.http._
+import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing._
-import spray.httpx.SprayJsonSupport._
 
-import scala.util.{Failure, Success, Try}
 import scalaz.NonEmptyList
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
@@ -55,26 +54,47 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
   val workflowStoreActor: ActorRef
 
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
-  def handleMetadataRequest(message: AnyRef)(requestContext: RequestContext): Unit = {
-    perRequest(requestContext, metadataBuilderProps, message)
+
+  def handleMetadataRequest(message: AnyRef): Route = {
+    requestContext =>
+      perRequest(requestContext, metadataBuilderProps, message)
   }
 
-  private def invalidWorkflowId(id: String) = failBadRequest(new RuntimeException(s"Invalid workflow ID: '$id'."))
-
-  private def failBadRequest(exception: Exception) = respondWithMediaType(`application/json`) {
-    complete(StatusCodes.BadRequest, APIResponse.fail(exception).toJson.prettyPrint)
+  private def failBadRequest(exception: Exception, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
+    complete(statusCode, APIResponse.fail(exception).toJson.prettyPrint)
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowStdoutStderrRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~
-    callCachingRoute ~ statusRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
+
+  private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
+    // The submitted value is malformed as a UUID and therefore not possibly recognized.
+    def malformedWorkflowId(malformed: String) = failBadRequest(new RuntimeException(s"Invalid workflow ID: '$malformed'."))
+
+    def unrecognizedWorkflowId(unrecognized: String): Route = respondWithMediaType(`application/json`) {
+      failBadRequest(new RuntimeException(s"Unrecognized workflow ID: $unrecognized"), StatusCodes.NotFound)
+    }
+
+    def failedWorkflowIdLookup(failed: String, t: Throwable) = failBadRequest(new RuntimeException(s"Failed lookup attempt for workflow ID $failed", t))
+
+    val callback = new ValidationCallback {
+      override def onMalformed = malformedWorkflowId
+      override def onUnrecognized = unrecognizedWorkflowId
+      override def onFailure = failedWorkflowIdLookup
+      override def onRecognized = recognizedWorkflowId
+    }
+
+    requestContext => {
+      val message = ValidateWorkflowIdAndExecute(possibleWorkflowId, requestContext, callback)
+      serviceRegistryActor ! message
+    }
+  }
 
   def statusRoute =
-    path("workflows" / Segment / Segment / "status") { (version, workflowId) =>
+    path("workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
       get {
-        Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) => handleMetadataRequest(GetStatus(w))
-          case Failure(ex) => invalidWorkflowId(workflowId)
+        withRecognizedWorkflowId(possibleWorkflowId) { id =>
+          handleMetadataRequest(GetStatus(id))
         }
       }
     }
@@ -100,12 +120,10 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     }
 
   def abortRoute =
-    path("workflows" / Segment / Segment / "abort") { (version, workflowId) =>
+    path("workflows" / Segment / Segment / "abort") { (version, possibleWorkflowId) =>
       post {
-        Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) =>
-            requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowAbort(w))
-          case Failure(ex) => invalidWorkflowId(workflowId)
+        withRecognizedWorkflowId(possibleWorkflowId) { id =>
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManager), CromwellApiHandler.ApiHandlerWorkflowAbort(id))
         }
       }
     }
@@ -141,25 +159,25 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
     }
 
   def workflowOutputsRoute =
-    path("workflows" / Segment / Segment / "outputs") { (version, workflowId) =>
+    path("workflows" / Segment / Segment / "outputs") { (version, possibleWorkflowId) =>
       get {
-        Try(WorkflowId.fromString(workflowId)) match {
-          case Success(w) => handleMetadataRequest(WorkflowOutputs(w))
-          case Failure(ex) => invalidWorkflowId(workflowId)
+        withRecognizedWorkflowId(possibleWorkflowId) { id =>
+          handleMetadataRequest(WorkflowOutputs(id))
         }
       }
     }
 
-  def workflowStdoutStderrRoute =
-    path("workflows" / Segment / Segment / "logs") { (version, workflowId) =>
-      Try(WorkflowId.fromString(workflowId)) match {
-        case Success(w) => handleMetadataRequest(GetLogs(w))
-        case Failure(_) => invalidWorkflowId(workflowId)
+  def workflowLogsRoute =
+    path("workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
+      get {
+        withRecognizedWorkflowId(possibleWorkflowId) { id =>
+          handleMetadataRequest(GetLogs(id))
+        }
       }
     }
 
   def metadataRoute =
-    path("workflows" / Segment / Segment / "metadata") { (version, workflowId) =>
+    path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
       parameterMultiMap { parameters =>
         // import scalaz_ & Scalaz._ add too many slow implicits, on top of the spray and json implicits
         import scalaz.syntax.std.list._
@@ -169,23 +187,17 @@ trait CromwellApiService extends HttpService with PerRequestCreator with Service
           case (Some(_), Some(_)) =>
             failBadRequest(new IllegalArgumentException("includeKey and excludeKey may not be specified together"))
           case _ =>
-            Try(WorkflowId.fromString(workflowId)) match {
-              case Success(workflowIdFromString) =>
-                version match {
-                  case _ => handleMetadataRequest(
-                        GetSingleWorkflowMetadataAction(workflowIdFromString, includeKeysOption, excludeKeysOption))
-                }
-              case Failure(_) => invalidWorkflowId(workflowId)
+            withRecognizedWorkflowId(possibleWorkflowId) { id =>
+              handleMetadataRequest(GetSingleWorkflowMetadataAction(id, includeKeysOption, excludeKeysOption))
             }
         }
       }
     }
 
   def timingRoute =
-    path("workflows" / Segment / Segment / "timing") { (version, workflowId) =>
-      Try(WorkflowId.fromString(workflowId)) match {
-        case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
-        case Failure(_) => invalidWorkflowId(workflowId)
+    path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
+      withRecognizedWorkflowId(possibleWorkflowId) { id =>
+        getFromResource("workflowTimings/workflowTimings.html")
       }
     }
 

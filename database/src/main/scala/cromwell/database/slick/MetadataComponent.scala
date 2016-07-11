@@ -82,6 +82,13 @@ trait MetadataComponent {
     } yield m
   )
 
+  val workflowExists = Compiled(
+    (workflowExecutionUuid: Rep[String]) => (for {
+      m <- metadata
+      if m.workflowExecutionUuid === workflowExecutionUuid
+    } yield m).exists
+  )
+
   val metadataAutoInc = metadata returning metadata.map(_.metadataId)
 
   def queryMetadataMatchingAnyWildcardKeys(workflowUuid: String, keys: NonEmptyList[String], requireEmptyJobKey: Boolean) = {

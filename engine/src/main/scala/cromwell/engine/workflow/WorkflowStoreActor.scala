@@ -1,11 +1,10 @@
 package cromwell.engine.workflow
 
 import java.time.OffsetDateTime
-import java.util.UUID
 
 import akka.actor.{Actor, Props}
 import akka.event.Logging
-import cromwell.core.{ErrorOr, WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowStore.WorkflowToStart
 import cromwell.engine.workflow.WorkflowStoreActor._
@@ -13,7 +12,6 @@ import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 import scalaz.NonEmptyList
 
 object WorkflowStore {

@@ -28,7 +28,8 @@ object Testing {
   lazy val PostMVPTag = "PostMVP"
   lazy val DontUsePostMVPTaggedTests = Tests.Argument("-l", PostMVPTag)
 
-  lazy val DontUseMainSpecTest = Tests.Argument("-l", "MainSpec")
+  lazy val MainSpecWdlRunnerTag = "MainSpecWdlRunner"
+  lazy val DontUseMainSpecWdlRunnerTests = Tests.Argument("-l", MainSpecWdlRunnerTag)
 
   lazy val TestReportArgs = Tests.Argument("-o", "-h", "target/test-reports")
 
@@ -52,7 +53,7 @@ object Testing {
     // `integration:test` - Run only integration tests
     testOptions in CromwellIntegrationTest := (testOptions in AllTests).value ++ Seq(UseCromwellIntegrationTaggedTests, UseGcsIntegrationTaggedTests),
     // `nointegration:test` - Run all tests, except integration
-    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests, DontUseMainSpecTest),
+    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests, DontUseMainSpecWdlRunnerTests),
     // `dbms:test` - Run database management tests.
     testOptions in DbmsTest := (testOptions in AllTests).value ++ Seq(UseDbmsTaggedTests)
   )

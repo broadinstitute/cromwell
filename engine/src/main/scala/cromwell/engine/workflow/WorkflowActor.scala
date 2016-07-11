@@ -191,12 +191,13 @@ class WorkflowActor(val workflowId: WorkflowId,
       // Add Workflow name and inputs to the metadata
       pushWfNameAndInputsToMetadataService(workflowDescriptor)
 
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor, serviceRegistryActor, initializationData), name = s"WorkflowExecutionActor-$workflowId")
-      val commandToSend = startMode match {
-        case StartNewWorkflow => StartExecutingWorkflowCommand
-        case RestartExistingWorkflow => RestartExecutingWorkflowCommand
+      val restarting = startMode match {
+        case StartNewWorkflow => false
+        case RestartExistingWorkflow => true
       }
-      executionActor ! commandToSend
+      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor, serviceRegistryActor, initializationData, restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
+      executionActor ! ExecuteWorkflowCommand
+
       goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, Option(reason.toList))

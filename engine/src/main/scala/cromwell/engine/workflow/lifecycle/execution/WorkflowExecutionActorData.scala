@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import java.nio.file.FileSystem
-
 import akka.actor.ActorRef
 import cromwell.core.ExecutionStatus._
 import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}

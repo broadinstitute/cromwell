@@ -1,4 +1,4 @@
-package cromwell.engine.workflow.lifecycle
+package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef}
@@ -8,8 +8,7 @@ import cromwell.backend.AllBackendInitializationData
 import cromwell.core.WorkflowId
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.StartExecutingWorkflowCommand
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.ExecuteWorkflowCommand
 import cromwell.services.ServiceRegistryActor
 import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfter
@@ -46,11 +45,11 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection))
-      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor, AllBackendInitializationData.empty), "WorkflowExecutionActor")
+      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor, AllBackendInitializationData.empty, restarting = false), "WorkflowExecutionActor")
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
         EventFilter.info(pattern = "Starting calls: hello.hello", occurrences = 3).intercept {
-          workflowExecutionActor ! StartExecutingWorkflowCommand
+          workflowExecutionActor ! ExecuteWorkflowCommand
         }
       }
 
@@ -76,14 +75,14 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
-      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry, AllBackendInitializationData.empty), "WorkflowExecutionActor")
+      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry, AllBackendInitializationData.empty, restarting = false), "WorkflowExecutionActor")
 
       val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
         EventFilter.info(pattern = scatterLog, occurrences = 1).intercept {
           EventFilter.info(pattern = "Starting calls: scatter0.outside_scatter:NA:1", occurrences = 1).intercept {
-            workflowExecutionActor ! StartExecutingWorkflowCommand
+            workflowExecutionActor ! ExecuteWorkflowCommand
           }
         }
       }

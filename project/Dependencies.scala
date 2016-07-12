@@ -20,7 +20,7 @@ object Dependencies {
 
   val sprayDependencies = List(
     "io.spray" %% "spray-can" % sprayV,
-    "io.spray" %% "spray-routing" % sprayV,
+    "io.spray" %% "spray-routing-shapeless2" % sprayV,
     "io.spray" %% "spray-client" % sprayV,
     "io.spray" %% "spray-http" % sprayV,
     "io.spray" %% "spray-json" % DowngradedSprayV,

@@ -10,7 +10,7 @@ import cromwell.util.EncryptionSpec
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
-class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll with WorkflowDescriptorBuilder {
+class RefreshTokenModeSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll with WorkflowDescriptorBuilder {
   val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
   override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
   val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
@@ -21,12 +21,10 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
   }
 
   val refreshToken = RefreshTokenMode(name = "bar", clientId = "secret-id", clientSecret = "secret-secret")
+  val mockToken = "token"
 
   "workflow options existence" should "be verified when localizing with Refresh Token" in {
     EncryptionSpec.assumeAes256Cbc()
-
-    val goodOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "token")).get
-    refreshToken.assertWorkflowOptions(goodOptions.toGoogleAuthOptions)
 
     val badOptions = WorkflowOptions.fromMap(Map("fresh_tokin" -> "broken")).get
     val noOptions = WorkflowOptions.fromMap(Map.empty[String, String]).get
@@ -36,5 +34,13 @@ class JesBackendSpec extends FlatSpec with Matchers with Mockito with BeforeAndA
         refreshToken.assertWorkflowOptions(option.toGoogleAuthOptions)
       } should have message s"Missing parameters in workflow options: refresh_token"
     }
+  }
+
+  "refresh token value" should "be decrypted when asserting workflow options" in {
+    EncryptionSpec.assumeAes256Cbc()
+
+    val goodOptions = WorkflowOptions.fromMap(Map("refresh_token" -> mockToken)).get
+    refreshToken.assertWorkflowOptions(goodOptions.toGoogleAuthOptions)
+    goodOptions.toGoogleAuthOptions.get("refresh_token").get shouldBe s"$mockToken"
   }
 }

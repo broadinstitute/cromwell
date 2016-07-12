@@ -1,0 +1,87 @@
+package cromwell.services.metadata
+
+import akka.actor.{Props, ActorLogging, Actor}
+import cromwell.core.{WorkflowSubmitted, WorkflowId}
+import cromwell.engine.db.DataAccess
+import cromwell.engine.db.DataAccess._
+import cromwell.services.MetadataQuery
+import cromwell.services.MetadataServiceActor._
+import cromwell.webservice.WorkflowQueryParameters
+import spray.http.Uri
+
+import scala.concurrent.Future
+import scala.util.{Try, Failure, Success}
+
+object ReadMetadataActor {
+  def props() = Props(new ReadMetadataActor()).withDispatcher("akka.dispatchers.api-dispatcher")
+}
+
+class ReadMetadataActor extends Actor with ActorLogging {
+
+  val dataAccess = DataAccess.globalDataAccess
+
+  implicit val ec = context.dispatcher
+
+  def receive = {
+    case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption) =>
+      queryAndRespond(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption))
+    case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _)) => queryAndRespond(query)
+    case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
+    case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
+    case WorkflowQuery(uri, parameters) => queryWorkflowsAndRespond(uri, parameters)
+    case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
+  }
+
+  private def queryAndRespond(query: MetadataQuery) = {
+    val sndr = sender()
+    dataAccess.queryMetadataEvents(query) onComplete {
+      case Success(m) => sndr ! MetadataLookupResponse(query, m)
+      case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
+    }
+  }
+
+  private def queryStatusAndRespond(id: WorkflowId): Unit = {
+    val sndr = sender()
+    dataAccess.getWorkflowStatus(id) onComplete {
+      case Success(Some(s)) => sndr ! StatusLookupResponse(id, s)
+      // There's a workflow existence check at the API layer.  If the request has made it this far in the system
+      // then the workflow exists but it must not have generated a status yet.
+      case Success(None) => sndr ! StatusLookupResponse(id, WorkflowSubmitted)
+      case Failure(t) => sndr ! StatusLookupFailed(id, t)
+    }
+  }
+
+  private def queryWorkflowsAndRespond(uri: Uri, rawParameters: Seq[(String, String)]): Unit = {
+    def queryWorkflows: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
+      for {
+      // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
+        parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))
+        response <- globalDataAccess.queryWorkflowSummaries(parameters)
+      } yield response
+    }
+
+    val sndr = sender()
+
+    queryWorkflows onComplete {
+      case Success((response, metadata)) => sndr ! WorkflowQuerySuccess(uri, response, metadata)
+      case Failure(t) => sndr ! WorkflowQueryFailure(t)
+    }
+  }
+
+  private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
+    val replyTo = sender()
+    dataAccess.queryWorkflowOutputs(id) onComplete {
+      case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
+      case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
+    }
+  }
+
+  private def queryLogsAndRespond(id: WorkflowId): Unit = {
+    val replyTo = sender()
+    dataAccess.queryLogs(id) onComplete {
+      case Success(s) => replyTo ! LogsResponse(id, s)
+      case Failure(t) => replyTo ! LogsFailure(id, t)
+    }
+  }
+
+}

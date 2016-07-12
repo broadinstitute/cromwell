@@ -78,7 +78,10 @@ class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec 
 class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActorSpec with TableDrivenPropertyChecks {
   val metadataFile = tempFile()
 
-  override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
+  override protected def afterAll() = {
+    metadataFile.delete(ignoreIOExceptions = true)
+    super.afterAll()
+  }
 
   private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Int, Int], workflowInputs: Int, workflowOutputs: Int) = {
     val testStart = OffsetDateTime.now
@@ -148,7 +151,10 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
 class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowRunnerActorSpec {
   val metadataFile = tempFile()
 
-  override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
+  override protected def afterAll() = {
+    metadataFile.delete(ignoreIOExceptions = true)
+    super.afterAll()
+  }
 
   "A SingleWorkflowRunnerActor" should {
     "fail to run a workflow and still output metadata" in {
@@ -198,7 +204,10 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
 class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerActorSpec {
   val metadataDir = tempDir()
 
-  override protected def afterAll() = metadataDir.delete(ignoreIOExceptions = true)
+  override protected def afterAll() = {
+    metadataDir.delete(ignoreIOExceptions = true)
+    super.afterAll()
+  }
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow requesting a bad metadata path" in {

@@ -89,8 +89,4 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
       system.stop(serviceRegistry)
     }
   }
-
-  override def afterAll(): Unit = {
-    system.shutdown()
-  }
 }

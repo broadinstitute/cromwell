@@ -101,7 +101,7 @@ class Main private[cromwell](managerSystem: WorkflowManagerSystem) {
   }
 
   def runServer(args: Seq[String]): Int = {
-    continueIf(args.isEmpty)(waitAndExit(CromwellServer.run(), CromwellServer))
+    continueIf(args.isEmpty)(waitAndExit(CromwellServer.run(managerSystem), managerSystem))
   }
 
   /* Begin .run() method and utilities */

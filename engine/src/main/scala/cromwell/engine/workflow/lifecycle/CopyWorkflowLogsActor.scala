@@ -20,7 +20,7 @@ object CopyWorkflowLogsActor {
     case _: IOException => Restart
   }
 
-  def props = Props(new CopyWorkflowLogsActor())
+  def props = Props(new CopyWorkflowLogsActor()).withDispatcher("akka.dispatchers.io-dispatcher")
 }
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"

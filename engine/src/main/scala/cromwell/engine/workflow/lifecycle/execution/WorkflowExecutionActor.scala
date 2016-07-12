@@ -134,8 +134,8 @@ object WorkflowExecutionActor {
             workflowDescriptor: EngineWorkflowDescriptor,
             serviceRegistryActor: ActorRef,
             initializationData: AllBackendInitializationData,
-            restarting: Boolean): Props = {
-    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, initializationData, restarting))
+    restarting: Boolean): Props = {
+    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, initializationData, restarting)).withDispatcher("akka.dispatchers.engine-dispatcher")
   }
 
   private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {

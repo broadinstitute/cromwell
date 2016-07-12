@@ -8,13 +8,14 @@ import cromwell.engine.backend.EnhancedWorkflowOptions._
 import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleConfiguration}
 import lenthall.config.ScalaConfig._
 
+import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 object EngineFilesystems {
 
   private val config = ConfigFactory.load
 
-  def filesystemsForWorkflow(workflowOptions: WorkflowOptions): List[FileSystem] = {
+  def filesystemsForWorkflow(workflowOptions: WorkflowOptions)(implicit ec: ExecutionContext): List[FileSystem] = {
     def gcsFileSystem: Option[GcsFileSystem] = {
       for {
         authModeString <- config.getStringOption("engine.filesystems.gcs.auth")

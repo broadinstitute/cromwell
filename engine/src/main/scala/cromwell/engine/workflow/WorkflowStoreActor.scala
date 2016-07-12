@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, Props}
+import akka.actor.{ActorLogging, Actor, Props}
 import akka.event.Logging
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.database.obj.WorkflowMetadataKeys
@@ -76,37 +76,35 @@ abstract class WorkflowStore {
   }
 
   def remove(id: WorkflowId): Boolean = {
-    val newWorkflowStore = workflowStore filterNot { _.id == id }
-
-    if (newWorkflowStore == workflowStore) {
-      false
-    } else {
-      workflowStore = newWorkflowStore
+    if (workflowStore.exists(_.id == id)) {
+      workflowStore = workflowStore filterNot { _.id == id }
       true
+    } else {
+      false
     }
   }
 }
 
-class WorkflowStoreActor extends WorkflowStore with Actor with ServiceRegistryClient {
+class WorkflowStoreActor extends WorkflowStore with Actor with ActorLogging with ServiceRegistryClient {
   /*
     WARNING: WorkflowStore is NOT thread safe. Unless that statement is no longer true do NOT use threads
     outside of the the single threaded Actor event loop
    */
-
-  private val logger = Logging(context.system, this)
 
   override def receive = {
     case SubmitWorkflow(source) =>
       val id = add(NonEmptyList(source)).head
       registerIdWithMetadataService(id)
       sender ! WorkflowSubmittedToStore(id)
+      log.info(s"Workflow $id submitted.")
     case BatchSubmitWorkflows(sources) =>
       val ids = add(sources)
       ids foreach registerIdWithMetadataService
       sender ! WorkflowsBatchSubmittedToStore(ids)
+      log.info(s"Workflows ${ids.list.mkString(", ")} submitted.")
     case FetchRunnableWorkflows(n) => sender ! newWorkflowMessage(n)
     case RemoveWorkflow(id) =>
-      if (!remove(id)) logger.info(s"Attempted to remove ID $id from the WorkflowStore but it already exists!")
+      if (!remove(id)) log.info(s"Attempted to remove ID $id from the WorkflowStore but it already exists!")
   }
 
   /**
@@ -146,5 +144,5 @@ object WorkflowStoreActor {
   case object NoNewWorkflowsToStart extends WorkflowStoreActorResponse
   case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreActorResponse
 
-  def props() = Props(new WorkflowStoreActor)
+  def props() = Props(new WorkflowStoreActor).withDispatcher("akka.dispatchers.api-dispatcher")
 }

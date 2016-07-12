@@ -39,7 +39,7 @@ object WorkflowFinalizationActor {
 
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore,
   outputStore: OutputStore, initializationData: AllBackendInitializationData): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore, initializationData))
+    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore, initializationData)).withDispatcher("akka.dispatchers.engine-dispatcher")
   }
 }
 

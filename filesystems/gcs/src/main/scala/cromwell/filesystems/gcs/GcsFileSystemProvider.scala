@@ -28,13 +28,11 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object GcsFileSystemProvider {
-  private val executionContext = scala.concurrent.ExecutionContext.global
-
-  def apply(storageClient: Storage) = {
-    new GcsFileSystemProvider(Success(storageClient), executionContext)
+  def apply(storageClient: Storage)(implicit ec: ExecutionContext) = {
+    new GcsFileSystemProvider(Success(storageClient), ec)
   }
 
-  val defaultProvider = new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), executionContext)
+  val defaultProvider = new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), scala.concurrent.ExecutionContext.global)
 
   object AcceptAllFilter extends DirectoryStream.Filter[Path] {
     override def accept(entry: Path): Boolean = true

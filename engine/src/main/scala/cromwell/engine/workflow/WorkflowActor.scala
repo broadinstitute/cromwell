@@ -138,7 +138,7 @@ object WorkflowActor {
             conf: Config,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef): Props = {
-    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter))
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter)).withDispatcher("akka.dispatchers.engine-dispatcher")
   }
 }
 

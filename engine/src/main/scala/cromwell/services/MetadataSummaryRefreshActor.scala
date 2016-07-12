@@ -7,7 +7,6 @@ import com.typesafe.config.ConfigFactory
 import cromwell.engine.db.DataAccess
 import cromwell.services.MetadataSummaryRefreshActor._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 
@@ -24,7 +23,7 @@ object MetadataSummaryRefreshActor {
   case object MetadataSummarySuccess
   case class MetadataSummaryFailure(t: Throwable)
 
-  def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp))
+  def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp)).withDispatcher("akka.dispatchers.api-dispatcher")
 
   trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState
@@ -39,6 +38,7 @@ class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]
 
   val dataAccess = DataAccess.globalDataAccess
   val config = ConfigFactory.load
+  implicit val ec = context.dispatcher
 
   startWith(WaitingForRequest, SummaryRefreshData(startMetadataId = 0L))
 

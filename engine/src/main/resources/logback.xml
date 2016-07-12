@@ -3,7 +3,7 @@
     <then>
       <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-          <pattern>%date %thread %-5level - %msg%n</pattern>
+          <pattern>%date %X{sourceThread} %-5level - %msg%n</pattern>
         </encoder>
       </appender>
     </then>

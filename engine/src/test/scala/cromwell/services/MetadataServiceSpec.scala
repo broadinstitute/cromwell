@@ -7,6 +7,7 @@ import akka.pattern.ask
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.services.MetadataServiceActor._
+import cromwell.services.metadata.EngineMetadataServiceActor
 
 class MetadataServiceSpec extends CromwellServicesSpec {
 

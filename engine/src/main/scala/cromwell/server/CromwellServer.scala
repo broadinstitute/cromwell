@@ -9,14 +9,20 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
-object CromwellServer extends WorkflowManagerSystem {
+object CromwellServer {
   implicit val timeout = Timeout(5.seconds)
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  val service = actorSystem.actorOf(CromwellApiServiceActor.props(workflowManagerActor, workflowStoreActor, conf), "cromwell-service")
-  val webserviceConf = conf.getConfig("webservice")
 
-  def run(): Future[Any] = {
+  def run(workflowManagerSystem: WorkflowManagerSystem): Future[Any] = {
+    implicit val actorSystem = workflowManagerSystem.actorSystem
+
+    val service = actorSystem.actorOf(CromwellApiServiceActor.props(
+      workflowManagerSystem.workflowManagerActor,
+      workflowManagerSystem.workflowStoreActor,
+      workflowManagerSystem.conf), "cromwell-service")
+    val webserviceConf = workflowManagerSystem.conf.getConfig("webservice")
+
     val interface = webserviceConf.getString("interface")
     val port = webserviceConf.getInt("port")
     val futureBind = service.bind(interface = interface, port = port)
@@ -33,7 +39,7 @@ object CromwellServer extends WorkflowManagerSystem {
          */
         Console.err.println(s"Binding failed interface $interface port $port")
         throwable.printStackTrace(Console.err)
-        shutdownActorSystem()
+        workflowManagerSystem.shutdownActorSystem()
     }
   }
 }

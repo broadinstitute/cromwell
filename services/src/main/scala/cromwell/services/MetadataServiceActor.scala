@@ -30,18 +30,19 @@ object MetadataServiceActor {
   trait MetadataServiceAction extends MetadataServiceMessage with ServiceRegistryMessage {
     def serviceName = MetadataServiceName
   }
+  trait ReadAction extends MetadataServiceAction
   object PutMetadataAction {
     def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
   }
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]])
-    extends MetadataServiceAction
-  case class GetMetadataQueryAction(key: MetadataQuery) extends MetadataServiceAction
-  case class GetStatus(workflowId: WorkflowId) extends MetadataServiceAction
-  case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends MetadataServiceAction
-  case class WorkflowOutputs(workflowId: WorkflowId) extends MetadataServiceAction
-  case class GetLogs(workflowId: WorkflowId) extends MetadataServiceAction
+    extends ReadAction
+  case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
+  case class GetStatus(workflowId: WorkflowId) extends ReadAction
+  case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends ReadAction
+  case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
+  case class GetLogs(workflowId: WorkflowId) extends ReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed: String => Route

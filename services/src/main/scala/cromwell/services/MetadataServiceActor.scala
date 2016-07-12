@@ -101,10 +101,3 @@ object MetadataServiceActor {
   }
 }
 
-object MetadataServiceActorImplicits {
-  import MetadataServiceActor._
-
-  implicit class EnhancedServiceRegistryActorForMetadata(val actor: ActorRef) extends AnyVal {
-    def pushWdlValueMetadata(metadataKey: MetadataKey, output: WdlValue): Unit = actor ! PutMetadataAction(wdlValueToMetadataEvents(metadataKey, output))
-  }
-}

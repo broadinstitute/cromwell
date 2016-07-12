@@ -2,21 +2,19 @@ package cromwell.backend.impl.jes
 
 import akka.actor.Props
 import com.google.api.services.genomics.Genomics
+import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
-import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import cromwell.filesystems.gcs.{ClientSecrets, GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
-import scala.util.Try
 
 object JesInitializationActor {
   val SupportedKeys = Set(CpuKey, MemoryKey, DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey, JesRuntimeAttributes.ZonesKey,
@@ -24,12 +22,6 @@ object JesInitializationActor {
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration): Props =
     Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration)).withDispatcher("akka.dispatchers.slow-actor-dispatcher")
-
-  implicit class GoogleAuthWorkflowOptions(val workflowOptions: WorkflowOptions) extends AnyVal {
-    def toGoogleAuthOptions: GoogleAuthMode.GoogleAuthOptions = new GoogleAuthOptions {
-      override def get(key: String): Try[String] = workflowOptions.get(key)
-    }
-  }
 }
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,

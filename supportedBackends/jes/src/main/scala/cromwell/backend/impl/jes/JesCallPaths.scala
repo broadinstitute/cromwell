@@ -13,7 +13,7 @@ object JesCallPaths {
 }
 
 class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor, jesConfiguration: JesConfiguration,
-                   val gcsFileSystem: GcsFileSystem) extends JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem) {
+                   gcsFileSystem: GcsFileSystem) extends JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem) {
 
   val CallPrefix = "call"
   val ShardPrefix = "shard"

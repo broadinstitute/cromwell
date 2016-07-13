@@ -4,7 +4,6 @@ import java.nio.file.Path
 
 import akka.actor.Props
 import better.files._
-import cromwell.backend.impl.jes.io._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
 import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
 import wdl4s.Call
@@ -27,7 +26,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 
-  private val workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, initializationData.backendFilesystem)
+  private val workflowPaths = initializationData.workflowPaths
 
   override def afterAll(): Future[Unit] = {
     for {
@@ -46,7 +45,6 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   }
 
   private def copyCallOutputs(): Future[Unit] = {
-    import cromwell.core.WorkflowOptions._
     /*
     NOTE: Only using one thread pool slot here to upload all the files for all the calls.
     Using the slow-actor-dispatcher defined in application.conf because this might take a while.
@@ -55,19 +53,17 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
     Measure and optimize as necessary. Will likely need retry code at some level as well.
      */
-    Future(workflowDescriptor.getWorkflowOption(FinalCallLogsDir) foreach copyCallOutputs)(context.system.dispatcher)
+    Future(workflowPaths.finalCallLogsPath foreach copyCallOutputs)(context.system.dispatcher)
   }
 
-  private def copyCallOutputs(callLogsDir: String): Unit = {
-    copyLogs(toJesPath(callLogsDir), logPaths)
+  private def copyCallOutputs(callLogsPath: Path): Unit = {
+    copyLogs(callLogsPath, logPaths)
   }
-
-  private def toJesPath(value: String): Path = initializationData.backendFilesystem.getPath(value)
 
   private lazy val logPaths: Seq[Path] = {
     val allCallPaths = executionStore.store.toSeq collect {
       case (backendJobDescriptorKey: BackendJobDescriptorKey, _) =>
-        JesCallPaths(backendJobDescriptorKey, workflowDescriptor, jesConfiguration, initializationData.backendFilesystem)
+        initializationData.workflowPaths.toJesCallPaths(backendJobDescriptorKey)
     }
 
     allCallPaths flatMap { callPaths =>

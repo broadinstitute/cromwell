@@ -33,7 +33,7 @@ class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfigu
     val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse workflowRootPath.toString
 
     val storage = jesConfiguration.jesAttributes.genomicsAuth.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
-    val fileSystemWithGenomicsAuth = GcsFileSystem(GcsFileSystemProvider(storage))
+    val fileSystemWithGenomicsAuth = GcsFileSystem(GcsFileSystemProvider(storage)(gcsFileSystemWithUserAuth.gcsFileSystemProvider.executionContext))
 
     fileSystemWithGenomicsAuth.getPath(bucket).resolve(s"${workflowDescriptor.id}_auth.json")
   }

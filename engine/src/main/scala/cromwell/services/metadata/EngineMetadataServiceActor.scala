@@ -37,6 +37,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   val summaryActor = context.actorOf(MetadataSummaryRefreshActor.props(MetadataSummaryTimestampMinimum), "metadata-summary-actor")
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
   val writeActor = context.actorOf(WriteMetadataActor.props(), "write-metadata-actor")
+  implicit val ec = context.dispatcher
 
   self ! RefreshSummary
 
@@ -69,15 +70,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   }
 
   def receive = {
-    case action@PutMetadataAction(events) =>
-      val sndr = sender()
-      dataAccess.addMetadataEvents(events) onComplete {
-        case Success(_) => sndr ! MetadataPutAcknowledgement(action)
-        case Failure(t) =>
-          val msg = MetadataPutFailed(action, t)
-          log.error(t, "Sending {} failure message {}", sndr, msg)
-          sndr ! msg
-      }
+    case action@PutMetadataAction(events) => writeActor forward action
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor ! SummarizeMetadata

@@ -29,7 +29,7 @@ object GcsFileSystem {
 /**
   * Implements the java.nio.FileSystem interface for GoogleCloudStorage.
   */
-class GcsFileSystem private(gcsFileSystemProvider: GcsFileSystemProvider) extends FileSystem {
+class GcsFileSystem private(val gcsFileSystemProvider: GcsFileSystemProvider) extends FileSystem {
 
   import GcsFileSystem._
 

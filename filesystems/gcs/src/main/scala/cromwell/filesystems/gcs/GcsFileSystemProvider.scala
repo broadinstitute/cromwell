@@ -91,7 +91,7 @@ object ExecutionContextExecutorServiceBridge {
   * @param storageClient Google API Storage object
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
-class GcsFileSystemProvider private (storageClient: Try[Storage], executionContext: ExecutionContext) extends FileSystemProvider {
+class GcsFileSystemProvider private (storageClient: Try[Storage], val executionContext: ExecutionContext) extends FileSystemProvider {
   import GcsFileSystemProvider._
 
   private[this] lazy val config = ConfigFactory.load()

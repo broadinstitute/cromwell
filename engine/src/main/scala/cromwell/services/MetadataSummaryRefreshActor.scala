@@ -23,7 +23,7 @@ object MetadataSummaryRefreshActor {
   case object MetadataSummarySuccess
   case class MetadataSummaryFailure(t: Throwable)
 
-  def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp)).withDispatcher("akka.dispatchers.api-dispatcher")
+  def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp))
 
   trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState

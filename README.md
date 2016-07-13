@@ -167,4 +167,4 @@ $ java -jar wdltool.jar highlight test.wdl html
 
 # Getting Started with WDL
 
-For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl/tree/develop#getting-started-with-wdl)
+For documentation and many examples on how to use WDL see [the WDL website](https://software.broadinstitute.org/wdl/).

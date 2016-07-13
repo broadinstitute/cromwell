@@ -6,7 +6,7 @@ import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, Backen
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
-import cromwell.jobstore._
+import cromwell.jobstore.{Pending => _, _}
 
 object EngineJobExecutionActor {
   /** States */
@@ -53,11 +53,11 @@ class EngineJobExecutionActor(executionData: WorkflowExecutionActorData,
     case Event(JobComplete(jobKey, jobResult), _) =>
       jobResult match {
         case JobResultSuccess(returnCode, jobOutputs) =>
-          context.parent ! new SucceededResponse(jobKey, returnCode, jobOutputs)
+          context.parent ! SucceededResponse(jobKey, returnCode, jobOutputs)
           context stop self
           stay()
         case JobResultFailure(returnCode, reason) =>
-          context.parent ! new FailedNonRetryableResponse(jobKey, reason, returnCode)
+          context.parent ! FailedNonRetryableResponse(jobKey, reason, returnCode)
           context stop self
           stay()
       }

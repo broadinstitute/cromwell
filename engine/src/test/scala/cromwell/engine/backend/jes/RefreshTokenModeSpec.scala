@@ -1,24 +1,13 @@
 package cromwell.engine.backend.jes
 
-import cromwell.CromwellTestkitSpec
-import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
-import cromwell.core.WorkflowOptions
+import cromwell.backend.BackendSpec._
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.engine.backend.EnhancedWorkflowOptions._
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.filesystems.gcs._
 import cromwell.util.EncryptionSpec
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import org.specs2.mock.Mockito
+import org.scalatest.FlatSpecLike
 
-class RefreshTokenModeSpec extends FlatSpec with Matchers with Mockito with BeforeAndAfterAll with WorkflowDescriptorBuilder {
-  val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
-  override implicit val actorSystem = testWorkflowManagerSystem.actorSystem
-  val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
-
-  override protected def afterAll() = {
-    testWorkflowManagerSystem.shutdownTestActorSystem()
-    super.afterAll()
-  }
+class RefreshTokenModeSpec extends TestKitSuite("RefreshTokenModeSpec") with FlatSpecLike {
 
   val refreshToken = RefreshTokenMode(name = "bar", clientId = "secret-id", clientSecret = "secret-secret")
   val mockToken = "token"
@@ -41,6 +30,6 @@ class RefreshTokenModeSpec extends FlatSpec with Matchers with Mockito with Befo
 
     val goodOptions = WorkflowOptions.fromMap(Map("refresh_token" -> mockToken)).get
     refreshToken.assertWorkflowOptions(goodOptions.toGoogleAuthOptions)
-    goodOptions.toGoogleAuthOptions.get("refresh_token").get shouldBe s"$mockToken"
+    goodOptions.toGoogleAuthOptions.get("refresh_token").get shouldBe mockToken
   }
 }

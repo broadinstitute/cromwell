@@ -108,7 +108,6 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       val call = callSeq.head.asJsObject.fields
       val inputs = call.get("inputs").toFields
       inputs should have size numInputs
-      println(s"Inputs be $inputs")
       call.get("executionStatus").toStringValue should be("Done")
       call.get("backend").toStringValue should be("Local")
       call.get("backendStatus") should be(empty)

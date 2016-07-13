@@ -1,18 +1,18 @@
 package cromwell.webservice
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
+import akka.actor.{Actor, Props}
 import akka.pattern.ask
-import akka.actor.{ActorSystem, Actor, Props}
-import akka.testkit.{TestKit, ImplicitSender}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellSpec.PostMVP
-import cromwell.core.WorkflowId
+import cromwell.core._
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
-import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, WorkflowNotFoundException}
-import cromwell.engine.workflow.WorkflowStoreActor.{SubmitWorkflow, BatchSubmitWorkflows, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
+import cromwell.engine.workflow.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
@@ -44,10 +44,10 @@ class MockWorkflowStoreActor extends Actor {
 }
 
 object MockWorkflowManagerActor {
-  val runningWorkflowId = WorkflowId(UUID.randomUUID())
-  val unknownId = WorkflowId(UUID.randomUUID())
-  val submittedScatterWorkflowId = WorkflowId(UUID.randomUUID())
-  val abortedWorkflowId = WorkflowId(UUID.randomUUID())
+  val runningWorkflowId = WorkflowId.randomId()
+  val unknownId = WorkflowId.randomId()
+  val submittedScatterWorkflowId = WorkflowId.randomId()
+  val abortedWorkflowId = WorkflowId.randomId()
 }
 
 class MockWorkflowManagerActor extends Actor {
@@ -57,8 +57,6 @@ class MockWorkflowManagerActor extends Actor {
         case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerAbortSuccess(id)
         case MockWorkflowManagerActor.abortedWorkflowId =>
           WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
-        case x =>
-          WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
       }
       sender ! message
   }
@@ -80,7 +78,6 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   override def actorRefFactory = system
   val summaryActor = system.actorOf(MetadataSummaryRefreshActor.props(None), "metadata-summary-actor")
-
 
   override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
     override implicit  val actorSystem = context.system
@@ -158,13 +155,17 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       }
   }
 
+  private def publishStatusAndSubmission(workflowId: WorkflowId, state: WorkflowState): Unit = {
+    val events = Seq(
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now())),
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(state))
+    )
+    publishMetadata(events)
+  }
+
   it should "return 200 for get of a known workflow id" in {
     val workflowId = WorkflowId.randomId()
-    val events = Seq(
-      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue("Submitted"))
-    )
-
-    publishMetadata(events)
+    publishStatusAndSubmission(workflowId, WorkflowSubmitted)
 
     Get(s"/workflows/$version/$workflowId/status") ~>
       statusRoute ~>
@@ -186,8 +187,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
         assertResult(
           s"""{
-              |  "status": "error",
-              |  "message": "Couldn't abort ${MockWorkflowManagerActor.unknownId} because no workflow with that ID is in progress"
+              |  "status": "fail",
+              |  "message": "Unrecognized workflow ID: ${MockWorkflowManagerActor.unknownId}"
               |}""".stripMargin
         ) {
           responseAs[String]
@@ -214,6 +215,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 403 for abort of a workflow in a terminal state" in {
+    publishStatusAndSubmission(MockWorkflowManagerActor.abortedWorkflowId, WorkflowAborted)
+
     Post(s"/workflows/$version/${MockWorkflowManagerActor.abortedWorkflowId}/abort") ~>
     abortRoute ~>
     check {
@@ -232,6 +235,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 200 for abort of a known workflow id" in {
+    publishStatusAndSubmission(MockWorkflowManagerActor.runningWorkflowId, WorkflowRunning)
+
     Post(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/abort") ~>
       abortRoute ~>
       check {
@@ -335,7 +340,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   behavior of "REST API /logs endpoint"
 
-  it should "return 200 with paths to stdout/stderr" in {
+  it should "return 200 with paths to stdout/stderr/backend log" in {
 
     val workflowId = WorkflowId.randomId()
     val jobKey = Option(MetadataJobKey("mycall", None, 1))
@@ -348,7 +353,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     publishMetadata(events)
 
     Get(s"/workflows/$version/$workflowId/logs") ~>
-      workflowStdoutStderrRoute ~>
+      workflowLogsRoute ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
@@ -363,7 +368,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return 404 with logs on unknown workflow" in {
     Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/logs") ~>
-      workflowStdoutStderrRoute ~>
+      workflowLogsRoute ~>
       check {
         assertResult(StatusCodes.NotFound) {
           status
@@ -397,6 +402,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return with included metadata from the metadata route" in {
     val workflowId = WorkflowId.randomId()
+
     val events = Seq(
       MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a")),
       MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b")),
@@ -421,6 +427,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return with excluded metadata from the metadata route" in {
     val workflowId = WorkflowId.randomId()
+
     val events = Seq(
       MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a")),
       MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b")),
@@ -445,6 +452,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return an error when included and excluded metadata requested from the metadata route" in {
     val workflowId = WorkflowId.randomId()
+    publishStatusAndSubmission(workflowId, WorkflowSucceeded)
 
     Get(s"/workflows/$version/$workflowId/metadata?includeKey=testKey1&excludeKey=testKey2") ~>
       metadataRoute ~>
@@ -466,6 +474,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   behavior of "REST API /timing endpoint"
 
   it should "return 200 with an HTML document for the timings route" in {
+    publishStatusAndSubmission(MockWorkflowStoreActor.submittedWorkflowId, WorkflowSucceeded)
+
     Get(s"/workflows/$version/${MockWorkflowStoreActor.submittedWorkflowId}/timing") ~>
       timingRoute ~>
       check {
@@ -507,7 +517,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     publishMetadata(events)
     forceSummary()
 
-    Get(s"/workflows/$version/query?status=Succeeded&id=${workflowId}") ~>
+    Get(s"/workflows/$version/query?status=Succeeded&id=$workflowId") ~>
       queryRoute ~>
       check {
         status should be(StatusCodes.OK)
@@ -527,7 +537,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     publishMetadata(events)
     forceSummary()
 
-    Get(s"/workflows/$version/query?status=Succeeded&id=${workflowId}&page=1&pagesize=5") ~>
+    Get(s"/workflows/$version/query?status=Succeeded&id=$workflowId&page=1&pagesize=5") ~>
       queryRoute ~>
       check {
         status should be(StatusCodes.OK)

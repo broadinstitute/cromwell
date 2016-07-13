@@ -70,7 +70,6 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
   val log = Logging(context.system, classOf[CromwellApiHandler])
   val conf = ConfigFactory.load()
 
-  def workflowNotFound(id: WorkflowId) = RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Workflow '$id' not found.")))
   def callNotFound(callFqn: String, id: WorkflowId) = {
     RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Call $callFqn not found for workflow '$id'.")))
   }

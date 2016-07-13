@@ -477,7 +477,6 @@ abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestW
   def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
     val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
       case StatusLookupResponse(_, state) => state
-      case StatusLookupNotFound(_) => WorkflowSubmitted
       case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
     }
     Await.result(statusResponse, Duration.Inf)

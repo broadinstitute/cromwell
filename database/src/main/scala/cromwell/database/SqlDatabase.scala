@@ -1,6 +1,7 @@
 package cromwell.database
 
 import java.sql.{Clob, SQLTransientException, Timestamp}
+import java.util.UUID
 
 import cromwell.database.obj._
 
@@ -206,4 +207,8 @@ trait SqlDatabase extends AutoCloseable {
 
   protected def getStatus(workflowUuid: String)
                          (implicit ec: ExecutionContext): Future[Option[String]]
+
+  protected def workflowExists(possibleWorkflowId: String)
+                              (implicit ec: ExecutionContext): Future[Boolean]
+
 }

@@ -1,5 +1,7 @@
 package cromwell.webservice
 
+import java.util.UUID
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{OneForOneStrategy, _}
 import cromwell.webservice.PerRequest._
@@ -106,14 +108,11 @@ trait PerRequestCreator {
                  props: Props, message: AnyRef,
                  timeout: Duration = 1 minutes,
                  name: String = PerRequestCreator.endpointActorName) = {
-    actorRefFactory.actorOf(Props(new WithProps(r, props, message, timeout, name)), name)
+    actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)), name)
   }
 }
 
 object PerRequestCreator {
-  /*
-    This is yucky. For lack of a better idea on how to name the individual endpoint actors I've shamelessly stolen
-    what Agora is doing. I believe the Monsanto library will clean this up but we're not using it yet
-   */
-  def endpointActorName = "Endpoint-" + java.lang.Thread.currentThread.getStackTrace()(1).getMethodName + System.nanoTime()
+  // This scheme was changed away from the Agora System.nanoTime approach due to actor naming collisions (!)
+  def endpointActorName = List("Endpoint", java.lang.Thread.currentThread.getStackTrace()(1).getMethodName, UUID.randomUUID()).mkString("-")
 }

@@ -20,9 +20,9 @@ object HtCondorRuntimeAttributes {
   private val MemoryDefaultValue = "0.512 GB"
   private val DisksDefaultValue = "1.024 GB"
 
-  private val DockerWorkingDirKey = "dockerWorkingDir"
-  private val DockerOutputDirKey = "dockerOutputDir"
-  private val DiskKey = "disk"
+  val DockerWorkingDirKey = "dockerWorkingDir"
+  val DockerOutputDirKey = "dockerOutputDir"
+  val DiskKey = "disk"
 
   val staticDefaults = Map(
     FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),

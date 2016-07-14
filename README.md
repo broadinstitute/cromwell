@@ -317,8 +317,8 @@ Example `src/main/scala/wdl4s/examples/ex8.scala`
 
 ```scala
 import java.io.File
-import wdlscala.AstTools
-import wdlscala.AstTools.EnhancedAstNode
+import wdl4s.AstTools
+import wdl4s.AstTools.EnhancedAstNode
 
 /* Create syntax tree from contents of file */
 val ast = AstTools.getAst(new File(args(0)))

@@ -34,7 +34,9 @@ lazy val localBackend = (project in backendRoot / "local")
   .settings(localBackendSettings:_*)
   .withTestSettings
   .dependsOn(backend)
+  .dependsOn(gcsfilesystem)
   .dependsOn(backend % "test->test")
+  .dependsOn(gcsfilesystem % "test->test")
 
 lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .settings(htCondorBackendSettings:_*)

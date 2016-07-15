@@ -16,10 +16,11 @@ case class LocalBackendLifecycleActorFactory(configurationDescriptor: BackendCon
 
   private val poolSize = configurationDescriptor.backendConfig.getIntOr("pool-size", 10)
   private val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(poolSize))
+  private val localConfiguration = new LocalConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call]): Option[Props] = {
-    Option(LocalInitializationActor.props(workflowDescriptor, calls, configurationDescriptor).withDispatcher("akka.dispatchers.backend-dispatcher"))
+    Option(LocalInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, localConfiguration)).withDispatcher("akka.dispatchers.backend-dispatcher"))
   }
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {

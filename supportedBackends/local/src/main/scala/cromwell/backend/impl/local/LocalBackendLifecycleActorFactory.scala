@@ -13,7 +13,6 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
-
 object LocalBackendLifecycleActorFactory {
   implicit class Localify(val genericInitializationData: Option[BackendInitializationData]) {
     def toLocal = genericInitializationData collectFirst { case d: LocalBackendInitializationData => d } get

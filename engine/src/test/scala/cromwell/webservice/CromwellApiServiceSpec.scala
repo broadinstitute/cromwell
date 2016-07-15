@@ -15,7 +15,8 @@ import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
 import cromwell.engine.workflow.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services.metadata.MetadataSummaryRefreshActor
+import MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._

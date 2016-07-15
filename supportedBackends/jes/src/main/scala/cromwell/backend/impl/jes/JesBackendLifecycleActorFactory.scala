@@ -24,11 +24,11 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call]): Option[Props] = {
-    Option(JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration))
+    Option(JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration).withDispatcher("akka.dispatchers.backend-dispatcher"))
   }
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
-    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes)
+    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes).withDispatcher("akka.dispatchers.backend-dispatcher")
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -36,7 +36,7 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
                                               executionStore: ExecutionStore,
                                               outputStore: OutputStore,
                                               initializationData: Option[BackendInitializationData]) = {
-    Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes))
+    Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher("akka.dispatchers.backend-dispatcher"))
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

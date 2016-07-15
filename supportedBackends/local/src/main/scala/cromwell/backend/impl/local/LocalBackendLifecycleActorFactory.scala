@@ -19,11 +19,11 @@ case class LocalBackendLifecycleActorFactory(configurationDescriptor: BackendCon
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call]): Option[Props] = {
-    Option(LocalInitializationActor.props(workflowDescriptor, calls, configurationDescriptor))
+    Option(LocalInitializationActor.props(workflowDescriptor, calls, configurationDescriptor).withDispatcher("akka.dispatchers.backend-dispatcher"))
   }
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
-    LocalJobExecutionActor.props(jobDescriptor, configurationDescriptor, ec)
+    LocalJobExecutionActor.props(jobDescriptor, configurationDescriptor, ec).withDispatcher("akka.dispatchers.backend-dispatcher")
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

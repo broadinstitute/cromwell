@@ -8,8 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.engine.db.DataAccess
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.MetadataSummaryRefreshActor
-import cromwell.services.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
+import MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.EngineMetadataServiceActor._
 import lenthall.config.ScalaConfig._
 
@@ -41,13 +40,6 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   self ! RefreshSummary
 
-  // Status lookups are eventually consistent, so it's possible a db status lookup may fail for a recently submitted
-  // workflow ID.  This cache records workflow IDs for which metadata has recently flowed through this actor.  If a db
-  // status lookup fails, this actor consults the cache to see if the queried ID is known.  If the queried ID is known a
-  // status query will return `Submitted`, otherwise the status lookup will fail.  This cache is only consulted if the
-  // db status lookup fails.
-  private var workflowExistenceCache: Map[WorkflowId, Int] = Map.empty
-
   private def scheduleSummary = context.system.scheduler.scheduleOnce(MetadataSummaryRefreshInterval, self, RefreshSummary)(context.dispatcher)
 
   private def validateWorkflowId(validation: ValidateWorkflowIdAndExecute): Unit = {
@@ -74,10 +66,7 @@ case class EngineMetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor ! SummarizeMetadata
-    case MetadataSummarySuccess =>
-      // Remove expired cache entries, decrement cache counts for remaining entries.
-      workflowExistenceCache = workflowExistenceCache collect { case (k, v) if v > 1 => k -> (v - 1) }
-      scheduleSummary
+    case MetadataSummarySuccess => scheduleSummary
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")
       scheduleSummary

@@ -26,6 +26,6 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
-      new WorkflowPaths(workflowDescriptor, backendConfig, initializationData).executionRoot
+      new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot
   }
 }

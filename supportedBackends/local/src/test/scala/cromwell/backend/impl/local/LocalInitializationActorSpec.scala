@@ -40,7 +40,7 @@ class LocalInitializationActorSpec extends TestKitSuite("LocalInitializationActo
     """.stripMargin
 
   private def getLocalBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(LocalInitializationActor.props(workflowDescriptor, calls, conf))
+    system.actorOf(LocalInitializationActor.props(workflowDescriptor, calls, conf, new LocalConfiguration(conf)))
   }
 
   "LocalInitializationActor" should {

@@ -1,11 +1,11 @@
 package cromwell.backend.impl.local
 
-import java.nio.file.{FileSystems, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
-import cromwell.backend.io.{JobPaths, SharedFileSystem, SharedFsExpressionFunctions}
+import cromwell.backend.io.{SharedFileSystem, SharedFsExpressionFunctions}
 import cromwell.services.CallMetadataKeys._
 import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services._
@@ -22,19 +22,18 @@ object LocalJobExecutionActor {
   val SIGTERM = 143
   val SIGINT = 130
   val logger = LoggerFactory.getLogger("LocalBackend")
-  // TODO Support GCS ?
-  val fileSystems = List(FileSystems.getDefault)
 
   case class Command(argv: Seq[String]) {
     override def toString = argv.map(s => "\"" + s + "\"").mkString(" ")
   }
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, ec: ExecutionContext): Props =
-    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, ec))
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, initializationData: LocalBackendInitializationData, ec: ExecutionContext): Props =
+    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, initializationData, ec))
 }
 
 class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                              override val configurationDescriptor: BackendConfigurationDescriptor,
+                             initializationData: LocalBackendInitializationData,
                              override implicit val ec: ExecutionContext)
   extends BackendJobExecutionActor with SharedFileSystem with ServiceRegistryClient {
 
@@ -53,12 +52,12 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
     MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
   }
-  val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key, None)
+  val jobPaths = initializationData.workflowPaths.toJobPaths(jobDescriptor.key)
   val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFsConfig = fileSystemsConfig.getConfig("local")
 
   val call = jobDescriptor.key.call
-  val callEngineFunction =  SharedFsExpressionFunctions(jobPaths, fileSystems)
+  val callEngineFunction =  SharedFsExpressionFunctions(jobPaths, initializationData.workflowPaths.fileSystems)
 
   val lookup = jobDescriptor.inputs.apply _
 
@@ -94,7 +93,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     }
     val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else identity
 
-    localizeInputs(jobPaths.callRoot, runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+    localizeInputs(jobPaths.callRoot, runsOnDocker, initializationData.workflowPaths.fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }
   }

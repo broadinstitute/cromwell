@@ -42,10 +42,10 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
       }
     }
 
-    List(Option(FileSystems.getDefault), maybeGcs).flatten
+    List(maybeGcs, Option(FileSystems.getDefault)).flatten
   }
 
-  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, None)
+  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, fileSystems)
 
   /**
     * A call which happens before anything else runs
@@ -53,7 +53,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     publishWorkflowRoot(workflowPaths.workflowRoot.toString)
     workflowPaths.workflowRoot.createDirectories()
-    Future.successful(None)
+    Future.successful(Option(LocalBackendInitializationData(workflowPaths)))
   }
 
   /**

@@ -33,7 +33,7 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
     val call: Call = wd.workflowNamespace.workflow.calls.head
     val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    val jobPaths = new JobPaths(wd, backendConfig, jobKey, None)
+    val jobPaths = new JobPaths(wd, backendConfig, jobKey)
     val id = wd.id
     jobPaths.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello"
@@ -55,17 +55,17 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
       "/root/dock/path"
 
     val jobKeySharded = new BackendJobDescriptorKey(call, Option(0), 1)
-    val jobPathsSharded = new JobPaths(wd, backendConfig, jobKeySharded, None)
+    val jobPathsSharded = new JobPaths(wd, backendConfig, jobKeySharded)
     jobPathsSharded.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello/shard-0"
 
     val jobKeyAttempt = new BackendJobDescriptorKey(call, None, 2)
-    val jobPathsAttempt = new JobPaths(wd, backendConfig, jobKeyAttempt, None)
+    val jobPathsAttempt = new JobPaths(wd, backendConfig, jobKeyAttempt)
     jobPathsAttempt.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello/attempt-2"
 
     val jobKeyShardedAttempt = new BackendJobDescriptorKey(call, Option(0), 2)
-    val jobPathsShardedAttempt = new JobPaths(wd, backendConfig, jobKeyShardedAttempt, None)
+    val jobPathsShardedAttempt = new JobPaths(wd, backendConfig, jobKeyShardedAttempt)
     jobPathsShardedAttempt.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello/shard-0/attempt-2"
   }

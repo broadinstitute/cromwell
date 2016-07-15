@@ -100,6 +100,12 @@ object CromwellTestkitSpec {
       |      executor = "fork-join-executor"
       |    }
       |
+      |    # A dispatcher used by supported backend actors
+      |    backend-dispatcher {
+      |      type = Dispatcher
+      |      executor = "fork-join-executor"
+      |    }
+      |
       |    # Note that without further configuration, backend actors run on the default dispatcher
       |  }
       |  test {

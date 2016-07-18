@@ -401,9 +401,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val jesOutputs: Seq[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
     instantiateCommand match {
-      case Success(command) =>
-        tellMetadata("instantiatedCommand", command)
-        runWithJes(command, jesInputs, jesOutputs, /* runIdForResumption, */ monitoringScript.isDefined)
+      case Success(command) => runWithJes(command, jesInputs, jesOutputs, monitoringScript.isDefined)
       case Failure(ex: SocketTimeoutException) => Future.successful(FailedNonRetryableExecutionHandle(ex))
       case Failure(ex) => Future.successful(FailedNonRetryableExecutionHandle(ex))
     }

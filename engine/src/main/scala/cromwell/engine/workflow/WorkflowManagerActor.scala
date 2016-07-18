@@ -43,7 +43,7 @@ object WorkflowManagerActor {
     */
   sealed trait WorkflowManagerActorResponse extends WorkflowManagerActorMessage
 
-  def props(workflowStore: ActorRef): Props = Props(new WorkflowManagerActor(workflowStore))
+  def props(workflowStore: ActorRef): Props = Props(new WorkflowManagerActor(workflowStore)).withDispatcher("akka.dispatchers.engine-dispatcher")
 
   /**
     * States
@@ -90,7 +90,7 @@ class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
   private val donePromise = Promise[Unit]()
 
   private val workflowLogCopyRouter: ActorRef = {
-    context.actorOf(FromConfig.withSupervisorStrategy(CopyWorkflowLogsActor.strategy).props(Props[CopyWorkflowLogsActor].withDispatcher("akka.dispatchers.slow-actor-dispatcher")), "WorkflowLogCopyRouter")
+    context.actorOf(FromConfig.withSupervisorStrategy(CopyWorkflowLogsActor.strategy).props(Props[CopyWorkflowLogsActor].withDispatcher("akka.dispatchers.io-dispatcher")), "WorkflowLogCopyRouter")
   }
 
   override def preStart() {

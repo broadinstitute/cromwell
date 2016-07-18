@@ -28,13 +28,11 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object GcsFileSystemProvider {
-  private val executionContext = scala.concurrent.ExecutionContext.global
-
-  def apply(storageClient: Storage) = {
-    new GcsFileSystemProvider(Success(storageClient), executionContext)
+  def apply(storageClient: Storage)(implicit ec: ExecutionContext) = {
+    new GcsFileSystemProvider(Success(storageClient), ec)
   }
 
-  val defaultProvider = new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), executionContext)
+  val defaultProvider = new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), scala.concurrent.ExecutionContext.global)
 
   object AcceptAllFilter extends DirectoryStream.Filter[Path] {
     override def accept(entry: Path): Boolean = true
@@ -93,7 +91,7 @@ object ExecutionContextExecutorServiceBridge {
   * @param storageClient Google API Storage object
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
-class GcsFileSystemProvider private (storageClient: Try[Storage], executionContext: ExecutionContext) extends FileSystemProvider {
+class GcsFileSystemProvider private (storageClient: Try[Storage], val executionContext: ExecutionContext) extends FileSystemProvider {
   import GcsFileSystemProvider._
 
   private[this] lazy val config = ConfigFactory.load()

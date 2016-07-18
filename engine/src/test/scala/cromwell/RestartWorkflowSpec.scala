@@ -25,11 +25,6 @@ class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBui
     workflowOptionsJson="{}"
   )
 
-  override protected def afterAll() = {
-    actorSystem.shutdown()
-    super.afterAll()
-  }
-
   "RestartWorkflowSpec" should {
     "restart a call in Running state" taggedAs PostMVP ignore {
       val id = WorkflowId.randomId()

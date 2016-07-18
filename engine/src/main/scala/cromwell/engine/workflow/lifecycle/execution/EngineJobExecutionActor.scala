@@ -24,7 +24,7 @@ object EngineJobExecutionActor {
 
   def props(executionData: WorkflowExecutionActorData, factory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData], restarting: Boolean) = {
-    Props(new EngineJobExecutionActor(executionData, factory, initializationData, restarting))
+    Props(new EngineJobExecutionActor(executionData, factory, initializationData, restarting)).withDispatcher("akka.dispatchers.engine-dispatcher")
   }
 }
 

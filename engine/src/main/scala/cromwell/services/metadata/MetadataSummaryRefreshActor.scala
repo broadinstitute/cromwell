@@ -1,13 +1,12 @@
-package cromwell.services
+package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
 import akka.actor.{LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.db.DataAccess
-import cromwell.services.MetadataSummaryRefreshActor._
+import cromwell.services.metadata.MetadataSummaryRefreshActor._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 
@@ -39,6 +38,7 @@ class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]
 
   val dataAccess = DataAccess.globalDataAccess
   val config = ConfigFactory.load
+  implicit val ec = context.dispatcher
 
   startWith(WaitingForRequest, SummaryRefreshData(startMetadataId = 0L))
 

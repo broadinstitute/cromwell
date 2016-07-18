@@ -12,7 +12,7 @@ import cromwell.services._
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.util.TryUtil
-import wdl4s.values.{WdlMap, WdlArray, WdlFile, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -29,12 +29,13 @@ object LocalJobExecutionActor {
     override def toString = argv.map(s => "\"" + s + "\"").mkString(" ")
   }
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor))
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, ec: ExecutionContext): Props =
+    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, ec))
 }
 
 class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                             override val configurationDescriptor: BackendConfigurationDescriptor)
+                             override val configurationDescriptor: BackendConfigurationDescriptor,
+                             override implicit val ec: ExecutionContext)
   extends BackendJobExecutionActor with SharedFileSystem with ServiceRegistryClient {
 
   import LocalJobExecutionActor._
@@ -42,8 +43,6 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   import cromwell.core.PathFactory._
 
   import scala.sys.process._
-
-  override implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
   // Mutable process variable assigned when the execute method is called.
   // Needs to be accessible to be killed when the job is aborted.

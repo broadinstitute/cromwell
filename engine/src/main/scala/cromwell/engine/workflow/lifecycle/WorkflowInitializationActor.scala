@@ -41,7 +41,9 @@ object WorkflowInitializationActor {
   case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse
   final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = Props(new WorkflowInitializationActor(workflowId, workflowDescriptor))
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = {
+    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor)).withDispatcher("akka.dispatchers.engine-dispatcher")
+  }
 
   case class BackendActorAndBackend(actor: ActorRef, backend: String)
 }

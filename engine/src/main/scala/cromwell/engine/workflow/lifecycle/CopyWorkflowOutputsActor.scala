@@ -18,7 +18,7 @@ object CopyWorkflowOutputsActor {
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,
             initializationData: AllBackendInitializationData) = Props(
     new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, outputStore, initializationData)
-  )
+  ).withDispatcher("akka.dispatchers.io-dispatcher")
 }
 
 class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,

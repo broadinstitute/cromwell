@@ -77,7 +77,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       }
 
       val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(authOptions, jesConfiguration.googleConfig)
-      GcsFileSystem(GcsFileSystemProvider(storage))
+      GcsFileSystem(GcsFileSystemProvider(storage)(scala.concurrent.ExecutionContext.global))
     }
 
     val workflowPaths = JesWorkflowPaths(jobDescriptor.descriptor, configuration, gcsFileSystem)

@@ -14,7 +14,6 @@ object JesFinalizationActor {
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
             executionStore: ExecutionStore, outputStore: OutputStore, initializationData: JesBackendInitializationData) = {
     Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData))
-      .withDispatcher("akka.dispatchers.slow-actor-dispatcher")
   }
 }
 
@@ -27,6 +26,8 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 
   private val workflowPaths = initializationData.workflowPaths
+
+  private val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
 
   override def afterAll(): Future[Unit] = {
     for {
@@ -47,13 +48,13 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   private def copyCallOutputs(): Future[Unit] = {
     /*
     NOTE: Only using one thread pool slot here to upload all the files for all the calls.
-    Using the slow-actor-dispatcher defined in application.conf because this might take a while.
+    Using the io-dispatcher defined in application.conf because this might take a while.
     One could also use Future.sequence to flood the dispatcher, or even create a separate jes final call specific thread
     pool for parallel uploads.
 
     Measure and optimize as necessary. Will likely need retry code at some level as well.
      */
-    Future(workflowPaths.finalCallLogsPath foreach copyCallOutputs)(context.system.dispatcher)
+    Future(workflowPaths.finalCallLogsPath foreach copyCallOutputs)(iOExecutionContext)
   }
 
   private def copyCallOutputs(callLogsPath: Path): Unit = {

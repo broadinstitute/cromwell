@@ -31,7 +31,7 @@ object MetadataBuilderActor {
   case object WaitingForMetadataService extends MetadataBuilderActorState
 
   def props(serviceRegistryActor: ActorRef) = {
-    Props(new MetadataBuilderActor(serviceRegistryActor))
+    Props(new MetadataBuilderActor(serviceRegistryActor)).withDispatcher("akka.dispatchers.api-dispatcher")
   }
 
   val log = LoggerFactory.getLogger("MetadataBuilder")

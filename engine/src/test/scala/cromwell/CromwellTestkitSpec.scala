@@ -77,10 +77,36 @@ object CromwellTestkitSpec {
       |    }
       |  }
       |  dispatchers {
-      |    slow-actor-dispatcher {
+      |    # A dispatcher for actors performing blocking io operations
+      |    # Prevents the whole system from being slowed down when waiting for responses from external resources for instance
+      |    io-dispatcher {
+      |      type = Dispatcher
+      |      executor = "fork-join-executor"
+      |      # Using the forkjoin defaults, this can be tuned if we wish
+      |    }
+      |
+      |    # A dispatcher for actors handling API operations
+      |    # Keeps the API responsive regardless of the load of workflows being run
+      |    api-dispatcher {
       |      type = Dispatcher
       |      executor = "fork-join-executor"
       |    }
+      |
+      |    # A dispatcher for engine actors
+      |    # Because backends behaviour is unpredictable (potentially blocking, slow) the engine runs
+      |    # on its own dispatcher to prevent backends from affecting its performance.
+      |    engine-dispatcher {
+      |      type = Dispatcher
+      |      executor = "fork-join-executor"
+      |    }
+      |
+      |    # A dispatcher used by supported backend actors
+      |    backend-dispatcher {
+      |      type = Dispatcher
+      |      executor = "fork-join-executor"
+      |    }
+      |
+      |    # Note that without further configuration, backend actors run on the default dispatcher
       |  }
       |  test {
       |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
@@ -249,8 +275,10 @@ object CromwellTestkitSpec {
   )
 }
 
-abstract class CromwellTestkitSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
+abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
   with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
+
+  override protected def afterAll() = { twms.shutdownTestActorSystem() }
 
   val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))

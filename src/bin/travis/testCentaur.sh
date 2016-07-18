@@ -32,7 +32,7 @@ printTravisHeartbeat
 set -x
 
 # Unpack our credentials and such
-openssl aes-256-cbc -K "$encrypted_fb828d0791bd_key" -iv "$encrypted_fb828d0791bd_iv" -in src/bin/travis/resources/jesConf.tar.enc -out jesConf.tar -d
+openssl aes-256-cbc -K "$encrypted_5b9e82629fa8_key" -iv "$encrypted_5b9e82629fa8_iv" -in src/bin/travis/resources/jesConf.tar.enc -out jesConf.tar -d
 tar xvf jesConf.tar
 
 # Do a bunch of crap to enable gsutil. It's possible this is overkill but it doesn't take long anyways

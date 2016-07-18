@@ -94,7 +94,7 @@ object PerRequest {
   }
 
   case class WithProps(r: RequestContext, props: Props, message: AnyRef, timeout: Duration, name: String) extends PerRequest {
-    lazy val target = context.actorOf(props, name)
+    lazy val target = context.actorOf(props.withDispatcher("akka.dispatchers.api-dispatcher"), name)
   }
 }
 
@@ -108,7 +108,7 @@ trait PerRequestCreator {
                  props: Props, message: AnyRef,
                  timeout: Duration = 1 minutes,
                  name: String = PerRequestCreator.endpointActorName) = {
-    actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)), name)
+    actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)).withDispatcher("akka.dispatchers.api-dispatcher"), name)
   }
 }
 

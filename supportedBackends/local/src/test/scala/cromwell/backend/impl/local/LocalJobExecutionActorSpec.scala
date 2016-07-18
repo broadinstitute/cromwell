@@ -26,7 +26,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
   val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   def localBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) =
-    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor)).underlyingActor
+    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, scala.concurrent.ExecutionContext.global)).underlyingActor
 
   behavior of "LocalBackend"
 

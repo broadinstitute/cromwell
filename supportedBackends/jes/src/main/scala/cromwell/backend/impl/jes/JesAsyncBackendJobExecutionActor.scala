@@ -44,7 +44,7 @@ object JesAsyncBackendJobExecutionActor {
             jesWorkflowInfo: JesConfiguration,
             initializationData: JesBackendInitializationData): Props = {
     Props(new JesAsyncBackendJobExecutionActor(jobDescriptor, completionPromise, jesWorkflowInfo, initializationData))
-      .withDispatcher("akka.dispatchers.slow-actor-dispatcher")
+      .withDispatcher("akka.dispatchers.backend-dispatcher")
   }
 
   object WorkflowOptionKeys {

@@ -35,7 +35,9 @@ object MaterializeWorkflowDescriptorActor {
   // exception if not initialized yet.
   def cromwellBackends = CromwellBackends.instance.get
 
-  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends): Props = Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends))
+  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends): Props = {
+    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends)).withDispatcher("akka.dispatchers.engine-dispatcher")
+  }
 
   /*
   Commands
@@ -77,6 +79,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   import MaterializeWorkflowDescriptorActor._
 
   val tag = self.path.name
+
+  val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
 
   startWith(ReadyToMaterializeState, MaterializeWorkflowDescriptorActorData())
 
@@ -126,7 +130,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     (namespaceValidation |@| workflowOptionsValidation) {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
-      val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions)
+      val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions)(iOExecutionContext)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, engineFileSystems)
     }
   }

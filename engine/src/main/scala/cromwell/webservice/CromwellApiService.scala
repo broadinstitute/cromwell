@@ -12,7 +12,6 @@ import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.config.ScalaConfig._
 import lenthall.spray.SwaggerUiResourceHttpService
 import lenthall.spray.WrappedRoute._
-import spray.http.HttpHeaders.`Content-Type`
 import spray.http.MediaTypes._
 import spray.http._
 import spray.httpx.SprayJsonSupport._
@@ -45,7 +44,7 @@ class CromwellApiServiceActor(val workflowManager: ActorRef, val workflowStoreAc
 
   def handleTimeouts: Receive = {
     case Timedout(_: HttpRequest) =>
-      sender() ! HttpResponse(StatusCodes.InternalServerError, HttpEntity(ContentType(MediaTypes.`application/json`), timeoutError)).withHeaders(`Content-Type`(`application/json`))
+      sender() ! HttpResponse(StatusCodes.InternalServerError, HttpEntity(ContentType(MediaTypes.`application/json`), timeoutError))
   }
 }
 

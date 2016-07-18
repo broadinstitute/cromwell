@@ -15,7 +15,8 @@ import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
 import cromwell.engine.workflow.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
-import cromwell.services.MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services.metadata.MetadataSummaryRefreshActor
+import MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services._
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
@@ -118,7 +119,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     probe.send(apiActor, Timedout(mock[HttpRequest]))
     probe.expectMsgPF(defaultTimeout.duration) {
       case response: HttpResponse =>
-        response.headers.exists(h => h.name == HttpHeaders.`Content-Type`.name && h.value == `application/json`.value) shouldBe true
+        response.entity.toOption shouldBe defined
+        response.entity.toOption.get.contentType.toString() shouldBe ContentTypes.`application/json`.mediaType.value.toString
     }
 
     system.stop(apiActor)

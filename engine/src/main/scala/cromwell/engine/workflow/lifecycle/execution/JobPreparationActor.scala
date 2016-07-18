@@ -25,7 +25,9 @@ object JobPreparationActor {
             jobKey: BackendJobDescriptorKey,
             factory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData]) = {
-    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData)).withDispatcher("akka.dispatchers.slow-actor-dispatcher")
+    // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
+    // (WDL expression evaluation using Backend's expressionLanguageFunctions)
+    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData))
   }
 }
 

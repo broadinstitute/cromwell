@@ -8,14 +8,6 @@ import org.scalatest.BeforeAndAfterAll
 
 class InvalidRuntimeAttributesSpec extends CromwellTestkitSpec with BeforeAndAfterAll {
 
-  val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()
-  val actorSystem = testWorkflowManagerSystem.actorSystem
-
-  override protected def afterAll() = {
-    testWorkflowManagerSystem.shutdownTestActorSystem()
-    super.afterAll()
-  }
-
   "A workflow with a task with one invalid runtime attribute" should {
     "succeed" in {
       runWdl(

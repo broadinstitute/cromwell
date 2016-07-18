@@ -30,3 +30,4 @@ task centaur {
 workflow centaur {
     call centaur
 }
+

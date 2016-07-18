@@ -27,7 +27,7 @@ package object engine {
 
   implicit class EnhancedCallOutputMap[A](val m: Map[A, JobOutput]) extends AnyVal {
     def mapToValues: Map[A, WdlValue] = m map {
-      case (k, JobOutput(wdlValue, hash)) => (k, wdlValue)
+      case (k, JobOutput(wdlValue)) => (k, wdlValue)
     }
   }
 

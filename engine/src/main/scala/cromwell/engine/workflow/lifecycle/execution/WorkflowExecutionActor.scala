@@ -219,7 +219,7 @@ object WorkflowExecutionActor {
         val wdlValues = shardsOutputs.map(
           _.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
         val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-        taskOutput.name -> JobOutput(arrayOfValues, None)
+        taskOutput.name -> JobOutput(arrayOfValues)
       } toMap
     }
   }

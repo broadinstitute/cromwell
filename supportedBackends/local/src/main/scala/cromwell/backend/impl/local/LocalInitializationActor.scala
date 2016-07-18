@@ -37,7 +37,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   private val fileSystems = {
     val maybeGcs = {
       localConfiguration.gcsAuthMode map { authMode =>
-        val storage =authMode.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, localConfiguration.googleConfig)
+        val storage = authMode.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, localConfiguration.googleConfig)
         GcsFileSystem(GcsFileSystemProvider(storage))
       }
     }

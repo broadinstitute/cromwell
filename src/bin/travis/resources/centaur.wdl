@@ -12,7 +12,7 @@ task centaur {
         git clone https://github.com/broadinstitute/centaur.git
         cd centaur
         git checkout rm_refreshToken_test
-        ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -r/cromwell_root -t/${secret}
+        ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -r/cromwell_root -t${secret}
     >>>
 
     output {

@@ -8,7 +8,7 @@ import cromwell.backend.wdl.OnlyPureFunctions
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.services.MetadataServiceActor.PutMetadataAction
 import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
-import wdl4s.{NoLookup, Task, WdlExpression}
+import wdl4s.{Call, NoLookup, Task, WdlExpression}
 import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
@@ -34,6 +34,8 @@ object BackendWorkflowInitializationActor {
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ServiceRegistryClient with ActorLogging {
+
+  def calls: Seq[Call]
 
   /**
     * Answers the question "does this expression evaluate to a type which matches the predicate".
@@ -89,7 +91,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
       }
     }
 
-    workflowDescriptor.workflowNamespace.tasks flatMap badRuntimeAttrsForTask match {
+    calls map { _.task } flatMap badRuntimeAttrsForTask match {
       case errors if errors.isEmpty => Future.successful(())
       case errors => Future.failed(new IllegalArgumentException(errors.mkString(". ")))
     }

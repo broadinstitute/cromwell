@@ -12,7 +12,8 @@ case class NotAGcsPathException(path: String) extends IllegalArgumentException(s
 
 object GcsFileSystem {
   val Separator = "/"
-  private[gcs] val Protocol = "gs://"
+  private[gcs] val Scheme = "gs"
+  private[gcs] val Protocol = s"$Scheme://"
   private val GsUriRegex = s"""$Protocol(.*)""".r
   private val AttributeViews = Collections.singleton("basic")
 

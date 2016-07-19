@@ -1,27 +1,32 @@
 package cromwell.backend.impl.local
 
+import java.nio.file.FileSystems
+
 import akka.actor.Props
 import better.files._
 import cromwell.backend.impl.local.LocalInitializationActor._
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.filesystems.gcs.{GcsFileSystemProvider, GcsFileSystem}
 import wdl4s.types.{WdlBooleanType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
+import LocalImplicits._
 
 import scala.concurrent.Future
 
 object LocalInitializationActor {
   val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
 
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new LocalInitializationActor(workflowDescriptor, calls, configurationDescriptor))
+  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor, localConfiguration: LocalConfiguration): Props =
+    Props(new LocalInitializationActor(workflowDescriptor, calls, configurationDescriptor, localConfiguration))
 
 }
 
 class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                                override val calls: Seq[Call],
-                               override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
+                               override val configurationDescriptor: BackendConfigurationDescriptor,
+                               localConfiguration: LocalConfiguration) extends BackendWorkflowInitializationActor {
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
     DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
@@ -29,7 +34,18 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
     ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false)
   )
 
-  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, None)
+  private val fileSystems = {
+    val maybeGcs = {
+      localConfiguration.gcsAuthMode map { authMode =>
+        val storage = authMode.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, localConfiguration.googleConfig)
+        GcsFileSystem(GcsFileSystemProvider(storage))
+      }
+    }
+
+    List(maybeGcs, Option(FileSystems.getDefault)).flatten
+  }
+
+  private val workflowPaths = new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, fileSystems)
 
   /**
     * A call which happens before anything else runs
@@ -37,7 +53,7 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     publishWorkflowRoot(workflowPaths.workflowRoot.toString)
     workflowPaths.workflowRoot.createDirectories()
-    Future.successful(None)
+    Future.successful(Option(LocalBackendInitializationData(workflowPaths)))
   }
 
   /**

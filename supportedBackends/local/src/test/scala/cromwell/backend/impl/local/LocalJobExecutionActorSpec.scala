@@ -6,7 +6,7 @@ import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.io.TestWorkflows._
-import cromwell.backend.io.{JobPaths, TestWorkflows}
+import cromwell.backend.io.{WorkflowPaths, JobPaths, TestWorkflows}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec}
 import cromwell.core._
 import org.scalatest.FlatSpecLike
@@ -25,8 +25,10 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
   val backendConfig = globalConfig.getConfig("backend.providers.Local.config")
   val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
 
-  def localBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) =
-    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, scala.concurrent.ExecutionContext.global)).underlyingActor
+  def localBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = {
+    val workflowPaths = new WorkflowPaths(jobDescriptor.descriptor, configurationDescriptor.backendConfig)
+    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, LocalBackendInitializationData(workflowPaths), scala.concurrent.ExecutionContext.global)).underlyingActor
+  }
 
   behavior of "LocalBackend"
 
@@ -110,7 +112,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf)
       val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
 
-      val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key, None)
+      val jobPaths = new JobPaths(wf, conf.backendConfig, jobDescriptor.key)
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
@@ -178,7 +180,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
     val wf = buildWorkflowDescriptor(OutputProcess, inputs)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(wf, inputs)
     val backend = localBackend(jobDescriptor, defaultBackendConfigDescriptor)
-    val jobPaths = new JobPaths(wf, defaultBackendConfigDescriptor.backendConfig, jobDescriptor.key, None)
+    val jobPaths = new JobPaths(wf, defaultBackendConfigDescriptor.backendConfig, jobDescriptor.key)
     val expectedA = WdlFile(jobPaths.callRoot.resolve("a").toAbsolutePath.toString)
     val expectedB = WdlFile(jobPaths.callRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
     val expectedOutputs = Map (

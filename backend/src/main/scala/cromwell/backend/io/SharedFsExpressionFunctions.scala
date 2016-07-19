@@ -18,7 +18,7 @@ object SharedFsExpressionFunctions {
             jobKey: BackendJobDescriptorKey,
             configurationDescriptor: BackendConfigurationDescriptor,
             fileSystems: List[FileSystem]): SharedFsExpressionFunctions = {
-    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey, None)
+    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = new CallContext(
       jobPaths.callRoot,
       jobPaths.stdout.toAbsolutePath.toString,

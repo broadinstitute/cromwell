@@ -285,4 +285,10 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
     }
   }
 
+  it should "implement toUri" in {
+    val file = new NioGcsPath(Array("some", "file"), true, false)
+    val uri = file.toUri
+    uri.toString shouldBe "gs://some/file"
+  }
+
 }

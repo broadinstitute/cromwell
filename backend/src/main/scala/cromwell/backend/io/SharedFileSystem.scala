@@ -120,7 +120,7 @@ trait SharedFileSystem extends PathFactory {
       val host = Option(uri.getHost)
       val uriPath = uri.getPath
 
-      host map { h => Paths.get(h).resolve(uriPath) } getOrElse Paths.get(uriPath)
+      host map { h => Paths.get(h, uriPath) } getOrElse Paths.get(uriPath)
     }
 
     /**

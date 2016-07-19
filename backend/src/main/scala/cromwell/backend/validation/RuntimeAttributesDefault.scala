@@ -11,7 +11,8 @@ import scalaz.ValidationNel
 
 object RuntimeAttributesDefault {
 
-  def workflowOptionsDefault(options: WorkflowOptions, mapping: Map[String, Set[WdlType]]): Try[Map[String, WdlValue]] = {
+  def workflowOptionsDefault(options: WorkflowOptions, mapping: Map[String, Traversable[WdlType]]):
+  Try[Map[String, WdlValue]] = {
     options.defaultRuntimeOptions flatMap { attrs =>
       TryUtil.sequenceMap(attrs collect {
         case (k, v) if mapping.contains(k) =>

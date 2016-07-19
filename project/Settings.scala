@@ -72,6 +72,10 @@ object Settings {
     name := "cromwell-backend"
   ) ++ commonSettings
 
+  val sfsBackendSettings = List(
+    name := "cromwell-sfs-backend"
+  ) ++ commonSettings
+
   val localBackendSettings = List(
     name := "cromwell-local-backend"
   ) ++ commonSettings
@@ -95,6 +99,7 @@ object Settings {
   ) ++ commonSettings
 
   val rootSettings = List(
-    name := "cromwell"
+    name := "cromwell",
+    libraryDependencies ++= rootDependencies
   ) ++ commonSettings
 }

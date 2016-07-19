@@ -46,8 +46,6 @@ package object backend {
     */
   case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config)
 
-  final case class ExecutionHash(overallHash: String, dockerHash: Option[String])
-
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
     def toPair = name -> value
   }
@@ -59,16 +57,4 @@ package object backend {
   }
 
   case class PreemptedException(msg: String) extends Exception(msg)
-
-  // single-backend "marker interface"
-  trait BackendInitializationData
-
-  object AllBackendInitializationData {
-    def empty = AllBackendInitializationData(Map.empty)
-  }
-
-  // Holds initialization data for all backends initialized for a workflow.
-  case class AllBackendInitializationData(data: Map[String, Option[BackendInitializationData]]) {
-    def get(backendName: String): Option[BackendInitializationData] = data.get(backendName).flatten
-  }
 }

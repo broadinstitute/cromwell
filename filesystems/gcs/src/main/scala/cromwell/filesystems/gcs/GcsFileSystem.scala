@@ -17,8 +17,6 @@ object GcsFileSystem {
   private val GsUriRegex = s"""$Protocol(.*)""".r
   private val AttributeViews = Collections.singleton("basic")
 
-  val defaultGcsFileSystem = GcsFileSystemProvider.defaultProvider.getFileSystem
-
   def isAbsoluteGcsPath(str: String) = str match {
     case GsUriRegex(chunks) => true
     case _ => false
@@ -61,7 +59,7 @@ class GcsFileSystem private(val gcsFileSystemProvider: GcsFileSystemProvider) ex
     first match {
       case GsUriRegex(chunks) => new NioGcsPath(chunks.split(Separator) ++ more.toArray[String], true, directory)(this)
       case empty if empty.isEmpty => new NioGcsPath(Array.empty[String] ++ more.toArray[String], false, false)(this)
-      case _ => throw new NotAGcsPathException(s"$first is not a gcs path")
+      case _ => throw NotAGcsPathException(s"$first is not a gcs path")
     }
   }
 

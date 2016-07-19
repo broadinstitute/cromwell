@@ -5,11 +5,10 @@ import java.nio.file.{Path, Paths}
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
-import cromwell.backend.io.{SharedFileSystem, SharedFsExpressionFunctions}
+import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.services.metadata.CallMetadataKeys._
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._
-import CallMetadataKeys._
-import MetadataService.PutMetadataAction
-import cromwell.services._
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.util.TryUtil
@@ -60,10 +59,10 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
   val jobPaths = initializationData.workflowPaths.toJobPaths(jobDescriptor.key)
   val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
-  override val sharedFsConfig = fileSystemsConfig.getConfig("local")
+  override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
 
   val call = jobDescriptor.key.call
-  val callEngineFunction =  SharedFsExpressionFunctions(jobPaths, initializationData.workflowPaths.fileSystems)
+  val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, initializationData.workflowPaths.fileSystems)
 
   val lookup = jobDescriptor.inputs.apply _
 
@@ -149,7 +148,7 @@ class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     case Failure(ex) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key, ex, None))
   }
 
-  override def abort: Unit = {
+  override def abort(): Unit = {
     process foreach { p =>
       p.destroy()
       process = None

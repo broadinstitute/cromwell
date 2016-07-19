@@ -18,8 +18,7 @@ abstract class TestKitSuite(actorSystemName: String = TestKitSuite.randomName,
   extends TestKit(ActorSystem(actorSystemName, actorSystemConfig)) with Suite with BeforeAndAfterAll {
 
   override protected def afterAll() = {
-    system.shutdown()
-    super.afterAll()
+    shutdown()
   }
 
   val emptyActor = system.actorOf(Props.empty)

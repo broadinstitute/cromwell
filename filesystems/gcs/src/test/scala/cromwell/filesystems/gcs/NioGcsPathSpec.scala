@@ -11,7 +11,7 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   behavior of "NioGcsPath"
 
-  implicit val GCSFs = GcsFileSystemProvider.defaultProvider.getFileSystem
+  implicit val GCSFs = MockGcsFileSystemBuilder.mockGcsFileSystem
 
   it should "implement toString" in {
     val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
@@ -40,7 +40,6 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
 
   it should "implement resolveSibling" in {
     val absPath1 = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
-    val absPath2 = new NioGcsPath(Array("absolute", "location"), true, true)
     val relPath1 = new NioGcsPath(Array("some", "relative", "path"), false, true)
     val relPath2 = new NioGcsPath(Array("another", "relative", "resource", "path"), false, true)
 
@@ -215,7 +214,6 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   it should "implement startsWith" in {
     val empty = new NioGcsPath(Array.empty[String], false, true)
     val singletonAbs = new NioGcsPath(Array("absolute"), true, true)
-    val singletonRel = new NioGcsPath(Array("absolute"), false, true)
 
     val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
     val startsWithAbsPath = new NioGcsPath(Array("absolute", "path", "to"), true, true)
@@ -253,7 +251,6 @@ class NioGcsPathSpec extends FlatSpec with Matchers with MockitoSugar {
   it should "implement endsWith" in {
     val empty = new NioGcsPath(Array.empty[String], false, true)
     val singletonAbs = new NioGcsPath(Array("absolute"), true, true)
-    val singletonRel = new NioGcsPath(Array("absolute"), false, true)
 
     val absPath = new NioGcsPath(Array("absolute", "path", "to", "somewhere"), true, true)
     val doesntEndWithAbsPath = new NioGcsPath(Array("absolute", "path", "to", "another", "place"), true, true)

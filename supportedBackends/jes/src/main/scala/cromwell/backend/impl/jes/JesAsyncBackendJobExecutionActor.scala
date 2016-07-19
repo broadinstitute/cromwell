@@ -3,7 +3,6 @@ package cromwell.backend.impl.jes
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 import java.time.OffsetDateTime
-import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
@@ -19,9 +18,9 @@ import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
 import cromwell.core.Dispatcher.BackendDispatcher
+import cromwell.core._
 import cromwell.core.logging.JobLogging
-import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.core.{CromwellAggregatedException, JobOutput, _}
+import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.keyvalue.KeyValueService._
 import cromwell.services.metadata.CallMetadataKeys._
@@ -35,7 +34,6 @@ import wdl4s.expression.NoFunctions
 import wdl4s.util.TryUtil
 import wdl4s.values._
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -92,10 +90,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
 
   import JesAsyncBackendJobExecutionActor._
-
-  override lazy val pollBackoff = SimpleExponentialBackoff(initialInterval = 30 seconds, maxInterval = 10 minutes, multiplier = 1.1)
-
-  override lazy val executeOrRecoverBackoff = SimpleExponentialBackoff(initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
   private lazy val workflowDescriptor = jobDescriptor.descriptor
 
@@ -631,9 +625,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  // PBE ideally hashes should be deterministic
-  private def completelyRandomExecutionHash: Future[ExecutionHash] = Future.successful(ExecutionHash(UUID.randomUUID().toString, dockerHash = None))
-
   private[jes] def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)
                                   (implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     try {
@@ -655,7 +646,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
         case _: RunStatus.Success =>
-          completelyRandomExecutionHash map { h => handleSuccess(postProcess, returnCode.get, h, handle) }
+          ExecutionHash.completelyRandomExecutionHash map { h => handleSuccess(postProcess, returnCode.get, h, handle) }
         case RunStatus.Failed(errorCode, errorMessage, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {

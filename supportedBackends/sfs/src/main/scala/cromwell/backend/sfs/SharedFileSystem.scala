@@ -1,8 +1,9 @@
-package cromwell.backend.io
+package cromwell.backend.sfs
 
 import java.nio.file.{FileSystem, Files, Path, Paths}
 
 import com.typesafe.config.Config
+import cromwell.backend.io.JobPaths
 import cromwell.core._
 import wdl4s.CallInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
@@ -70,9 +71,9 @@ trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
   import better.files._
 
-  def sharedFsConfig: Config
+  def sharedFileSystemConfig: Config
 
-  lazy val LocalizationStrategies = sharedFsConfig.getStringList("localization").asScala
+  lazy val LocalizationStrategies = sharedFileSystemConfig.getStringList("localization").asScala
   lazy val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
     case "hard-link" => localizePathViaHardLink _
     case "soft-link" => localizePathViaSymbolicLink _

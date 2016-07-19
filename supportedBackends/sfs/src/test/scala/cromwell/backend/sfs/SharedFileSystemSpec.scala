@@ -1,4 +1,4 @@
-package cromwell.backend.io
+package cromwell.backend.sfs
 
 import java.nio.file.{FileSystems, Files, Paths}
 
@@ -31,7 +31,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     if (fileAlreadyExists) dest.touch()
 
     val inputs = Map("input" -> WdlFile(orig.toAbsolutePath.toString))
-    val sharedFS = new SharedFileSystem { override val sharedFsConfig = config }
+    val sharedFS = new SharedFileSystem { override val sharedFileSystemConfig = config }
     val result = sharedFS.localizeInputs(callDir, docker = docker, localFS, inputs)
 
     result.isSuccess shouldBe true

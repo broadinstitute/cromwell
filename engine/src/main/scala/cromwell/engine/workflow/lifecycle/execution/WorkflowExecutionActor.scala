@@ -21,11 +21,12 @@ import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobR
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
+import cromwell.jobstore.JobStoreService.RegisterJobCompleted
+import cromwell.jobstore.{JobResultFailure, JobResultSuccess, _}
 import cromwell.services.MetadataServiceActor._
 import cromwell.services._
 import lenthall.exception.ThrowableAggregation
-import wdl4s.Scope
-import wdl4s._
+import wdl4s.{Scope, _}
 import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
@@ -33,6 +34,8 @@ import wdl4s.values.{WdlArray, WdlValue}
 import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
+import scalaz.NonEmptyList
+import scalaz.Scalaz._
 
 object WorkflowExecutionActor {
 
@@ -126,7 +129,8 @@ object WorkflowExecutionActor {
     override val tag = s"Collector-${scope.unqualifiedName}"
   }
 
-  case class WorkflowExecutionException(override val throwables: List[Throwable]) extends ThrowableAggregation {
+  case class WorkflowExecutionException(exceptions: NonEmptyList[Throwable]) extends ThrowableAggregation {
+    override val throwables = exceptions.list
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
@@ -303,9 +307,11 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
+      saveSuccessfulJobResults(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
+      saveUnsuccessfulJobResults(jobKey, returnCode, reason)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
       goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
@@ -458,6 +464,18 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     }
   }
 
+  private def saveSuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
+    val jobStoreKey = jobKey.toJobStoreKey(workflowId)
+    val jobStoreResult = JobResultSuccess(returnCode, outputs)
+    serviceRegistryActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
+  }
+
+  private def saveUnsuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], reason: Throwable) = {
+    val jobStoreKey = jobKey.toJobStoreKey(workflowId)
+    val jobStoreResult = JobResultFailure(returnCode, reason)
+    serviceRegistryActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
+  }
+
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
     val completionEvents = completedJobMetadataEvents(jobKey, ExecutionStatus.Done, returnCode)
 
@@ -557,14 +575,14 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeActorName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-            val ejeActor = context.actorOf(EngineJobExecutionActor.props(data, factory, initializationData.get(backendName), restarting), ejeActorName)
+            val ejeActor = context.actorOf(EngineJobExecutionActor.props(jobKey, data, factory, initializationData.get(backendName), restarting), ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
 
-            ejeActor ! EngineJobExecutionActor.Execute(jobKey)
+            ejeActor ! EngineJobExecutionActor.Execute
 
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>
-            throw new WorkflowExecutionException(List(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
+            throw WorkflowExecutionException(new Exception(s"Could not get BackendLifecycleActor for backend $backendName").wrapNel)
         }
     }
   }

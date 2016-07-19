@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import spray.json._
 import wdl4s.WdlExpression
-import wdl4s.types.WdlArrayType
+import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType}
 import wdl4s.values._
 
 object WdlValueJsonFormatter extends DefaultJsonProtocol {
@@ -18,9 +18,16 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case e: WdlExpression => JsString(e.toWdlString)
     }
-    // NOTE: This is NOT a completely safe way to read values from JSON. Should only be used for testing.
+
+    // NOTE: This assumes a map's keys are strings. Since we're coming from JSON this is fine.
+    // This won't support a map with complex keys (e.g. WdlMapType(WdlMapType(WdlIntegerType, WdlIntegerType), WdlStringType)
+    // That would require a more inventive JSON which splits out the key and value as full fields in their own right...
+    // In addition, we make a lot of assumptions about what type of WdlValue to create. Oh well... it should all fall out in the coercion (fingercrossed)!
     def read(value: JsValue): WdlValue = value match {
-      case JsObject(fields) => WdlObject(fields map {case (k, v) => k -> read(value)})
+      case JsObject(fields) =>
+        val wdlFields: Map[WdlValue, WdlValue] = fields map {case (k, v) => WdlString(k) -> read(v)}
+        if (fields.isEmpty) WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty[WdlValue, WdlValue])
+        else WdlMap(WdlMapType(wdlFields.head._1.wdlType, wdlFields.head._2.wdlType), wdlFields)
       case JsArray(vector) if vector.nonEmpty => WdlArray(WdlArrayType(read(vector.head).wdlType), vector map read)
       case JsString(str) => WdlString(str)
       case JsBoolean(bool) => WdlBoolean(bool)

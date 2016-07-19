@@ -77,7 +77,7 @@ sealed trait GoogleAuthMode {
 
   protected def validateCredentials(credential: Credential) = {
     Try(credential.refreshToken()) match {
-      case Failure(ex) => throw new Throwable(s"Google credentials are invalid: ${ex.getMessage}. The received credentials are ${credential.getRefreshToken}")
+      case Failure(ex) => throw new Throwable(s"Google credentials are invalid: ${ex.getMessage}")
       case Success(_) => credential
     }
   }

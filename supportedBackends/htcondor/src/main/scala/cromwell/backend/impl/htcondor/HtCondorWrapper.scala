@@ -153,4 +153,5 @@ object HtCondorRuntimeKeys {
   val Disk = "request_disk"
   val LogXml = "log_xml"
   val LeaveInQueue = "leave_in_queue"
+  val InitialWorkingDir = "Iwd"
 }

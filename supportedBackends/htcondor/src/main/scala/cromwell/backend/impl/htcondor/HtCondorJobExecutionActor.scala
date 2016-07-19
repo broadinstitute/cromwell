@@ -220,6 +220,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       scriptPath.addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
       //TODO: Need to append other runtime attributes from Wdl to Condor submit file
       val attributes: Map[String, Any] = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toString,
+          HtCondorRuntimeKeys.InitialWorkingDir -> jobPaths.callRoot,
           HtCondorRuntimeKeys.Output -> stdoutPath.toString,
           HtCondorRuntimeKeys.Error -> stderrPath.toString,
           HtCondorRuntimeKeys.Log -> htCondorLog.toString,

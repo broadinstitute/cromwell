@@ -1,4 +1,4 @@
-#TODO: replace rm_refreshToken_test and replace with develop
+#TODO: replace rm_refreshToken_test with develop branch
 
 task centaur {
     String cromwell_branch

@@ -34,7 +34,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
 
   it should "execute an hello world workflow" in {
     val expectedOutputs: JobOutputs = Map(
-      "salutation" -> JobOutput(WdlString("Hello you !"), None)
+      "salutation" -> JobOutput(WdlString("Hello you !"))
     )
     val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld), defaultBackendConfigDescriptor, expectedResponse)
@@ -44,7 +44,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
 
   it should "execute an hello world workflow on Docker" taggedAs DockerTest in {
     val expectedOutputs: JobOutputs = Map(
-      "salutation" -> JobOutput(WdlString("Hello you !"), None)
+      "salutation" -> JobOutput(WdlString("Hello you !"))
     )
     val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
     val wf = new TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""), defaultBackendConfigDescriptor, expectedResponse)
@@ -91,9 +91,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
       "out" -> JobOutput(WdlArray(WdlArrayType(WdlStringType),
         Array(
           WdlString("content from json inputs"),
-          WdlString("content from call inputs"))
-      ), None)
-    )
+          WdlString("content from call inputs")))))
 
     val confs = List(
       (hardConf, false),
@@ -167,7 +165,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
 
       val jd: BackendJobDescriptor = new BackendJobDescriptor(wf, new BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
       val backend = localBackend(jd, defaultBackendConfigDescriptor)
-      val response = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard), None)))
+      val response = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))))
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -184,11 +182,9 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
     val expectedA = WdlFile(jobPaths.callRoot.resolve("a").toAbsolutePath.toString)
     val expectedB = WdlFile(jobPaths.callRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
     val expectedOutputs = Map (
-      "o1" -> JobOutput(expectedA, None),
-      "o2" -> JobOutput(
-        WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB)), None
-      ),
-      "o3" -> JobOutput(WdlFile(inputFile), None)
+      "o1" -> JobOutput(expectedA),
+      "o2" -> JobOutput(WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB))),
+      "o3" -> JobOutput(WdlFile(inputFile))
     )
     val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
 

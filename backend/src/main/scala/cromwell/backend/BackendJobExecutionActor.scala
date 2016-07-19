@@ -72,7 +72,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
       }
       def lookup = (currentOutputs ++ inputs).apply _
       val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
-      val jobOutput = output.name -> (coerced flatMap postMapper map { JobOutput(_, None) })
+      val jobOutput = output.name -> (coerced flatMap postMapper map JobOutput)
 
       outputMap + jobOutput
 

@@ -19,7 +19,7 @@ package object core {
   type FullyQualifiedName = String
   type WorkflowOutputs = Map[FullyQualifiedName, JobOutput]
   type WorkflowOptionsJson = String
-  case class JobOutput(wdlValue: WdlValue, @deprecated("Don't return hashes to the engine!", "PBE") hash: Option[SymbolHash] = None) // TODO: Remove this hash
+  case class JobOutput(wdlValue: WdlValue)
   type JobOutputs = Map[LocallyQualifiedName, JobOutput]
   type HostInputs = Map[String, WdlValue]
   type EvaluatedRuntimeAttributes = Map[String, WdlValue]

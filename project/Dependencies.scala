@@ -63,6 +63,7 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "org.apache.commons" % "commons-lang3" % "3.4",
     "com.typesafe" % "config" % "1.3.0",
+    "org.codehaus.janino" % "janino" % "2.7.8",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
@@ -80,7 +81,6 @@ object Dependencies {
     "commons-io" % "commons-io" % "2.4",
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "ch.qos.logback" % "logback-access" % "1.1.3",
-    "org.codehaus.janino" % "janino" % "2.7.8",
     "org.scalaz" %% "scalaz-core" % scalazCoreV,
     "com.github.pathikrit" %% "better-files" % betterFilesV,
     "io.swagger" % "swagger-parser" % "1.0.19" % Test,

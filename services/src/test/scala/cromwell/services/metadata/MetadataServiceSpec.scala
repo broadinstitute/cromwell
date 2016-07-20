@@ -9,7 +9,7 @@ import wdl4s.values._
 
 class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
-  behavior of "MetadataServiceActorSpec"
+  behavior of "MetadataServiceSpec"
 
   // Discard timestamp when determining equality here
   implicit val metadataEventEquality = new Equality[MetadataEvent] {

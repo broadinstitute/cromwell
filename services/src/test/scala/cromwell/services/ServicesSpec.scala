@@ -73,7 +73,7 @@ abstract class ServicesSpec(serviceName: String) extends TestKit(ActorSystem(s"$
 
   implicit val timeout = Timeout(10.seconds.dilated)
   implicit val ec = system.dispatcher
-  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = Span(10, Seconds), interval = Span(100, Millis))
 
   override protected def afterAll() = {
     TestKit.shutdownActorSystem(system)

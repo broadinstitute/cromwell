@@ -9,11 +9,6 @@ import scalaz.NonEmptyList
 
 
 trait SqlDatabase extends AutoCloseable {
-  def isTransient(throwable: Throwable): Boolean = throwable match {
-    case _: SQLTransientException => true
-    case _ => false
-  }
-
   def createWorkflow(workflowExecution: WorkflowExecution,
                                workflowExecutionAuxFromWorkflowExecutionId: Int => WorkflowExecutionAux,
                                workflowInputsFromWorkflowExecutionId: Int => Seq[Symbol],

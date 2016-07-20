@@ -16,6 +16,7 @@ object KeyValueServiceActor {
 
 case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with KeyValueDatabaseAccess with CromwellDatabase {
   private implicit val ec = context.dispatcher
+  private implicit val system = context.system
 
   def receive = {
     case action: KvGet => respond(sender(), action, doGet(action))
@@ -33,8 +34,7 @@ case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) ext
     upsertExecutionInfo(
       put.pair.key.workflowId,
       put.pair.key.jobKey,
-      Map(put.pair.key.key -> put.pair.value),
-      context.system
+      Map(put.pair.key.key -> put.pair.value)
     ).map(_ => KvPutSuccess(put))
   }
 

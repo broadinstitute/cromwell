@@ -2,6 +2,7 @@ package cromwell.services.keyvalue.impl
 
 import akka.actor.ActorSystem
 import cromwell.core.ExecutionIndex._
+import cromwell.util.DatabaseUtil._
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.database.Database
 import wdl4s.Scope
@@ -25,8 +26,7 @@ trait KeyValueDatabaseAccess { this: Database =>
     */
   def upsertExecutionInfo(workflowId: WorkflowId,
                           callKey: JobKey,
-                          keyValues: Map[String, Option[String]],
-                          actorSystem: ActorSystem)(implicit ec: ExecutionContext): Future[Unit] = {
+                          keyValues: Map[String, Option[String]])(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
     withRetry {
       databaseInterface.upsertExecutionInfo(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt, keyValues)
     }

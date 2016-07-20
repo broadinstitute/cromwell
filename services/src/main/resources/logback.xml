@@ -32,4 +32,5 @@
   </root>
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>
+  <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>
 </configuration>

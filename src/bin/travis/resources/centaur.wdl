@@ -3,6 +3,8 @@ task centaur {
     File conf
     File pem
     File cromwell_jar
+    File token
+    String secret = read_string(token)
 
     command<<<
         mkdir -p /cromwell_root/tmp/ivy2
@@ -10,7 +12,7 @@ task centaur {
         git clone https://github.com/broadinstitute/centaur.git
         cd centaur
         git checkout develop
-        ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -r/cromwell_root
+        ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -r/cromwell_root -t ${secret}
     >>>
 
     output {
@@ -25,7 +27,6 @@ task centaur {
         failOnStderr: false
     }
 }
-
 workflow centaur {
     call centaur
 }

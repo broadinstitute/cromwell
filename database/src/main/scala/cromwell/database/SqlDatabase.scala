@@ -1,7 +1,6 @@
 package cromwell.database
 
 import java.sql.{Clob, SQLTransientException, Timestamp}
-import java.util.UUID
 
 import cromwell.database.obj._
 
@@ -10,11 +9,9 @@ import scalaz.NonEmptyList
 
 
 trait SqlDatabase extends AutoCloseable {
-  def isTransient(throwable: Throwable): Boolean = {
-    throwable match {
-      case e: SQLTransientException => true
-      case _ => false
-    }
+  def isTransient(throwable: Throwable): Boolean = throwable match {
+    case _: SQLTransientException => true
+    case _ => false
   }
 
   def createWorkflow(workflowExecution: WorkflowExecution,

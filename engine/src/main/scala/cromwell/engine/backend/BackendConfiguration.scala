@@ -25,7 +25,6 @@ object BackendConfiguration {
 
   val AllBackendEntries: List[BackendConfigurationEntry] = BackendNames.toList map { backendName =>
     val entry = BackendProviders.getConfig(backendName)
-    // TODO PBE: "class" can be removed when switching to the shadow world; "actor-factory" renamed?
     BackendConfigurationEntry(
       backendName,
       entry.getString("actor-factory"),

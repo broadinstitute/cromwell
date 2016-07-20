@@ -3,7 +3,7 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 
 import cromwell.core.{WorkflowId, WorkflowState}
-import cromwell.database.{SqlDatabase, Database}
+import cromwell.database.Database
 import cromwell.database.SqlConverters._
 import cromwell.database.obj.{Metadatum, WorkflowMetadataKeys, WorkflowMetadataSummary}
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
@@ -132,7 +132,6 @@ trait MetadataDatabaseAccess extends AutoCloseable { this: Database =>
                (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     import cromwell.services.metadata.CallMetadataKeys._
 
-    val uuid = id.id.toString
     val keys = NonEmptyList(Stdout, Stderr, BackendLogsPrefix + ":%")
     databaseInterface.queryMetadataEventsWithWildcardKeys(id.id.toString, keys, requireEmptyJobKey = false) map metadataToMetadataEvents(id)
   }

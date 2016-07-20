@@ -12,7 +12,7 @@ import cromwell.core._
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
-import cromwell.engine.workflow.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataServiceActor._
 import cromwell.services.metadata.MetadataSummaryRefreshActor
@@ -23,7 +23,6 @@ import cromwell.webservice.CromwellApiHandler._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import spray.http.MediaTypes._
 import spray.http.{DateTime => _, _}
 import spray.json.DefaultJsonProtocol._
 import spray.json._

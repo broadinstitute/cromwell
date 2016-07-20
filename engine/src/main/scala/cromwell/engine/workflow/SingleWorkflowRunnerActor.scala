@@ -12,8 +12,8 @@ import cromwell.core.{WorkflowId, ExecutionStore => _, _}
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
-import cromwell.engine.workflow.WorkflowStore.{Submitted, WorkflowToStart}
-import cromwell.engine.workflow.WorkflowStoreActor.{NewWorkflowsToStart, SubmitWorkflow}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.services.MetadataServiceActor.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
 import cromwell.services.ServiceRegistryClient
 import cromwell.util.PromiseActor._

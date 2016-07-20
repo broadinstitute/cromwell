@@ -12,6 +12,7 @@ import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
@@ -44,7 +45,7 @@ object SingleWorkflowRunnerActorSpec {
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
-  private val workflowStore = system.actorOf(WorkflowStoreActor.props())
+  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore))
   def workflowManagerActor(): ActorRef = {
     system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(), workflowStore)), "WorkflowManagerActor")
   }

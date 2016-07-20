@@ -14,9 +14,9 @@ import cromwell.core.{WorkflowId, _}
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
-import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowStoreActor}
-import cromwell.engine.workflow.WorkflowStore.{Submitted, WorkflowToStart}
-import cromwell.engine.workflow.WorkflowStoreActor.WorkflowSubmittedToStore
+import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowSubmittedToStore
 import cromwell.server.WorkflowManagerSystem
 import cromwell.services.MetadataQuery
 import cromwell.services.MetadataServiceActor._
@@ -369,7 +369,7 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
   }
 
   private def buildWorkflowManagerActor(config: Config) = {
-    val workflowStore = system.actorOf(WorkflowStoreActor.props())
+    val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore))
     TestActorRef(new WorkflowManagerActor(config, workflowStore), name = "WorkflowManagerActor")
   }
 

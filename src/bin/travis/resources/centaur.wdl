@@ -1,5 +1,3 @@
-#TODO: replace rm_refreshToken_test with develop
-
 task centaur {
     String cromwell_branch
     File conf
@@ -13,7 +11,7 @@ task centaur {
         export SBT_OPTS=-Dsbt.ivy.home=/cromwell_root/tmp/.ivy2
         git clone https://github.com/broadinstitute/centaur.git
         cd centaur
-        git checkout rm_refreshToken_test
+        git checkout develop
         ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -r/cromwell_root -t ${secret}
     >>>
 

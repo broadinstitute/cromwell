@@ -1,9 +1,9 @@
-package cromwell.webservice
+package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
 import cromwell.core.WorkflowId
-import cromwell.webservice.WorkflowQueryKey._
+import cromwell.services.metadata.WorkflowQueryKey._
 
 import scala.language.postfixOps
 import scalaz.Scalaz._
@@ -52,7 +52,7 @@ object WorkflowQueryParameters {
    * Run the validation logic over the specified raw parameters, creating a `WorkflowQueryParameters` if all
    * validation succeeds, otherwise accumulate all validation messages within the `ValidationNel`.
    */
-  private [webservice] def runValidation(rawParameters: Seq[(String, String)]): ValidationNel[String, WorkflowQueryParameters] = {
+  private [metadata] def runValidation(rawParameters: Seq[(String, String)]): ValidationNel[String, WorkflowQueryParameters] = {
 
     val onlyRecognizedKeys = validateOnlyRecognizedKeys(rawParameters)
 

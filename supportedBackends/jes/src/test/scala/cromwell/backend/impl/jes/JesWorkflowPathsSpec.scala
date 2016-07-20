@@ -1,7 +1,7 @@
 package cromwell.backend.impl.jes
 
 import cromwell.backend.BackendSpec
-import cromwell.core.IntegrationTest
+import cromwell.core.Tags._
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito

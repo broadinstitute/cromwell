@@ -1,13 +1,13 @@
-package cromwell.services
+package cromwell.services.metadata
 
 import cromwell.core.WorkflowId
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Matchers, FlatSpec}
-import wdl4s.types.{WdlMapType, WdlStringType, WdlArrayType}
+import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType}
 import wdl4s.values._
 
-class MetadataServiceActorSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "MetadataServiceActorSpec"
 
@@ -21,7 +21,7 @@ class MetadataServiceActorSpec extends FlatSpec with Matchers with TableDrivenPr
   }
 
   it should "convert a WdlArray to MetadataEvents" in {
-    import MetadataServiceActor._
+    import MetadataService._
     val workflowId = WorkflowId.randomId()
     val wdlArray = WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("Hello"), WdlString("world!")))
     val emptyWdlArray = WdlArray(WdlArrayType(WdlStringType), Seq.empty)
@@ -37,7 +37,7 @@ class MetadataServiceActorSpec extends FlatSpec with Matchers with TableDrivenPr
   }
 
   it should "convert a WdlMap to MetadataEvents" in {
-    import MetadataServiceActor._
+    import MetadataService._
     val workflowId = WorkflowId.randomId()
     val wdlArray = WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
       WdlString("Hello") -> WdlString("world!"),
@@ -56,7 +56,7 @@ class MetadataServiceActorSpec extends FlatSpec with Matchers with TableDrivenPr
   }
 
   it should "convert a primitive WdlValue to MetadataEvents" in {
-    import MetadataServiceActor._
+    import MetadataService._
     val workflowId = WorkflowId.randomId()
 
     val values = Table(

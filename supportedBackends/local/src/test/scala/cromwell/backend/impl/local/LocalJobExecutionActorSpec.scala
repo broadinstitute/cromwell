@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
+import cromwell.core.Tags._
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{WorkflowPaths, JobPaths, TestWorkflows}

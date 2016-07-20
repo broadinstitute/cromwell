@@ -8,12 +8,9 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData}
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue}
-import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._

@@ -8,10 +8,6 @@ import wdl4s.values.{SymbolHash, WdlValue}
 import scalaz._
 
 package object core {
-  // root can be a Path instead of a String in PBE. stdout / err too but it doesn't really bring values since they're just stringified to WdlFiles
-  class OldWorkflowContext(val root: String)
-  class OldCallContext(override val root: String, val stdout: String, val stderr: String) extends OldWorkflowContext(root)
-
   case class CallContext(root: Path, stdout: String, stderr: String)
 
   type ErrorOr[+A] = ValidationNel[String, A]

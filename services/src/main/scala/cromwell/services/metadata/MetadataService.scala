@@ -1,7 +1,6 @@
-package cromwell.services
+package cromwell.services.metadata
 
 import java.time.OffsetDateTime
-import java.util.UUID
 
 import akka.actor.DeadLetterSuppression
 import cromwell.core.{WorkflowId, WorkflowState}
@@ -13,7 +12,7 @@ import wdl4s.values._
 import scala.language.postfixOps
 import scalaz.NonEmptyList
 
-object MetadataServiceActor {
+object MetadataService {
 
   final val MetadataServiceName = "MetadataService"
 

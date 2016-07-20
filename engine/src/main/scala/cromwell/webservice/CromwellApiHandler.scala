@@ -7,7 +7,8 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.services.MetadataServiceActor.{QueryMetadata, WorkflowQueryResponse}
+import cromwell.services.metadata.{WorkflowQueryPagination, MetadataService}
+import MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.core
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor

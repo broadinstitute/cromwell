@@ -2,17 +2,13 @@ package cromwell
 
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.PostMVP
-import cromwell.CromwellTestkitSpec.TestWorkflowManagerSystem
+import cromwell.core.Tags._
 import cromwell.core._
-import cromwell.engine._
-import cromwell.engine.db.DataAccess
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 
 class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
 
   val actorSystem = ActorSystem("RestartWorkflowSpec", ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
-  val dataAccess = DataAccess.globalDataAccess
   //val localBackend = new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   val sources = WorkflowSourceFiles(
     wdlSource="""task a {command{}}

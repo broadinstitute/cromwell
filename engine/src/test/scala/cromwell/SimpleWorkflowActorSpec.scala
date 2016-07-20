@@ -9,8 +9,9 @@ import cromwell.SimpleWorkflowActorSpec._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.{StartNewWorkflow, StartWorkflowCommand}
-import cromwell.services.MetadataEvent
-import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services.metadata.{MetadataService, MetadataEvent}
+import MetadataService.PutMetadataAction
+import cromwell.services.metadata.MetadataEvent
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 

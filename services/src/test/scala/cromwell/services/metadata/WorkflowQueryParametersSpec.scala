@@ -1,12 +1,13 @@
-package cromwell.webservice
+package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
-import cromwell.CromwellTestkitSpec
-import cromwell.webservice.WorkflowQueryKey._
+import cromwell.services.metadata.WorkflowQueryKey._
+import org.scalatest.{WordSpec, Matchers}
+
 import scalaz.{Name => _, _}
 
-class WorkflowQueryParametersSpec extends CromwellTestkitSpec {
+class WorkflowQueryParametersSpec extends WordSpec with Matchers {
 
   val StartDateString = "2015-11-01T11:11:11Z"
   val EndDateString = "2015-11-01T12:12:12Z"

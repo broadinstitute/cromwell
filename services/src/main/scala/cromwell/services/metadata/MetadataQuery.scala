@@ -1,4 +1,4 @@
-package cromwell.services
+package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 

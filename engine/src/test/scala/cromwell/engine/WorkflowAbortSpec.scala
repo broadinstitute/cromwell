@@ -1,9 +1,6 @@
 package cromwell.engine
 
-import akka.testkit.TestActorRef
-import cromwell.{CromwellTestkitSpec, CromwellSpec}
-import cromwell.engine.db.DataAccess._
-import cromwell.util.SampleWdl.{TripleSleep, HelloWorld}
+import cromwell.CromwellTestkitSpec
 
 class WorkflowAbortSpec extends CromwellTestkitSpec {
 

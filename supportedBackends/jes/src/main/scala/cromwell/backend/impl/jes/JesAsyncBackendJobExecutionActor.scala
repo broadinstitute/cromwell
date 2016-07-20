@@ -21,8 +21,9 @@ import cromwell.core.logging.JobLogging
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
 import cromwell.filesystems.gcs.NioGcsPath
-import cromwell.services.CallMetadataKeys._
-import cromwell.services.MetadataServiceActor.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
+import cromwell.services.metadata._
+import CallMetadataKeys._
+import MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
 import cromwell.services._
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction

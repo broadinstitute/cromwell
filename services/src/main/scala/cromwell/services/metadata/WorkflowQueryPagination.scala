@@ -1,6 +1,6 @@
-package cromwell.webservice
+package cromwell.services.metadata
 
-import cromwell.services.MetadataServiceActor.QueryMetadata
+import cromwell.services.metadata.MetadataService.QueryMetadata
 import spray.http.HttpHeaders.Link
 import spray.http.{HttpHeader, Uri}
 

@@ -1,4 +1,4 @@
-package cromwell.webservice
+package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
@@ -35,11 +35,10 @@ object WorkflowQueryKey {
     override val name = "Name"
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
-      import Patterns.WorkflowName
 
       val values = valuesFromMap(grouped).toList
       val nels = values map {
-        case WorkflowName(n) => n.successNel
+        case Patterns.WorkflowName(n) => n.successNel
         case v => v.failureNel
       }
       sequenceListOfValidationNels(s"Name values do not match allowed workflow naming pattern", nels)

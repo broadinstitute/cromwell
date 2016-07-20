@@ -18,7 +18,8 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.services.MetadataServiceActor._
+import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
+import MetadataService._
 import cromwell.services._
 
 import scala.language.postfixOps

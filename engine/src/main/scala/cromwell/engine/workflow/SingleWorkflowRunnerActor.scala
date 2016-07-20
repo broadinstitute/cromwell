@@ -8,14 +8,15 @@ import akka.actor._
 import akka.pattern.pipe
 import better.files._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{WorkflowId, ExecutionStore => _, _}
+import cromwell.core.{ExecutionStore => _, WorkflowId, _}
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
+import cromwell.engine.workflow.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
-import cromwell.services.MetadataServiceActor.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
 import cromwell.services.ServiceRegistryClient
+import cromwell.services.metadata.MetadataService
+import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
 import cromwell.util.PromiseActor._
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete

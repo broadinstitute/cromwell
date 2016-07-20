@@ -1,24 +1,20 @@
-package cromwell.services.metadata
+package cromwell.services.metadata.impl
 
-import akka.actor.{Props, ActorLogging, Actor}
-import cromwell.core.{WorkflowSubmitted, WorkflowId}
-import cromwell.engine.db.DataAccess
-import cromwell.engine.db.DataAccess._
-import cromwell.services.MetadataQuery
-import cromwell.services.MetadataServiceActor._
-import cromwell.webservice.WorkflowQueryParameters
+import akka.actor.{Actor, ActorLogging, Props}
+import cromwell.core.{WorkflowId, WorkflowSubmitted}
+import cromwell.database.CromwellDatabase
+import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
 import spray.http.Uri
 
 import scala.concurrent.Future
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object ReadMetadataActor {
   def props() = Props(new ReadMetadataActor()).withDispatcher("akka.dispatchers.api-dispatcher")
 }
 
-class ReadMetadataActor extends Actor with ActorLogging {
-
-  val dataAccess = DataAccess.globalDataAccess
+class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAccess with CromwellDatabase {
 
   implicit val ec = context.dispatcher
 
@@ -34,7 +30,7 @@ class ReadMetadataActor extends Actor with ActorLogging {
 
   private def queryAndRespond(query: MetadataQuery) = {
     val sndr = sender()
-    dataAccess.queryMetadataEvents(query) onComplete {
+    queryMetadataEvents(query) onComplete {
       case Success(m) => sndr ! MetadataLookupResponse(query, m)
       case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
     }
@@ -42,7 +38,7 @@ class ReadMetadataActor extends Actor with ActorLogging {
 
   private def queryStatusAndRespond(id: WorkflowId): Unit = {
     val sndr = sender()
-    dataAccess.getWorkflowStatus(id) onComplete {
+    getWorkflowStatus(id) onComplete {
       case Success(Some(s)) => sndr ! StatusLookupResponse(id, s)
       // There's a workflow existence check at the API layer.  If the request has made it this far in the system
       // then the workflow exists but it must not have generated a status yet.
@@ -56,7 +52,7 @@ class ReadMetadataActor extends Actor with ActorLogging {
       for {
       // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
         parameters <- Future.fromTry(Try(WorkflowQueryParameters(rawParameters)))
-        response <- globalDataAccess.queryWorkflowSummaries(parameters)
+        response <- queryWorkflowSummaries(parameters)
       } yield response
     }
 
@@ -70,7 +66,7 @@ class ReadMetadataActor extends Actor with ActorLogging {
 
   private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
-    dataAccess.queryWorkflowOutputs(id) onComplete {
+    queryWorkflowOutputs(id) onComplete {
       case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
       case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
     }
@@ -78,7 +74,7 @@ class ReadMetadataActor extends Actor with ActorLogging {
 
   private def queryLogsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
-    dataAccess.queryLogs(id) onComplete {
+    queryLogs(id) onComplete {
       case Success(s) => replyTo ! LogsResponse(id, s)
       case Failure(t) => replyTo ! LogsFailure(id, t)
     }

@@ -6,12 +6,13 @@ import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.services.MetadataServiceActor._
+import cromwell.services.metadata._
+import MetadataService._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services._
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
 import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, MetadataBuilderActorState, WaitingForMetadataService}
-import cromwell.webservice.{APIResponse, WorkflowJsonSupport, WorkflowQueryPagination}
+import cromwell.webservice.{APIResponse, WorkflowJsonSupport}
 import org.slf4j.LoggerFactory
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._

@@ -4,7 +4,8 @@ import java.time.OffsetDateTime
 
 import cromwell.core.WorkflowSourceFiles
 import cromwell.engine._
-import cromwell.services.MetadataServiceActor.{WorkflowQueryResponse, WorkflowQueryResult}
+import cromwell.services.metadata.MetadataService
+import MetadataService.{WorkflowQueryResponse, WorkflowQueryResult}
 import cromwell.webservice.WdlValueJsonFormatter._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 

@@ -602,7 +602,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  protected def addMetadata(events: Iterable[Metadatum])
+  override def addMetadata(events: Iterable[Metadatum])
                            (implicit ec: ExecutionContext): Future[Unit] = {
     val actions = events map {
       case Metadatum(workflowUuid, key, callFqn, index, attempt, value, valueType, timestamp, _) =>
@@ -649,7 +649,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  protected def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
+  override def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
                                                     wildcardKeys: NonEmptyList[String],
                                                     requireEmptyJobKey: Boolean)
                                                    (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
@@ -658,7 +658,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     runTransaction(action)
   }
 
-  protected def queryMetadataEventsWithoutWildcardKeys(workflowUuid: String,
+  override def queryMetadataEventsWithoutWildcardKeys(workflowUuid: String,
                                                        wildcardKeys: NonEmptyList[String],
                                                        requireEmptyJobKey: Boolean)
                                                       (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {

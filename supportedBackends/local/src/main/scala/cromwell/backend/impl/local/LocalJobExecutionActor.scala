@@ -6,8 +6,9 @@ import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.io.{SharedFileSystem, SharedFsExpressionFunctions}
-import cromwell.services.CallMetadataKeys._
-import cromwell.services.MetadataServiceActor.PutMetadataAction
+import cromwell.services.metadata._
+import CallMetadataKeys._
+import MetadataService.PutMetadataAction
 import cromwell.services._
 import org.slf4j.LoggerFactory
 import wdl4s._

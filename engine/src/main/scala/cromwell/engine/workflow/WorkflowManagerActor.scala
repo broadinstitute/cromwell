@@ -12,8 +12,8 @@ import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.workflowstore.{Restartable, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreService.RegisterWorkflowCompleted
-import cromwell.services.MetadataServiceActor._
 import cromwell.services.ServiceRegistryClient
+import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 

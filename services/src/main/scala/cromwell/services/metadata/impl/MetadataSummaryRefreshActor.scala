@@ -1,11 +1,11 @@
-package cromwell.services.metadata
+package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
 import akka.actor.{LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.db.DataAccess
-import cromwell.services.metadata.MetadataSummaryRefreshActor._
+import cromwell.database.CromwellDatabase
+import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
 import scala.util.{Failure, Success}
 
@@ -13,7 +13,7 @@ import scala.util.{Failure, Success}
 /**
   * This looks for workflows whose metadata summaries are in need of refreshing and refreshes those summaries.
   * Despite its package location this is not actually a service, but a type of actor spawned at the behest of
-  * the EngineMetadataServiceActor.
+  * the MetadataServiceActor.
   *
   */
 
@@ -34,9 +34,8 @@ object MetadataSummaryRefreshActor {
 }
 
 
-class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]) extends LoggingFSM[SummaryRefreshState, SummaryRefreshData] {
+class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]) extends LoggingFSM[SummaryRefreshState, SummaryRefreshData] with MetadataDatabaseAccess with CromwellDatabase {
 
-  val dataAccess = DataAccess.globalDataAccess
   val config = ConfigFactory.load
   implicit val ec = context.dispatcher
 
@@ -46,7 +45,7 @@ class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]
     case (Event(SummarizeMetadata, data)) =>
       val sndr = sender()
       val startMetadataId = data.startMetadataId
-      dataAccess.refreshWorkflowMetadataSummaries(startMetadataId, startMetadataTimestamp) onComplete {
+      refreshWorkflowMetadataSummaries(startMetadataId, startMetadataTimestamp) onComplete {
         case Success(id) =>
           sndr ! MetadataSummarySuccess
           self ! MetadataSummaryComplete(startMetadataId = id + 1)

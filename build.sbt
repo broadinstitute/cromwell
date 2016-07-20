@@ -11,6 +11,7 @@ lazy val gcsfilesystem = (project in file("filesystems/gcs"))
 
 lazy val database = (project in file("database"))
   .settings(databaseSettings:_*)
+  .dependsOn(core % "test->test")
   .withTestSettings
 
 lazy val services = (project in file("services"))

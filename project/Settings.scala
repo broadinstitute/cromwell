@@ -55,7 +55,7 @@ object Settings {
 
   val servicesSettings = List(
     name := "cromwell-services",
-    libraryDependencies ++= sprayDependencies
+    libraryDependencies ++= serviceDependencies
   ) ++ commonSettings
 
   val gcsFileSystemSettings = List(

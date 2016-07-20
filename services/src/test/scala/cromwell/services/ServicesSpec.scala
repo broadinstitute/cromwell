@@ -71,9 +71,9 @@ object ServicesSpec {
 abstract class ServicesSpec(serviceName: String) extends TestKit(ActorSystem(s"${serviceName}ServiceActorSpec", ServicesSpec.config))
   with Matchers with WordSpecLike with BeforeAndAfterAll with ScalaFutures {
 
-  implicit val timeout = Timeout(10.seconds.dilated)
+  implicit val timeout = Timeout(20.seconds.dilated)
   implicit val ec = system.dispatcher
-  implicit val defaultPatience = PatienceConfig(timeout = Span(10, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = Span(20, Seconds), interval = Span(100, Millis))
 
   override protected def afterAll() = {
     TestKit.shutdownActorSystem(system)

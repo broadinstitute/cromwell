@@ -86,4 +86,8 @@ object Dependencies {
     "io.swagger" % "swagger-parser" % "1.0.19" % Test,
     "org.yaml" % "snakeyaml" % "1.16" % Test
   )
+
+  val serviceDependencies = sprayDependencies ++ List(
+    "com.mattbertolini" % "liquibase-slf4j" % "2.0.0"
+  )
 }

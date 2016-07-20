@@ -54,6 +54,7 @@ object Dependencies {
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % "2.0.0",
+    "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.github.pathikrit" %% "better-files" % betterFilesV % Test
   ) ++ baseDependencies
 

@@ -27,6 +27,8 @@ trait KeyValueDatabaseAccess { this: Database =>
                           callKey: JobKey,
                           keyValues: Map[String, Option[String]],
                           actorSystem: ActorSystem)(implicit ec: ExecutionContext): Future[Unit] = {
-    databaseInterface.upsertExecutionInfo(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt, keyValues)
+    withRetry {
+      databaseInterface.upsertExecutionInfo(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt, keyValues)
+    }
   }
 }

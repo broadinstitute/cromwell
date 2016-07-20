@@ -41,8 +41,8 @@ class HtCondorInitializationActorSpec extends TestKitSuite("HtCondorInitializati
   "HtCondorInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        EventFilter.warning(message = s"Key/s [memory] is/are not supported by HtCondorBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
-          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 }""")
+        EventFilter.warning(message = s"Key/s [proc] is/are not supported by HtCondorBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
+          val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { proc: 1 }""")
           val backend = getHtCondorBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
             emptyBackendConfig)
           backend ! Initialize

@@ -13,9 +13,8 @@ class MongoCacheActorFactory(config: Config) extends CacheActorFactory {
   val dbInstance: MongoClient = MongoClient(dbHost, dbPort)
   val db = dbInstance(dbName)
   val collection: MongoCollection = db(dbCollectionName)
-  val forceRewrite = config.getBoolean("cache.forceRewrite")
 
-  override def getCacheActorProps(): Props = {
+  override def getCacheActorProps(forceRewrite: Boolean): Props = {
     Props(new MongoCacheActor(collection, forceRewrite))
   }
 

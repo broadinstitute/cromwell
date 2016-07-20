@@ -1,14 +1,18 @@
 package cromwell.backend.impl.htcondor
 
 import akka.actor.Props
+import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActorFactory
 import cromwell.backend.io.{JobPaths, SharedFsExpressionFunctions}
-import cromwell.core.CallContext
+import cromwell.core.{CallContext, WorkflowOptions}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
-case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
+import scala.util.{Failure, Success, Try}
+
+case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call]): Option[Props] = {
@@ -16,7 +20,7 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
   }
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
-    HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, resolveCacheProviderProps())
+    HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, resolveCacheProviderProps(jobDescriptor.descriptor.workflowOptions))
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
@@ -32,18 +36,31 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
     new SharedFsExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
   }
 
-  private def resolveCacheProviderProps() = {
-    val cacheEnabled = configurationDescriptor.backendConfig.getBoolean("cache.enabled")
+  private def resolveCacheProviderProps(workflowOptions: WorkflowOptions) = {
+    val defaultCacheEnabled = configurationDescriptor.backendConfig.getBoolean("cache.enabled")
+    val cacheEnabled: Boolean = getBooleanFromWfOptions(workflowOptions, "cacheEnabled", defaultCacheEnabled)
 
     if (cacheEnabled) {
+      val defaultForceRewrite = configurationDescriptor.backendConfig.getBoolean("cache.forceRewrite")
+      val cacheForceRewrite = getBooleanFromWfOptions(workflowOptions, "cacheForceRw", defaultForceRewrite)
       val provider = configurationDescriptor.backendConfig.getString("cache.provider")
       val cacheFactory = Class.forName(provider)
-        .getConstructor(classOf[com.typesafe.config.Config])
+        .getConstructor(classOf[Config])
         .newInstance(configurationDescriptor.backendConfig)
         .asInstanceOf[CacheActorFactory]
-      Option(cacheFactory.getCacheActorProps())
+      Option(cacheFactory.getCacheActorProps(cacheForceRewrite))
     }
     else None
+  }
+
+  private def getBooleanFromWfOptions(workflowOptions: WorkflowOptions, optionKey: String, defaultValue: Boolean) = {
+    workflowOptions.get(optionKey) match {
+      case Success(value) => Try(value.toBoolean).getOrElse {
+        logger.warn(s"Could not get '$optionKey' attribute from workflow options. Falling back to default value.")
+        defaultValue
+      }
+      case Failure(_) => defaultValue
+    }
   }
 }
 

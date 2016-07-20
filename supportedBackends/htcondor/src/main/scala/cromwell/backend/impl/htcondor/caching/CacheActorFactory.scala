@@ -4,6 +4,6 @@ import akka.actor.Props
 
 trait CacheActorFactory {
 
-  def getCacheActorProps(): Props
+  def getCacheActorProps(forceRewrite: Boolean): Props
 
 }

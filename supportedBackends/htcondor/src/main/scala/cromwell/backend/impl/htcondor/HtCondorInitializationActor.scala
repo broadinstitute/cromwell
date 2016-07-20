@@ -2,15 +2,17 @@ package cromwell.backend.impl.htcondor
 
 import akka.actor.Props
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
+import cromwell.backend.impl.htcondor.HtCondorRuntimeAttributes._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import wdl4s.types.{WdlBooleanType, WdlStringType}
+import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
 
 object HtCondorInitializationActor {
-  val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
+  val SupportedKeys = Set(DockerKey, DockerWorkingDirKey, DockerOutputDirKey, FailOnStderrKey,
+    ContinueOnReturnCodeKey, CpuKey, MemoryKey, DiskKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
     Props(new HtCondorInitializationActor(workflowDescriptor, calls, configurationDescriptor))
@@ -22,8 +24,13 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
     DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    DockerWorkingDirKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    DockerOutputDirKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
     FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
-    ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false)
+    ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false),
+    CpuKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),
+    MemoryKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
+    DiskKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom)
   )
 
   /**

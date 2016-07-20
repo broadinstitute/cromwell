@@ -19,6 +19,8 @@ object CentaurConfig {
 
   // If provided, any tests will be appended to the tests in standardTestCasePath
   lazy val optionalTestPath: Option[Path] = conf.get[Option[Path]]("centaur.optionalTestPath") valueOrElse None
+  // If provided, the token will become the default value for the workflow option "refresh_token"
+  lazy val optionalToken: Option[String] = conf.get[Option[String]]("centaur.optionalToken") valueOrElse None
 
   implicit class EnhancedJavaDuration(val javaDuration: java.time.Duration) extends AnyVal {
     def toScala: FiniteDuration = FiniteDuration(javaDuration.toMillis, TimeUnit.MILLISECONDS)

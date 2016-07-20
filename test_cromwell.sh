@@ -15,7 +15,7 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-p parallelism factor]
+$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-p parallelism factor] [-t refresh token]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
@@ -25,12 +25,13 @@ Arguments:
     -r    Directory where script is run (defaults to current directory)
     -c    If supplied, the config file to pass to Cromwell
     -p    Number of simultaneous tests to run. Defaults to 3
+    -t    Refresh Token that can be passed into the appropriate options file
 "
 
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 
-while getopts ":hb:r:c:p:j:" option; do
+while getopts ":hb:r:c:p:j:t:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -46,6 +47,8 @@ while getopts ":hb:r:c:p:j:" option; do
             ;;
         j) CROMWELL_JAR="${OPTARG}"
             ;;
+        t) REFRESH_TOKEN=-Dcentaur.optionalToken="${OPTARG}"
+            ;;
         :) printf "Missing argument for -%s\n" "$OPTARG" >&2
             echo "$usage" >&2
             exit 1
@@ -56,7 +59,7 @@ while getopts ":hb:r:c:p:j:" option; do
             ;;
         esac
 done
-shift $((OPTIND - 1))
+shift "$((OPTIND - 1))"
 
 LOG_DIR=logs
 ASSEMBLY_LOG=${LOG_DIR}/cromwell_assembly.log
@@ -109,7 +112,8 @@ if [[ -n ${PARALLELISM_FACTOR} ]]; then
     TEST_COMMAND="./run_tests_parallel.sh ${PARALLELISM_FACTOR}"
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="sbt test"
+    echo "About to run centaur as sbt ${REFRESH_TOKEN} test"
+    TEST_COMMAND="sbt ${REFRESH_TOKEN} test"
 fi
 
 ${TEST_COMMAND}  >> ../${CENTAUR_LOG} 2>&1

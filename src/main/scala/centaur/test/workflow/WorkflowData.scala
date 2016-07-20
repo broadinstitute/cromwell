@@ -3,10 +3,14 @@ package centaur.test.workflow
 import java.nio.file.Path
 
 import cats.data.Validated._
+import centaur.CentaurConfig
 import centaur.test._
 import com.typesafe.config.Config
 import configs.Result
 import configs.syntax._
+import spray.json._
+
+
 
 case class WorkflowData(wdl: String, inputs: Option[String], options: Option[String])
 
@@ -31,4 +35,4 @@ object WorkflowData {
       try source.mkString finally source.close()
     }
   }
- }
+}

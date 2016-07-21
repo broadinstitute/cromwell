@@ -8,9 +8,8 @@ import com.typesafe.config.Config
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
+import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
-import cromwell.core.{WorkflowId, _}
-import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine._
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
@@ -19,9 +18,8 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
-import MetadataService._
-import cromwell.services._
+import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
 import scala.language.postfixOps
 import scala.util.Random

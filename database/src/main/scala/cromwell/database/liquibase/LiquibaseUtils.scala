@@ -132,14 +132,16 @@ object LiquibaseUtils {
   /**
     * Compares a reference to a comparison JDBC connection.
     *
-    * @param referenceJdbc The reference connection.
+    * @param referenceJdbc  The reference connection.
     * @param comparisonJdbc The comparison connection.
+    * @param block          Block of code to run before closing the connections.
     * @return The complete diff results.
     */
-  def compare(referenceJdbc: Connection, comparisonJdbc: Connection): DiffResult = {
+  def compare[T](referenceJdbc: Connection, comparisonJdbc: Connection)(block: DiffResult => T): T = {
     withConnection(referenceJdbc) { referenceLiquibase =>
       withConnection(comparisonJdbc) { comparisonLiquibase =>
-        compare(toDatabase(referenceLiquibase), toDatabase(comparisonLiquibase))
+        val diffResult = compare(toDatabase(referenceLiquibase), toDatabase(comparisonLiquibase))
+        block(diffResult)
       }
     }
   }

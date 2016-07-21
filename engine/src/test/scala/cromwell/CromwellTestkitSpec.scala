@@ -9,18 +9,16 @@ import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
+import cromwell.core._
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.core.{WorkflowId, _}
-import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowSubmittedToStore
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
-import cromwell.services.metadata.{MetadataQuery, MetadataService}
-import MetadataService._
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataQuery
+import cromwell.services.metadata.MetadataService._
 import cromwell.util.SampleWdl
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -32,8 +30,8 @@ import spray.http.StatusCode
 import spray.json._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.types.{WdlArrayType, WdlMapType, WdlStringType, _}
-import wdl4s.values.{WdlFile, WdlString, WdlValue, _}
+import wdl4s.types._
+import wdl4s.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -532,8 +530,16 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
   def getFirstCallLogs(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): (String, String) = {
     val logsResponse = serviceRegistryActor.ask(GetLogs(workflowId)).collect {
       case LogsResponse(_, logs) =>
-        val stdout = logs.find { _.key.key.endsWith("stdout") } flatMap { _.value map { _.value } } getOrElse { throw new LogNotFoundException("stdout") }
-        val stderr = logs.find { _.key.key.endsWith("stderr") } flatMap { _.value map { _.value } } getOrElse { throw new LogNotFoundException("stderr") }
+        def findLog(name: String): String = {
+          val logOption: Option[String] = for {
+            metadataEvent <- logs.find(_.key.key.endsWith(name))
+            metadataValue <- metadataEvent.value
+          } yield metadataValue.value
+          logOption.getOrElse(throw LogNotFoundException(name))
+        }
+
+        val stdout = findLog("stdout")
+        val stderr = findLog("stderr")
         (stdout, stderr)
       case f => throw new RuntimeException(s"Unexpected logs response: $f")
     }

@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalaz.NonEmptyList

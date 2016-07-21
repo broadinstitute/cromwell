@@ -103,16 +103,18 @@ sealed trait SchemaManager {
 
 object LiquibaseSchemaManager {
 
-  def compare[ReferenceProfile <: JdbcProfile, ComparisonProfile <: JdbcProfile]
+  def compare[ReferenceProfile <: JdbcProfile, ComparisonProfile <: JdbcProfile, T]
   (referenceProfile: ReferenceProfile,
    referenceDatabase: ReferenceProfile#Backend#Database,
    comparisonProfile: ComparisonProfile,
-   comparisonDatabase: ComparisonProfile#Backend#Database)
-  (implicit executor: ExecutionContext): DiffResult = {
+   comparisonDatabase: ComparisonProfile#Backend#Database)(block: DiffResult => T)
+  (implicit executor: ExecutionContext): T = {
 
     import SchemaManager._
 
-    withConnections(referenceProfile, referenceDatabase, comparisonProfile, comparisonDatabase)(LiquibaseUtils.compare)
+    withConnections(referenceProfile, referenceDatabase, comparisonProfile, comparisonDatabase) {
+      LiquibaseUtils.compare(_, _)(block)
+    }
   }
 }
 

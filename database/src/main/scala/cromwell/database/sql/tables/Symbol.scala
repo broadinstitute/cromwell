@@ -1,7 +1,8 @@
-package cromwell.database.obj
+package cromwell.database.sql.tables
 
 import java.sql.Clob
 
+@deprecated("Olde Worlde Databasee Tablee", "0.21")
 case class Symbol
 (
   workflowExecutionId: Int,

@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalaz.NonEmptyList
@@ -14,7 +15,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * for tracking purposes.
     */
   override def add(sources: NonEmptyList[WorkflowSourceFiles])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]] = {
-    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _, Submitted) }
+    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _, WorkflowStoreState.Submitted) }
     workflowStore = workflowStore ++ submittedWorkflows.list
     Future.successful(submittedWorkflows map { _.id })
   }
@@ -25,7 +26,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     */
   override def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     val startableWorkflows = workflowStore filter { _.state == state } take n
-    val updatedWorkflows = startableWorkflows map { _.copy(state = Running) }
+    val updatedWorkflows = startableWorkflows map { _.copy(state = WorkflowStoreState.Running) }
     workflowStore = (workflowStore diff startableWorkflows) ++ updatedWorkflows
 
     Future.successful(startableWorkflows map { _.toWorkflowToStart })
@@ -43,7 +44,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 }
 
-final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFiles, state: WorkflowState) {
+final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFiles, state: WorkflowStoreState) {
   def toWorkflowToStart: WorkflowToStart = {
     state match {
       case r: StartableState => WorkflowToStart(id, sources, r)

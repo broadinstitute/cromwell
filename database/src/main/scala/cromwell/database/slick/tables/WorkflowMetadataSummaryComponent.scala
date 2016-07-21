@@ -1,8 +1,8 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.obj.WorkflowMetadataSummary
+import cromwell.database.sql.tables.WorkflowMetadataSummary
 
 trait WorkflowMetadataSummaryComponent {
 

@@ -1,7 +1,8 @@
-package cromwell.database.obj
+package cromwell.database.sql.tables
 
 import java.sql.Timestamp
 
+@deprecated("Olde Worlde Databasee Tablee", "0.21")
 case class Execution
 (
   workflowExecutionId: Int,

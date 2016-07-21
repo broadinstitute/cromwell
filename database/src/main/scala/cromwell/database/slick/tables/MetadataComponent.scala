@@ -1,9 +1,9 @@
-package cromwell.database.slick
-
+package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.obj.{Metadatum, WorkflowMetadataKeys}
+import cromwell.database.sql.tables.Metadatum
+
 import scalaz._
 
 trait MetadataComponent {
@@ -71,13 +71,11 @@ trait MetadataComponent {
     } yield metadatum)
 
   val metadataWithIdAndTimestampGreaterThanOrEqual = Compiled(
-    (id: Rep[Long], timestamp: Rep[Option[Timestamp]]) => for {
+    (id: Rep[Long], timestamp: Rep[Option[Timestamp]],
+     key1: Rep[String], key2: Rep[String], key3: Rep[String], key4: Rep[String]) => for {
       m <- metadata
       if m.metadataId >= id && (m.timestamp >= timestamp || timestamp.isEmpty)
-      if (m.key === WorkflowMetadataKeys.StartTime ||
-        m.key === WorkflowMetadataKeys.EndTime ||
-        m.key === WorkflowMetadataKeys.Name ||
-        m.key === WorkflowMetadataKeys.Status) &&
+      if (m.key === key1 || m.key === key2 || m.key === key3 || m.key === key4 ) &&
         (m.callFqn.isEmpty && m.index.isEmpty && m.attempt.isEmpty)
     } yield m
   )

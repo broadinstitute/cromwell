@@ -7,8 +7,8 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
 import cromwell.CromwellSpec.DockerTest
 import cromwell.core.Tags._
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
-import cromwell.engine.workflow.{WorkflowManagerActor, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}

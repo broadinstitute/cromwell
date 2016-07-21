@@ -2,7 +2,7 @@ package cromwell.util.docker
 
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.core.Tags.{DockerTest, IntegrationTest}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{Assertions, FlatSpec, Matchers}

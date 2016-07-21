@@ -4,11 +4,12 @@ import java.nio.file.{Files, Paths}
 
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
+import cromwell.core.Tags._
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{WorkflowPaths, JobPaths, TestWorkflows}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec}
-import cromwell.core._
+import cromwell.core.{LocallyQualifiedName, JobOutput, JobOutputs, TestKitSuite}
 import org.scalatest.FlatSpecLike
 import org.scalatest.concurrent.PatienceConfiguration._
 import org.scalatest.mock.MockitoSugar

@@ -5,7 +5,8 @@ import java.util.concurrent.TimeoutException
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
-import cromwell.services.MetadataServiceActor.{ValidateWorkflowIdAndExecute, _}
+import cromwell.services.metadata.MetadataService
+import MetadataService.{ValidateWorkflowIdAndExecute, _}
 import cromwell.services.ServiceRegistryClient
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor

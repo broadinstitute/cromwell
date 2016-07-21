@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import akka.testkit._
-import cromwell.CromwellSpec.PostMVP
+import cromwell.core.Tags._
 import cromwell.CromwellTestkitSpec
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.util.SampleWdl

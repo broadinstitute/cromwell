@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.CromwellSpec.DockerTest
+import cromwell.core.Tags.DockerTest
 import wdl4s.types.{WdlStringType, WdlFileType}
 import wdl4s.{WorkflowInput, NamespaceWithWorkflow}
 import wdl4s.values.{WdlInteger, WdlString}

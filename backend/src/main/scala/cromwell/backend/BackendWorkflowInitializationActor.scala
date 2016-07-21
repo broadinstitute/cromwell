@@ -6,8 +6,9 @@ import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.wdl.OnlyPureFunctions
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.services.MetadataServiceActor.PutMetadataAction
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
+import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
+import MetadataService.PutMetadataAction
+import cromwell.services.ServiceRegistryClient
 import wdl4s.{Call, NoLookup, Task, WdlExpression}
 import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}

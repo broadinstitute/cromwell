@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.CromwellSpec.DockerTest
+import cromwell.core.Tags.DockerTest
 import cromwell.util.SampleWdl
 import wdl4s.WdlNamespace
 import wdl4s.expression.NoFunctions

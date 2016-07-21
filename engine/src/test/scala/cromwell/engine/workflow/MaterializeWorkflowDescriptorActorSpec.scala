@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.PostMVP
+import cromwell.core.Tags._
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFiles}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}

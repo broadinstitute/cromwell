@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit._
-import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.core.Tags.DockerTest
 import cromwell.core.WorkflowFailed
 import cromwell.util.SampleWdl
 

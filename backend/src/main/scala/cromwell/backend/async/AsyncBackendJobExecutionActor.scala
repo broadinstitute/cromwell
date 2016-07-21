@@ -6,7 +6,8 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, S
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.services.MetadataServiceActor.MetadataServiceResponse
+import cromwell.services.metadata.MetadataService
+import MetadataService.MetadataServiceResponse
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}

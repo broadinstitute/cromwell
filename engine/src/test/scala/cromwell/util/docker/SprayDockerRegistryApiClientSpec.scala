@@ -1,7 +1,7 @@
 package cromwell.util.docker
 
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellSpec.{DockerTest, IntegrationTest}
+import cromwell.core.Tags.{DockerTest, IntegrationTest}
 import cromwell.core.{DockerConfiguration, TestKitSuite}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.filesystems.gcs.GoogleCredentialFactorySpec

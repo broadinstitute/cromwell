@@ -9,8 +9,9 @@ import better.files._
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogger
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.services.MetadataServiceActor.PutMetadataAction
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
+import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
+import MetadataService.PutMetadataAction
+import cromwell.services.ServiceRegistryClient
 
 object CopyWorkflowLogsActor {
   // Commands

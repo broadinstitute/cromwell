@@ -18,8 +18,9 @@ import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowSubmittedToStore
 import cromwell.server.WorkflowManagerSystem
-import cromwell.services.MetadataQuery
-import cromwell.services.MetadataServiceActor._
+import cromwell.services.metadata.{MetadataService, MetadataQuery}
+import MetadataService._
+import cromwell.services.metadata.MetadataQuery
 import cromwell.util.SampleWdl
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor

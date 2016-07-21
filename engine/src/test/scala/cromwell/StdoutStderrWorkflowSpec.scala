@@ -1,6 +1,6 @@
 package cromwell
 
-import cromwell.CromwellSpec.DockerTest
+import cromwell.core.Tags.DockerTest
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

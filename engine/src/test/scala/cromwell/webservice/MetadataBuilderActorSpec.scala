@@ -5,7 +5,8 @@ import java.util.UUID
 
 import akka.testkit._
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.services.MetadataServiceActor._
+import cromwell.services.metadata._
+import MetadataService._
 import cromwell.services._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor

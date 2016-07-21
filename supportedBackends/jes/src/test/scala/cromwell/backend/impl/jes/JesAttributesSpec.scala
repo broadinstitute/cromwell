@@ -3,8 +3,7 @@ package cromwell.backend.impl.jes
 import java.net.URL
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendSpec
-import cromwell.core.IntegrationTest
+import cromwell.core.Tags._
 import cromwell.filesystems.gcs.GoogleConfiguration
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.ThrowableWithErrors

@@ -23,13 +23,13 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.Workf
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.jobstore.JobStoreService.RegisterJobCompleted
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, _}
-import cromwell.services.MetadataServiceActor._
-import cromwell.services._
+import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata._
 import lenthall.exception.ThrowableAggregation
-import wdl4s.{Scope, _}
 import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
+import wdl4s.{Scope, _}
 
 import scala.annotation.tailrec
 import scala.language.postfixOps

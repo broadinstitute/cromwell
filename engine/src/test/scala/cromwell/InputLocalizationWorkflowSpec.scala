@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.testkit.EventFilter
-import cromwell.CromwellSpec.DockerTest
+import cromwell.core.Tags.DockerTest
 import cromwell.util.SampleWdl
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.values.{WdlArray, WdlFile, WdlString}

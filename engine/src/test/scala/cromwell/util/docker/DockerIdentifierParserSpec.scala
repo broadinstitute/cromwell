@@ -1,6 +1,6 @@
 package cromwell.util.docker
 
-import cromwell.CromwellSpec.IntegrationTest
+import cromwell.core.Tags.IntegrationTest
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.filesystems.gcs.GoogleCredentialFactorySpec
 import org.scalatest.prop.TableDrivenPropertyChecks._

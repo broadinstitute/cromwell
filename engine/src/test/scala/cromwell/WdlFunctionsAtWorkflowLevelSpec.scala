@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit._
 import wdl4s.types.{WdlMapType, WdlStringType, WdlArrayType}
 import wdl4s.values.{WdlMap, WdlArray, WdlString}
-import cromwell.CromwellSpec.DockerTest
+import cromwell.core.Tags.DockerTest
 import cromwell.util.SampleWdl
 
 import scala.language.postfixOps

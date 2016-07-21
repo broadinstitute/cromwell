@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
-import cromwell.CromwellSpec.DockerTest
+import cromwell.core.Tags.DockerTest
 import cromwell.core.Tags._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}

@@ -4,11 +4,13 @@ import java.sql.Timestamp
 
 import cromwell.database.obj.WorkflowExecution
 
+@deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait WorkflowExecutionComponent {
   this: DriverComponent =>
 
   import driver.api._
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   class WorkflowExecutions(tag: Tag) extends Table[WorkflowExecution](tag, "WORKFLOW_EXECUTION") {
     def workflowExecutionId = column[Int]("WORKFLOW_EXECUTION_ID", O.PrimaryKey, O.AutoInc)
 
@@ -31,28 +33,34 @@ trait WorkflowExecutionComponent {
     def statusIdx = index("STATUS_IDX", status, unique = false)
   }
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   protected val workflowExecutions = TableQuery[WorkflowExecutions]
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val workflowExecutionIdsAutoInc = workflowExecutions returning workflowExecutions.map(_.workflowExecutionId)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val workflowExecutionIdsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowExecution <- workflowExecutions
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowExecution.workflowExecutionId)
 
+    } yield workflowExecution.workflowExecutionId)
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val workflowExecutionStatusByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowExecution <- workflowExecutions
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowExecution.status)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val workflowExecutionStatusEndDtByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowExecution <- workflowExecutions
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield (workflowExecution.status, workflowExecution.endDt))
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val workflowExecutionsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowExecution <- workflowExecutions

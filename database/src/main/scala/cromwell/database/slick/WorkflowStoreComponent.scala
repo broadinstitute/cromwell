@@ -1,0 +1,63 @@
+package cromwell.database.slick
+
+
+import java.sql.Timestamp
+import cromwell.database.obj.WorkflowStoreEntry
+import scalaz._
+
+trait WorkflowStoreComponent {
+
+  this: DriverComponent =>
+
+  import driver.api._
+
+  class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE") {
+    def workflowStoreTableId = column[Long]("WORKFLOW_STORE_ID", O.PrimaryKey, O.AutoInc)
+    def workflowUuid = column[String]("WORKFLOW_UUID")
+    def workflowDefinition = column[String]("WORKFLOW_DEFINITION")
+    def workflowInputs = column[Option[String]]("WORKFLOW_INPUTS")
+    def workflowOptions = column[Option[String]]("WORKFLOW_OPTIONS")
+    def state = column[String]("STATE")
+    def timestamp = column[Timestamp]("TIMESTAMP")
+
+    override def * = (workflowUuid, workflowDefinition, workflowInputs, workflowOptions, state, timestamp, workflowStoreTableId.?) <>
+      (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+
+    def uuidIndex = index("WORKFLOW_STORE_UUID_IDX", workflowUuid, unique = true)
+
+    def stateIndex = index("WORKFLOW_STORE_STATE_IDX", state, unique = false)
+  }
+
+  protected val workflowStore = TableQuery[WorkflowStoreEntries]
+
+  val workflowStoreAutoInc = workflowStore returning workflowStore.map(_.workflowStoreTableId)
+
+  /**
+    * Useful for finding the store entry for a given workflow UUID
+    */
+  val workflowStoreEntryByWorkflowUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      entry <- workflowStore
+      if entry.workflowUuid === workflowExecutionUuid
+    } yield entry)
+
+  /**
+    * Useful for selecting store entries with a given state. This is a def rather than a val so
+    * that we can use take(n) to only select the top n results.
+    */
+  def workflowStoreEntriesByState(state: Rep[String]) = {
+    for {
+      entry <- workflowStore
+      if entry.state === state
+    } yield entry
+  }
+
+  /**
+    * Useful for updating state for all entries matching a given UUID
+    */
+  val workflowStateByUuid = Compiled(
+    (uuid: Rep[String]) => for {
+      entry <- workflowStore
+      if entry.workflowUuid === uuid
+    } yield entry.state)
+}

@@ -5,12 +5,13 @@ import java.util.UUID
 import java.util.concurrent.{ExecutorService, Executors}
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import cromwell.database.SqlDatabase
+import cromwell.database.{SqlDatabase, WorkflowStoreSqlDatabase}
 import cromwell.database.obj._
 import lenthall.config.ScalaConfig._
 import org.slf4j.LoggerFactory
 import slick.backend.DatabaseConfig
 import slick.driver.JdbcProfile
+import SlickDatabase._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -69,7 +70,7 @@ object SlickDatabase {
   * if the list is empty.  In every use case as of the writing of this comment,
   * those exceptions would have been wrapped in a failed Future and returned.
   */
-class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
+class SlickDatabase(databaseConfig: Config) extends SqlDatabase with WorkflowStoreSlickDatabase {
 
   import SlickDatabase._
 
@@ -145,7 +146,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
     database.close()
   }
 
-  private def runTransaction[R](action: DBIO[R]): Future[R] = {
+  protected[this] def runTransaction[R](action: DBIO[R]): Future[R] = {
     //database.run(action.transactionally) <-- https://github.com/slick/slick/issues/1274
     Future(Await.result(database.run(action.transactionally), Duration.Inf))(actionExecutionContext)
   }
@@ -723,5 +724,46 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase {
   def workflowExists(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.workflowExists(possibleWorkflowId).result
     runTransaction(action)
+  }
+}
+
+trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase { this: SlickDatabase =>
+
+  import dataAccess.driver.api._
+
+  override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.workflowStateByUuid(WorkflowStoreEntryState.Running.toString).update(WorkflowStoreEntryState.Restartable.toString)
+    runTransaction(action) map {_ => () }
+  }
+
+  /**
+    * Adds the requested WorkflowSourceFiles to the store.
+    */
+  override def add(newEntries: Iterable[WorkflowStoreEntry])(implicit ec: ExecutionContext): Future[Unit] = {
+    val actions = newEntries map {
+      case x => dataAccess.workflowStoreAutoInc += x.copy(workflowStoreId = None)
+    }
+    runTransaction(DBIO.sequence(actions)) map { _ => ()}
+  }
+
+  /**
+    * Retrieves up to n workflows which have not already been pulled into the engine and sets their state to Running.
+    */
+  override def fetchRunnableWorkflows(n: Int, state: WorkflowStoreEntryState)(implicit ec: ExecutionContext): Future[List[WorkflowStoreEntry]] = {
+    val fetchAction = dataAccess.workflowStoreEntriesByState(state.toString).sortBy(_.timestamp.asc).take(n).result
+    runTransaction(fetchAction) flatMap { list =>
+      val updateActions = list map {
+        case WorkflowStoreEntry(workflowUuid, _, _, _, _, _, _) => dataAccess.workflowStateByUuid(workflowUuid).update(WorkflowStoreEntryState.Running.toString)
+      }
+      runTransaction(DBIO.sequence(updateActions)) flatMap { ints => {
+        if (ints.forall( _ == 1 )) Future.successful(list.toList)
+        else Future.failed(new Exception("Failed to update the database"))
+      }}
+    }
+  }
+
+  override def remove(id: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.workflowStoreEntryByWorkflowUuid(id).delete
+    runTransaction(action) map { _ > 0 } // i.e. did anything get deleted
   }
 }

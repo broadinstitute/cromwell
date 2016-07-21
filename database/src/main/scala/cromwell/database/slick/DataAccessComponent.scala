@@ -11,7 +11,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with ExecutionInfoComponent
   with RuntimeAttributeComponent
   with MetadataComponent
-  with WorkflowMetadataSummaryComponent {
+  with WorkflowMetadataSummaryComponent
+  with WorkflowStoreComponent{
 
   import driver.api._
 

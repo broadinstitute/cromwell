@@ -64,7 +64,7 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloWorldSourceFiles
-              state shouldBe Submitted
+              state shouldBe WorkflowStoreState.Submitted
           }
       }
     }
@@ -85,7 +85,7 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloWorldSourceFiles
-              state shouldBe Submitted
+              state shouldBe WorkflowStoreState.Submitted
           }
       }
     }

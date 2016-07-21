@@ -6,11 +6,13 @@ import cromwell.database.obj.Execution
 import slick.jdbc.GetResult
 import slick.profile.RelationalProfile.ColumnOption.Default
 
+@deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait ExecutionComponent {
   this: DriverComponent with WorkflowExecutionComponent =>
 
   import driver.api._
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   class Executions(tag: Tag) extends Table[Execution](tag, "EXECUTION") {
     def executionId = column[Int]("EXECUTION_ID", O.PrimaryKey, O.AutoInc)
     def workflowExecutionId = column[Int]("WORKFLOW_EXECUTION_ID")
@@ -42,14 +44,17 @@ trait ExecutionComponent {
     def uniqueKey = index("UK_WORKFLOW_CALL_INDEX_ATTEMPT", (workflowExecutionId, callFqn, index, attempt), unique = true)
   }
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   protected val executions = TableQuery[Executions]
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionIdsAutoInc = executions returning executions.map(_.executionId)
 
   private[this] implicit val executionResult = GetResult { r =>
     Execution(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
   }
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionCallStatusesByWorkflowExecutionUuidAndCallKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
@@ -60,6 +65,7 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield (execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionCallStatusesByWorkflowExecutionUuidAndCallFqn = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
       execution <- executions
@@ -69,6 +75,7 @@ trait ExecutionComponent {
     } yield (execution.callFqn, execution.index, execution.attempt,
       execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionCallStatusesByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       execution <- executions
@@ -77,6 +84,7 @@ trait ExecutionComponent {
     } yield (execution.callFqn, execution.index, execution.attempt,
       execution.status, execution.rc, execution.executionHash, execution.dockerImageHash))
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionIdsByWorkflowExecutionUuidAndCallKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
@@ -87,6 +95,7 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution.executionId)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionIdAndWorkflowExecutionIdsByWorkflowExecutionUuidAndCallKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
@@ -97,6 +106,7 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield (execution.executionId, workflowExecution.workflowExecutionId))
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionAllowsResultReusesByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
@@ -106,6 +116,7 @@ trait ExecutionComponent {
       if execution.attempt === attempt
     } yield execution.allowsResultReuse)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionAllowsResultReusesByWorkflowExecutionIdAndCallFqnAndAttempt = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], attempt: Rep[Int]) => for {
       execution <- executions
@@ -114,12 +125,14 @@ trait ExecutionComponent {
       if execution.attempt === attempt
     } yield execution.allowsResultReuse)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionAllowsResultReusesByWorkflowExecutionId = Compiled(
     (workflowExecutionId: Rep[Int]) => for {
       execution <- executions
       if execution.workflowExecutionId === workflowExecutionId
     } yield execution.allowsResultReuse)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionIdsByWorkflowExecutionUuidAndCallFqnAndAttempt = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], attempt: Rep[Int]) => for {
       execution <- executions
@@ -129,6 +142,7 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution.executionId)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionIdAndWorkflowExecutionIdsByWorkflowExecutionUuidAndCallFqnAndAttempt = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], attempt: Rep[Int]) => for {
       execution <- executions
@@ -138,6 +152,7 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield (execution.executionId, workflowExecution.workflowExecutionId))
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionsByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       execution <- executions
@@ -145,6 +160,7 @@ trait ExecutionComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield execution)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionsWithReusableResultsByExecutionHash = Compiled(
     (executionHash: Rep[String]) => for {
       execution <- executions
@@ -152,6 +168,7 @@ trait ExecutionComponent {
       if execution.allowsResultReuse
     } yield execution)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   def selectExecutionsWithCacheHitWorkflowAndCall(workflowExecutionUuid: String):
   DBIO[Vector[(Execution, Option[String], Option[String])]] = {
     /** NOTE: the columns must be in the same order as the attributes in the Execution class for this to work */
@@ -168,6 +185,7 @@ trait ExecutionComponent {
        """.as[(Execution, Option[String], Option[String])]
   }
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionsByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
@@ -179,6 +197,7 @@ trait ExecutionComponent {
       execution.executionHash, execution.dockerImageHash, execution.resultsClonedFrom)
   )
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionStatusesByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions
@@ -189,6 +208,7 @@ trait ExecutionComponent {
     } yield execution.status
   )
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionStatusesAndStartDtByWorkflowExecutionIdAndCallKey = Compiled(
     (workflowExecutionId: Rep[Int], callFqn: Rep[String], index: Rep[Int], attempt: Rep[Int]) => for {
       execution <- executions

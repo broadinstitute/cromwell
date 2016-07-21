@@ -2,7 +2,7 @@ package cromwell.jobstore
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.event.LoggingReceive
-import cromwell.jobstore.JobStoreService.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
+import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
 
 import scala.util.{Failure, Success}
 

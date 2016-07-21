@@ -2,7 +2,7 @@ package cromwell.core
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestKit
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{BeforeAndAfterAll, Suite}
@@ -21,6 +21,8 @@ abstract class TestKitSuite(actorSystemName: String = TestKitSuite.randomName,
     system.shutdown()
     super.afterAll()
   }
+
+  val emptyActor = system.actorOf(Props.empty)
 }
 
 object TestKitSuite {

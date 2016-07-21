@@ -3,8 +3,8 @@ package cromwell.webservice
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, Props}
 import akka.pattern.ask
+import akka.actor.{Actor, Props}
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags._
@@ -13,11 +13,12 @@ import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
-import cromwell.server.WorkflowManagerSystem
+import cromwell.server.{CromwellServerActor, CromwellSystem}
 import cromwell.services.metadata._
 import MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor
 import MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.CromwellTestkitSpec
 import cromwell.services._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor
 import cromwell.util.SampleWdl.HelloWorld
@@ -69,7 +70,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   import spray.httpx.SprayJsonSupport._
 
   // BUG: Must be called once to statically initialize the backends, otherwise this Spec won't run if run alone.
-  new WorkflowManagerSystem {}
+  new CromwellSystem {}
 
   import akka.testkit._
 
@@ -79,9 +80,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   implicit val defaultTimeout = RouteTestTimeout(30.seconds.dilated)
 
   override def actorRefFactory = system
-  val summaryActor = system.actorOf(MetadataSummaryRefreshActor.props(None), "metadata-summary-actor")
+  override val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
 
-  override val workflowManager = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
+  override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
     override implicit  val actorSystem = context.system
   }))
 
@@ -101,7 +102,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   def forceSummary(): Unit = {
     val timeout: Timeout = 5.seconds.dilated
     val patienceConfig = PatienceConfig(timeout.duration)
-    val summaryResult = summaryActor.ask(SummarizeMetadata)(timeout)
+    val summaryResult = serviceRegistryActor.ask(RefreshSummary)(timeout)
 
     val askResult = summaryResult.futureValue(patienceConfig)
     askResult match {
@@ -115,7 +116,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   behavior of "REST API /status endpoint"
 
   it should "return 500 errors as Json" in {
-    val apiActor = TestActorRef(new CromwellApiServiceActor(workflowManager, workflowStoreActor, ConfigFactory.empty()))
+    val apiActor = TestActorRef(new CromwellServerActor(ConfigFactory.empty()))
     val probe = TestProbe()
     probe.send(apiActor, Timedout(mock[HttpRequest]))
     probe.expectMsgPF(defaultTimeout.duration) {

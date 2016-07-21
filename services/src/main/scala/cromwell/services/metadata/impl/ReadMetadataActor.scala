@@ -2,6 +2,7 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
+import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.database.CromwellDatabase
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
@@ -11,7 +12,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object ReadMetadataActor {
-  def props() = Props(new ReadMetadataActor()).withDispatcher("akka.dispatchers.api-dispatcher")
+  def props() = Props(new ReadMetadataActor()).withDispatcher(ApiDispatcher)
 }
 
 class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAccess with CromwellDatabase {

@@ -88,7 +88,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   /**
     * Handles metadata service responses, with a default implementation that ignores all successes and failures.
     *
-    * Any AsyncBackendJobExecutionActor that happens to mix in ServiceRegistryClient will have ack messages returning.
+    * Any AsyncBackendJobExecutionActor that happens to use the serviceRegistryActor will have ack messages returning.
     * One may optionally handle the ack responses here, or use the default implementation which is to ignore the ack.
     * Sub classes may choose to resend the metadata based on the success or failure response.
     *

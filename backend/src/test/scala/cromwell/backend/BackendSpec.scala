@@ -2,7 +2,7 @@ package cromwell.backend
 
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
-import cromwell.backend.io.TestWorkflows.TestWorkflow
+import cromwell.backend.io.TestWorkflows._
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
@@ -26,7 +26,7 @@ trait BackendSpec extends ScalaFutures with Matchers {
                               inputs: Map[String, WdlValue] = Map.empty,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
-    new BackendWorkflowDescriptor(
+    BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
       inputs,
@@ -37,22 +37,22 @@ trait BackendSpec extends ScalaFutures with Matchers {
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
                                           inputs: Map[String, WdlValue] = Map.empty): BackendJobDescriptor = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
-    val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    new BackendJobDescriptor(workflowDescriptor, jobKey, inputs)
+    val jobKey = BackendJobDescriptorKey(call, None, 1)
+    BackendJobDescriptor(workflowDescriptor, jobKey, inputs)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
-    val jobKey = new BackendJobDescriptorKey(call, None, 1)
-    new BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
+    val jobKey = BackendJobDescriptorKey(call, None, 1)
+    BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource, runtime: String, attempt: Int): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
-    val jobKey = new BackendJobDescriptorKey(call, None, attempt)
-    new BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
+    val jobKey = BackendJobDescriptorKey(call, None, attempt)
+    BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -82,17 +82,17 @@ trait BackendSpec extends ScalaFutures with Matchers {
     }
   }
 
-  lazy val emptyBackendConfig = new BackendConfigurationDescriptor(
+  lazy val emptyBackendConfig = BackendConfigurationDescriptor(
     ConfigFactory.parseString("{}"), ConfigFactory.load())
 
   def firstJobDescriptorKey(workflowDescriptor: BackendWorkflowDescriptor): BackendJobDescriptorKey = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
-    new BackendJobDescriptorKey(call, None, 1)
+    BackendJobDescriptorKey(call, None, 1)
   }
 
   def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                          inputs: Map[String, WdlValue] = Map.empty) = {
-    new BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), inputs)
+    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), inputs)
   }
 
   def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {

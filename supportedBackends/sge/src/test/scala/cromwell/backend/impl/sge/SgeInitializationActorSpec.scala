@@ -36,7 +36,7 @@ class SgeInitializationActorSpec extends TestKitSuite("SgeInitializationActorSpe
     """.stripMargin
 
   private def getSgeBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(SgeInitializationActor.props(workflowDescriptor, calls, conf))
+    system.actorOf(SgeInitializationActor.props(workflowDescriptor, calls, conf, emptyActor))
   }
 
   "SgeInitializationActor" should {

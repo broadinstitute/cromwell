@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobExecutionActor._
@@ -9,8 +9,8 @@ import cromwell.core.{ExecutionStore, JobOutputs, OutputStore, WorkflowId}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
-import cromwell.jobstore.JobStoreService.{JobComplete, JobNotComplete}
-import cromwell.jobstore.{JobResultFailure, JobResultSuccess, Pending => _}
+import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
+import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreActor, Pending => _}
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfterAll, Matchers}
 import org.specs2.mock.Mockito
@@ -31,8 +31,12 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
   })
   val ejeaParent = TestProbe()
   val factory = new BackendLifecycleActorFactory {
-    override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call]): Option[Props] = None
-    override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = mockBackendProps
+    override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                                  calls: Seq[Call],
+                                                  serviceRegistryActor: ActorRef): Option[Props] = None
+    override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                        initializationData: Option[BackendInitializationData],
+                                        serviceRegistryActor: ActorRef): Props = mockBackendProps
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey, initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
       NoFunctions
     }
@@ -47,7 +51,9 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty)),
       factory,
       None,
-      restarting = restarting
+      restarting = restarting,
+      serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance,
+      jobStoreActor = system.actorOf(JobStoreActor.props)
     ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
   }
 
@@ -94,7 +100,6 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       val call = Call(None, "wf.call", task, Set.empty, Map.empty, None)
 
-      val jobKey = BackendJobDescriptorKey(call, None, 1)
       ejea ! JobNotComplete
 
       backendProbe.expectMsg(awaitTimeout, RecoverJobCommand)
@@ -110,7 +115,6 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       val task = mock[Task]
       task.declarations returns Seq.empty
 
-      val jobKey = BackendJobDescriptorKey(Call(None, "wf.call", task, Set.empty, Map.empty, None), None, 1)
       ejea ! EngineJobExecutionActor.Execute
 
       backendProbe.expectMsg(awaitTimeout, RecoverJobCommand)
@@ -124,7 +128,6 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       val task = mock[Task]
       task.declarations returns Seq.empty
 
-      val jobKey = BackendJobDescriptorKey(Call(None, "wf.call", task, Set.empty, Map.empty, None), None, 1)
       ejea ! EngineJobExecutionActor.Execute
 
       backendProbe.expectMsg(awaitTimeout, ExecuteJobCommand)

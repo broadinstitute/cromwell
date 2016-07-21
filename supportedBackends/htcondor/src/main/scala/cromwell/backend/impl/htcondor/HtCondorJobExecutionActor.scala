@@ -21,18 +21,15 @@ import scala.util.{Try, Failure, Success}
 import scala.language.postfixOps
 
 object HtCondorJobExecutionActor {
-
   val fileSystems = List(FileSystems.getDefault)
 
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, cacheActorProps: Option[Props]): Props =
     Props(new HtCondorJobExecutionActor(jobDescriptor, configurationDescriptor, cacheActorProps))
-
 }
 
 class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                 override val configurationDescriptor: BackendConfigurationDescriptor,
                                 cacheActorProps: Option[Props]) extends BackendJobExecutionActor with SharedFileSystem {
-
   import HtCondorJobExecutionActor._
   import better.files._
   import cromwell.core.PathFactory._

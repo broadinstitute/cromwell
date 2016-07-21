@@ -6,6 +6,7 @@ import akka.actor.Props
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
 import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
 import cromwell.core._
+import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
@@ -18,7 +19,7 @@ object CopyWorkflowOutputsActor {
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,
             initializationData: AllBackendInitializationData) = Props(
     new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, outputStore, initializationData)
-  ).withDispatcher("akka.dispatchers.io-dispatcher")
+  ).withDispatcher(IoDispatcher)
 }
 
 class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,

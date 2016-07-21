@@ -3,16 +3,15 @@ package cromwell.engine.workflow
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
-import akka.routing.FromConfig
+import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
-import cromwell.engine._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
-import cromwell.engine.workflow.workflowstore.{Restartable, WorkflowStoreActor}
-import cromwell.jobstore.JobStoreService.RegisterWorkflowCompleted
-import cromwell.services.ServiceRegistryClient
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
+import cromwell.jobstore.JobStoreActor.RegisterWorkflowCompleted
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
@@ -45,7 +44,12 @@ object WorkflowManagerActor {
     */
   sealed trait WorkflowManagerActorResponse extends WorkflowManagerActorMessage
 
-  def props(workflowStore: ActorRef): Props = Props(new WorkflowManagerActor(workflowStore)).withDispatcher("akka.dispatchers.engine-dispatcher")
+  def props(workflowStore: ActorRef,
+            serviceRegistryActor: ActorRef,
+            workflowLogCopyRouter: ActorRef,
+            jobStoreActor: ActorRef): Props = {
+    Props(new WorkflowManagerActor(workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor)).withDispatcher(EngineDispatcher)
+  }
 
   /**
     * States
@@ -75,11 +79,19 @@ object WorkflowManagerActor {
   }
 }
 
-class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with CromwellActor with ServiceRegistryClient {
+class WorkflowManagerActor(config: Config,
+                           val workflowStore: ActorRef,
+                           val serviceRegistryActor: ActorRef,
+                           val workflowLogCopyRouter: ActorRef,
+                           val jobStoreActor: ActorRef)
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
 
-  def this(workflowStore: ActorRef) = this(ConfigFactory.load, workflowStore)
+  def this(workflowStore: ActorRef,
+           serviceRegistryActor: ActorRef,
+           workflowLogCopyRouter: ActorRef,
+           jobStoreActor: ActorRef) = this(ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor)
   implicit val actorSystem = context.system
+  private implicit val timeout = Timeout(5 seconds)
 
   private val maxWorkflowsRunning = config.getConfig("system").getIntOr("max-concurrent-workflows", default=DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").getIntOr("max-workflow-launch-count", default=DefaultMaxWorkflowsToLaunch)
@@ -90,10 +102,6 @@ class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
   private val tag = self.path.name
 
   private val donePromise = Promise[Unit]()
-
-  private val workflowLogCopyRouter: ActorRef = {
-    context.actorOf(FromConfig.withSupervisorStrategy(CopyWorkflowLogsActor.strategy).props(Props[CopyWorkflowLogsActor].withDispatcher("akka.dispatchers.io-dispatcher")), "WorkflowLogCopyRouter")
-  }
 
   override def preStart() {
     addShutdownHook()
@@ -164,11 +172,11 @@ class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
       // Watching the transition should be enough for the WMA to do what it needs to
     case Event(WorkflowSucceededResponse(workflowId), data) =>
       log.info(s"$tag Workflow $workflowId succeeded!")
-      serviceRegistryActor ! RegisterWorkflowCompleted(workflowId)
+      jobStoreActor ! RegisterWorkflowCompleted(workflowId)
       stay()
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), data) =>
       log.error(s"$tag Workflow $workflowId failed (during $inState): ${reasons.mkString("\n")}")
-      serviceRegistryActor ! RegisterWorkflowCompleted(workflowId)
+      jobStoreActor ! RegisterWorkflowCompleted(workflowId)
       stay()
     /*
      Watched transitions
@@ -227,7 +235,7 @@ class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
   private def submitWorkflow(workflow: workflowstore.WorkflowToStart): WorkflowIdToActorRef = {
     val workflowId = workflow.id
 
-    val startMode = if (workflow.state == Restartable) {
+    val startMode = if (workflow.state == workflowstore.Restartable) {
       logger.info(s"$tag Restarting workflow UUID($workflowId)")
       RestartExistingWorkflow
     } else {
@@ -235,7 +243,7 @@ class WorkflowManagerActor(config: Config, val workflowStore: ActorRef)
       StartNewWorkflow
     }
 
-    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor, workflowLogCopyRouter)
+    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

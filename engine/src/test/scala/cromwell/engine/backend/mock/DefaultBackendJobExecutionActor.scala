@@ -1,6 +1,6 @@
 package cromwell.engine.backend.mock
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse}
 import cromwell.backend._
 import wdl4s.Call
@@ -23,9 +23,12 @@ case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJo
 
 class DefaultBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call]): Option[Props] = None
+                                                calls: Seq[Call],
+                                                serviceRegistryActor: ActorRef): Option[Props] = None
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                      initializationData: Option[BackendInitializationData],
+                                      serviceRegistryActor: ActorRef): Props = {
     DefaultBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 

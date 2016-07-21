@@ -2,7 +2,7 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
-import akka.actor.{LoggingFSM, Props}
+import akka.actor.{ActorRef, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.database.CromwellDatabase
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
@@ -19,9 +19,9 @@ import scala.util.{Failure, Success}
 
 object MetadataSummaryRefreshActor {
   sealed trait MetadataSummaryActorMessage
-  case object SummarizeMetadata
-  case object MetadataSummarySuccess
-  case class MetadataSummaryFailure(t: Throwable)
+  final case class SummarizeMetadata(respondTo: ActorRef) extends MetadataSummaryActorMessage
+  case object MetadataSummarySuccess extends MetadataSummaryActorMessage
+  final case class MetadataSummaryFailure(t: Throwable) extends MetadataSummaryActorMessage
 
   def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp))
 
@@ -30,7 +30,7 @@ object MetadataSummaryRefreshActor {
   case object SummarizingMetadata extends SummaryRefreshState
   private case class MetadataSummaryComplete(startMetadataId: Long) extends SummaryRefreshState
 
-  case class SummaryRefreshData(startMetadataId: Long)
+  final case class SummaryRefreshData(startMetadataId: Long)
 }
 
 
@@ -42,16 +42,15 @@ class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]
   startWith(WaitingForRequest, SummaryRefreshData(startMetadataId = 0L))
 
   when (WaitingForRequest) {
-    case (Event(SummarizeMetadata, data)) =>
-      val sndr = sender()
+    case (Event(SummarizeMetadata(respondTo), data)) =>
       val startMetadataId = data.startMetadataId
       refreshWorkflowMetadataSummaries(startMetadataId, startMetadataTimestamp) onComplete {
         case Success(id) =>
-          sndr ! MetadataSummarySuccess
+          respondTo ! MetadataSummarySuccess
           self ! MetadataSummaryComplete(startMetadataId = id + 1)
         case Failure(t) =>
           log.error(t, "Failed to summarize metadata starting from index {}", startMetadataId)
-          sndr ! MetadataSummaryFailure(t)
+          respondTo ! MetadataSummaryFailure(t)
           self ! MetadataSummaryComplete(startMetadataId = startMetadataId)
       }
       goto(SummarizingMetadata)

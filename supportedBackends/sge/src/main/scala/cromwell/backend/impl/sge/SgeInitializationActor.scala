@@ -1,6 +1,6 @@
 package cromwell.backend.impl.sge
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.impl.sge.SgeInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
@@ -11,13 +11,17 @@ import scala.concurrent.Future
 object SgeInitializationActor {
   val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
 
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new SgeInitializationActor(workflowDescriptor, calls, configurationDescriptor))
+  def props(workflowDescriptor: BackendWorkflowDescriptor,
+            calls: Seq[Call],
+            configurationDescriptor: BackendConfigurationDescriptor,
+            serviceRegistryActor: ActorRef): Props =
+    Props(new SgeInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
 }
 
 class SgeInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                              override val calls: Seq[Call],
-                             override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
+                             override val configurationDescriptor: BackendConfigurationDescriptor,
+                             override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
   /**
     * A call which happens before anything else runs
     */

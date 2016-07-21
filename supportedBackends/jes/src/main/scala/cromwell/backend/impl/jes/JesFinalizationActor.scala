@@ -5,6 +5,7 @@ import java.nio.file.Path
 import akka.actor.Props
 import better.files._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
+import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
 import wdl4s.Call
 
@@ -27,7 +28,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   private val workflowPaths = initializationData.workflowPaths
 
-  private val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
+  private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
 
   override def afterAll(): Future[Unit] = {
     for {

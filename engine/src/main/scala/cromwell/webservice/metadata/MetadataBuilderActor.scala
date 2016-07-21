@@ -3,6 +3,7 @@ package cromwell.webservice.metadata
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.database.obj.WorkflowMetadataKeys
@@ -32,7 +33,7 @@ object MetadataBuilderActor {
   case object WaitingForMetadataService extends MetadataBuilderActorState
 
   def props(serviceRegistryActor: ActorRef) = {
-    Props(new MetadataBuilderActor(serviceRegistryActor)).withDispatcher("akka.dispatchers.api-dispatcher")
+    Props(new MetadataBuilderActor(serviceRegistryActor)).withDispatcher(ApiDispatcher)
   }
 
   val log = LoggerFactory.getLogger("MetadataBuilder")

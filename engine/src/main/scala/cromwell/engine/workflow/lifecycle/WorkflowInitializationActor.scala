@@ -5,6 +5,7 @@ import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowId
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
@@ -41,14 +42,18 @@ object WorkflowInitializationActor {
   case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse
   final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor): Props = {
-    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor)).withDispatcher("akka.dispatchers.engine-dispatcher")
+  def props(workflowId: WorkflowId,
+            workflowDescriptor: EngineWorkflowDescriptor,
+            serviceRegistryActor: ActorRef): Props = {
+    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor, serviceRegistryActor)).withDispatcher(EngineDispatcher)
   }
 
   case class BackendActorAndBackend(actor: ActorRef, backend: String)
 }
 
-case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor)
+case class WorkflowInitializationActor(workflowId: WorkflowId,
+                                       workflowDescriptor: EngineWorkflowDescriptor,
+                                       serviceRegistryActor: ActorRef)
   extends AbortableWorkflowLifecycleActor[WorkflowInitializationActorState] {
 
   startWith(InitializationPendingState, WorkflowLifecycleActorData.empty)
@@ -76,7 +81,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId, workflowDescripto
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
-            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls)
+            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, serviceRegistryActor)
           ).get
           actor = context.actorOf(props)
         } yield BackendActorAndBackend(actor, backend)

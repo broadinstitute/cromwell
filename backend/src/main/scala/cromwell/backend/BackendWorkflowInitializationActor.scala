@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import akka.actor.ActorLogging
+import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
@@ -8,7 +8,6 @@ import cromwell.backend.wdl.OnlyPureFunctions
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
 import MetadataService.PutMetadataAction
-import cromwell.services.ServiceRegistryClient
 import wdl4s.{Call, NoLookup, Task, WdlExpression}
 import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
@@ -34,7 +33,8 @@ object BackendWorkflowInitializationActor {
 /**
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
-trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ServiceRegistryClient with ActorLogging {
+trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
+  val serviceRegistryActor: ActorRef
 
   def calls: Seq[Call]
 

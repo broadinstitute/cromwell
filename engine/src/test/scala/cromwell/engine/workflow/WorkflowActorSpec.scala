@@ -10,6 +10,7 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.jobstore.JobStoreActor
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 
@@ -27,7 +28,13 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
   val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = wdlSources)
 
   private def createWorkflowActor(state: WorkflowActorState) = {
-    val actor = TestFSMRef(new WorkflowActor(WorkflowId.randomId(), StartNewWorkflow, wdlSources, ConfigFactory.load, mockServiceRegistryActor, TestProbe().ref))
+    val actor = TestFSMRef(new WorkflowActor(WorkflowId.randomId(),
+      StartNewWorkflow,
+      wdlSources,
+      ConfigFactory.load,
+      mockServiceRegistryActor,
+      system.actorOf(JobStoreActor.props),
+      TestProbe().ref))
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
       AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))
     actor

@@ -2,7 +2,7 @@ package cromwell.backend.impl.local
 
 import java.nio.file.FileSystems
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import better.files._
 import cromwell.backend.impl.local.LocalInitializationActor._
 import cromwell.backend.io.WorkflowPaths
@@ -18,14 +18,19 @@ import scala.concurrent.Future
 object LocalInitializationActor {
   val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
 
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor, localConfiguration: LocalConfiguration): Props =
-    Props(new LocalInitializationActor(workflowDescriptor, calls, configurationDescriptor, localConfiguration))
+  def props(workflowDescriptor: BackendWorkflowDescriptor,
+            calls: Seq[Call],
+            configurationDescriptor: BackendConfigurationDescriptor,
+            serviceRegistryActor: ActorRef,
+            localConfiguration: LocalConfiguration): Props =
+    Props(new LocalInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor, localConfiguration))
 
 }
 
 class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                                override val calls: Seq[Call],
                                override val configurationDescriptor: BackendConfigurationDescriptor,
+                               override val serviceRegistryActor: ActorRef,
                                localConfiguration: LocalConfiguration) extends BackendWorkflowInitializationActor {
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(

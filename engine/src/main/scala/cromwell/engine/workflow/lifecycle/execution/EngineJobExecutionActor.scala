@@ -4,11 +4,12 @@ import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
-import cromwell.jobstore.JobStoreService.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
+import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
+
 import cromwell.jobstore.{Pending => _, _}
-import cromwell.services.ServiceRegistryClient
 
 object EngineJobExecutionActor {
   /** States */
@@ -24,9 +25,20 @@ object EngineJobExecutionActor {
 
   final case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
 
-  def props(jobDescriptorKey: BackendJobDescriptorKey, executionData: WorkflowExecutionActorData, factory: BackendLifecycleActorFactory,
-            initializationData: Option[BackendInitializationData], restarting: Boolean) = {
-    Props(new EngineJobExecutionActor(jobDescriptorKey, executionData, factory, initializationData, restarting)).withDispatcher("akka.dispatchers.engine-dispatcher")
+  def props(jobDescriptorKey: BackendJobDescriptorKey,
+            executionData: WorkflowExecutionActorData,
+            factory: BackendLifecycleActorFactory,
+            initializationData: Option[BackendInitializationData],
+            restarting: Boolean,
+            serviceRegistryActor: ActorRef,
+            jobStoreActor: ActorRef) = {
+    Props(new EngineJobExecutionActor(jobDescriptorKey,
+      executionData,
+      factory,
+      initializationData,
+      restarting,
+      serviceRegistryActor,
+      jobStoreActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -34,7 +46,9 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
-                              restarting: Boolean) extends LoggingFSM[EngineJobExecutionActorState, Unit] with WorkflowLogging with ServiceRegistryClient {
+                              restarting: Boolean,
+                              serviceRegistryActor: ActorRef,
+                              jobStoreActor: ActorRef) extends LoggingFSM[EngineJobExecutionActorState, Unit] with WorkflowLogging {
 
   override val workflowId = executionData.workflowDescriptor.id
 
@@ -44,7 +58,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     case Event(Execute, _) =>
       if (restarting) {
         val jobStoreKey = jobKey.toJobStoreKey(workflowId)
-        serviceRegistryActor ! QueryJobCompletion(jobStoreKey)
+        jobStoreActor ! QueryJobCompletion(jobStoreKey)
         goto(CheckingJobStatus)
       } else {
         prepareJob(jobKey)
@@ -93,7 +107,8 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   def prepareJob(jobKey: BackendJobDescriptorKey) = {
     val jobPreparationActorName = s"$workflowId-BackendPreparationActor-${jobKey.tag}"
-    val jobPreparationActor = context.actorOf(JobPreparationActor.props(executionData, jobKey, factory, initializationData), jobPreparationActorName)
+    val jobPrepProps = JobPreparationActor.props(executionData, jobKey, factory, initializationData, serviceRegistryActor)
+    val jobPreparationActor = context.actorOf(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! JobPreparationActor.Start
     goto(PreparingJob)
   }

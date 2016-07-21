@@ -8,6 +8,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
@@ -21,7 +22,7 @@ import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobR
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
-import cromwell.jobstore.JobStoreService.RegisterJobCompleted
+import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, _}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -137,9 +138,10 @@ object WorkflowExecutionActor {
   def props(workflowId: WorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
             serviceRegistryActor: ActorRef,
+            jobStoreActor: ActorRef,
             initializationData: AllBackendInitializationData,
     restarting: Boolean): Props = {
-    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, initializationData, restarting)).withDispatcher("akka.dispatchers.engine-dispatcher")
+    Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, jobStoreActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
   private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
@@ -233,6 +235,7 @@ object WorkflowExecutionActor {
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         workflowDescriptor: EngineWorkflowDescriptor,
                                         serviceRegistryActor: ActorRef,
+                                        jobStoreActor: ActorRef,
                                         initializationData: AllBackendInitializationData,
                                         restarting: Boolean)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
@@ -467,13 +470,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   private def saveSuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
     val jobStoreKey = jobKey.toJobStoreKey(workflowId)
     val jobStoreResult = JobResultSuccess(returnCode, outputs)
-    serviceRegistryActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
+    jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
 
   private def saveUnsuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], reason: Throwable) = {
     val jobStoreKey = jobKey.toJobStoreKey(workflowId)
     val jobStoreResult = JobResultFailure(returnCode, reason)
-    serviceRegistryActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
+    jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
@@ -575,7 +578,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeActorName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-            val ejeActor = context.actorOf(EngineJobExecutionActor.props(jobKey, data, factory, initializationData.get(backendName), restarting), ejeActorName)
+            val ejeProps = EngineJobExecutionActor.props(jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, jobStoreActor)
+            val ejeActor = context.actorOf(ejeProps, ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
 
             ejeActor ! EngineJobExecutionActor.Execute

@@ -1,9 +1,8 @@
 package cromwell.jobstore
 
-import akka.actor.Actor
-import com.typesafe.config.Config
+import akka.actor.{Actor, Props}
 import cromwell.core.WorkflowId
-import cromwell.jobstore.JobStoreService.{JobStoreReaderCommand, JobStoreWriterCommand}
+import cromwell.jobstore.JobStoreActor.{JobStoreReaderCommand, JobStoreWriterCommand}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 
 
@@ -12,8 +11,7 @@ import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-case class JobStoreService(serviceConfig: Config, globalConfig: Config) extends Actor {
-
+class JobStoreActor extends Actor {
   // TODO: Replace with a real database, probably from config.
   val database = FilesystemJobStoreDatabase
   val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(database))
@@ -25,8 +23,8 @@ case class JobStoreService(serviceConfig: Config, globalConfig: Config) extends 
   }
 }
 
-object JobStoreService {
-  sealed trait JobStoreCommand extends ServiceRegistryMessage { override def serviceName: String = "JobStore"}
+object JobStoreActor {
+  sealed trait JobStoreCommand
 
   sealed trait JobStoreWriterCommand extends JobStoreCommand
   case class RegisterJobCompleted(jobKey: JobStoreKey, jobResult: JobResult) extends JobStoreWriterCommand
@@ -54,4 +52,6 @@ object JobStoreService {
   case object JobNotComplete extends JobStoreReaderResponse
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
+
+  def props = Props(new JobStoreActor)
 }

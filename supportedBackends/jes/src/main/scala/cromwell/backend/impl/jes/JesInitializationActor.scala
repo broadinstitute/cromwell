@@ -1,6 +1,6 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.backend.impl.jes.JesInitializationActor._
@@ -8,6 +8,7 @@ import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformati
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.{ClientSecrets, GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
 import spray.json.JsObject
@@ -20,13 +21,17 @@ object JesInitializationActor {
   val SupportedKeys = Set(CpuKey, MemoryKey, DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey, JesRuntimeAttributes.ZonesKey,
     JesRuntimeAttributes.PreemptibleKey, JesRuntimeAttributes.BootDiskSizeKey, JesRuntimeAttributes.DisksKey)
 
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration): Props =
-    Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration))
+  def props(workflowDescriptor: BackendWorkflowDescriptor,
+            calls: Seq[Call],
+            jesConfiguration: JesConfiguration,
+            serviceRegistryActor: ActorRef): Props =
+    Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor: ActorRef))
 }
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                              override val calls: Seq[Call],
-                             private[jes] val jesConfiguration: JesConfiguration)
+                             private[jes] val jesConfiguration: JesConfiguration,
+                             override val serviceRegistryActor: ActorRef)
   extends BackendWorkflowInitializationActor {
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
@@ -51,7 +56,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     } yield GcsLocalizing(clientSecrets, token)
   }
 
-  private val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
+  private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
 
   /**
     * A call which happens before anything else runs

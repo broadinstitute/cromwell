@@ -4,14 +4,14 @@ import java.io.IOException
 import java.nio.file.Path
 
 import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import better.files._
 import cromwell.core._
+import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.logging.WorkflowLogger
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
 import MetadataService.PutMetadataAction
-import cromwell.services.ServiceRegistryClient
 
 object CopyWorkflowLogsActor {
   // Commands
@@ -21,12 +21,15 @@ object CopyWorkflowLogsActor {
     case _: IOException => Restart
   }
 
-  def props = Props(new CopyWorkflowLogsActor()).withDispatcher("akka.dispatchers.io-dispatcher")
+  def props(serviceRegistryActor: ActorRef) = Props(new CopyWorkflowLogsActor(serviceRegistryActor)).withDispatcher(IoDispatcher)
 }
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
 // Which could be used for other copying work (outputs, call logs..)
-class CopyWorkflowLogsActor extends Actor with ActorLogging with PathFactory with ServiceRegistryClient {
+class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
+    extends Actor
+    with ActorLogging
+    with PathFactory {
 
   def copyAndClean(src: Path, dest: Path): Unit = {
     dest.parent.createDirectories()

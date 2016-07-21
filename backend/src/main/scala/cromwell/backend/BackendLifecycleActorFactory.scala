@@ -2,7 +2,7 @@ package cromwell.backend
 
 import java.nio.file.Path
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPaths
 import cromwell.core.{ExecutionStore, OutputStore}
@@ -11,9 +11,12 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 trait BackendLifecycleActorFactory {
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                       calls: Seq[Call]): Option[Props]
+                                       calls: Seq[Call],
+                                       serviceRegistryActor: ActorRef): Option[Props]
 
-  def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props
+  def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                             initializationData: Option[BackendInitializationData],
+                             serviceRegistryActor: ActorRef): Props
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],

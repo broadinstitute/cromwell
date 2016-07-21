@@ -48,22 +48,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       }
     }
 
-    /**
-      * Assert that the specified workflow has the appropriate number of calls in appropriately terminal states per
-      * the `ExpectedTerminal` function.  This function maps from an FQN + index pair to a Boolean expectation.
-      */
-    type ExpectedTerminal = (FullyQualifiedName, Int) => Boolean
-    //    def assertTerminalExecution(id: WorkflowId, expectedCount: Int, expectedTerminal: ExpectedTerminal): Future[Unit] = {
-    //      for {
-    //        _ <- dataAccess.getExecutions(id.toString) map { executions =>
-    //          executions should have size expectedCount
-    //          executions foreach { execution =>
-    //            execution.endDt.isDefined shouldBe expectedTerminal(execution.callFqn, execution.index)
-    //          }
-    //        }
-    //      } yield ()
-    //    }
-
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {
       val events = keyValues map { case (k, v) =>
         MetadataEvent(baseKey.copy(key = k), MetadataValue(v))

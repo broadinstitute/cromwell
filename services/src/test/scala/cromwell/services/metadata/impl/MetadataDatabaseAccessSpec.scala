@@ -15,7 +15,7 @@ import wdl4s._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object MetadataDatabasAccessSpec {
+object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
   val AllowTrue = Seq(QueryParameter("allow", "true"))
 
@@ -23,8 +23,8 @@ object MetadataDatabasAccessSpec {
   val Workflow2Name = "test2"
 }
 
-class MetadataDatabasAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
-  import MetadataDatabasAccessSpec._
+class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
+  import MetadataDatabaseAccessSpec._
 
   "MetadataDatabasAccess (main.hsqldb)" should behave like testWith("main.hsqldb")
 

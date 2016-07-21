@@ -15,8 +15,8 @@ object DatabaseUtil {
     case _ => false
   }
 
-  def withRetry[A](f: => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
+  def withRetry[A](f: () => Future[A])(implicit actorSystem: ActorSystem): Future[A] = {
     val RetryBackoff = SimpleExponentialBackoff(50 millis, 1 seconds, 1D)
-    Retry.withRetry(() => f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = isTransient)
+    Retry.withRetry(f, maxRetries = Option(10), backoff = RetryBackoff, isTransient = isTransient)
   }
 }

@@ -11,7 +11,7 @@ import cromwell.services.metadata._
 
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 
-  val config = ConfigFactory.load("{}")
+  val config = ConfigFactory.empty()
   val actor = system.actorOf(MetadataServiceActor.props(config, config))
 
   val workflowId = WorkflowId.randomId()

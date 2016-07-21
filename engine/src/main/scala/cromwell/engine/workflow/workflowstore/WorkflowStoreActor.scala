@@ -5,9 +5,10 @@ import java.time.OffsetDateTime
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.services.MetadataServiceActor.{MetadataPutAcknowledgement, PutMetadataAction}
-import cromwell.services.{MetadataEvent, MetadataKey, MetadataValue, ServiceRegistryClient}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
+import cromwell.services.ServiceRegistryClient
+import cromwell.services.metadata.{MetadataValue, MetadataKey, MetadataEvent}
+import cromwell.services.metadata.MetadataService.{PutMetadataAction, MetadataPutAcknowledgement}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}

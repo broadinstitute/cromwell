@@ -6,6 +6,7 @@ import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.core._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.webservice.WdlValueJsonFormatter
+import wdl4s.Scope
 
 import scala.language.postfixOps
 
@@ -39,10 +40,29 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     Map(OutputCallKey(jobKey.scope, jobKey.index) -> newOutputEntries)
   }
 
-  /** Checks if the workflow is completed by scanning through the executionStore */
-  def isWorkflowComplete: Boolean = {
-    def isDone(executionStatus: ExecutionStatus): Boolean = executionStatus == Done || executionStatus == Preempted
-    executionStore.store.values.forall(isDone)
+  /** Checks if the workflow is completed by scanning through the executionStore.
+    * If complete, this will return Some(finalStatus).  Otherwise, returns None */
+  def workflowCompletionStatus: Option[ExecutionStatus] = {
+    // activeJobs is the subset of the executionStore that are either running or will run in the future.
+    val activeJobs = executionStore.store.foldLeft(executionStore.store) { case (acc, (jobKey, jobStatus)) =>
+      jobStatus match {
+        case Done | Preempted | Failed => acc - jobKey
+        case NotStarted =>
+          // For NotStarted jobs: if any upstream jobs are failed, then assume this job will never run
+          def upstream(scope: Scope): Set[Scope] = scope.prerequisiteScopes ++ scope.prerequisiteScopes.flatMap(upstream)
+          val upstreamFailed = upstream(jobKey.scope) filter { s =>
+            executionStore.store.map({ case (a, b) => a.scope -> b }).get(s).contains(Failed)
+          }
+          if (upstreamFailed.nonEmpty) acc - jobKey else acc
+        case _ => acc
+      }
+    }
+
+    activeJobs match {
+      case jobs if jobs.isEmpty && hasFailedJob => Option(Failed)
+      case jobs if jobs.isEmpty && !hasFailedJob => Option(Done)
+      case _ => None
+    }
   }
 
   def hasFailedJob: Boolean = {

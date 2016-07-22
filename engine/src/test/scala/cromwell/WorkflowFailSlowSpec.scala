@@ -20,11 +20,11 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
     """.stripMargin
 
   "A workflow containing a failing task" should {
-    "complete other tasks but ultimately fail, for ContinueWhilePossible" ignore {
+    "complete other tasks but ultimately fail, for ContinueWhilePossible" in {
       runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailSlowOptions,
-        eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Job wf.E:NA:1 succeeded", occurrences = 1),
         runtime = "",
         terminalState = WorkflowFailed
       )
@@ -32,11 +32,11 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow containing a failing task" should {
-    "not complete any other tasks and ultimately fail, for NoNewCalls" ignore {
+    "not complete any other tasks and ultimately fail, for NoNewCalls" in {
       runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailFastOptions,
-        eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 0),
+        eventFilter = EventFilter.info(pattern = s"Job wf.E:NA:1 succeeded!", occurrences = 0),
         runtime = "",
         terminalState = WorkflowFailed
       )
@@ -44,10 +44,10 @@ class WorkflowFailSlowSpec extends CromwellTestkitSpec {
   }
 
   "A workflow containing a failing task" should {
-    "behave like NoNewCalls, if no workflowFailureMode is set" ignore {
+    "behave like NoNewCalls, if no workflowFailureMode is set" in {
       runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
-        eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 0),
+        eventFilter = EventFilter.info(pattern = s"Job wf.E:NA:1 succeeded!", occurrences = 0),
         runtime = "",
         terminalState = WorkflowFailed
       )

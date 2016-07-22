@@ -14,7 +14,6 @@ package object engine {
   final case class AbortFunction(function: () => Unit)
   final case class AbortRegistrationFunction(register: AbortFunction => Unit)
 
-
   final case class FailureEventEntry(failure: String, timestamp: OffsetDateTime)
   final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 
@@ -42,7 +41,4 @@ package object engine {
   }
   case object ContinueWhilePossible extends WorkflowFailureMode { override val allowNewCallsAfterFailure = true }
   case object NoNewCalls extends WorkflowFailureMode { override val allowNewCallsAfterFailure = false }
-
-
-
 }

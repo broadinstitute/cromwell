@@ -13,14 +13,15 @@ import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
 import cromwell.core.OutputStore.OutputEntry
-import cromwell.core._
+import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.core.{WorkflowId, _}
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
+import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore._
 import cromwell.services.metadata.MetadataService._
@@ -312,15 +313,27 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       handleJobSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
-      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
-      goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
+                                     .removeBackendJobExecutionActor(jobKey)
+      if (workflowDescriptor.getWorkflowOption(WorkflowFailureMode).contains(ContinueWhilePossible.toString)) {
+        mergedStateData.workflowCompletionStatus match {
+          case Some(completionStatus) if completionStatus == Failed =>
+            context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
+            goto(WorkflowExecutionFailedState) using mergedStateData
+          case _ =>
+            stay() using startRunnableScopes(mergedStateData)
+        }
+      } else {
+        context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
+        goto(WorkflowExecutionFailedState) using mergedStateData
+      }
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
       workflowLogger.warn(s"Job ${jobKey.tag} failed with a retryable failure: ${reason.getMessage}")
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = true)
       handleRetryableFailure(jobKey, reason, returnCode)
     case Event(JobInitializationFailed(jobKey, reason), stateData) =>
       pushFailedJobMetadata(jobKey, None, reason, retryableFailure = false)
+      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       goto(WorkflowExecutionFailedState)
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>
       handleJobSuccessful(jobKey, callOutputs, stateData)
@@ -426,12 +439,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     workflowLogger.info(s"Job ${jobKey.tag} succeeded!")
     val newData = data.jobExecutionSuccess(jobKey, outputs)
 
-    if (newData.isWorkflowComplete) {
-      workflowLogger.info(newData.outputsJson())
-      goto(WorkflowExecutionSuccessfulState) using newData
+    newData.workflowCompletionStatus match {
+      case Some(ExecutionStatus.Done) =>
+        workflowLogger.info(newData.outputsJson())
+        goto(WorkflowExecutionSuccessfulState) using newData
+      case Some(sts) =>
+        context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(new Exception("One or more jobs failed in fail-slow mode")))
+        goto(WorkflowExecutionFailedState) using newData
+      case _ =>
+        stay() using startRunnableScopes(newData)
     }
-    else
-      stay() using startRunnableScopes(newData)
   }
 
   private def pushWorkflowOutputMetadata(data: WorkflowExecutionActorData) = {

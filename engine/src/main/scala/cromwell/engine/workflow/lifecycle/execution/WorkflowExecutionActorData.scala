@@ -39,10 +39,29 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     Map(OutputCallKey(jobKey.scope, jobKey.index) -> newOutputEntries)
   }
 
-  /** Checks if the workflow is completed by scanning through the executionStore */
-  def isWorkflowComplete: Boolean = {
-    def isDone(executionStatus: ExecutionStatus): Boolean = executionStatus == Done || executionStatus == Preempted
-    executionStore.store.values.forall(isDone)
+  /** Checks if the workflow is completed by scanning through the executionStore.
+    * If complete, this will return Some(finalStatus).  Otherwise, returns None */
+  def workflowCompletionStatus: Option[ExecutionStatus] = {
+
+    // activeJobs is the subset of the executionStore that are either running or will run in the future.
+    val activeJobs = executionStore.store.foldLeft(executionStore.store) { case (acc, (jobKey, jobStatus)) =>
+      jobStatus match {
+        case Done | Preempted | Failed => acc - jobKey
+        case NotStarted =>
+          // For NotStarted jobs: if any upstream jobs are failed, then remove this job key because it'll never run
+          val upstream = jobKey.scope.prerequisiteScopes ++ jobKey.scope.prerequisiteScopes.flatMap(_.prerequisiteScopes)
+          val upstreamFailed = upstream filter { s =>
+            executionStore.store.map({ case (a, b) => a.scope -> b }).get(s).contains(Failed)
+          }
+          if (upstreamFailed.nonEmpty) acc - jobKey else acc
+        case _ => acc
+      }
+    }
+
+    activeJobs match {
+      case jobs if jobs.isEmpty => Option(if (hasFailedJob) Failed else Done)
+      case _ => None
+    }
   }
 
   def hasFailedJob: Boolean = {

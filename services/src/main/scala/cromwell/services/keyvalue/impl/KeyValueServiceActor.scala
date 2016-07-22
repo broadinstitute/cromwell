@@ -17,6 +17,7 @@ object KeyValueServiceActor {
 case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with KeyValueDatabaseAccess with CromwellDatabase {
   private implicit val ec = context.dispatcher
   private implicit val system = context.system
+  private var store: Map[ScopedKey, Option[String]] = Map.empty
 
   def receive = {
     case action: KvGet => respond(sender(), action, doGet(action))
@@ -30,23 +31,13 @@ case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) ext
     }
   }
 
-  private def doPut(put: KvPut): Future[KvResponse] = {
-    upsertExecutionInfo(
-      put.pair.key.workflowId,
-      put.pair.key.jobKey,
-      Map(put.pair.key.key -> put.pair.value)
-    ).map(_ => KvPutSuccess(put))
+  private def doPut(put: KvPut): Future[KvResponse] = Future.successful {
+    store += put.pair.key -> put.pair.value
+    KvPutSuccess(put)
   }
 
-  private def doGet(get: KvGet): Future[KvResponse] = {
-    val executionInfo = getExecutionInfoByKey(
-      get.key.workflowId,
-      get.key.jobKey.scope,
-      get.key.jobKey.attempt,
-      get.key.key
-    )
-
-    executionInfo map {
+  private def doGet(get: KvGet): Future[KvResponse] = Future.successful {
+    store.get(get.key) match {
       case Some(maybeValue) => KvPair(get.key, maybeValue)
       case None => KvKeyLookupFailed(get)
     }

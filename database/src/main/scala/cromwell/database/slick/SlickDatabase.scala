@@ -143,6 +143,7 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase
     dataAccess.driver.capabilities.contains(JdbcProfile.capabilities.insertOrUpdate)
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
+
     if (updates == expected) {
       DBIO.successful(Unit)
     } else {

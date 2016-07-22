@@ -5,11 +5,14 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
-import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
+import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
+import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesJobId
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
+import cromwell.backend.impl.jes.JesJobExecutionActor._
+import cromwell.services.keyvalue.KeyValueService._
 
 object JesJobExecutionActor {
   val logger = LoggerFactory.getLogger("JesBackend")
@@ -20,6 +23,8 @@ object JesJobExecutionActor {
             serviceRegistryActor: ActorRef): Props = {
     Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor))
   }
+
+  val JesOperationIdKey = "__jes_operation_id"
 }
 
 case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
@@ -28,31 +33,33 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
                                 serviceRegistryActor: ActorRef)
   extends BackendJobExecutionActor {
 
-  override def receive: Receive = LoggingReceive {
+  private def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
       executor.foreach(_ ! AbortJobCommand)
     case abortResponse: AbortedResponse =>
       context.parent ! abortResponse
       context.stop(self)
-
-    // PBE TODO: use PartialFunction.orElse instead of this catch-all case, because Akka might use isDefinedAt over this partial function
-    case message => super.receive(message)
+    case KvPair(key, id @ Some(operationId)) if key.key == JesOperationIdKey =>
+      // Successful operation ID lookup during recover.
+      executor foreach { _ ! Recover(JesJobId(operationId))}
+    case KvKeyLookupFailed(_) =>
+      // Missed operation ID lookup during recover, fall back to execute.
+      executor foreach { _ ! Execute }
+    case KvFailure(_, e) =>
+      // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
+      completionPromise.tryFailure(e)
+      throw new RuntimeException("Failure attempting to look up JES operation ID for key " + jobDescriptor.key, e)
   }
+
+  override def receive = jesReceiveBehavior orElse super.receive
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 
-  // PBE keep a reference to be able to hand to a successor executor if the failure is recoverable, or to complete as a
-  // failure if the failure is not recoverable.
   private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
 
-  // PBE keep a reference for abort purposes.  Maybe we don't need this if we can look up actors by name.
   private var executor: Option[ActorRef] = None
 
-  // PBE there should be some consideration of supervision here.
-
-  override def recover: Future[BackendJobExecutionResponse] = ???
-
-  override def execute: Future[BackendJobExecutionResponse] = {
+  private def launchExecutor: Future[Unit] = Future {
     val executionProps = JesAsyncBackendJobExecutionActor.props(jobDescriptor,
       completionPromise,
       jesConfiguration,
@@ -60,8 +67,25 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       serviceRegistryActor)
     val executorRef = context.actorOf(executionProps)
     executor = Option(executorRef)
-    executorRef ! Execute
-    completionPromise.future
+    ()
+  }
+
+  override def recover: Future[BackendJobExecutionResponse] = {
+    import JesJobExecutionActor._
+
+    for {
+      _ <- launchExecutor
+      _ = serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey))
+      c <- completionPromise.future
+    } yield c
+  }
+
+  override def execute: Future[BackendJobExecutionResponse] = {
+    for {
+      _ <- launchExecutor
+      _ = executor foreach { _ ! Execute }
+      c <- completionPromise.future
+    } yield c
   }
 
   override def abort: Unit = {}

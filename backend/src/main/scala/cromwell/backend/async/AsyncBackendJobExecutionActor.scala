@@ -21,9 +21,15 @@ object AsyncBackendJobExecutionActor {
   private final case class FailAndStop(reason: Throwable) extends AsyncBackendJobExecutionActorMessage
   private final case class Finish(executionHandle: ExecutionHandle) extends AsyncBackendJobExecutionActorMessage
 
-  sealed trait ExecutionMode extends AsyncBackendJobExecutionActorMessage
+  trait JobId
+
+  sealed trait ExecutionMode extends AsyncBackendJobExecutionActorMessage {
+    def jobId: Option[JobId] = None
+  }
   case object Execute extends ExecutionMode
-  final case class Resume(executionInfos: Map[String, Option[String]]) extends ExecutionMode
+  final case class Recover(recoveryId: JobId) extends ExecutionMode {
+    override def jobId = Option(recoveryId)
+  }
   final case class UseCachedCall(cachedBackendCall: BackendJobDescriptor) extends ExecutionMode
 }
 

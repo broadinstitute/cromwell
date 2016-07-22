@@ -11,9 +11,10 @@ import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
+import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.impl.jes.JesImplicits.PathString
+import cromwell.backend.impl.jes.JesJobExecutionActor.JesOperationIdKey
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
@@ -22,10 +23,10 @@ import cromwell.core.logging.JobLogging
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
 import cromwell.filesystems.gcs.NioGcsPath
+import cromwell.services.keyvalue.KeyValueService._
+import cromwell.services.metadata.CallMetadataKeys._
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._
-import CallMetadataKeys._
-import MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, PutMetadataAction}
-import cromwell.services._
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s._
@@ -78,6 +79,8 @@ object JesAsyncBackendJobExecutionActor {
     override val isDone = false
     override val result = NonRetryableExecution(new IllegalStateException("JesPendingExecutionHandle cannot yield a result"))
   }
+
+  case class JesJobId(operationId: String) extends JobId
 }
 
 
@@ -132,7 +135,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toString, Paths.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
-  // PBE this shouldn't need to be defined here, could be at the actor factory level.
   private lazy val returnCodeContents = Try(returnCodeGcsPath.toAbsolutePath.contentAsString)
   private lazy val dockerConfiguration = jesConfiguration.dockerCredentials
   private lazy val maxPreemption = runtimeAttributes.preemptible
@@ -145,32 +147,25 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
   }
 
-  override def receive: Receive = LoggingReceive {
+  def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
-      serviceRegistryActor ! GetMetadataQueryAction(MetadataQuery.forKey(metadataKey("jobId")))
-    case MetadataLookupResponse(query, events) if query.key.contains("jobId") =>
-      /** Currently this actor can only get a MetadataLookupResponse when requesting a
-        * job ID for abort.  If this actor becomes more complex in the future, then this
-        * should probably be received in an FSM state.
-        */
-      events.headOption foreach { event =>
-        event.value match {
-          case Some(jobIdMetadata) =>
-            val jobId = jobIdMetadata.value
-            jobLogger.info(s"$tag Aborting $jobId")
-            Try(Run(jobId, initializationData.genomics).abort()) match {
-              case Success(_) => jobLogger.info(s"$tag Aborted $jobId")
-              case Failure(ex) => jobLogger.warn(s"$tag Failed to abort $jobId: ${ex.getMessage}")
-            }
-          case None => jobLogger.warn(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
-        }
+      serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey))
+    case KvPair(scopedKey, operationId) if scopedKey.key == JesOperationIdKey =>
+      operationId match {
+        case Some(id) =>
+          jobLogger.info(s"$tag Aborting $id")
+          Try(Run(id, initializationData.genomics).abort()) match {
+            case Success(_) => jobLogger.info(s"$tag Aborted $id")
+            case Failure(ex) => jobLogger.warn(s"$tag Failed to abort $id: ${ex.getMessage}")
+          }
+        case None => jobLogger.warn(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
       }
       context.parent ! AbortedResponse(jobDescriptor.key)
       context.stop(self)
-
-    // PBE TODO: use PartialFunction.orElse instead of this catch-all case, because Akka might use isDefinedAt over this partial function
-    case message => super.receive(message)
+    case KvPutSuccess(_) => // expected after the KvPut for the operation ID
   }
+
+  override def receive: Receive = jesReceiveBehavior orElse super.receive
 
   private def globOutputPath(glob: String) = callRootPath.resolve(s"glob-${glob.md5Sum}/")
 
@@ -180,7 +175,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     else None
   }
 
-  private val callContext = new CallContext(
+  private val callContext = CallContext(
     callRootPath,
     jesStdoutFile.toString,
     jesStderrFile.toString
@@ -362,13 +357,16 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       createRun,
       isTransient = isTransientJesException,
       isFatal = isFatalJesException
-    )
+    ) andThen {
+      case Success(run) =>
+        serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey), Option(run.runId)))
+    }
   }
 
   protected def runWithJes(command: String,
                            jesInputs: Seq[JesInput],
                            jesOutputs: Seq[JesFileOutput],
-                           // runIdForResumption: Option[String],
+                           runIdForResumption: Option[String],
                            withMonitoring: Boolean): Future[ExecutionHandle] = {
 
     tellStartMetadata()
@@ -377,7 +375,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
     val jesJobSetup = for {
       _ <- uploadCommandScript(command, withMonitoring)
-      run <- createJesRun(jesParameters)
+      run <- createJesRun(jesParameters, runIdForResumption)
       _ = tellRunMetadata(run)
     } yield run
 
@@ -385,7 +383,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    // PBE Currently assumes only execute
     val monitoringOutput = monitoringScript map { _ =>
       JesFileOutput(s"$MonitoringParamName-out", defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), workingDisk)
     }
@@ -398,17 +395,17 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
     // Force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     Try(runtimeAttributes) match {
-      case Success(_) => startExecuting(monitoringOutput)
+      case Success(_) => startExecuting(monitoringOutput, mode)
       case Failure(e) => Future.successful(FailedNonRetryableExecutionHandle(e, None))
     }
   }
 
-  private def startExecuting(monitoringOutput: Option[JesFileOutput]): Future[ExecutionHandle] = {
+  private def startExecuting(monitoringOutput: Option[JesFileOutput], mode: ExecutionMode): Future[ExecutionHandle] = {
     val jesInputs: Seq[JesInput] = generateJesInputs(jobDescriptor).toSeq ++ monitoringScript :+ cmdInput
     val jesOutputs: Seq[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
     instantiateCommand match {
-      case Success(command) => runWithJes(command, jesInputs, jesOutputs, monitoringScript.isDefined)
+      case Success(command) => runWithJes(command, jesInputs, jesOutputs, mode.jobId.collectFirst { case j: JesJobId => j.operationId }, monitoringScript.isDefined)
       case Failure(ex: SocketTimeoutException) => Future.successful(FailedNonRetryableExecutionHandle(ex))
       case Failure(ex) => Future.successful(FailedNonRetryableExecutionHandle(ex))
     }
@@ -617,13 +614,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       val preemptedMsg = s"Task $taskName was preempted for the ${attempt.toOrdinal} time."
 
       if (attempt < maxPreemption) {
-        val e = new PreemptedException(
+        val e = PreemptedException(
           s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
         FailedRetryableExecutionHandle(e, None).future
       } else {
-        val e = new PreemptedException(
+        val e = PreemptedException(
           s"""$preemptedMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
         FailedRetryableExecutionHandle(e, None).future

@@ -1,6 +1,6 @@
 package cromwell.backend.impl.htcondor
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
@@ -15,11 +15,14 @@ import scala.util.{Failure, Success, Try}
 case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call]): Option[Props] = {
-    Option(HtCondorInitializationActor.props(workflowDescriptor, calls, configurationDescriptor))
+                                                calls: Seq[Call],
+                                                serviceRegistryActor: ActorRef): Option[Props] = {
+    Option(HtCondorInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                      initializationData: Option[BackendInitializationData],
+                                      serviceRegistryActor: ActorRef): Props = {
     HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, resolveCacheProviderProps(jobDescriptor.descriptor.workflowOptions))
   }
 

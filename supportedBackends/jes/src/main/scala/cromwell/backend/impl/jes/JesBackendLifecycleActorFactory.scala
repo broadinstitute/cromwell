@@ -2,9 +2,10 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -23,12 +24,15 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call]): Option[Props] = {
-    Option(JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration).withDispatcher("akka.dispatchers.backend-dispatcher"))
+                                                calls: Seq[Call],
+                                                serviceRegistryActor: ActorRef): Option[Props] = {
+    Option(JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor).withDispatcher(BackendDispatcher))
   }
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
-    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes).withDispatcher("akka.dispatchers.backend-dispatcher")
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                      initializationData: Option[BackendInitializationData],
+                                      serviceRegistryActor: ActorRef): Props = {
+    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes, serviceRegistryActor).withDispatcher(BackendDispatcher)
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -36,7 +40,7 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
                                               executionStore: ExecutionStore,
                                               outputStore: OutputStore,
                                               initializationData: Option[BackendInitializationData]) = {
-    Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher("akka.dispatchers.backend-dispatcher"))
+    Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher(BackendDispatcher))
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

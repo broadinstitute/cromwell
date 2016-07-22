@@ -6,15 +6,16 @@ import java.util.UUID
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import akka.pattern.pipe
+import akka.util.Timeout
 import better.files._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{ExecutionStore => _, WorkflowId, _}
+import cromwell.core.{WorkflowId, ExecutionStore => _, _}
 import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
-import cromwell.services.ServiceRegistryClient
+import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
 import cromwell.util.PromiseActor._
 import cromwell.webservice.CromwellApiHandler._
@@ -30,10 +31,8 @@ import scala.util.{Failure, Try}
 
 object SingleWorkflowRunnerActor {
   def props(source: WorkflowSourceFiles,
-            metadataOutputFile: Option[Path],
-            workflowManager: ActorRef,
-            workflowStore: ActorRef): Props = {
-    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile, workflowManager, workflowStore))
+            metadataOutputFile: Option[Path]): Props = {
+    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile))
   }
 
   sealed trait RunnerMessage
@@ -61,7 +60,7 @@ object SingleWorkflowRunnerActor {
   }
 
   implicit class EnhancedJsObject(val jsObject: JsObject) extends AnyVal {
-    def state: WorkflowState = WorkflowState.fromString(jsObject.fields.get("status").get.asInstanceOf[JsString].value)
+    def state: WorkflowState = WorkflowState.fromString(jsObject.fields("status").asInstanceOf[JsString].value)
   }
 
   private val Tag = "SingleWorkflowRunnerActor"
@@ -72,16 +71,13 @@ object SingleWorkflowRunnerActor {
  * print out the outputs when complete and then shut down the actor system. Note that multiple aspects of this
  * are sub-optimal for future use cases where one might want a single workflow being run.
  */
-case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
-                                     metadataOutputPath: Option[Path],
-                                     workflowManager: ActorRef,
-                                     workflowStore: ActorRef)
-  extends LoggingFSM[RunnerState, RunnerData] with CromwellActor with ServiceRegistryClient {
+class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath: Option[Path])
+  extends CromwellRootActor with LoggingFSM[RunnerState, RunnerData] {
 
   import SingleWorkflowRunnerActor._
-
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
   private implicit val system = context.system
+  private implicit val timeout = Timeout(5 seconds)
 
   startWith(NotStarted, RunnerData())
 
@@ -111,7 +107,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
   when (NotStarted) {
     case Event(RunWorkflow, data) =>
       log.info(s"$Tag: Submitting workflow")
-      workflowStore ! SubmitWorkflow(source)
+      workflowStoreActor ! SubmitWorkflow(source)
       goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
   }
 
@@ -119,7 +115,7 @@ case class SingleWorkflowRunnerActor(source: WorkflowSourceFiles,
     case Event(WorkflowStoreActor.WorkflowSubmittedToStore(id), data) =>
       log.info(s"$Tag: Workflow submitted UUID($id)")
       // Since we only have a single workflow, force the WorkflowManagerActor's hand in case the polling rate is long
-      workflowManager ! RetrieveNewWorkflows
+      workflowManagerActor ! RetrieveNewWorkflows
       schedulePollRequest()
       stay() using data.copy(id = Option(id))
     case Event(IssuePollRequest, _) =>

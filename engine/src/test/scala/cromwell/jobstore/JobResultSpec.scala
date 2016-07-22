@@ -5,8 +5,7 @@ import cromwell.jobstore.JobResultJsonFormatter._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.values.WdlString
 import spray.json._
-import wdl4s.WdlExpression
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
+import wdl4s.types.{WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
 
 class JobResultSpec extends FlatSpec with Matchers {

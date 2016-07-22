@@ -4,9 +4,9 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.services.ServiceRegistryClient
 import cromwell.services.metadata.{MetadataValue, MetadataKey, MetadataEvent}
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, MetadataPutAcknowledgement}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -16,7 +16,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 import scalaz.NonEmptyList
 
-case class WorkflowStoreActor(store: WorkflowStore) extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with ServiceRegistryClient {
+case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorRef)
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -189,5 +190,7 @@ object WorkflowStoreActor {
   case object NoNewWorkflowsToStart extends WorkflowStoreActorResponse
   case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreActorResponse
 
-  def props(workflowStoreDatabase: WorkflowStore) = Props(WorkflowStoreActor(workflowStoreDatabase)).withDispatcher("akka.dispatchers.api-dispatcher")
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
+    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(ApiDispatcher)
+  }
 }

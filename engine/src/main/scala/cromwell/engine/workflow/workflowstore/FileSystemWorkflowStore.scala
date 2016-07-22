@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scalaz.NonEmptyList
 
-case object FileSystemWorkflowStore$ extends WorkflowStore {
+case object FileSystemWorkflowStore extends WorkflowStore {
 
   val separator = File.separator
   val fsroot= Paths.get("WorkflowStore").toAbsolutePath

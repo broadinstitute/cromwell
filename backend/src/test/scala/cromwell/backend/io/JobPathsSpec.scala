@@ -26,13 +26,13 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   val globalConfig = ConfigFactory.load()
   val backendConfig =  ConfigFactory.parseString(configString)
-  val defaultBackendConfigDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfigDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   "JobPaths" should "provide correct paths for a job" in {
 
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
     val call: Call = wd.workflowNamespace.workflow.calls.head
-    val jobKey = new BackendJobDescriptorKey(call, None, 1)
+    val jobKey = BackendJobDescriptorKey(call, None, 1)
     val jobPaths = new JobPaths(wd, backendConfig, jobKey)
     val id = wd.id
     jobPaths.callRoot.toString shouldBe
@@ -54,17 +54,17 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     jobPaths.toDockerPath(Paths.get("/root/dock/path")).toString shouldBe
       "/root/dock/path"
 
-    val jobKeySharded = new BackendJobDescriptorKey(call, Option(0), 1)
+    val jobKeySharded = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = new JobPaths(wd, backendConfig, jobKeySharded)
     jobPathsSharded.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello/shard-0"
 
-    val jobKeyAttempt = new BackendJobDescriptorKey(call, None, 2)
+    val jobKeyAttempt = BackendJobDescriptorKey(call, None, 2)
     val jobPathsAttempt = new JobPaths(wd, backendConfig, jobKeyAttempt)
     jobPathsAttempt.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello/attempt-2"
 
-    val jobKeyShardedAttempt = new BackendJobDescriptorKey(call, Option(0), 2)
+    val jobKeyShardedAttempt = BackendJobDescriptorKey(call, Option(0), 2)
     val jobPathsShardedAttempt = new JobPaths(wd, backendConfig, jobKeyShardedAttempt)
     jobPathsShardedAttempt.callRoot.toString shouldBe
       s"local-cromwell-executions/hello/$id/call-hello/shard-0/attempt-2"

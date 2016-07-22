@@ -28,7 +28,7 @@ class LocalJobExecutionActorSpec extends TestKitSuite("LocalJobExecutionActorSpe
 
   def localBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = {
     val workflowPaths = new WorkflowPaths(jobDescriptor.descriptor, configurationDescriptor.backendConfig)
-    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, LocalBackendInitializationData(workflowPaths), scala.concurrent.ExecutionContext.global)).underlyingActor
+    TestActorRef(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, emptyActor, LocalBackendInitializationData(workflowPaths), scala.concurrent.ExecutionContext.global)).underlyingActor
   }
 
   behavior of "LocalBackend"

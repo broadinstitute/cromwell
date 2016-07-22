@@ -3,7 +3,7 @@ package cromwell.jobstore
 import akka.testkit.TestFSMRef
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
-import cromwell.jobstore.JobStoreService.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
+import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
 
 import scala.concurrent.duration._

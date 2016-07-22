@@ -2,10 +2,11 @@ package cromwell.backend.impl.local
 
 import java.util.concurrent.Executors
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend._
 import cromwell.backend.io.{JobPaths, SharedFsExpressionFunctions}
 import cromwell.core.CallContext
+import cromwell.core.Dispatcher.BackendDispatcher
 import lenthall.config.ScalaConfig._
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -27,19 +28,22 @@ case class LocalBackendLifecycleActorFactory(configurationDescriptor: BackendCon
   private val localConfiguration = new LocalConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call]): Option[Props] = {
-    Option(LocalInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, localConfiguration).withDispatcher("akka.dispatchers.backend-dispatcher"))
+                                                calls: Seq[Call],
+                                                serviceRegistryActor: ActorRef): Option[Props] = {
+    Option(LocalInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor, localConfiguration).withDispatcher(BackendDispatcher))
   }
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData]): Props = {
-    LocalJobExecutionActor.props(jobDescriptor, configurationDescriptor, initializationData.toLocal, ec).withDispatcher("akka.dispatchers.backend-dispatcher")
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                      initializationData: Option[BackendInitializationData],
+                                      serviceRegistryActor: ActorRef): Props = {
+    LocalJobExecutionActor.props(jobDescriptor, configurationDescriptor, serviceRegistryActor, initializationData.toLocal, ec).withDispatcher(BackendDispatcher)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
-      val callContext = new CallContext(
+      val callContext = CallContext(
         jobPaths.callRoot,
         jobPaths.stdout.toAbsolutePath.toString,
         jobPaths.stderr.toAbsolutePath.toString

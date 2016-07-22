@@ -9,8 +9,9 @@ import cromwell.SimpleWorkflowActorSpec._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.{StartNewWorkflow, StartWorkflowCommand}
-import cromwell.services.metadata.{MetadataService, MetadataEvent}
+import cromwell.services.metadata.{MetadataEvent, MetadataService}
 import MetadataService.PutMetadataAction
+import cromwell.jobstore.JobStoreActor
 import cromwell.services.metadata.MetadataEvent
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
@@ -63,7 +64,8 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
     val watchActor = system.actorOf(MetadataWatchActor.props(matcher, promise), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val workflowActor = TestFSMRef(new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
       watchActor,
-      system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}")),
+      system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
+      system.actorOf(JobStoreActor.props)),
       name = s"workflow-actor-$workflowId")
     WorkflowActorAndMetadataPromise(workflowActor, promise)
   }

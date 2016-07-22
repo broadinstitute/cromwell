@@ -2,7 +2,7 @@ package cromwell.backend.impl.local
 
 import java.nio.file.{Path, Paths}
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.io.{SharedFileSystem, SharedFsExpressionFunctions}
@@ -28,15 +28,20 @@ object LocalJobExecutionActor {
     override def toString = argv.map(s => "\"" + s + "\"").mkString(" ")
   }
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, initializationData: LocalBackendInitializationData, ec: ExecutionContext): Props =
-    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, initializationData, ec))
+  def props(jobDescriptor: BackendJobDescriptor,
+            configurationDescriptor: BackendConfigurationDescriptor,
+            serviceRegistryActor: ActorRef,
+            initializationData: LocalBackendInitializationData,
+            ec: ExecutionContext): Props =
+    Props(new LocalJobExecutionActor(jobDescriptor, configurationDescriptor, serviceRegistryActor, initializationData, ec))
 }
 
 class LocalJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                              override val configurationDescriptor: BackendConfigurationDescriptor,
+                             serviceRegistryActor: ActorRef,
                              initializationData: LocalBackendInitializationData,
                              override implicit val ec: ExecutionContext)
-  extends BackendJobExecutionActor with SharedFileSystem with ServiceRegistryClient {
+  extends BackendJobExecutionActor with SharedFileSystem {
 
   import LocalJobExecutionActor._
   import better.files._

@@ -28,7 +28,7 @@ object MetadataServiceActor {
   // A workflow will stay in the existence cache for this many runs of the workflow summary actor before being expired out.
   val CacheExpiryCount = 5
 
-  def props(serviceConfig: Config, globalConfig: Config) = Props(new MetadataServiceActor(serviceConfig, globalConfig))
+  def props(serviceConfig: Config, globalConfig: Config) = Props(MetadataServiceActor(serviceConfig, globalConfig))
 }
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with ActorLogging with MetadataDatabaseAccess with CromwellDatabase {
@@ -40,7 +40,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
 
   self ! RefreshSummary
 
-  private def scheduleSummary = context.system.scheduler.scheduleOnce(MetadataSummaryRefreshInterval, self, RefreshSummary)(context.dispatcher)
+  private def scheduleSummary = context.system.scheduler.scheduleOnce(MetadataSummaryRefreshInterval, self, RefreshSummary)(context.dispatcher, self)
 
   private def validateWorkflowId(validation: ValidateWorkflowIdAndExecute): Unit = {
     val possibleWorkflowId = validation.possibleWorkflowId
@@ -65,7 +65,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) ext
     case action@PutMetadataAction(events) => writeActor forward action
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
-    case RefreshSummary => summaryActor ! SummarizeMetadata
+    case RefreshSummary =>
+      val sndr = sender()
+      summaryActor ! SummarizeMetadata(sndr)
     case MetadataSummarySuccess => scheduleSummary
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")

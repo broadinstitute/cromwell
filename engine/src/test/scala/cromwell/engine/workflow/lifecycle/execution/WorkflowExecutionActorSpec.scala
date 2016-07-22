@@ -9,6 +9,7 @@ import cromwell.core.WorkflowId
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.ExecuteWorkflowCommand
+import cromwell.jobstore.JobStoreActor
 import cromwell.services.ServiceRegistryActor
 import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfter
@@ -36,6 +37,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
     "retry a job 2 times and succeed in the third attempt" in {
       import spray.json._
       val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load()))
+      val jobStoreActor = system.actorOf(JobStoreActor.props)
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -45,7 +47,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection))
-      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor, AllBackendInitializationData.empty, restarting = false), "WorkflowExecutionActor")
+      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor, jobStoreActor, AllBackendInitializationData.empty, restarting = false), "WorkflowExecutionActor")
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
         EventFilter.info(pattern = "Starting calls: hello.hello", occurrences = 3).intercept {
@@ -66,6 +68,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
     "execute a workflow with scatters" in {
       val serviceRegistry = mockServiceRegistryActor
+      val jobStore = system.actorOf(JobStoreActor.props)
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.DefaultBackendLifecycleActorFactory",
@@ -75,7 +78,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
-      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry, AllBackendInitializationData.empty, restarting = false), "WorkflowExecutionActor")
+      val workflowExecutionActor = system.actorOf(WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry, jobStore, AllBackendInitializationData.empty, restarting = false), "WorkflowExecutionActor")
 
       val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"
 

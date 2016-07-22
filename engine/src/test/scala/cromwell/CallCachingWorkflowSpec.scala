@@ -142,17 +142,15 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
     }
 
     "show valid values for call caching in metadata" taggedAs PostMVP ignore {
-      implicit val workflowManagerActor = TestActorRef(
-        new WorkflowManagerActor(CallCachingWorkflowSpec.callCachingConfig, system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore)))
-      )
-
+      /*
+        FIXME: This test had been constructing a custom WorkflowManagerActor. I don't believe this is still necessary
+        but this test is being ignored so I'm not sure
+       */
       val workflowId = runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.CallCachingWorkflow(UUID.randomUUID().toString),
         eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 1),
         expectedOutputs = expectedOutputs,
-        config = CallCachingWorkflowSpec.callCachingConfig,
-        workflowManagerActor=Option(workflowManagerActor)
-      )
+        config = CallCachingWorkflowSpec.callCachingConfig)
 
 //      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
 //      status shouldEqual WorkflowSucceeded

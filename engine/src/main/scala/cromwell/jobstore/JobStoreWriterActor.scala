@@ -1,7 +1,7 @@
 package cromwell.jobstore
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cromwell.jobstore.JobStoreService._
+import cromwell.jobstore.JobStoreActor._
 
 import scala.util.{Failure, Success}
 

@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
-import cromwell.jobstore.JobStoreService._
+import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
@@ -24,7 +24,7 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
   "JobStoreService" should {
     "work" in {
       val config = ConfigFactory.parseString("{}")
-      val jobStoreService = system.actorOf(Props(JobStoreService(config, config)))
+      val jobStoreService = system.actorOf(JobStoreActor.props)
 
       val workflowId = WorkflowId.randomId()
       val successCall = mock[Call]

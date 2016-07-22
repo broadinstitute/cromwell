@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{OneForOneStrategy, _}
+import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.webservice.PerRequest._
 import spray.http.StatusCodes._
 import spray.http._
@@ -94,7 +95,7 @@ object PerRequest {
   }
 
   case class WithProps(r: RequestContext, props: Props, message: AnyRef, timeout: Duration, name: String) extends PerRequest {
-    lazy val target = context.actorOf(props.withDispatcher("akka.dispatchers.api-dispatcher"), name)
+    lazy val target = context.actorOf(props.withDispatcher(ApiDispatcher), name)
   }
 }
 
@@ -108,7 +109,7 @@ trait PerRequestCreator {
                  props: Props, message: AnyRef,
                  timeout: Duration = 1 minutes,
                  name: String = PerRequestCreator.endpointActorName) = {
-    actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)).withDispatcher("akka.dispatchers.api-dispatcher"), name)
+    actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)).withDispatcher(ApiDispatcher), name)
   }
 }
 

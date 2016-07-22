@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
@@ -33,7 +34,7 @@ object MaterializeWorkflowDescriptorActor {
   def cromwellBackends = CromwellBackends.instance.get
 
   def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends): Props = {
-    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends)).withDispatcher("akka.dispatchers.engine-dispatcher")
+    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends)).withDispatcher(EngineDispatcher)
   }
 
   /*

@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.{FSM, Props}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
@@ -39,7 +40,7 @@ object WorkflowFinalizationActor {
 
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore,
   outputStore: OutputStore, initializationData: AllBackendInitializationData): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore, initializationData)).withDispatcher("akka.dispatchers.engine-dispatcher")
+    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore, initializationData)).withDispatcher(EngineDispatcher)
   }
 }
 

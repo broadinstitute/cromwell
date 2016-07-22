@@ -137,7 +137,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf)))
+    system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf), emptyActor))
   }
 
   behavior of "JesInitializationActor"
@@ -187,7 +187,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 
     val actorRef = TestActorRef[JesInitializationActor](
-      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration),
+      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration, emptyActor),
       "TestableJesInitializationActor-" + UUID.randomUUID)
     TestingBits(actorRef, jesConfiguration)
   }

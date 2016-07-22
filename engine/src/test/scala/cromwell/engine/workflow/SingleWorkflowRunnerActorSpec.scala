@@ -10,9 +10,11 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.CromwellTestkitSpec._
+import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.jobstore.JobStoreActor
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
@@ -42,17 +44,29 @@ object SingleWorkflowRunnerActorSpec {
     def toStringValue = jsValue.get.asInstanceOf[JsString].value
     def toFields = jsValue.get.asJsObject.fields
   }
+
+  class TestSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
+                                      metadataOutputPath: Option[Path])
+    extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
+    override lazy val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
+  }
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
-  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore))
+  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
+  private val jobStore = system.actorOf(JobStoreActor.props)
+
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(), workflowStore)), "WorkflowManagerActor")
+    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(),
+      workflowStore,
+      dummyServiceRegistryActor,
+      dummyLogCopyRouter,
+      jobStore)), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
                           outputFile: => Option[Path] = None): ActorRef = {
-    system.actorOf(SingleWorkflowRunnerActor.props(sampleWdl.asWorkflowSources(), outputFile, managerActor, workflowStore))
+    system.actorOf(Props(new TestSingleWorkflowRunnerActor(sampleWdl.asWorkflowSources(), outputFile)))
   }
 
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

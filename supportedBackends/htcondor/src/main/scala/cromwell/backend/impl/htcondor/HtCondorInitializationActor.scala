@@ -1,6 +1,6 @@
 package cromwell.backend.impl.htcondor
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
 import cromwell.backend.impl.htcondor.HtCondorRuntimeAttributes._
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -14,13 +14,17 @@ object HtCondorInitializationActor {
   val SupportedKeys = Set(DockerKey, DockerWorkingDirKey, DockerOutputDirKey, FailOnStderrKey,
     ContinueOnReturnCodeKey, CpuKey, MemoryKey, DiskKey)
 
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], configurationDescriptor: BackendConfigurationDescriptor): Props =
-    Props(new HtCondorInitializationActor(workflowDescriptor, calls, configurationDescriptor))
+  def props(workflowDescriptor: BackendWorkflowDescriptor,
+            calls: Seq[Call],
+            configurationDescriptor: BackendConfigurationDescriptor,
+            serviceRegistryActor: ActorRef): Props =
+    Props(new HtCondorInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
 }
 
 class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
                                   override val calls: Seq[Call],
-                                  override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendWorkflowInitializationActor {
+                                  override val configurationDescriptor: BackendConfigurationDescriptor,
+                                  override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
     DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),

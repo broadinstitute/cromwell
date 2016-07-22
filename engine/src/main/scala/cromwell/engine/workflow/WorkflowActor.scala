@@ -6,6 +6,7 @@ import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.backend.AllBackendInitializationData
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.{WorkflowId, _}
@@ -138,8 +139,9 @@ object WorkflowActor {
             wdlSource: WorkflowSourceFiles,
             conf: Config,
             serviceRegistryActor: ActorRef,
-            workflowLogCopyRouter: ActorRef): Props = {
-    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter)).withDispatcher("akka.dispatchers.engine-dispatcher")
+            workflowLogCopyRouter: ActorRef,
+            jobStoreActor: ActorRef): Props = {
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -151,7 +153,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     workflowSources: WorkflowSourceFiles,
                     conf: Config,
                     serviceRegistryActor: ActorRef,
-                    workflowLogCopyRouter: ActorRef)
+                    workflowLogCopyRouter: ActorRef,
+                    jobStoreActor: ActorRef)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
   implicit val actorSystem = context.system
@@ -177,7 +180,8 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor), name = s"WorkflowInitializationActor-$workflowId")
+      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, serviceRegistryActor),
+        name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), data) =>
@@ -196,7 +200,14 @@ class WorkflowActor(val workflowId: WorkflowId,
         case StartNewWorkflow => false
         case RestartExistingWorkflow => true
       }
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId, workflowDescriptor, serviceRegistryActor, initializationData, restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
+
+      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId,
+        workflowDescriptor,
+        serviceRegistryActor,
+        jobStoreActor,
+        initializationData,
+        restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
+
       executionActor ! ExecuteWorkflowCommand
 
       goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)

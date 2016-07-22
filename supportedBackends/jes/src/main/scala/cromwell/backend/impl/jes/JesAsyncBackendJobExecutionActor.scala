@@ -5,7 +5,7 @@ import java.nio.file.{Path, Paths}
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -17,6 +17,7 @@ import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.core.{CromwellAggregatedException, JobOutput, _}
@@ -43,9 +44,13 @@ object JesAsyncBackendJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor,
             completionPromise: Promise[BackendJobExecutionResponse],
             jesWorkflowInfo: JesConfiguration,
-            initializationData: JesBackendInitializationData): Props = {
-    Props(new JesAsyncBackendJobExecutionActor(jobDescriptor, completionPromise, jesWorkflowInfo, initializationData))
-      .withDispatcher("akka.dispatchers.backend-dispatcher")
+            initializationData: JesBackendInitializationData,
+            serviceRegistryActor: ActorRef): Props = {
+    Props(new JesAsyncBackendJobExecutionActor(jobDescriptor,
+      completionPromise,
+      jesWorkflowInfo,
+      initializationData,
+      serviceRegistryActor)).withDispatcher(BackendDispatcher)
   }
 
   object WorkflowOptionKeys {
@@ -79,8 +84,9 @@ object JesAsyncBackendJobExecutionActor {
 class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                        override val completionPromise: Promise[BackendJobExecutionResponse],
                                        jesConfiguration: JesConfiguration,
-                                       initializationData: JesBackendInitializationData)
-  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with ServiceRegistryClient with JobLogging {
+                                       initializationData: JesBackendInitializationData,
+                                       serviceRegistryActor: ActorRef)
+  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
 
   import JesAsyncBackendJobExecutionActor._
 

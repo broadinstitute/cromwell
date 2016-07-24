@@ -24,5 +24,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       executionInfos.schema ++
       runtimeAttributes.schema ++
       metadata.schema ++
-      workflowMetadataSummaries.schema
+      workflowMetadataSummaries.schema ++
+      workflowStore.schema
 }

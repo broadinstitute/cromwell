@@ -2,7 +2,10 @@ package cromwell.database.slick
 
 
 import java.sql.Timestamp
+
 import cromwell.database.obj.WorkflowStoreEntry
+import slick.profile.RelationalProfile.ColumnOption.Default
+
 import scalaz._
 
 trait WorkflowStoreComponent {
@@ -12,12 +15,12 @@ trait WorkflowStoreComponent {
   import driver.api._
 
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE") {
-    def workflowStoreTableId = column[Long]("WORKFLOW_STORE_ID", O.PrimaryKey, O.AutoInc)
+    def workflowStoreTableId = column[Int]("WORKFLOW_STORE_ID", O.PrimaryKey, O.AutoInc)
     def workflowUuid = column[String]("WORKFLOW_UUID")
     def workflowDefinition = column[String]("WORKFLOW_DEFINITION")
     def workflowInputs = column[Option[String]]("WORKFLOW_INPUTS")
     def workflowOptions = column[Option[String]]("WORKFLOW_OPTIONS")
-    def state = column[String]("STATE")
+    def state = column[String]("STATE", Default("Submitted"))
     def timestamp = column[Timestamp]("TIMESTAMP")
 
     override def * = (workflowUuid, workflowDefinition, workflowInputs, workflowOptions, state, timestamp, workflowStoreTableId.?) <>

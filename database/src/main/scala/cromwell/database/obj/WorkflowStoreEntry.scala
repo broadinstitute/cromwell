@@ -10,7 +10,7 @@ case class WorkflowStoreEntry
   workflowOptions: Option[String],
   state: String, // TODO: This could probably be a WorkflowStoreEntryState and I could use TypedTypes. On the other hand... String...
   timestamp: Timestamp,
-  workflowStoreId: Option[Long]
+  workflowStoreId: Option[Int]
 )
 
 sealed trait WorkflowStoreEntryState

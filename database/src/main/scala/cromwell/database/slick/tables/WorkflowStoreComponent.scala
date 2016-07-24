@@ -1,12 +1,9 @@
-package cromwell.database.slick
-
+package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.obj.WorkflowStoreEntry
+import cromwell.database.sql.tables.WorkflowStoreEntry
 import slick.profile.RelationalProfile.ColumnOption.Default
-
-import scalaz._
 
 trait WorkflowStoreComponent {
 

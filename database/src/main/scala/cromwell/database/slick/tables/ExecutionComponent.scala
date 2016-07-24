@@ -1,8 +1,8 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.obj.Execution
+import cromwell.database.sql.tables.Execution
 import slick.jdbc.GetResult
 import slick.profile.RelationalProfile.ColumnOption.Default
 

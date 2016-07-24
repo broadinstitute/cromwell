@@ -3,24 +3,21 @@ package cromwell.webservice
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.pattern.ask
 import akka.actor.{Actor, Props}
+import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import cromwell.CromwellTestkitSpec
 import cromwell.core.Tags._
 import cromwell.core._
-import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.server.{CromwellServerActor, CromwellSystem}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor
-import MetadataSummaryRefreshActor.{MetadataSummarySuccess, SummarizeMetadata}
-import cromwell.CromwellTestkitSpec
-import cromwell.services._
-import cromwell.services.metadata.impl.MetadataSummaryRefreshActor
+import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.MetadataSummarySuccess
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
 import org.scalatest.concurrent.ScalaFutures

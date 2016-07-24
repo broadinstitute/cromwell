@@ -2,10 +2,10 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
-import cromwell.core.{WorkflowId, WorkflowState}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.database.Database
 import cromwell.database.SqlConverters._
-import cromwell.database.obj.{Metadatum, WorkflowMetadataKeys, WorkflowMetadataSummary}
+import cromwell.database.sql.tables.{Metadatum, WorkflowMetadataSummary}
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
 
@@ -36,9 +36,11 @@ object MetadataDatabaseAccess {
     }
   }
 
+  def baseSummary(workflowUuid: String) = WorkflowMetadataSummary(workflowUuid, None, None, None, None, None)
+
   private implicit class MetadatumEnhancer(val metadatum: Metadatum) extends AnyVal {
     def toSummary: WorkflowMetadataSummary = {
-      val base = WorkflowMetadataSummary(metadatum.workflowUuid)
+      val base = baseSummary(metadatum.workflowUuid)
       metadatum.key match {
         case WorkflowMetadataKeys.Name => base.copy(name = metadatum.value)
         case WorkflowMetadataKeys.Status => base.copy(status = metadatum.value)
@@ -54,8 +56,8 @@ object MetadataDatabaseAccess {
                                   metadataForUuid: Seq[Metadatum]): WorkflowMetadataSummary = {
     implicit val wmss = WorkflowMetadataSummarySemigroup
 
-    val baseSummary = existingSummary.getOrElse(WorkflowMetadataSummary(metadataForUuid.head.workflowUuid))
-    metadataForUuid.foldLeft(baseSummary) {
+    val base = existingSummary.getOrElse(baseSummary(metadataForUuid.head.workflowUuid))
+    metadataForUuid.foldLeft(base) {
       case (metadataSummary, metadatum) => metadataSummary |+| metadatum.toSummary
     }
   }
@@ -85,7 +87,7 @@ trait MetadataDatabaseAccess extends AutoCloseable { this: Database =>
       val metadataJobKey: Option[MetadataJobKey] = for {
         callFqn <- m.callFqn
         attempt <- m.attempt
-      } yield new MetadataJobKey(callFqn, m.index, attempt)
+      } yield MetadataJobKey(callFqn, m.index, attempt)
 
       val key = MetadataKey(workflowId, metadataJobKey, m.key)
       val value =  for {
@@ -138,8 +140,13 @@ trait MetadataDatabaseAccess extends AutoCloseable { this: Database =>
 
   def refreshWorkflowMetadataSummaries(startMetadataId: Long, startMetadataDateTime: Option[OffsetDateTime])
                                       (implicit ec: ExecutionContext): Future[Long] = {
-    databaseInterface.refreshMetadataSummaries(startMetadataId, startMetadataDateTime map { _.toSystemTimestamp },
-      MetadataDatabaseAccess.buildUpdatedSummary)
+    val startTimestamp = startMetadataDateTime.map(_.toSystemTimestamp)
+    val metadataFuture = databaseInterface.refreshMetadataSummaries(startMetadataId, startTimestamp,
+        WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
+        WorkflowMetadataKeys.Status, MetadataDatabaseAccess.buildUpdatedSummary)
+    metadataFuture map {
+      _.map(_.metadatumId.get).:+(0L).max // Get the PKs per row, tack on a zero jic they're empty, and then max.
+    }
   }
 
   def getWorkflowStatus(id: WorkflowId)

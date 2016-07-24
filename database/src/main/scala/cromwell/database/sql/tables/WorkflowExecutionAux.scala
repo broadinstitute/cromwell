@@ -1,4 +1,4 @@
-package cromwell.database.obj
+package cromwell.database.sql.tables
 
 import java.sql.Clob
 

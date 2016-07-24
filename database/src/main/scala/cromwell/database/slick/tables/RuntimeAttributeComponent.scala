@@ -1,6 +1,6 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
-import cromwell.database.obj.RuntimeAttribute
+import cromwell.database.sql.tables.RuntimeAttribute
 
 @deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait RuntimeAttributeComponent {

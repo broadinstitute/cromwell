@@ -1,6 +1,7 @@
 package cromwell.database
 
 import cromwell.database.slick.SlickDatabase
+import cromwell.database.sql.SqlDatabase
 
 object CromwellDatabase {
   val databaseInterface: SqlDatabase = new SlickDatabase()

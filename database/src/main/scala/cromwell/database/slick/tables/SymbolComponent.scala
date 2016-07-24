@@ -1,8 +1,8 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
 import java.sql.Clob
 
-import cromwell.database.obj.Symbol
+import cromwell.database.sql.tables.Symbol
 
 @deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait SymbolComponent {

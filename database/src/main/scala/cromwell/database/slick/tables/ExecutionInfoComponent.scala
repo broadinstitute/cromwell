@@ -1,6 +1,6 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
-import cromwell.database.obj.ExecutionInfo
+import cromwell.database.sql.tables.ExecutionInfo
 
 @deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait ExecutionInfoComponent {

@@ -2,16 +2,15 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
-import cromwell.core.{WorkflowId, WorkflowRunning, WorkflowSubmitted, WorkflowSucceeded}
-import cromwell.database.obj.WorkflowMetadataKeys
+import cromwell.core._
 import cromwell.database.slick.SlickDatabase
-import cromwell.database.{DbmsTest, CromwellDatabase, Database, SqlDatabase}
+import cromwell.database.sql.SqlDatabase
+import cromwell.database.{CromwellDatabase, Database, DbmsTest}
 import cromwell.services.metadata._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s._
 
 import scala.concurrent.{ExecutionContext, Future}
 

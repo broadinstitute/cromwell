@@ -13,9 +13,8 @@ import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
 import cromwell.core.OutputStore.OutputEntry
+import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.{WorkflowId, _}
-import cromwell.database.obj.WorkflowMetadataKeys
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
@@ -23,7 +22,7 @@ import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJ
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
-import cromwell.jobstore.{JobResultFailure, JobResultSuccess, _}
+import cromwell.jobstore._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import lenthall.exception.ThrowableAggregation

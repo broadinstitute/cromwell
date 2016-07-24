@@ -1,8 +1,8 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.obj.WorkflowExecution
+import cromwell.database.sql.tables.WorkflowExecution
 
 @deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait WorkflowExecutionComponent {

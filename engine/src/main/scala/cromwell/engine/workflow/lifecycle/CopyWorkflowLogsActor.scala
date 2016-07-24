@@ -6,12 +6,11 @@ import java.nio.file.Path
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import better.files._
-import cromwell.core._
 import cromwell.core.Dispatcher.IoDispatcher
+import cromwell.core._
 import cromwell.core.logging.WorkflowLogger
-import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
-import MetadataService.PutMetadataAction
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
 object CopyWorkflowLogsActor {
   // Commands

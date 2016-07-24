@@ -141,6 +141,14 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase with WorkflowSto
 
   private lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcProfile.capabilities.insertOrUpdate)
 
+  protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
+    if (updates == expected) {
+      DBIO.successful(Unit)
+    } else {
+      DBIO.failed(new RuntimeException(s"$description expected update count $expected, got $updates"))
+    }
+  }
+
   override def close(): Unit = {
     actionThreadPool.shutdown()
     database.close()
@@ -415,14 +423,6 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase with WorkflowSto
     } yield count
 
     runTransaction(action)
-  }
-
-  private def assertUpdateCount(method: String, updates: Int, expected: Int): DBIO[Unit] = {
-    if (updates == expected) {
-      DBIO.successful(Unit)
-    } else {
-      DBIO.failed(new RuntimeException(s"$method expected update count $expected, got $updates"))
-    }
   }
 
   override def setStartingStatus(workflowUuid: String, statusString: String, startDt: Option[Timestamp],
@@ -732,7 +732,8 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase { this: SlickD
   import dataAccess.driver.api._
 
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.workflowStateByUuid(WorkflowStoreEntryState.Running.toString).update(WorkflowStoreEntryState.Restartable.toString)
+    val action = dataAccess.workflowStoreStateByWorkflowStoreState(WorkflowStoreEntryState.Running.toString).
+      update(WorkflowStoreEntryState.Restartable.toString)
     runTransaction(action) map {_ => () }
   }
 
@@ -740,26 +741,29 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase { this: SlickD
     * Adds the requested WorkflowSourceFiles to the store.
     */
   override def add(newEntries: Iterable[WorkflowStoreEntry])(implicit ec: ExecutionContext): Future[Unit] = {
-    val actions = newEntries map {
-      case x => dataAccess.workflowStoreAutoInc += x.copy(workflowStoreId = None)
-    }
-    runTransaction(DBIO.sequence(actions)) map { _ => ()}
+    val action = dataAccess.workflowStoreAutoInc ++= newEntries
+    runTransaction(action) map { _ => () }
   }
 
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their state to Running.
     */
   override def fetchRunnableWorkflows(n: Int, state: WorkflowStoreEntryState)(implicit ec: ExecutionContext): Future[List[WorkflowStoreEntry]] = {
-    val fetchAction = dataAccess.workflowStoreEntriesByState(state.toString).sortBy(_.timestamp.asc).take(n).result
-    runTransaction(fetchAction) flatMap { list =>
-      val updateActions = list map {
-        case WorkflowStoreEntry(workflowUuid, _, _, _, _, _, _) => dataAccess.workflowStateByUuid(workflowUuid).update(WorkflowStoreEntryState.Running.toString)
-      }
-      runTransaction(DBIO.sequence(updateActions)) flatMap { ints => {
-        if (ints.forall( _ == 1 )) Future.successful(list.toList)
-        else Future.failed(new Exception("Failed to update the database"))
-      }}
-    }
+    val action = for {
+      workflowEntries <- dataAccess.workflowStoreEntriesByState(state.toString, n).result
+      _ <- DBIO.sequence(workflowEntries map verifyUpdate(WorkflowStoreEntryState.Running.toString))
+    } yield workflowEntries.toList
+    runTransaction(action)
+  }
+
+  private def verifyUpdate(updateState: String)
+                          (workflowStoreEntry: WorkflowStoreEntry)
+                          (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val workflowUuid = workflowStoreEntry.workflowUuid
+    for {
+      updateCount <- dataAccess.workflowStateByUuid(workflowUuid).update(updateState)
+      _ <- assertUpdateCount(s"Update $workflowUuid to $updateState", updateCount, 1)
+    } yield ()
   }
 
   override def remove(id: String)(implicit ec: ExecutionContext): Future[Boolean] = {

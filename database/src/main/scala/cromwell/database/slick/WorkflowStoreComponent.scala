@@ -45,15 +45,17 @@ trait WorkflowStoreComponent {
     } yield entry)
 
   /**
-    * Useful for selecting store entries with a given state. This is a def rather than a val so
-    * that we can use take(n) to only select the top n results.
+    * Useful for selecting store entries with a given state.
     */
-  def workflowStoreEntriesByState(state: Rep[String]) = {
-    for {
-      entry <- workflowStore
-      if entry.state === state
-    } yield entry
-  }
+  val workflowStoreEntriesByState = Compiled(
+    (state: Rep[String], limit: ConstColumn[Long]) => {
+      val workflowStoreRows = for {
+        workflowStoreRow <- workflowStore
+        if workflowStoreRow.state === state
+      } yield workflowStoreRow
+      workflowStoreRows.sortBy(_.timestamp.asc).take(limit)
+    }
+  )
 
   /**
     * Useful for updating state for all entries matching a given UUID
@@ -63,4 +65,13 @@ trait WorkflowStoreComponent {
       entry <- workflowStore
       if entry.workflowUuid === uuid
     } yield entry.state)
+
+  /**
+    * Useful for updating state for all entries matching a given state
+    */
+  val workflowStoreStateByWorkflowStoreState = Compiled(
+    (workflowStoreState: Rep[String]) => for {
+      workflowStoreRow <- workflowStore
+      if workflowStoreRow.state === workflowStoreState
+    } yield workflowStoreRow.state)
 }

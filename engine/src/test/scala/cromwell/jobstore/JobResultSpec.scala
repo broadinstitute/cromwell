@@ -39,11 +39,11 @@ class JobResultSpec extends FlatSpec with Matchers {
 
   it should "write and read JSON for job failures" in {
 
-    val failure = JobResultFailure(Some(0), new Exception("abc"))
+    val failure = JobResultFailure(Some(0), new Exception("abc"), retryable = false)
     val asJson = failure.toJson
 
     val jsonString = asJson.toString()
-    jsonString shouldBe """{"returnCode":0,"reason":"abc"}"""
+    jsonString shouldBe """{"returnCode":0,"reason":"abc","retryable":false}"""
 
     val fromJsonString = jsonString.parseJson
     val fromJson = fromJsonString.convertTo[JobResultFailure]

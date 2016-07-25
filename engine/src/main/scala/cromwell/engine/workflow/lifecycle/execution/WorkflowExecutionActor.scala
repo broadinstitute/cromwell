@@ -309,11 +309,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
-      saveSuccessfulJobResults(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = false)
-      saveUnsuccessfulJobResults(jobKey, returnCode, reason)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
       val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
       goto(WorkflowExecutionFailedState) using mergedStateData.removeBackendJobExecutionActor(jobKey)
@@ -355,6 +353,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       stay
   }
+
   when(WorkflowExecutionAbortingState) {
     case Event(AbortedResponse(jobKey), stateData) =>
       workflowLogger.info(s"$tag job aborted: ${jobKey.tag}")
@@ -375,6 +374,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
       if (stateData.backendJobExecutionActors.nonEmpty) {
+        log.info(s"$tag: Abort received. Aborting ${stateData.backendJobExecutionActors.size} EJEAs")
         stateData.backendJobExecutionActors.values foreach {_ ! AbortJobCommand}
         goto(WorkflowExecutionAbortingState)
       } else {
@@ -464,18 +464,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     reportableOutputs exists { reportableOutput =>
       reportableOutput.fullyQualifiedName == s"${scope.fullyQualifiedName}.${entry.name}"
     }
-  }
-
-  private def saveSuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
-    val jobStoreKey = jobKey.toJobStoreKey(workflowId)
-    val jobStoreResult = JobResultSuccess(returnCode, outputs)
-    jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
-  }
-
-  private def saveUnsuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], reason: Throwable) = {
-    val jobStoreKey = jobKey.toJobStoreKey(workflowId)
-    val jobStoreResult = JobResultFailure(returnCode, reason)
-    jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
 
   private def pushSuccessfulJobMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
@@ -580,9 +568,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
             val ejeProps = EngineJobExecutionActor.props(jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, jobStoreActor)
             val ejeActor = context.actorOf(ejeProps, ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
-
             ejeActor ! EngineJobExecutionActor.Execute
-
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>
             throw WorkflowExecutionException(new Exception(s"Could not get BackendLifecycleActor for backend $backendName").wrapNel)

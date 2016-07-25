@@ -3,17 +3,13 @@ package cromwell.jobstore
 import akka.actor.{Actor, Props}
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreActor.{JobStoreReaderCommand, JobStoreWriterCommand}
-import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-
 
 /**
   * Joins the service registry API to the JobStoreReaderActor and JobStoreWriterActor.
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor extends Actor {
-  // TODO: Replace with a real database, probably from config.
-  val database = FilesystemJobStoreDatabase
+class JobStoreActor(database: JobStore) extends Actor {
   val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(database))
   val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(database))
 
@@ -53,5 +49,5 @@ object JobStoreActor {
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
 
-  def props = Props(new JobStoreActor)
+  def props(database: JobStore) = Props(new JobStoreActor(database))
 }

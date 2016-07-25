@@ -258,7 +258,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   onTransition {
     case fromState -> toState =>
-      workflowLogger.info(s"transitioning from $fromState to $toState")
+      workflowLogger.info(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
       // This updates the workflow status
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
@@ -269,7 +269,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   onTransition {
     case oldState -> terminalState if terminalState.terminal =>
-      workflowLogger.info(s"transition from $oldState to $terminalState: shutting down")
+      workflowLogger.info(s"transition from {} to {}. Shutting down.", arg1 = oldState, arg2 = terminalState)
       // Add the end time of the workflow in the MetadataService
       val now = OffsetDateTime.now
       val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(now))

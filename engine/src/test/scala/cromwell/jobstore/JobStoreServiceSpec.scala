@@ -5,6 +5,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
+import cromwell.database.CromwellDatabase
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
 import org.scalatest.Matchers
@@ -24,7 +25,8 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
   "JobStoreService" should {
     "work" in {
       val config = ConfigFactory.parseString("{}")
-      val jobStoreService = system.actorOf(JobStoreActor.props)
+      lazy val jobStore: JobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
+      val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 
       val workflowId = WorkflowId.randomId()
       val successCall = mock[Call]
@@ -51,12 +53,12 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
       jobStoreService ! QueryJobCompletion(failureKey)
       expectMsgType[JobNotComplete.type](MaxWait)
 
-      jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds")))
+      jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds"), retryable = false))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
       jobStoreService ! QueryJobCompletion(failureKey)
       expectMsgPF(MaxWait) {
-        case JobComplete(JobResultFailure(Some(11), _)) =>
+        case JobComplete(JobResultFailure(Some(11), _, false)) =>
       }
 
       jobStoreService ! RegisterWorkflowCompleted(workflowId)

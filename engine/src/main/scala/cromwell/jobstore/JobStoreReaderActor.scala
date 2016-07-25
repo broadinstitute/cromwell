@@ -7,10 +7,10 @@ import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreRea
 import scala.util.{Failure, Success}
 
 object JobStoreReaderActor {
-  def props(database: JobStoreDatabase) = Props(new JobStoreReaderActor(database))
+  def props(database: JobStore) = Props(new JobStoreReaderActor(database))
 }
 
-class JobStoreReaderActor(database: JobStoreDatabase) extends Actor with ActorLogging {
+class JobStoreReaderActor(database: JobStore) extends Actor with ActorLogging {
 
   implicit val ec = context.dispatcher
 
@@ -20,7 +20,9 @@ class JobStoreReaderActor(database: JobStoreDatabase) extends Actor with ActorLo
       database.readJobResult(key) onComplete {
         case Success(Some(result)) => replyTo ! JobComplete(result)
         case Success(None) => replyTo ! JobNotComplete
-        case Failure(t) => replyTo ! JobStoreReadFailure(t)
+        case Failure(t) =>
+          log.error(t, "JobStoreReadFailure")
+          replyTo ! JobStoreReadFailure(t)
       }
     case unknownMessage => log.error(s"Unexpected message to JobStoreReader: $unknownMessage")
   }

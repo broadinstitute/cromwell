@@ -11,7 +11,7 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
-import cromwell.jobstore.JobStoreActor.RegisterWorkflowCompleted
+import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
@@ -143,7 +143,7 @@ class WorkflowManagerActor(config: Config,
       stay()
     case Event(WorkflowStoreActor.NewWorkflowsToStart(newWorkflows), stateData) =>
       val newSubmissions = newWorkflows map submitWorkflow
-      log.debug(s"Retrieved ${newSubmissions.size} workflows from the WorkflowStoreActor")
+      log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.size)
       scheduleNextNewWorkflowPoll()
       stay() using stateData.withAddition(newSubmissions)
     case Event(SubscribeToWorkflowCommand(id), data) =>
@@ -214,6 +214,10 @@ class WorkflowManagerActor(config: Config,
     case Event(MetadataPutAcknowledgement(_), _) => stay()
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
+    case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest
+    case Event(JobStoreWriteFailure(_, t), _) =>
+      log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)
+      stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>
       log.warning(s"$tag Unhandled message: $unhandled")

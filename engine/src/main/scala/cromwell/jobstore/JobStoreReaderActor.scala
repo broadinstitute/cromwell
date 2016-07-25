@@ -7,10 +7,10 @@ import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreRea
 import scala.util.{Failure, Success}
 
 object JobStoreReaderActor {
-  def props(database: JobStoreDatabase) = Props(new JobStoreReaderActor(database))
+  def props(database: JobStore) = Props(new JobStoreReaderActor(database))
 }
 
-class JobStoreReaderActor(database: JobStoreDatabase) extends Actor with ActorLogging {
+class JobStoreReaderActor(database: JobStore) extends Actor with ActorLogging {
 
   implicit val ec = context.dispatcher
 

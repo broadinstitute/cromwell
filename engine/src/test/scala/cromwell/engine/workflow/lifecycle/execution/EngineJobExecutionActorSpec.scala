@@ -10,7 +10,7 @@ import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
-import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreActor, Pending => _}
+import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreActor, WriteCountingJobStoreDatabase, Pending => _}
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfterAll, Matchers}
 import org.specs2.mock.Mockito
@@ -53,7 +53,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       None,
       restarting = restarting,
       serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance,
-      jobStoreActor = system.actorOf(JobStoreActor.props)
+      jobStoreActor = system.actorOf(JobStoreActor.props(WriteCountingJobStoreDatabase.makeNew))
     ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
   }
 

@@ -11,7 +11,7 @@ import spray.json._
 import scala.concurrent.{ExecutionContext, Future}
 
 
-case object FilesystemJobStoreDatabase extends JobStoreDatabase {
+case object FilesystemJobStoreDatabase extends JobStore {
 
   val separator = File.separator
   val fsroot = Paths.get("JobStore").toAbsolutePath

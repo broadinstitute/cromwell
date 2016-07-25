@@ -18,6 +18,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
+  * [Upgrading from 0.19 to 0.21](#upgrading-from-019-to-021)
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
@@ -33,6 +34,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Local Backend](#local-backend)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
   * [HtCondor Backend](#htcondor-backend)
+    * [Caching configuration](#caching-configuration)
+    * [Docker](#docker)
+    * [CPU, Memory and Disk](#cpu-memory-and-disk)
   * [Google JES Backend](#google-jes-backend)
     * [Configuring Google Project](#configuring-google-project)
     * [Configuring Authentication](#configuring-authentication)
@@ -108,6 +112,10 @@ Tests are run via `sbt test`.  Note that the tests do require Docker to be runni
 
 OS X users can install Cromwell with Homebrew: `brew install cromwell`.
 
+## Upgrading from 0.19 to 0.21
+
+See the [migration document](MIGRATION.md) for more details.
+
 # Command Line Usage
 
 Run the JAR file with no arguments to get the usage message:
@@ -176,38 +184,48 @@ $ java -jar cromwell.jar run my_wf.wdl - - my_wf.metadata.json
 ... play-by-play output ...
 $ cat my_wf.metadata.json
 {
+  "workflowName": "w",
   "calls": {
-    "example.my_task": [{
+    "w.x": [{
       "executionStatus": "Done",
-      "stdout": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stdout",
+      "stdout": "/Users/jdoe/projects/cromwell/cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x/stdout",
+      "shardIndex": -1,
       "outputs": {
-        "result": "my example output"
+        "o": "local\nremote"
+      },
+      "runtimeAttributes": {
+        "failOnStderr": "false",
+        "continueOnReturnCode": "0"
+      },
+      "cache": {
+        "allowResultReuse": true
       },
       "inputs": {
+        "remote": "/Users/jdoe/remote.txt",
+        "local": "local.txt"
       },
       "returnCode": 0,
       "backend": "Local",
-      "end": "2015-10-29T03:16:51.732-03:00",
-      "stderr": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stderr",
-      "start": "2015-10-29T03:16:51.213-03:00"
-      "executionEvents": [{
-        "description": "running docker",
-        "startTime": "2015-10-29T03:16:51.213-03:00",
-        "endTime": "2015-10-29T03:16:51.732-03:00"
-      }],
-      "attempt": 1
+      "end": "2016-07-11T10:27:56.074-04:00",
+      "stderr": "/Users/jdoe/projects/cromwell/cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x/stderr",
+      "callRoot": "cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x",
+      "attempt": 1,
+      "start": "2016-07-11T10:27:55.992-04:00"
     }]
   },
   "outputs": {
-    "example.my_task.result": "my = /root/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task"
+    "w.x.o": "local\nremote"
   },
-  "id": "22b6f829-e2f9-4813-9d20-3328669c786b",
+  "workflowRoot": "cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084",
+  "id": "a349534f-137b-4809-9425-1893ac272084",
   "inputs": {
+    "w.x.remote": "/Users/jdoe/remote.txt",
+    "w.x.local": "local.txt"
   },
-  "submission": "2015-10-29T03:16:51.125-03:00",
+  "submission": "2016-07-11T10:27:54.907-04:00",
   "status": "Succeeded",
-  "end": "2015-10-29T03:16:51.740-03:00",
-  "start": "2015-10-29T03:16:51.125-03:00"
+  "end": "2016-07-11T10:27:56.108-04:00",
+  "start": "2016-07-11T10:27:54.919-04:00"
 }
 ```
 
@@ -304,7 +322,7 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 # Backends
 
-A backend represents a way to run the user's command specified in the `task` section.  Cromwell allows for backends conforming to 
+A backend represents a way to run the user's command specified in the `task` section.  Cromwell allows for backends conforming to
 the Cromwell backend specification to be plugged into the Cromwell engine.  Additionally, three backends are included with the
 Cromwell distribution:
 
@@ -316,6 +334,7 @@ Backends are specified in the `backend` configuration block under `providers`.  
 
 ```hocon
 backend {
+  default = "Local"
   providers {
     BackendName {
       actor-factory = "FQN of BackendLifecycleActorFactory instance"
@@ -375,7 +394,6 @@ backend {
       config {
         project = "my-cromwell-workflows"
         root = "gs://my-cromwell-workflows-bucket"
-        endpoint-url = "https://genomics.googleapis.com/"
         maximum-polling-interval = 600
         dockerhub {
           // account = ""
@@ -385,6 +403,7 @@ backend {
           // A reference to an auth defined in the 'google' stanza at the top.  This auth is used to create
           // Pipelines and manipulate auth JSONs.
           auth = "application-default"
+          endpoint-url = "https://genomics.googleapis.com/"
         }
         filesystems = {
           gcs {
@@ -418,24 +437,28 @@ For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) ba
 * (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
 * (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
 
-When cromwell runs a workflow, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
+Cromwell is configured with a root execution directory which is set in the configuration file under `backend.providers.[Local|SGE].config.root`.  This is called the `cromwell_root` and it is set to `./cromwell-executions` by default.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
 
-Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
+When Cromwell runs a workflow, it first creates a directory `<cromwell_root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
-An example of a workflow output directory would look like this:
+Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
+
+An example of a workflow output directory for a three-step WDL file might look like this:
 
 ```
 cromwell-executions/
 └── three_step
-    └── df6363df-d812-4088-acfd-5b00ef3f5dcc
+    └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
         ├── call-cgrep
-        │   ├── cromwell_root
-        │   │   └── cromwell
-        │   │       └── cromwell-executions
-        │   │           └── three_step
-        │   │               └── df6363df-d812-4088-acfd-5b00ef3f5dcc
-        │   │                   └── call-ps
-        │   │                       └── stdout
+        │   ├── Users
+        │   │   └── jdoe
+        │   │       └── projects
+        │   │           └── cromwell
+        │   │               └── cromwell-executions
+        │   │                   └── three_step
+        │   │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
+        │   │                           └── call-ps
+        │   │                               └── stdout
         │   ├── rc
         │   ├── script
         │   ├── stderr
@@ -446,13 +469,15 @@ cromwell-executions/
         │   ├── stderr
         │   └── stdout
         └── call-wc
-            ├── cromwell_root
-            │   └── cromwell
-            │       └── cromwell-executions
-            │           └── three_step
-            │               └── df6363df-d812-4088-acfd-5b00ef3f5dcc
-            │                   └── call-ps
-            │                       └── stdout
+            ├── Users
+            │   └── jdoe
+            │       └── projects
+            │           └── cromwell
+            │               └── cromwell-executions
+            │                   └── three_step
+            │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
+            │                           └── call-ps
+            │                               └── stdout
             ├── rc
             ├── script
             ├── stderr
@@ -503,8 +528,6 @@ workflow three_step {
 }
 ```
 
-This workflow output directory would be the result of running the above WDL file with Cromwell from the directory `/cromwell_root`.
-
 In the above directory structure, you'll notice that the `call-cgrep` and `call-wc` sub-directories both contain a directory structure to point to the `stdout` file from the invocation of `ps`.  In these cases, that `stdout` file is a localized version of the one within `call-ps/stdout`.  By default both of those `stdout` files would be hard-links but they could also be symbolic links or copies of the file, depending on how Cromwell is configured (see below).  The directory structure is nested so deeply to avoid collisions.  For example, if either of these call invocations referenced two files called `stdout`, they'd collide if they were put into the same directory so the full directory structure is maintained.
 
 Any input files to a call need to be localized into the `<call_dir>`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
@@ -513,15 +536,23 @@ Any input files to a call need to be localized into the `<call_dir>`.  There are
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
 * `copy` - Make a copy the file
 
-Backends that use the shared filesystem can accept local file system paths, either relative or absolute.  Relative paths are interpreted as
- relative to the current working directory of the Cromwell process.
+Shared filesystem localization is defined in the `config` section of each backend.  The default stanza for the Local and SGE backends looks like this:
+
+```
+filesystems {
+ local {
+   localization: [
+	 "hard-link", "soft-link", "copy"
+   ]
+ }
+}
+```
 
 ### Google Cloud Storage Filesystem
 
-On the JES backend the (Google Cloud Storage) GCS filesystem is used for the root of the 
-workflow execution, but on Local and SGE backends this filesystem can be used only for the localization of GCS URI inputs (e.g. `gs://my-bucket/x/y/z.txt`).
+On the JES backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
 On the Local and SGE backends any GCS URI will be downloaded locally.  For the JES backend the `jes_gcs_root` [workflow option](#workflow-options) will take
-precedence over the `root` specified in the JES backend's `config` stanza. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
+precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the JES backend.
 
 ## Local Backend
@@ -537,6 +568,7 @@ This backend creates three files in the `<call_dir>` (see previous section):
 The `script` file contains:
 
 ```
+#!/bin/sh
 cd <container_call_root>
 <user_command>
 echo $? > rc
@@ -553,7 +585,7 @@ The subprocess command that the local backend will launch is:
 Where `<docker_run>` will be non-empty if this particular task specified a Docker container to run in.  `<docker_run>` looks like this:
 
 ```
-docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
+docker run --rm -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
 ```
 
 > **NOTE**: If you are using the local backend with Docker and Docker Machine on Mac OS X, by default Cromwell can only
@@ -654,18 +686,18 @@ cache {
 * provider: it defines the provider to use based on CacheActorFactory and CacheActor interfaces.
 * enabled: enables or disables cache.
 * forceRewrite: it allows to invalidate the cache entry and store result again.
-* db section: configuration related to MongoDB provider. It may not exists for other implementations. 
+* db section: configuration related to MongoDB provider. It may not exist for other implementations.
 
 ### Docker
 This backend supports the following optional runtime attributes / workflow options for working with Docker:
 * docker: Docker image to use such as "Ubuntu".
-* dockerWorkingDir: defines the working directory in the container. 
-* dockerOutputDir: defiles the output directory in the container when there is the need to define a volume for outputs within the container. By default if this attribute is not set, dockerOutputDir will be the job working directory. 
+* dockerWorkingDir: defines the working directory in the container.
+* dockerOutputDir: defiles the output directory in the container when there is the need to define a volume for outputs within the container. By default if this attribute is not set, dockerOutputDir will be the job working directory.
 
-Inputs: 
+Inputs:
 HtCondor backend analyzes all inputs and do a distinct of the folders in order to mount input folders into the container.
 
-Outputs: 
+Outputs:
 It will use dockerOutputDir runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no dockerOutputDir defined it will use the current working directory.
 
 ### CPU, Memory and Disk
@@ -811,8 +843,9 @@ backend {
       actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
       config {
         dockerhub {
-        account = "mydockeraccount@mail.com"
-        token = "mydockertoken"
+          account = "mydockeraccount@mail.com"
+          token = "mydockertoken"
+        }
       }
     }
   }
@@ -847,7 +880,7 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 }
 ```
 
-The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.
+The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
 
 # Runtime Attributes
 
@@ -1146,6 +1179,7 @@ Valid keys and their meanings:
     * **final_workflow_outputs_dir** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
     * **final_call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
     * **default_runtime_attributes** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
+    * **continueOnReturnCode** - Can accept a boolean value or a comma separated list of integers in a string.  Defaults to false.  If false, then only return code of 0 will be acceptable for a task invocation.  If true, then any return code is valid.  If the value is a list of comma-separated integers in a string, this is interpreted as the acceptable return codes for this task.
     * **workflow_failure_mode** - What happens after a task fails. Choose from:
         * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
         * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish

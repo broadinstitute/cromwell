@@ -5,9 +5,9 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.wdl.OnlyPureFunctions
-import cromwell.database.obj.WorkflowMetadataKeys
-import cromwell.services.metadata.{MetadataValue, MetadataEvent, MetadataKey, MetadataService}
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataService, MetadataValue}
 import MetadataService.PutMetadataAction
+import cromwell.core.WorkflowMetadataKeys
 import wdl4s.{Call, NoLookup, Task, WdlExpression}
 import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}

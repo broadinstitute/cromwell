@@ -3,12 +3,11 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
-import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.database.obj.WorkflowMetadataKeys
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSourceFiles}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.services.metadata.{MetadataValue, MetadataKey, MetadataEvent}
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, MetadataPutAcknowledgement}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, PutMetadataAction}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -80,7 +79,6 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
         }
       case cmd @ BatchSubmitWorkflows(sources) =>
         store.add(sources) map { ids =>
-          val id = ids.head
           ids foreach registerIdWithMetadataService
           sndr ! WorkflowsBatchSubmittedToStore(ids)
           log.info("Workflows {} submitted.", ids.list.mkString(", "))
@@ -133,8 +131,8 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     }
 
     val runnableWorkflows = for {
-      restartableWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, Restartable)
-      submittedWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows - restartableWorkflows.size, Submitted)
+      restartableWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows, WorkflowStoreState.Restartable)
+      submittedWorkflows <- fetchRunnableWorkflowsIfNeeded(maxWorkflows - restartableWorkflows.size, WorkflowStoreState.Submitted)
     } yield restartableWorkflows ++ submittedWorkflows
 
     runnableWorkflows map {
@@ -191,6 +189,6 @@ object WorkflowStoreActor {
   case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreActorResponse
 
   def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
-    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(ApiDispatcher)
+    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor))
   }
 }

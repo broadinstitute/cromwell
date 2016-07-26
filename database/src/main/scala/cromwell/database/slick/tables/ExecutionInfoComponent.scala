@@ -1,7 +1,8 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
-import cromwell.database.obj.ExecutionInfo
+import cromwell.database.sql.tables.ExecutionInfo
 
+@deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait ExecutionInfoComponent {
   this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
 
@@ -17,9 +18,11 @@ trait ExecutionInfoComponent {
     def uniqueKey = index("UK_EXECUTION_INFO", (executionId, key), unique = true)
   }
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   protected val executionInfos = TableQuery[ExecutionInfos]
   val executionInfoIdsAutoInc = executionInfos returning executionInfos.map(_.executionInfoId)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionInfosByWorkflowExecutionUuidAndCallFqnAndAttempt = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], attempt: Rep[Int]) => for {
       executionInfo <- executionInfos
@@ -30,6 +33,7 @@ trait ExecutionInfoComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield executionInfo)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionInfoValueByExecutionAndKey = Compiled(
     (executionId: Rep[Int], key: Rep[String]) => for {
       executionInfo <- executionInfos
@@ -37,6 +41,7 @@ trait ExecutionInfoComponent {
       if executionInfo.executionId === executionId
     } yield executionInfo.value)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionInfoValueByWorkflowExecutionUuidAndCallFqnAndAttemptAndKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], attempt: Rep[Int], key: Rep[String]) => for {
       executionInfo <- executionInfos
@@ -48,6 +53,7 @@ trait ExecutionInfoComponent {
       if workflowExecution.workflowExecutionUuid === workflowExecutionUuid
     } yield executionInfo.value)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionsAndExecutionInfosByWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       executionInfo <- executionInfos
@@ -57,6 +63,7 @@ trait ExecutionInfoComponent {
     } yield (execution, executionInfo)
   )
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val executionsAndExecutionInfosByWorkflowExecutionUuidAndCallFqn = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String]) => for {
       executionInfo <- executionInfos
@@ -67,6 +74,7 @@ trait ExecutionInfoComponent {
     } yield (execution, executionInfo)
   )
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   def runningExecutionsAndExecutionInfosByWorkflowExecutionUuid(workflowExecutionUuid: String,
                                                                 statuses: Traversable[String]) = {
     for {

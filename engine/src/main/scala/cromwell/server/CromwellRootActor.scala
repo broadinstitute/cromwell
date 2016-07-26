@@ -5,9 +5,10 @@ import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrat
 import akka.event.Logging
 import akka.routing.RoundRobinPool
 import com.typesafe.config.ConfigFactory
+import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.workflowstore.{FileSystemWorkflowStore, WorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor
 import cromwell.services.ServiceRegistryActor
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
@@ -36,7 +37,7 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
       .props(CopyWorkflowLogsActor.props(serviceRegistryActor)),
       "WorkflowLogCopyRouter")
 
-   lazy val workflowStore: WorkflowStore = FileSystemWorkflowStore
+   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(CromwellDatabase.databaseInterface)
    lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
 
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props, "JobStoreActor")

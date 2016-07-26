@@ -1,12 +1,14 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
-import cromwell.database.obj.RuntimeAttribute
+import cromwell.database.sql.tables.RuntimeAttribute
 
+@deprecated("Olde Worlde Databasee Tablee", "0.21")
 trait RuntimeAttributeComponent {
   this: DriverComponent with ExecutionComponent with WorkflowExecutionComponent =>
 
   import driver.api._
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   class RuntimeAttributes(tag: Tag) extends Table[RuntimeAttribute](tag, "RUNTIME_ATTRIBUTES") {
     def runtimeAttributeId = column[Int]("RUNTIME_ATTRIBUTE_ID", O.PrimaryKey, O.AutoInc)
     def executionId = column[Int]("EXECUTION_ID")
@@ -17,9 +19,13 @@ trait RuntimeAttributeComponent {
     def uniqueKey = index("UK_RUNTIME_ATTRIBUTE", (executionId, name), unique = true)
   }
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   protected val runtimeAttributes = TableQuery[RuntimeAttributes]
+
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val runtimeAttributeIdsAutoInc = runtimeAttributes returning runtimeAttributes.map(_.runtimeAttributeId)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val runtimeAttributeValuesByExecutionIdAndName = Compiled(
     (executionId: Rep[Int], name: Rep[String]) => for {
       runtimeAttribute <- runtimeAttributes
@@ -27,6 +33,7 @@ trait RuntimeAttributeComponent {
       if runtimeAttribute.executionId === executionId
     } yield runtimeAttribute.value)
 
+  @deprecated("Olde Worlde Databasee Tablee", "0.21")
   val runtimeAttributesByWorkflowUUID = Compiled(
     (workflowUUID: Rep[String]) => for {
       workflow <- workflowExecutions

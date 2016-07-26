@@ -9,7 +9,7 @@ import cromwell.core.WorkflowId
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.jobstore.JobStoreActor.RegisterWorkflowCompleted
 import cromwell.services.metadata.MetadataService._
@@ -235,7 +235,7 @@ class WorkflowManagerActor(config: Config,
   private def submitWorkflow(workflow: workflowstore.WorkflowToStart): WorkflowIdToActorRef = {
     val workflowId = workflow.id
 
-    val startMode = if (workflow.state == workflowstore.Restartable) {
+    val startMode = if (workflow.state == WorkflowStoreState.Restartable) {
       logger.info(s"$tag Restarting workflow UUID($workflowId)")
       RestartExistingWorkflow
     } else {

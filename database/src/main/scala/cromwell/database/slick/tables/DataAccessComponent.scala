@@ -1,4 +1,4 @@
-package cromwell.database.slick
+package cromwell.database.slick.tables
 
 import slick.driver.JdbcProfile
 
@@ -11,7 +11,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with ExecutionInfoComponent
   with RuntimeAttributeComponent
   with MetadataComponent
-  with WorkflowMetadataSummaryComponent {
+  with WorkflowMetadataSummaryComponent
+  with WorkflowStoreComponent{
 
   import driver.api._
 
@@ -23,5 +24,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       executionInfos.schema ++
       runtimeAttributes.schema ++
       metadata.schema ++
-      workflowMetadataSummaries.schema
+      workflowMetadataSummaries.schema ++
+      workflowStore.schema
 }

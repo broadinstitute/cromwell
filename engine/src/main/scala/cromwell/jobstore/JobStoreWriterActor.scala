@@ -11,7 +11,7 @@ import scala.util.{Failure, Success}
   * State: Represents an actor either doing nothing, or currently writing to the database
   * Data: If currently writing, the actor stores pending updates in the data. When one write completes, any further writes are written
   */
-case class JobStoreWriterActor(jsd: JobStoreDatabase) extends LoggingFSM[JobStoreWriterState, JobStoreWriterData] {
+case class JobStoreWriterActor(jsd: JobStore) extends LoggingFSM[JobStoreWriterState, JobStoreWriterData] {
 
   implicit val ec = context.dispatcher
 
@@ -75,7 +75,7 @@ case class JobStoreWriterActor(jsd: JobStoreDatabase) extends LoggingFSM[JobStor
 }
 
 object JobStoreWriterActor {
-  def props(jobStoreDatabase: JobStoreDatabase): Props = Props(new JobStoreWriterActor(jobStoreDatabase))
+  def props(jobStoreDatabase: JobStore): Props = Props(new JobStoreWriterActor(jobStoreDatabase))
 }
 
 object JobStoreWriterData {

@@ -102,7 +102,7 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers with BeforeAn
   }
 }
 
-class WriteCountingJobStoreDatabase(var totalWritesCalled: Int, var jobCompletionsRecorded: Int, var workflowCompletionsRecorded: Int) extends JobStoreDatabase {
+class WriteCountingJobStoreDatabase(var totalWritesCalled: Int, var jobCompletionsRecorded: Int, var workflowCompletionsRecorded: Int) extends JobStore {
 
   // A Promise so that the calling tests can hang the writer on the db write.  Once the promise is completed the writer is
   // released and all further messages will be written immediately.

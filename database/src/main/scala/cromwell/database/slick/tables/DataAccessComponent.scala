@@ -12,7 +12,8 @@ class DataAccessComponent(val driver: JdbcProfile)
   with RuntimeAttributeComponent
   with MetadataComponent
   with WorkflowMetadataSummaryComponent
-  with WorkflowStoreComponent{
+  with WorkflowStoreComponent
+  with JobStoreComponent {
 
   import driver.api._
 
@@ -25,5 +26,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       runtimeAttributes.schema ++
       metadata.schema ++
       workflowMetadataSummaries.schema ++
-      workflowStore.schema
+      workflowStore.schema ++
+      jobStore.schema
 }

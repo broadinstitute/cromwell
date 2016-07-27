@@ -14,11 +14,9 @@ object KeyValueServiceActor {
   }
 }
 
-case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with KeyValueDatabaseAccess with CromwellDatabase {
+case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with BackendKeyValueDatabaseAccess with CromwellDatabase {
   private implicit val ec = context.dispatcher
   private implicit val system = context.system
-  private var store: Map[ScopedKey, Option[String]] = Map.empty
-
   def receive = {
     case action: KvGet => respond(sender(), action, doGet(action))
     case action: KvPut => respond(sender(), action, doPut(action))
@@ -31,14 +29,27 @@ case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) ext
     }
   }
 
-  private def doPut(put: KvPut): Future[KvResponse] = Future.successful {
-    store += put.pair.key -> put.pair.value
-    KvPutSuccess(put)
+  private def doPut(put: KvPut): Future[KvResponse] = {
+    put.pair.value match {
+      case Some(backendVal) => updateBackendKeyValuePair(put.pair.key.workflowId,
+        put.pair.key.jobKey,
+        put.pair.key.key,
+        put.pair.value.get).map(_ => KvPutSuccess(put))
+      case None => Future(KvFailure(put, new Throwable(s"Failed to find the value associated to key: ${put.pair.key.key}. This key cannot be added to the BackendKVStore.")))
+    }
   }
 
-  private def doGet(get: KvGet): Future[KvResponse] = Future.successful {
-    store.get(get.key) match {
-      case Some(maybeValue) => KvPair(get.key, maybeValue)
+  private def doGet(get: KvGet): Future[KvResponse] = {
+    val executionInfo = getBackendValueByKey(
+      get.key.workflowId,
+      get.key.jobKey.scope,
+      get.key.jobKey.index,
+      get.key.jobKey.attempt,
+      get.key.key
+    )
+
+    executionInfo map {
+      case Some(maybeValue) => KvPair(get.key, Option(maybeValue))
       case None => KvKeyLookupFailed(get)
     }
   }

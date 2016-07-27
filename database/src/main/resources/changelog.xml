@@ -38,6 +38,7 @@
     <include file="changesets/metadata_journal_subsecond_timestamp.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_store.xml" relativeToChangelogFile="true" />
     <include file="changesets/job_store.xml" relativeToChangelogFile="true" />
+    <include file="changesets/backend_KV_Store.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

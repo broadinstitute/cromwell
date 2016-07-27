@@ -1,12 +1,7 @@
 package cromwell.services.keyvalue
 
-import akka.actor.{Actor, ActorRef, Props}
-import com.typesafe.config.Config
-import cromwell.core.{WorkflowId, JobKey}
+import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 object KeyValueService {
   trait KvMessage

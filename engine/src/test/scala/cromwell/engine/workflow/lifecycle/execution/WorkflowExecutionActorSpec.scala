@@ -60,7 +60,9 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       attempts.length shouldBe 3
       attempts.head.asJsObject.fields("attempt") shouldBe JsNumber(1)
+      attempts.head.asJsObject.fields("executionStatus") shouldBe JsString("Preempted")
       attempts(1).asJsObject.fields("attempt") shouldBe JsNumber(2)
+      attempts(1).asJsObject.fields("executionStatus") shouldBe JsString("Preempted")
       attempts(2).asJsObject.fields("attempt") shouldBe JsNumber(3)
 
       system.stop(serviceRegistryActor)

@@ -492,7 +492,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushFailedJobMetadata(jobKey: JobKey, returnCode: Option[Int], failure: Throwable, retryableFailure: Boolean) = {
-    val completionEvents = completedJobMetadataEvents(jobKey, ExecutionStatus.Failed, returnCode)
+    val failedState = if (retryableFailure) ExecutionStatus.Preempted else ExecutionStatus.Failed
+    val completionEvents = completedJobMetadataEvents(jobKey, failedState, returnCode)
     val retryableFailureEvent = MetadataEvent(metadataKey(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure))
     val failureEvents = throwableToMetadataEvents(metadataKey(jobKey, s"${CallMetadataKeys.Failures}[$randomNumberString]"), failure).+:(retryableFailureEvent)
 

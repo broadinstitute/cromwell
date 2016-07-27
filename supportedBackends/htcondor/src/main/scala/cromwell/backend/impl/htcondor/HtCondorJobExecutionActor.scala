@@ -208,7 +208,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       executionDir.toString.toFile.createIfNotExists(true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callRoot, docker = false, fileSystems, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callRoot, runtimeAttributes.dockerImage.isDefined, fileSystems, jobDescriptor.inputs) flatMap {
         localizedInputs => resolveJobCommand(localizedInputs)
       }
 

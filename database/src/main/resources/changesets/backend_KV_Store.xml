@@ -28,7 +28,7 @@
     <changeSet author="rmunshi" id="backend_KV_store_job_key_constraint">
         <addUniqueConstraint
                 tableName="BACKEND_KV_STORE"
-                columnNames=""
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FQN, CALL_INDEX, CALL_ATTEMPT, BACKEND_JOB_KEY"
                 constraintName="UK_BACKEND_KV_STORE_JOB_KEY"/>
     </changeSet>
 

@@ -10,7 +10,6 @@ import akka.util.Timeout
 import better.files._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{WorkflowId, ExecutionStore => _, _}
-import cromwell.engine._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
@@ -118,8 +117,11 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
       workflowManagerActor ! RetrieveNewWorkflows
       schedulePollRequest()
       stay() using data.copy(id = Option(id))
-    case Event(IssuePollRequest, _) =>
-      requestStatus()
+    case Event(IssuePollRequest, data) =>
+      data.id match {
+        case None => schedulePollRequest()
+        case _ => requestStatus()
+      }
       stay()
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if !jsObject.state.isTerminal =>
       schedulePollRequest()

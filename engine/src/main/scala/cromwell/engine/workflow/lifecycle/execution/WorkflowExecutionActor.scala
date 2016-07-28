@@ -16,7 +16,6 @@ import cromwell.core.OutputStore.OutputEntry
 import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{WorkflowId, _}
-import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
@@ -319,17 +318,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       if (workflowDescriptor.getWorkflowOption(WorkflowFailureMode).contains(ContinueWhilePossible.toString)) {
         mergedStateData.workflowCompletionStatus match {
           case Some(completionStatus) if completionStatus == Failed =>
-<<<<<<< 4bad495399d45af537e354e48394eb8db0ab6a15
             context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(reason))
             goto(WorkflowExecutionFailedState) using mergedStateData
           case _ =>
-=======
-            goto(WorkflowExecutionFailedState) using mergedStateData
-          case Some(completionStatus) if completionStatus == Done =>
-            workflowLogger.info(mergedStateData.outputsJson())
-            goto(WorkflowExecutionSuccessfulState) using mergedStateData
-          case None =>
->>>>>>> Workflow failure mode
             stay() using startRunnableScopes(mergedStateData)
         }
       } else {
@@ -453,10 +444,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         workflowLogger.info(newData.outputsJson())
         goto(WorkflowExecutionSuccessfulState) using newData
       case Some(sts) =>
-<<<<<<< 4bad495399d45af537e354e48394eb8db0ab6a15
         context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(new Exception("One or more jobs failed in fail-slow mode")))
-=======
->>>>>>> Workflow failure mode
         goto(WorkflowExecutionFailedState) using newData
       case _ =>
         stay() using startRunnableScopes(newData)

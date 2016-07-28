@@ -26,6 +26,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="BACKEND_JOB_VALUE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
             </column>
         </createTable>
     </changeSet>

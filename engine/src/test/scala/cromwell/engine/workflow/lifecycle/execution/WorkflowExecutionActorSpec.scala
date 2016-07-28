@@ -55,14 +55,19 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
         }
       }
 
-      val metadata = getWorkflowMetadata(workflowId, serviceRegistryActor, None)
-      val attempts: Vector[JsValue] = metadata.fields("calls").asJsObject.fields("hello.hello").asInstanceOf[JsArray].elements
+      val isFatal = (_: Throwable) => false
 
-      attempts.length shouldBe 3
-      attempts.head.asJsObject.fields("attempt") shouldBe JsNumber(1)
-      attempts(1).asJsObject.fields("attempt") shouldBe JsNumber(2)
-      attempts(2).asJsObject.fields("attempt") shouldBe JsNumber(3)
+      eventually(isFatal) {
+        val metadata = getWorkflowMetadata(workflowId, serviceRegistryActor, None)
+        val attempts: Vector[JsValue] = metadata.fields("calls").asJsObject.fields("hello.hello").asInstanceOf[JsArray].elements
 
+        attempts.length shouldBe 3
+        attempts.head.asJsObject.fields("attempt") shouldBe JsNumber(1)
+        attempts.head.asJsObject.fields("executionStatus") shouldBe JsString("Preempted")
+        attempts(1).asJsObject.fields("attempt") shouldBe JsNumber(2)
+        attempts(1).asJsObject.fields("executionStatus") shouldBe JsString("Preempted")
+        attempts(2).asJsObject.fields("attempt") shouldBe JsNumber(3)
+      }
       system.stop(serviceRegistryActor)
     }
 

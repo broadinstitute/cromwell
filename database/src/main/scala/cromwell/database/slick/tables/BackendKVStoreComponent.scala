@@ -8,7 +8,7 @@ trait BackendKVStoreComponent {
 
   import driver.api._
 
-  class BackendKeyValuePairs(tag: Tag) extends Table[BackendKVStore](tag, "BackendKeyValuePairs") {
+  class BackendKeyValuePairs(tag: Tag) extends Table[BackendKVStore](tag, "BACKEND_KV_STORE") {
     def backendKVStoreID = column[Int]("BACKEND_KV_STORE_ID", O.PrimaryKey, O.AutoInc)
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
     def callFqn = column[String]("CALL_FQN")
@@ -21,16 +21,16 @@ trait BackendKVStoreComponent {
     override def * = (workflowExecutionUuid, callFqn, callIndex, callAttempt, backendJobKey, backendJobValue, backendKVStoreID.?) <>
       (BackendKVStore.tupled, BackendKVStore.unapply)
 
-    def backendJobKeyIndex = index("BACKEND_KV_STORE_JOB_KEY_INDEX", (workflowExecutionUuid, callFqn, callIndex, callAttempt, backendJobKey), unique = true)
+    def backendJobKeyIndex = index("UK_BACKEND_KV_STORE_JOB_KEY", (workflowExecutionUuid, callFqn, callIndex, callAttempt, backendJobKey), unique = true)
   }
 
-  protected val backendKeyValuePairs = TableQuery[BackendKeyValuePairs]
+  protected val backendKVStore = TableQuery[BackendKeyValuePairs]
 
-  //  val workflowStoreAutoInc = workflowStore returning workflowStore.map(_.workflowStoreTableId)
+  val backendKVStoreAutoInc = backendKVStore returning backendKVStore.map(_.backendKVStoreID)
 
   val backendJobValueByBackendJobKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFqn: Rep[String], callIndex: Rep[Int], callAttempt: Rep[Int], backendJobKey: Rep[String]) => for {
-      backendKeyValuePair <- backendKeyValuePairs
+      backendKeyValuePair <- backendKVStore
       if backendKeyValuePair.workflowExecutionUuid === workflowExecutionUuid
       if backendKeyValuePair.callFqn === callFqn
       if backendKeyValuePair.callIndex === callIndex

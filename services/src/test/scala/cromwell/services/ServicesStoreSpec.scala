@@ -6,6 +6,7 @@ import java.sql.Connection
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags._
+import cromwell.database.core.SqlConfiguration
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
@@ -111,7 +112,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
   def testWith(configPath: String): Unit = {
     import ServicesStore.EnhancedSqlDatabase
 
-    lazy val databaseConfig = SqlDatabase.getDatabaseConfig(configPath)
+    lazy val databaseConfig = SqlConfiguration.getDatabaseConfig(configPath)
     lazy val dataAccess = new SlickDatabase(databaseConfig).initialized
 
     it should "(if hsqldb) have transaction isolation mvcc" taggedAs DbmsTest in {

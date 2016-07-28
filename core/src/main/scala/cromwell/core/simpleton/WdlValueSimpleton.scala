@@ -1,6 +1,6 @@
 package cromwell.core.simpleton
 
-import wdl4s.values.{WdlArray, WdlMap, WdlObjectLike, WdlPrimitive, WdlValue}
+import wdl4s.values._
 
 case class WdlValueSimpleton(simpletonKey: String, simpletonValue: WdlPrimitive)
 
@@ -29,6 +29,7 @@ object WdlValueSimpleton {
       case WdlArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(s"$name[$index]") }
       case WdlMap(_, mapValue) => mapValue flatMap { case (key, value) => value.simplify(s"$name:${key.valueString.escapeMeta}") }
       case wdlObject: WdlObjectLike => wdlObject.value flatMap { case (key, value) => value.simplify(s"$name:${key.escapeMeta}") }
+      case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.wdlType}")
     }
   }
 

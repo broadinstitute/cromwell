@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="rmunshi" id="workflow_execution_uuid">
+        <comment>
+            Change all Workflow UUID column names to Workflow Execution UUID.
+        </comment>
+        <renameColumn columnDataType="VARCHAR(255)"
+                      newColumnName="WORKFLOW_EXECUTION_UUID"
+                      oldColumnName="WORKFLOW_UUID"
+                      tableName="CALL_CACHING_RESULT_METAINFO"/>
+        <renameColumn columnDataType="VARCHAR(255)"
+                      newColumnName="WORKFLOW_EXECUTION_UUID"
+                      oldColumnName="WORKFLOW_UUID"
+                      tableName="WORKFLOW_STORE"/>
+        <renameColumn columnDataType="VARCHAR(255)"
+                      newColumnName="WORKFLOW_EXECUTION_UUID"
+                      oldColumnName="WORKFLOW_UUID"
+                      tableName="JOB_STORE"/>
+    </changeSet>
+
+    <changeSet author="rmunshi" id="call_job_identifiers">
+        <comment>
+            Choose and implement common call/job identifiers.
+        </comment>
+        <renameColumn columnDataType="VARCHAR(255)"
+                      newColumnName="CALL_FQN"
+                      oldColumnName="METADATA_CALL_FQN"
+                      tableName="METADATA_JOURNAL"/>
+        <renameColumn columnDataType="INT"
+                      newColumnName="JOB_SCATTER_INDEX"
+                      oldColumnName="METADATA_CALL_INDEX"
+                      tableName="METADATA_JOURNAL"/>
+        <renameColumn columnDataType="INT"
+                      newColumnName="JOB_RETRY_ATTEMPT"
+                      oldColumnName="METADATA_CALL_ATTEMPT"
+                      tableName="METADATA_JOURNAL"/>
+    </changeSet>
+
+</databaseChangeLog>

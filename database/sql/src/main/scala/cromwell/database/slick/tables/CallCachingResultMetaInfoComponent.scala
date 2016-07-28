@@ -11,7 +11,7 @@ trait CallCachingResultMetaInfoComponent {
 
   class CallCachingResultMetaInfoEntries(tag: Tag) extends Table[CallCachingResultMetaInfoEntry](tag, "CALL_CACHING_RESULT_METAINFO") {
     def callCachingResultMetaInfoId = column[Int]("CALL_CACHING_RESULT_METAINFO_ID", O.PrimaryKey, O.AutoInc)
-    def workflowUuid = column[String]("WORKFLOW_UUID")
+    def workflowUuid = column[String]("WORKFLOW_EXECUTION_UUID")
     def callFqn = column[String]("CALL_FQN")
     def returnCode = column[Option[Int]]("RETURN_CODE")
     def scatterIndex = column[Int]("JOB_SCATTER_INDEX")

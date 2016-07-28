@@ -78,12 +78,14 @@ object Dependencies {
 
   val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
 
-  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
+  val databaseCoreDependencies = baseDependencies
+
+  val databaseSqlDependencies = slickDependencies ++ dbmsDependencies
 
   val databaseMigrationDependencies = List(
     "org.broadinstitute" %% "wdl4s" % wdl4sV, // Used in migration scripts
     "com.github.pathikrit" %% "better-files" % betterFilesV % Test
-  ) ++ baseDependencies ++ liquibaseDependencies ++ dbmsDependencies
+  ) ++ liquibaseDependencies ++ dbmsDependencies
 
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",

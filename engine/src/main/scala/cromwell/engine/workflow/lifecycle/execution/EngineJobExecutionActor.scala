@@ -5,10 +5,10 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
-import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
-
+import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 
 object EngineJobExecutionActor {
@@ -18,6 +18,7 @@ object EngineJobExecutionActor {
   case object CheckingJobStatus extends EngineJobExecutionActorState
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
+  case object AwaitingJobStoreAck extends EngineJobExecutionActorState
 
   /** Commands */
   sealed trait EngineJobExecutionActorCommand
@@ -74,8 +75,12 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
           context.parent ! SucceededResponse(jobKey, returnCode, jobOutputs)
           context stop self
           stay()
-        case JobResultFailure(returnCode, reason) =>
+        case JobResultFailure(returnCode, reason, false) =>
           context.parent ! FailedNonRetryableResponse(jobKey, reason, returnCode)
+          context stop self
+          stay()
+        case JobResultFailure(returnCode, reason, true) =>
+          context.parent ! FailedRetryableResponse(jobKey, reason, returnCode)
           context stop self
           stay()
       }
@@ -100,9 +105,25 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   when(RunningJob) {
     case Event(response: BackendJobExecutionResponse, _) =>
+      saveJobCompletionResult(response)
       context.parent forward response
+      goto(AwaitingJobStoreAck)
+  }
+
+  when(AwaitingJobStoreAck) {
+    case Event(JobStoreWriteSuccess(_), _) =>
       context stop self
       stay()
+    case Event(JobStoreWriteFailure(_, t), _) =>
+      log.error("Failed to write Job result to JobStore: {}", t)
+      context stop self
+      stay()
+  }
+
+  whenUnhandled {
+    case Event(msg, _) =>
+      log.error(s"Bad message to EngineJobExecutionActor in state $stateName($stateData): $msg")
+      stay
   }
 
   def prepareJob(jobKey: BackendJobDescriptorKey) = {
@@ -115,5 +136,24 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
+  }
+
+  private def saveJobCompletionResult(response: BackendJobExecutionResponse) = response match {
+    case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+    case AbortedResponse(jobKey: BackendJobDescriptorKey) => log.debug("Won't save 'aborted' job response to JobStore")
+    case FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
+    case FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
+  }
+
+  private def saveSuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
+    val jobStoreKey = jobKey.toJobStoreKey(workflowId)
+    val jobStoreResult = JobResultSuccess(returnCode, outputs)
+    jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
+  }
+
+  private def saveUnsuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], reason: Throwable, retryable: Boolean) = {
+    val jobStoreKey = jobKey.toJobStoreKey(workflowId)
+    val jobStoreResult = JobResultFailure(returnCode, reason, retryable)
+    jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
 }

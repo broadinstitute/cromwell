@@ -9,7 +9,7 @@ import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
-import cromwell.jobstore.JobStoreActor
+import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.ServiceRegistryActor
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
@@ -37,10 +37,11 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
       .props(CopyWorkflowLogsActor.props(serviceRegistryActor)),
       "WorkflowLogCopyRouter")
 
-   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(CromwellDatabase.databaseInterface)
-   lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
+  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(CromwellDatabase.databaseInterface)
+  lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
 
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props, "JobStoreActor")
+  lazy val jobStore: JobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
+  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
 
    lazy val workflowManagerActor = context.actorOf(WorkflowManagerActor.props(workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor), "WorkflowManagerActor")
 

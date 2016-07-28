@@ -70,7 +70,8 @@ object SlickDatabase {
 class SlickDatabase(databaseConfig: Config) extends SqlDatabase
   with OldeWorldeSlickDatabase
   with MetadataSlickDatabase
-  with WorkflowStoreSlickDatabase {
+  with WorkflowStoreSlickDatabase
+  with JobStoreSlickDatabase{
 
   import SlickDatabase._
 

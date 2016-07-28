@@ -88,7 +88,6 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
       workflowLogger.info("State is now terminal. Shutting down.")
       context.stop(self)
     case fromState -> toState =>
-      // Only log this at debug - these states are never seen or used outside of the CallActor itself.
       workflowLogger.info(s"State is transitioning from $fromState to $toState.")
   }
 

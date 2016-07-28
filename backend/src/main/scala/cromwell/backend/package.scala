@@ -15,7 +15,7 @@ package object backend {
     * For uniquely identifying a job which has been or will be sent to the backend.
     */
   case class BackendJobDescriptorKey(call: Call, index: Option[Int], attempt: Int) extends JobKey {
-    val scope = call
+    def scope = call
     private val indexString = index map { _.toString } getOrElse "NA"
     val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
     val isShard = index.isDefined

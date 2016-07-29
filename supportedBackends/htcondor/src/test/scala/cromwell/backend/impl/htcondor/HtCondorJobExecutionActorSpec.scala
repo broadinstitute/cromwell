@@ -20,7 +20,8 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
-import wdl4s.values.{WdlFile, WdlValue}
+import wdl4s.types.{WdlArrayType, WdlFileType}
+import wdl4s.values.{WdlArray, WdlFile, WdlSingleFile, WdlValue}
 
 import scala.concurrent.duration._
 import scala.io.Source
@@ -64,6 +65,25 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       |
       |  command {
       |    echo ${inputFile}
+      |  }
+      |  output {
+      |    String salutation = read_string(stdout())
+      |  }
+      |  RUNTIME
+      |}
+      |
+      |workflow hello {
+      |  call hello
+      |}
+    """.stripMargin
+
+  private val helloWorldWdlWithFileArrayInput =
+    """
+      |task hello {
+      |  Array[File] inputFiles
+      |
+      |  command {
+      |    echo ${sep=' ' inputFiles}
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -260,6 +280,56 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
       cleanUpJob(jobPaths)
     }
+  }
+
+  "return a successful task status when it tries to run a docker command containing file data from a WDL file array" in {
+    val runtime =
+      """
+        |runtime {
+        | docker: "ubuntu/latest"
+        | dockerWorkingDir: "/workingDir"
+        | dockerOutputDir: "/outputDir"
+        |}
+      """.stripMargin
+
+    val tempDir1 = Files.createTempDirectory("dir1")
+    val tempDir2 = Files.createTempDirectory("dir2")
+    val jsonInputFile = createCannedFile(prefix = "testFile", contents = "some content", dir = Some(tempDir1)).toPath.toAbsolutePath.toString
+    val jsonInputFile2 = createCannedFile(prefix = "testFile2", contents = "some other content", dir = Some(tempDir2)).toPath.toAbsolutePath.toString
+
+    val inputs = Map(
+      "inputFiles" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile(jsonInputFile),WdlFile(jsonInputFile2)))
+    )
+    val jobDescriptor = prepareJob(helloWorldWdlWithFileArrayInput, runtime, Option(inputs))
+    val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
+
+    val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+      override lazy val cmds = htCondorCommands
+      override lazy val extProcess = htCondorProcess
+    }).underlyingActor
+    val stubProcess = mock[Process]
+    val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
+    val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
+    val stderrResult = ""
+
+    when(htCondorProcess.externalProcess(any[Seq[String]], any[ProcessLogger])).thenReturn(stubProcess)
+    when(stubProcess.exitValue()).thenReturn(0)
+    when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
+    when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
+    when(htCondorProcess.processStderr).thenReturn(stderrResult)
+
+    whenReady(backend.execute) { response =>
+      response shouldBe a[SucceededResponse]
+    }
+
+    val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
+
+    assert(bashScript.contains("docker run -w /workingDir -v"))
+    assert(bashScript.contains(tempDir1.toAbsolutePath.toString))
+    assert(bashScript.contains(tempDir2.toAbsolutePath.toString))
+    assert(bashScript.contains("/call-hello:/outputDir --rm ubuntu/latest echo"))
+
+    cleanUpJob(jobPaths)
   }
 
   private def cleanUpJob(jobPaths: JobPaths): Unit = jobPaths.workflowRoot.delete(true)

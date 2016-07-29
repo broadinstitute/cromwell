@@ -12,13 +12,13 @@ import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctio
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s._
 import wdl4s.parser.MemoryUnit
-import wdl4s.types.WdlFileType
+import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
+import wdl4s.values.WdlArray
 
-import scala.concurrent.{Promise, Future}
+import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
-import scala.util.{Try, Failure, Success}
-
+import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
 
 object HtCondorJobExecutionActor {
@@ -31,6 +31,7 @@ object HtCondorJobExecutionActor {
 class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                 override val configurationDescriptor: BackendConfigurationDescriptor,
                                 cacheActorProps: Option[Props]) extends BackendJobExecutionActor with SharedFileSystem {
+
   import HtCondorJobExecutionActor._
   import better.files._
   import cromwell.core.PathFactory._
@@ -247,11 +248,20 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {
     Try {
-      val inputFiles = localizedInputs.filter { case (k,v) => v.wdlType.equals(WdlFileType) }
-      val dockerInputDataVol: Seq[String] = inputFiles.values.map { value =>
-        val limit = value.valueString.lastIndexOf("/")
-        value.valueString.substring(0, limit)
+      val inputFiles = localizedInputs.filter {
+        case (k, v) => v.wdlType == WdlFileType || v.wdlType == WdlArrayType(WdlFileType)
+      }
+      val dockerInputDataVol: Seq[String] = inputFiles.values.flatMap {
+        case file if file.wdlType == WdlFileType =>
+          val limit = file.valueString.lastIndexOf("/")
+          Seq(file.valueString.substring(0, limit))
+        case files if files.wdlType == WdlArrayType(WdlFileType) => files.asInstanceOf[WdlArray].value map { file =>
+          val limit = file.valueString.lastIndexOf("/")
+          file.valueString.substring(0, limit)
+        }
       } toSeq
+
+      log.debug("{} List of input volumes: {}", tag, dockerInputDataVol.mkString(","))
       val dockerCmd = "docker run -w %s %s %s --rm %s %s"
       val dockerVolume = "-v %s:%s"
       val dockerVolumeInputs = s"$dockerVolume:ro"
@@ -259,7 +269,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       val inputVolumes = dockerInputDataVol.distinct.map(v => dockerVolumeInputs.format(v, v)).mkString(" ")
       val outputVolume = dockerVolume.format(executionDir.toAbsolutePath.toString, runtimeAttributes.dockerOutputDir.getOrElse(executionDir.toAbsolutePath.toString))
       val cmd = dockerCmd.format(runtimeAttributes.dockerWorkingDir.getOrElse(executionDir.toAbsolutePath.toString), inputVolumes, outputVolume, runtimeAttributes.dockerImage.get, jobCmd.get)
-      log.debug(s"Docker command line to be used for task execution: $cmd.")
+      log.debug("{} Docker command line to be used for task execution: {}.", tag, cmd)
       cmd
     }
   }

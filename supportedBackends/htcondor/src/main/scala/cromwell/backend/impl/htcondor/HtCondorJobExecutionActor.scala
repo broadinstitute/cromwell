@@ -265,7 +265,11 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   private def prepareAndExecute: Unit = {
-    createExecutionFolderAndScript()
-    executionResponse success executeTask()
+    Try {
+      createExecutionFolderAndScript()
+      executionResponse success executeTask()
+    } recover {
+      case exception => executionResponse success FailedNonRetryableResponse(jobDescriptor.key, exception, None)
+    }
   }
 }

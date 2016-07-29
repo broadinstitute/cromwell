@@ -25,13 +25,14 @@ object MetadataDatabaseAccessSpec {
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   import MetadataDatabaseAccessSpec._
 
-  "MetadataDatabasAccess (main.hsqldb)" should behave like testWith("main.hsqldb")
+  "MetadataDatabaseAccess (main.hsqldb)" should behave like testWith("main.hsqldb")
 
-  "MetadataDatabasAccess (test.mysql)" should behave like testWith("test.mysql")
+  "MetadataDatabaseAccess (test.mysql)" should behave like testWith("test.mysql")
 
   implicit val ec = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
+  val longPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(500, Millis)))
 
   def testWith(configPath: String): Unit = {
 
@@ -187,7 +188,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
           }
         }
-      } yield ()).futureValue
+      } yield ()).futureValue(longPatience)
     }
 
     it should "close the database" taggedAs DbmsTest in {

@@ -4,8 +4,7 @@ import java.util.concurrent.Executors
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend._
-import cromwell.backend.io.{JobPaths, SharedFsExpressionFunctions}
-import cromwell.core.CallContext
+import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.Dispatcher.BackendDispatcher
 import lenthall.config.ScalaConfig._
 import wdl4s.Call
@@ -42,13 +41,6 @@ case class LocalBackendLifecycleActorFactory(configurationDescriptor: BackendCon
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
-      val callContext = CallContext(
-        jobPaths.callRoot,
-        jobPaths.stdout.toAbsolutePath.toString,
-        jobPaths.stderr.toAbsolutePath.toString
-      )
-
-      new SharedFsExpressionFunctions(initializationData.toLocal.workflowPaths.fileSystems, callContext)
+    SharedFileSystemExpressionFunctions(workflowDescriptor, configurationDescriptor, jobKey, initializationData)
   }
 }

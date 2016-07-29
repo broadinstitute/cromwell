@@ -45,18 +45,18 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   }
 
   private def robustExecuteOrRecover(mode: ExecutionMode) = {
-    withRetry(() => executeOrRecover(mode), executeOrRecoverBackoff) onComplete {
+    withRetry(() => executeOrRecover(mode), executeOrRecoverBackOff) onComplete {
       case Success(h) => self ! IssuePollRequest(h)
       case Failure(t) => self ! FailAndStop(t)
     }
   }
 
-  def pollBackoff: SimpleExponentialBackoff
+  lazy val pollBackOff = SimpleExponentialBackoff(30.seconds, 10.minutes, 1.1)
 
-  def executeOrRecoverBackoff: SimpleExponentialBackoff
+  lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(3.seconds, 20.seconds, 1.1)
 
   private def robustPoll(handle: ExecutionHandle) = {
-    withRetry(() => poll(handle), pollBackoff) onComplete {
+    withRetry(() => poll(handle), pollBackOff) onComplete {
       case Success(h) => self ! PollResponseReceived(h)
       case Failure(t) => self ! FailAndStop(t)
     }
@@ -73,7 +73,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case IssuePollRequest(handle) => robustPoll(handle)
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) =>
-      context.system.scheduler.scheduleOnce(pollBackoff.backoffMillis.millis, self, IssuePollRequest(handle))
+      context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, hash, resultsClonedFrom)) =>
       completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs))
       context.stop(self)

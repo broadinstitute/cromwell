@@ -64,10 +64,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val TestableCallContext = CallContext(GcsFileSystem.defaultGcsFileSystem.getPath("gs://root"), "out", "err")
+  val TestableCallContext = CallContext(MockGcsFileSystemBuilder.mockGcsFileSystem.getPath("gs://root"), "out", "err")
 
   val TestableJesExpressionFunctions = {
-    new JesExpressionFunctions(List(GcsFileSystem.defaultGcsFileSystem), TestableCallContext)
+    new JesExpressionFunctions(List(MockGcsFileSystemBuilder.mockGcsFileSystem), TestableCallContext)
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
@@ -407,7 +407,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     class TestJesExpressionFunctions extends JesExpressionFunctions(
-      List(GcsFileSystem.defaultGcsFileSystem), TestableCallContext) {
+      List(MockGcsFileSystemBuilder.mockGcsFileSystem), TestableCallContext) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))
       }

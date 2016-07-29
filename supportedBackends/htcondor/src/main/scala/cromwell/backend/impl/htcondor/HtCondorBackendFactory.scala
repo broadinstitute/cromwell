@@ -5,7 +5,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActorFactory
-import cromwell.backend.io.{JobPaths, SharedFsExpressionFunctions}
+import cromwell.backend.io.JobPaths
+import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.{CallContext, WorkflowOptions}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -30,13 +31,13 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
                                            jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
-    val callContext = new CallContext(
+    val callContext = CallContext(
       jobPaths.callRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString
     )
 
-    new SharedFsExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
+    new SharedFileSystemExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
   }
 
   private def resolveCacheProviderProps(workflowOptions: WorkflowOptions) = {

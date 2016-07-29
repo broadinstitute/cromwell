@@ -32,8 +32,6 @@ object GcsFileSystemProvider {
     new GcsFileSystemProvider(Success(storageClient), ec)
   }
 
-  val defaultProvider = new GcsFileSystemProvider(Failure(new Exception("No Storage object available")), scala.concurrent.ExecutionContext.global)
-
   object AcceptAllFilter extends DirectoryStream.Filter[Path] {
     override def accept(entry: Path): Boolean = true
   }
@@ -91,7 +89,7 @@ object ExecutionContextExecutorServiceBridge {
   * @param storageClient Google API Storage object
   * @param executionContext executionContext, will be used to perform async writes to GCS after being converted to a Java execution service
   */
-class GcsFileSystemProvider private (storageClient: Try[Storage], val executionContext: ExecutionContext) extends FileSystemProvider {
+class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val executionContext: ExecutionContext) extends FileSystemProvider {
   import GcsFileSystemProvider._
 
   private[this] lazy val config = ConfigFactory.load()
@@ -101,7 +99,8 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], val executionC
   private val executionService = ExecutionContextExecutorServiceBridge(executionContext)
   private val errorExtractor = new ApiErrorExtractor()
   def notAGcsPath(path: Path) = throw new IllegalArgumentException(s"$path is not a GCS path.")
-  private lazy val defaultFileSystem: GcsFileSystem = GcsFileSystem(this)
+
+  lazy val defaultFileSystem: GcsFileSystem = GcsFileSystem(this)
 
   private def exists(path: Path) = path match {
     case gcsPath: NioGcsPath =>
@@ -222,8 +221,8 @@ class GcsFileSystemProvider private (storageClient: Try[Storage], val executionC
 
   override def checkAccess(path: Path, modes: AccessMode*): Unit = exists(path)
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
-  override def getFileSystem(uri: URI): FileSystem = getFileSystem
-  lazy val getFileSystem = defaultFileSystem
+
+  override def getFileSystem(uri: URI): FileSystem = defaultFileSystem
 
   override def isHidden(path: Path): Boolean = throw new NotImplementedError()
 

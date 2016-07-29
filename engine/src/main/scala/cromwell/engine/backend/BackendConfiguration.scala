@@ -5,6 +5,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFa
 
 import scala.collection.JavaConverters._
 import scala.util.{Try, Success, Failure}
+import lenthall.config.ScalaConfig._
 
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
   def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
@@ -28,12 +29,13 @@ object BackendConfiguration {
     BackendConfigurationEntry(
       backendName,
       entry.getString("actor-factory"),
-      entry.getConfig("config")
+      entry.getConfigOr("config")
     )
   }
 
   val DefaultBackendEntry: BackendConfigurationEntry = AllBackendEntries.find(_.name == DefaultBackendName) getOrElse {
-    throw new IllegalArgumentException(s"Could not find specified default backend name '$DefaultBackendName'.")
+    throw new IllegalArgumentException(s"Could not find specified default backend name '$DefaultBackendName' " +
+      s"in '${AllBackendEntries.mkString("', '")}'.")
   }
 
   def backendConfigurationDescriptor(backendName: String): Try[BackendConfigurationDescriptor] = {

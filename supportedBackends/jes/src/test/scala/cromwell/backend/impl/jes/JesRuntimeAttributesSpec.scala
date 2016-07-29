@@ -5,7 +5,6 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.backend.{BackendSpec, MemorySize}
 import cromwell.core.WorkflowOptions
-import cromwell.util.SampleWdl
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.Logger
 import org.slf4j.helpers.NOPLogger
@@ -129,6 +128,14 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     "return an instance of itself when tries to validate a valid cpu entry" in {
       val expectedRuntimeAttributes = staticDefaultsWithUbuntu.copy(cpu = 2)
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" cpu: 2 }""").head
+      val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(CpuKey -> JsString("6")))
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
+    }
+
+    "return an instance of itself when tries to validate a valid cpu string entry" in {
+      val expectedRuntimeAttributes = staticDefaultsWithUbuntu.copy(cpu = 2)
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld,
+        """runtime { docker: "ubuntu:latest" cpu: "2" }""").head
       val shouldBeIgnored = workflowOptionsWithDefaultRA(Map(CpuKey -> JsString("6")))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
     }

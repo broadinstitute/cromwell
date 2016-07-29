@@ -4,6 +4,7 @@ import java.sql.Timestamp
 import java.time.LocalDateTime
 
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.database.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
@@ -47,9 +48,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {
     val sources = WorkflowSourceFiles(
-      workflowStoreEntry.workflowSource,
-      workflowStoreEntry.workflowInputs,
-      workflowStoreEntry.workflowOptions)
+      workflowStoreEntry.workflowSource.toRawString,
+      workflowStoreEntry.workflowInputs.toRawString,
+      workflowStoreEntry.workflowOptions.toRawString)
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowUuid),
       sources,
@@ -59,9 +60,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFiles): WorkflowStoreEntry = {
     WorkflowStoreEntry(
       WorkflowId.randomId().toString,
-      workflowSourceFiles.wdlSource,
-      workflowSourceFiles.inputsJson,
-      workflowSourceFiles.workflowOptionsJson,
+      workflowSourceFiles.wdlSource.toClob,
+      workflowSourceFiles.inputsJson.toClob,
+      workflowSourceFiles.workflowOptionsJson.toClob,
       WorkflowStoreState.Submitted.toString,
       timestamp = Timestamp.valueOf(LocalDateTime.now())
     )

@@ -1,13 +1,13 @@
 package cromwell.database.sql.tables
 
-import java.sql.Timestamp
+import java.sql.{Clob, Timestamp}
 
 case class WorkflowStoreEntry
 (
   workflowUuid: String,
-  workflowSource: String,
-  workflowInputs: String,
-  workflowOptions: String,
+  workflowSource: Clob,
+  workflowInputs: Clob,
+  workflowOptions: Clob,
   state: String,
   timestamp: Timestamp,
   workflowStoreId: Option[Int] = None

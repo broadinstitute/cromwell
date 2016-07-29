@@ -15,7 +15,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_STORE"/>
             </column>
             <column name="WORKFLOW_UUID" type="VARCHAR(255)">
-                <constraints nullable="false" unique="true"/>
+                <constraints nullable="false"/>
             </column>
             <column name="WORKFLOW_DEFINITION" type="${clob.type}">
                 <constraints nullable="false"/>
@@ -38,11 +38,11 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="chrisl" id="workflow_store_uuid_index">
-        <createIndex indexName="WORKFLOW_STORE_UUID_IDX"
-                     tableName="WORKFLOW_STORE" unique="true">
-            <column name="WORKFLOW_UUID"/>
-        </createIndex>
+    <changeSet author="kshakir" id="workflow_store_uuid_index">
+        <addUniqueConstraint
+                constraintName="WORKFLOW_STORE_UUID_IDX"
+                tableName="WORKFLOW_STORE"
+                columnNames="WORKFLOW_UUID" />
     </changeSet>
 
     <changeSet author="chrisl" id="workflow_store_state_index">

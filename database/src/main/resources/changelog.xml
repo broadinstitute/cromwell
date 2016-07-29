@@ -39,3 +39,52 @@
     <include file="changesets/workflow_store.xml" relativeToChangelogFile="true" />
     <include file="changesets/job_store.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
+<!--
+
+Dos and Don'ts
+
+-*-
+
+DON'T
+
+    Add a unique _index_ with `<createIndex unique="true" /`>.
+
+DO
+
+    Add a unique _constraint_ with `<addUniqueConstraint constraintName="..." />`.
+
+WHY
+    In slick schemas, `index(unique = false)` always creates an index. Depending on the database type,
+    `index(unique = true)` sometimes creates a unique _constraint_, not actually an index.
+
+    https://github.com/slick/slick/blob/3.1.1/slick/src/main/scala/slick/driver/HsqldbDriver.scala#L126
+
+-*-
+
+DON'T
+
+    Create constraints _without_ a name.
+
+    <addUniqueConstraint tableName="MY_TABLE" columnNames="MY_COLUMN" />
+
+DO
+
+    Create constraints with a name.
+
+    `<addUniqueConstraint constraintName="MY_TABLE_MY_COLUMN_IDX" tableName="MY_TABLE" columnNames="MY_COLUMN" />`
+
+WHY
+
+    Creating constraints without a name makes it incredibly database specific later find the constraint if it needs to
+    be updated or deleted.
+
+    http://stackoverflow.com/questions/3618234/liquibase-drop-constraint-without-knowing-its-name
+    http://stackoverflow.com/questions/24872539/liquibase-how-to-drop-unique-constraint-with-no-constraint-name
+
+    NOTE: This also applies to creating a constraint during table creation when applied to a single column. However, all
+    previous change logs have created the constraints _after_ the table creation, especially those constraints that must
+    span multiple columns, so `<constraints unique...` should be avoided for consistency.
+
+    `<constraints unique="true" uniqueConstraintName="MY_TABLE_MY_SINGLE_COLUMN_IDX"/>`
+
+-->

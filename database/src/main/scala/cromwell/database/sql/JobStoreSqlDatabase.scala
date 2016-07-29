@@ -1,6 +1,6 @@
 package cromwell.database.sql
 
-import cromwell.database.sql.tables.{JobStoreEntry, WorkflowStoreEntry}
+import cromwell.database.sql.tables.JobStoreEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 

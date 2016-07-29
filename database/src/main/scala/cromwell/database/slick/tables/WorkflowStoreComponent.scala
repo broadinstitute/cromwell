@@ -1,9 +1,8 @@
 package cromwell.database.slick.tables
 
-import java.sql.Timestamp
+import java.sql.{Clob, Timestamp}
 
 import cromwell.database.sql.tables.WorkflowStoreEntry
-import slick.profile.RelationalProfile.ColumnOption.Default
 
 trait WorkflowStoreComponent {
 
@@ -14,9 +13,9 @@ trait WorkflowStoreComponent {
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE") {
     def workflowStoreTableId = column[Int]("WORKFLOW_STORE_ID", O.PrimaryKey, O.AutoInc)
     def workflowUuid = column[String]("WORKFLOW_UUID")
-    def workflowDefinition = column[String]("WORKFLOW_DEFINITION")
-    def workflowInputs = column[String]("WORKFLOW_INPUTS")
-    def workflowOptions = column[String]("WORKFLOW_OPTIONS")
+    def workflowDefinition = column[Clob]("WORKFLOW_DEFINITION")
+    def workflowInputs = column[Clob]("WORKFLOW_INPUTS")
+    def workflowOptions = column[Clob]("WORKFLOW_OPTIONS")
     def state = column[String]("WORKFLOW_STATE")
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 

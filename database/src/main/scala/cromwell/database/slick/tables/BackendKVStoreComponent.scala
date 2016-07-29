@@ -1,6 +1,6 @@
 package cromwell.database.slick.tables
 
-import cromwell.database.sql.tables.BackendKVStore
+import cromwell.database.sql.tables.BackendKVStoreEntry
 
 trait BackendKVStoreComponent {
 
@@ -8,20 +8,19 @@ trait BackendKVStoreComponent {
 
   import driver.api._
 
-  class BackendKeyValuePairs(tag: Tag) extends Table[BackendKVStore](tag, "BACKEND_KV_STORE") {
+  class BackendKeyValuePairs(tag: Tag) extends Table[BackendKVStoreEntry](tag, "BACKEND_KV_STORE") {
     def backendKVStoreID = column[Int]("BACKEND_KV_STORE_ID", O.PrimaryKey, O.AutoInc)
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
     def callFqn = column[String]("CALL_FQN")
-    def callIndex = column[Int]("CALL_INDEX")
-    def callAttempt = column[Int]("CALL_ATTEMPT")
-    def backendJobKey = column[String]("BACKEND_JOB_KEY")
-    def backendJobValue = column[String]("BACKEND_JOB_VALUE")
+    def jobScatterIndex = column[Int]("JOB_SCATTER_INDEX")
+    def jobRetryAttempt = column[Int]("JOB_RETRY_ATTEMPT")
+    def storeKey = column[String]("STORE_KEY")
+    def storeValue = column[String]("STORE_VALUE")
 
+    override def * = (workflowExecutionUuid, callFqn, jobScatterIndex, jobRetryAttempt, storeKey, storeValue, backendKVStoreID.?) <>
+      (BackendKVStoreEntry.tupled, BackendKVStoreEntry.unapply)
 
-    override def * = (workflowExecutionUuid, callFqn, callIndex, callAttempt, backendJobKey, backendJobValue, backendKVStoreID.?) <>
-      (BackendKVStore.tupled, BackendKVStore.unapply)
-
-    def backendJobKeyIndex = index("UK_BACKEND_KV_STORE_JOB_KEY", (workflowExecutionUuid, callFqn, callIndex, callAttempt, backendJobKey), unique = true)
+    def backendKVStoreIndex = index("UK_BACKEND_KV_STORE_KEY", (workflowExecutionUuid, callFqn, jobScatterIndex, jobRetryAttempt, storeKey), unique = true)
   }
 
   protected val backendKVStore = TableQuery[BackendKeyValuePairs]
@@ -29,12 +28,12 @@ trait BackendKVStoreComponent {
   val backendKVStoreAutoInc = backendKVStore returning backendKVStore.map(_.backendKVStoreID)
 
   val backendJobValueByBackendJobKey = Compiled(
-    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], callIndex: Rep[Int], callAttempt: Rep[Int], backendJobKey: Rep[String]) => for {
+    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], jobScatterIndex: Rep[Int], jobRetryAttempt: Rep[Int], storeKey: Rep[String]) => for {
       backendKeyValuePair <- backendKVStore
       if backendKeyValuePair.workflowExecutionUuid === workflowExecutionUuid
       if backendKeyValuePair.callFqn === callFqn
-      if backendKeyValuePair.callIndex === callIndex
-      if backendKeyValuePair.callAttempt === callAttempt
-      if backendKeyValuePair.backendJobKey === backendJobKey
-    } yield backendKeyValuePair.backendJobValue)
+      if backendKeyValuePair.jobScatterIndex === jobScatterIndex
+      if backendKeyValuePair.jobRetryAttempt === jobRetryAttempt
+      if backendKeyValuePair.storeKey === storeKey
+    } yield backendKeyValuePair.storeValue)
 }

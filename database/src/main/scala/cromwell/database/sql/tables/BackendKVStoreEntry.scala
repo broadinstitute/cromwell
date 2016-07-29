@@ -1,12 +1,12 @@
 package cromwell.database.sql.tables
 
-case class BackendKVStore
+case class BackendKVStoreEntry
 (
   workflowExecutionUuid: String,
   callFqn: String,
-  callIndex: Int,
-  callAttempt: Int,
-  backendJobKey: String,
-  backendJobValue: String,
+  jobScatterIndex: Int,
+  jobRetryAttempt: Int,
+  storeKey: String,
+  storeValue: String,
   backendKVStoreID: Option[Int] = None
 )

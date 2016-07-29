@@ -1,13 +1,13 @@
 package cromwell.database.sql
 
-import cromwell.database.sql.tables.BackendKVStore
+import cromwell.database.sql.tables.BackendKVStoreEntry
 import scala.concurrent.{ExecutionContext, Future}
 
 trait BackendKVStoreSqlDatabase {
   this: SqlDatabase =>
 
-  def addBackendJobKeyValuePair(entries: Iterable[BackendKVStore])(implicit ec: ExecutionContext): Future[Unit]
+  def addBackendKVStoreEntry(entry: BackendKVStoreEntry)(implicit ec: ExecutionContext): Future[Unit]
 
-  def queryBackendJobValueByJobKey(workflowUid: String, callFqn: String, callIndex: Int, callAttempt: Int, jobKey: String)(implicit ec: ExecutionContext): Future[Option[String]]
+  def queryBackendKVStoreValueByStoreKey(workflowUid: String, callFqn: String, callIndex: Int, callAttempt: Int, jobKey: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
 }

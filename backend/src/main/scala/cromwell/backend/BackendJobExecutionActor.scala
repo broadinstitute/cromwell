@@ -1,9 +1,11 @@
 package cromwell.backend
 
-import akka.actor.ActorLogging
+import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
+import cromwell.backend.callcaching.{CallCachingActor, SyncCallCachingActor}
+import cromwell.backend.callcaching.CallCachingActor._
 import cromwell.core.JobOutputs
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
@@ -33,8 +35,17 @@ object BackendJobExecutionActor {
   */
 trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLogging {
 
+  val callCacheActor = context.actorOf(SyncCallCachingActor.props(jobDescriptor, _ => "Implement me!", _ => "Implement me!", readFromCache = false, writeToCache = false))
+
+  private var executeClient: Option[ActorRef] = None
+
   def receive: Receive = LoggingReceive {
-    case ExecuteJobCommand => performActionThenRespond(execute, onFailure = executionFailed)
+    case ExecuteJobCommand =>
+      executeClient = Option(sender)
+      callCacheActor ! CheckCache
+    case CallCacheHit(backendJobExecutionResponse: BackendJobExecutionResponse) => executeClient foreach { _ ! backendJobExecutionResponse }
+    case CallCacheMiss => performActionThenRespond(executeWithCacheWriteOn, onFailure = executionFailed, respondTo = executeClient.get)
+
     case RecoverJobCommand => performActionThenRespond(recover, onFailure = executionFailed)
     case AbortJobCommand =>
       abort()
@@ -45,6 +56,13 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   // We need this for receive because we can't do `onFailure = ExecutionFailure` directly - because BackendJobDescriptor =/= BackendJobDescriptorKey
   private def executionFailed = (t: Throwable) =>
     FailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+
+  private def executeWithCacheWriteOn = execute map {
+    case x @ SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) =>
+      callCacheActor ! WriteCache(returnCode, jobOutputs)
+      x
+    case other => other
+  }
 
   /**
     * Execute a new job.

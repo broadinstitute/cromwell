@@ -28,6 +28,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       metadata.schema ++
       workflowMetadataSummaries.schema ++
       workflowStore.schema ++
-      jobStore.schema
+      jobStore.schema ++
       backendKVStore.schema
 }

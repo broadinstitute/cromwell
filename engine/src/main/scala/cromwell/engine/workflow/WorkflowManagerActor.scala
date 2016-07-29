@@ -224,7 +224,7 @@ class WorkflowManagerActor(config: Config,
       log.error("Error registering JobStore completion for {}: {}", arg1 = wfId, arg2 = t)
       // This is minorly bad. The JobStore would never rid itself of this workflow's entries. Unlikely to be a big deal
       // but might as well try again in a few minutes...
-      context.system.scheduler.scheduleOnce(10 minutes, sender, failedOperation)
+      context.system.scheduler.scheduleOnce(10 minutes, sender, failedOperation)(context.dispatcher)
       stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>

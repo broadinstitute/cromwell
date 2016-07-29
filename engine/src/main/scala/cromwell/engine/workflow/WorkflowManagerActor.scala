@@ -21,6 +21,10 @@ import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
 import scalaz.NonEmptyList
 
+import akka.actor.Props;
+import scala.concurrent.duration.Duration;
+import java.util.concurrent.TimeUnit;
+
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
   val DefaultMaxWorkflowsToLaunch = 50
@@ -172,11 +176,9 @@ class WorkflowManagerActor(config: Config,
       // Watching the transition should be enough for the WMA to do what it needs to
     case Event(WorkflowSucceededResponse(workflowId), data) =>
       log.info(s"$tag Workflow $workflowId succeeded!")
-      jobStoreActor ! RegisterWorkflowCompleted(workflowId)
       stay()
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), data) =>
       log.error(s"$tag Workflow $workflowId failed (during $inState): ${reasons.mkString("\n")}")
-      jobStoreActor ! RegisterWorkflowCompleted(workflowId)
       stay()
     /*
      Watched transitions
@@ -184,7 +186,10 @@ class WorkflowManagerActor(config: Config,
     case Event(Transition(workflowActor, _, toState: WorkflowActorTerminalState), data) =>
       log.info(s"$tag ${workflowActor.path.name} is in a terminal state: $toState")
       // This silently fails if idFromActor is None, but data.without call right below will as well
-      data.idFromActor(workflowActor) foreach { workflowStore ! WorkflowStoreActor.RemoveWorkflow(_) }
+      data.idFromActor(workflowActor) foreach { workflowId =>
+        jobStoreActor ! RegisterWorkflowCompleted(workflowId)
+        workflowStore ! WorkflowStoreActor.RemoveWorkflow(workflowId)
+      }
       stay using data.without(workflowActor)
   }
 
@@ -215,8 +220,11 @@ class WorkflowManagerActor(config: Config,
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest
-    case Event(JobStoreWriteFailure(_, t), _) =>
-      log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)
+    case Event(JobStoreWriteFailure(failedOperation @ RegisterWorkflowCompleted(wfId), t), _) =>
+      log.error("Error registering JobStore completion for {}: {}", arg1 = wfId, arg2 = t)
+      // This is minorly bad. The JobStore would never rid itself of this workflow's entries. Unlikely to be a big deal
+      // but might as well try again in a few minutes...
+      context.system.scheduler.scheduleOnce(10 minutes, sender, failedOperation)
       stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>

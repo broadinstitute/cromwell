@@ -10,7 +10,7 @@ import scala.language.postfixOps
 object ThreeStepActorSpec {
   val CannedExpectations = Map(
     "three_step.cgrep.count" -> WdlInteger(3),
-    "three_step.wc.count" -> WdlInteger(6)
+    "three_step.wc.count" -> WdlInteger(5)
   )
   val EventMessage = "Workflow complete"
 }

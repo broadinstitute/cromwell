@@ -121,7 +121,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     calls should not be empty
 
     forAll(expectedCalls) { (callName, numInputs, numOutputs) =>
-      val callSeq = calls.get(callName).get.asInstanceOf[JsArray].elements
+      val callSeq = calls(callName).asInstanceOf[JsArray].elements
       callSeq should have size 1
       val call = callSeq.head.asJsObject.fields
       val inputs = call.get("inputs").toFields
@@ -135,11 +135,11 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       val callEnd = call.get("end").toOffsetDateTime
       callEnd should be >= callStart
       callEnd should be <= workflowEnd
-      call.get("jobId") should be(empty)
-      call.get("returnCode").get.asInstanceOf[JsNumber].value should be (0)
+      call.get("jobId") shouldNot be(empty)
+      call("returnCode").asInstanceOf[JsNumber].value should be (0)
       call.get("stdout") shouldNot be(empty)
       call.get("stderr") shouldNot be(empty)
-      call.get("attempt").get.asInstanceOf[JsNumber].value should be (1)
+      call("attempt").asInstanceOf[JsNumber].value should be (1)
     }
   }
 
@@ -192,7 +192,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       val calls = metadata.get("calls").toFields
       calls should not be empty
 
-      val callSeq = calls.get("goodbye.goodbye").get.asInstanceOf[JsArray].elements
+      val callSeq = calls("goodbye.goodbye").asInstanceOf[JsArray].elements
       callSeq should have size 1
       val call = callSeq.head.asJsObject.fields
       val inputs = call.get("inputs").toFields
@@ -206,12 +206,12 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       val callEnd = call.get("end").toOffsetDateTime
       callEnd should be >= callStart
       callEnd should be <= workflowEnd
-      call.get("jobId") should be(empty)
-      call.get("returnCode").get.asInstanceOf[JsNumber].value shouldNot be (0)
+      call.get("jobId") shouldNot be(empty)
+      call("returnCode").asInstanceOf[JsNumber].value shouldNot be (0)
       call.get("stdout") shouldNot be(empty)
       call.get("stderr") shouldNot be(empty)
-      call.get("attempt").get.asInstanceOf[JsNumber].value should be (1)
-      call.get("failures").get.asInstanceOf[JsArray].elements shouldNot be(empty)
+      call("attempt").asInstanceOf[JsNumber].value should be (1)
+      call("failures").asInstanceOf[JsArray].elements shouldNot be(empty)
     }
   }
 }

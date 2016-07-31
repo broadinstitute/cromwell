@@ -2,7 +2,6 @@ package cromwell.backend.sfs
 
 import akka.actor.Props
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendSpec._
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
@@ -38,8 +37,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
 
   private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call],
                           conf: BackendConfigurationDescriptor) = {
-    val params = SharedFileSystemInitializationActorParams(emptyActor, workflowDescriptor, conf, calls,
-      supportsDocker = false, SharedFileSystemValidatedRuntimeAttributesBuilder.default)
+    val params = SharedFileSystemInitializationActorParams(emptyActor, workflowDescriptor, conf, calls)
     val props = Props(new SharedFileSystemInitializationActor(params))
     system.actorOf(props, "SharedFileSystemInitializationActor")
   }
@@ -48,8 +46,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
         val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
-        val conf = BackendConfigurationDescriptor(
-          ConfigFactory.parseString("{root: cromwell-test-executions}"), ConfigFactory.load())
+        val conf = emptyBackendConfig
         val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of jobs executions."

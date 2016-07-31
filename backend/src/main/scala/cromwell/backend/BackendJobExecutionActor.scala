@@ -64,7 +64,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
     * Abort a running job.
     */
   def abort(): Unit = {
-    log.warning("{} backend currently doesn't support abort.",
+    log.warning("{} backend currently doesn't support abort for {}.",
       jobTag, jobDescriptor.key.call.fullyQualifiedName)
   }
 

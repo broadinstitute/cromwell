@@ -51,9 +51,9 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     }
   }
 
-  lazy val pollBackOff = SimpleExponentialBackoff(30.seconds, 10.minutes, 1.1)
+  def pollBackOff: SimpleExponentialBackoff
 
-  lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(3.seconds, 20.seconds, 1.1)
+  def executeOrRecoverBackOff: SimpleExponentialBackoff
 
   private def robustPoll(handle: ExecutionHandle) = {
     withRetry(() => poll(handle), pollBackOff) onComplete {

@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.{FileAlreadyExistsException, Path, Paths}
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
@@ -8,14 +8,14 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
+import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.io.{JobPaths, WorkflowPathsBackendInitializationData}
 import cromwell.backend.validation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, ExecutionHash, OutputEvaluator}
-import cromwell.core.PathFactory.EnhancedPath
+import cromwell.core.JobOutputs
 import cromwell.core.logging.JobLogging
-import cromwell.core.{JobOutputs, PathWriter}
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._
 import wdl4s.WdlExpression
@@ -23,12 +23,13 @@ import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.sys.process._
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
 
-trait SharedFileSystemJob {
-  def jobId: String
-}
+/**
+  * A generic job that runs and tracks some string identifier for the job.
+  */
+case class SharedFileSystemJob(jobId: String) extends JobId
 
 case class SharedFileSystemAsyncJobExecutionActorParams
 (
@@ -36,16 +37,38 @@ case class SharedFileSystemAsyncJobExecutionActorParams
   jobDescriptor: BackendJobDescriptor,
   configurationDescriptor: BackendConfigurationDescriptor,
   completionPromise: Promise[BackendJobExecutionResponse],
-  supportsDocker: Boolean,
-  runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder,
   backendInitializationDataOption: Option[BackendInitializationData]
 )
 
-trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
+/**
+  * Runs a job on a shared backend, with the ability to (abstractly) submit asynchronously, then poll, kill, etc.
+  *
+  * Abstract workhorse of the shared file system.
+  *
+  * The trait requires that there exist:
+  * - Some unix process to submit jobs asynchronously.
+  * - When the job runs, outputs will be written to the same filesystem cromwell is executing.
+  *
+  * As the job runs, this backend will poll for an `rc` file. The `rc` file should be written after the command
+  * completes, or will be written by this trait itself during an abort.
+  *
+  * In practice instead of extending this trait, most systems requiring a backend can likely just configure a backend in
+  * the application.conf using a cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory
+  *
+  *
+  * NOTE: Although some methods return futures due to the (current) contract in BJEA/ABJEA, this actor only executes
+  * during the receive, and does not launch new runnables/futures from inside "receive"... except--
+  *
+  * The __one__ exception is that the when `poll` is processing a successful return code. Currently processReturnCode
+  * is calling into a stub for generating fake hashes. This functionality is TBD, but it is likely that we __should__
+  * begin teardown while we return a future with the results, assuming we're still using futures instead of akka-ish
+  * messages.
+  */
+trait SharedFileSystemAsyncJobExecutionActor
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
 
   case class SharedFileSystemPendingExecutionHandle(jobDescriptor: BackendJobDescriptor,
-                                                    run: JobType) extends ExecutionHandle {
+                                                    run: SharedFileSystemJob) extends ExecutionHandle {
     override val isDone = false
     override val result = NonRetryableExecution(new IllegalStateException(
       "SharedFileSystemPendingExecutionHandle cannot yield a result"))
@@ -56,17 +79,41 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
   val SIGTERM = 143
   val SIGINT = 130
 
+  override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
+
+  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(3.seconds, 30.seconds, 1.1)
+
   override protected implicit def ec = context.dispatcher
 
   val params: SharedFileSystemAsyncJobExecutionActorParams
 
+  /**
+    * Returns the command for running the job. The returned command may or may not run the job asynchronously in the
+    * background. If the command does not run the script asynchronously in the background or on some job scheduler, the
+    * trait `BackgroundAsyncJobExecutionActor` should be mixed in to run these processArgs inside a bash script in the
+    * background.
+    *
+    * @return The command to run a script.
+    */
   def processArgs: SharedFileSystemCommand
 
-  def getJob(exitValue: Int, stdout: Path, stderr: Path): JobType
+  /**
+    * Retrieves the job id after the command has been submited for asynchronous running.
+    *
+    * @param exitValue The exit value of the submit.
+    * @param stdout    The stdout of the submit.
+    * @param stderr    The stderr of the submit.
+    * @return The job id wrapped in a SharedFileSystemJob.
+    */
+  def getJob(exitValue: Int, stdout: Path, stderr: Path): SharedFileSystemJob
 
-  def killArgs(job: JobType): SharedFileSystemCommand
-
-  def toPath(path: WdlValue): WdlValue = path
+  /**
+    * Returns the command for killing a job.
+    *
+    * @param job The job to kill.
+    * @return The command for killing a job.
+    */
+  def killArgs(job: SharedFileSystemJob): SharedFileSystemCommand
 
   override def jobDescriptor: BackendJobDescriptor = params.jobDescriptor
 
@@ -87,12 +134,7 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
     }
   }
 
-  def runsOnDocker = params.supportsDocker &&
-    DockerValidation.optional.extract(validatedRuntimeAttributes).isDefined
-
   def jobName: String = s"cromwell_${jobDescriptor.descriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
-
-  def scriptDir: Path = if (runsOnDocker) jobPaths.callDockerRoot else jobPaths.callRoot
 
   override def retryable = false
 
@@ -108,32 +150,43 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
 
   private def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, callEngineFunction)
 
+  private lazy val initializationData = BackendInitializationData.
+    as[SharedFileSystemBackendInitializationData](backendInitializationDataOption)
+
   lazy val validatedRuntimeAttributes: ValidatedRuntimeAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
     // Fail the call if runtime attributes can't be evaluated
     val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    val builder = params.runtimeAttributesBuilder.withDockerSupport(params.supportsDocker)
+    val builder = initializationData.runtimeAttributesBuilder
     builder.build(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions, jobLogger)
   }
 
-  def sharedReceive(jobOption: Option[JobType]): Receive = LoggingReceive {
+  lazy val isDockerRun = RuntimeAttributesValidation.extractOption(
+    DockerValidation.instance, validatedRuntimeAttributes).isDefined
+
+  def sharedReceive(jobOption: Option[SharedFileSystemJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
       jobOption foreach tryKill
   }
 
   def instantiatedScript: String = {
-    val pathTransformFunction: WdlValue => WdlValue = if (runsOnDocker) toDockerPath else toPath
+    val pathTransformFunction: WdlValue => WdlValue = if (isDockerRun) toDockerPath else identity
     val tryCommand = sharedFileSystem.localizeInputs(jobPaths.callRoot,
-      runsOnDocker, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+      isDockerRun, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }
     tryCommand.get
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext) = {
+    // Run now in receive, not in yet another Runnable.
     Future.fromTry(Try {
       tellMetadata(startMetadataEvents)
       executeScript()
+    } recoverWith {
+      case exception: Exception =>
+        jobLogger.error("Error attempting to execute the script", exception)
+        Failure(exception)
     })
   }
 
@@ -168,47 +221,66 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
 
   def pathPlusSuffix(path: Path, suffix: String) = path.resolveSibling(s"${path.name}.$suffix")
 
-  def stdoutSubmit: PathWriter = pathPlusSuffix(jobPaths.stdout, "submit").untailed
-
-  def stderrSubmit: PathWriter = pathPlusSuffix(jobPaths.stderr, "submit").untailed
-
-  def executeScript(): SharedFileSystemPendingExecutionHandle = {
+  def executeScript(): ExecutionHandle = {
     val script = instantiatedScript
     jobLogger.info(s"`$script`")
     jobPaths.callRoot.createDirectories()
-    writeScript(script, scriptDir.toAbsolutePath)
+    val cwd = if (isDockerRun) jobPaths.callDockerRoot else jobPaths.callRoot
+    writeScript(script, cwd)
     jobLogger.info(s"command: $processArgs")
-    val stdoutWriter = stdoutSubmit
-    val stderrWriter = stderrSubmit
-    val argv = processArgs.argv.map(_.toString)
-    val proc = argv.run(ProcessLogger(stdoutWriter.writeWithNewline, stderrWriter.writeWithNewline))
-    val run = getJob(proc, stdoutWriter, stderrWriter)
-    context.become(sharedReceive(Option(run)) orElse super.receive)
-    tellMetadata(Seq(metadataEvent("jobId", run.jobId)))
-    SharedFileSystemPendingExecutionHandle(jobDescriptor, run)
+    val runner = makeProcessRunner()
+    val exitValue = runner.run()
+    if (exitValue != 0) {
+      FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
+        s"Check the stderr file for possible errors: ${runner.stderrPath.fullPath}"))
+    } else {
+      val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
+      context.become(sharedReceive(Option(runningJob)) orElse super.receive)
+      jobLogger.info(s"job id: ${runningJob.jobId}")
+      tellMetadata(Seq(metadataEvent("jobId", runningJob.jobId)))
+      SharedFileSystemPendingExecutionHandle(jobDescriptor, runningJob)
+    }
   }
 
-  def getJob(process: Process, stdoutWriter: PathWriter, stderrWriter: PathWriter): JobType = {
-    val exitValue = process.exitValue()
-    import cromwell.core.PathFactory.FlushingAndClosingWriter
-    stdoutWriter.writer.flushAndClose()
-    stderrWriter.writer.flushAndClose()
-    getJob(exitValue, stdoutWriter.path, stderrWriter.path)
+  /**
+    * Creates a script to submit the script for asynchronous processing. The default implementation assumes the
+    * processArgs already runs the script asynchronously. If not, mix in the `BackgroundAsyncJobExecutionActor` that
+    * will run the command in the background, and return a PID for the backgrounded process.
+    *
+    * @return A process runner that will relatively quickly submit the script asynchronously.
+    */
+  def makeProcessRunner(): ProcessRunner = {
+    new ProcessRunner(processArgs.argv, jobPaths.stdout, jobPaths.stderr)
   }
 
-  def tryKill(job: JobType): Unit = {
-    import better.files._
-    import cromwell.core.PathFactory._
+  /**
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
+  private def writeScript(instantiatedCommand: String, cwd: Path) = {
+    jobPaths.script.write(
+      s"""#!/bin/sh
+          |cd ${cwd.fullPath}
+          |$instantiatedCommand
+          |echo $$? > rc
+          |""".stripMargin)
+  }
+
+  def tryKill(job: SharedFileSystemJob): Unit = {
     val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
-    val stdoutWriter = pathPlusSuffix(jobPaths.stdout, "kill").untailed
-    val stderrWriter = pathPlusSuffix(jobPaths.stderr, "kill").untailed
     returnCodeTmp.write(s"$SIGTERM\n")
-    returnCodeTmp.moveTo(jobPaths.returnCode)
-    val argv = killArgs(job).argv.map(_.toString)
-    val proc = argv.run(ProcessLogger(stdoutWriter.writeWithNewline, stderrWriter.writeWithNewline))
-    proc.exitValue()
-    stdoutWriter.writer.flushAndClose()
-    stderrWriter.writer.flushAndClose()
+    try {
+      returnCodeTmp.moveTo(jobPaths.returnCode)
+    } catch {
+      case _: FileAlreadyExistsException =>
+        // If the process has already completed, there will be an existing rc file.
+        returnCodeTmp.delete(true)
+    }
+    val argv = killArgs(job).argv
+    val stdout = pathPlusSuffix(jobPaths.stdout, "kill")
+    val stderr = pathPlusSuffix(jobPaths.stderr, "kill")
+    val killer = new ProcessRunner(argv, stdout, stderr)
+    killer.run()
   }
 
   def processReturnCode()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
@@ -235,10 +307,17 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
       }
     }
 
-    def stopFor(returnCode: Int) =
-      !ContinueOnReturnCodeValidation.default.extract(validatedRuntimeAttributes).continueFor(returnCode)
+    def stopFor(returnCode: Int) = {
+      val continueOnReturnCode = RuntimeAttributesValidation.extract(
+        ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+      !continueOnReturnCode.continueFor(returnCode)
+    }
 
-    def failForStderr = FailOnStderrValidation.default.extract(validatedRuntimeAttributes) && jobPaths.stderr.size > 0
+    def failForStderr = {
+      val failOnStderr = RuntimeAttributesValidation.extract(
+        FailOnStderrValidation.instance, validatedRuntimeAttributes)
+      failOnStderr && jobPaths.stderr.size > 0
+    }
 
     returnCodeTry match {
       case Success(SIGTERM) => abortResponse // Special case to check for SIGTERM exit code - implying abort
@@ -257,7 +336,6 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
         jobLogger.debug(s"Polling Job $runId")
         jobPaths.returnCode.exists match {
           case true =>
-            cleanup()
             processReturnCode()
           case false =>
             jobLogger.info(s"'${jobPaths.returnCode}' file does not exist yet")
@@ -267,21 +345,6 @@ trait SharedFileSystemAsyncJobExecutionActor[JobType <: SharedFileSystemJob]
       case successful: SuccessfulExecutionHandle => Future.successful(successful)
       case bad => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $bad"))
     }
-  }
-
-  def cleanup(): Unit = ()
-
-  /**
-    * Writes the script file containing the user's command from the WDL as well
-    * as some extra shell code for monitoring jobs
-    */
-  private def writeScript(instantiatedCommand: String, containerRoot: Path) = {
-    jobPaths.script.write(
-      s"""#!/bin/sh
-          |cd $containerRoot
-          |$instantiatedCommand
-          |echo $$? > rc
-          |""".stripMargin)
   }
 
   private def processOutputs(): Try[JobOutputs] = {

@@ -76,17 +76,9 @@ object Settings {
     name := "cromwell-sfs-backend"
   ) ++ commonSettings
 
-  val localBackendSettings = List(
-    name := "cromwell-local-backend"
-  ) ++ commonSettings
-
   val htCondorBackendSettings = List(
     name := "cromwell-htcondor-backend",
     libraryDependencies ++= htCondorBackendDependencies
-  ) ++ commonSettings
-
-  val sgeBackendSettings = List(
-    name := "cromwell-sge-backend"
   ) ++ commonSettings
 
   val jesBackendSettings = List(

@@ -71,7 +71,6 @@ object SharedFileSystemValidatedRuntimeAttributesBuilder {
   private case class SharedFileSystemValidatedRuntimeAttributesBuilderImpl
   (
     override val requiredValidations: Seq[RuntimeAttributesValidation[_]],
-    override val unsupportedExtraValidations: Seq[OptionalRuntimeAttributesValidation[_]],
     override val customValidations: Seq[RuntimeAttributesValidation[_]]
   ) extends SharedFileSystemValidatedRuntimeAttributesBuilder
 
@@ -87,63 +86,20 @@ object SharedFileSystemValidatedRuntimeAttributesBuilder {
     */
   lazy val default: SharedFileSystemValidatedRuntimeAttributesBuilder = {
     val required = Seq(ContinueOnReturnCodeValidation.default, FailOnStderrValidation.default)
-    val unsupportedExtra = Seq(DockerValidation.optional)
     val custom = Seq.empty
-    SharedFileSystemValidatedRuntimeAttributesBuilderImpl(custom, unsupportedExtra, required)
-  }
-
-  private def withDocker(builder: SharedFileSystemValidatedRuntimeAttributesBuilder):
-  SharedFileSystemValidatedRuntimeAttributesBuilder = {
-    val required = builder.requiredValidations.filterNot(_.key == DockerValidation.key) :+ DockerValidation.optional
-    val unsupportedExtra = Seq.empty
-    val custom = builder.customValidations
-    SharedFileSystemValidatedRuntimeAttributesBuilderImpl(custom, unsupportedExtra, required)
-  }
-
-  private def withoutDocker(builder: SharedFileSystemValidatedRuntimeAttributesBuilder):
-  SharedFileSystemValidatedRuntimeAttributesBuilder = {
-    val required = builder.requiredValidations.filterNot(_.key == DockerValidation.key)
-    val unsupportedExtra = Seq(DockerValidation.optional)
-    val custom = builder.customValidations
-    SharedFileSystemValidatedRuntimeAttributesBuilderImpl(custom, unsupportedExtra, required)
+    SharedFileSystemValidatedRuntimeAttributesBuilderImpl(custom, required)
   }
 
   private def withValidations(builder: SharedFileSystemValidatedRuntimeAttributesBuilder,
                               customValidations: Seq[RuntimeAttributesValidation[_]]):
   SharedFileSystemValidatedRuntimeAttributesBuilder = {
     val required = builder.requiredValidations
-    val unsupportedExtra = builder.unsupportedExtraValidations
     val custom = builder.customValidations ++ customValidations
-    SharedFileSystemValidatedRuntimeAttributesBuilderImpl(custom, unsupportedExtra, required)
+    SharedFileSystemValidatedRuntimeAttributesBuilderImpl(custom, required)
   }
 }
 
 sealed trait SharedFileSystemValidatedRuntimeAttributesBuilder extends ValidatedRuntimeAttributesBuilder {
-  /**
-    * Returns an updated version of this builder, with or without docker support.
-    *
-    * Docker runtime attributes will always be validated if present! However, if the docker runtime attribute is
-    * specified:
-    *
-    * `supportsDocker == false`:
-    *   - If the docker runtime attribute is specified a warning will print out about it being unsupported.
-    *   - If the docker runtime attribute is not specified no warning will printed.
-    *   - The SFS will always receive a `None` value for the docker image.
-    *
-    * `supportsDocker == true`
-    *   - If the docker runtime attribute is specified no warning will printed.
-    *   - If the docker runtime attribute is not specified no warning will printed.
-    *   - If the docker runtime attribute is specified the SFS will receive a `Some()` with the docker image name.
-    *   - If the docker runtime attribute is not specified the SFS will receive a `None` for the docker image name.
-    *
-    * @param supportsDocker True if the backend supports docker, false otherwise.
-    * @return A new builder with or without docker support.
-    */
-  final def withDockerSupport(supportsDocker: Boolean): SharedFileSystemValidatedRuntimeAttributesBuilder = {
-    import SharedFileSystemValidatedRuntimeAttributesBuilder._
-    if (supportsDocker) withDocker(this) else withoutDocker(this)
-  }
-
   /**
     * Returns a new builder with the additional validation(s).
     *

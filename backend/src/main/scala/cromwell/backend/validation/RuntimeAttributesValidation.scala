@@ -4,9 +4,10 @@ import cromwell.backend.MemorySize
 import cromwell.backend.wdl.OnlyPureFunctions
 import cromwell.core._
 import org.slf4j.Logger
+import wdl4s.WdlExpression
+import wdl4s.WdlExpression._
 import wdl4s.types.{WdlIntegerType, WdlType}
 import wdl4s.values._
-import wdl4s.{NoLookup, WdlExpression}
 
 import scala.util.{Failure, Success}
 import scalaz.Scalaz._
@@ -15,7 +16,7 @@ object RuntimeAttributesValidation {
 
   def warnUnrecognized(actual: Set[String], expected: Set[String], logger: Logger) = {
     val unrecognized = actual.diff(expected).mkString(", ")
-    if(unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
+    if (unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
   }
 
   def validateDocker(docker: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
@@ -98,6 +99,79 @@ object RuntimeAttributesValidation {
       override protected def failureMessage = validation.failureMessagePackagePrivate
     }
   }
+
+  /**
+    * Returns the value from the attributes matching the validation key.
+    *
+    * Do not use an optional validation as the type internal implementation will throw a `ClassCastException` due to the
+    * way values are located and auto-magically cast to the type of the `runtimeAttributesValidation`.
+    *
+    * @param runtimeAttributesValidation The typed validation to use.
+    * @param validatedRuntimeAttributes  The values to search.
+    * @return The value matching the key.
+    * @throws ClassCastException if the validation is called on an optional validation.
+    */
+  def extract[A](runtimeAttributesValidation: RuntimeAttributesValidation[A],
+                 validatedRuntimeAttributes: ValidatedRuntimeAttributes): A = {
+    extract(runtimeAttributesValidation.key, validatedRuntimeAttributes)
+  }
+
+  /**
+    * Returns the value from the attributes matching the key.
+    *
+    * @param key                        The key to retrieve.
+    * @param validatedRuntimeAttributes The values to search.
+    * @return The value matching the key.
+    */
+  def extract[A](key: String,
+                 validatedRuntimeAttributes: ValidatedRuntimeAttributes): A = {
+    val value = extractOption(key, validatedRuntimeAttributes)
+    value match {
+      // NOTE: Some(innerValue) aka Some.unapply() throws a `ClassCastException` to `Nothing$` as it can't tell the type
+      case some: Some[_] => some.get.asInstanceOf[A]
+      case None => throw new RuntimeException(
+        s"$key not found in runtime attributes ${validatedRuntimeAttributes.attributes.keys}")
+    }
+  }
+
+  /**
+    * Returns Some(value) from the attributes matching the validation key, or None.
+    *
+    * @param runtimeAttributesValidation The typed validation to use.
+    * @param validatedRuntimeAttributes  The values to search.
+    * @return The Some(value) matching the key or None.
+    */
+  def extractOption[A](runtimeAttributesValidation: RuntimeAttributesValidation[A],
+                       validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[A] = {
+    extractOption(runtimeAttributesValidation.key, validatedRuntimeAttributes)
+  }
+
+  /**
+    * Returns Some(value) from the attributes matching the key, or None.
+    *
+    * @param key                        The key to retrieve.
+    * @param validatedRuntimeAttributes The values to search.
+    * @return The Some(value) matching the key or None.
+    */
+  def extractOption[A](key: String, validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[A] = {
+    val value = validatedRuntimeAttributes.attributes.get(key)
+    unpackOption[A](value)
+  }
+
+  /**
+    * Recursively unpacks an option looking for a value of some type A.
+    *
+    * @param value The value to unpack.
+    * @tparam A The type to cast the unpacked value.
+    * @return The Some(value) matching the key or None.
+    */
+  private final def unpackOption[A](value: Any): Option[A] = {
+    value match {
+      case None => None
+      case Some(innerValue) => unpackOption(innerValue)
+      case _ => Option(value.asInstanceOf[A])
+    }
+  }
 }
 
 /**
@@ -171,26 +245,6 @@ trait RuntimeAttributesValidation[ValidatedType] {
   protected final lazy val failureWithMessage: ErrorOr[ValidatedType] = failureMessage.failureNel
 
   /**
-    * Returns the value from the attributes matching the validation key.
-    *
-    * @param attrs The values to search.
-    * @return The value matching the key.
-    */
-  def extract(attrs: ValidatedRuntimeAttributes): ValidatedType = {
-    attrs.attributes.apply(key).asInstanceOf[ValidatedType]
-  }
-
-  /**
-    * Returns Some(value) from the attributes matching the validation key, or None.
-    *
-    * @param attrs The values to search.
-    * @return The Some(value) matching the key or None.
-    */
-  def extractOption(attrs: ValidatedRuntimeAttributes): Option[ValidatedType] = {
-    attrs.attributes.get(key).asInstanceOf[Option[ValidatedType]]
-  }
-
-  /**
     * Runs this validation on the value matching key.
     *
     * @param values The full set of values.
@@ -221,7 +275,27 @@ trait RuntimeAttributesValidation[ValidatedType] {
     wdlExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isSuccess
       case Some(wdlExpression) =>
-        wdlExpression.evaluate(NoLookup, OnlyPureFunctions) match {
+        /*
+        TODO: BUG:
+
+        Using `wdl4s.NoLookup` with the following options causes the following exception:
+
+        command:
+          sbt -J-Dbackend.default=SGE 'run run test_wdl/test.wdl - test_wdl/test.default.options'
+
+        options:
+          { "default_runtime_attributes": { "sge_queue": "fromoptions" } }
+
+        exception:
+          java.lang.RuntimeException: Expression evaluation failed due to java.lang.UnsupportedOperationException:
+          No identifiers should be looked up: fromoptions: WdlExpression(<string:1:1 identifier "ZnJvbW9wdGlvbnM=">)
+
+        Not sure why yet the string "fromoptions" is being converted to an expression and not a WdlString.
+
+        For now, if something tries to "lookup" a value, convert it to a WdlString.
+         */
+        val wdlStringLookup: ScopedLookupFunction = (value: String) => WdlString(value)
+        wdlExpression.evaluate(wdlStringLookup, OnlyPureFunctions) match {
           case Success(wdlValue) => validateExpression.applyOrElse(wdlValue, (_: Any) => false)
           case Failure(throwable) =>
             throw new RuntimeException(s"Expression evaluation failed due to $throwable: $wdlExpression", throwable)
@@ -280,6 +354,4 @@ trait OptionalRuntimeAttributesValidation[ValidatedType] extends RuntimeAttribut
   }
 
   override final protected lazy val validateNone = None.successNel
-
-  override def extract(attrs: ValidatedRuntimeAttributes) = super.extractOption(attrs).flatten
 }

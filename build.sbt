@@ -38,21 +38,8 @@ lazy val sfsBackend = (project in backendRoot / "sfs")
   .dependsOn(gcsFileSystem)
   .dependsOn(backend % "test->test")
 
-lazy val localBackend = (project in backendRoot / "local")
-  .settings(localBackendSettings:_*)
-  .withTestSettings
-  .dependsOn(sfsBackend)
-  .dependsOn(backend % "test->test")
-  .dependsOn(gcsFileSystem % "test->test")
-
 lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .settings(htCondorBackendSettings:_*)
-  .withTestSettings
-  .dependsOn(sfsBackend)
-  .dependsOn(backend % "test->test")
-
-lazy val sgeBackend = (project in backendRoot / "sge")
-  .settings(sgeBackendSettings:_*)
   .withTestSettings
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
@@ -75,7 +62,9 @@ lazy val engine = (project in file("engine"))
   .dependsOn(gcsFileSystem)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
-  .dependsOn(localBackend % "test->compile")
+  // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
+  // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
+  .dependsOn(sfsBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
 
 lazy val root = (project in file("."))
@@ -88,16 +77,12 @@ lazy val root = (project in file("."))
   .aggregate(services)
   .aggregate(backend)
   .aggregate(sfsBackend)
-  .aggregate(localBackend)
   .aggregate(htCondorBackend)
-  .aggregate(sgeBackend)
   .aggregate(jesBackend)
   .aggregate(engine)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
-  .dependsOn(localBackend)
-  .dependsOn(sgeBackend)
   .dependsOn(htCondorBackend)
   // Dependencies for tests
   .dependsOn(engine % "test->test")

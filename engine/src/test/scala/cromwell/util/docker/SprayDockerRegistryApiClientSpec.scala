@@ -42,7 +42,7 @@ class SprayDockerRegistryApiClientSpec extends TestKitSuite("SprayDockerRegistry
     }
   }
 
-  it should "resolve docker hub image v1 layer ids" taggedAs IntegrationTest in {
+  it should "resolve docker hub image v1 layer ids" taggedAs IntegrationTest ignore {
     val dockerRepo = "registry" // "ubuntu" stopped working... only hub.docker.com knows why
 
     val identifiers = Table(

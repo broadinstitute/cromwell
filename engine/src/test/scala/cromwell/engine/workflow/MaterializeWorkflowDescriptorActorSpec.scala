@@ -194,7 +194,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
         """.stripMargin
 
       // The backends need to be in CromwellBackends in order for MaterializeWorkflowDescriptorActor to accept them:
-      val placeholdingActorFactoryClass = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
+      val placeholdingActorFactoryClass = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
       val fauxBackendEntries = List(
         BackendConfigurationEntry("SpecifiedBackend", placeholdingActorFactoryClass, ConfigFactory.parseString("")),
         BackendConfigurationEntry("DefaultBackend", placeholdingActorFactoryClass, ConfigFactory.parseString("")))

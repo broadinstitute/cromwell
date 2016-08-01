@@ -10,6 +10,7 @@ import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values.{WdlBoolean, WdlInteger, WdlValue}
 
+import scala.util.Try
 import scalaz.Scalaz._
 import scalaz._
 
@@ -19,7 +20,7 @@ object LocalRuntimeAttributes {
     ContinueOnReturnCodeKey -> WdlInteger(0)
   )
 
-  val coercionMap: Map[String, Set[WdlType]] = Map (
+  private[local] val coercionMap: Map[String, Set[WdlType]] = Map (
     FailOnStderrKey -> Set[WdlType](WdlBooleanType),
     ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
     DockerKey -> Set(WdlStringType)

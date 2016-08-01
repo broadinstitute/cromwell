@@ -3,9 +3,11 @@ package cromwell.backend.sfs
 import akka.actor.ActorRef
 import better.files._
 import cromwell.backend.io.{WorkflowPaths, WorkflowPathsBackendInitializationData}
+import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.wfs.{DefaultWorkflowFileSystemProvider, WorkflowFileSystemProvider}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.Dispatcher
+import cromwell.core.{Dispatcher, WorkflowOptions}
+import wdl4s.values.WdlValue
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
@@ -75,5 +77,9 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
         }
       }
     })
+  }
+
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+    RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.validations.map(v => v.key -> v.coercion).toMap)
   }
 }

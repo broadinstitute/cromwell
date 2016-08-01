@@ -8,12 +8,16 @@ import cromwell.backend.impl.local.LocalInitializationActor._
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.filesystems.gcs.{GcsFileSystemProvider, GcsFileSystem}
+import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider}
 import wdl4s.types.{WdlBooleanType, WdlStringType}
 import wdl4s.{Call, WdlExpression}
 import LocalImplicits._
+import cromwell.backend.validation.RuntimeAttributesDefault._
+import cromwell.core.WorkflowOptions
+import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
+import scala.util.Try
 
 object LocalInitializationActor {
   val SupportedKeys = Set(DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey)
@@ -32,6 +36,10 @@ class LocalInitializationActor(override val workflowDescriptor: BackendWorkflowD
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef,
                                localConfiguration: LocalConfiguration) extends BackendWorkflowInitializationActor {
+
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+    workflowOptionsDefault(options, LocalRuntimeAttributes.coercionMap)
+  }
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
     DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),

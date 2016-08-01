@@ -66,7 +66,7 @@ object JesRuntimeAttributes {
     BootDiskSizeKey -> WdlInteger(BootDiskSizeDefaultValue)
   )
 
-  private val coercionMap: Map[String, Set[WdlType]] = Map(
+  private[jes] val coercionMap: Map[String, Set[WdlType]] = Map(
     CpuKey -> Set(WdlIntegerType),
     DisksKey -> Set(WdlStringType, WdlArrayType(WdlStringType)),
     ZonesKey -> Set(WdlStringType, WdlArrayType(WdlStringType)),

@@ -298,7 +298,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val jsonInputFile2 = createCannedFile(prefix = "testFile2", contents = "some other content", dir = Some(tempDir2)).toPath.toAbsolutePath.toString
 
     val inputs = Map(
-      "inputFiles" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile(jsonInputFile),WdlFile(jsonInputFile2)))
+      "inputFiles" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile(jsonInputFile), WdlFile(jsonInputFile2)))
     )
     val jobDescriptor = prepareJob(helloWorldWdlWithFileArrayInput, runtime, Option(inputs))
     val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)

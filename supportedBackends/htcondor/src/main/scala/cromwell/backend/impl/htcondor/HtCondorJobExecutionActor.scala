@@ -16,6 +16,7 @@ import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
 import wdl4s.values.WdlArray
 
+import scala.collection.immutable.Iterable
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
@@ -248,18 +249,17 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {
     Try {
-      val inputFiles = localizedInputs.filter {
-        case (k, v) => v.wdlType == WdlFileType || v.wdlType == WdlArrayType(WdlFileType)
-      }
-      val dockerInputDataVol: Seq[String] = inputFiles.values.flatMap {
-        case file if file.wdlType == WdlFileType =>
-          val limit = file.valueString.lastIndexOf("/")
-          Seq(file.valueString.substring(0, limit))
-        case files if files.wdlType == WdlArrayType(WdlFileType) => files.asInstanceOf[WdlArray].value map { file =>
-          val limit = file.valueString.lastIndexOf("/")
-          file.valueString.substring(0, limit)
+      val dockerInputDataVol = localizedInputs.collect {
+        case (k, v) => v match {
+          case file if file.wdlType == WdlFileType =>
+            val limit = file.valueString.lastIndexOf("/")
+            Seq(file.valueString.substring(0, limit))
+          case files if files.wdlType == WdlArrayType(WdlFileType) => files.asInstanceOf[WdlArray].value map { file =>
+            val limit = file.valueString.lastIndexOf("/")
+            file.valueString.substring(0, limit)
+          }
         }
-      } toSeq
+      }.flatten.toSeq
 
       log.debug("{} List of input volumes: {}", tag, dockerInputDataVol.mkString(","))
       val dockerCmd = "docker run -w %s %s %s --rm %s %s"

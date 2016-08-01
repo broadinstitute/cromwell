@@ -260,6 +260,36 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
       cleanUpJob(jobPaths)
     }
+
+    "return failed when cmds fails to write script" in {
+      val htCondorCommandsMock: HtCondorCommands = mock[HtCondorCommands]
+      val jobDescriptor = prepareJob()
+      val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
+
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+        override lazy val cmds = htCondorCommandsMock
+        override lazy val extProcess = htCondorProcess
+      }).underlyingActor
+      val stubProcess = mock[Process]
+      val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
+      val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
+      val stderrResult = ""
+
+      when(htCondorCommandsMock.writeScript(any[String], any[Path], any[Path])).thenThrow(new IllegalStateException("Could not write the file."))
+      when(htCondorProcess.externalProcess(any[Seq[String]], any[ProcessLogger])).thenReturn(stubProcess)
+      when(stubProcess.exitValue()).thenReturn(0)
+      when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
+      when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
+      when(htCondorProcess.processStderr).thenReturn(stderrResult)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(-1)
+
+      whenReady(backend.execute, timeout) { response =>
+        response shouldBe a[FailedNonRetryableResponse]
+        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains("Could not write the file."))
+      }
+
+      cleanUpJob(jobPaths)
+    }
   }
 
   private def cleanUpJob(jobPaths: JobPaths): Unit = jobPaths.workflowRoot.delete(true)

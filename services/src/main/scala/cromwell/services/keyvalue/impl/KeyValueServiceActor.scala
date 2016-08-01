@@ -14,7 +14,7 @@ object KeyValueServiceActor {
   }
 }
 
-case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with KeyValueDatabaseAccess with CromwellDatabase {
+case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with CromwellDatabase {
   private implicit val ec = context.dispatcher
   private implicit val system = context.system
   private var store: Map[ScopedKey, Option[String]] = Map.empty

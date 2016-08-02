@@ -1,6 +1,6 @@
 package cromwell.services.keyvalue
 
-import cromwell.core.{WorkflowId, JobKey}
+import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 
 object KeyValueService {
@@ -19,4 +19,3 @@ object KeyValueService {
   case class KvKeyLookupFailed(action: KvGet) extends KvResponse
   case class KvPutSuccess(action: KvPut) extends KvResponse
 }
-

@@ -6,4 +6,3 @@ trait SqlDatabase extends AutoCloseable
   with WorkflowStoreSqlDatabase
   with BackendKVStoreSqlDatabase
   with JobStoreSqlDatabase
-  with BackendKVStoreSqlDatabase

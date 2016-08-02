@@ -24,7 +24,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
                                      (implicit ec: ExecutionContext):
   Future[Seq[WorkflowStoreEntry]] = {
 
-    val action: DBIO[Seq[WorkflowStoreEntry]] = for {
+    val action = for {
       workflowEntries <- dataAccess.workflowStoreEntriesByState(fetchState, limit).result
       _ <- DBIO.sequence(workflowEntries map verifyUpdate(updateState))
     } yield workflowEntries

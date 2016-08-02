@@ -35,12 +35,12 @@ case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) ext
         put.pair.key.jobKey,
         put.pair.key.key,
         put.pair.value.get).map(_ => KvPutSuccess(put))
-      case None => Future(KvFailure(put, new Throwable(s"Failed to find the value associated to key: ${put.pair.key.key}. This key cannot be added to the BackendKVStore.")))
+      case None => Future(KvFailure(put, new RuntimeException(s"Failed to find the value associated to key: ${put.pair.key.key}. This key cannot be added to the BackendKVStore.")))
     }
   }
 
   private def doGet(get: KvGet): Future[KvResponse] = {
-    val executionInfo = getBackendValueByKey(
+    val backendValue = getBackendValueByKey(
       get.key.workflowId,
       get.key.jobKey.scope,
       get.key.jobKey.index,
@@ -48,7 +48,7 @@ case class KeyValueServiceActor(serviceConfig: Config, globalConfig: Config) ext
       get.key.key
     )
 
-    executionInfo map {
+    backendValue map {
       case Some(maybeValue) => KvPair(get.key, Option(maybeValue))
       case None => KvKeyLookupFailed(get)
     }

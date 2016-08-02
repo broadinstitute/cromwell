@@ -1,6 +1,6 @@
 package cromwell.services.keyvalue
 
-import cromwell.core.{JobKey, WorkflowId}
+import cromwell.core.{WorkflowId, JobKey}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 
 object KeyValueService {

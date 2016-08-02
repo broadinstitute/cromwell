@@ -14,15 +14,16 @@ trait BackendKeyValueDatabaseAccess { this: Database =>
 
   def getBackendValueByKey(workflowId: WorkflowId, call: Scope, callIndex: Option[Int], attempt: Int, key: String)
                            (implicit ec: ExecutionContext): Future[Option[String]] = {
-    databaseInterface.queryBackendJobValueByJobKey(workflowId.toString, call.fullyQualifiedName, callIndex.fromIndex, attempt, key)
+    databaseInterface.queryBackendStoreValueByStoreKey(workflowId.toString, call.fullyQualifiedName, callIndex.fromIndex, attempt, key)
   }
 
   def updateBackendKeyValuePair(workflowId: WorkflowId,
                                 callKey: JobKey,
                                 backendStoreKey: String,
                                 backendStoreValue: String)(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
+
     withRetry (() =>
-      databaseInterface.addBackendJobKeyValuePair(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt, backendStoreKey, backendStoreValue)
+      databaseInterface.addBackendStoreKeyValuePair(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt, backendStoreKey, backendStoreValue)
     )
   }
 

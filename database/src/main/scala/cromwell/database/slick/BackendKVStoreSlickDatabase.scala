@@ -1,7 +1,7 @@
 package cromwell.database.slick
 
 import cromwell.database.sql.BackendKVStoreSqlDatabase
-import cromwell.database.sql.tables.BackendKVStore
+import cromwell.database.sql.tables.BackendKVStoreEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -13,7 +13,7 @@ trait BackendKVStoreSlickDatabase extends BackendKVStoreSqlDatabase {
 
   override def addBackendJobKeyValuePair(workflowID: String, callFqn: String, callIndex: Int, callAttempt: Int, storeKey: String, storeValue: String)(implicit ec: ExecutionContext): Future[Unit] = {
 
-    val entry = BackendKVStore(workflowID.toString,
+    val entry = BackendKVStoreEntry(workflowID.toString,
                               callFqn,
                               callIndex,
                               callAttempt,

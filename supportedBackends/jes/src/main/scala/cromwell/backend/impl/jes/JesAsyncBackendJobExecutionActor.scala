@@ -353,7 +353,10 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       isFatal = isFatalJesException
     ) andThen {
       case Success(run) =>
-        serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey), Option(run.runId)))
+        // If this execution represents a resumption don't publish the operation ID since clearly it is already persisted.
+        if (runIdForResumption.isEmpty) {
+          serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey), Option(run.runId)))
+        }
     }
   }
 

@@ -19,4 +19,3 @@ object KeyValueService {
   case class KvKeyLookupFailed(action: KvGet) extends KvResponse
   case class KvPutSuccess(action: KvPut) extends KvResponse
 }
-

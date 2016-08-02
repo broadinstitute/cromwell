@@ -75,6 +75,7 @@ object Run {
 
     // If runIdForResumption is defined use that, otherwise we'll create a new Run with an ephemeral pipeline.
     val runId = runIdForResumption getOrElse runPipeline
+    if (runIdForResumption.isDefined) { logger.info(s"JES Run is resuming with Run ID: ${runIdForResumption.get.toString}") }
     new Run(runId, genomicsInterface)
   }
 

@@ -32,7 +32,7 @@ object HtCondorRuntimeAttributes {
     DiskKey -> WdlString(DisksDefaultValue)
   )
 
-  val coercionMap: Map[String, Set[WdlType]] = Map (
+  private[htcondor] val coercionMap: Map[String, Set[WdlType]] = Map (
     FailOnStderrKey -> Set[WdlType](WdlBooleanType),
     ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
     DockerKey -> Set(WdlStringType),

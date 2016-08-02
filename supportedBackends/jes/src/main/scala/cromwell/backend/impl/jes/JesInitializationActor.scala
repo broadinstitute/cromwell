@@ -6,16 +6,20 @@ import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
+import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.IoDispatcher
+import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.{ClientSecrets, GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
+import wdl4s.values.WdlValue
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 object JesInitializationActor {
   val SupportedKeys = Set(CpuKey, MemoryKey, DockerKey, FailOnStderrKey, ContinueOnReturnCodeKey, JesRuntimeAttributes.ZonesKey,
@@ -57,6 +61,11 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   }
 
   private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
+
+
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+    RuntimeAttributesDefault.workflowOptionsDefault(options, JesRuntimeAttributes.coercionMap)
+  }
 
   /**
     * A call which happens before anything else runs

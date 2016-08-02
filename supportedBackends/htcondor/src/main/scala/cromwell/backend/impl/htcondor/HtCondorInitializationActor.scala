@@ -3,12 +3,16 @@ package cromwell.backend.impl.htcondor
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
 import cromwell.backend.impl.htcondor.HtCondorRuntimeAttributes._
+import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
+import cromwell.core.WorkflowOptions
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
+import wdl4s.values.WdlValue
 import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 object HtCondorInitializationActor {
   val SupportedKeys = Set(DockerKey, DockerWorkingDirKey, DockerOutputDirKey, FailOnStderrKey,
@@ -57,5 +61,9 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
         }
       }
     }
+  }
+
+  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
+    RuntimeAttributesDefault.workflowOptionsDefault(options, HtCondorRuntimeAttributes.coercionMap)
   }
 }

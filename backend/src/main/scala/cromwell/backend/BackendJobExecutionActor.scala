@@ -44,7 +44,9 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
       executeClient = Option(sender)
       callCacheActor ! CheckCache
     case CallCacheHit(backendJobExecutionResponse: BackendJobExecutionResponse) => executeClient foreach { _ ! backendJobExecutionResponse }
-    case CallCacheMiss => performActionThenRespond(executeWithCacheWriteOn, onFailure = executionFailed, respondTo = executeClient.get)
+    case CallCacheMiss =>
+      log.info(s"Call Cache miss for ${jobDescriptor.call.fullyQualifiedName}:${jobDescriptor.key.index}:${jobDescriptor.key.attempt}")
+      performActionThenRespond(executeWithCacheWriteOn, onFailure = executionFailed, respondTo = executeClient.get)
 
     case RecoverJobCommand => performActionThenRespond(recover, onFailure = executionFailed)
     case AbortJobCommand =>

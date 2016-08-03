@@ -1,6 +1,6 @@
 name: invalid_wdl
 testFormat: workflowfailure
-ignore: true
+ignore: false
 
 files {
   wdl: failures/invalid_wdl/invalid_wdl.wdl

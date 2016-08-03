@@ -2,17 +2,17 @@
 
 name: local_backend
 testFormat: workflowsuccess
-ignore: true
+ignore: false
 
 files {
-  wdl: hello/hello.wdl
-  inputs: hello/hello.inputs
+  wdl: local_backend/local_backend.wdl
+  inputs: local_backend/local_backend.inputs
   options: local_backend/local_backend.options
 }
 
 metadata {
-  workflowName: hello
+  workflowName: local_backend
   status: Succeeded
-  "calls.hello.hello.executionStatus": Done
-  "calls.hello.hello.backend": "Local"
+  "calls.local_backend.hello.executionStatus": Done
+  "calls.local_backend.hello.backend": "Local"
 }

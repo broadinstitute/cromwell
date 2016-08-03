@@ -1,3 +1,6 @@
+# This test exercises shortcomings in where WDL functions are accepted which has never worked in any version of Cromwell
+# to date, but probably should.
+
 name: wdl_function_locations
 testFormat: workflowsuccess
 ignore: true

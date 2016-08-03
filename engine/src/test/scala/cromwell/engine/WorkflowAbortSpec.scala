@@ -7,7 +7,7 @@ class WorkflowAbortSpec extends CromwellTestkitSpec {
   // TODO: When re-enabled, this test also needs to check that child processes have actually been stopped.
   "A WorkflowManagerActor" should {
 
-//    "abort the triple-wait workflow" in {
+    "abort the triple-wait workflow" ignore {
 //      withDataAccess { dataAccess =>
 //        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test the WorkflowManagerActor")
 //
@@ -49,6 +49,6 @@ class WorkflowAbortSpec extends CromwellTestkitSpec {
 //        // Wait for the workflow to complete:
 //        waitForAborted(0)
 //      }
-//    }
+    }
   }
 }

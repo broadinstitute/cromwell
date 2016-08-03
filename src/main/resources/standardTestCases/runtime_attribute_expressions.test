@@ -1,0 +1,6 @@
+name: runtime_attribute_expressions
+testFormat: workflowsuccess
+
+files {
+  wdl: runtime_attribute_expressions/runtime_attribute_expressions.wdl
+}

@@ -9,8 +9,10 @@ task default_runtime_attributes {
         String ohno = read_string(stdout())
     }
     runtime {
-        docker: "ubuntu:latest"
-        # continueOnReturnCode is combined from the default_runtime_attributes in the options file.
+        # Deliberately leave out the 'docker' attribute required for JES.  If that doesn't come in on the
+        # default_runtime_attributes this test will fail.
+
+        # 'continueOnReturnCode' also comes in from the default_runtime_attributes in the options file.
     }
 }
 

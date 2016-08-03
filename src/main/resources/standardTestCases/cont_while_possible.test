@@ -3,7 +3,7 @@
 
 name: cont_while_possible
 testFormat: workflowfailure
-ignore: true
+ignore: false
 
 files {
   wdl: cont_while_possible/cont_while_possible.wdl
@@ -14,7 +14,6 @@ metadata {
   workflowName: cont_while_possible
   status: Failed
   "calls.cont_while_possible.boundToFail.executionStatus": Failed
-  "calls.cont_while_possible.shouldNotStart.executionStatus": NotStarted
   "calls.cont_while_possible.shouldSucceed.executionStatus": Done
   "calls.cont_while_possible.delayedTask.executionStatus": Done
 }

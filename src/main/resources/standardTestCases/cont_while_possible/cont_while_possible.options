@@ -1,3 +1,3 @@
 {
-   "workflowFailureMode": "ContinueWhilePossible"
+   "workflow_failure_mode": "ContinueWhilePossible"
 }

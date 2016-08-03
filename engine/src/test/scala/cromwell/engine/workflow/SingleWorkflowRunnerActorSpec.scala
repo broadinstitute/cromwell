@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.testkit.TestKit
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec}
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
@@ -54,7 +54,7 @@ object SingleWorkflowRunnerActorSpec {
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
-  private val jobStore = system.actorOf(JobStoreActor.props(WriteCountingJobStoreDatabase.makeNew))
+  private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
 
   def workflowManagerActor(): ActorRef = {
     system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(),
@@ -107,7 +107,8 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     }
     TestKit.shutdownActorSystem(system, TimeoutDuration)
 
-    val metadata = metadataFile.contentAsString.parseJson.asJsObject.fields
+    val metadataFileContent = metadataFile.contentAsString
+    val metadata = metadataFileContent.parseJson.asJsObject.fields
     metadata.get("id") shouldNot be(empty)
     metadata.get("status").toStringValue should be("Succeeded")
     metadata.get("submission").toOffsetDateTime should be >= testStart

@@ -3,7 +3,8 @@ package cromwell
 import java.nio.file.Paths
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.Actor.Receive
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -15,6 +16,7 @@ import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataQuery
@@ -570,4 +572,14 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
         else WdlMap(WdlMapType(WdlStringType, valuesMap.head._2.wdlType), valuesMap)
     }
   }
+}
+
+class AlwaysHappyJobStoreActor extends Actor {
+  override def receive: Receive = {
+    case x: JobStoreWriterCommand => sender ! JobStoreWriteSuccess(x)
+  }
+}
+
+object AlwaysHappyJobStoreActor {
+  def props: Props = Props(new AlwaysHappyJobStoreActor)
 }

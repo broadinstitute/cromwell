@@ -28,7 +28,7 @@ object JobStoreActor {
 
   sealed trait JobStoreWriterResponse
   case class JobStoreWriteSuccess(originalCommand: JobStoreWriterCommand) extends JobStoreWriterResponse
-  case class JobStoreWriteFailure(originalCommand: JobStoreWriterCommand, reason: Throwable) extends JobStoreWriterResponse
+  case class JobStoreWriteFailure(reason: Throwable) extends JobStoreWriterResponse
 
   sealed trait JobStoreReaderCommand extends JobStoreCommand
   /**

@@ -8,10 +8,12 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCachingMode, CallCachingOff}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -143,10 +145,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(namespace.workflow.calls, workflowOptions, defaultBackendName)
-    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation ) {
-      (_, _, _)
-    } flatMap { case (rawInputs, failureMode, backendAssignments) =>
-      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, engineFilesystems)
+    val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
+    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) {
+      (_, _, _, _)
+    } flatMap { case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
+      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, engineFilesystems, callCachingMode)
     }
   }
 
@@ -156,7 +159,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       backendAssignments: Map[Call, String],
                                       workflowOptions: WorkflowOptions,
                                       failureMode: WorkflowFailureMode,
-                                      engineFileSystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
+                                      engineFileSystems: List[FileSystem],
+                                      callCachingMode: CallCachingMode): ErrorOr[EngineWorkflowDescriptor] = {
 
     def checkTypes(inputs: Map[FullyQualifiedName, WdlValue]): ErrorOr[Map[FullyQualifiedName, WdlValue]] = {
       val allDeclarations = namespace.workflow.scopedDeclarations ++ namespace.workflow.calls.flatMap(_.scopedDeclarations)
@@ -174,7 +178,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
       declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, engineFileSystems)
       declarationsAndInputs <- checkTypes(declarations ++ coercedInputs)
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
-    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, engineFileSystems)
+    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, engineFileSystems, callCachingMode)
   }
 
   private def validateBackendAssignments(calls: Seq[Call], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[Call, String]] = {
@@ -273,6 +277,30 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     modeString flatMap WorkflowFailureMode.tryParse match {
         case Success(mode) => mode.successNel
         case Failure(t) => t.getMessage.failureNel
+    }
+  }
+
+  private def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
+
+    def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
+      workflowOptions.getBoolean(ReadFromCache.name) match {
+        case Success(x) => x.successNel
+        case Failure(_: OptionNotFoundException) => true.successNel
+        case Failure(t) => t.getMessage.failureNel
+      }
+    }
+
+    val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
+    if (enabled) {
+      val lookupDockerHashes = conf.getBooleanOption("call-caching.lookup-docker-hash").getOrElse(false)
+
+      val readFromCache = readOptionalOption(ReadFromCache)
+      val writeToCache = readOptionalOption(WriteToCache)
+
+      (readFromCache |@| writeToCache) { CallCachingMode(_, _, lookupDockerHashes) }
+    }
+    else {
+      CallCachingOff.successNel
     }
   }
 }

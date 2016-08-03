@@ -138,7 +138,7 @@ object WorkflowExecutionActor {
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             initializationData: AllBackendInitializationData,
-    restarting: Boolean): Props = {
+            restarting: Boolean): Props = {
     Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, jobStoreActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
@@ -529,7 +529,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     val runnableScopes = data.executionStore.runnableScopes.toList
     val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
-    if (runnableCalls.nonEmpty) workflowLogger.info(s"Starting calls: " + runnableCalls.mkString(", "))
+    if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))
 
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
     val executionDiffs = runnableScopes map {
@@ -585,7 +585,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeActorName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-            val ejeProps = EngineJobExecutionActor.props(jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, jobStoreActor)
+            val ejeProps = EngineJobExecutionActor.props(jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, jobStoreActor, workflowDescriptor.callCachingMode)
             val ejeActor = context.actorOf(ejeProps, ejeActorName)
             pushNewJobMetadata(jobKey, backendName)
             ejeActor ! EngineJobExecutionActor.Execute

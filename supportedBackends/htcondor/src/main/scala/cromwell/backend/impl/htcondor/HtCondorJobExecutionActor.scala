@@ -3,12 +3,13 @@ package cromwell.backend.impl.htcondor
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.FileSystems
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.services.keyvalue.KeyValueService._
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s._
 import wdl4s.parser.MemoryUnit
@@ -23,14 +24,17 @@ import scala.util.{Failure, Success, Try}
 import scala.language.postfixOps
 
 object HtCondorJobExecutionActor {
+  val HtCondorJobIdKey = "htCondor_job_id"
+
   val fileSystems = List(FileSystems.getDefault)
 
-  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, cacheActorProps: Option[Props]): Props =
-    Props(new HtCondorJobExecutionActor(jobDescriptor, configurationDescriptor, cacheActorProps))
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, serviceRegistryActor: ActorRef, cacheActorProps: Option[Props]): Props =
+    Props(new HtCondorJobExecutionActor(jobDescriptor, configurationDescriptor, serviceRegistryActor, cacheActorProps))
 }
 
 class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                 override val configurationDescriptor: BackendConfigurationDescriptor,
+                                serviceRegistryActor: ActorRef,
                                 cacheActorProps: Option[Props]) extends BackendJobExecutionActor with SharedFileSystem {
 
   import HtCondorJobExecutionActor._
@@ -93,14 +97,29 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     case ExecutionResultStored(hash) => log.debug("{} Cache entry was stored for Job with hash {}.", tag, hash)
 
     case ExecutionResultAlreadyExist => log.warning("{} Cache entry for hash {} already exist.", tag, jobHash)
+
+    case KvPair(key, Some(jobId)) if key.key == HtCondorJobIdKey =>
+      log.debug("{} Found job id {} for job {} trying to recover job now.", tag, jobId, jobDescriptor.key)
+      executionResponse success trackTaskToCompletion(jobId)
+
+    case KvKeyLookupFailed(_) =>
+      log.debug("{} Job id not found for job {} falling back to execute.", tag, jobDescriptor.key)
+      execute
+
+    case KvFailure(_, e) =>
+      val errMsg = s"$tag Failure attempting to look up HtCondor job id for key ${jobDescriptor.key}. Exception message: ${e.getMessage}."
+      log.error(errMsg)
+      executionResponse.tryFailure(e)
+      throw new RuntimeException(errMsg, e)
   }
 
   /**
     * Restart or resume a previously-started job.
     */
   override def recover: Future[BackendJobExecutionResponse] = {
-    log.warning("{} HtCondor backend currently doesn't support recovering jobs. Starting {} again.", tag, jobDescriptor.key.call.fullyQualifiedName)
-    Future(executeTask())
+    log.warning("{} Trying to recover job {}.", tag, jobDescriptor.key.call.fullyQualifiedName)
+    serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, HtCondorJobIdKey))
+    executionResponse.future
   }
 
   /**
@@ -112,7 +131,6 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       case Some(actorRef) => actorRef ! ReadExecutionResult(jobHash)
       case None => prepareAndExecute
     }
-
     executionResponse.future
   }
 
@@ -140,6 +158,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
           case job(jobId, clusterId) =>
             val overallJobIdentifier = s"$clusterId.${jobId.toInt - 1}" // Condor has 0 based indexing on the jobs, probably won't work on stuff like `queue 150`
             log.info("{} {} mapped to HtCondor JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, overallJobIdentifier)
+            serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, HtCondorJobIdKey), Option(overallJobIdentifier)))
             trackTaskToCompletion(overallJobIdentifier)
 
           case _ => FailedNonRetryableResponse(jobDescriptor.key,
@@ -216,14 +235,14 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       }
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)
-      cmds.writeScript(command.get, scriptPath, executionDir) // Writes the bash script for executing the command
+      cmds.writeScript(command.get, scriptPath.toAbsolutePath, executionDir.toAbsolutePath) // Writes the bash script for executing the command
       scriptPath.addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
       //TODO: Need to append other runtime attributes from Wdl to Condor submit file
-      val attributes: Map[String, Any] = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toString,
-          HtCondorRuntimeKeys.InitialWorkingDir -> jobPaths.callRoot,
-          HtCondorRuntimeKeys.Output -> stdoutPath.toString,
-          HtCondorRuntimeKeys.Error -> stderrPath.toString,
-          HtCondorRuntimeKeys.Log -> htCondorLog.toString,
+      val attributes: Map[String, Any] = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toAbsolutePath,
+          HtCondorRuntimeKeys.InitialWorkingDir -> jobPaths.callRoot.toAbsolutePath,
+          HtCondorRuntimeKeys.Output -> stdoutPath.toAbsolutePath,
+          HtCondorRuntimeKeys.Error -> stderrPath.toAbsolutePath,
+          HtCondorRuntimeKeys.Log -> htCondorLog.toAbsolutePath,
           HtCondorRuntimeKeys.LogXml -> true,
           HtCondorRuntimeKeys.LeaveInQueue -> true,
           HtCondorRuntimeKeys.Cpu -> runtimeAttributes.cpu,

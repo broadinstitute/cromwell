@@ -3,7 +3,8 @@ package cromwell.backend.impl.htcondor
 import java.io.{File, FileWriter, Writer}
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.Props
+import akka.actor.Actor.Receive
+import akka.actor.{Actor, Props}
 import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files._
 import com.typesafe.config.ConfigFactory
@@ -14,6 +15,7 @@ import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
 import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
+import cromwell.services.keyvalue.KeyValueService.{KvGet, KvPair, KvPut, ScopedKey}
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
@@ -131,7 +133,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
 
-      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, None) {
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, None) {
         override lazy val cmds = htCondorCommands
         override lazy val extProcess = htCondorProcess
       }).underlyingActor
@@ -141,6 +143,34 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
         verify(htCondorProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(htCondorProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(htCondorProcess, times(1)).untailedWriter(any[Path])
+      }
+
+      cleanUpJob(jobPaths)
+    }
+
+    "return succeeded task status when it recovers from a shutdown" in {
+      val jobDescriptor = prepareJob()
+      val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
+      val stubProcess = mock[Process]
+      val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
+      val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
+      val stderrResult = ""
+      val kVServiceActor = system.actorOf(Props(new KVServiceActor()))
+
+      when(htCondorProcess.commandList(any[String])).thenReturn(Seq.empty[String])
+      when(htCondorProcess.externalProcess(any[Seq[String]], any[ProcessLogger])).thenReturn(stubProcess)
+      when(stubProcess.exitValue()).thenReturn(0)
+      when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
+      when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
+      when(htCondorProcess.processStderr).thenReturn(stderrResult)
+
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, kVServiceActor, None) {
+        override lazy val cmds = htCondorCommands
+        override lazy val extProcess = htCondorProcess
+      }).underlyingActor
+
+      whenReady(backend.recover, timeout) { response =>
+        response shouldBe a[SucceededResponse]
       }
 
       cleanUpJob(jobPaths)
@@ -161,7 +191,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
 
-      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
         override lazy val cmds = htCondorCommands
         override lazy val extProcess = htCondorProcess
       }).underlyingActor
@@ -180,7 +210,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
         override lazy val cmds = htCondorCommands
         override lazy val extProcess = htCondorProcess
       }).underlyingActor
@@ -214,7 +244,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       val jobDescriptor = prepareJob(runtimeString = runtime)
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
         override lazy val cmds = htCondorCommands
         override lazy val extProcess = htCondorProcess
       }).underlyingActor
@@ -253,7 +283,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       val jobDescriptor = prepareJob(helloWorldWdlWithFileInput, runtime, Option(inputs))
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
         override lazy val cmds = htCondorCommands
         override lazy val extProcess = htCondorProcess
       }).underlyingActor
@@ -286,7 +316,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       val jobDescriptor = prepareJob()
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+      val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
         override lazy val cmds = htCondorCommandsMock
         override lazy val extProcess = htCondorProcess
       }).underlyingActor
@@ -333,7 +363,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val jobDescriptor = prepareJob(helloWorldWdlWithFileArrayInput, runtime, Option(inputs))
     val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
 
-    val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, Some(cacheActorMockProps)) {
+    val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
       override lazy val cmds = htCondorCommands
       override lazy val extProcess = htCondorProcess
     }).underlyingActor
@@ -421,6 +451,13 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     override def readExecutionResult(hash: String): CachedExecutionResult = throw new CachedResultNotFoundException("Entry not found.")
 
     override def storeExecutionResult(cachedExecutionResult: CachedExecutionResult): Unit = ()
+  }
+
+  class KVServiceActor extends Actor {
+    override def receive: Receive = {
+      case KvPut => // Do nothing
+      case KvGet(key) => sender ! KvPair(key, Option("123"))
+    }
   }
 
 }

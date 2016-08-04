@@ -24,7 +24,7 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef): Props = {
-    HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, resolveCacheProviderProps(jobDescriptor.descriptor.workflowOptions))
+    HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, serviceRegistryActor, resolveCacheProviderProps(jobDescriptor.descriptor.workflowOptions))
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

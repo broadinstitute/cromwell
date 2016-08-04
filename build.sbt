@@ -65,7 +65,6 @@ lazy val jesBackend = (project in backendRoot / "jes")
   .dependsOn(backend % "test->test")
   .dependsOn(gcsFileSystem % "test->test")
 
-//TODO: remove jesBackend once refactoring has finished.
 lazy val engine = (project in file("engine"))
   .settings(engineSettings: _*)
   .withTestSettings
@@ -77,7 +76,6 @@ lazy val engine = (project in file("engine"))
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
   .dependsOn(localBackend % "test->compile")
-  .dependsOn(jesBackend % "test->compile")
   .dependsOn(gcsFileSystem % "test->test")
 
 lazy val root = (project in file("."))

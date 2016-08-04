@@ -1,4 +1,4 @@
-package cromwell.engine.backend.jes
+package cromwell.backend.impl.jes
 
 import java.time.OffsetDateTime
 import java.util
@@ -7,7 +7,6 @@ import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.{EventStartTime, Run}
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.{Mockito => MockitoTrait}
 

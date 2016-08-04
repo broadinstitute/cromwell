@@ -150,9 +150,9 @@ object GoogleCredentialFactorySpec {
 
   private val emptyOptions = GoogleOptionsMap(Map.empty)
 
-  private case class GoogleOptionsMap(map: Map[String, String]) extends GoogleAuthMode.GoogleAuthOptions {
-    override def get(key: String): Try[String] = Try { map.get(key).get }
-  }
-
   def applicationDefaultCredential = ApplicationDefaultMode(name = "default").credential(emptyOptions)
+}
+
+case class GoogleOptionsMap(map: Map[String, String]) extends GoogleAuthMode.GoogleAuthOptions {
+  override def get(key: String): Try[String] = Try { map(key) }
 }

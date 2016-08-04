@@ -115,6 +115,9 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
       context stop self
       stay()
     case Event(JobStoreWriteFailure(_, t), _) =>
+      // This is moderately bad: If we can't write this result to the database, and then undergo a system restart, we'd need
+      // to re-run this job.
+      // On the other hand, if the DB is really down, this would be the least of our problems!
       log.error("Failed to write Job result to JobStore: {}", t)
       context stop self
       stay()

@@ -22,7 +22,7 @@ import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.NioGcsPath
-import cromwell.services.keyvalue.KeyValueService._
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._

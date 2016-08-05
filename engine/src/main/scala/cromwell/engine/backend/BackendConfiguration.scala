@@ -35,7 +35,7 @@ object BackendConfiguration {
 
   val DefaultBackendEntry: BackendConfigurationEntry = AllBackendEntries.find(_.name == DefaultBackendName) getOrElse {
     throw new IllegalArgumentException(s"Could not find specified default backend name '$DefaultBackendName' " +
-      s"in '${AllBackendEntries.mkString("', '")}'.")
+      s"in '${BackendNames.mkString("', '")}'.")
   }
 
   def backendConfigurationDescriptor(backendName: String): Try[BackendConfigurationDescriptor] = {

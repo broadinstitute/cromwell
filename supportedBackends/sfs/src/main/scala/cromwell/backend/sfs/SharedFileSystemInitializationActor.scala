@@ -18,14 +18,20 @@ case class SharedFileSystemInitializationActorParams
   serviceRegistryActor: ActorRef,
   workflowDescriptor: BackendWorkflowDescriptor,
   configurationDescriptor: BackendConfigurationDescriptor,
-  calls: Seq[Call],
-  supportsDocker: Boolean,
-  runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder
+  calls: Seq[Call]
 )
 
-case class SharedFileSystemBackendInitializationData(workflowPaths: WorkflowPaths)
+class SharedFileSystemBackendInitializationData
+(
+  val workflowPaths: WorkflowPaths,
+  val runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder)
   extends WorkflowPathsBackendInitializationData
 
+/**
+  * Initializes a shared file system actor factory and creates initialization data to pass to the execution actors.
+  *
+  * @param params Initialization parameters.
+  */
 class SharedFileSystemInitializationActor(params: SharedFileSystemInitializationActorParams)
   extends BackendWorkflowInitializationActor {
 
@@ -34,8 +40,8 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
   override lazy val calls: Seq[Call] = params.calls
   override lazy val serviceRegistryActor: ActorRef = params.serviceRegistryActor
 
-  lazy val runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =
-    params.runtimeAttributesBuilder.withDockerSupport(params.supportsDocker)
+  def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =
+    SharedFileSystemValidatedRuntimeAttributesBuilder.default
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = {
     runtimeAttributesBuilder.validations.map(validation =>
@@ -49,15 +55,16 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
   val workflowPaths = WorkflowFileSystemProvider.workflowPaths(configurationDescriptor, workflowDescriptor,
     providers, ioDispatcher)
 
-  /**
-    * A call which happens before anything else runs
-    */
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {
       publishWorkflowRoot(workflowPaths.workflowRoot.toString)
       workflowPaths.workflowRoot.createDirectories()
-      Option(SharedFileSystemBackendInitializationData(workflowPaths))
+      Option(initializationData)
     })
+  }
+
+  def initializationData: SharedFileSystemBackendInitializationData = {
+    new SharedFileSystemBackendInitializationData(workflowPaths, runtimeAttributesBuilder)
   }
 
   /**

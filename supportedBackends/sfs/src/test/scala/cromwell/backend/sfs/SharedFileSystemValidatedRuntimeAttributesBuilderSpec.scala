@@ -78,32 +78,33 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
     }
 
     "log a warning and return an instance of itself when tries to validate a valid Docker entry" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("ubuntu:latest"))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" }""").head
       val mockWarnings = new MockWarnings
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        supportsDocker = false, logger = mockWarnings.mockLogger)
+        includeDockerSupport = false, logger = mockWarnings.mockLogger)
       mockWarnings.warnings.size should be(1)
       val message = mockWarnings.warnings.head
       message should include("Unrecognized runtime attribute keys: docker")
     }
 
     "log a warning and return an instance of itself when tries to validate a valid Docker entry based on input" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("you"))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "\${addressee}" }""").head
       val mockWarnings = new MockWarnings
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        supportsDocker = false, logger = mockWarnings.mockLogger)
+        includeDockerSupport = false, logger = mockWarnings.mockLogger)
       mockWarnings.warnings.size should be(1)
       val message = mockWarnings.warnings.head
       message should include("Unrecognized runtime attribute keys: docker")
     }
 
     "log a warning and throw an exception when tries to validate an invalid Docker entry" in {
+      val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: 1 }""").head
       val mockWarnings = new MockWarnings
-      assertRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String",
-        supportsDocker = false, logger = mockWarnings.mockLogger)
+      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
+        includeDockerSupport = false, logger = mockWarnings.mockLogger)
       mockWarnings.warnings.size should be(1)
       val message = mockWarnings.warnings.head
       message should include("Unrecognized runtime attribute keys: docker")
@@ -183,18 +184,27 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
 
   private def assertRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue],
                                                         expectedRuntimeAttributes: Map[String, Any],
-                                                        supportsDocker: Boolean = true,
+                                                        includeDockerSupport: Boolean = true,
                                                         workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                         logger: Logger = defaultLogger): Unit = {
 
-    val builder = SharedFileSystemValidatedRuntimeAttributesBuilder.default.withDockerSupport(supportsDocker)
+    val builder = if (includeDockerSupport) {
+      SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
+    } else {
+      SharedFileSystemValidatedRuntimeAttributesBuilder.default
+    }
     val validatedRuntimeAttributes = builder.build(runtimeAttributes, workflowOptions, logger)
 
-    DockerValidation.optional.extract(validatedRuntimeAttributes) should be(
-      expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
-    FailOnStderrValidation.default.extract(validatedRuntimeAttributes) should be(
-      expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
-    ContinueOnReturnCodeValidation.default.extract(validatedRuntimeAttributes) should be(
+    val docker = RuntimeAttributesValidation.extractOption(
+      DockerValidation.instance, validatedRuntimeAttributes)
+    val failOnStderr = RuntimeAttributesValidation.extract(
+      FailOnStderrValidation.instance, validatedRuntimeAttributes)
+    val continueOnReturnCode = RuntimeAttributesValidation.extract(
+      ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+
+    docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
+    failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
+    continueOnReturnCode should be(
       expectedRuntimeAttributes(ContinueOnReturnCodeKey).asInstanceOf[ContinueOnReturnCode])
   }
 
@@ -203,8 +213,12 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
                                                     workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                     logger: Logger = defaultLogger): Unit = {
     val thrown = the[RuntimeException] thrownBy {
-      SharedFileSystemValidatedRuntimeAttributesBuilder.default.withDockerSupport(supportsDocker).
-        build(runtimeAttributes, workflowOptions, logger)
+      val builder = if (supportsDocker) {
+        SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
+      } else {
+        SharedFileSystemValidatedRuntimeAttributesBuilder.default
+      }
+      builder.build(runtimeAttributes, workflowOptions, logger)
     }
     thrown.getMessage should include(exMsg)
   }

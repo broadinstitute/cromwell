@@ -9,33 +9,42 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.concurrent.Promise
 
+/**
+  * A factory that can be extended for any shared file system implementation.
+  *
+  * See the SharedFileSystemAsyncJobExecutionActor for more info.
+  */
 trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActorFactory {
 
+  /**
+    * Config values for the backend, and a pointer to the global config.
+    *
+    * This is the single parameter passed into each factory during creation.
+    *
+    * @return The backend configuration.
+    */
   def configurationDescriptor: BackendConfigurationDescriptor
+
+  /**
+    * Returns the initialization class, or by default uses the `SharedFileSystemInitializationActor`.
+    *
+    * @return the initialization class.
+    */
+  def initializationActorClass: Class[_ <: SharedFileSystemInitializationActor] =
+  classOf[SharedFileSystemInitializationActor]
 
   /**
     * Returns the main engine for async execution.
     *
     * @return the main engine for async execution.
     */
-  def asyncJobExecutionActorClass: Class[_]
-
-  /**
-    * Returns true if the backend will generate special commands to run with docker.
-    *
-    * @return true if the backend will generate special commands to run with docker.
-    */
-  def supportsDocker = false
-
-  def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder = {
-    SharedFileSystemValidatedRuntimeAttributesBuilder.default
-  }
+  def asyncJobExecutionActorClass: Class[_ <: SharedFileSystemAsyncJobExecutionActor]
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call],
                                                 serviceRegistryActor: ActorRef) = {
     val params = SharedFileSystemInitializationActorParams(serviceRegistryActor, workflowDescriptor,
-      configurationDescriptor, calls, supportsDocker, runtimeAttributesBuilder)
-    Option(Props(new SharedFileSystemInitializationActor(params)).withDispatcher(Dispatcher.BackendDispatcher))
+      configurationDescriptor, calls)
+    Option(Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher))
   }
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
@@ -43,7 +52,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
                                       serviceRegistryActor: ActorRef) = {
     def propsCreator(completionPromise: Promise[BackendJobExecutionResponse]): Props = {
       val params = SharedFileSystemAsyncJobExecutionActorParams(serviceRegistryActor, jobDescriptor,
-        configurationDescriptor, completionPromise, supportsDocker, runtimeAttributesBuilder, initializationDataOption)
+        configurationDescriptor, completionPromise, initializationDataOption)
       Props(asyncJobExecutionActorClass, params).withDispatcher(Dispatcher.BackendDispatcher)
     }
 

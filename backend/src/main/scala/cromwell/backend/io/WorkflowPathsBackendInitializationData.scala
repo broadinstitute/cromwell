@@ -35,17 +35,11 @@ trait WorkflowPathsBackendInitializationData extends BackendInitializationData {
 }
 
 object WorkflowPathsBackendInitializationData {
-
-  def workflowPaths(initializationData: Option[BackendInitializationData]): WorkflowPaths = {
-    initializationData match {
-      case Some(data: WorkflowPathsBackendInitializationData) => data.workflowPaths
-      case Some(other) => throw new RuntimeException(
-        s"Initialization data is not a WorkflowPathsBackendInitializationData: $other.")
-      case None => throw new RuntimeException("Initialization data was not found.")
-    }
+  def workflowPaths(initializationDataOption: Option[BackendInitializationData]): WorkflowPaths = {
+    BackendInitializationData.as[WorkflowPathsBackendInitializationData](initializationDataOption).workflowPaths
   }
 
-  def fileSystems(initializationData: Option[BackendInitializationData]): List[FileSystem] = {
-    workflowPaths(initializationData).fileSystems
+  def fileSystems(initializationDataOption: Option[BackendInitializationData]): List[FileSystem] = {
+    workflowPaths(initializationDataOption).fileSystems
   }
 }

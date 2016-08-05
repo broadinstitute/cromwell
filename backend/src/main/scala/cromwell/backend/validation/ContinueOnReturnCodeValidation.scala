@@ -2,7 +2,7 @@ package cromwell.backend.validation
 
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
-import wdl4s.types.{WdlArrayType, WdlStringType}
+import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 import scala.util.Try
@@ -57,6 +57,7 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
     case WdlString(value) if Try(value.toBoolean).isSuccess => true
     case _: WdlInteger => true
     case WdlArray(WdlArrayType(WdlStringType), elements) => elements.forall(validateInt(_).isSuccess)
+    case WdlArray(WdlArrayType(WdlIntegerType), elements) => elements.forall(validateInt(_).isSuccess)
   }
 
   override protected def failureMessage = missingMessage

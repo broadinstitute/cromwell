@@ -20,7 +20,7 @@ import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJob
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging
-import cromwell.core.retry.Retry
+import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.keyvalue.KeyValueService._
 import cromwell.services.metadata.CallMetadataKeys._
@@ -34,6 +34,7 @@ import wdl4s.expression.NoFunctions
 import wdl4s.util.TryUtil
 import wdl4s.values._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -90,6 +91,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
 
   import JesAsyncBackendJobExecutionActor._
+
+  override lazy val pollBackOff = SimpleExponentialBackoff(
+    initialInterval = 30 seconds, maxInterval = 10 minutes, multiplier = 1.1)
+
+  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
+    initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
   private lazy val workflowDescriptor = jobDescriptor.descriptor
 

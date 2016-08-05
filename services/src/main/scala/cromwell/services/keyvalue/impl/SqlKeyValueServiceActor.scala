@@ -22,7 +22,7 @@ case class SqlKeyValueServiceActor(override val serviceConfig: Config, override 
         put.pair.key.jobKey,
         put.pair.key.key,
         put.pair.value.get).map(_ => KvPutSuccess(put))
-      case None => Future(KvFailure(put, new RuntimeException(s"Failed to find the value associated to key: ${put.pair.key.key}. This key cannot be added to the BackendKVStore.")))
+      case None => Future.successful(KvFailure(put, new RuntimeException(s"Failed to find the value associated to key: ${put.pair.key.key}. This key cannot be added to the BackendKVStore.")))
     }
   }
 

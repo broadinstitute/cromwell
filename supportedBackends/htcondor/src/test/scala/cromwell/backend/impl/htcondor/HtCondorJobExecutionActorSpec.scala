@@ -3,7 +3,6 @@ package cromwell.backend.impl.htcondor
 import java.io.{File, FileWriter, Writer}
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.Actor.Receive
 import akka.actor.{Actor, Props}
 import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files._
@@ -15,7 +14,7 @@ import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
 import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
-import cromwell.services.keyvalue.KeyValueService.{KvGet, KvPair, KvPut, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvPair, KvPut}
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
@@ -23,7 +22,7 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
 import wdl4s.types.{WdlArrayType, WdlFileType}
-import wdl4s.values.{WdlArray, WdlFile, WdlSingleFile, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlValue}
 
 import scala.concurrent.duration._
 import scala.io.Source

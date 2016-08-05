@@ -9,7 +9,7 @@ import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
-import cromwell.services.keyvalue.KeyValueService._
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s._
 import wdl4s.parser.MemoryUnit
@@ -17,7 +17,6 @@ import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
 import wdl4s.values.WdlArray
 
-import scala.collection.immutable.Iterable
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
@@ -98,19 +97,17 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
     case ExecutionResultAlreadyExist => log.warning("{} Cache entry for hash {} already exist.", tag, jobHash)
 
-    case KvPair(key, Some(jobId)) if key.key == HtCondorJobIdKey =>
-      log.debug("{} Found job id {} for job {} trying to recover job now.", tag, jobId, jobDescriptor.key)
+    case KvPair(scopedKey, Some(jobId)) if scopedKey.key == HtCondorJobIdKey =>
+      log.info("{} Found job id {}. Trying to recover job now.", tag, jobId)
       executionResponse success trackTaskToCompletion(jobId)
 
     case KvKeyLookupFailed(_) =>
-      log.debug("{} Job id not found for job {} falling back to execute.", tag, jobDescriptor.key)
+      log.debug("{} Job id not found. Falling back to execute.", tag)
       execute
 
     case KvFailure(_, e) =>
-      val errMsg = s"$tag Failure attempting to look up HtCondor job id for key ${jobDescriptor.key}. Exception message: ${e.getMessage}."
-      log.error(errMsg)
-      executionResponse.tryFailure(e)
-      throw new RuntimeException(errMsg, e)
+      log.error(s"$tag Failure attempting to look up HtCondor job id. Exception message: ${e.getMessage}. Falling back to execute.")
+      execute
   }
 
   /**

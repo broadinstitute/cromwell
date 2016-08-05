@@ -2,88 +2,47 @@ package cromwell.backend.sfs
 
 import java.nio.file.{Files, Path, Paths}
 
-import akka.actor.Props
-import akka.testkit.TestActorRef
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.TestWorkflows._
-import cromwell.backend.io.{JobPaths, TestWorkflows, WorkflowPaths}
-import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
+import cromwell.backend.io.{JobPaths, TestWorkflows}
+import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec}
 import cromwell.core.Tags._
 import cromwell.core._
-import org.scalatest.FlatSpecLike
-import org.scalatest.concurrent.PatienceConfiguration._
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import org.scalatest.{FlatSpecLike, OptionValues}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
 import wdl4s.types._
 import wdl4s.util.AggregatedException
 import wdl4s.values._
 
-import scala.concurrent.Promise
-import scala.concurrent.duration._
-
-class TestLocalAsyncJobExecutionActor(override val params: SharedFileSystemAsyncJobExecutionActorParams)
-  extends BackgroundAsyncJobExecutionActor {
-  override lazy val processArgs = {
-    val script = jobPaths.script.fullPath
-    if (isDockerRun) {
-      val docker = RuntimeAttributesValidation.extract(DockerValidation.instance, validatedRuntimeAttributes)
-      val cwd = jobPaths.callRoot.fullPath
-      val dockerCwd = jobPaths.callDockerRoot.fullPath
-      SharedFileSystemCommand("/bin/bash", "-c",
-        s"docker run --rm -v $cwd:$dockerCwd -i $docker /bin/bash < $script")
-    } else {
-      SharedFileSystemCommand("/bin/bash", script)
-    }
-  }
-}
-
 class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
-  with FlatSpecLike with BackendSpec with MockitoSugar with TableDrivenPropertyChecks {
-
-  def createBackend(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = {
-    createBackendRef(jobDescriptor, configurationDescriptor).underlyingActor
-  }
-
-  def createBackendRef(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = {
-    val workflowPaths = new WorkflowPaths(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
-    val initializationData = new SharedFileSystemBackendInitializationData(workflowPaths,
-      SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional))
-
-    def propsCreator(completionPromise: Promise[BackendJobExecutionResponse]): Props = {
-      val params = SharedFileSystemAsyncJobExecutionActorParams(emptyActor, jobDescriptor,
-        configurationDescriptor, completionPromise, Option(initializationData))
-      Props(classOf[TestLocalAsyncJobExecutionActor], params)
-    }
-
-    TestActorRef(new SharedFileSystemJobExecutionActor(
-      jobDescriptor, configurationDescriptor, propsCreator))
-  }
+  with FlatSpecLike with BackendSpec with MockitoSugar with TableDrivenPropertyChecks with OptionValues {
 
   behavior of "SharedFileSystemJobExecutionActor"
 
-  it should "execute an hello world workflow" in {
+  def executeSpec(docker: Boolean) = {
     val expectedOutputs: JobOutputs = Map(
       "salutation" -> JobOutput(WdlString("Hello you !"))
     )
     val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
-    val workflow = TestWorkflow(buildWorkflowDescriptor(HelloWorld), emptyBackendConfig, expectedResponse)
+    val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
+    val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = runtime)
+    val workflow = TestWorkflow(workflowDescriptor, emptyBackendConfig, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor), workflow.config)
     testWorkflow(workflow, backend)
   }
 
+  it should "execute an hello world workflow" in {
+    executeSpec(docker = false)
+  }
+
   it should "execute an hello world workflow on Docker" taggedAs DockerTest in {
-    val expectedOutputs: JobOutputs = Map(
-      "salutation" -> JobOutput(WdlString("Hello you !"))
-    )
-    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
-    val workflow = TestWorkflow(buildWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu:latest" }"""),
-      emptyBackendConfig, expectedResponse)
-    val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor), workflow.config)
-    testWorkflow(workflow, backend)
+    executeSpec(docker = true)
   }
 
   it should "send back an execution failure if the task fails" in {
@@ -179,15 +138,76 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val backend = backendRef.underlyingActor
 
     val execute = backend.execute
-    // TODO: PBE: This test needs work. If the abort fires to quickly, it causes a race condition in waitAndPostProcess.
-    Thread.sleep(1000L)
-    //backend.process shouldNot be(empty) <-- Currently cannot access the private var backend.process
     backendRef ! AbortJobCommand
 
-    // TODO: PBE: abort doesn't actually seem to abort. It runs the full 10 seconsds, then returns the response.
-    whenReady(execute, Timeout(10.seconds)) { executionResponse =>
+    whenReady(execute) { executionResponse =>
       executionResponse shouldBe a[AbortedResponse]
     }
+  }
+
+  def recoverSpec(completed: Boolean, writeReturnCode: Boolean = true) = {
+    val workflowDescriptor = buildWorkflowDescriptor(HelloWorld)
+    val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor)
+    val backendRef = createBackendRef(jobDescriptor, emptyBackendConfig)
+    val backend = backendRef.underlyingActor
+
+    val jobPaths = new JobPaths(workflowDescriptor, ConfigFactory.empty, jobDescriptor.key)
+    jobPaths.callRoot.createDirectories()
+    jobPaths.stdout.write("Hello stubby ! ")
+    jobPaths.stderr.touch()
+
+    val pid =
+      if (completed) {
+        if (writeReturnCode)
+          jobPaths.returnCode.write("0")
+        "123" // random
+      } else {
+        import sys.process._
+        val proc = Seq("bash", "-c", s"sleep 2; echo 0 > ${jobPaths.returnCode}").run()
+        val pField = proc.getClass.getDeclaredField("p")
+        pField.setAccessible(true)
+        val p = pField.get(proc)
+        val pidField = p.getClass.getDeclaredField("pid")
+        pidField.setAccessible(true)
+        pidField.get(p).toString
+      }
+
+    val execute = backend.recover
+
+    val kvJobKey =
+      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
+    val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemJob.JobIdKey)
+    val kvPair = KvPair(scopedKey, Option(pid))
+
+    backendRef ! kvPair
+
+    whenReady(execute) { executionResponse =>
+      if (writeReturnCode) {
+        executionResponse should be(a[SucceededResponse])
+        val succeededResponse = executionResponse.asInstanceOf[SucceededResponse]
+        succeededResponse.returnCode.value should be(0)
+        succeededResponse.jobOutputs should be(Map("salutation" -> JobOutput(WdlString("Hello stubby !"))))
+      } else {
+        executionResponse should be(a[FailedNonRetryableResponse])
+        val failedResponse = executionResponse.asInstanceOf[FailedNonRetryableResponse]
+        failedResponse.returnCode should be(empty)
+        failedResponse.throwable should be(a[RuntimeException])
+        failedResponse.throwable.getMessage should startWith("Unable to determine that 123 is alive, and")
+        failedResponse.throwable.getMessage should endWith("call-hello/rc does not exist.")
+      }
+    }
+  }
+
+  it should "recover a job in progress" in {
+    recoverSpec(completed = false)
+  }
+
+  it should "recover a job that already completed" in {
+    recoverSpec(completed = true)
+  }
+
+  it should "not recover a job for a non-existent pid" in {
+    recoverSpec(completed = true, writeReturnCode = false)
   }
 
   it should "execute shards from a scatter" in {

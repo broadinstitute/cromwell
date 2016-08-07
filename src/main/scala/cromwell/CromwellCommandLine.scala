@@ -41,17 +41,26 @@ object RunSingle {
     val inputsJson = readJson("Inputs", inputsPath)
     val optionsJson = readJson("Workflow Options", optionsPath)
 
-    (wdl |@| inputsJson |@| optionsJson) {
-      (w, i, o) =>
-        val workflowSourceFiles = WorkflowSourceFiles(w, i, o)
-        metadataPath foreach { m => if (!metadataPathIsWriteable(m)) throw new RuntimeException(s"Unable to write to metadata directory: $m")}
-        RunSingle(wdlPath, workflowSourceFiles, inputsPath, optionsPath, metadataPath)
-    } match {
+    val sourceFiles = (wdl |@| inputsJson |@| optionsJson) { WorkflowSourceFiles.apply }
+
+    val runSingle = for {
+      sources <- sourceFiles
+      _ <- writeableMetadataPath(metadataPath)
+    } yield RunSingle(wdlPath, sources, inputsPath, optionsPath, metadataPath)
+
+    runSingle match {
       case scalaz.Success(r) => r
       case scalaz.Failure(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "ERROR: Unable to run Cromwell:"
         override def errorMessages: Traversable[String] = nel.list
       }
+    }
+  }
+
+  private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
+    path match {
+      case Some(p) if !metadataPathIsWriteable(p) => s"Unable to write to metadata directory: $p".failureNel
+      case otherwise => ().successNel
     }
   }
 

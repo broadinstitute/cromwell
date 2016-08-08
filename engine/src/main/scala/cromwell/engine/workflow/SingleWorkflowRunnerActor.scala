@@ -29,8 +29,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles,
-            metadataOutputFile: Option[Path]): Props = {
+  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path]): Props = {
     Props(new SingleWorkflowRunnerActor(source, metadataOutputFile))
   }
 

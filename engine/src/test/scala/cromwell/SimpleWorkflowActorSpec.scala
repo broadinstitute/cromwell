@@ -150,4 +150,10 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
       probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
   }
+
+  private def startingCallsFilter[T](callNames: String*)(block: => T): T = {
+    waitForPattern(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$") {
+      block
+    }
+  }
 }

@@ -441,6 +441,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         status match {
           case Success(s: TerminalRunStatus) =>
             tellEventMetadata(s.eventList)
+            tellMetadata(JesMetadataKeys.MachineType, s.machineType)
+            tellMetadata(JesMetadataKeys.InstanceName, s.instanceName)
+            tellMetadata(JesMetadataKeys.Zone, s.zone)
             executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
@@ -661,7 +664,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: disallowed command return code: " + returnCode.get), returnCode.toOption).future
         case _: RunStatus.Success =>
           ExecutionHash.completelyRandomExecutionHash map { h => handleSuccess(postProcess, returnCode.get, h, handle) }
-        case RunStatus.Failed(errorCode, errorMessage, _) => handleFailure(errorCode, errorMessage)
+        case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {
       case e: Exception =>

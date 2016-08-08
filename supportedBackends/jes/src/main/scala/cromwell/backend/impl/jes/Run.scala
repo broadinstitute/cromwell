@@ -92,11 +92,16 @@ case class Run(runId: String, genomicsInterface: Genomics) {
   def status(): RunStatus = {
     val op = genomicsInterface.operations().get(runId).execute
     if (op.getDone) {
-      // If there's an error, generate a Failed status. Otherwise, we were successful!
       val eventList = getEventList(op)
+      val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
+      val machineType = ceInfo.getOrDefault("machineType","unknown")
+      val instanceName = ceInfo.getOrDefault("instanceName","unknown")
+      val zone = ceInfo.getOrDefault("zone","unknown")
+
+      // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
-        case None => Success(eventList)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList)
+        case None => Success(eventList, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running

@@ -14,7 +14,10 @@ class DataAccessComponent(val driver: JdbcProfile)
   with WorkflowMetadataSummaryComponent
   with WorkflowStoreComponent
   with JobStoreComponent
-  with BackendKVStoreComponent {
+  with BackendKVStoreComponent
+  with CallCachingResultMetaInfoComponent
+  with CallCachingHashComponent
+  with CallCachingResultSimpletonComponent {
 
   import driver.api._
 
@@ -29,5 +32,8 @@ class DataAccessComponent(val driver: JdbcProfile)
       workflowMetadataSummaries.schema ++
       workflowStore.schema ++
       jobStore.schema ++
-      backendKVStore.schema
+      backendKVStore.schema ++
+      callCachingResultMetaInfo.schema ++
+      callCachingHashes.schema ++
+      callCachingResultSimpletons.schema
 }

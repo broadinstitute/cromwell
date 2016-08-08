@@ -72,7 +72,8 @@ class SlickDatabase(databaseConfig: Config) extends SqlDatabase
   with MetadataSlickDatabase
   with WorkflowStoreSlickDatabase
   with BackendKVStoreSlickDatabase
-  with JobStoreSlickDatabase{
+  with JobStoreSlickDatabase
+  with CallCachingSlickDatabase {
 
   import SlickDatabase._
 

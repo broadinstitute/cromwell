@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
+    <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+
+    <changeSet author="chrisl" id="call_caching_result_metainfo">
+        <comment>
+            One row per cached job result.
+            Stores meta info about which job the result came from.
+            Defines the Call Cache Meta Info ID (CALL_CACHING_RESULT_METAINFO_ID) that "CallCachingHash" and "CallCachingResultSimpleton" have FKs to.
+        </comment>
+        <createTable tableName="CALL_CACHING_RESULT_METAINFO">
+            <column autoIncrement="true" name="CALL_CACHING_RESULT_METAINFO_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_RESULT_METAINFO"/>
+            </column>
+            <!-- JobKey fields -->
+            <column name="WORKFLOW_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FQN" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="JOB_SCATTER_INDEX" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <!-- The return code of the job -->
+            <column name="RETURN_CODE" type="INT">
+                <constraints nullable="true"/>
+            </column>
+            <!-- Allow this call caching result to be reused? -->
+            <column name="ALLOW_RESULT_REUSE" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <!-- We don't want to store results for the exact same job twice -->
+    <changeSet author="chrisl" id="call_caching_result_metainfo_uniqueness">
+        <addUniqueConstraint constraintName="UK_CALL_CACHING_RESULT_METAINFO"
+                             tableName="CALL_CACHING_RESULT_METAINFO" columnNames="WORKFLOW_UUID, CALL_FQN, JOB_SCATTER_INDEX" />
+    </changeSet>
+
+    <changeSet author="chrisl" id="call_caching_hashes">
+        <comment>
+            One row per hashkey per call cache meta info.
+            Allows us to link hash keys and values to any matching call cache results.
+        </comment>
+        <createTable tableName="CALL_CACHING_HASH">
+            <column autoIncrement="true" name="CALL_CACHING_HASH_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_HASH"/>
+            </column>
+            <column name="HASH_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="HASH_VALUE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="RESULT_METAINFO_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <!-- We don't want to store the same hash key twice for the same RESULT_METAINFO_ID -->
+    <changeSet author="chrisl" id="call_caching_result_hashes_uniqueness">
+        <addUniqueConstraint constraintName="UK_CALL_CACHING_HASH"
+                             tableName="CALL_CACHING_HASH" columnNames="HASH_KEY, RESULT_METAINFO_ID" />
+    </changeSet>
+
+    <!-- Make RESULT_METAINFO_ID a FK into CALL_CACHING_RESULT_METAINFO -->
+    <changeSet author="chrisl" id="call_caching_result_hashes_uniqueness_foreign_key">
+        <addForeignKeyConstraint constraintName="CCH_RESULT_METAINFO_ID_FK"
+                                 baseTableName="CALL_CACHING_HASH"
+                                 baseColumnNames="RESULT_METAINFO_ID"
+                                 referencedTableName="CALL_CACHING_RESULT_METAINFO"
+                                 referencedColumnNames="CALL_CACHING_RESULT_METAINFO_ID"
+        />
+    </changeSet>
+
+    <changeSet author="chrisl" id="call_caching_result_simpletons">
+        <comment>
+            One row per result simpleton in the job result.
+            Simpleton: a single non-complex WDL value.
+            The simpleton key contains the necessary FQN and structure information for reconstructing the job result
+        </comment>
+        <createTable tableName="CALL_CACHING_RESULT_SIMPLETON">
+            <column autoIncrement="true" name="CALL_CACHING_RESULT_SIMPLETON_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_RESULT_SIMPLETON_ID"/>
+            </column>
+            <column name="SIMPLETON_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SIMPLETON_VALUE" type="${clob.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WDL_TYPE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="RESULT_METAINFO_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <!-- Unlike the metadata journal, we never want to store the same simpleton key twice (for the same RESULT_METAINFO_ID) -->
+    <changeSet author="chrisl" id="call_caching_result_simpletons_uniqueness">
+        <addUniqueConstraint constraintName="UK_CALL_CACHING_RESULT_SIMPLETON"
+                             tableName="CALL_CACHING_RESULT_SIMPLETON" columnNames="SIMPLETON_KEY, RESULT_METAINFO_ID" />
+    </changeSet>
+
+    <!-- Make RESULT_METAINFO_ID a FK into CALL_CACHING_RESULT_METAINFO -->
+    <changeSet author="chrisl" id="call_caching_result_simpletons_foreign_key">
+        <addForeignKeyConstraint constraintName="CCRS_RESULT_METAINFO_ID_FK"
+                                 baseTableName="CALL_CACHING_RESULT_SIMPLETON"
+                                 baseColumnNames="RESULT_METAINFO_ID"
+                                 referencedTableName="CALL_CACHING_RESULT_METAINFO"
+                                 referencedColumnNames="CALL_CACHING_RESULT_METAINFO_ID"
+        />
+    </changeSet>
+
+</databaseChangeLog>

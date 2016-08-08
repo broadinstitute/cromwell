@@ -228,7 +228,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val handle = mock[JesPendingExecutionHandle]
     implicit val ec = system.dispatcher
 
-    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"))
+    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance")
     val executionResult = Await.result(jesBackend.executionResult(failedStatus, handle), 2.seconds)
     executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]

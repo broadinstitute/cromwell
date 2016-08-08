@@ -1,3 +1,6 @@
+# This test exercises a shortcoming in parsing array literals in WDL which never worked in any version of Cromwell, but
+# probably should.
+
 name: array_literal_locations
 testFormat: workflowsuccess
 ignore: true

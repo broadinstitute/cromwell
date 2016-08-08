@@ -1,6 +1,6 @@
 name: invalid_runtime_attributes
 testFormat: workflowfailure
-ignore: true
+ignore: false
 
 files {
   wdl: invalid_runtime_attributes/invalid_runtime_attributes.wdl

@@ -132,7 +132,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     // Mock/stub out the bits that would reach out to JES.
     val run = mock[Run]
-    run.status() returns Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty)
+    run.status() returns Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance")
 
     val handle = JesPendingExecutionHandle(jobDescriptor, Seq.empty, run, None)
 
@@ -199,7 +199,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val handle = mock[JesPendingExecutionHandle]
     implicit val ec = system.dispatcher
 
-    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty)
+    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance")
     val executionResult = Await.result(jesBackend.executionResult(failedStatus, handle), 2.seconds)
     executionResult.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     val failedHandle = executionResult.asInstanceOf[FailedNonRetryableExecutionHandle]
@@ -212,7 +212,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val handle = mock[JesPendingExecutionHandle]
     implicit val ec = system.dispatcher
 
-    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty)
+    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance")
     val executionResult = Await.result(jesBackend.executionResult(failedStatus, handle), 2.seconds)
     executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]
@@ -228,7 +228,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val handle = mock[JesPendingExecutionHandle]
     implicit val ec = system.dispatcher
 
-    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty)
+    val failedStatus = Failed(10, Some("14: VM XXX shut down unexpectedly."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"))
     val executionResult = Await.result(jesBackend.executionResult(failedStatus, handle), 2.seconds)
     executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]
@@ -245,22 +245,22 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     implicit val ec = system.dispatcher
 
     Await.result(jesBackend.executionResult(
-      Failed(10, Some("15: Other type of error."), Seq.empty), handle), 2.seconds
+      Failed(10, Some("15: Other type of error."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"), handle), 2.seconds
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(
-      Failed(11, Some("14: Wrong errorCode."), Seq.empty), handle), 2.seconds
+      Failed(11, Some("14: Wrong errorCode."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"), handle), 2.seconds
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(
-      Failed(10, Some("Weird error message."), Seq.empty), handle), 2.seconds
+      Failed(10, Some("Weird error message."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"), handle), 2.seconds
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(
-      Failed(10, Some("UnparsableInt: Even weirder error message."), Seq.empty), handle), 2.seconds
+      Failed(10, Some("UnparsableInt: Even weirder error message."), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"), handle), 2.seconds
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(
-      Failed(10, None, Seq.empty), handle), 2.seconds
+      Failed(10, None, Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"), handle), 2.seconds
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     Await.result(jesBackend.executionResult(
-      Failed(10, Some("Operation canceled at"), Seq.empty), handle), 2.seconds
+      Failed(10, Some("Operation canceled at"), Seq.empty, "fakeMachine", "fakeZone", "fakeInstance"), handle), 2.seconds
     ) shouldBe AbortedExecutionHandle
 
     actorRef.stop()

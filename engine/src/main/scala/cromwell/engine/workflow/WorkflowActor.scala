@@ -18,6 +18,7 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingMode
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 

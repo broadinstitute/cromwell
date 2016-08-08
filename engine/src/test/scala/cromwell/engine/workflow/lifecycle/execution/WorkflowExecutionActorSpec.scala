@@ -3,13 +3,12 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef}
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.WorkflowId
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.ExecuteWorkflowCommand
-import cromwell.jobstore.{JobStoreActor, WriteCountingJobStoreDatabase}
 import cromwell.services.ServiceRegistryActor
 import cromwell.util.SampleWdl
 import org.scalatest.BeforeAndAfter
@@ -37,7 +36,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
     "retry a job 2 times and succeed in the third attempt" in {
       import spray.json._
       val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load()))
-      val jobStoreActor = system.actorOf(JobStoreActor.props(WriteCountingJobStoreDatabase.makeNew))
+      val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -76,7 +75,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
     "execute a workflow with scatters" in {
       val serviceRegistry = mockServiceRegistryActor
-      val jobStore = system.actorOf(JobStoreActor.props(WriteCountingJobStoreDatabase.makeNew))
+      val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.DefaultBackendLifecycleActorFactory",

@@ -62,11 +62,13 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(matcher, promise), s"service-registry-$workflowId-${UUID.randomUUID()}")
-    val workflowActor = TestFSMRef(new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
-      watchActor,
-      system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
-      system.actorOf(JobStoreActor.props(WriteCountingJobStoreDatabase.makeNew))),
-      name = s"workflow-actor-$workflowId")
+    val workflowActor = TestFSMRef(
+      factory = new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
+        watchActor,
+        system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
+        system.actorOf(AlwaysHappyJobStoreActor.props)),
+      name = s"workflow-actor-$workflowId"
+    )
     WorkflowActorAndMetadataPromise(workflowActor, promise)
   }
 

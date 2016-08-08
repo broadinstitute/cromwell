@@ -64,7 +64,7 @@ case class JobStoreWriterActor(jsd: JobStore) extends LoggingFSM[JobStoreWriterS
           self ! WriteComplete
         case Failure(reason) =>
           log.error(s"Failed to write to database: $reason")
-          newData.currentOperation foreach { case (actor, message) => actor ! JobStoreWriteFailure(message, reason) }
+          newData.currentOperation foreach { case (actor, message) => actor ! JobStoreWriteFailure(reason) }
           self ! WriteComplete
       }
     }

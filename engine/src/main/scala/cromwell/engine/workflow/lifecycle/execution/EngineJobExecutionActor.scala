@@ -8,40 +8,10 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCachingActivity, CallCachingMode, EngineJobHashingActor, FileHasherActor}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
-
-object EngineJobExecutionActor {
-  /** States */
-  sealed trait EngineJobExecutionActorState
-  case object Pending extends EngineJobExecutionActorState
-  case object CheckingJobStatus extends EngineJobExecutionActorState
-  case object PreparingJob extends EngineJobExecutionActorState
-  case object RunningJob extends EngineJobExecutionActorState
-  case object AwaitingJobStoreAck extends EngineJobExecutionActorState
-
-  /** Commands */
-  sealed trait EngineJobExecutionActorCommand
-  case object Execute extends EngineJobExecutionActorCommand
-
-  final case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
-
-  def props(jobDescriptorKey: BackendJobDescriptorKey,
-            executionData: WorkflowExecutionActorData,
-            factory: BackendLifecycleActorFactory,
-            initializationData: Option[BackendInitializationData],
-            restarting: Boolean,
-            serviceRegistryActor: ActorRef,
-            jobStoreActor: ActorRef) = {
-    Props(new EngineJobExecutionActor(jobDescriptorKey,
-      executionData,
-      factory,
-      initializationData,
-      restarting,
-      serviceRegistryActor,
-      jobStoreActor)).withDispatcher(EngineDispatcher)
-  }
-}
 
 class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               executionData: WorkflowExecutionActorData,
@@ -49,27 +19,30 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               initializationData: Option[BackendInitializationData],
                               restarting: Boolean,
                               serviceRegistryActor: ActorRef,
-                              jobStoreActor: ActorRef) extends LoggingFSM[EngineJobExecutionActorState, Unit] with WorkflowLogging {
+                              jobStoreActor: ActorRef,
+                              callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging {
 
   override val workflowId = executionData.workflowDescriptor.id
 
-  startWith(Pending, ())
+  startWith(Pending, NoData)
 
+  // When Pending, the FSM always has NoData
   when(Pending) {
-    case Event(Execute, _) =>
+    case Event(Execute, NoData) =>
       if (restarting) {
         val jobStoreKey = jobKey.toJobStoreKey(workflowId)
         jobStoreActor ! QueryJobCompletion(jobStoreKey)
-        goto(CheckingJobStatus)
+        goto(CheckingJobStore)
       } else {
-        prepareJob(jobKey)
+        prepareJob()
       }
   }
 
-  when(CheckingJobStatus) {
-    case Event(JobNotComplete, _) =>
-      prepareJob(jobKey)
-    case Event(JobComplete(jobResult), _) =>
+  // When CheckingJobStore, the FSM always has NoData
+  when(CheckingJobStore) {
+    case Event(JobNotComplete, NoData) =>
+      prepareJob()
+    case Event(JobComplete(jobResult), NoData) =>
       jobResult match {
         case JobResultSuccess(returnCode, jobOutputs) =>
           context.parent ! SucceededResponse(jobKey, returnCode, jobOutputs)
@@ -84,52 +57,87 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
           context stop self
           stay()
       }
-    case Event(f: JobStoreReadFailure, _) =>
+    case Event(f: JobStoreReadFailure, NoData) =>
       log.error(f.reason, "Error reading from JobStore for " + jobKey)
       // Escalate
       throw new RuntimeException(f.reason)
   }
 
+  // When PreparingJob, the FSM always has NoData
   when(PreparingJob) {
-    case Event(BackendJobPreparationSucceeded(jobDescriptor, actorProps), stateData) =>
-      val backendJobExecutionActor = context.actorOf(actorProps, buildJobExecutionActorName(jobDescriptor))
-      val message = if (restarting) RecoverJobCommand else ExecuteJobCommand
-      backendJobExecutionActor ! message
-      context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
-      goto(RunningJob)
-    case Event(response: BackendJobPreparationFailed, _) =>
+    case Event(BackendJobPreparationSucceeded(jobDescriptor, bjeaProps), NoData) =>
+      callCachingMode.activity match {
+        case Some(activity) if activity.readFromCache =>
+          initializeJobHashing(jobDescriptor, activity)
+          goto(CheckingCallCache) using EJEAJobDescriptorData(Option(jobDescriptor), Option(bjeaProps))
+        case Some(activity) =>
+          initializeJobHashing(jobDescriptor, activity)
+          runJob(jobDescriptor, bjeaProps)
+        case None => runJob(jobDescriptor, bjeaProps)
+      }
+    case Event(response: BackendJobPreparationFailed, NoData) =>
       context.parent forward response
       context stop self
       stay()
   }
 
+  // When CheckingCallCache, the FSM always has EJEAJobDescriptorData
+  when(CheckingCallCache) {
+    case Event(CacheMiss, EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) =>
+      log.info(s"Cache miss for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}")
+      runJob(jobDescriptor, bjeaProps)
+    case Event(CacheHit(cacheResultId), EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
+      log.info(s"Cache hit for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}! Copying cache result $cacheResultId")
+      lookupCachedResult(jobDescriptor, cacheResultId)
+  }
+
+  // When RunningJob, the FSM always has EJEAPartialCompletionData (which might be None, None)
   when(RunningJob) {
-    case Event(response: BackendJobExecutionResponse, _) =>
-      saveJobCompletionResult(response)
-      context.parent forward response
-      goto(AwaitingJobStoreAck)
+    case Event(response: SucceededResponse, EJEAPartialCompletionData(None, Some(hashes))) if callCachingMode.writeToCache =>
+      saveCacheResults(EJEACompletionDataWithHashes(response, hashes))
+    case Event(response: SucceededResponse, data @ EJEAPartialCompletionData(None, None)) if callCachingMode.writeToCache =>
+      stay using data.copy(jobResult = Option(response))
+    case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(Some(response), None)) =>
+      saveCacheResults(EJEACompletionDataWithHashes(response, hashes))
+    case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(None, None)) =>
+      stay using data.copy(hashes = Option(hashes))
+    case Event(response: BackendJobExecutionResponse, data: EJEAPartialCompletionData) =>
+      saveJobCompletionToJobStore(response)
   }
 
-  when(AwaitingJobStoreAck) {
-    case Event(JobStoreWriteSuccess(_), _) =>
+  // When WritingToCallCache, the FSM always has EJEACompletionDataWithHashes
+  when(WritingToCallCache) {
+    // TODO: case Event(CacheWriter.SuccessAck, ...) =>
+    case Event(_, data @ EJEACompletionDataWithHashes(response, _)) => {
+      saveJobCompletionToJobStore(response)
+    }
+    // TODO: case Event(CacheWriter.FailureAck, ...) => Sad times!
+  }
+
+  // When UpdatingJobStore, the FSM always has EJEACompletionData
+  when(UpdatingJobStore) {
+    case Event(JobStoreWriteSuccess(_), EJEACompletionData(response)) =>
+      context.parent forward response
       context stop self
       stay()
-    case Event(JobStoreWriteFailure(_, t), _) =>
-      // This is moderately bad: If we can't write this result to the database, and then undergo a system restart, we'd need
-      // to re-run this job.
-      // On the other hand, if the DB is really down, this would be the least of our problems!
-      log.error("Failed to write Job result to JobStore: {}", t)
-      context stop self
+    case Event(JobStoreWriteFailure(t), EJEACompletionData(_)) =>
+      context.parent ! FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None)
+      context.stop(self)
       stay()
+  }
+
+  onTransition {
+    case fromState -> toState =>
+      log.info(s"Transitioning from $fromState($stateData) to $toState($nextStateData)")
   }
 
   whenUnhandled {
     case Event(msg, _) =>
-      log.error(s"Bad message to EngineJobExecutionActor in state $stateName($stateData): $msg")
+      log.error(s"Bad message to EngineJobExecutionActor in state $stateName(with data $stateData): $msg")
       stay
   }
 
-  def prepareJob(jobKey: BackendJobDescriptorKey) = {
+  def prepareJob() = {
     val jobPreparationActorName = s"$workflowId-BackendPreparationActor-${jobKey.tag}"
     val jobPrepProps = JobPreparationActor.props(executionData, jobKey, factory, initializationData, serviceRegistryActor)
     val jobPreparationActor = context.actorOf(jobPrepProps, jobPreparationActorName)
@@ -137,15 +145,44 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     goto(PreparingJob)
   }
 
+  def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
+    val fileHasherActor = context.actorOf(FileHasherActor.props)
+    context.actorOf(EngineJobHashingActor.props(jobDescriptor, fileHasherActor, activity))
+  }
+
+  def lookupCachedResult(jobDescriptor: BackendJobDescriptor, cacheResultId: Int) = {
+    // TODO: Start up a backend job copying actor (if possible, otherwise just runJob). That should send back the BackendJobExecutionResponse
+    self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache writing incomplete! Turn it off!!"), None)
+    // While the cache result is looked up, we wait for the resoonse just like we were waiting for a Job to complete:
+    goto(RunningJob) using EJEAPartialCompletionData(None, None)
+  }
+
+  def runJob(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) = {
+    val backendJobExecutionActor = context.actorOf(bjeaProps, buildJobExecutionActorName(jobDescriptor))
+    val message = if (restarting) RecoverJobCommand else ExecuteJobCommand
+    backendJobExecutionActor ! message
+    context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
+    goto(RunningJob) using EJEAPartialCompletionData(None, None)
+  }
+
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
   }
 
-  private def saveJobCompletionResult(response: BackendJobExecutionResponse) = response match {
-    case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
-    case AbortedResponse(jobKey: BackendJobDescriptorKey) => log.debug("Won't save 'aborted' job response to JobStore")
-    case FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
-    case FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
+  private def saveCacheResults(completionData: EJEACompletionData) = {
+    // TODO: Start the writer actor, which should reply somehow (TBD...) In the meantime, a truth self evident:
+    self ! "You know who's great? Chris. Chris is great. Give him a cake!"
+    goto(WritingToCallCache) using completionData
+  }
+
+  private def saveJobCompletionToJobStore(response: BackendJobExecutionResponse) = {
+    response match {
+      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+      case AbortedResponse(jobKey: BackendJobDescriptorKey) => log.debug("Won't save 'aborted' job response to JobStore")
+      case FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
+      case FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
+    }
+    goto(UpdatingJobStore) using EJEACompletionData(response)
   }
 
   private def saveSuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
@@ -159,4 +196,59 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     val jobStoreResult = JobResultFailure(returnCode, reason, retryable)
     jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
+}
+
+object EngineJobExecutionActor {
+  /** States */
+  sealed trait EngineJobExecutionActorState
+  case object Pending extends EngineJobExecutionActorState
+  case object CheckingJobStore extends EngineJobExecutionActorState
+  case object CheckingCallCache extends EngineJobExecutionActorState
+  case object PreparingJob extends EngineJobExecutionActorState
+  case object RunningJob extends EngineJobExecutionActorState
+  case object WritingToCallCache extends EngineJobExecutionActorState
+  case object UpdatingJobStore extends EngineJobExecutionActorState
+
+  /** Commands */
+  sealed trait EngineJobExecutionActorCommand
+  case object Execute extends EngineJobExecutionActorCommand
+
+  final case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
+
+  def props(jobDescriptorKey: BackendJobDescriptorKey,
+            executionData: WorkflowExecutionActorData,
+            factory: BackendLifecycleActorFactory,
+            initializationData: Option[BackendInitializationData],
+            restarting: Boolean,
+            serviceRegistryActor: ActorRef,
+            jobStoreActor: ActorRef,
+            callCachingMode: CallCachingMode) = {
+    Props(new EngineJobExecutionActor(jobDescriptorKey,
+      executionData,
+      factory,
+      initializationData,
+      restarting,
+      serviceRegistryActor,
+      jobStoreActor,
+      callCachingMode)).withDispatcher(EngineDispatcher)
+  }
+}
+
+sealed trait EJEAData
+case object NoData extends EJEAData
+case class EJEAJobDescriptorData(jobDescriptor: Option[BackendJobDescriptor], bjeaActorProps: Option[Props]) extends EJEAData {
+  override def toString = s"EJEAJobDescriptorData(backendJobDescriptor: ${jobDescriptor.isDefined}, bjeaActorProps: ${bjeaActorProps.isDefined})"
+}
+
+case class EJEAPartialCompletionData(jobResult: Option[BackendJobExecutionResponse], hashes: Option[CallCacheHashes]) extends EJEAData {
+  override def toString = s"EJEAPartialCompletionData(jobResult: ${jobResult.isDefined}, hashes: ${hashes.isDefined})"
+}
+
+// Le sigh. Can't do case-to-case inheritance so let's jump through these extractor-pattern hoops...
+class EJEACompletionData(val jobResult: BackendJobExecutionResponse) extends EJEAData {
+  override def toString = s"EJEACompletionData(${jobResult.getClass.getSimpleName})"
+}
+object EJEACompletionData { def apply(jobResult: BackendJobExecutionResponse) = new EJEACompletionData(jobResult); def unapply(completionData: EJEACompletionData) = Some(completionData.jobResult) }
+case class EJEACompletionDataWithHashes(override val jobResult: BackendJobExecutionResponse, hashes: CallCacheHashes) extends EJEACompletionData(jobResult = jobResult) {
+  override def toString = s"EJEACompletionDataWithHashes(${jobResult.getClass.getSimpleName}, ${hashes.hashes.size} hashes)"
 }

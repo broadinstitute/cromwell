@@ -5,10 +5,11 @@ import akka.actor._
 import akka.event.Logging
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCachingMode, CallCachingOff}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
@@ -220,11 +221,9 @@ class WorkflowManagerActor(config: Config,
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest
-    case Event(JobStoreWriteFailure(failedOperation @ RegisterWorkflowCompleted(wfId), t), _) =>
-      log.error("Error registering JobStore completion for {}: {}", arg1 = wfId, arg2 = t)
+    case Event(JobStoreWriteFailure(t), _) =>
+      log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)
       // This is minorly bad. The JobStore would never rid itself of this workflow's entries. Unlikely to be a big deal
-      // but might as well try again in a few minutes...
-      context.system.scheduler.scheduleOnce(10 minutes, sender, failedOperation)(context.dispatcher)
       stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>

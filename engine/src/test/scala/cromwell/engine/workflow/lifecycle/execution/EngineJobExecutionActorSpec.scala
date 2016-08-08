@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.UUID
+
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.CromwellTestkitSpec
@@ -10,13 +12,14 @@ import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingOff
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreActor, SqlJobStore, Pending => _}
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfterAll, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.{Call, Scope, Task}
+import wdl4s.{Call, Task}
 
 class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with WorkflowDescriptorBuilder with Mockito with BeforeAndAfterAll {
 
@@ -49,21 +52,22 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
     val jobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
 
-    new TestFSMRef[EngineJobExecutionActorState, Unit, EngineJobExecutionActor](system, EngineJobExecutionActor.props(
+    new TestFSMRef[EngineJobExecutionActorState, EJEAData, EngineJobExecutionActor](system, EngineJobExecutionActor.props(
       BackendJobDescriptorKey(Call(None, "foo.bar", task, Set.empty, Map.empty, None), None, 1),
       WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty)),
       factory,
       None,
       restarting = restarting,
       serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance,
-      jobStoreActor = system.actorOf(JobStoreActor.props(jobStore))
+      jobStoreActor = system.actorOf(JobStoreActor.props(jobStore)),
+      callCachingMode = CallCachingOff
     ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
   }
 
   "EngineJobExecutionActorSpec" should {
     "send a Job SucceededResponse if the job is already complete and successful" in {
       val ejea = buildEJEA(restarting = true)
-      ejea.setState(CheckingJobStatus)
+      ejea.setState(CheckingJobStore)
       val returnCode: Option[Int] = Option(0)
       val jobOutputs: JobOutputs = Map.empty
 
@@ -80,7 +84,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
     "send a Job FailedNonRetryableResponse if the job is already complete and failed" in {
       val ejea = buildEJEA(restarting = true)
-      ejea.setState(CheckingJobStatus)
+      ejea.setState(CheckingJobStore)
       val returnCode: Option[Int] = Option(1)
       val reason: Throwable = new Exception("something horrible happened...")
 
@@ -97,7 +101,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
     "send a RecoverJobCommand to the backend if the job is not complete and EJEA is in restarting mode" in {
       val ejea = buildEJEA(restarting = true)
-      ejea.setState(CheckingJobStatus)
+      ejea.setState(CheckingJobStore)
       val task = mock[Task]
       task.declarations returns Seq.empty
 
@@ -158,15 +162,18 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     "forward responds from backend to its parent" in {
       val deathWatch = TestProbe()
 
-      val jobKey = mock[BackendJobDescriptorKey]
-      val scope = mock[Call]
-      jobKey.scope returns scope
-      scope.fullyQualifiedName returns "blah"
-      jobKey.index returns None
+      def jobKey = {
+        val jk = mock[BackendJobDescriptorKey]
+        val scope = mock[Call]
+        jk.scope returns scope
+        scope.fullyQualifiedName returns "blah." + UUID.randomUUID().toString // Make sure job keys are unique.
+        jk.index returns None
+        jk
+      }
 
       def ejeaInRunningState() = {
         val ejea = buildEJEA(restarting = true)
-        ejea.setState(RunningJob)
+        ejea.setState(stateName = RunningJob, stateData = EJEAPartialCompletionData(None, None))
         ejea
       }
 
@@ -179,28 +186,24 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       deathWatch watch ejea1
       ejea1 ! successResponse
       ejeaParent.expectMsg(awaitTimeout, successResponse)
-      ejeaParent.lastSender shouldBe self
       deathWatch.expectTerminated(ejea1)
 
       val ejea2 = ejeaInRunningState()
       deathWatch watch ejea2
       ejea2 ! failureRetryableResponse
       ejeaParent.expectMsg(awaitTimeout, failureRetryableResponse)
-      ejeaParent.lastSender shouldBe self
       deathWatch.expectTerminated(ejea2)
 
       val ejea3 = ejeaInRunningState()
       deathWatch watch ejea3
       ejea3 ! failureNonRetryableResponse
       ejeaParent.expectMsg(awaitTimeout, failureNonRetryableResponse)
-      ejeaParent.lastSender shouldBe self
       deathWatch.expectTerminated(ejea3)
 
       val ejea4 = ejeaInRunningState()
       deathWatch watch ejea4
       ejea4 ! abortedResponse
       ejeaParent.expectMsg(awaitTimeout, abortedResponse)
-      ejeaParent.lastSender shouldBe self
       deathWatch.expectTerminated(ejea4)
     }
   }

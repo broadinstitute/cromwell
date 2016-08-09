@@ -12,7 +12,7 @@ task centaur {
         git clone https://github.com/broadinstitute/centaur.git
         cd centaur
         git checkout develop
-        ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -p 32 -r/cromwell_root -t ${secret}
+        ./test_cromwell.sh -j${cromwell_jar} -c/cromwell_root/${conf} -p 25 -r/cromwell_root -t ${secret}
     >>>
 
     output {

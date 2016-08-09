@@ -6,10 +6,11 @@ import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, Backen
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
+import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCachingActivity, CallCachingMode, EngineJobHashingActor, FileHasherActor}
+import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 
@@ -94,24 +95,25 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   // When RunningJob, the FSM always has EJEAPartialCompletionData (which might be None, None)
   when(RunningJob) {
     case Event(response: SucceededResponse, EJEAPartialCompletionData(None, Some(hashes))) if callCachingMode.writeToCache =>
-      saveCacheResults(EJEACompletionDataWithHashes(response, hashes))
+      saveCacheResults(EJEASuccessfulCompletionDataWithHashes(response, hashes))
     case Event(response: SucceededResponse, data @ EJEAPartialCompletionData(None, None)) if callCachingMode.writeToCache =>
       stay using data.copy(jobResult = Option(response))
-    case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(Some(response), None)) =>
-      saveCacheResults(EJEACompletionDataWithHashes(response, hashes))
+    case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(Some(response: SucceededResponse), None)) =>
+      saveCacheResults(EJEASuccessfulCompletionDataWithHashes(response, hashes))
     case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(None, None)) =>
       stay using data.copy(hashes = Option(hashes))
     case Event(response: BackendJobExecutionResponse, data: EJEAPartialCompletionData) =>
       saveJobCompletionToJobStore(response)
   }
 
-  // When WritingToCallCache, the FSM always has EJEACompletionDataWithHashes
-  when(WritingToCallCache) {
-    // TODO: case Event(CacheWriter.SuccessAck, ...) =>
-    case Event(_, data @ EJEACompletionDataWithHashes(response, _)) => {
+  // When WritingToCallCache, the FSM always has EJEASuccessfulCompletionDataWithHashes
+  when(UpdatingCallCache) {
+    case Event(CallCacheWriteSuccess, data @ EJEASuccessfulCompletionDataWithHashes(response, _)) =>
       saveJobCompletionToJobStore(response)
-    }
-    // TODO: case Event(CacheWriter.FailureAck, ...) => Sad times!
+    case Event(CallCacheWriteFailure(reason), data @ EJEASuccessfulCompletionDataWithHashes(response, _)) =>
+      context.parent ! FailedNonRetryableResponse(jobKey, reason, response.returnCode)
+      context stop self
+      stay()
   }
 
   // When UpdatingJobStore, the FSM always has EJEACompletionData
@@ -169,10 +171,10 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
   }
 
-  private def saveCacheResults(completionData: EJEACompletionData) = {
-    // TODO: Start the writer actor, which should reply somehow (TBD...) In the meantime, a truth self evident:
-    self ! "You know who's great? Chris. Chris is great. Give him a cake!"
-    goto(WritingToCallCache) using completionData
+  private def saveCacheResults(completionData: EJEASuccessfulCompletionDataWithHashes) = {
+    val callCache = new CallCache(CromwellDatabase.databaseInterface)
+    context.actorOf(CallCacheWriteActor.props(callCache, workflowId, completionData.hashes, completionData.jobResult))
+    goto(UpdatingCallCache) using completionData
   }
 
   private def saveJobCompletionToJobStore(response: BackendJobExecutionResponse) = {
@@ -206,7 +208,7 @@ object EngineJobExecutionActor {
   case object CheckingCallCache extends EngineJobExecutionActorState
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
-  case object WritingToCallCache extends EngineJobExecutionActorState
+  case object UpdatingCallCache extends EngineJobExecutionActorState
   case object UpdatingJobStore extends EngineJobExecutionActorState
 
   /** Commands */
@@ -249,6 +251,6 @@ class EJEACompletionData(val jobResult: BackendJobExecutionResponse) extends EJE
   override def toString = s"EJEACompletionData(${jobResult.getClass.getSimpleName})"
 }
 object EJEACompletionData { def apply(jobResult: BackendJobExecutionResponse) = new EJEACompletionData(jobResult); def unapply(completionData: EJEACompletionData) = Some(completionData.jobResult) }
-case class EJEACompletionDataWithHashes(override val jobResult: BackendJobExecutionResponse, hashes: CallCacheHashes) extends EJEACompletionData(jobResult = jobResult) {
+case class EJEASuccessfulCompletionDataWithHashes(override val jobResult: SucceededResponse, hashes: CallCacheHashes) extends EJEACompletionData(jobResult = jobResult) {
   override def toString = s"EJEACompletionDataWithHashes(${jobResult.getClass.getSimpleName}, ${hashes.hashes.size} hashes)"
 }

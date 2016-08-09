@@ -2,7 +2,7 @@ package cromwell.services.keyvalue
 
 import akka.actor.{Actor, ActorRef}
 import com.typesafe.config.Config
-import cromwell.core.{JobKey, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -16,7 +16,8 @@ object KeyValueServiceActor {
   sealed trait KvAction extends KvMessage with ServiceRegistryMessage {
     def serviceName = "KeyValue"
   }
-  case class ScopedKey(workflowId: WorkflowId, jobKey: JobKey, key: String)
+  case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
+  case class ScopedKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)
   case class KvPut(pair: KvPair) extends KvAction
   case class KvGet(key: ScopedKey) extends KvAction
 

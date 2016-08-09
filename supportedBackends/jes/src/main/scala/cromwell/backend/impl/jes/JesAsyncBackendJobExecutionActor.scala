@@ -150,7 +150,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
-      serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey))
+      serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id,
+        KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
+        JesOperationIdKey))
     case KvPair(scopedKey, operationId) if scopedKey.key == JesOperationIdKey =>
       operationId match {
         case Some(id) =>
@@ -362,7 +364,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       case Success(run) =>
         // If this execution represents a resumption don't publish the operation ID since clearly it is already persisted.
         if (runIdForResumption.isEmpty) {
-          serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, JesOperationIdKey), Option(run.runId)))
+          serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id,
+            KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
+            JesOperationIdKey), Option(run.runId)))
         }
     }
   }

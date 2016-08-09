@@ -115,7 +115,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     */
   override def recover: Future[BackendJobExecutionResponse] = {
     log.warning("{} Trying to recover job {}.", tag, jobDescriptor.key.call.fullyQualifiedName)
-    serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, HtCondorJobIdKey))
+    serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id,
+      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
+      HtCondorJobIdKey))
     executionResponse.future
   }
 
@@ -155,7 +157,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
           case job(jobId, clusterId) =>
             val overallJobIdentifier = s"$clusterId.${jobId.toInt - 1}" // Condor has 0 based indexing on the jobs, probably won't work on stuff like `queue 150`
             log.info("{} {} mapped to HtCondor JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, overallJobIdentifier)
-            serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id, jobDescriptor.key, HtCondorJobIdKey), Option(overallJobIdentifier)))
+            serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id,
+              KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
+              HtCondorJobIdKey), Option(overallJobIdentifier)))
             trackTaskToCompletion(overallJobIdentifier)
 
           case _ => FailedNonRetryableResponse(jobDescriptor.key,

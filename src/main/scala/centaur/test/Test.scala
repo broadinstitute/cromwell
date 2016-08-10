@@ -30,6 +30,7 @@ import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import scala.Option
 
+import scala.concurrent.blocking
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
@@ -88,7 +89,7 @@ object Operations {
     * stops with a failure.
     */
   def pollUntilStatus(workflow: SubmittedWorkflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
-    def pollDelay() = Thread.sleep(10000) // This could be a lot smarter, including cromwell style backoff
+    def pollDelay() = blocking { Thread.sleep(10000) } // This could be a lot smarter, including cromwell style backoff
     new Test[SubmittedWorkflow] {
       @tailrec
       def doPerform(allowed404s: Int = 2): SubmittedWorkflow = {
@@ -139,7 +140,7 @@ object Operations {
 
       f match {
         case Failure(_) if OffsetDateTime.now().isBefore(startTime.plusSeconds(timeout.toSeconds)) =>
-          Thread.sleep(1.second.toMillis)
+          blocking { Thread.sleep(1.second.toMillis) }
           eventually(startTime, timeout)(f)
         case t => t
       }

@@ -1209,14 +1209,13 @@ To enable Call Caching, add the following to your Cromwell [configuration](#conf
 
 ```
 call-caching {
-  enabled = true
+  enabled = false
   lookup-docker-hash = false
 }
 ```
 
-When `call-caching.enabled=true`, Cromwell will add completed calls to the cache as well as do a cache lookup before running any call.
-
-When `call-caching.lookup-docker-hash=true`, Cromwell will contact external services like DockerHub or Google Container Registry to resolve Docker floating container identifiers like `ubuntu:latest` into immutable hashes while computing the hash of the call invocation.  If this option is false, then the raw value specified in the WDL file for the Docker image is the value that will be used.
+When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to copy results from previously run jobs (when appropriate).
+When `call-caching.lookup-docker-hash=true` (default: `false`), Cromwell will contact external services like DockerHub or Google Container Registry to resolve Docker floating container identifiers like `ubuntu:latest` into immutable hashes while computing the hash of the call invocation.  If this option is false, then the raw value specified in the WDL file for the Docker image is the value that will be used.
 
 Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
 

@@ -1,9 +1,10 @@
 package cromwell.backend.impl.htcondor
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
+import cromwell.backend.callcaching.{BackendHashingMethods, DefaultBackendHashingMethods}
 import cromwell.backend.impl.htcondor.caching.CacheActorFactory
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
@@ -13,7 +14,7 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.util.{Failure, Success, Try}
 
-case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory with StrictLogging {
+case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],
@@ -24,7 +25,7 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef): Props = {
-    HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, serviceRegistryActor, resolveCacheProviderProps(jobDescriptor.descriptor.workflowOptions))
+    HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, serviceRegistryActor, resolveCacheProviderProps(jobDescriptor.workflowDescriptor.workflowOptions))
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
@@ -66,5 +67,7 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
       case Failure(_) => defaultValue
     }
   }
+
+  override val backendHashingMethods: BackendHashingMethods = DefaultBackendHashingMethods(actorSystem)
 }
 

@@ -2,9 +2,10 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.backend.impl.jes.callcaching.JesBackendHashingMethods
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
@@ -21,7 +22,7 @@ object JesBackendLifecycleActorFactory {
   }
 }
 
-case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
+case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
   import JesBackendLifecycleActorFactory._
 
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
@@ -45,6 +46,8 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
                                               initializationData: Option[BackendInitializationData]) = {
     Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher(BackendDispatcher))
   }
+
+  override val backendHashingMethods = JesBackendHashingMethods(actorSystem)
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,

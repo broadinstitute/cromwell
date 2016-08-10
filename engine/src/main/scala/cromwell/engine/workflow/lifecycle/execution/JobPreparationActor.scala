@@ -18,7 +18,7 @@ object JobPreparationActor {
   case object Start extends JobPreparationActorCommands
 
   sealed trait JobPreparationActorResponse
-  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, props: Props) extends JobPreparationActorResponse
+  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends JobPreparationActorResponse
   case class BackendJobPreparationFailed(jobKey: JobKey, throwable: Throwable) extends JobPreparationActorResponse
 
   def props(executionData: WorkflowExecutionActorData,
@@ -48,7 +48,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
 
   override def receive = {
     case Start =>
-      val response = resolveAndEvaluate(jobKey, expressionLanguageFunctions) flatMap { prepareJobExecutionActor } match {
+      val response = resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions) flatMap { prepareJobExecutionActor } match {
         case Success(m) => m
         case Failure(f) => BackendJobPreparationFailed(jobKey, f)
       }
@@ -59,15 +59,27 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   }
 
   def prepareJobExecutionActor(inputs: Map[LocallyQualifiedName, WdlValue]): Try[BackendJobPreparationSucceeded] = {
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, inputs)
-    Try(factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor)) map { BackendJobPreparationSucceeded(jobDescriptor, _) }
+    for {
+      evaluatedRuntimeAtts <- evaluateRuntimeAttributes(jobKey, expressionLanguageFunctions, inputs)
+      jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, evaluatedRuntimeAtts, inputs)
+    } yield BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor))
   }
 
   // Split inputs map (= evaluated workflow declarations + coerced json inputs) into [init\.*].last
   private lazy val splitInputs = workflowDescriptor.backendDescriptor.inputs map { case (fqn, v) => splitFqn(fqn) -> v }
 
-  def resolveAndEvaluate(jobKey: BackendJobDescriptorKey,
-                         wdlFunctions: WdlStandardLibraryFunctions): Try[Map[LocallyQualifiedName, WdlValue]] = {
+  def evaluateRuntimeAttributes(jobKey: BackendJobDescriptorKey,
+                                wdlFunctions: WdlStandardLibraryFunctions,
+                                evaluatedInputs: Map[LocallyQualifiedName, WdlValue]): Try[Map[String, WdlValue]] = {
+    val tryInputs = evaluatedInputs.mapValues(Try(_))
+    val mapOfTries = jobKey.call.task.runtimeAttributes.attrs mapValues {
+      expr => expr.evaluate(buildMapBasedLookup(tryInputs), wdlFunctions)
+    }
+    TryUtil.sequenceMap(mapOfTries) // Just when you thought it was safe to go back in the water...
+  }
+
+  def resolveAndEvaluateInputs(jobKey: BackendJobDescriptorKey,
+                               wdlFunctions: WdlStandardLibraryFunctions): Try[Map[LocallyQualifiedName, WdlValue]] = {
     val call = jobKey.call
     lazy val callInputsFromFile = unqualifiedInputsFromInputFile(call)
     lazy val workflowScopedLookup = hierarchicalLookup(jobKey.call, jobKey.index) _

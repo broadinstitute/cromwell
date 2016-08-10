@@ -9,11 +9,12 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
+import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCachingMode, CallCachingOff}
+import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -293,11 +294,21 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
     if (enabled) {
       val lookupDockerHashes = conf.getBooleanOption("call-caching.lookup-docker-hash").getOrElse(false)
+      // TODO: This option isn't advertised in the README and probably won't last very long, so don't get used to it!
+      val hashFileContents = conf.getBooleanOption("call-caching.hash-file-contents").getOrElse(true)
+
+      val dockerHashingType = if (lookupDockerHashes) HashDockerNameAndLookupDockerHash else HashDockerName
+      val fileHashingType = if (hashFileContents) HashFileContents else HashFilePath
 
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
-      (readFromCache |@| writeToCache) { CallCachingMode(_, _, lookupDockerHashes) }
+      (readFromCache |@| writeToCache) {
+        case (false, false) => CallCachingOff
+        case (true, false) => CallCachingActivity(ReadCache, dockerHashingType, fileHashingType)
+        case (false, true) => CallCachingActivity(WriteCache, dockerHashingType, fileHashingType)
+        case (true, true) => CallCachingActivity(ReadAndWriteCache, dockerHashingType, fileHashingType)
+      }
     }
     else {
       CallCachingOff.successNel

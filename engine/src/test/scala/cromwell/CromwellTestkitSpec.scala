@@ -10,6 +10,7 @@ import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
+import cromwell.backend.callcaching.{BackendHashingMethods, DefaultBackendHashingMethods}
 import cromwell.core._
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.engine.backend.BackendConfigurationEntry
@@ -41,7 +42,7 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
-case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
+case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None
@@ -57,6 +58,8 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
     NoFunctions
   }
+
+  override val backendHashingMethods: BackendHashingMethods = DefaultBackendHashingMethods(actorSystem)
 }
 
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")

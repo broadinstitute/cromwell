@@ -65,7 +65,7 @@ trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowL
 
 trait BackendJobLifecycleActor extends BackendLifecycleActor with JobLogging {
   //For Logging and boilerplate
-  override lazy val workflowId = jobDescriptor.descriptor.id
+  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
   override lazy val jobTag = jobDescriptor.key.tag
 
   protected def jobDescriptor: BackendJobDescriptor

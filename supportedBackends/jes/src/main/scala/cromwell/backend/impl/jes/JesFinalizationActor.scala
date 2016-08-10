@@ -13,7 +13,7 @@ import scala.concurrent.Future
 
 object JesFinalizationActor {
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
-            executionStore: ExecutionStore, outputStore: OutputStore, initializationData: JesBackendInitializationData) = {
+            executionStore: ExecutionStore, outputStore: OutputStore, initializationData: Option[JesBackendInitializationData]) = {
     Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData))
   }
 }
@@ -22,11 +22,11 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
                             override val calls: Seq[Call],
                             jesConfiguration: JesConfiguration, executionStore: ExecutionStore,
                             outputStore: OutputStore,
-                            initializationData: JesBackendInitializationData) extends BackendWorkflowFinalizationActor {
+                            initializationData: Option[JesBackendInitializationData]) extends BackendWorkflowFinalizationActor {
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
 
-  private val workflowPaths = initializationData.workflowPaths
+  private val workflowPaths = initializationData.map { _.workflowPaths }
 
   private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
 
@@ -39,10 +39,9 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   }
 
   private def deleteAuthenticationFile(): Future[Unit] = {
-    if (jesConfiguration.needAuthFileUpload) {
-      Future(workflowPaths.gcsAuthFilePath.delete(false)) map { _ => () }
-    } else {
-      Future.successful(())
+    (jesConfiguration.needAuthFileUpload, workflowPaths) match {
+      case (true, Some(paths)) => Future(paths.gcsAuthFilePath.delete(false)) map { _ => () }
+      case _ => Future.successful(())
     }
   }
 
@@ -55,7 +54,10 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
     Measure and optimize as necessary. Will likely need retry code at some level as well.
      */
-    Future(workflowPaths.finalCallLogsPath foreach copyCallOutputs)(iOExecutionContext)
+    workflowPaths match {
+      case Some(paths) => Future(paths.finalCallLogsPath foreach copyCallOutputs)(iOExecutionContext)
+      case _ => Future.successful(())
+    }
   }
 
   private def copyCallOutputs(callLogsPath: Path): Unit = {
@@ -65,15 +67,18 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   private lazy val logPaths: Seq[Path] = {
     val allCallPaths = executionStore.store.toSeq collect {
       case (backendJobDescriptorKey: BackendJobDescriptorKey, _) =>
-        initializationData.workflowPaths.toJesCallPaths(backendJobDescriptorKey)
+        initializationData map { _.workflowPaths.toJesCallPaths(backendJobDescriptorKey) }
     }
 
-    allCallPaths flatMap { callPaths =>
+    allCallPaths.flatten flatMap { callPaths =>
       Seq(callPaths.stdoutPath, callPaths.stderrPath, callPaths.jesLogPath)
     }
   }
 
   private def copyLogs(callLogsDirPath: Path, logPaths: Seq[Path]): Unit = {
-    logPaths.foreach(PathCopier.copy(workflowPaths.rootPath, _, callLogsDirPath))
+    workflowPaths match {
+      case Some(paths) => logPaths.foreach(PathCopier.copy(paths.rootPath, _, callLogsDirPath))
+      case None =>
+    }
   }
 }

@@ -14,7 +14,10 @@ import scala.language.postfixOps
 
 object JesBackendLifecycleActorFactory {
   implicit class Jessify(val genericInitializationData: Option[BackendInitializationData]) {
-    def toJes = genericInitializationData collectFirst { case d: JesBackendInitializationData => d } get
+    // This leaves the result in an `Option` as finalization will be called even if initialization has failed, and if
+    // initialization fails there won't be any initialization data.  The various `.get`s that occur below are in instances
+    // where the workflow has successfully gotten past initialization and the JES initialization data is defined.
+    def toJes: Option[JesBackendInitializationData] = genericInitializationData collectFirst { case d: JesBackendInitializationData => d }
   }
 }
 
@@ -32,7 +35,7 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef): Props = {
-    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes, serviceRegistryActor).withDispatcher(BackendDispatcher)
+    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -47,12 +50,12 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
                                            jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
 
-    val jesCallPaths = initializationData.toJes.workflowPaths.toJesCallPaths(jobKey)
+    val jesCallPaths = initializationData.toJes.get.workflowPaths.toJesCallPaths(jobKey)
     new JesExpressionFunctions(List(jesCallPaths.gcsFileSystemWithUserAuth), jesCallPaths.callContext)
   }
 
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,
                                     initializationData: Option[BackendInitializationData]): Path = {
-    initializationData.toJes.workflowPaths.rootPath
+    initializationData.toJes.get.workflowPaths.rootPath
   }
 }

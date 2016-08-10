@@ -232,7 +232,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       allDone
     case Event(WorkflowOutputsResponse(id, events), _) =>
       // Add in an empty output event if there aren't already any output events.
-      val hasOutputs = events collectFirst { case MetadataEvent(MetadataKey(_, _, key), _, _) if key == WorkflowMetadataKeys.Outputs => () } isDefined
+      val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
       val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
       context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false))
       allDone

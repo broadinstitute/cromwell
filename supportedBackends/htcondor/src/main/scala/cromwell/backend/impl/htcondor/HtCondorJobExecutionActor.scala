@@ -266,7 +266,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {
     Try {
       val dockerInputDataVol = localizedInputs.collect {
-        case (k, v) => v match {
+        case (k, v) if v.wdlType == WdlFileType || v.wdlType == WdlArrayType(WdlFileType) => v match {
           case file if file.wdlType == WdlFileType =>
             val limit = file.valueString.lastIndexOf("/")
             Seq(file.valueString.substring(0, limit))

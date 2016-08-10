@@ -26,6 +26,6 @@ object OutputEvaluator {
 
       })
 
-    TryUtil.sequenceMap(evaluatedOutputs, s"Workflow ${jobDescriptor.descriptor.id} post processing failed.")
+    TryUtil.sequenceMap(evaluatedOutputs, s"Workflow ${jobDescriptor.workflowDescriptor.id} post processing failed.")
   }
 }

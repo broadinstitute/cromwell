@@ -18,7 +18,6 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingMode
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
@@ -139,8 +138,9 @@ object WorkflowActor {
             conf: Config,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
-            jobStoreActor: ActorRef): Props = {
-    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor)).withDispatcher(EngineDispatcher)
+            jobStoreActor: ActorRef,
+            dockerHashLookupActor: ActorRef): Props = {
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, dockerHashLookupActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -153,7 +153,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     conf: Config,
                     serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
-                    jobStoreActor: ActorRef)
+                    jobStoreActor: ActorRef,
+                    dockerHashLookupActor: ActorRef)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
   implicit val actorSystem = context.system
@@ -204,6 +205,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         workflowDescriptor,
         serviceRegistryActor,
         jobStoreActor,
+        dockerHashLookupActor,
         initializationData,
         restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
 

@@ -17,4 +17,3 @@ trait CromwellSystem {
 
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries, actorSystem)
 }
-

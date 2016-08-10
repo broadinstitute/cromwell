@@ -7,19 +7,20 @@ import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
+import cromwell.core.callcaching.CallCachingOff
 import cromwell.core.{ExecutionStore, JobOutputs, OutputStore, WorkflowId}
 import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingOff
+import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreActor, SqlJobStore, Pending => _}
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfterAll, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.{Call, Task}
+import wdl4s.{Call, RuntimeAttributes, Task}
 
 class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with WorkflowDescriptorBuilder with Mockito with BeforeAndAfterAll {
 
@@ -35,6 +36,8 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
   })
   val ejeaParent = TestProbe()
   val factory = new BackendLifecycleActorFactory {
+    override def actorSystem = system
+
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                   calls: Seq[Call],
                                                   serviceRegistryActor: ActorRef): Option[Props] = None
@@ -49,6 +52,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
   def buildEJEA(restarting: Boolean) = {
     val task = mock[Task]
     task.declarations returns Seq.empty
+    task.runtimeAttributes returns RuntimeAttributes(Map.empty)
 
     val jobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
 
@@ -60,6 +64,8 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       restarting = restarting,
       serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance,
       jobStoreActor = system.actorOf(JobStoreActor.props(jobStore)),
+      dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor)),
+      backendName = "NOT USED",
       callCachingMode = CallCachingOff
     ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
   }
@@ -173,7 +179,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       def ejeaInRunningState() = {
         val ejea = buildEJEA(restarting = true)
-        ejea.setState(stateName = RunningJob, stateData = EJEAPartialCompletionData(None, None))
+        ejea.setState(stateName = RunningJob, stateData = EmptyPartialCompletionData)
         ejea
       }
 

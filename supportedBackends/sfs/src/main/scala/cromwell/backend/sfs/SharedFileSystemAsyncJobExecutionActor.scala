@@ -134,16 +134,16 @@ trait SharedFileSystemAsyncJobExecutionActor
     }
   }
 
-  def jobName: String = s"cromwell_${jobDescriptor.descriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
+  def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
 
   override def retryable = false
 
-  lazy val workflowDescriptor = jobDescriptor.descriptor
+  lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
   lazy val call = jobDescriptor.key.call
   lazy val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
   lazy val fileSystems = WorkflowPathsBackendInitializationData.fileSystems(backendInitializationDataOption)
   lazy val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, fileSystems)
-  override lazy val workflowId = jobDescriptor.descriptor.id
+  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
   override lazy val jobTag = jobDescriptor.key.tag
 
   private val lookup = jobDescriptor.inputs.apply _
@@ -158,7 +158,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     // Fail the call if runtime attributes can't be evaluated
     val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
     val builder = initializationData.runtimeAttributesBuilder
-    builder.build(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions, jobLogger)
+    builder.build(evaluatedAttributes, jobDescriptor.workflowDescriptor.workflowOptions, jobLogger)
   }
 
   lazy val isDockerRun = RuntimeAttributesValidation.extractOption(

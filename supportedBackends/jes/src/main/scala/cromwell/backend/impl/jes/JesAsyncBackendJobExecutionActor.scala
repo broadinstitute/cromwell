@@ -98,7 +98,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
-  private lazy val workflowDescriptor = jobDescriptor.descriptor
+  private lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
 
   // For Logging
   val workflowId = workflowDescriptor.id
@@ -107,7 +107,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val jesAttributes = jesConfiguration.jesAttributes
   private[jes] lazy val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
   private[jes] lazy val monitoringScript: Option[JesInput] = {
-    jobDescriptor.descriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
+    jobDescriptor.workflowDescriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
       JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, Paths.get(JesMonitoringScript), workingDisk)
     } toOption
   }
@@ -125,7 +125,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       // Fail the call if runtime attributes can't be evaluated
       TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
     }
-    JesRuntimeAttributes(evaluatedAttributes, jobDescriptor.descriptor.workflowOptions, jobLogger)
+    JesRuntimeAttributes(evaluatedAttributes, jobDescriptor.workflowDescriptor.workflowOptions, jobLogger)
   }
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
@@ -150,7 +150,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
-      serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id,
+      serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id,
         KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
         JesOperationIdKey))
     case KvPair(scopedKey, operationId) if scopedKey.key == JesOperationIdKey =>
@@ -350,7 +350,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       commandLine = jesCommandLine,
       logFileName = jesLogFilename,
       jesParameters,
-      googleProject(jobDescriptor.descriptor),
+      googleProject(jobDescriptor.workflowDescriptor),
       retryable,
       initializationData.genomics
     ))
@@ -364,7 +364,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       case Success(run) =>
         // If this execution represents a resumption don't publish the operation ID since clearly it is already persisted.
         if (runIdForResumption.isEmpty) {
-          serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id,
+          serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.workflowDescriptor.id,
             KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
             JesOperationIdKey), Option(run.runId)))
         }

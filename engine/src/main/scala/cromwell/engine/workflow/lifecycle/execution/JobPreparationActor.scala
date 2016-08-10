@@ -6,6 +6,7 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{ExecutionStore, JobKey, OutputStore}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor._
+import cromwell.webservice.WdlValueJsonFormatter
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.util.TryUtil
@@ -18,7 +19,7 @@ object JobPreparationActor {
   case object Start extends JobPreparationActorCommands
 
   sealed trait JobPreparationActorResponse
-  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, props: Props) extends JobPreparationActorResponse
+  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends JobPreparationActorResponse
   case class BackendJobPreparationFailed(jobKey: JobKey, throwable: Throwable) extends JobPreparationActorResponse
 
   def props(executionData: WorkflowExecutionActorData,
@@ -48,7 +49,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
 
   override def receive = {
     case Start =>
-      val response = resolveAndEvaluate(jobKey, expressionLanguageFunctions) flatMap { prepareJobExecutionActor } match {
+      val response = resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions) flatMap { prepareJobExecutionActor } match {
         case Success(m) => m
         case Failure(f) => BackendJobPreparationFailed(jobKey, f)
       }
@@ -59,15 +60,43 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   }
 
   def prepareJobExecutionActor(inputs: Map[LocallyQualifiedName, WdlValue]): Try[BackendJobPreparationSucceeded] = {
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, inputs)
-    Try(factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor)) map { BackendJobPreparationSucceeded(jobDescriptor, _) }
+    for {
+      evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(jobKey, expressionLanguageFunctions, inputs)
+      jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, evaluatedRuntimeAttributes, inputs)
+    } yield BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor))
   }
 
   // Split inputs map (= evaluated workflow declarations + coerced json inputs) into [init\.*].last
   private lazy val splitInputs = workflowDescriptor.backendDescriptor.inputs map { case (fqn, v) => splitFqn(fqn) -> v }
 
-  def resolveAndEvaluate(jobKey: BackendJobDescriptorKey,
-                         wdlFunctions: WdlStandardLibraryFunctions): Try[Map[LocallyQualifiedName, WdlValue]] = {
+  def evaluateRuntimeAttributes(jobKey: BackendJobDescriptorKey,
+                                wdlFunctions: WdlStandardLibraryFunctions,
+                                evaluatedInputs: Map[LocallyQualifiedName, WdlValue]): Try[Map[String, WdlValue]] = {
+    val tryInputs = evaluatedInputs map { case (x, y) => x -> Success(y) }
+    val mapOfTries = jobKey.call.task.runtimeAttributes.attrs mapValues {
+      expr => expr.evaluate(buildMapBasedLookup(tryInputs), wdlFunctions)
+    }
+    TryUtil.sequenceMap(mapOfTries).map(addDefaultsToAttributes(_))
+  }
+
+  def addDefaultsToAttributes(specifiedAttributes: Map[LocallyQualifiedName, WdlValue]): Map[LocallyQualifiedName, WdlValue] = {
+    import WdlValueJsonFormatter._
+    import spray.json._   // IGNORE INTELLIJ - this is deliberate...
+
+    val workflowOptions = executionData.workflowDescriptor.backendDescriptor.workflowOptions
+    def isUnspecifiedAttribute(name: String) = !specifiedAttributes.contains(name)
+
+    val missing = factory.runtimeAttributeDefinitions filter { x => isUnspecifiedAttribute(x.name) }
+    val defaults = missing map { x => (x, workflowOptions.getDefaultRuntimeOption(x.name)) } collect {
+      case (runtimeAttributeDefinition, Success(jsValue)) => runtimeAttributeDefinition.name -> jsValue.convertTo[WdlValue]
+      case (RuntimeAttributeDefinition(name, _, Some(defaultValue), _), _) => name -> defaultValue
+    }
+
+    specifiedAttributes ++ defaults
+  }
+
+  def resolveAndEvaluateInputs(jobKey: BackendJobDescriptorKey,
+                               wdlFunctions: WdlStandardLibraryFunctions): Try[Map[LocallyQualifiedName, WdlValue]] = {
     val call = jobKey.call
     lazy val callInputsFromFile = unqualifiedInputsFromInputFile(call)
     lazy val workflowScopedLookup = hierarchicalLookup(jobKey.call, jobKey.index) _

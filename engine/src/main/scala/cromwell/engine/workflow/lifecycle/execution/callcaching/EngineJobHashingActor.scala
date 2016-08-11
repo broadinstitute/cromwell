@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobDescriptor
+import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FileHasherActor.JobFileHashRequests
 
@@ -21,8 +22,14 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   initializeEJHA()
 
   when(DeterminingHitOrMiss) {
-    case Event(hashResultMessage: HashResultMessage, _) => lookupRelevantCacheResults(hashResultMessage.hashes)
-    case Event(newCacheResults: CacheResultMatchesForHashes, _) => checkWhetherHitOrMissIsKnownThenTransition(stateData.intersectCacheResultIds(newCacheResults))
+    case Event(hashResultMessage: HashResultMessage, _) =>
+      // This is in DeterminingHitOrMiss, so use the new hash results to search for cache results.
+      // Also update the state data with these new hash results.
+      val newHashResults = hashResultMessage.hashes
+      findCacheResults(newHashResults)
+      stay using updateStateDataWithNewHashResults(newHashResults)
+    case Event(newCacheResults: CacheResultMatchesForHashes, _) =>
+      checkWhetherHitOrMissIsKnownThenTransition(stateData.intersectCacheResults(newCacheResults))
   }
 
   when(GeneratingAllHashes) {
@@ -30,14 +37,20 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
     case Event(CacheResultMatchesForHashes(_, _), _) => stay // Don't care; we already know the hit/miss status. Ignore this message
   }
 
+  whenUnhandled {
+    case Event(failure: CacheResultLookupFailure, _) =>
+      // Crash and let the supervisor deal with it.
+      throw new RuntimeException("Failure looking up call cache results", failure.reason)
+  }
+
   private def initializeEJHA() = {
 
     // TODO: Implement call caching hashing: #1230
-    val initialHashes = List(
+    val initialHashes = Set(
       HashResult(HashKey("commandTemplate"), HashValue(jobDescriptor.call.task.commandTemplate.toString))
     )
     val fileHashesNeeded: Map[HashKey, Path] = Map.empty
-    val hashesNeeded: List[HashKey] = initialHashes.map(_.hashKey) ++ fileHashesNeeded.keys
+    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileHashesNeeded.keys
 
     val initialState = if (mode.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
     val initialData = EJHAData(jobDescriptor, hashesNeeded)
@@ -60,7 +73,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   }
 
   private def respondWithHitOrMissThenTransition(newData: EJHAData) = {
-    stateData.cacheHit match {
+    newData.cacheHit match {
       case Some(cacheResultId) => receiver ! CacheHit(cacheResultId)
       case None => receiver ! CacheMiss
     }
@@ -83,10 +96,13 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   /**
     * Needs to convert a hash result into the set of CachedResults which are consistent with it
     */
-  private def lookupRelevantCacheResults(hashResults: Iterable[HashResult]) = {
-    val newData = if (mode.writeToCache) stateData.withNewKnownHashes(hashResults) else stateData
-    self ! CacheResultMatchesForHashes(hashResults, Set.empty) // TODO: Probably want to convert this into a call to another actor which would respond back with the results.
-    stay using newData
+  private def findCacheResults(hashResults: Set[HashResult]) = {
+    val hashes = CallCacheHashes(hashResults)
+    context.actorOf(CallCacheReadActor.props(hashes), s"CallCacheReadActor-${jobDescriptor.descriptor.id}-${jobDescriptor.key.tag}")
+  }
+
+  def updateStateDataWithNewHashResults(hashResults: Set[HashResult]): EJHAData = {
+    if (mode.writeToCache) stateData.withNewKnownHashes(hashResults) else stateData
   }
 
   // TODO: Implement me.
@@ -99,9 +115,9 @@ object EngineJobHashingActor {
   def props(jobDescriptor: BackendJobDescriptor, fileHasherActor: ActorRef, activity: CallCachingActivity): Props = Props(new EngineJobHashingActor(jobDescriptor, fileHasherActor, activity))
 
   trait HashResultMessage {
-    def hashes: Iterable[HashResult]
+    def hashes: Set[HashResult]
   }
-  private[callcaching] case class EJHAInitialHashingResults(hashes: Iterable[HashResult]) extends HashResultMessage
+  private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends HashResultMessage
   private[callcaching] case object CheckWhetherAllHashesAreKnown
 
   sealed trait EJHAState
@@ -109,43 +125,43 @@ object EngineJobHashingActor {
   case object GeneratingAllHashes extends EJHAState
 
   sealed trait EJHAResponse
-  case class CacheHit(cacheResultId: Int) extends EJHAResponse
+  case class CacheHit(cacheResultId: MetaInfoId) extends EJHAResponse
   case object CacheMiss
-  case class CallCacheHashes(hashes: List[HashResult])
+  case class CallCacheHashes(hashes: Set[HashResult])
 }
 
 /**
   * Transient data for the EJHA.
   *
   * @param possibleCacheResults The set of cache results which have matched all currently tried hashes
-  * @param cacheResultsIntersected The set of hash keys which have already been compared against the cache result table
+  * @param keysCheckedAgainstCache The set of hash keys which have already been compared against the cache result table
   * @param hashesKnown The set of all hashes calculated so far (including initial hashes)
   * @param hashesNeeded Not transient but oh-so-useful for everything else.
   */
-private[callcaching] case class EJHAData(possibleCacheResults: Set[Int],
-                                         cacheResultsIntersected: List[HashKey],
-                                         hashesKnown: List[HashResult],
-                                         hashesNeeded: Iterable[HashKey]) {
+private[callcaching] case class EJHAData(possibleCacheResults: Set[MetaInfoId],
+                                         keysCheckedAgainstCache: Set[HashKey],
+                                         hashesKnown: Set[HashResult],
+                                         hashesNeeded: Set[HashKey]) {
 
   // Manipulators
-  def intersectCacheResultIds(newCacheResults: CacheResultMatchesForHashes) = {
+  def intersectCacheResults(newCacheResults: CacheResultMatchesForHashes) = {
     val newIds = newCacheResults.cacheResultIds
-    val intersectedIds = if (cacheResultsIntersected.nonEmpty) possibleCacheResults.intersect(newIds) else newIds
+    val intersectedIds = if (keysCheckedAgainstCache.nonEmpty) possibleCacheResults.intersect(newIds) else newIds
     this.copy(
       possibleCacheResults = intersectedIds,
-      cacheResultsIntersected = cacheResultsIntersected ++ newCacheResults.hashResults.map(_.hashKey))
+      keysCheckedAgainstCache = keysCheckedAgainstCache ++ newCacheResults.hashResults.map(_.hashKey))
   }
-  def withNewKnownHashes(hashResults: Iterable[HashResult]) = this.copy(hashesKnown = hashesKnown ++ hashResults) // NB doesn't update hashesNeeded which should be considered immutable
+  def withNewKnownHashes(hashResults: Set[HashResult]) = this.copy(hashesKnown = hashesKnown ++ hashResults) // NB doesn't update hashesNeeded which should be considered immutable
 
   // Queries
   def allHashesKnown = hashesNeeded.size == hashesKnown.size
-  def allCacheResultsIntersected = cacheResultsIntersected.size == hashesNeeded.size
-  def cacheHit = if (allCacheResultsIntersected && possibleCacheResults.nonEmpty) Option(possibleCacheResults.head) else None
+  def allCacheResultsIntersected = keysCheckedAgainstCache.size == hashesNeeded.size
+  def cacheHit = if (allCacheResultsIntersected && possibleCacheResults.nonEmpty) possibleCacheResults.headOption else None
   def isDefinitelyCacheHit = cacheHit.isDefined
-  def isDefinitelyCacheMiss = cacheResultsIntersected.nonEmpty && possibleCacheResults.isEmpty
+  def isDefinitelyCacheMiss = keysCheckedAgainstCache.nonEmpty && possibleCacheResults.isEmpty
   def isDefinitelyCacheHitOrMiss = isDefinitelyCacheHit || isDefinitelyCacheMiss
 }
 
 object EJHAData {
-  def apply(jobDescriptor: BackendJobDescriptor, hashesNeeded: Iterable[HashKey]): EJHAData = EJHAData(Set.empty, List.empty, List.empty, hashesNeeded)
+  def apply(jobDescriptor: BackendJobDescriptor, hashesNeeded: Set[HashKey]): EJHAData = EJHAData(Set.empty, Set.empty, Set.empty, hashesNeeded)
 }

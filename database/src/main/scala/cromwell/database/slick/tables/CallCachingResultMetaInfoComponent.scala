@@ -1,6 +1,7 @@
 package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CallCachingResultMetaInfoEntry
+import slick.profile.RelationalProfile.ColumnOption.Default
 
 trait CallCachingResultMetaInfoComponent {
 
@@ -14,7 +15,7 @@ trait CallCachingResultMetaInfoComponent {
     def callFqn = column[String]("CALL_FQN")
     def returnCode = column[Option[Int]]("RETURN_CODE")
     def scatterIndex = column[Int]("JOB_SCATTER_INDEX")
-    def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE")
+    def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", Default(true))
 
     override def * = (workflowUuid, callFqn, scatterIndex, returnCode, allowResultReuse, callCachingResultMetaInfoId.?) <>
       (CallCachingResultMetaInfoEntry.tupled, CallCachingResultMetaInfoEntry.unapply)

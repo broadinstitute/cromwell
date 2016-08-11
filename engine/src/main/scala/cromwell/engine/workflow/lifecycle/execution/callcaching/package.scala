@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import cromwell.database.sql.MetaInfoId
+
 package object callcaching {
 
   // TODO: Find somewhere better for all these?
@@ -7,7 +9,8 @@ package object callcaching {
   case class HashValue(value: String)
   case class HashResult(hashKey: HashKey, hashValue: HashValue)
 
-  private[callcaching] case class CacheResultMatchesForHashes(hashResults: Iterable[HashResult], cacheResultIds: Set[Int])
+  private[callcaching] case class CacheResultMatchesForHashes(hashResults: Set[HashResult], cacheResultIds: Set[MetaInfoId])
+  private[callcaching] case class CacheResultLookupFailure(reason: Throwable)
 
   sealed trait CallCachingMode { def activity: Option[CallCachingActivity]; def readFromCache = false; def writeToCache = false; def lookupDockerHashes: Boolean = false }
   object CallCachingMode {

@@ -7,6 +7,7 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.database.CromwellDatabase
+import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
@@ -152,10 +153,10 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     context.actorOf(EngineJobHashingActor.props(jobDescriptor, fileHasherActor, activity))
   }
 
-  def lookupCachedResult(jobDescriptor: BackendJobDescriptor, cacheResultId: Int) = {
+  def lookupCachedResult(jobDescriptor: BackendJobDescriptor, cacheResultId: MetaInfoId) = {
     // TODO: Start up a backend job copying actor (if possible, otherwise just runJob). That should send back the BackendJobExecutionResponse
-    self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache writing incomplete! Turn it off!!"), None)
-    // While the cache result is looked up, we wait for the resoonse just like we were waiting for a Job to complete:
+    self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache result copying not implemented!"), None)
+    // While the cache result is looked up, we wait for the response just like we were waiting for a Job to complete:
     goto(RunningJob) using EJEAPartialCompletionData(None, None)
   }
 
@@ -173,7 +174,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   private def saveCacheResults(completionData: EJEASuccessfulCompletionDataWithHashes) = {
     val callCache = new CallCache(CromwellDatabase.databaseInterface)
-    context.actorOf(CallCacheWriteActor.props(callCache, workflowId, completionData.hashes, completionData.jobResult))
+    context.actorOf(CallCacheWriteActor.props(callCache, workflowId, completionData.hashes, completionData.jobResult), s"CallCacheWriteActor-$workflowId")
     goto(UpdatingCallCache) using completionData
   }
 

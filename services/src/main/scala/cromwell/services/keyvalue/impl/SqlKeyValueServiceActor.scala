@@ -29,9 +29,7 @@ case class SqlKeyValueServiceActor(override val serviceConfig: Config, override 
   override def doGet(get: KvGet): Future[KvResponse] = {
     val backendValue = getBackendValueByKey(
       get.key.workflowId,
-      get.key.jobKey.scope,
-      get.key.jobKey.index,
-      get.key.jobKey.attempt,
+      get.key.jobKey,
       get.key.key
     )
 

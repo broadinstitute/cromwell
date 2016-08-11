@@ -1,29 +1,28 @@
 package cromwell.services.keyvalue.impl
 
-import scala.concurrent.{Future, ExecutionContext}
 import akka.actor.ActorSystem
-
+import cromwell.core.ExecutionIndex._
+import cromwell.core.WorkflowId
 import cromwell.database.Database
+import cromwell.services.keyvalue.KeyValueServiceActor.KvJobKey
 import cromwell.util.DatabaseUtil._
 
-import cromwell.core.{JobKey, WorkflowId}
-import cromwell.core.ExecutionIndex._
-import wdl4s.Scope
+import scala.concurrent.{ExecutionContext, Future}
 
 trait BackendKeyValueDatabaseAccess { this: Database =>
 
-  def getBackendValueByKey(workflowId: WorkflowId, call: Scope, callIndex: Option[Int], attempt: Int, key: String)
+  def getBackendValueByKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)
                            (implicit ec: ExecutionContext): Future[Option[String]] = {
-    databaseInterface.queryBackendStoreValueByStoreKey(workflowId.toString, call.fullyQualifiedName, callIndex.fromIndex, attempt, key)
+    databaseInterface.queryBackendStoreValueByStoreKey(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex, jobKey.callAttempt, key)
   }
 
   def updateBackendKeyValuePair(workflowId: WorkflowId,
-                                callKey: JobKey,
+                                jobKey: KvJobKey,
                                 backendStoreKey: String,
                                 backendStoreValue: String)(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
 
     withRetry (() =>
-      databaseInterface.addBackendStoreKeyValuePair(workflowId.toString, callKey.scope.fullyQualifiedName, callKey.index.fromIndex, callKey.attempt, backendStoreKey, backendStoreValue)
+      databaseInterface.addBackendStoreKeyValuePair(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex, jobKey.callAttempt, backendStoreKey, backendStoreValue)
     )
   }
 

@@ -64,25 +64,5 @@ class KeyValueServiceActorSpec extends ServicesSpec("KeyValue") {
         _ = putResult shouldEqual KvPutSuccess(KvPut(kvPairOverride))
       } yield ()).futureValue
     }
-
-    //currently the BackendKVStore doesn't accept null values
-    "not be able to store NULL values" ignore {
-//      val kvPut2 = KvPut(KvPair(ScopedKey(wfID, jobKey1, "k2"), None))
-//      val error = new RuntimeException("Failed to find the value associated to key: k2. This key cannot be added to the BackendKVStore.")
-//
-//      (for {
-//        putResult <- (sqlKvServiceActor ? kvPut2).mapTo[KvFailure]
-//        _ = putResult shouldEqual KvFailure(kvPut2, error)
-//      } yield ()).futureValue
-    }
-
-
-    "partition keys by call" ignore {
-
-    }
-
-    "partition keys by workflow" ignore {
-
-    }
   }
 }

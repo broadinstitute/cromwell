@@ -41,7 +41,6 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
-// FIXME JG: Used in the config file
 case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor) extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],
@@ -121,7 +120,6 @@ object CromwellTestkitSpec {
 
   val TimeoutDuration = 60 seconds
 
-  // FIXME JG: Directly called here (withTestWorkflowManagerSystem & passed to CTS) and LocalBackendSpec - it's assigning one and not using (looks like a candidate for MainSpec type behavior!)
   class TestWorkflowManagerSystem extends CromwellSystem {
     override protected def systemName: String = "test-system"
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
@@ -172,7 +170,6 @@ object CromwellTestkitSpec {
    * that never matches a real exception.  This method works around that problem by building an `ErrorFilter` more
    * explicitly to allow the caller to specify a `Throwable` class.
    */
-  // FIXME JG: Used in SingleWorkflowRunnerSpec & MainSpec
   def waitForErrorWithException[T](pattern: String,
                                    throwableClass: Class[_ <: Throwable] = classOf[Throwable],
                                    occurrences: Int = 1)
@@ -258,7 +255,6 @@ object CromwellTestkitSpec {
     *
     * :'(
     */
-    // FIXME JG: Move this out of CTS
   private val ServiceRegistryActorSystem = akka.actor.ActorSystem("cromwell-service-registry-system")
 
   val ServiceRegistryActorInstance = {
@@ -282,11 +278,9 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   override protected def afterAll() = { twms.shutdownTestActorSystem() }
 
-//  FIXME JG (unused): val name = this.getClass.getSimpleName
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
   implicit val ec = system.dispatcher
 
-  // FIXME JG: Can we get rid of this stuff?
   val dummyServiceRegistryActor = system.actorOf(Props.empty)
   val dummyLogCopyRouter = system.actorOf(Props.empty)
 
@@ -385,7 +379,6 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
     id
   }
 
-  // FIXME JG: Used in runWdlAndAssertOutputs and runWdlAndAssertLogs and WorkflowExecutionActorSpec
   def eventually[T](isFatal: Throwable => Boolean, maxRetries: Int = 3)(f: => T): T = {
     // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
     Await.result(Retry.withRetry(
@@ -439,7 +432,6 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
     id
   }
 
-  // FIXME JG: Used only in StdoutStderrWorkflowSpec
   def runWdlAndAssertLogs(sampleWdl: SampleWdl,
                           eventFilter: EventFilter,
                           expectedStdoutContent: String,
@@ -475,7 +467,6 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
     id
   }
 
-  // FIXME JG: Used here & WorkflowExecutionActorSpec
   def getWorkflowMetadata(workflowId: WorkflowId, serviceRegistryActor: ActorRef, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
     // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
     val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None))

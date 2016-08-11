@@ -19,8 +19,6 @@ import wdl4s.values.{WdlInteger, WdlString}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-// FIXME JG: add a test that the json is parsed correctly for workflow inputs (a la old mainspec)
-
 class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
 
   val workflowId = WorkflowId.randomId()

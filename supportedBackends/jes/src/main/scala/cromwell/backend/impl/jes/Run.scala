@@ -94,9 +94,9 @@ case class Run(runId: String, genomicsInterface: Genomics) {
     if (op.getDone) {
       val eventList = getEventList(op)
       val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
-      val machineType = ceInfo.getOrDefault("machineType","unknown")
-      val instanceName = ceInfo.getOrDefault("instanceName","unknown")
-      val zone = ceInfo.getOrDefault("zone","unknown")
+      val machineType = Option(ceInfo.get("machineType"))
+      val instanceName = Option(ceInfo.get("instanceName"))
+      val zone = Option(ceInfo.get("zone"))
 
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {

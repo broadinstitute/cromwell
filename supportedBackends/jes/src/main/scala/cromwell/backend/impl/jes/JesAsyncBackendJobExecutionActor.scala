@@ -441,9 +441,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         status match {
           case Success(s: TerminalRunStatus) =>
             tellEventMetadata(s.eventList)
-            tellMetadata(JesMetadataKeys.MachineType, s.machineType)
-            tellMetadata(JesMetadataKeys.InstanceName, s.instanceName)
-            tellMetadata(JesMetadataKeys.Zone, s.zone)
+            tellMetadata(JesMetadataKeys.MachineType, s.machineType.getOrElse("unknown"))
+            tellMetadata(JesMetadataKeys.InstanceName, s.instanceName.getOrElse("unknown"))
+            tellMetadata(JesMetadataKeys.Zone, s.zone.getOrElse("unknown"))
             executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>

@@ -292,12 +292,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
     val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
     if (enabled) {
+      val hashDockerNames = conf.getBooleanOption("call-caching.hash-docker-names").getOrElse(false)
       val lookupDockerHashes = conf.getBooleanOption("call-caching.lookup-docker-hash").getOrElse(false)
+      val hashFileContents = conf.getBooleanOption("call-caching.hash-file-contents").getOrElse(true)
+      val hashFilePaths = conf.getBooleanOption("call-caching.hash-file-paths").getOrElse(false)
 
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
-      (readFromCache |@| writeToCache) { CallCachingMode(_, _, lookupDockerHashes) }
+      (readFromCache |@| writeToCache) { CallCachingMode(_, _, hashDockerNames = hashDockerNames, lookupDockerHashes = lookupDockerHashes, hashFileContents = hashFileContents, hashFilePaths = hashFilePaths) }
     }
     else {
       CallCachingOff.successNel

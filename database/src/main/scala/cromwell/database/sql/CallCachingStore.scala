@@ -1,6 +1,6 @@
 package cromwell.database.sql
 
-import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
+import cromwell.database.sql.tables.{CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
 

@@ -174,7 +174,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       def ejeaInRunningState() = {
         val ejea = buildEJEA(restarting = true)
-        ejea.setState(stateName = RunningJob, stateData = EJEAPartialCompletionData(None, None))
+        ejea.setState(stateName = RunningJob, stateData = EmptyPartialCompletionData)
         ejea
       }
 

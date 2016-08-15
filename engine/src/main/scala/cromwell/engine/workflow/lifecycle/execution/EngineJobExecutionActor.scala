@@ -86,7 +86,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
       effectiveCallCachingMode match {
         case activity: CallCachingActivity if activity.readFromCache =>
           initializeJobHashing(jobDescriptor, activity)
-          goto(CheckingCallCache) using EJEAJobDescriptorData(Option(jobDescriptor), Option(bjeaProps))
+          goto(CheckingCallCache) using JobDescriptorData(jobDescriptor, bjeaProps)
         case activity: CallCachingActivity =>
           initializeJobHashing(jobDescriptor, activity)
           runJob(jobDescriptor, bjeaProps)
@@ -101,15 +101,15 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   // When CheckingCallCache, the FSM always has EJEAJobDescriptorData
   private val callCachingReadResultMetadataKey = "Call caching read result"
   when(CheckingCallCache) {
-    case Event(HashError(t), EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) =>
+    case Event(HashError(t), JobDescriptorData(jobDescriptor, bjeaProps)) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       recordHashError(t)
       runJob(jobDescriptor, bjeaProps)
-    case Event(CacheMiss, EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) =>
+    case Event(CacheMiss, JobDescriptorData(jobDescriptor, bjeaProps)) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> "Cache Miss"))
       log.info(s"Cache miss for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}")
       runJob(jobDescriptor, bjeaProps)
-    case Event(CacheHit(cacheResultId), EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
+    case Event(CacheHit(cacheResultId), JobDescriptorData(jobDescriptor, _)) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit (from result ID $cacheResultId)"))
       log.info(s"Cache hit for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}! Copying cache result $cacheResultId")
       lookupCachedResult(jobDescriptor, cacheResultId)
@@ -117,29 +117,31 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   // When RunningJob, the FSM always has EJEAPartialCompletionData (which might be None, None)
   when(RunningJob) {
-    case Event(response: SucceededResponse, EJEAPartialCompletionData(None, Some(Success(hashes)))) if effectiveCallCachingMode.writeToCache =>
-      saveCacheResults(EJEASuccessfulCompletionDataWithHashes(response, hashes))
-    case Event(response: SucceededResponse, data @ EJEAPartialCompletionData(None, None)) if effectiveCallCachingMode.writeToCache =>
-      stay using data.copy(jobResult = Option(response))
-    case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(Some(response: SucceededResponse), None)) =>
-      saveCacheResults(EJEASuccessfulCompletionDataWithHashes(response, hashes))
-    case Event(hashes: CallCacheHashes, data @ EJEAPartialCompletionData(None, None)) =>
-      stay using data.copy(hashes = Option(Success(hashes)))
-    case Event(HashError(t), data @ EJEAPartialCompletionData(Some(response: BackendJobExecutionResponse), _)) =>
+    case Event(hashes: CallCacheHashes, data @ PartialCompletionDataWithSucceededResponse(response: SucceededResponse)) =>
+      saveCacheResults(CacheWriteOnCompletionData(response, hashes))
+    case Event(hashes: CallCacheHashes, data @ EmptyPartialCompletionData) =>
+      stay using PartialCompletionDataWithHashes(Success(hashes))
+
+    case Event(HashError(t), data @ PartialCompletionDataWithSucceededResponse(response)) =>
       recordHashError(t)
       saveJobCompletionToJobStore(response)
-    case Event(HashError(t), data @ EJEAPartialCompletionData(None, _)) =>
+    case Event(HashError(t), data @ EmptyPartialCompletionData) =>
       recordHashError(t)
-      stay using data.copy(hashes = Option(Failure(t)))
-    case Event(response: BackendJobExecutionResponse, data: EJEAPartialCompletionData) =>
+      stay using PartialCompletionDataWithHashes(Failure(t))
+
+    case Event(response: SucceededResponse, PartialCompletionDataWithHashes(Success(hashes))) if effectiveCallCachingMode.writeToCache =>
+      saveCacheResults(CacheWriteOnCompletionData(response, hashes))
+    case Event(response: SucceededResponse, data @ EmptyPartialCompletionData) if effectiveCallCachingMode.writeToCache =>
+      stay using PartialCompletionDataWithSucceededResponse(response)
+    case Event(response: BackendJobExecutionResponse, _) =>
       saveJobCompletionToJobStore(response)
   }
 
   // When WritingToCallCache, the FSM always has EJEASuccessfulCompletionDataWithHashes
   when(UpdatingCallCache) {
-    case Event(CallCacheWriteSuccess, data @ EJEASuccessfulCompletionDataWithHashes(response, _)) =>
+    case Event(CallCacheWriteSuccess, data @ CacheWriteOnCompletionData(response, _)) =>
       saveJobCompletionToJobStore(response)
-    case Event(CallCacheWriteFailure(reason), data @ EJEASuccessfulCompletionDataWithHashes(response, _)) =>
+    case Event(CallCacheWriteFailure(reason), data @ CacheWriteOnCompletionData(response, _)) =>
       context.parent ! FailedNonRetryableResponse(jobKey, reason, response.returnCode)
       context stop self
       stay()
@@ -147,11 +149,11 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   // When UpdatingJobStore, the FSM always has EJEACompletionData
   when(UpdatingJobStore) {
-    case Event(JobStoreWriteSuccess(_), EJEACompletionData(response)) =>
+    case Event(JobStoreWriteSuccess(_), CacheWriteOffCompletionData(response)) =>
       context.parent forward response
       context stop self
       stay()
-    case Event(JobStoreWriteFailure(t), EJEACompletionData(_)) =>
+    case Event(JobStoreWriteFailure(t), CacheWriteOffCompletionData(_)) =>
       context.parent ! FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None)
       context.stop(self)
       stay()
@@ -190,7 +192,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     // TODO: Start up a backend job copying actor (if possible, otherwise just runJob). That should send back the BackendJobExecutionResponse
     self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache result copying not implemented!"), None)
     // While the cache result is looked up, we wait for the response just like we were waiting for a Job to complete:
-    goto(RunningJob) using EJEAPartialCompletionData(None, None)
+    goto(RunningJob) using EmptyPartialCompletionData
   }
 
   def runJob(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) = {
@@ -198,14 +200,14 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     val message = if (restarting) RecoverJobCommand else ExecuteJobCommand
     backendJobExecutionActor ! message
     context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
-    goto(RunningJob) using EJEAPartialCompletionData(None, None)
+    goto(RunningJob) using EmptyPartialCompletionData
   }
 
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
   }
 
-  private def saveCacheResults(completionData: EJEASuccessfulCompletionDataWithHashes) = {
+  private def saveCacheResults(completionData: CacheWriteOnCompletionData) = {
     val callCache = new CallCache(CromwellDatabase.databaseInterface)
     context.actorOf(CallCacheWriteActor.props(callCache, workflowId, completionData.hashes, completionData.jobResult), s"CallCacheWriteActor-$tag")
     goto(UpdatingCallCache) using completionData
@@ -218,7 +220,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
       case FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
       case FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
     }
-    goto(UpdatingJobStore) using EJEACompletionData(response)
+    goto(UpdatingJobStore) using CacheWriteOffCompletionData(response)
   }
 
   private def saveSuccessfulJobResults(jobKey: JobKey, returnCode: Option[Int], outputs: JobOutputs) = {
@@ -277,28 +279,14 @@ object EngineJobExecutionActor {
   }
 }
 
-sealed trait EJEAData
-case object NoData extends EJEAData
-case class EJEAJobDescriptorData(jobDescriptor: Option[BackendJobDescriptor], bjeaActorProps: Option[Props]) extends EJEAData {
-  override def toString = s"EJEAJobDescriptorData(backendJobDescriptor: ${jobDescriptor.isDefined}, bjeaActorProps: ${bjeaActorProps.isDefined})"
-}
+private[execution] sealed trait EJEAData { override def toString = getClass.getSimpleName }
 
-case class EJEAPartialCompletionData(jobResult: Option[BackendJobExecutionResponse], hashes: Option[Try[CallCacheHashes]]) extends EJEAData {
-    override def toString = {
-      val hashesString = hashes.map(_.getClass.getSimpleName).getOrElse("None")
-      s"EJEAPartialCompletionData(jobResult: ${jobResult.isDefined}, hashes: $hashesString)"
-    }
-}
+private[execution] case object NoData extends EJEAData
+private[execution] case class JobDescriptorData(jobDescriptor: BackendJobDescriptor, bjeaActorProps: Props) extends EJEAData
 
-// Can't do case-to-case inheritance so let's jump through these extractor-pattern hoops...
-class EJEACompletionData(val jobResult: BackendJobExecutionResponse) extends EJEAData {
-  override def toString = s"EJEACompletionData(${jobResult.getClass.getSimpleName})"
-}
-object EJEACompletionData {
-  def apply(jobResult: BackendJobExecutionResponse) = new EJEACompletionData(jobResult)
-  def unapply(completionData: EJEACompletionData) = Option(completionData.jobResult)
-}
+private[execution] case object EmptyPartialCompletionData extends EJEAData
+private[execution] case class PartialCompletionDataWithSucceededResponse(response: SucceededResponse) extends EJEAData
+private[execution] case class PartialCompletionDataWithHashes(hashes: Try[CallCacheHashes]) extends EJEAData
 
-case class EJEASuccessfulCompletionDataWithHashes(override val jobResult: SucceededResponse, hashes: CallCacheHashes) extends EJEACompletionData(jobResult = jobResult) {
-  override def toString = s"EJEACompletionDataWithHashes(${jobResult.getClass.getSimpleName}, ${hashes.hashes.size} hashes)"
-}
+private[execution] case class CacheWriteOffCompletionData(jobResult: BackendJobExecutionResponse) extends EJEAData
+private[execution] case class CacheWriteOnCompletionData(jobResult: SucceededResponse, hashes: CallCacheHashes) extends EJEAData

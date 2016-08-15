@@ -15,10 +15,6 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
-import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataKey, MetadataValue}
-import cromwell.services.metadata.MetadataService.PutMetadataAction
-
-import scala.Option
 import scala.util.{Failure, Success, Try}
 
 class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
@@ -102,17 +98,18 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   // When CheckingCallCache, the FSM always has EJEAJobDescriptorData
+  private val callCachingReadResultMetadataKey = "Call caching read result"
   when(CheckingCallCache) {
     case Event(HashError(t), EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) =>
-      writeToMetadata(Map("Call caching read result" -> s"Hashing Error: ${t.getMessage}"))
+      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       recordHashError(t)
       runJob(jobDescriptor, bjeaProps)
     case Event(CacheMiss, EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) =>
-      writeToMetadata(Map("Call caching read result" -> "Cache Miss"))
+      writeToMetadata(Map(callCachingReadResultMetadataKey -> "Cache Miss"))
       log.info(s"Cache miss for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}")
       runJob(jobDescriptor, bjeaProps)
     case Event(CacheHit(cacheResultId), EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
-      writeToMetadata(Map("Call caching read result" -> s"Cache Hit (from result ID $cacheResultId)"))
+      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit (from result ID $cacheResultId)"))
       log.info(s"Cache hit for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}! Copying cache result $cacheResultId")
       lookupCachedResult(jobDescriptor, cacheResultId)
   }
@@ -235,13 +232,9 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
 
-  private def writeToMetadata(keyValue: Map[String, String]) = {
-    val events = keyValue map { case (key, value) =>
-      val metadataKey = MetadataKey(workflowId, Option(MetadataJobKey(jobKey.call.fullyQualifiedName, jobKey.index, jobKey.attempt)), key)
-      MetadataEvent(metadataKey, MetadataValue(value))
-    }
-
-    serviceRegistryActor ! PutMetadataAction(events)
+  private def writeToMetadata(keyValues: Map[String, String]) = {
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoputter
+    serviceRegistryActor.putMetadata(workflowId, Option(jobKey), keyValues)
   }
 }
 

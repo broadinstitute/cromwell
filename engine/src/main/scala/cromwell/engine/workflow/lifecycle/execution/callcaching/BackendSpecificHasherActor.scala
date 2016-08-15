@@ -11,7 +11,7 @@ import wdl4s.values.WdlFile
 /**
   * Used if a backend has not provided a backend hasher actor.
   *
-  * Backend specific hasher actors should extend and reply to commands in the same way.
+  * Backend specific hasher actors could extend like: ** override def receive = fooReceive orElse super.receive **
   */
 class BackendSpecificHasherActor(mode: CallCachingMode) extends Actor with ActorLogging {
 

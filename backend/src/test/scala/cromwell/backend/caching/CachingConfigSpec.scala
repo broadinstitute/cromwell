@@ -29,7 +29,7 @@ class CachingConfigSpec extends FlatSpec with Matchers {
       readOption <- options
     } yield (ConfigFactory.parseMap(config.asJava), makeOptions(writeOption, readOption))).toSet
 
-    // writeCache is ON when config is ON and write-to-cache is None or true
+    // writeCache is ON when config is ON and write_to_cache is None or true
     val writeCacheOnCombinations = (for {
       config <- configs if config == configWithCallCachingOn
       writeOption <- options if writeOption.isEmpty || writeOption.get

@@ -40,7 +40,7 @@ object FileHasherActor {
   case class JobFileHashRequests(jobKey: JobKey, files: Iterable[SingleFileHashRequest]) extends FileHasherCommand
   case class HashesNoLongerRequired(jobKey: JobKey)
 
-  case class FileHasherResponse(hashResult: HashResult) extends HashResultMessage { override def hashes = List(hashResult) }
+  case class FileHasherResponse(hashResult: HashResult) extends HashResultMessage { override def hashes = Set(hashResult) }
 }
 
 
@@ -48,11 +48,10 @@ object FileHasherActor {
 @deprecated("This is really stupid", "always")
 class ReallyStupidFileHasher extends Actor with ActorLogging {
   override def receive: Receive = {
-    case JobFileHashRequests(jobKey, fileHashRequests) => {
+    case JobFileHashRequests(jobKey, fileHashRequests) =>
       fileHashRequests foreach { hashRequest =>
         sender ! HashResult(hashRequest.hashKey, HashValue(hashRequest.file.toAbsolutePath.toString))
       }
-    }
   }
 }
 

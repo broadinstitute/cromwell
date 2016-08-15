@@ -23,9 +23,9 @@ trait CallCachingSlickDatabase extends CallCachingStore {
     runTransaction(action)
   }
 
-  override def metaInfoIdsMatchingHashes(hashKeyValuePairs: Seq[HashKeyAndValue])(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
+  override def metaInfoIdsMatchingHashes(hashKeyValuePairs: Set[HashKeyAndValue])(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
 
-    val actions = hashKeyValuePairs map { case HashKeyAndValue(hashKey, hashValue) => dataAccess.resultMetaInfoIdsForHashMatch(hashKey, hashValue).result }
+    val actions = hashKeyValuePairs.toList map { case HashKeyAndValue(hashKey, hashValue) => dataAccess.resultMetaInfoIdsForHashMatch(hashKey, hashValue).result }
     val action = DBIO.sequence(actions)
 
     def setIntersection(current: Set[Int], next: Seq[Int]) = current.intersect(next.toSet)

@@ -29,7 +29,8 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   override val workflowId = executionData.workflowDescriptor.id
 
-  val tag = s"EJEA [UUID(${workflowId.shortString}/${jobKey.call.fullyQualifiedName}:${jobKey.index.fromIndex}(attempt ${jobKey.attempt}))]"
+  val jobTag = s"${workflowId.shortString}:${jobKey.call.fullyQualifiedName}:${jobKey.index.fromIndex}:${jobKey.attempt}"
+  val tag = s"EJEA_$jobTag"
 
   // There's no need to check for a cache hit again if we got preempted
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
@@ -82,14 +83,14 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   // When PreparingJob, the FSM always has NoData
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, bjeaProps), NoData) =>
-      effectiveCallCachingMode.activity match {
-        case Some(activity) if activity.readFromCache =>
+      effectiveCallCachingMode match {
+        case activity: CallCachingActivity if activity.readFromCache =>
           initializeJobHashing(jobDescriptor, activity)
           goto(CheckingCallCache) using EJEAJobDescriptorData(Option(jobDescriptor), Option(bjeaProps))
-        case Some(activity) =>
+        case activity: CallCachingActivity =>
           initializeJobHashing(jobDescriptor, activity)
           runJob(jobDescriptor, bjeaProps)
-        case None => runJob(jobDescriptor, bjeaProps)
+        case CallCachingOff => runJob(jobDescriptor, bjeaProps)
       }
     case Event(response: BackendJobPreparationFailed, NoData) =>
       context.parent forward response
@@ -173,7 +174,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   def prepareJob() = {
-    val jobPreparationActorName = s"$workflowId-BackendPreparationActor-${jobKey.tag}"
+    val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
     val jobPrepProps = JobPreparationActor.props(executionData, jobKey, factory, initializationData, serviceRegistryActor)
     val jobPreparationActor = context.actorOf(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! JobPreparationActor.Start
@@ -181,7 +182,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
-    val fileHasherActor = context.actorOf(BackendSpecificHasherActor.props(effectiveCallCachingMode),  s"FileHasherActor_for_$tag")
+    val fileHasherActor = context.actorOf(BackendSpecificHasherActor.props(activity),  s"FileHasherActor_for_$jobTag")
     context.actorOf(EngineJobHashingActor.props(jobDescriptor, fileHasherActor, backendName, activity))
   }
 

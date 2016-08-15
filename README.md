@@ -1210,21 +1210,12 @@ To enable Call Caching, add the following to your Cromwell [configuration](#conf
 ```
 call-caching {
   enabled = false
-  hash-docker-names = true
   lookup-docker-hash = false
-  hash-file-contents = true
-  hash-file-paths = false
 }
 ```
 
 When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to copy results from previously run jobs (when appropriate).
-
-When `call-caching.hash-docker-names=true` (default: `true`), Cromwell will hash the name of a docker image.
 When `call-caching.lookup-docker-hash=true` (default: `false`), Cromwell will contact external services like DockerHub or Google Container Registry to resolve Docker floating container identifiers like `ubuntu:latest` into immutable hashes while computing the hash of the call invocation.  If this option is false, then the raw value specified in the WDL file for the Docker image is the value that will be used.
-When `call-caching.hash-file-contents=true` (default: `true`), Cromwell will hash the file's entire contents.
-When `call-caching.hash-file-paths=true` (default: `false`), Cromwell will hash the exact path to the file.
-
-Note on hash lookup: these options determine which hashes are generated when a job is about to be run. For a call cache hit, all of those generated hashes must match a previously run job in the database. Other hashes for that job in the database (e.g. if some hashes are in the database but were not generated this time, such as if `hash-file-contents` was previously `true` but is not any more) are ignored and are not used to determine cache hits or misses.
 
 Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
 

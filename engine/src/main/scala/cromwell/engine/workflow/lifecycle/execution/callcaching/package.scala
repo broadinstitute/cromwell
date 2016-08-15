@@ -6,6 +6,8 @@ package object callcaching {
 
   // TODO: Find somewhere better for all these?
   case class HashKey(key: String)
+  object RuntimeAttributeHashKeyPlaceholder extends HashKey("PLACEHOLDER: Runtime Attributes")
+
   case class HashValue(value: String)
   case class HashResult(hashKey: HashKey, hashValue: HashValue)
 
@@ -22,49 +24,42 @@ package object callcaching {
   private[callcaching] case class CacheResultLookupFailure(reason: Throwable)
 
   sealed trait CallCachingMode {
-    def activity: Option[CallCachingActivity]
-
-    def readFromCache = false
-    def writeToCache = false
-    def hashDockerNames = false
-    def lookupDockerHashes: Boolean = false
-    def hashFilePaths: Boolean = false
-    def hashFileContents: Boolean = false
-
     /**
       * Return an equivalent of this call caching mode with READ disabled.
       */
-    def withoutRead: CallCachingMode
-  }
+    val withoutRead: CallCachingMode
 
-  object CallCachingMode {
-    def apply(read: Boolean, write: Boolean, hashDockerNames: Boolean, lookupDockerHashes: Boolean, hashFilePaths: Boolean, hashFileContents: Boolean): CallCachingMode = (read, write) match {
-      case (false, false) => CallCachingOff
-      case (false, true) => WriteCache(hashDockerNames, lookupDockerHashes, hashFilePaths, hashFileContents)
-      case (true, false) => ReadCache(hashDockerNames, lookupDockerHashes, hashFilePaths, hashFileContents)
-      case (true, true) => ReadAndWriteCache(hashDockerNames, lookupDockerHashes, hashFilePaths, hashFileContents)
-    }
+    val readFromCache = false
+    val writeToCache = false
   }
 
   case object CallCachingOff extends CallCachingMode {
-    override def activity = None
-    override def withoutRead = this
+    override val withoutRead = this
   }
 
-  sealed trait CallCachingActivity extends CallCachingMode {
-    override def activity = Option(this)
+  case class CallCachingActivity (readWriteMode: ReadWriteMode,
+                                  dockerHashingType: DockerHashingType,
+                                  fileHashingType: FileHashingType) extends CallCachingMode
+  {
+    override val readFromCache = readWriteMode.readFromCache
+    override val writeToCache = readWriteMode.writeToCache
+    override val withoutRead: CallCachingMode = if (!writeToCache) CallCachingOff else this.copy(readWriteMode = WriteCache)
+    override val toString = readWriteMode.toString
   }
-  case class ReadCache(override val hashDockerNames: Boolean, override val lookupDockerHashes: Boolean, override val hashFilePaths: Boolean, override val hashFileContents: Boolean) extends CallCachingActivity {
-    override def readFromCache = true
-    override def withoutRead = CallCachingOff
+
+  sealed trait ReadWriteMode {
+    val readFromCache: Boolean = true
+    val writeToCache: Boolean = true
   }
-  case class WriteCache(override val hashDockerNames: Boolean, override val lookupDockerHashes: Boolean, override val hashFilePaths: Boolean, override val hashFileContents: Boolean) extends CallCachingActivity {
-    override def writeToCache = true
-    override def withoutRead = this
-  }
-  case class ReadAndWriteCache(override val hashDockerNames: Boolean, override val lookupDockerHashes: Boolean, override val hashFilePaths: Boolean, override val hashFileContents: Boolean) extends CallCachingActivity {
-    override def readFromCache = true
-    override def writeToCache = true
-    override def withoutRead = WriteCache(hashDockerNames, lookupDockerHashes, hashFilePaths, hashFileContents)
-  }
+  case object ReadCache extends ReadWriteMode { override val writeToCache = false }
+  case object WriteCache extends ReadWriteMode { override val readFromCache = false }
+  case object ReadAndWriteCache extends ReadWriteMode
+
+  sealed trait DockerHashingType
+  case object HashDockerName extends DockerHashingType
+  case object HashDockerNameAndLookupDockerHash extends DockerHashingType
+
+  sealed trait FileHashingType
+  case object HashFilePath extends FileHashingType
+  case object HashFileContents extends FileHashingType
 }

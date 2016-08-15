@@ -32,12 +32,12 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       stay using updateStateDataWithNewHashResults(newHashResults)
     case Event(newCacheResults: CacheResultMatchesForHashes, _) =>
       checkWhetherHitOrMissIsKnownThenTransition(stateData.intersectCacheResults(newCacheResults))
-    case Event(PlaceholderHashKeyExpansion(placeholderHashKey, newHashKeys), _) => checkWhetherHitOrMissIsKnownThenTransition(stateData.replacePlaceholderHashKey(placeholderHashKey, newHashKeys))
+    case Event(RuntimeAttributesHashKeyPlaceholderExpansion(newHashKeys), _) => checkWhetherHitOrMissIsKnownThenTransition(stateData.replacePlaceholderHashKey(RuntimeAttributeHashKeyPlaceholder, newHashKeys))
   }
 
   when(GeneratingAllHashes) {
     case Event(hashResultMessage: SuccessfulHashResultMessage, _) => checkWhetherAllHashesAreKnownAndTransition(stateData.withNewKnownHashes(hashResultMessage.hashes))
-    case Event(PlaceholderHashKeyExpansion(placeholderHashKey, newHashKeys), _) => checkWhetherAllHashesAreKnownAndTransition(stateData.replacePlaceholderHashKey(placeholderHashKey, newHashKeys))
+    case Event(RuntimeAttributesHashKeyPlaceholderExpansion(newHashKeys), _) => checkWhetherAllHashesAreKnownAndTransition(stateData.replacePlaceholderHashKey(RuntimeAttributeHashKeyPlaceholder, newHashKeys))
     case Event(CacheResultMatchesForHashes(_, _), _) => stay // Don't care; we already know the hit/miss status. Ignore this message
   }
 
@@ -62,14 +62,12 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
 
     val initialHashes = calculateInitialHashes(nonFileInputSimpletons, fileInputSimpletons)
 
-    val fileContentHashesNeeded = if (mode.hashFileContents) {
-      JobFileHashRequests(jobDescriptor.key, fileInputSimpletons map { case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(HashKey(s"input: File(Content) $name"), x) })
-    } else {
-      JobFileHashRequests(jobDescriptor.key, List.empty)
+    val fileContentHashesNeeded = mode.fileHashingType match {
+      case HashFileContents => JobFileHashRequests(jobDescriptor.key, fileInputSimpletons map { case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(HashKey(s"input: File(Content) $name"), x) })
+      case HashFilePath => JobFileHashRequests(jobDescriptor.key, List.empty)
     }
-    val runtimeAttributeHashesNeededPlaceholder = HashKey("PLACEHOLDER: runtime attributes")
 
-    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.files.map(_.hashKey) ++ Set(runtimeAttributeHashesNeededPlaceholder)
+    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.files.map(_.hashKey) ++ Set(RuntimeAttributeHashKeyPlaceholder)
 
     val initialState = if (mode.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
     val initialData = EJHAData(jobDescriptor, hashesNeeded)
@@ -80,7 +78,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
     self ! EJHAInitialHashingResults(initialHashes)
     // Find the hashes for all input files:
     if (fileContentHashesNeeded.files.nonEmpty) backendSpecificHasherActor ! fileContentHashesNeeded
-    backendSpecificHasherActor ! RuntimeAttributesHashesRequest(runtimeAttributeHashesNeededPlaceholder, jobDescriptor)
+    backendSpecificHasherActor ! RuntimeAttributesHashesRequest(jobDescriptor)
   }
 
   private def calculateInitialHashes(nonFileInputs: Iterable[WdlValueSimpleton], fileInputs: Iterable[WdlValueSimpleton]): Set[HashResult] = {
@@ -97,12 +95,12 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.name}"), output.requiredExpression.valueString.md5HashValue)
     }
 
-    val inputFilePathHashes = if (mode.hashFilePaths) {
-      fileInputs map { case WdlValueSimpleton(name, file: WdlFile) =>
-        HashResult(HashKey(s"input: File(Path) $name"), file.value.toString.md5HashValue)
-      }
-    } else {
-      List.empty[HashResult]
+    val inputFilePathHashes = mode.fileHashingType match {
+      case HashFilePath =>
+        fileInputs map {
+          case WdlValueSimpleton(name, file: WdlFile) => HashResult(HashKey(s"input: File(Path) $name"), file.value.toString.md5HashValue)
+        }
+      case HashFileContents => List.empty[HashResult]
     }
 
     // Build these all together for the final set of initial hashes:
@@ -170,7 +168,7 @@ object EngineJobHashingActor {
     * E.g. We know we want runtime attributes hashes, but only the backend knows how many it will eventually create. So, we allow
     * the placeholder to be replaced via this expansion. And then we wait for a hash result for each of those new hash keys.
     */
-  case class PlaceholderHashKeyExpansion(placeholderHashKey: HashKey, newHashKeysToAwait: Iterable[HashKey])
+  case class RuntimeAttributesHashKeyPlaceholderExpansion(newHashKeysToAwait: Iterable[HashKey])
 
   sealed trait EJHAState
   case object DeterminingHitOrMiss extends EJHAState

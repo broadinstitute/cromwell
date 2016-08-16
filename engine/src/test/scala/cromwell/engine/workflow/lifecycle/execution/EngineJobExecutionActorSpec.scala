@@ -60,6 +60,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       restarting = restarting,
       serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance,
       jobStoreActor = system.actorOf(JobStoreActor.props(jobStore)),
+      backendName = "NOT USED",
       callCachingMode = CallCachingOff
     ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
   }
@@ -173,7 +174,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       def ejeaInRunningState() = {
         val ejea = buildEJEA(restarting = true)
-        ejea.setState(stateName = RunningJob, stateData = EJEAPartialCompletionData(None, None))
+        ejea.setState(stateName = RunningJob, stateData = EmptyPartialCompletionData)
         ejea
       }
 

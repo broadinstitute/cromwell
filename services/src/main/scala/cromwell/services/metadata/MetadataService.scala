@@ -2,9 +2,10 @@ package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
-import akka.actor.DeadLetterSuppression
-import cromwell.core.{WorkflowId, WorkflowState}
+import akka.actor.{ActorRef, DeadLetterSuppression}
+import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import spray.http.Uri
 import spray.routing._
 import wdl4s.values._
@@ -33,6 +34,24 @@ object MetadataService {
   object PutMetadataAction {
     def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
   }
+
+  /**
+    * Import from here with care! We extend every ActorRef, so import as locally as possible!
+    */
+  object implicits {
+    implicit class MetadataAutoputter(serviceRegistryActor: ActorRef) {
+      def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, String]) = {
+        val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.scope.fullyQualifiedName, jk.index, jk.attempt) }
+
+        val events = keyValue map { case (key, value) =>
+          val metadataKey = MetadataKey(workflowId, metadataJobKey, key)
+          MetadataEvent(metadataKey, MetadataValue(value))
+        }
+        serviceRegistryActor ! PutMetadataAction(events)
+      }
+    }
+  }
+
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]])

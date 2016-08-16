@@ -1,12 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import java.nio.file.Path
-
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.database.sql.MetaInfoId
+import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.FileHasherActor.JobFileHashRequests
+import cromwell.engine.workflow.lifecycle.execution.callcaching.BackendSpecificHasherActor.{JobFileHashRequests, RuntimeAttributesHashesRequest, SingleFileHashRequest}
+import wdl4s.values.WdlFile
+import HashValue.StringMd5er
 
 /**
   * Over time will emit up to two messages back to its parent:
@@ -14,7 +15,8 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.FileHasherActor.
   *  * (if write enabled): A CallCacheHashes(hashes) message
   */
 case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
-                                 fileHasherActor: ActorRef,
+                                 backendSpecificHasherActor: ActorRef,
+                                 backendName: String,
                                  mode: CallCachingActivity) extends LoggingFSM[EJHAState, EJHAData] with ActorLogging {
 
   val receiver = context.parent
@@ -22,7 +24,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   initializeEJHA()
 
   when(DeterminingHitOrMiss) {
-    case Event(hashResultMessage: HashResultMessage, _) =>
+    case Event(hashResultMessage: SuccessfulHashResultMessage, _) =>
       // This is in DeterminingHitOrMiss, so use the new hash results to search for cache results.
       // Also update the state data with these new hash results.
       val newHashResults = hashResultMessage.hashes
@@ -30,10 +32,12 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       stay using updateStateDataWithNewHashResults(newHashResults)
     case Event(newCacheResults: CacheResultMatchesForHashes, _) =>
       checkWhetherHitOrMissIsKnownThenTransition(stateData.intersectCacheResults(newCacheResults))
+    case Event(RuntimeAttributesHashKeyPlaceholderExpansion(newHashKeys), _) => checkWhetherHitOrMissIsKnownThenTransition(stateData.replacePlaceholderHashKey(RuntimeAttributeHashKeyPlaceholder, newHashKeys))
   }
 
   when(GeneratingAllHashes) {
-    case Event(hashResultMessage: HashResultMessage, _) => checkWhetherAllHashesAreKnownAndTransition(stateData.withNewKnownHashes(hashResultMessage.hashes))
+    case Event(hashResultMessage: SuccessfulHashResultMessage, _) => checkWhetherAllHashesAreKnownAndTransition(stateData.withNewKnownHashes(hashResultMessage.hashes))
+    case Event(RuntimeAttributesHashKeyPlaceholderExpansion(newHashKeys), _) => checkWhetherAllHashesAreKnownAndTransition(stateData.replacePlaceholderHashKey(RuntimeAttributeHashKeyPlaceholder, newHashKeys))
     case Event(CacheResultMatchesForHashes(_, _), _) => stay // Don't care; we already know the hit/miss status. Ignore this message
   }
 
@@ -41,26 +45,66 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
     case Event(failure: CacheResultLookupFailure, _) =>
       // Crash and let the supervisor deal with it.
       throw new RuntimeException("Failure looking up call cache results", failure.reason)
+    case Event(HashingFailedMessage(hashKey, reason), _) =>
+      receiver ! HashError(new Exception(s"Unable to generate ${hashKey.key} hash. Caused by ${reason.getMessage}", reason))
+      context.stop(self)
+      stay
   }
 
   private def initializeEJHA() = {
 
-    // TODO: Implement call caching hashing: #1230
-    val initialHashes = Set(
-      HashResult(HashKey("commandTemplate"), HashValue(jobDescriptor.call.task.commandTemplate.toString))
-    )
-    val fileHashesNeeded: Map[HashKey, Path] = Map.empty
-    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileHashesNeeded.keys
+    import cromwell.core.simpleton.WdlValueSimpleton._
+    val inputSimpletons = jobDescriptor.inputs.simplify
+    val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
+      case WdlValueSimpleton(_, f: WdlFile) => true
+      case _ => false
+    }
+
+    val initialHashes = calculateInitialHashes(nonFileInputSimpletons, fileInputSimpletons)
+
+    val fileContentHashesNeeded = mode.fileHashingType match {
+      case HashFileContents => JobFileHashRequests(jobDescriptor.key, fileInputSimpletons map { case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(HashKey(s"input: File(Content) $name"), x) })
+      case HashFilePath => JobFileHashRequests(jobDescriptor.key, List.empty)
+    }
+
+    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.files.map(_.hashKey) ++ Set(RuntimeAttributeHashKeyPlaceholder)
 
     val initialState = if (mode.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
     val initialData = EJHAData(jobDescriptor, hashesNeeded)
 
     startWith(initialState, initialData)
 
-    // Submit the set of initial hashes:
+    // Submit the set of initial hashes for checking against the DB:
     self ! EJHAInitialHashingResults(initialHashes)
     // Find the hashes for all input files:
-    fileHasherActor ! allInputJobFileHashRequests
+    if (fileContentHashesNeeded.files.nonEmpty) backendSpecificHasherActor ! fileContentHashesNeeded
+    backendSpecificHasherActor ! RuntimeAttributesHashesRequest(jobDescriptor)
+  }
+
+  private def calculateInitialHashes(nonFileInputs: Iterable[WdlValueSimpleton], fileInputs: Iterable[WdlValueSimpleton]): Set[HashResult] = {
+
+    // TODO: Can we get instantiatedCommand in the JobPreparationActor?
+    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.call.task.commandTemplate.toString.md5HashValue)
+    val backendNameHash = HashResult(HashKey("backend name"), backendName.md5HashValue)
+
+    val inputHashResults = nonFileInputs map {
+      case WdlValueSimpleton(name, value) => HashResult(HashKey(s"input: ${value.wdlType.toWdlString} $name"),  value.toWdlString.md5HashValue)
+    }
+
+    val outputExpressionHashResults = jobDescriptor.call.task.outputs map { case output =>
+      HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.name}"), output.requiredExpression.valueString.md5HashValue)
+    }
+
+    val inputFilePathHashes = mode.fileHashingType match {
+      case HashFilePath =>
+        fileInputs map {
+          case WdlValueSimpleton(name, file: WdlFile) => HashResult(HashKey(s"input: File(Path) $name"), file.value.toString.md5HashValue)
+        }
+      case HashFileContents => List.empty[HashResult]
+    }
+
+    // Build these all together for the final set of initial hashes:
+    Set(commandTemplateHash, backendNameHash) ++ inputHashResults ++ outputExpressionHashResults ++ inputFilePathHashes
   }
 
   private def checkWhetherHitOrMissIsKnownThenTransition(newData: EJHAData) = {
@@ -73,10 +117,11 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   }
 
   private def respondWithHitOrMissThenTransition(newData: EJHAData) = {
-    newData.cacheHit match {
-      case Some(cacheResultId) => receiver ! CacheHit(cacheResultId)
-      case None => receiver ! CacheMiss
+    val hitOrMissResponse = newData.cacheHit match {
+      case Some(cacheResultId) => CacheHit(cacheResultId)
+      case None => CacheMiss
     }
+    receiver ! hitOrMissResponse
     if (!mode.writeToCache) {
       context.stop(self)
       stay
@@ -96,29 +141,37 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   /**
     * Needs to convert a hash result into the set of CachedResults which are consistent with it
     */
-  private def findCacheResults(hashResults: Set[HashResult]) = {
-    val hashes = CallCacheHashes(hashResults)
-    context.actorOf(CallCacheReadActor.props(hashes), s"CallCacheReadActor-${jobDescriptor.descriptor.id}-${jobDescriptor.key.tag}")
-  }
+  private var lookupIndex = 0
+  private def findCacheResults(hashResults: Set[HashResult]) = if ( hashResults.nonEmpty) {
+      val hashes = CallCacheHashes(hashResults)
+      val actorName = s"CallCacheReadActor-${jobDescriptor.descriptor.id}-${jobDescriptor.key.tag}-lookup_$lookupIndex"
+      lookupIndex += 1
+      context.actorOf(CallCacheReadActor.props(hashes), actorName)
+  } else ()
 
   def updateStateDataWithNewHashResults(hashResults: Set[HashResult]): EJHAData = {
     if (mode.writeToCache) stateData.withNewKnownHashes(hashResults) else stateData
   }
-
-  // TODO: Implement me.
-  // Called at actor start-time. Should convert all job input files into file hash requests
-  private def allInputJobFileHashRequests: JobFileHashRequests = JobFileHashRequests(jobDescriptor.key, List.empty)
 }
 
 object EngineJobHashingActor {
 
-  def props(jobDescriptor: BackendJobDescriptor, fileHasherActor: ActorRef, activity: CallCachingActivity): Props = Props(new EngineJobHashingActor(jobDescriptor, fileHasherActor, activity))
+  def props(jobDescriptor: BackendJobDescriptor, fileHasherActor: ActorRef, backendName: String, activity: CallCachingActivity): Props = Props(new EngineJobHashingActor(jobDescriptor, fileHasherActor, backendName, activity))
 
-  trait HashResultMessage {
+  trait SuccessfulHashResultMessage {
     def hashes: Set[HashResult]
   }
-  private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends HashResultMessage
+  private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends SuccessfulHashResultMessage
   private[callcaching] case object CheckWhetherAllHashesAreKnown
+  private[callcaching] case class HashingFailedMessage(key: HashKey, reason: Throwable)
+
+  /**
+    * Placeholder hash keys are used when we know the EJHA wants some hashes, but we don't know all the keys yet.
+    *
+    * E.g. We know we want runtime attributes hashes, but only the backend knows how many it will eventually create. So, we allow
+    * the placeholder to be replaced via this expansion. And then we wait for a hash result for each of those new hash keys.
+    */
+  case class RuntimeAttributesHashKeyPlaceholderExpansion(newHashKeysToAwait: Iterable[HashKey])
 
   sealed trait EJHAState
   case object DeterminingHitOrMiss extends EJHAState
@@ -127,6 +180,9 @@ object EngineJobHashingActor {
   sealed trait EJHAResponse
   case class CacheHit(cacheResultId: MetaInfoId) extends EJHAResponse
   case object CacheMiss
+  case class HashError(t: Throwable) {
+    override def toString = s"HashError(${t.getMessage})"
+  }
   case class CallCacheHashes(hashes: Set[HashResult])
 }
 
@@ -136,7 +192,7 @@ object EngineJobHashingActor {
   * @param possibleCacheResults The set of cache results which have matched all currently tried hashes
   * @param keysCheckedAgainstCache The set of hash keys which have already been compared against the cache result table
   * @param hashesKnown The set of all hashes calculated so far (including initial hashes)
-  * @param hashesNeeded Not transient but oh-so-useful for everything else.
+  * @param hashesNeeded The set of hashes we know that we need. Can be expanded via placeholder expansion
   */
 private[callcaching] case class EJHAData(possibleCacheResults: Set[MetaInfoId],
                                          keysCheckedAgainstCache: Set[HashKey],
@@ -151,7 +207,15 @@ private[callcaching] case class EJHAData(possibleCacheResults: Set[MetaInfoId],
       possibleCacheResults = intersectedIds,
       keysCheckedAgainstCache = keysCheckedAgainstCache ++ newCacheResults.hashResults.map(_.hashKey))
   }
-  def withNewKnownHashes(hashResults: Set[HashResult]) = this.copy(hashesKnown = hashesKnown ++ hashResults) // NB doesn't update hashesNeeded which should be considered immutable
+  def withNewKnownHashes(hashResults: Set[HashResult]) = this.copy(hashesKnown = hashesKnown ++ hashResults)
+
+  def replacePlaceholderHashKey(placeholderHashKey: HashKey, newHashKeys: Iterable[HashKey]) = {
+    val newHashesNeeded = this.hashesNeeded ++ newHashKeys filter {
+      case `placeholderHashKey` => false // We d  on't want this!
+      case _ => true // We do want all the others!
+    }
+    this.copy(hashesNeeded = newHashesNeeded)
+  }
 
   // Queries
   def allHashesKnown = hashesNeeded.size == hashesKnown.size

@@ -7,6 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.callcaching.BackendSpecificHasherActor._
 import org.apache.commons.lang3.NotImplementedException
 import wdl4s.values.WdlFile
+import HashValue.StringMd5er
 
 /**
   * Used if a backend has not provided a backend hasher actor.
@@ -23,11 +24,13 @@ class BackendSpecificHasherActor(mode: CallCachingActivity) extends Actor with A
     // Expand the placeholder key, and then send back a failure message for each of them!
     case RuntimeAttributesHashesRequest(jobDescriptor) =>
       val newKeys = mode.dockerHashingType match {
-        case HashDockerNameAndLookupDockerHash => List(HashKey("runtime attribute: docker(Hash lookup)"), HashKey("runtime attribute: docker(Name only)"))
+        case HashDockerNameAndLookupDockerHash => List(HashKey("runtime attribute: docker(Hash)"), HashKey("runtime attribute: docker(Name)"))
         case HashDockerName => List(HashKey("runtime attribute: docker(Name only)"))
       }
       sender ! RuntimeAttributesHashKeyPlaceholderExpansion(newKeys)
-      newKeys foreach { key => sender ! HashingFailedMessage(key, new NotImplementedException("This type of hashing is not implemented for this backend")) }
+      // TODO: Replace with a HashingFailedMessage
+      val dummyResponse: Set[HashResult] = newKeys.map(key => HashResult(key, "DUMMY DOCKER".md5HashValue)).toSet
+      sender ! RuntimeAttributeHashesResponse(dummyResponse)
 
     // Since all these methods are sync, we'll never have any work outstanding. So we don't need to do anything.
     case cancellation: HashesNoLongerRequired => // Nothing
@@ -47,4 +50,5 @@ object BackendSpecificHasherActor {
 
   sealed trait BackendSpecificHasherResponse extends SuccessfulHashResultMessage
   case class FileHashesResponse(hashResult: HashResult) extends BackendSpecificHasherResponse { override def hashes = Set(hashResult) }
+  case class RuntimeAttributeHashesResponse(hashes: Set[HashResult]) extends BackendSpecificHasherResponse
 }

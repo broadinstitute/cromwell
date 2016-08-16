@@ -41,18 +41,18 @@ package object callcaching {
                                   dockerHashingType: DockerHashingType,
                                   fileHashingType: FileHashingType) extends CallCachingMode
   {
-    override val readFromCache = readWriteMode.readFromCache
-    override val writeToCache = readWriteMode.writeToCache
-    override val withoutRead: CallCachingMode = if (!writeToCache) CallCachingOff else this.copy(readWriteMode = WriteCache)
+    override val readFromCache = readWriteMode.r
+    override val writeToCache = readWriteMode.w
+    override lazy val withoutRead: CallCachingMode = if (!writeToCache) CallCachingOff else this.copy(readWriteMode = WriteCache)
     override val toString = readWriteMode.toString
   }
 
   sealed trait ReadWriteMode {
-    val readFromCache: Boolean = true
-    val writeToCache: Boolean = true
+    val r: Boolean = true
+    val w: Boolean = true
   }
-  case object ReadCache extends ReadWriteMode { override val writeToCache = false }
-  case object WriteCache extends ReadWriteMode { override val readFromCache = false }
+  case object ReadCache extends ReadWriteMode { override val w = false }
+  case object WriteCache extends ReadWriteMode { override val r = false }
   case object ReadAndWriteCache extends ReadWriteMode
 
   sealed trait DockerHashingType

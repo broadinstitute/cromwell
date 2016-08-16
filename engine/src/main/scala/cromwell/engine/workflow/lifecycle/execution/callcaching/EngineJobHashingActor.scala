@@ -141,10 +141,13 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   /**
     * Needs to convert a hash result into the set of CachedResults which are consistent with it
     */
-  private def findCacheResults(hashResults: Set[HashResult]) = {
-    val hashes = CallCacheHashes(hashResults)
-    context.actorOf(CallCacheReadActor.props(hashes), s"CallCacheReadActor-${jobDescriptor.descriptor.id}-${jobDescriptor.key.tag}")
-  }
+  private var lookupIndex = 0
+  private def findCacheResults(hashResults: Set[HashResult]) = if ( hashResults.nonEmpty) {
+      val hashes = CallCacheHashes(hashResults)
+      val actorName = s"CallCacheReadActor-${jobDescriptor.descriptor.id}-${jobDescriptor.key.tag}-lookup_$lookupIndex"
+      lookupIndex += 1
+      context.actorOf(CallCacheReadActor.props(hashes), actorName)
+  } else ()
 
   def updateStateDataWithNewHashResults(hashResults: Set[HashResult]): EJHAData = {
     if (mode.writeToCache) stateData.withNewKnownHashes(hashResults) else stateData
@@ -208,7 +211,7 @@ private[callcaching] case class EJHAData(possibleCacheResults: Set[MetaInfoId],
 
   def replacePlaceholderHashKey(placeholderHashKey: HashKey, newHashKeys: Iterable[HashKey]) = {
     val newHashesNeeded = this.hashesNeeded ++ newHashKeys filter {
-      case `placeholderHashKey` => false // We don't want this!
+      case `placeholderHashKey` => false // We d  on't want this!
       case _ => true // We do want all the others!
     }
     this.copy(hashesNeeded = newHashesNeeded)

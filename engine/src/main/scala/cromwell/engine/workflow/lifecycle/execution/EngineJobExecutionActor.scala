@@ -34,7 +34,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   // There's no need to check for a cache hit again if we got preempted
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
-  private var effectiveCallCachingMode = if (jobKey.attempt > 1) { callCachingMode.withoutRead } else { callCachingMode }
+  private var effectiveCallCachingMode = if (jobKey.attempt > 1) callCachingMode.withoutRead else callCachingMode
 
   val effectiveCallCachingKey = "Effective call caching mode"
 
@@ -117,21 +117,21 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   // When RunningJob, the FSM always has EJEAPartialCompletionData (which might be None, None)
   when(RunningJob) {
-    case Event(hashes: CallCacheHashes, data @ PartialCompletionDataWithSucceededResponse(response: SucceededResponse)) =>
+    case Event(hashes: CallCacheHashes, PartialCompletionDataWithSucceededResponse(response: SucceededResponse)) =>
       saveCacheResults(CacheWriteOnCompletionData(response, hashes))
-    case Event(hashes: CallCacheHashes, data @ EmptyPartialCompletionData) =>
+    case Event(hashes: CallCacheHashes, EmptyPartialCompletionData) =>
       stay using PartialCompletionDataWithHashes(Success(hashes))
 
-    case Event(HashError(t), data @ PartialCompletionDataWithSucceededResponse(response)) =>
+    case Event(HashError(t), PartialCompletionDataWithSucceededResponse(response)) =>
       recordHashError(t)
       saveJobCompletionToJobStore(response)
-    case Event(HashError(t), data @ EmptyPartialCompletionData) =>
+    case Event(HashError(t), EmptyPartialCompletionData) =>
       recordHashError(t)
       stay using PartialCompletionDataWithHashes(Failure(t))
 
     case Event(response: SucceededResponse, PartialCompletionDataWithHashes(Success(hashes))) if effectiveCallCachingMode.writeToCache =>
       saveCacheResults(CacheWriteOnCompletionData(response, hashes))
-    case Event(response: SucceededResponse, data @ EmptyPartialCompletionData) if effectiveCallCachingMode.writeToCache =>
+    case Event(response: SucceededResponse, EmptyPartialCompletionData) if effectiveCallCachingMode.writeToCache =>
       stay using PartialCompletionDataWithSucceededResponse(response)
     case Event(response: BackendJobExecutionResponse, _) =>
       saveJobCompletionToJobStore(response)
@@ -139,9 +139,9 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   // When WritingToCallCache, the FSM always has EJEASuccessfulCompletionDataWithHashes
   when(UpdatingCallCache) {
-    case Event(CallCacheWriteSuccess, data @ CacheWriteOnCompletionData(response, _)) =>
+    case Event(CallCacheWriteSuccess, CacheWriteOnCompletionData(response, _)) =>
       saveJobCompletionToJobStore(response)
-    case Event(CallCacheWriteFailure(reason), data @ CacheWriteOnCompletionData(response, _)) =>
+    case Event(CallCacheWriteFailure(reason), CacheWriteOnCompletionData(response, _)) =>
       context.parent ! FailedNonRetryableResponse(jobKey, reason, response.returnCode)
       context stop self
       stay()

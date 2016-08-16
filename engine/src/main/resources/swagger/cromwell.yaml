@@ -582,6 +582,26 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/workflows/{version}/backends':
+    get:
+      summary: Returns the backends supported by this Cromwell.
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/BackendResponse'
+      security:
+        - google_oauth:
+            - openid
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -800,3 +820,17 @@ definitions:
       updateCount:
         type: integer
         description: Number of calls updated by this request.
+  BackendResponse:
+    description: ''
+    required:
+      - supportedBackends
+      - defaultBackend
+    properties:
+      supportedBackends:
+        type: array
+        description: The backends supported by this server
+        items:
+          type: string
+      defaultBackend:
+        type: string
+        description: The default backend of this server

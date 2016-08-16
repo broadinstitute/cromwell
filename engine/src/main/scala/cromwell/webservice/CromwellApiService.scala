@@ -4,6 +4,7 @@ import akka.actor._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.services.metadata.MetadataService
 import MetadataService.{ValidateWorkflowIdAndExecute, _}
+import cromwell.engine.backend.BackendConfiguration
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.spray.SwaggerUiResourceHttpService
@@ -12,7 +13,6 @@ import spray.http._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing._
-
 import scalaz.NonEmptyList
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
@@ -38,7 +38,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute ~ backendRoute
 
   private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     // The submitted value is malformed as a UUID and therefore not possibly recognized.
@@ -184,4 +184,21 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         }
       }
     }
+
+  def backendRoute =
+    path("workflows" / Segment / "backends") { version =>
+      get {
+        complete {
+          // Note that this is not using our standard per-request scheme, since the result is pre-calculated already
+          backendResponse
+        }
+      }
+    }
+
+  val backendResponse = JsObject(Map(
+    "supportedBackends" -> BackendConfiguration.AllBackendEntries.map(_.name).sorted.toJson,
+    "defaultBackend" -> BackendConfiguration.DefaultBackendEntry.name.toJson
+  ))
+
 }
+

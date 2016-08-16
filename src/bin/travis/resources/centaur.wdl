@@ -22,7 +22,7 @@ task centaur {
 
     runtime {
         docker: "geoffjentry/centaur-cromwell:latest" 
-        cpu: "32"
+        cpu: "8"
         zones: "us-central1-b"
         failOnStderr: false
     }

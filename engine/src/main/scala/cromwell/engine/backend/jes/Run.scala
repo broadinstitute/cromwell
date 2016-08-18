@@ -26,7 +26,7 @@ object Run  {
   lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   val InitialPollingInterval = 5 seconds
   val PollingBackoffFactor = 1.1
-  val acceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown")
+  val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown")
 
   def apply(runIdForResumption: Option[String],
             jesJobDescriptor: JesJobDescriptor,

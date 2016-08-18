@@ -1,8 +1,8 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.client.util.ArrayMap
+import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.google.api.services.genomics.{Genomics, model}
-import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, Pipeline, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine.backend.BackendCallJobDescriptor
@@ -26,6 +26,7 @@ object Run  {
   lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   val InitialPollingInterval = 5 seconds
   val PollingBackoffFactor = 1.1
+  val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown")
 
   def apply(runIdForResumption: Option[String],
             jesJobDescriptor: JesJobDescriptor,
@@ -119,13 +120,15 @@ object Run  {
       } toSeq
     } else Seq.empty
 
+    val filteredEventsList: Seq[EventStartTime] = eventsList filter { i => AcceptableEvents.contains(i.name) }
+
     // The final event is only used as the book-end for the final pairing (see below) so the name is never actually used...
     // ... which is rather a pity actually - it's a jolly good name.
     val finaleEvents = eventIfExists("endTime", op, "cromwell poll interval") ++ Seq(
       EventStartTime("The Queen flying around with a jet-pack, with Winston Churchill cheering and waving a huge Union Jack in the background", DateTime.now))
 
     // Join the Seqs together, pair up consecutive elements then make events with start and end times.
-    ((starterEvents ++ eventsList ++ finaleEvents).sliding(2) toSeq) map { case Seq(a, b) => ExecutionEventEntry(a.name, a.timestamp, b.timestamp) }
+    ((starterEvents ++ filteredEventsList ++ finaleEvents).sliding(2) toSeq) map { case Seq(a, b) => ExecutionEventEntry(a.name, a.timestamp, b.timestamp) }
   }
 
   private def eventIfExists(name: String, op: Operation, eventName: String): Seq[EventStartTime] = {

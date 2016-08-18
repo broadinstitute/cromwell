@@ -128,7 +128,7 @@ object Run  {
       EventStartTime("The Queen flying around with a jet-pack, with Winston Churchill cheering and waving a huge Union Jack in the background", DateTime.now))
 
     // Join the Seqs together, pair up consecutive elements then make events with start and end times.
-    ((starterEvents ++ eventsList ++ finaleEvents).sliding(2) toSeq) map { case Seq(a, b) => ExecutionEventEntry(a.name, a.timestamp, b.timestamp) }
+    ((starterEvents ++ filteredEventsList ++ finaleEvents).sliding(2) toSeq) map { case Seq(a, b) => ExecutionEventEntry(a.name, a.timestamp, b.timestamp) }
   }
 
   private def eventIfExists(name: String, op: Operation, eventName: String): Seq[EventStartTime] = {

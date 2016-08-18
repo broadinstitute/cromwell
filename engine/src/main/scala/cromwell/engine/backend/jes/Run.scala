@@ -120,7 +120,7 @@ object Run  {
       } toSeq
     } else Seq.empty
 
-    val filteredEventsList: Seq[EventStartTime] = eventsList filter { i => acceptableEvents.contains(i.name) }
+    val filteredEventsList: Seq[EventStartTime] = eventsList filter { i => AcceptableEvents.contains(i.name) }
 
     // The final event is only used as the book-end for the final pairing (see below) so the name is never actually used...
     // ... which is rather a pity actually - it's a jolly good name.

@@ -2,6 +2,8 @@ package cromwell.backend.sfs
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
+import cromwell.backend.callcaching.BackendHashingMethods
+import cromwell.backend.sfs.callcaching.ConfigSfsBackendHashingMethods
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher
 import wdl4s.Call

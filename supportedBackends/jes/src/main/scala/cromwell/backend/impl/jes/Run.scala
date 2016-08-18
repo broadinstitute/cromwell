@@ -39,9 +39,9 @@ object Run {
             projectId: String,
             preemptible: Boolean,
             genomicsInterface: Genomics): Run = {
-    val logger = new JobLogger("JesRun", jobDescriptor.descriptor.id, jobDescriptor.key.tag, None, Set(slf4jLogger))
+    val logger = new JobLogger("JesRun", jobDescriptor.workflowDescriptor.id, jobDescriptor.key.tag, None, Set(slf4jLogger))
 
-    lazy val workflow = jobDescriptor.descriptor
+    lazy val workflow = jobDescriptor.workflowDescriptor
     val runtimeInfoBuilder = if (preemptible) PreemptibleJesRuntimeInfoBuilder else NonPreemptibleJesRuntimeInfoBuilder
     val runtimeInfo = runtimeInfoBuilder.build(commandLine, runtimeAttributes)
 

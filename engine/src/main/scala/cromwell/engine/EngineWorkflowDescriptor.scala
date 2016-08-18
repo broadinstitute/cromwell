@@ -4,7 +4,7 @@ import java.nio.file.FileSystem
 
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.WorkflowOptions.WorkflowOption
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingMode
+import cromwell.core.callcaching.CallCachingMode
 import wdl4s._
 
 final case class EngineWorkflowDescriptor(backendDescriptor: BackendWorkflowDescriptor,

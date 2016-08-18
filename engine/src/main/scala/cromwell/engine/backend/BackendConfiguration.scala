@@ -1,17 +1,18 @@
 package cromwell.engine.backend
 
+import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
 
 import scala.collection.JavaConverters._
-import scala.util.{Try, Success, Failure}
+import scala.util.{Failure, Success, Try}
 import lenthall.config.ScalaConfig._
 
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
-  def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
+  def asBackendLifecycleActorFactory(actorSystem: ActorSystem): BackendLifecycleActorFactory = {
     Class.forName(lifecycleActorFactoryClass)
-         .getConstructor(classOf[BackendConfigurationDescriptor])
-         .newInstance(asBackendConfigurationDescriptor)
+         .getConstructor(classOf[BackendConfigurationDescriptor], classOf[ActorSystem])
+         .newInstance(asBackendConfigurationDescriptor, actorSystem)
          .asInstanceOf[BackendLifecycleActorFactory]
   }
 

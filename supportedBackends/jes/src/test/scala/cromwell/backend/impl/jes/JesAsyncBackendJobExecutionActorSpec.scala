@@ -80,7 +80,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       GcsFileSystem(GcsFileSystemProvider(storage)(scala.concurrent.ExecutionContext.global))
     }
 
-    val workflowPaths = JesWorkflowPaths(jobDescriptor.descriptor, configuration, gcsFileSystem)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration, gcsFileSystem)
     JesBackendInitializationData(workflowPaths, null)
   }
 
@@ -121,7 +121,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, attempt)
-    BackendJobDescriptor(workflowDescriptor, key, Inputs)
+    BackendJobDescriptor(workflowDescriptor, key, Map.empty, Inputs)
   }
 
   private def executionActor(jobDescriptor: BackendJobDescriptor,
@@ -156,7 +156,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int): TestActorRef[TestableJesJobExecutionActor] = {
     val jobDescriptor = buildPreemptibleJobDescriptor(attempt, preemptible)
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+    TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
   behavior of "JesAsyncBackendJobExecutionActor"
@@ -288,12 +288,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     // TODO: PBE: This spec may run faster by going back to mocks? Also, building the actor ref is copy/pasted a lot
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val mappedInputs = jobDescriptor.inputs mapValues testActorRef.underlyingActor.gcsPathToLocal
 
@@ -341,11 +341,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
     jesInputs should have size 8
@@ -379,10 +379,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val call = workflowDescriptor.workflowNamespace.workflow.findCallByName(callName).get
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
-    TestActorRef[TestableJesJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+    TestActorRef[TestableJesJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
   it should "generate correct JesOutputs" in {
@@ -438,11 +438,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
     jesInputs should have size 2
@@ -464,11 +464,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
     jesInputs should have size 2
@@ -506,11 +506,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val result = outputValues map testActorRef.underlyingActor.wdlValueToGcsPath(jesOutputs)
     result should have size 3
@@ -532,11 +532,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe
       Some(JesFileInput("monitoring-in", "gs://path/to/script", Paths.get("monitoring.sh"), workingDisk))
@@ -551,11 +551,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe None
   }
@@ -571,11 +571,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val call = workflowDescriptor.workflowNamespace.workflow.findCallByName("hello").get
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesBackend = testActorRef.underlyingActor
 
@@ -602,11 +602,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val call = workflowDescriptor.workflowNamespace.workflow.findCallByName("B").get
     val key = BackendJobDescriptorKey(call, Option(2), 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
-      props, s"TestableJesJobExecutionActor-${jobDescriptor.descriptor.id}")
+      props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     val jesBackend = testActorRef.underlyingActor
 

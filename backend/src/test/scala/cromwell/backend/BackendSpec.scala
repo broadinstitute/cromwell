@@ -38,21 +38,21 @@ trait BackendSpec extends ScalaFutures with Matchers {
                                           inputs: Map[String, WdlValue] = Map.empty): BackendJobDescriptor = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    BackendJobDescriptor(workflowDescriptor, jobKey, inputs)
+    BackendJobDescriptor(workflowDescriptor, jobKey, Map.empty, inputs)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
+    BackendJobDescriptor(workflowDescriptor, jobKey, Map.empty, workflowDescriptor.inputs)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource, runtime: String, attempt: Int): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
-    BackendJobDescriptor(workflowDescriptor, jobKey, workflowDescriptor.inputs)
+    BackendJobDescriptor(workflowDescriptor, jobKey, Map.empty, workflowDescriptor.inputs)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -92,7 +92,7 @@ trait BackendSpec extends ScalaFutures with Matchers {
 
   def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                          inputs: Map[String, WdlValue] = Map.empty) = {
-    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), inputs)
+    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, inputs)
   }
 
   def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {

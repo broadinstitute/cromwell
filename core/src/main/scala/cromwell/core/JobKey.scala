@@ -7,4 +7,6 @@ trait JobKey {
   def index: Option[Int]
   def attempt: Int
   def tag: String
+
+  override def toString = s"${scope.fullyQualifiedName}:$index:$attempt"
 }

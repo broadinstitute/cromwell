@@ -19,15 +19,18 @@ package object backend {
     private val indexString = index map { _.toString } getOrElse "NA"
     val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
     val isShard = index.isDefined
+    def toString(workflowId: WorkflowId) = s"$workflowId:$this"
   }
 
   /**
     * For passing to a BackendWorkflowActor for job execution or recovery
     */
-  case class BackendJobDescriptor(descriptor: BackendWorkflowDescriptor,
+  case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                   key: BackendJobDescriptorKey,
+                                  runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
                                   inputs: Map[LocallyQualifiedName, WdlValue]) {
     val call = key.call
+    override val toString = s"${workflowDescriptor.id}:$key"
   }
 
   /**

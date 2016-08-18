@@ -6,9 +6,10 @@ import cromwell.database.sql._
 import cromwell.database.sql.tables.CallCachingResultMetaInfoEntry
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
+import cromwell.core.simpleton.WdlValueSimpleton
 import wdl4s.values._
-import language.postfixOps
 
+import language.postfixOps
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -30,14 +31,10 @@ class CallCache(database: CallCachingStore) {
   }
 
   private def toResultSimpletons(jobOutputs: JobOutputs): Seq[ResultSimpleton] = {
-   jobOutputs flatMap { case (lqn, jobOutput) => toResultSimpletons(jobOutput.wdlValue, lqn) } toSeq
-  }
-
-  private def toResultSimpletons(wdlValue: WdlValue, simpletonKey: String): Seq[ResultSimpleton] = wdlValue match {
-    case prim: WdlPrimitive => List(ResultSimpleton(simpletonKey, prim.valueString, wdlValue.getClass.getSimpleName))
-    case WdlArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => toResultSimpletons(arrayItem, s"$simpletonKey[$index]") }
-    case WdlMap(_, mapValue) => mapValue flatMap { case (key, value) => toResultSimpletons(value, s"$simpletonKey:${key.valueString}") } toSeq
-    case wdlObject: WdlObjectLike => wdlObject.value flatMap { case (key, value) => toResultSimpletons(value, s"$simpletonKey:$key") } toSeq
+    import cromwell.core.simpleton.WdlValueSimpleton._
+    jobOutputs.mapValues(_.wdlValue).simplify map {
+      case WdlValueSimpleton(simpletonKey, wdlPrimitive) => ResultSimpleton(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.getClass.getSimpleName)
+    } toSeq
   }
 
   def fetchMetaInfoIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {

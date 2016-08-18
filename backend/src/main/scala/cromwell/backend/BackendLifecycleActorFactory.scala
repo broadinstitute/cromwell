@@ -4,6 +4,7 @@ import java.nio.file.Path
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
+import cromwell.backend.callcaching.BackendHashingMethods
 import cromwell.backend.io.WorkflowPaths
 import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
@@ -23,6 +24,8 @@ trait BackendLifecycleActorFactory {
                                      executionStore: ExecutionStore,
                                      outputStore: OutputStore,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None
+
+  val backendHashingMethods: BackendHashingMethods
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                   jobKey: BackendJobDescriptorKey,

@@ -9,9 +9,9 @@ import scala.util.{Success, Try, Failure}
 /**
   * Provides a global singleton access to the instantiated backend factories.
   */
-case class CromwellBackends(backendEntries: List[BackendConfigurationEntry]) {
+case class CromwellBackends(backendEntries: List[BackendConfigurationEntry], actorSystem: ActorSystem) {
 
-  val backendLifecycleActorFactories = backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory).toMap
+  val backendLifecycleActorFactories = backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory(actorSystem)).toMap
 
   def backendLifecycleActorFactoryByName(backendName: String): Try[BackendLifecycleActorFactory] = {
     backendLifecycleActorFactories.get(backendName) match {
@@ -40,6 +40,6 @@ object CromwellBackends {
 
   def initBackends(backendEntries: List[BackendConfigurationEntry],
                    actorSystem: ActorSystem): Unit = {
-    instance = Option(CromwellBackends(backendEntries: List[BackendConfigurationEntry]))
+    instance = Option(CromwellBackends(backendEntries, actorSystem))
   }
 }

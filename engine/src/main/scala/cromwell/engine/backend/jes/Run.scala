@@ -1,8 +1,8 @@
 package cromwell.engine.backend.jes
 
 import com.google.api.client.util.ArrayMap
+import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.google.api.services.genomics.{Genomics, model}
-import com.google.api.services.genomics.model.{CancelOperationRequest, LoggingOptions, Pipeline, RunPipelineArgs, RunPipelineRequest, ServiceAccount, _}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowId
 import cromwell.engine.backend.BackendCallJobDescriptor
@@ -118,6 +118,9 @@ object Run  {
         EventStartTime(entry.get("description"), DateTime.parse(entry.get("startTime")))
       } toSeq
     } else Seq.empty
+
+    val acceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown")
+    val filteredEventsList: Seq[EventStartTime] = { eventsList filter { i => acceptableEvents.contains(i.name) } }
 
     // The final event is only used as the book-end for the final pairing (see below) so the name is never actually used...
     // ... which is rather a pity actually - it's a jolly good name.

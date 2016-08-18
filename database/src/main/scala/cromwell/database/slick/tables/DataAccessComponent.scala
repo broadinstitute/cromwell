@@ -14,6 +14,7 @@ class DataAccessComponent(val driver: JdbcProfile)
   with WorkflowMetadataSummaryComponent
   with WorkflowStoreComponent
   with JobStoreComponent
+  with JobStoreResultSimpletonComponent
   with BackendKVStoreComponent
   with CallCachingResultMetaInfoComponent
   with CallCachingHashComponent
@@ -32,6 +33,7 @@ class DataAccessComponent(val driver: JdbcProfile)
       workflowMetadataSummaries.schema ++
       workflowStore.schema ++
       jobStore.schema ++
+      jobStoreResultSimpletons.schema ++
       backendKVStore.schema ++
       callCachingResultMetaInfo.schema ++
       callCachingHashes.schema ++

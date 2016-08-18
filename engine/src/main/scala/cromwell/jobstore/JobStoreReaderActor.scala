@@ -15,9 +15,9 @@ class JobStoreReaderActor(database: JobStore) extends Actor with ActorLogging {
   implicit val ec = context.dispatcher
 
   override def receive = LoggingReceive {
-    case QueryJobCompletion(key) =>
+    case QueryJobCompletion(key, taskOutputs) =>
       val replyTo = sender()
-      database.readJobResult(key) onComplete {
+      database.readJobResult(key, taskOutputs) onComplete {
         case Success(Some(result)) => replyTo ! JobComplete(result)
         case Success(None) => replyTo ! JobNotComplete
         case Failure(t) =>

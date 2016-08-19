@@ -5,8 +5,9 @@ import java.nio.file.Path
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.traverse._
 import cats.std.list._
+import centaur.api.CromwellBackendsCompanion
 import centaur.test.Test
-import centaur.test.standard.{StandardTestCase}
+import centaur.test.standard.StandardTestCase
 import centaur.test.workflow.Workflow
 
 import scala.language.postfixOps
@@ -21,10 +22,13 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
     }
   }
 
+  val cromwellBackends = CromwellBackendsCompanion.supportedBackends
+
   // Optional test cases are provided by the end user as opposed to the ones built in to the system
   val optionalTestCases = CentaurConfig.optionalTestPath map testCases getOrElse List.empty
+
   optionalTestCases ++ testCases(CentaurConfig.standardTestCasePath) foreach {
-    case t => executeStandardTest(t, t.testFunction)
+    t => executeStandardTest(t, t.testFunction)
   }
 
   def executeStandardTest(testCase: StandardTestCase, f: Workflow => Test[_]): Unit = {
@@ -33,11 +37,12 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.name :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
+    val isIgnored = testCase.isIgnored(cromwellBackends)
 
     tags match {
-      case Nil => runOrDont(nameTest, testCase.testOptions.ignore, runTest)
-      case head :: Nil => runOrDont(nameTest taggedAs head, testCase.testOptions.ignore, runTest)
-      case head :: tail => runOrDont(nameTest taggedAs(head, tail: _*), testCase.testOptions.ignore, runTest)
+      case Nil => runOrDont(nameTest, isIgnored, runTest)
+      case head :: Nil => runOrDont(nameTest taggedAs head, isIgnored, runTest)
+      case head :: tail => runOrDont(nameTest taggedAs(head, tail: _*), isIgnored, runTest)
     }
   }
 

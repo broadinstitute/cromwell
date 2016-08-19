@@ -3,33 +3,25 @@ package centaur.test
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.ActorSystem
 import cats.Monad
 import centaur._
-import centaur.api.CromwellStatusJsonSupport._
-import centaur.api.FailedWorkflowSubmissionJsonSupport._
 import centaur.api.{CromwellStatus, _}
-import centaur.test.metadata.WorkflowMetadata
-import centaur.test.workflow.Workflow
 import spray.client.pipelining._
 import spray.http.{FormData, HttpRequest, HttpResponse}
 import spray.httpx.PipelineException
-import spray.httpx.SprayJsonSupport._
 import spray.httpx.unmarshalling._
 import spray.json._
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import spray.httpx.SprayJsonSupport._
 import FailedWorkflowSubmissionJsonSupport._
 import CromwellStatusJsonSupport._
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
-import scala.Option
-
+import CromwellClient._
 import scala.concurrent.blocking
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -196,20 +188,11 @@ object Operations {
     }
   }
 
-  /**
-    * Ensure that the Future completes within the specified timeout. If it does not, or if the Future fails,
-    * will return a Failure, otherwise a Success
-    */
-  def awaitFutureCompletion[T](x: Future[T], timeout: FiniteDuration) = Try(Await.result(x, timeout))
-  def sendReceiveFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.sendReceiveTimeout)
+  /* Some enhancements of CromwellApi tools specific to these tests */
   def workflowLengthFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.maxWorkflowLength)
   def metadataFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.metadataConsistencyTimeout)
 
-  // Spray needs an implicit ActorSystem
-  implicit val system = ActorSystem("centaur-foo")
   val MetadataRequest: HttpRequest => Future[String] = sendReceive ~> unmarshal[String]
-
-  def Pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
   def FailingPipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[FailedWorkflowSubmission] = sendReceive ~> unmarshalFailure[FailedWorkflowSubmission]
 
   private def unmarshalFailure[T: FromResponseUnmarshaller]: HttpResponse => T =

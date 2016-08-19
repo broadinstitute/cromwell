@@ -20,6 +20,11 @@ case class StandardTestCase(workflow: Workflow, testFormat: StandardTestFormat, 
     case WorkflowFailureTest => failureTestFunction
   }
 
+  def isIgnored(supportedBackends: List[String]): Boolean = {
+    val backendSupported = workflow.backend forall supportedBackends.contains
+    testOptions.ignore || !backendSupported
+  }
+
   private def successfulTestFunction = this.workflow match {
     case _: WorkflowWithoutMetadata => TestFormulas.runSuccessfulWorkflow _
     case _: WorkflowWithMetadata => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata _

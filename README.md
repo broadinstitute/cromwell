@@ -43,7 +43,7 @@ Each test case file is a HOCON file with the following structure:
 ```
 name: NAME  // Required: Name of the test
 testFormat: TESTFORMAT // Required: One of WorkflowSuccessTest, WorkflowFailureTest
-
+backend: BACKENDNAME // Optional. If supplied, this test will be ignored if this backend is not supported by the Cromwell server
 basePath: /an/optional/field  // Optional, location for the files {} entries to be found relative to
 tags: [ "any", "custom", "tags" ]  // Optional, a set of custom tags to apply to this test
 ignore: false  // Optional, whether centaur will ignore this test when running
@@ -73,11 +73,4 @@ The `metadata` is optional. If supplied, Centaur will retrieve the metadata from
 For any metadata values which require workflow ID (i.e, file paths), use <<UUID>> as a placeholder instead. For example:
 * "calls.hello.hello.stdout": "gs://google-project/jes/root/wdl/<<UUID>>/call-task/task-stdout.log"
 
-
-# FAQs
-
-##### I'm seeing a bunch of timeout errors in my tests
-This is because you are trying to drive your poor Cromwell too hard!  Typically this happens when you are running everything on your local machine and are using a high level of parallelism (e.g. running via `sbt test`).  Reduce your parallelism by using `run_tests_parallel.sh` instead and/or beef up your configuration
-
-![Image of a Centaur](https://upload.wikimedia.org/wikipedia/commons/3/34/Centaur_IV_tank_of_'H'_Troop,_2nd_Battery,_Royal_Marine_Armoured_Support_Group,_13_June_1944._B5457.jpg)
 

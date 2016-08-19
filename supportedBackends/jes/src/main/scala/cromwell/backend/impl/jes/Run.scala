@@ -26,7 +26,7 @@ object Run {
   private lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   private val InitialPollingInterval = 5 seconds
   private val PollingBackoffFactor = 1.1
-  private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown")
+  private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown", "preempted")
 
 
   val slf4jLogger = LoggerFactory.getLogger(Run.getClass)

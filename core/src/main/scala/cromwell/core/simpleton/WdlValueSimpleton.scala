@@ -4,12 +4,21 @@ import wdl4s.values.{WdlArray, WdlMap, WdlObjectLike, WdlPrimitive, WdlValue}
 
 case class WdlValueSimpleton(simpletonKey: String, simpletonValue: WdlPrimitive)
 
+/**
+  * Encodes potentially complex `WdlValue`s as `Iterable[WdlValueSimpleton]`s using a protocol similar to that of
+  * `MetadataValue`s: array elements are referenced by a square-brace enclosed index, map values are referenced by a
+  * colon-prefixed key.  The `WdlValueSimpleton` protocol differs slightly from the `MetadataValue` protocol because map
+  * keys are not specified within Cromwell: WDL authors can choose any map keys allowed by WDL, possibly including square
+  * brace or colon characters that this protocol uses as metacharacters.  So the `WdlValueSimpleton` protocol escapes
+  * any `[`, `]`, or `:` metacharacters in map keys with a leading backslash, which must then be unescaped whenever
+  * `WdlValueSimpleton`s are transformed back to `WdlValue`s.
+  */
 object WdlValueSimpleton {
 
   implicit class KeyMetacharacterEscaper(val key: String) extends AnyVal {
     // The escapes are necessary on the first arguments to `replaceAll` since they're treated like regular expressions
     // and square braces are character class delimiters.  Backslashes must be escaped in both parameters.
-    // Ignore the red in some of the "raw" strings, Intellij and GitHub don't seem to understand them.
+    // Ignore the red in some of the "raw" strings, IntelliJ and GitHub don't seem to understand them.
     def escapeMeta = key.replaceAll(raw"\[", raw"\\[").replaceAll(raw"\]", raw"\\]").replaceAll(":", raw"\\:")
     def unescapeMeta = key.replaceAll(raw"\\\[", "[").replaceAll(raw"\\\]", "]").replaceAll(raw"\\:", ":")
   }

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow
 
-import akka.actor.Actor
+import akka.actor.{Actor, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
@@ -10,6 +10,7 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
 import cromwell.jobstore.{JobStoreActor, WriteCountingJobStoreDatabase}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
@@ -34,6 +35,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
       ConfigFactory.load,
       mockServiceRegistryActor,
       system.actorOf(JobStoreActor.props(WriteCountingJobStoreDatabase.makeNew)),
+      system.actorOf(Props(new DockerHashLookupWorkerActor)),
       TestProbe().ref))
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
       AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))

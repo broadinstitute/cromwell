@@ -42,5 +42,6 @@ object TryUtil {
     def unbox = tries mapValues { _.get }
     sequenceIterable(tries.values, unbox _, prefixErrorMessage)
   }
-
 }
+
+

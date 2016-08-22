@@ -47,7 +47,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
-  private val workflowDescriptor = jobDescriptor.descriptor
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
 
   // Files
@@ -75,7 +75,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
     // Fail the call if runtime attributes can't be evaluated
     val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    HtCondorRuntimeAttributes(runtimeMap, jobDescriptor.descriptor.workflowOptions)
+    HtCondorRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
   }
 
   private val cacheActor = cacheActorProps match {
@@ -115,7 +115,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     */
   override def recover: Future[BackendJobExecutionResponse] = {
     log.warning("{} Trying to recover job {}.", tag, jobDescriptor.key.call.fullyQualifiedName)
-    serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.descriptor.id,
+    serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id,
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
       HtCondorJobIdKey))
     executionResponse.future
@@ -157,7 +157,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
           case job(jobId, clusterId) =>
             val overallJobIdentifier = s"$clusterId.${jobId.toInt - 1}" // Condor has 0 based indexing on the jobs, probably won't work on stuff like `queue 150`
             log.info("{} {} mapped to HtCondor JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, overallJobIdentifier)
-            serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.descriptor.id,
+            serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.workflowDescriptor.id,
               KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
               HtCondorJobIdKey), Option(overallJobIdentifier)))
             trackTaskToCompletion(overallJobIdentifier)

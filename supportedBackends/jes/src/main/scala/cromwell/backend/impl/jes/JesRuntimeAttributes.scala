@@ -55,7 +55,7 @@ object JesRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = s"${JesWorkingDisk.Name} 10 SSD"
 
-  private val staticDefaults = Map(
+  val staticDefaults = Map(
     CpuKey -> WdlInteger(CpuDefaultValue),
     DisksKey -> WdlString(DisksDefaultValue),
     ZonesKey -> WdlString(ZoneDefaultValue),

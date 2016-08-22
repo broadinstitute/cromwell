@@ -49,7 +49,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   def createBackendRef(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor) = {
-    val workflowPaths = new WorkflowPaths(jobDescriptor.descriptor, configurationDescriptor.backendConfig)
+    val workflowPaths = new WorkflowPaths(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
     val initializationData = new SharedFileSystemBackendInitializationData(workflowPaths,
       SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional))
 
@@ -201,7 +201,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("intNumber" -> WdlInteger(shard))
 
       val jobDescriptor: BackendJobDescriptor =
-        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), symbolMaps)
+        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), Map.empty, symbolMaps)
       val backend = createBackend(jobDescriptor, emptyBackendConfig)
       val response =
         SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))))

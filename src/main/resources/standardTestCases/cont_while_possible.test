@@ -1,9 +1,5 @@
-#Currently failing since the workflow fails without completing task 'shouldSucceed'
-#and no information about tasks that weren't started.
-
 name: cont_while_possible
 testFormat: workflowfailure
-ignore: false
 
 files {
   wdl: cont_while_possible/cont_while_possible.wdl

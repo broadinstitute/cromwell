@@ -1,0 +1,6 @@
+name: failing_continue_on_return_code
+testFormat: workflowfailure
+
+files {
+  wdl: failing_continue_on_return_code/failing_continue_on_return_code.wdl
+}

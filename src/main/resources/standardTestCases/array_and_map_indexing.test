@@ -1,0 +1,13 @@
+name: array_and_map_indexing
+testFormat: workflowsuccess
+
+files {
+  wdl: array_and_map_indexing/array_and_map_indexing.wdl
+}
+
+metadata {
+  workflowName: test
+  status: Succeeded
+  "outputs.test.echo_str.o": "bar"
+  "outputs.test.echo_int.o": 200
+}

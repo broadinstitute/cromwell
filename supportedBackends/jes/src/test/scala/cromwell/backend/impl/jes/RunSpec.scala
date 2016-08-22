@@ -17,11 +17,11 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val op: Operation = new Operation()
 
     val event1: ArrayMap[String, String] = ArrayMap.create(2)
-    event1.add("description", "blah")
+    event1.add("description", "start")
     event1.add("startTime", "2015-12-05T00:00:01+00:00")
 
     val event2: ArrayMap[String, String] = ArrayMap.create(2)
-    event2.add("description", "blah2")
+    event2.add("description", "blah")
     event2.add("startTime", "2015-12-05T00:01:00+00:00")
 
     val events = new util.ArrayList(Seq(event1, event2).asJava)
@@ -42,8 +42,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     list should contain theSameElementsAs List(
       EventStartTime("waiting for quota", OffsetDateTime.parse("2015-12-05T00:00:00+00:00")),
       EventStartTime("initializing VM", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
-      EventStartTime("blah", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
-      EventStartTime("blah2", OffsetDateTime.parse("2015-12-05T00:01:00+00:00")),
+      EventStartTime("start", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
       EventStartTime("cromwell poll interval", OffsetDateTime.parse("2015-12-05T11:00:00+00:00"))
     )
 

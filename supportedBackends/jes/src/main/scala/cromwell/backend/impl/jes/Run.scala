@@ -26,6 +26,8 @@ object Run {
   private lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
   private val InitialPollingInterval = 5 seconds
   private val PollingBackoffFactor = 1.1
+  private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown", "preempted")
+
 
   val slf4jLogger = LoggerFactory.getLogger(Run.getClass)
 
@@ -122,11 +124,13 @@ case class Run(runId: String, genomicsInterface: Genomics) {
       entry <- events.asInstanceOf[JArrayList[GArrayMap[String, String]]].asScala
     } yield EventStartTime(entry.get("description"), OffsetDateTime.parse(entry.get("startTime")))
 
+    val filteredEventsList: Seq[EventStartTime] = eventsList filter { i => AcceptableEvents.contains(i.name) }
+
     // A little bit ugly... the endTime of the jes operation can actually be before the final "event" time, due to differences
     // in the reported precision. As a result, we have to make sure it all lines up nicely:
-    val finalEvent = getCromwellPollIntervalEvent(metadata, eventsList)
+    val finalEvent = getCromwellPollIntervalEvent(metadata, filteredEventsList)
 
-    starterEvents ++ eventsList :+ finalEvent
+    starterEvents ++ filteredEventsList :+ finalEvent
   }
 
   private def getCromwellPollIntervalEvent(metadata: Map[String, AnyRef], eventsList: Seq[EventStartTime]) = {

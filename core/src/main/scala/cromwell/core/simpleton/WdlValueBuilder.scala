@@ -9,7 +9,9 @@ import cromwell.core.{JobOutput, JobOutputs}
 import cromwell.core.simpleton.WdlValueSimpleton._
 
 
-/** Builds arbitrary WdlValues from WdlValueSimpletons. */
+/**
+  * Builds arbitrary `WdlValues` from `WdlValueSimpletons`.
+  **/
 object WdlValueBuilder {
 
   /**
@@ -31,60 +33,35 @@ object WdlValueBuilder {
     * Capture groups:
     *
     * <ol>
-    * <li>Square braces plus enclosed digits</li>
-    * <li>Only the enclosed digits</li>
+    * <li>The array subscript. Does <b>not</b> include the enclosing square braces.</li>
     * <li>Possibly a metacharacter and more stuff after the square brace enclosed digits</li>
     * </ol>
     */
-  private val ArrayElementPattern = raw"^(\[(\d+)\])(.*)".r
+  private val ArrayElementPattern = raw"^\[(\d+)\](.*)".r
 
   /**
     * Looks for a map element reference: a colon followed by one or more non-metacharacters, possibly followed by a
     * metacharacter and more stuff.  Any metacharacters in map keys have been escaped by `WdlValueSimpleton#escapeMeta`,
-    * which is taken account by the regular expression below.
+    * which is taken account by the regular expression.
     *
     * Capture groups:
     *
     * <ol>
-    * <li>A colon followed by one or more non-metacharacters, including `WdlValueSimpleton#escapeMeta` escaped metacharacters.</li>
-    * <li>Same as above except for the initial colon</li>
+    * <li>The map key, possibly including `WdlValueSimpleton#escapeMeta` escaped metacharacters.  Does <b>not</b> include
+    *     the leading colon.</li>
     * <li>Possibly a metacharacter and more trailing stuff</li>
     * </ol>
     */
-  private val MapElementPattern = """
-        (?x)                             # Turn on comments and whitespace insensitivity.
+  // Within the noncapturing `?:` group, this looks for an escaped metacharacter OR a non-metacharacter.
+  private val MapElementPattern = raw"^:((?:\\[]\[:]|[^]\[:])+)(.*)".r
 
-        ^(                               # Begin capture.  This outer capture grabs all the stuff that will
-                                         # be ignored as the simpleton parsing "descends" into the map.
-
-          :                              # colon
-            (                            # Begin nested capture.
-              (?:                        #   Begin nested nested non-capturing group.
-                \\\[                     #     An escaped open square brace;
-                  |                      #       or
-                \\\]                     #     an escaped closing square brace;
-                  |                      #       or
-                \\:                      #     an escaped colon;
-                  |                      #       or
-                [^]\[:]                  #     any character other than closing square brace, opening square brace, or colon.
-              )                          #   End nested nested non-capturing group.
-              +                          #   One or more of the above characters or escaped metacharacters.
-            )                            # End nested capture.
-
-        )                                # End capture.
-
-        (                                # Begin capture.
-          .*                             # Possibly more stuff.
-        )                                # End capture.
-
-                                  """.trim.r          // The trim is necessary as (?x) must be at the beginning of the regex.
   private def toWdlValue(outputType: WdlType, components: Traversable[SimpletonComponent]): WdlValue = {
 
     // Returns a tuple of the index into the outermost array and a `SimpletonComponent` whose path reflects the "descent"
     // into the array.  e.g. for a component
     // SimpletonComponent("[0][1]", v) this would return (0 -> SimpletonComponent("[1]", v)).
     def descendIntoArray(component: SimpletonComponent): (Int, SimpletonComponent) = {
-      component.path match { case ArrayElementPattern(_, index, more) => index.toInt -> component.copy(path = more)}
+      component.path match { case ArrayElementPattern(index, more) => index.toInt -> component.copy(path = more)}
     }
 
     // Returns a tuple of the key into the outermost map and a `SimpletonComponent` whose path reflects the "descent"
@@ -93,7 +70,7 @@ object WdlValueBuilder {
     // Map keys are treated as Strings by this method, the caller must ultimately do the appropriate coercion to the
     // actual map key type.
     def descendIntoMap(component: SimpletonComponent): (String, SimpletonComponent) = {
-      component.path match { case MapElementPattern(_, key, more) => key.unescapeMeta -> component.copy(path = more)}
+      component.path match { case MapElementPattern(key, more) => key.unescapeMeta -> component.copy(path = more)}
     }
 
     // Group tuples by key using a Map with key type `K`.

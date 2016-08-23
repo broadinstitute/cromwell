@@ -1,17 +1,22 @@
-package cromwell.backend.caching
+package cromwell.engine.workflow.lifecycle
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.WorkflowOptions
+import cromwell.core.callcaching.CallCachingMode
 import org.scalatest.{FlatSpec, Matchers}
-import scala.collection.JavaConverters._
 
-// TODO PBE Adapt to how new caching works, but the test logic should not need much change
+import scala.collection.JavaConverters._
+import scalaz.{Failure => ScalazFailure, Success => ScalazSuccess}
+import scala.util.{Success, Try}
+
 class CachingConfigSpec extends FlatSpec with Matchers {
 
   val defaultConfig = Map("backend.backend" -> "local")
   val configWithCallCachingOn = defaultConfig + ("call-caching.enabled" -> "true")
   val configWithCallCachingOff = defaultConfig + ("call-caching.enabled" -> "false")
 
-  "CachingConfigSpec" should "honor configuration and workflow options for caching" ignore {
+  behavior of "Validating call caching config"
+
     val configs = Seq(defaultConfig, configWithCallCachingOn, configWithCallCachingOff)
     val options = Seq(None, Some(true), Some(false))
 
@@ -20,7 +25,7 @@ class CachingConfigSpec extends FlatSpec with Matchers {
       val readValue = readOpt map { v => s""""read_from_cache": $v""" }
       val workflowOptions = Seq(writeValue, readValue).flatten.mkString(",\n")
 
-      s"{$workflowOptions}"
+      WorkflowOptions.fromJsonString(s"{$workflowOptions}")
     }
 
     val allCombinations = (for {
@@ -43,20 +48,27 @@ class CachingConfigSpec extends FlatSpec with Matchers {
       readOption <- options if readOption.isEmpty || readOption.get
     } yield (ConfigFactory.parseMap(config.asJava), makeOptions(writeOption, readOption))).toSet
 
-    writeCacheOnCombinations foreach {
-      case (config, wfOptions) => //cacheConfig(config, wfOptions).writeToCache shouldBe true
-    }
+    val writeCacheOffCombinations = allCombinations -- writeCacheOnCombinations
+    val readCacheOffCombinations = allCombinations -- readCacheOnCombinations
 
-    readCacheOnCombinations foreach {
-      case (config, wfOptions) => //cacheConfig(config, wfOptions).readFromCache shouldBe true
-    }
+    validateCallCachingMode("write cache on options", writeCacheOnCombinations) { mode => mode.writeToCache should be(true) }
+    validateCallCachingMode("read cache on options", readCacheOnCombinations) { mode => mode.readFromCache should be(true) }
+    validateCallCachingMode("write cache off options", writeCacheOffCombinations) { mode => mode.writeToCache should be(false) }
+    validateCallCachingMode("read cache off options", readCacheOffCombinations) { mode => mode.readFromCache should be(false) }
 
-    (allCombinations -- writeCacheOnCombinations) foreach {
-      case (config, wfOptions) => //cacheConfig(config, wfOptions).writeToCache shouldBe false
-    }
 
-    (allCombinations -- readCacheOnCombinations) foreach {
-      case (config, wfOptions) => //cacheConfig(config, wfOptions).readFromCache shouldBe false
+  private def validateCallCachingMode(testName: String, combinations: Set[(Config, Try[WorkflowOptions])])(verificationFunction: CallCachingMode => Unit) = {
+    it should s"correctly identify $testName" in {
+      combinations foreach {
+        case (config, Success(wfOptions)) =>
+          MaterializeWorkflowDescriptorActor.validateCallCachingMode(wfOptions, config) match {
+            case ScalazSuccess(activity) => verificationFunction(activity)
+            case ScalazFailure(errors) =>
+              val errorsList = (List(errors.head) ++ errors.tail).mkString(", ")
+              fail(s"Failure generating Call Config Mode: $errorsList")
+          }
+        case x => fail(s"Unexpected test tuple: $x")
+      }
     }
   }
 }

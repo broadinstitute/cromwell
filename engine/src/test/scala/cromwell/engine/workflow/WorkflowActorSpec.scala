@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.{Actor, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.workflow.WorkflowActor._
@@ -11,7 +11,6 @@ import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
-import cromwell.jobstore.{JobStoreActor, WriteCountingJobStore}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 
@@ -29,14 +28,20 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
   val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = wdlSources)
 
   private def createWorkflowActor(state: WorkflowActorState) = {
-    val actor = TestFSMRef(new WorkflowActor(WorkflowId.randomId(),
-      StartNewWorkflow,
-      wdlSources,
-      ConfigFactory.load,
-      mockServiceRegistryActor,
-      system.actorOf(JobStoreActor.props(WriteCountingJobStore.makeNew)),
-      system.actorOf(Props(new DockerHashLookupWorkerActor)),
-      TestProbe().ref))
+    val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+    val dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor))
+
+    val actor = TestFSMRef(new WorkflowActor(
+      workflowId = WorkflowId.randomId(),
+      startMode = StartNewWorkflow,
+      workflowSources = wdlSources,
+      conf = ConfigFactory.load,
+      serviceRegistryActor = mockServiceRegistryActor,
+      workflowLogCopyRouter = TestProbe().ref,
+      jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
+      callCacheReadActor = callCacheReadActor,
+      dockerHashLookupActor = dockerHashLookupActor
+    ))
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
       AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))
     actor

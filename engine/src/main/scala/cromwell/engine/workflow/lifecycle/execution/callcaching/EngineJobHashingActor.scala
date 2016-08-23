@@ -6,9 +6,9 @@ import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, Runtim
 import cromwell.database.sql.MetaInfoId
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.core.callcaching._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultLookupFailure, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor.{DockerHashLookupCommand, DockerHashLookupKey}
-import cromwell.engine.workflow.lifecycle.execution.{CacheResultLookupFailure, CacheResultMatchesForHashes}
 import wdl4s.values.WdlFile
 
 /**
@@ -19,6 +19,7 @@ import wdl4s.values.WdlFile
 case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
                                  initializationData: Option[BackendInitializationData],
                                  fileHasherActor: ActorRef,
+                                 callCacheReadActor: ActorRef,
                                  dockerHashLookupActor: ActorRef,
                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                  backendName: String,
@@ -70,9 +71,8 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
 
     val initialHashes = calculateInitialHashes(nonFileInputSimpletons, fileInputSimpletons)
 
-    val fileContentHashesNeeded = mode.fileHashingType match {
-      case HashFileContents => fileInputSimpletons map { case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(s"input: File $name"), x, initializationData) }
-      case HashFilePath => List.empty
+    val fileContentHashesNeeded = fileInputSimpletons collect {
+      case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(s"input: File $name"), x, initializationData)
     }
 
     val dockerLookupHashNeeded = (jobDescriptor.runtimeAttributes.get("docker"), mode.dockerHashingType) match {
@@ -83,7 +83,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
     val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.map(_.hashKey) ++ dockerLookupHashNeeded.map(_ => DockerHashLookupKey)
 
     val initialState = if (mode.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
-    val initialData = EJHAData(jobDescriptor, hashesNeeded, mode)
+    val initialData = EJHAData(hashesNeeded, mode)
 
     startWith(initialState, initialData)
 
@@ -113,16 +113,8 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.name}"), output.requiredExpression.valueString.md5HashValue)
     }
 
-    val inputFilePathHashes = mode.fileHashingType match {
-      case HashFilePath =>
-        fileInputs map {
-          case WdlValueSimpleton(name, file: WdlFile) => HashResult(HashKey(s"input: File(Path) $name"), file.value.toString.md5HashValue)
-        }
-      case HashFileContents => List.empty[HashResult]
-    }
-
     // Build these all together for the final set of initial hashes:
-    Set(commandTemplateHash, backendNameHash, inputCountHash) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults ++ inputFilePathHashes
+    Set(commandTemplateHash, backendNameHash, inputCountHash) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults
   }
 
   private def checkWhetherHitOrMissIsKnownThenTransition(newData: EJHAData) = {
@@ -167,7 +159,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       val hashes = CallCacheHashes(filtered)
       val actorName = s"CallCacheReadActor-${jobDescriptor.workflowDescriptor.id}-${jobDescriptor.key.tag}-lookup_$lookupIndex"
       lookupIndex += 1
-      context.actorOf(CallCacheReadActor.props(hashes), actorName)
+      callCacheReadActor ! CacheLookupRequest(hashes)
     } else ()
   }
 
@@ -191,11 +183,12 @@ object EngineJobHashingActor {
   def props(jobDescriptor: BackendJobDescriptor,
             initializationData: Option[BackendInitializationData],
             fileHasherActor: ActorRef,
+            callCacheReadActor: ActorRef,
             dockerHashLookupActor: ActorRef,
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
             activity: CallCachingActivity): Props =
-    Props(new EngineJobHashingActor(jobDescriptor, initializationData, fileHasherActor, dockerHashLookupActor, runtimeAttributeDefinitions, backendName, activity))
+    Props(new EngineJobHashingActor(jobDescriptor, initializationData, fileHasherActor, callCacheReadActor, dockerHashLookupActor, runtimeAttributeDefinitions, backendName, activity))
 
   private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends SuccessfulHashResultMessage
   private[callcaching] case object CheckWhetherAllHashesAreKnown
@@ -260,8 +253,8 @@ private[callcaching] case class EJHAData(possibleCacheResults: Option[Set[MetaIn
   def isDefinitelyCacheHitOrMiss = isDefinitelyCacheHit || isDefinitelyCacheMiss
 }
 
-object EJHAData {
-  def apply(jobDescriptor: BackendJobDescriptor, hashesNeeded: Set[HashKey], activity: CallCachingActivity): EJHAData = EJHAData(
+private[callcaching] object EJHAData {
+  def apply(hashesNeeded: Set[HashKey], activity: CallCachingActivity): EJHAData = EJHAData(
     None,
     if (activity.readFromCache) hashesNeeded.filter(_.checkForHitOrMiss) else Set.empty,
     Set.empty,

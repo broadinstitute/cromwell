@@ -4,7 +4,7 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
-import cromwell.CromwellTestkitSpec
+import cromwell.{CromwellTestkitSpec, EmptyCallCacheReadActor}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
 import cromwell.core.callcaching.CallCachingOff
@@ -56,6 +56,10 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
     val jobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
 
+    val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+    val dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor))
+
+
     new TestFSMRef[EngineJobExecutionActorState, EJEAData, EngineJobExecutionActor](system, EngineJobExecutionActor.props(
       BackendJobDescriptorKey(Call(None, "foo.bar", task, Set.empty, Map.empty, None), None, 1),
       WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty)),
@@ -64,7 +68,8 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       restarting = restarting,
       serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance,
       jobStoreActor = system.actorOf(JobStoreActor.props(jobStore)),
-      dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor)),
+      callCacheReadActor = callCacheReadActor,
+      dockerHashLookupActor = dockerHashLookupActor,
       backendName = "NOT USED",
       callCachingMode = CallCachingOff
     ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")

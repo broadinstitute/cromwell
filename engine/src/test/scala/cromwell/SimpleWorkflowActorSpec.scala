@@ -63,10 +63,11 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
     val watchActor = system.actorOf(MetadataWatchActor.props(matcher, promise), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val workflowActor = TestFSMRef(
       factory = new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
-        watchActor,
-        system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
-        system.actorOf(AlwaysHappyJobStoreActor.props),
-        system.actorOf(Props(new DockerHashLookupWorkerActor))),
+        serviceRegistryActor = watchActor,
+        workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
+        jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
+        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
+        dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor))),
       name = s"workflow-actor-$workflowId"
     )
     WorkflowActorAndMetadataPromise(workflowActor, promise)

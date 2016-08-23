@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.backend.BackendJobCachingActor.CacheJobCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -98,10 +99,10 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   // When PreparingCachedOutputs, the FSM should have EJEAJobDescriptorData
   // because it would potentially need it for the BackendJobCachingActor
   when(PreparingCachedOutputs) {
-    case Event(CachedOutputLookupSucceeded(cachedJobOutputs),EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
+    case Event(CachedOutputLookupSucceeded(cachedJobOutputs),EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) =>
       //I can remove some of this logging once this PR is reviewed--mostly for my own debugging
        log.info(s"Created a copy of the cached job outputs for ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}.")
-         cacheJob()
+         cacheJob(jobDescriptor, cachedJobOutputs, bjeaProps)
     case Event(CachedOutputLookupFailed(metaInfoId, error), EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) => //print the error and then run job?
          log.info(s"Can't make a copy of the cached job outputs for ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index} due to ${error}. Running job.")
         runJob(jobDescriptor, bjeaProps)
@@ -175,8 +176,13 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     goto(PreparingCachedOutputs) using EJEAJobDescriptorData(Option(jobDescriptor), _)
   }
 
-  def cacheJob(jobDescriptor: BackendJobDescriptor, cachedJobOutputs: JobOutputs) = {
-
+  def cacheJob(jobDescriptor: BackendJobDescriptor, cachedJobOutputs: JobOutputs, bjeaProps: Props) = {
+    val bjcaProps = bjeaProps
+    val backendJobCachingActor = context.actorOf(bjcaProps, buildJobCachingActorName(jobDescriptor))
+    backendJobCachingActor ! CacheJobCommand(cachedJobOutputs)
+    context.parent ! JobRunning(jobDescriptor, backendJobCachingActor) //send the same message as runJob to WorkflowExecutionActor
+                                                                       //Workflow shouldn't care if it's execute, cache, or recover, this kind
+                                                                       //swithcing/retrying occurs at the EJEA level?
   }
 
   def runJob(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) = {
@@ -189,6 +195,10 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {
     s"$workflowId-BackendJobExecutionActor-${jobDescriptor.key.tag}"
+  }
+
+  private def buildJobCachingActorName(jobDescriptor: BackendJobDescriptor) = {
+    s"$workflowId-BackendJobCachingActor-${jobDescriptor.key.tag}"
   }
 
   private def saveCacheResults(completionData: EJEASuccessfulCompletionDataWithHashes) = {

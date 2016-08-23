@@ -38,6 +38,12 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
     JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
   }
 
+  override def jobCachingActorProps(jobDescriptor: BackendJobDescriptor,
+                                    initializationData: Option[BackendInitializationData],
+                                    serviceRegistryActor: ActorRef): Props = {
+    JesJobCachingActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
+  }
+
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                               calls: Seq[Call],
                                               executionStore: ExecutionStore,

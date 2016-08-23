@@ -14,7 +14,8 @@ import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
 object CopyWorkflowLogsActor {
   // Commands
-  case class Copy(workflowId: WorkflowId, destinationDirPath: Path)
+  case class
+  Copy(workflowId: WorkflowId, destinationDirPath: Path)
 
   val strategy = OneForOneStrategy(maxNrOfRetries = 3) {
     case _: IOException => Restart

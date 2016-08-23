@@ -18,6 +18,10 @@ trait BackendLifecycleActorFactory {
                              initializationData: Option[BackendInitializationData],
                              serviceRegistryActor: ActorRef): Props
 
+  def jobCachingActorProps(jobDescriptor: BackendJobDescriptor,
+                           initializationData: Option[BackendInitializationData],
+                           serviceRegistryActor: ActorRef): Props
+
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],
                                      executionStore: ExecutionStore,

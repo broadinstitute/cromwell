@@ -52,6 +52,10 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     SharedFileSystemJob(pid)
   }
 
+  override def checkAliveArgs(job: SharedFileSystemJob) = {
+    SharedFileSystemCommand("ps", job.jobId)
+  }
+
   override def killArgs(job: SharedFileSystemJob) = {
     val killScript = pathPlusSuffix(jobPaths.script, "kill")
     writeKillScript(killScript, job)

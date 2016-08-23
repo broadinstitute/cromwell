@@ -3,8 +3,9 @@ package cromwell.backend.sfs
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
+import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{Future, Promise}
 
@@ -18,12 +19,13 @@ import scala.concurrent.{Future, Promise}
   *
   * Thus there are no vars, and the context switches during "receive", once the asynchronous actor has been created.
   *
-  * @param jobDescriptor The job to execute.
+  * @param jobDescriptor           The job to execute.
   * @param configurationDescriptor The configuration.
-  * @param asyncPropsCreator A function that can create the specific asynchronous backend.
+  * @param asyncPropsCreator       A function that can create the specific asynchronous backend.
   */
 class SharedFileSystemJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                         override val configurationDescriptor: BackendConfigurationDescriptor,
+                                        serviceRegistryActor: ActorRef,
                                         asyncPropsCreator: Promise[BackendJobExecutionResponse] => Props)
   extends BackendJobExecutionActor {
 
@@ -41,6 +43,16 @@ class SharedFileSystemJobExecutionActor(override val jobDescriptor: BackendJobDe
     case abortResponse: AbortedResponse =>
       context.parent ! abortResponse
       context.stop(self)
+    case KvPair(key, id@Some(jobId)) if key.key == SharedFileSystemJob.JobIdKey =>
+      // Successful operation ID lookup during recover.
+      executor ! Recover(SharedFileSystemJob(jobId))
+    case KvKeyLookupFailed(_) =>
+      // Missed operation ID lookup during recover, fall back to execute.
+      executor ! Execute
+    case KvFailure(_, e) =>
+      // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
+      completionPromise.tryFailure(e)
+      throw new RuntimeException(s"Failure attempting to look up job id for key ${jobDescriptor.key}", e)
   }
 
   /**
@@ -48,12 +60,22 @@ class SharedFileSystemJobExecutionActor(override val jobDescriptor: BackendJobDe
     *
     * Still not sure why the AsyncBackendJobExecutionActor doesn't wait for an Akka message instead of using Scala promises.
     */
-  private val completionPromise = Promise[BackendJobExecutionResponse]()
+  private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
 
   override def execute: Future[BackendJobExecutionResponse] = {
     val executorRef = context.actorOf(asyncPropsCreator(completionPromise), "SharedFileSystemAsyncJobExecutionActor")
     context.become(running(executorRef) orElse super.receive)
     executorRef ! Execute
+    completionPromise.future
+  }
+
+  override def recover: Future[BackendJobExecutionResponse] = {
+    val executorRef = context.actorOf(asyncPropsCreator(completionPromise), "SharedFileSystemAsyncJobExecutionActor")
+    context.become(running(executorRef) orElse super.receive)
+    val kvJobKey =
+      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
+    val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, SharedFileSystemJob.JobIdKey))
+    serviceRegistryActor ! kvGet
     completionPromise.future
   }
 

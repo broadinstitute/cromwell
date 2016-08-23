@@ -56,8 +56,9 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
       Props(asyncJobExecutionActorClass, params).withDispatcher(Dispatcher.BackendDispatcher)
     }
 
-    Props(new SharedFileSystemJobExecutionActor(jobDescriptor, configurationDescriptor, propsCreator)).
-      withDispatcher(Dispatcher.BackendDispatcher)
+    Props(new SharedFileSystemJobExecutionActor(
+      jobDescriptor, configurationDescriptor, serviceRegistryActor, propsCreator)
+    ).withDispatcher(Dispatcher.BackendDispatcher)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

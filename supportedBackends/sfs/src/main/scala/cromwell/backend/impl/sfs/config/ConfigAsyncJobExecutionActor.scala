@@ -18,7 +18,7 @@ import wdl4s.values.WdlString
   */
 sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecutionActor {
 
-  lazy val configInitializationData = params.backendInitializationDataOption match {
+  lazy val configInitializationData: ConfigInitializationData = params.backendInitializationDataOption match {
     case Some(data: ConfigInitializationData) => data
     case other => throw new RuntimeException(s"Unable to get config initialization data from $other")
   }
@@ -31,7 +31,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * PID. Otherwise, if the submission is dispatched, the other implementation, DispatchedConfigAsyncJobExecutionActor,
     * will grab the job id from the stdout.
     */
-  override lazy val processArgs = {
+  override lazy val processArgs: SharedFileSystemCommand = {
     val submitScript = pathPlusSuffix(jobPaths.script, "submit")
     val submitInputs = standardInputs ++ dockerInputs ++ runtimeAttributeInputs
     val submitTaskName = if (isDockerRun) SubmitDockerTask else SubmitTask
@@ -125,7 +125,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
     * @param stderr    The stderr from dispatching the job.
     * @return The wrapped job id.
     */
-  override def getJob(exitValue: Int, stdout: Path, stderr: Path) = {
+  override def getJob(exitValue: Int, stdout: Path, stderr: Path): SharedFileSystemJob = {
     val jobIdRegex = configurationDescriptor.backendConfig.getString(JobIdRegexConfig).r
     val output = stdout.contentAsString.stripLineEnd
     output match {
@@ -137,14 +137,36 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
   }
 
   /**
+    * Checks if the job is alive using the command from the config.
+    *
+    * @param job The job to check.
+    * @return A command that checks if the job is alive.
+    */
+  override def checkAliveArgs(job: SharedFileSystemJob): SharedFileSystemCommand = {
+    jobScriptArgs(job, "check", CheckAliveTask)
+  }
+
+  /**
     * Kills the job using the kill command from the config.
     *
     * @param job The job id to kill.
     * @return A command that may be used to kill the job.
     */
-  override def killArgs(job: SharedFileSystemJob) = {
-    val killScript = pathPlusSuffix(jobPaths.script, "kill")
-    writeTaskScript(killScript, KillTask, Map(JobIdInput -> WdlString(job.jobId)))
-    SharedFileSystemCommand("/bin/bash", killScript)
+  override def killArgs(job: SharedFileSystemJob): SharedFileSystemCommand = {
+    jobScriptArgs(job, "kill", KillTask)
+  }
+
+  /**
+    * Generates a command for a job id, using a config task.
+    *
+    * @param job    The job id.
+    * @param suffix The suffix for the scripts.
+    * @param task   The config task that defines the command.
+    * @return A runnable command.
+    */
+  private def jobScriptArgs(job: SharedFileSystemJob, suffix: String, task: String): SharedFileSystemCommand = {
+    val script = pathPlusSuffix(jobPaths.script, suffix)
+    writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)))
+    SharedFileSystemCommand("/bin/bash", script)
   }
 }

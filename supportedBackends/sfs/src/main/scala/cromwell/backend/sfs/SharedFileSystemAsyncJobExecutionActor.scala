@@ -231,7 +231,6 @@ trait SharedFileSystemAsyncJobExecutionActor
   def startMetadataEvents: Iterable[MetadataEvent] = runtimeAttributesEvents ++ List(
     metadataEvent(CallMetadataKeys.Stdout, jobPaths.stdout.toAbsolutePath),
     metadataEvent(CallMetadataKeys.Stderr, jobPaths.stderr.toAbsolutePath),
-    // TODO: PBE: The REST endpoint toggles this value... how/where? Meanwhile, we read it decide to use the cache...
     metadataEvent("cache:allowResultReuse", true),
     metadataEvent(CallMetadataKeys.CallRoot, jobPaths.callRoot)
   )

@@ -169,7 +169,6 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId), s"MaterializeWorkflowDescriptorActor-$workflowId")
-      // TODO PBE Is this the right place for startTime ?
       val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
       serviceRegistryActor ! PutMetadataAction(startEvent)
 
@@ -234,8 +233,6 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(WorkflowAbortingState) {
     case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      // TODO: PBE: some of the x-es have an actually execution & output stores.
-      // But do we want the finalization to operate on that data during state aborting?
       finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, failures = None)
     case _ => stay()
   }

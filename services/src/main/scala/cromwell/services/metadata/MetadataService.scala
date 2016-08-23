@@ -5,7 +5,6 @@ import java.time.OffsetDateTime
 import akka.actor.{ActorRef, DeadLetterSuppression}
 import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import cromwell.services.metadata.MetadataService.PutMetadataAction
 import spray.http.Uri
 import spray.routing._
 import wdl4s.values._
@@ -97,12 +96,6 @@ object MetadataService {
 
   final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
-
-  /* TODO: PBE: No MetadataServiceActor.props until circular dependencies fixed.
-  def props(serviceConfig: Config, globalConfig: Config) = {
-    Props(MetadataServiceActor(serviceConfig, globalConfig))
-  }
-  */
 
   def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
     case WdlArray(_, valueSeq) =>

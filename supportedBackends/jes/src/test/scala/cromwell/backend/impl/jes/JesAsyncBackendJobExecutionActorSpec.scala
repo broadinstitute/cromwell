@@ -291,7 +291,6 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
-    // TODO: PBE: This spec may run faster by going back to mocks? Also, building the actor ref is copy/pasted a lot
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 

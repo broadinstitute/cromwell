@@ -96,7 +96,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   // When PreparingCachedOutputs, the FSM should have EJEAJobDescriptorData
-  // ...because it would potentially need it for the BackendJobCachingActor
+  // because it would potentially need it for the BackendJobCachingActor
   when(PreparingCachedOutputs) {
     case Event(CachedOutputLookupSucceeded(cachedJobOutputs),EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
       //I can remove some of this logging once this PR is reviewed--mostly for my own debugging
@@ -173,6 +173,10 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     val cachingSimpletonActor = context.actorOf(CachingSimpletonActor.props(cacheResultId, taskOutputs))
     // While the cache result is looked up, we wait for the response just like we were waiting for a Job to complete:
     goto(PreparingCachedOutputs) using EJEAJobDescriptorData(Option(jobDescriptor), _)
+  }
+
+  def cacheJob(jobDescriptor: BackendJobDescriptor, cachedJobOutputs: JobOutputs) = {
+
   }
 
   def runJob(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) = {

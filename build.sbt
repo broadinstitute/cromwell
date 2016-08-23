@@ -11,6 +11,7 @@ lazy val gcsFileSystem = (project in file("filesystems/gcs"))
 
 lazy val database = (project in file("database"))
   .settings(databaseSettings:_*)
+  .dependsOn(core) // used for migration
   .dependsOn(core % "test->test") // TODO: PBE: Remove once PostMVP tag removed from test
   .withTestSettings
 

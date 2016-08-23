@@ -90,5 +90,5 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     } yield c
   }
 
-  override def abort: Unit = {}
+  override def abort(): Unit = {}
 }

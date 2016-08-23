@@ -33,7 +33,7 @@ class CallCache(database: CallCachingStore) {
   private def toResultSimpletons(jobOutputs: JobOutputs): Seq[ResultSimpleton] = {
     import cromwell.core.simpleton.WdlValueSimpleton._
     jobOutputs.mapValues(_.wdlValue).simplify map {
-      case WdlValueSimpleton(simpletonKey, wdlPrimitive) => ResultSimpleton(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.getClass.getSimpleName)
+      case WdlValueSimpleton(simpletonKey, wdlPrimitive) => ResultSimpleton(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.wdlType.toWdlString)
     } toSeq
   }
 

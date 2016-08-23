@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="WORKFLOW_STORE_MIGRATION" author="mcovarr" >
+        <comment>
+            Restart/recover migration from 0.19 to 0.21.
+        </comment>
+        <sql>
+            INSERT INTO WORKFLOW_STORE(
+              WORKFLOW_UUID,               -- 1
+              WORKFLOW_DEFINITION,         -- 2
+              WORKFLOW_INPUTS,             -- 3
+              WORKFLOW_OPTIONS,            -- 4
+              WORKFLOW_STATE,              -- 5
+              SUBMISSION_TIME              -- 6
+            )
+            SELECT
+              we.WORKFLOW_EXECUTION_UUID,  -- 1
+              wea.WDL_SOURCE,              -- 2
+              wea.JSON_INPUTS,             -- 3
+              wea.WORKFLOW_OPTIONS,        -- 4
+              we.STATUS,                   -- 5
+              we.START_DT                  -- 6
+            FROM
+              WORKFLOW_EXECUTION we
+              JOIN WORKFLOW_EXECUTION_AUX wea ON we.WORKFLOW_EXECUTION_ID = wea.WORKFLOW_EXECUTION_ID
+            WHERE
+              we.STATUS = 'Running'
+        </sql>
+    </changeSet>
+
+    <changeSet id="JOB_STORE_MIGRATION" author="mcovarr" >
+        <comment>
+            Restart/recover migration from 0.19 to 0.21.
+        </comment>
+        <sql>
+            INSERT INTO JOB_STORE(
+              WORKFLOW_UUID,               -- 1
+              CALL_FQN,                    -- 2
+              JOB_SCATTER_INDEX,           -- 3
+              JOB_RETRY_ATTEMPT,           -- 4
+              JOB_SUCCESSFUL,              -- 5
+              RETURN_CODE,                 -- 6
+              EXCEPTION_MESSAGE,           -- 7
+              RETRYABLE_FAILURE            -- 8
+            )
+            SELECT
+              we.WORKFLOW_EXECUTION_UUID,  -- 1
+              e.CALL_FQN,                  -- 2
+              e.IDX,                       -- 3
+              e.ATTEMPT,                   -- 4
+              1,                           -- 5
+              e.RC,                        -- 6
+              null,                        -- 7
+              null                         -- 8
+            FROM
+              EXECUTION e
+              JOIN WORKFLOW_EXECUTION we ON e.WORKFLOW_EXECUTION_ID = we.WORKFLOW_EXECUTION_ID
+            WHERE
+              we.STATUS = 'Running' AND
+              e.STATUS = 'Done' AND
+              e.CALL_FQN NOT LIKE '%$%' AND  -- filter out scatters
+              NOT (e.IDX = -1 AND EXISTS (   -- filter out collectors
+                SELECT 1 FROM EXECUTION e2 WHERE
+                e2.WORKFLOW_EXECUTION_ID = e.WORKFLOW_EXECUTION_ID AND
+                e2.CALL_FQN = e.CALL_FQN AND
+                e2.IDX != -1)) AND
+              NOT EXISTS (                   -- filter out earlier attempts
+                SELECT 1 FROM EXECUTION e3 WHERE
+                e3.WORKFLOW_EXECUTION_ID = e.WORKFLOW_EXECUTION_ID AND
+                e3.CALL_FQN = e.CALL_FQN AND
+                e3.IDX = e.IDX AND
+                e3.ATTEMPT > e.ATTEMPT)
+        </sql>
+    </changeSet>
+
+    <changeSet id="JOB_STORE_RESULT_SIMPLETON_MIGRATION" author="mcovarr" >
+        <comment>
+            Restart/recover migration from 0.19 to 0.21.
+        </comment>
+        <customChange class="cromwell.database.migration.restart.table.JobStoreSimpletonMigration" />
+    </changeSet>
+
+    <changeSet id="BACKEND_KV_STORE_MIGRATION" author="mcovarr">
+        <comment>
+            Restart/recover migration from 0.19 to 0.21.
+        </comment>
+        <sql>
+            INSERT INTO BACKEND_KV_STORE(
+              WORKFLOW_EXECUTION_UUID,      -- 1
+              CALL_FQN,                     -- 2
+              JOB_SCATTER_INDEX,            -- 3
+              JOB_RETRY_ATTEMPT,            -- 4
+              STORE_KEY,                    -- 5
+              STORE_VALUE                   -- 6
+            )
+            SELECT
+              we.WORKFLOW_EXECUTION_UUID,   -- 1
+              e.CALL_FQN,                   -- 2
+              e.IDX,                        -- 3
+              e.ATTEMPT,                    -- 4
+              'jobId',                      -- 5
+              ei.INFO_VALUE                 -- 6
+            FROM
+              EXECUTION_INFO ei
+              JOIN EXECUTION e ON e.EXECUTION_ID = ei.EXECUTION_ID
+              JOIN WORKFLOW_EXECUTION we ON we.WORKFLOW_EXECUTION_ID = e.WORKFLOW_EXECUTION_ID
+            WHERE
+              ei.INFO_KEY = 'JES_RUN_ID' AND
+              ei.INFO_VALUE IS NOT NULL
+        </sql>
+    </changeSet>
+
+    <changeSet id="WORKFLOW_OPTIONS_RENAME_MIGRATION" author="mcovarr">
+        <comment>
+            Restart/recover migration from 0.19 to 0.21.
+        </comment>
+        <customChange class="cromwell.database.migration.restart.table.RenameWorkflowOptionKeysMigration" />
+    </changeSet>
+
+</databaseChangeLog>

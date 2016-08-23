@@ -2,11 +2,10 @@ package cromwell.backend.impl.sfs.config
 
 import akka.actor.ActorSystem
 import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
-import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinition}
-import cromwell.backend.sfs._
-import lenthall.config.ScalaConfig._
 import cromwell.backend.impl.sfs.config.ConfigConstants._
-import wdl4s.values.WdlBoolean
+import cromwell.backend.sfs._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, RuntimeAttributeDefinition}
+import lenthall.config.ScalaConfig._
 
 /**
   * Builds a backend by reading the job control from the config.
@@ -26,16 +25,12 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
       classOf[DispatchedConfigAsyncJobExecutionActor]
   }
 
-  // TODO: Wire in the funky configuration options too
-  override def runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] = {
-    import cromwell.backend.validation.RuntimeAttributesKeys._
-    Set(
-      RuntimeAttributeDefinition(DockerKey, required = false, None, usedInCallCaching = true),
-      RuntimeAttributeDefinition(ContinueOnReturnCodeKey, required = false, Some(WdlBoolean(false)), usedInCallCaching = true),
-      RuntimeAttributeDefinition(CpuKey, required = false, None, usedInCallCaching = false),
-      RuntimeAttributeDefinition(FailOnStderrKey, required = false, Some(WdlBoolean(true)), usedInCallCaching = true),
-      RuntimeAttributeDefinition(MemoryKey, required = false, None, usedInCallCaching = false)
-    )
+  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
+  Set[RuntimeAttributeDefinition] = {
+    val initializationData = BackendInitializationData.
+      as[SharedFileSystemBackendInitializationData](initializationDataOption)
+
+    initializationData.runtimeAttributesBuilder.definitions.toSet
   }
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(ConfigBackendFileHashing.getMd5Result))

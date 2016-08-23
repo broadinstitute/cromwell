@@ -76,7 +76,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
     val mapOfTries = jobKey.call.task.runtimeAttributes.attrs mapValues {
       expr => expr.evaluate(buildMapBasedLookup(tryInputs), wdlFunctions)
     }
-    TryUtil.sequenceMap(mapOfTries).map(addDefaultsToAttributes(_))
+    TryUtil.sequenceMap(mapOfTries).map(addDefaultsToAttributes)
   }
 
   def addDefaultsToAttributes(specifiedAttributes: Map[LocallyQualifiedName, WdlValue]): Map[LocallyQualifiedName, WdlValue] = {
@@ -86,7 +86,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
     val workflowOptions = executionData.workflowDescriptor.backendDescriptor.workflowOptions
     def isUnspecifiedAttribute(name: String) = !specifiedAttributes.contains(name)
 
-    val missing = factory.runtimeAttributeDefinitions filter { x => isUnspecifiedAttribute(x.name) }
+    val missing = factory.runtimeAttributeDefinitions(initializationData) filter { x => isUnspecifiedAttribute(x.name) }
     val defaults = missing map { x => (x, workflowOptions.getDefaultRuntimeOption(x.name)) } collect {
       case (runtimeAttributeDefinition, Success(jsValue)) => runtimeAttributeDefinition.name -> jsValue.convertTo[WdlValue]
       case (RuntimeAttributeDefinition(name, _, Some(defaultValue), _), _) => name -> defaultValue

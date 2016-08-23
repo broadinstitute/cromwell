@@ -36,7 +36,7 @@ trait BackendJobCachingActor extends Actor with ActorLogging with BackendJobLife
     * Abort a job that's caching.
     */
   def abort(): Unit = {
-    log.warning("Aborts not supported for a job being cached.")
+    log.warning("Aborts not supported for a job being cached.",
       jobTag, jobDescriptor.key.call.fullyQualifiedName)
   }
 

@@ -18,6 +18,8 @@ import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 import wdl4s.TaskOutput
 
+import scala.util.Try
+
 class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
@@ -177,6 +179,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   def cacheJob(jobDescriptor: BackendJobDescriptor, cachedJobOutputs: JobOutputs, bjeaProps: Props) = {
+    Try()
     val bjcaProps = bjeaProps
     val backendJobCachingActor = context.actorOf(bjcaProps, buildJobCachingActorName(jobDescriptor))
     backendJobCachingActor ! CacheJobCommand(cachedJobOutputs)

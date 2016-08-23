@@ -10,10 +10,10 @@ object JesJobCachingActor {
   val logger = LoggerFactory.getLogger("JesBackend")
 
   def props(jobDescriptor: BackendJobDescriptor,
-            jesWorkflowInfo: JesConfiguration,
+            jesConfiguration: JesConfiguration,
             initializationData: JesBackendInitializationData,
             serviceRegistryActor: ActorRef): Props = {
-    Props(new JesJobCachingActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor))
+    Props(new JesJobCachingActor(jobDescriptor, jesConfiguration, initializationData, serviceRegistryActor))
   }
 }
 
@@ -23,8 +23,9 @@ case class JesJobCachingActor(override val jobDescriptor: BackendJobDescriptor,
                                 serviceRegistryActor: ActorRef)
   extends BackendJobCachingActor {
 
-  override def abort()
+  override def abort = ???
 
   override def copyCachedOutputs(): Future[BackendJobExecutionResponse] = {
+     //different Branch
   }
 }

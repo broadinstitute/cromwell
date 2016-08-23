@@ -1,6 +1,5 @@
 package cromwell.database.slick
 
-import cromwell.core.JobOutputs
 import cromwell.database.sql._
 import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
 
@@ -54,7 +53,5 @@ trait CallCachingSlickDatabase extends CallCachingStore {
       case head :: tail => None // Impossible - unless our PK uniqueness is broken!
     }
   }
-
-
 }
 

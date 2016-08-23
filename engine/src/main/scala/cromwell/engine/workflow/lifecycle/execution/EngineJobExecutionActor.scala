@@ -51,7 +51,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     case Event(Execute, NoData) =>
       if (restarting) {
         val jobStoreKey = jobKey.toJobStoreKey(workflowId)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey)
+        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobKey.call.task.outputs)
         goto(CheckingJobStore)
       } else {
         prepareJob()

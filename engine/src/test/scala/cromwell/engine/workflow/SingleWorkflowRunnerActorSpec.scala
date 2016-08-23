@@ -8,16 +8,15 @@ import akka.pattern.ask
 import akka.testkit.TestKit
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec}
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
-import cromwell.jobstore.{JobStoreActor, WriteCountingJobStoreDatabase}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 

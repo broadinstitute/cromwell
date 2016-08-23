@@ -8,7 +8,6 @@ case class JobStoreEntry
   attempt: Int,
   jobSuccessful: Boolean,
   returnCode: Option[Int],
-  jobResult: Option[String],
   exceptionMessage: Option[String],
   retryableFailure: Option[Boolean],
   jobStoreId: Option[Int] = None

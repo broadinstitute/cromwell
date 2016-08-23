@@ -41,6 +41,7 @@
     <include file="changesets/job_store.xml" relativeToChangelogFile="true" />
     <include file="changesets/callcaching.xml" relativeToChangelogFile="true" />
     <include file="changesets/call_caching_allow_result_reuse_fix.xml" relativeToChangelogFile="true" />
+    <include file="changesets/job_store_simpletons.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

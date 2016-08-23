@@ -9,11 +9,9 @@ import cromwell.SimpleWorkflowActorSpec._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor.{StartNewWorkflow, StartWorkflowCommand}
-import cromwell.services.metadata.MetadataService
-import MetadataService.PutMetadataAction
 import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
-import cromwell.jobstore.{JobStoreActor, WriteCountingJobStoreDatabase}
 import cromwell.services.metadata.MetadataEvent
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 

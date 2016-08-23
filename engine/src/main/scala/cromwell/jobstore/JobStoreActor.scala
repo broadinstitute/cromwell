@@ -3,6 +3,7 @@ package cromwell.jobstore
 import akka.actor.{Actor, Props}
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreActor.{JobStoreReaderCommand, JobStoreWriterCommand}
+import wdl4s.TaskOutput
 
 /**
   * Joins the service registry API to the JobStoreReaderActor and JobStoreWriterActor.
@@ -34,7 +35,7 @@ object JobStoreActor {
   /**
     * Message to query the JobStoreReaderActor, asks whether the specified job has already been completed.
     */
-  case class QueryJobCompletion(jobKey: JobStoreKey) extends JobStoreReaderCommand
+  case class QueryJobCompletion(jobKey: JobStoreKey, taskOutputs: Seq[TaskOutput]) extends JobStoreReaderCommand
 
   sealed trait JobStoreReaderResponse
   /**

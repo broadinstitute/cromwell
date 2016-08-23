@@ -1,6 +1,5 @@
 package cromwell.jobstore
 
-import akka.actor.Props
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobDescriptorKey
@@ -10,14 +9,16 @@ import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.Call
+import wdl4s.types.WdlStringType
 import wdl4s.values.WdlString
+import wdl4s.{Call, Task, TaskOutput, WdlExpression}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object JobStoreServiceSpec {
   val MaxWait = 5 seconds
+  val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
 class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito {
@@ -31,9 +32,13 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
       val workflowId = WorkflowId.randomId()
       val successCall = mock[Call]
       successCall.fullyQualifiedName returns "foo.bar"
+      val mockTask = mock[Task]
+      mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression))
+      successCall.task returns mockTask
+
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(successKey)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
       expectMsgType[JobNotComplete.type](MaxWait)
 
       val outputs = Map("baz" -> JobOutput(WdlString("qux")))
@@ -41,7 +46,7 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
       jobStoreService ! RegisterJobCompleted(successKey, JobResultSuccess(Option(0), outputs))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(successKey)
+      jobStoreService ! QueryJobCompletion(successKey, mockTask.outputs)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultSuccess(Some(0), os)) if os == outputs =>
       }
@@ -50,13 +55,13 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
       failureCall.fullyQualifiedName returns "baz.qux"
       val failureKey = BackendJobDescriptorKey(failureCall, None, 1).toJobStoreKey(workflowId)
 
-      jobStoreService ! QueryJobCompletion(failureKey)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
       expectMsgType[JobNotComplete.type](MaxWait)
 
       jobStoreService ! RegisterJobCompleted(failureKey, JobResultFailure(Option(11), new IllegalArgumentException("Insufficient funds"), retryable = false))
       expectMsgType[JobStoreWriteSuccess](MaxWait)
 
-      jobStoreService ! QueryJobCompletion(failureKey)
+      jobStoreService ! QueryJobCompletion(failureKey, mockTask.outputs)
       expectMsgPF(MaxWait) {
         case JobComplete(JobResultFailure(Some(11), _, false)) =>
       }

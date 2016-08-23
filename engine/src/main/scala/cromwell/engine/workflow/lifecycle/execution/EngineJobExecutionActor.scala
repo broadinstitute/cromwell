@@ -3,17 +3,19 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
-import cromwell.core.logging.WorkflowLogging
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
+import cromwell.core.logging.WorkflowLogging
 import cromwell.database.CromwellDatabase
 import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CachingSimpletonActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
+import wdl4s.TaskOutput
 
 class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               executionData: WorkflowExecutionActorData,
@@ -90,7 +92,19 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
       runJob(jobDescriptor, bjeaProps)
     case Event(CacheHit(cacheResultId), EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
       log.info(s"Cache hit for job ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}! Copying cache result $cacheResultId")
-      lookupCachedResult(jobDescriptor, cacheResultId)
+      lookupCachedResult(jobDescriptor, jobKey.call.task.outputs, cacheResultId)
+  }
+
+  // When PreparingCachedOutputs, the FSM should have EJEAJobDescriptorData
+  // ...because it would potentially need it for the BackendJobCachingActor
+  when(PreparingCachedOutputs) {
+    case Event(CachedOutputLookupSucceeded(cachedJobOutputs),EJEAJobDescriptorData(Some(jobDescriptor), _)) =>
+      //I can remove some of this logging once this PR is reviewed--mostly for my own debugging
+       log.info(s"Created a copy of the cached job outputs for ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index}.")
+         cacheJob()
+    case Event(CachedOutputLookupFailed(metaInfoId, error), EJEAJobDescriptorData(Some(jobDescriptor), Some(bjeaProps))) => //print the error and then run job?
+         log.info(s"Can't make a copy of the cached job outputs for ${jobDescriptor.key.call.fullyQualifiedName}, index ${jobDescriptor.key.index} due to ${error}. Running job.")
+        runJob(jobDescriptor, bjeaProps)
   }
 
   // When RunningJob, the FSM always has EJEAPartialCompletionData (which might be None, None)
@@ -153,11 +167,12 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     context.actorOf(EngineJobHashingActor.props(jobDescriptor, fileHasherActor, activity))
   }
 
-  def lookupCachedResult(jobDescriptor: BackendJobDescriptor, cacheResultId: MetaInfoId) = {
+  def lookupCachedResult(jobDescriptor: BackendJobDescriptor, taskOutputs: Seq[TaskOutput], cacheResultId: MetaInfoId) = {
     // TODO: Start up a backend job copying actor (if possible, otherwise just runJob). That should send back the BackendJobExecutionResponse
-    self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache result copying not implemented!"), None)
+    //self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache result copying not implemented!"), None)
+    val cachingSimpletonActor = context.actorOf(CachingSimpletonActor.props(cacheResultId, taskOutputs))
     // While the cache result is looked up, we wait for the response just like we were waiting for a Job to complete:
-    goto(RunningJob) using EJEAPartialCompletionData(None, None)
+    goto(PreparingCachedOutputs) using EJEAJobDescriptorData(Option(jobDescriptor), _)
   }
 
   def runJob(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) = {
@@ -207,6 +222,7 @@ object EngineJobExecutionActor {
   case object Pending extends EngineJobExecutionActorState
   case object CheckingJobStore extends EngineJobExecutionActorState
   case object CheckingCallCache extends EngineJobExecutionActorState
+  case object PreparingCachedOutputs extends EngineJobExecutionActorState
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
   case object UpdatingCallCache extends EngineJobExecutionActorState

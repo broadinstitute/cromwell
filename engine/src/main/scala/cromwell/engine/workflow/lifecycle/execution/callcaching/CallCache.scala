@@ -1,15 +1,18 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cromwell.backend.BackendJobExecutionActor.SucceededResponse
+import cromwell.core.ExecutionIndex.IndexEnhancedIndex
+import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import cromwell.core.{JobOutputs, WorkflowId}
 import cromwell.database.sql._
-import cromwell.database.sql.tables.CallCachingResultMetaInfoEntry
+import cromwell.database.sql.tables.{CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
-import cromwell.core.ExecutionIndex.IndexEnhancedIndex
-import wdl4s.values._
-import language.postfixOps
+import wdl4s.TaskOutput
+import wdl4s.types._
+import wdl4s.values.WdlPrimitive
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 /**
   * Given a database-layer CallCacheStore, this accesser can access the database with engine-friendly data types.
@@ -30,14 +33,10 @@ class CallCache(database: CallCachingStore) {
   }
 
   private def toResultSimpletons(jobOutputs: JobOutputs): Seq[ResultSimpleton] = {
-   jobOutputs flatMap { case (lqn, jobOutput) => toResultSimpletons(jobOutput.wdlValue, lqn) } toSeq
-  }
-
-  private def toResultSimpletons(wdlValue: WdlValue, simpletonKey: String): Seq[ResultSimpleton] = wdlValue match {
-    case prim: WdlPrimitive => List(ResultSimpleton(simpletonKey, prim.valueString, wdlValue.getClass.getSimpleName))
-    case WdlArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => toResultSimpletons(arrayItem, s"$simpletonKey[$index]") }
-    case WdlMap(_, mapValue) => mapValue flatMap { case (key, value) => toResultSimpletons(value, s"$simpletonKey:${key.valueString}") } toSeq
-    case wdlObject: WdlObjectLike => wdlObject.value flatMap { case (key, value) => toResultSimpletons(value, s"$simpletonKey:$key") } toSeq
+    import cromwell.core.simpleton.WdlValueSimpleton._
+    jobOutputs.mapValues(_.wdlValue).simplify map {
+      case WdlValueSimpleton(simpletonKey, wdlPrimitive) => ResultSimpleton(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.getClass.getSimpleName)
+    } toSeq
   }
 
   def fetchMetaInfoIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
@@ -45,4 +44,23 @@ class CallCache(database: CallCachingStore) {
   }
 
   def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext) = database.fetchCachedResult(metaInfoId)(ec)
+
+  private def toSimpleton(entry: CallCachingResultSimpletonEntry): WdlValueSimpleton = {
+    val wdlType: WdlType = entry.wdlType match {
+      case "String" => WdlStringType
+      case "Int" => WdlIntegerType
+      case "Float" => WdlFloatType
+      case "Boolean" => WdlBooleanType
+      case _ => throw new RuntimeException(s"$entry: unrecognized WDL type: ${entry.wdlType}")
+    }
+    WdlValueSimpleton(entry.simpletonKey, wdlType.coerceRawValue(entry.simpletonValue).get.asInstanceOf[WdlPrimitive])
+  }
+
+  def convertToJobOutputs(cachedResult: CachedResult, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): JobOutputs = {
+    //don't know how much error collection this *needs*
+    val simpletons = cachedResult.resultSimpletons map toSimpleton
+    val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
+    jobOutputs
+  }
+
 }

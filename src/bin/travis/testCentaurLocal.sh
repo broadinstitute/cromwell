@@ -30,6 +30,4 @@ set -x
 set -e
 git clone https://github.com/broadinstitute/centaur.git
 cd centaur
-git checkout jg_jar_weirdness # FIXME
-git pull
 ./test_cromwell.sh -b${TRAVIS_BRANCH} -p5

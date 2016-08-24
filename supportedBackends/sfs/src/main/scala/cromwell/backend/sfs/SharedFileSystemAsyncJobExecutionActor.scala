@@ -220,13 +220,18 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
-
   private def metadataEvent(key: String, value: Any) = MetadataEvent(metadataKey(key), MetadataValue(value))
+  private def runtimeMetadataEvent(key: String, value: Any) = metadataEvent(s"runtimeAttributes:$key", value)
 
-  val runtimeAttributesEvents = validatedRuntimeAttributes.attributes map {
-    case (key, value) =>
-      metadataEvent(s"runtimeAttributes:$key", value)
+  private def validatedRuntimeAttributeMetadataEvent(key: String, value: Any): Option[MetadataEvent] = {
+    value match {
+      case Some(v) => Option(runtimeMetadataEvent(key, v))
+      case None => None
+      case v => Option(metadataEvent(s"runtimeAttributes:$key", v))
+    }
   }
+
+  val runtimeAttributesEvents = validatedRuntimeAttributes.attributes flatMap { case (k, v) => validatedRuntimeAttributeMetadataEvent(k, v) }
 
   def startMetadataEvents: Iterable[MetadataEvent] = runtimeAttributesEvents ++ List(
     metadataEvent(CallMetadataKeys.Stdout, jobPaths.stdout.toAbsolutePath),

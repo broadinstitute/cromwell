@@ -29,7 +29,17 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef): Props = {
+    // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
+    // invocation, so the `get` here is safe.
     JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
+  }
+
+  override def cacheHitCopyingActorProps(jobDescriptor: BackendJobDescriptor,
+                                         initializationData: Option[BackendInitializationData],
+                                         serviceRegistryActor: ActorRef): Option[Props] = {
+    // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
+    // invocation, so the `get` here is safe.
+    Option(JesCacheHitCopyingActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher))
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -37,6 +47,10 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
                                               executionStore: ExecutionStore,
                                               outputStore: OutputStore,
                                               initializationData: Option[BackendInitializationData]) = {
+    // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
+    // invocation.  HOWEVER, the finalization actor is created regardless of whether workflow initialization was successful
+    // or not.  So the finalization actor must be able to handle an empty `JesBackendInitializationData` option, and there is no
+    // `.get` on the initialization data as there is with the execution or cache hit copying actor methods.
     Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher(BackendDispatcher))
   }
 

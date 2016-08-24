@@ -6,12 +6,15 @@ sealed trait CallCachingMode {
     */
   val withoutRead: CallCachingMode
 
+  val withoutWrite: CallCachingMode
+
   val readFromCache = false
   val writeToCache = false
 }
 
 case object CallCachingOff extends CallCachingMode {
   override val withoutRead = this
+  override val withoutWrite = this
 }
 
 case class CallCachingActivity(readWriteMode: ReadWriteMode) extends CallCachingMode
@@ -19,6 +22,7 @@ case class CallCachingActivity(readWriteMode: ReadWriteMode) extends CallCaching
   override val readFromCache = readWriteMode.r
   override val writeToCache = readWriteMode.w
   override lazy val withoutRead: CallCachingMode = if (!writeToCache) CallCachingOff else this.copy(readWriteMode = WriteCache)
+  override lazy val withoutWrite: CallCachingMode = if (!readFromCache) CallCachingOff else this.copy(readWriteMode = ReadCache)
   override val toString = readWriteMode.toString
 }
 

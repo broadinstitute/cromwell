@@ -1,6 +1,6 @@
 package cromwell.backend.async
 
-import cromwell.backend.{BackendJobDescriptor, ExecutionHash}
+import cromwell.backend.BackendJobDescriptor
 import cromwell.core.JobOutputs
 
 /**
@@ -12,19 +12,19 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, returnCode, hash, resultsClonedFrom)
+  override val result = SuccessfulExecution(outputs, returnCode, resultsClonedFrom)
 }
 
 final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = new NonRetryableExecution(throwable, returnCode)
+  override val result = NonRetryableExecution(throwable, returnCode)
 }
 
 final case class FailedRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = new RetryableExecution(throwable, returnCode)
+  override val result = RetryableExecution(throwable, returnCode)
 }
 
 case object AbortedExecutionHandle extends ExecutionHandle {

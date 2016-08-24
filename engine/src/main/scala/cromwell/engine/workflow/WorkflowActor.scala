@@ -268,24 +268,19 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   onTransition {
-    case oldState -> terminalState if terminalState.terminal =>
+    case (oldState, terminalState: WorkflowActorTerminalState) =>
       workflowLogger.info(s"transition from {} to {}. Shutting down.", arg1 = oldState, arg2 = terminalState)
       // Add the end time of the workflow in the MetadataService
       val now = OffsetDateTime.now
       val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(now))
       serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
       terminalState match {
-        case WorkflowSucceededState =>
-          context.parent ! WorkflowSucceededResponse(workflowId)
         case WorkflowFailedState =>
           val failures = nextStateData.lastStateReached.failures.getOrElse(List.empty)
           val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"), r) }
           serviceRegistryActor ! PutMetadataAction(failureEvents)
-
           context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, failures)
-        case WorkflowAbortedState =>
-          context.parent ! WorkflowAbortedResponse(workflowId)
-        case unknownState => workflowLogger.warn(s"$unknownState is an unhandled terminal state!")
+        case _ => // The WMA is watching state transitions and needs no further info
       }
 
       // Copy/Delete workflow logs

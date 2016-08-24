@@ -8,7 +8,8 @@ jdk:
 env:
   # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
   - BUILD_TYPE=sbt
-  - BUILD_TYPE=centaur
+  - BUILD_TYPE=centaurJes
+  - BUILD_TYPE=centaurLocal
 script:
   - src/bin/travis/test.sh
 after_success:

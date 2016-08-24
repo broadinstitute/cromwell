@@ -3,7 +3,6 @@ package cromwell.engine.workflow
 import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
-import cromwell.core.Tags._
 import cromwell.CromwellTestkitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFiles}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
@@ -130,9 +129,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       system.stop(materializeWfActor)
     }
 
-
-    // TODO PBE: this should be done by MWDA (ticket #1076)
-    "assign default runtime attributes" taggedAs PostMVP ignore {
+    "assign default runtime attributes" ignore {
       val wdl =
         """
           |task a {
@@ -296,8 +293,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       system.stop(materializeWfActor)
     }
 
-    // TODO: PBE: Re-enable (ticket #1063)
-    "reject a taskless WDL source" taggedAs PostMVP ignore {
+
+    "reject a taskless WDL source" ignore {
       val noWorkflowWdl =
         """
           |# no task foo { ... } block!!

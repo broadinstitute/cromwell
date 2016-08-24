@@ -564,6 +564,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def postProcess: Try[JobOutputs] = {
+    //RUCHI: Move KvPut elsewhere, temporary position for testing.
+    val forStorage = Option(List(jesCallPaths.stderrPath, jesCallPaths.returnCodePath, jesCallPaths.stdoutPath, gcsExecPath).mkString)
+    println(s"the value being stored is: $forStorage")
+    serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.workflowDescriptor.id,
+      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
+      callOutputFiles), forStorage))
+
     val outputs = call.task.outputs
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
@@ -571,9 +578,16 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, executionHandle: ExecutionHandle): ExecutionHandle = {
+  private def gatherJobDetritusFiles: Map[String,String] = {
+      val callOutputFiles = List(jesCallPaths.stderrPath, jesCallPaths.returnCodePath, jesCallPaths.stdoutPath, gcsExecPath)
+      val mapOfFiles = callOutputFiles map { path => path.getFileName.toString -> path.toString } toMap
+      val result = mapOfFiles ++ Map(jesCallPaths.callRootPathKey -> callRootPath.toString)
+      result
+  }
+
+  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobOutputFiles: Map[String, String], executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobOutputFiles)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
@@ -652,7 +666,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
-        case _: RunStatus.Success => handleSuccess(postProcess, returnCode.get, handle).future
+        case _: RunStatus.Success => handleSuccess(postProcess, returnCode.get, gatherJobDetritusFiles, handle).future
         case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {

@@ -20,7 +20,6 @@ trait BackendKeyValueDatabaseAccess { this: ServicesStore =>
                                 jobKey: KvJobKey,
                                 backendStoreKey: String,
                                 backendStoreValue: String)(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[Unit] = {
-
     withRetry (() =>
       databaseInterface.addBackendStoreKeyValuePair(workflowId.toString, jobKey.callFqn, jobKey.callIndex.fromIndex, jobKey.callAttempt, backendStoreKey, backendStoreValue)
     )

@@ -11,7 +11,7 @@ sealed trait ExecutionResult
 /**
  * A successful execution with resolved outputs.
  */
-final case class SuccessfulExecution(outputs: JobOutputs, returnCode: Int, resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
+final case class SuccessfulExecution(outputs: JobOutputs, returnCode: Int, jobOutputFiles: Map[String, String], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
 
 /**
  * A user-requested abort of the command.

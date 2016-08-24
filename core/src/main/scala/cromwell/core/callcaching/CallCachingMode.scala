@@ -13,6 +13,8 @@ sealed trait CallCachingMode {
 }
 
 case object CallCachingOff extends CallCachingMode {
+  override val readFromCache = false
+  override val writeToCache = false
   override val withoutRead = this
   override val withoutWrite = this
 }

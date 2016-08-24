@@ -46,6 +46,7 @@
     <include file="changesets/summary_status_table.xml" relativeToChangelogFile="true"/>
     <include file="changesets/standardize_column_names.xml" relativeToChangelogFile="true" />
     <include file="changesets/metadata_migration.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_caching_job_detritus.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
 <!--
 

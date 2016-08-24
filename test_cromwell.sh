@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 shutdown() {
     cd "${INITIAL_DIR}"
@@ -61,13 +61,13 @@ while getopts ":hb:r:c:p:j:t:" option; do
 done
 shift "$((OPTIND - 1))"
 
-LOG_DIR=logs
+LOG_DIR="${RUN_DIR}"/logs
 ASSEMBLY_LOG=${LOG_DIR}/cromwell_assembly.log
 CROMWELL_LOG=${LOG_DIR}/cromwell.log
 CENTAUR_LOG=${LOG_DIR}/centaur.log
 
 cd "${RUN_DIR}"
-mkdir -p ${LOG_DIR}
+mkdir -p "${LOG_DIR}"
 
 if [[ -n ${CROMWELL_BRANCH} ]]; then
     if [[ -n ${CROMWELL_JAR} ]]; then
@@ -86,13 +86,17 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     git checkout "${CROMWELL_BRANCH}"
     git pull
     echo "Building Cromwell"
-    sbt clean assembly >> ../${ASSEMBLY_LOG} 2>&1
+    sbt clean assembly >> "${ASSEMBLY_LOG}" 2>&1
     cd ..
-    CROMWELL_JAR="cromwell/target/scala-2.11/cromwell-*.jar"
+    CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.11 -name "cromwell-*.jar")
 fi
 
 echo "Starting Cromwell, jar is ${CROMWELL_JAR}"
-java "${CONFIG_STRING}" -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
+if [ -n "$CONFIG_STRING" ]; then
+    java "${CONFIG_STRING}" -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
+else
+    java -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
+fi
 
 # Build and run centaur
 cd "${RUN_DIR}"
@@ -116,7 +120,7 @@ else
     TEST_COMMAND="sbt ${REFRESH_TOKEN} test"
 fi
 
-${TEST_COMMAND}  >> ../${CENTAUR_LOG} 2>&1
+${TEST_COMMAND} >> "${CENTAUR_LOG}" 2>&1
 
 if [ $? -eq 0 ]; then
     EXIT_CODE=0
@@ -124,4 +128,3 @@ if [ $? -eq 0 ]; then
 fi
 
 echo "SBT test $TEST_STATUS, please see logs for more information"
-tail -n 5 ../${CENTAUR_LOG}

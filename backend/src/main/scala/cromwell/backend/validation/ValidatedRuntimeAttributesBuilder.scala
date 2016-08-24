@@ -1,5 +1,6 @@
 package cromwell.backend.validation
 
+import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.core._
 import lenthall.exception.MessageAggregation
 import org.slf4j.Logger
@@ -25,6 +26,13 @@ trait ValidatedRuntimeAttributesBuilder {
     * @return the validations that should be used and returned during evaluation.
     */
   def validations: Seq[RuntimeAttributesValidation[_]]
+
+  /**
+    * Returns a mapping of the validations: RuntimeAttributesValidation each converted to a RuntimeAttributeDefinition.
+    */
+  final lazy val definitions: Seq[RuntimeAttributeDefinition] = {
+    validations map RuntimeAttributesValidation.toRuntimeAttributeDefinition
+  }
 
   /**
     * Returns the additional validations that should be used during value parsing.

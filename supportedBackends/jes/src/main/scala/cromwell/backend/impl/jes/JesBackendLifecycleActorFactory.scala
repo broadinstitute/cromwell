@@ -49,7 +49,8 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
     Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher(BackendDispatcher))
   }
 
-  override val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] = {
+  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
+  Set[RuntimeAttributeDefinition] = {
     import RuntimeAttributesKeys._
     import JesRuntimeAttributes._
 

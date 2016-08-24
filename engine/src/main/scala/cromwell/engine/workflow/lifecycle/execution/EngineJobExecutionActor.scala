@@ -189,7 +189,9 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
-    context.actorOf(EngineJobHashingActor.props(jobDescriptor, initializationData, factory.fileContentsHasherActor, dockerHashLookupActor, factory.runtimeAttributeDefinitions, backendName, activity), s"ejha_for_$jobDescriptor")
+    val props = EngineJobHashingActor.props(jobDescriptor, initializationData, factory.fileContentsHasherActor,
+      dockerHashLookupActor, factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
+    context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
   def lookupCachedResult(jobDescriptor: BackendJobDescriptor, cacheResultId: MetaInfoId) = {

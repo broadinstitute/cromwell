@@ -1,6 +1,6 @@
 package cromwell.backend.validation
 
-import cromwell.backend.MemorySize
+import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.backend.wdl.OnlyPureFunctions
 import cromwell.core._
 import org.slf4j.Logger
@@ -171,6 +171,24 @@ object RuntimeAttributesValidation {
       case Some(innerValue) => unpackOption(innerValue)
       case _ => Option(value.asInstanceOf[A])
     }
+  }
+
+  /**
+    * Converts a RuntimeAttributesValidation to a RuntimeAttributeDefinition.
+    *
+    * @param validation RuntimeAttributesValidation
+    * @return RuntimeAttributeDefinition
+    */
+  def toRuntimeAttributeDefinition(validation: RuntimeAttributesValidation[_]): RuntimeAttributeDefinition = {
+    val name = validation.key
+    val unusedBoolean = false // ... at the time of this writing
+    val default = validation.staticDefaultOption
+    import cromwell.backend.validation.RuntimeAttributesKeys._
+    val usedInCallCaching = name match {
+      case DockerKey | ContinueOnReturnCodeKey | FailOnStderrKey => true
+      case _ => false
+    }
+    RuntimeAttributeDefinition(name, unusedBoolean, default, usedInCallCaching)
   }
 }
 

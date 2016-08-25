@@ -1,6 +1,5 @@
 name: multiline_command_line
 testFormat: workflowsuccess
-ignore: true # Fails on JES, Succeeds locally. WTF?
 
 files { 
   wdl: multiline_command_line/multiline_command_line.wdl

@@ -14,7 +14,7 @@ task blah {
   }
 
   runtime {
-    docker: "ubuntu:latest"
+    docker: "python:latest"
   }
 }
 

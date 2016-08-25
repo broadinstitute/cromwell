@@ -14,7 +14,7 @@ import cromwell.webservice.metadata.IndexedJsonValue._
 import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, MetadataBuilderActorState, WaitingForMetadataService}
 import cromwell.webservice.{APIResponse, WorkflowJsonSupport}
 import org.slf4j.LoggerFactory
-import spray.http.StatusCodes
+import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 
@@ -23,7 +23,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scalaz.std.list._
 import scalaz.syntax.foldable._
-
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -224,7 +223,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       val response = APIResponse.fail(new RuntimeException("Can't find metadata service"))
       context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
       allDone
-    case Event(WorkflowQuerySuccess(uri, response, metadata), _) =>
+    case Event(WorkflowQuerySuccess(uri: Uri, response, metadata), _) =>
       context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
       allDone
     case Event(failure: WorkflowQueryFailure, _) =>

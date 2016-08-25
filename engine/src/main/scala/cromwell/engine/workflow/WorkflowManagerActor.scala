@@ -5,12 +5,11 @@ import akka.actor._
 import akka.event.Logging
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.WorkflowId
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.WorkflowId
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.CromwellApiHandler._
@@ -20,9 +19,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
 import scalaz.NonEmptyList
-import akka.actor.Props
-
-import scala.concurrent.duration.Duration
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -51,9 +47,10 @@ object WorkflowManagerActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
-            callCacheReadActor: ActorRef,
-            dockerHashLookupActor: ActorRef): Props = {
-    Props(new WorkflowManagerActor(workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, dockerHashLookupActor)).withDispatcher(EngineDispatcher)
+            callCacheReadActor: ActorRef): Props = {
+    Props(new WorkflowManagerActor(
+      workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+    ).withDispatcher(EngineDispatcher)
   }
 
   /**
@@ -89,16 +86,15 @@ class WorkflowManagerActor(config: Config,
                            val serviceRegistryActor: ActorRef,
                            val workflowLogCopyRouter: ActorRef,
                            val jobStoreActor: ActorRef,
-                           val callCacheReadActor: ActorRef,
-                           val dockerHashLookupActor: ActorRef)
+                           val callCacheReadActor: ActorRef)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
 
   def this(workflowStore: ActorRef,
            serviceRegistryActor: ActorRef,
            workflowLogCopyRouter: ActorRef,
            jobStoreActor: ActorRef,
-           callCacheReadActor: ActorRef,
-           dockerHashLookupActor: ActorRef) = this(ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, dockerHashLookupActor)
+           callCacheReadActor: ActorRef) = this(
+    ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
   implicit val actorSystem = context.system
   private implicit val timeout = Timeout(5 seconds)
 
@@ -258,7 +254,8 @@ class WorkflowManagerActor(config: Config,
       StartNewWorkflow
     }
 
-    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, dockerHashLookupActor)
+    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor,
+      workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

@@ -7,6 +7,7 @@ import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
 import cromwell.database.{CromwellDatabase, Database, DbmsTest}
 import cromwell.services.metadata._
+import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -32,7 +33,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
   implicit val ec = ExecutionContext.global
 
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
-  val longPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(500, Millis)))
 
   def testWith(configPath: String): Unit = {
 
@@ -188,7 +188,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
           }
         }
-      } yield ()).futureValue(longPatience)
+      } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
     }
 
     it should "close the database" taggedAs DbmsTest in {

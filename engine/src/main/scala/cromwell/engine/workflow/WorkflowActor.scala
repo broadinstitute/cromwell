@@ -139,9 +139,9 @@ object WorkflowActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
-            callCacheReadActor: ActorRef,
-            dockerHashLookupActor: ActorRef): Props = {
-    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, dockerHashLookupActor)).withDispatcher(EngineDispatcher)
+            callCacheReadActor: ActorRef): Props = {
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
+      jobStoreActor, callCacheReadActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -155,8 +155,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                     serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
                     jobStoreActor: ActorRef,
-                    callCacheReadActor: ActorRef,
-                    dockerHashLookupActor: ActorRef)
+                    callCacheReadActor: ActorRef)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
   implicit val actorSystem = context.system
@@ -207,7 +206,6 @@ class WorkflowActor(val workflowId: WorkflowId,
         serviceRegistryActor,
         jobStoreActor,
         callCacheReadActor,
-        dockerHashLookupActor,
         initializationData,
         restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
 

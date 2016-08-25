@@ -11,7 +11,7 @@ import cromwell.database.CromwellDatabase
 import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CachingSimpletonActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
@@ -173,7 +173,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   def lookupCachedResult(jobDescriptor: BackendJobDescriptor, taskOutputs: Seq[TaskOutput], cacheResultId: MetaInfoId) = {
     // TODO: Start up a backend job copying actor (if possible, otherwise just runJob). That should send back the BackendJobExecutionResponse
     //self ! FailedNonRetryableResponse(jobKey, new Exception("Call cache result copying not implemented!"), None)
-    val cachingSimpletonActor = context.actorOf(CachingSimpletonActor.props(cacheResultId, taskOutputs))
+    val cachingSimpletonActor = context.actorOf(FetchCachedResultsActor.props(cacheResultId, taskOutputs))
     // While the cache result is looked up, we wait for the response just like we were waiting for a Job to complete:
     goto(PreparingCachedOutputs) using EJEAJobDescriptorData(Option(jobDescriptor), _)
   }

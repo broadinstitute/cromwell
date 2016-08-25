@@ -42,6 +42,5 @@ trait BackendJobCachingActor extends Actor with ActorLogging with BackendJobLife
 
   def copyCachedOutputs: Future[BackendJobExecutionResponse]
 
-  private def cachingFailed = (t: Throwable) =>
-    FailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+  private def cachingFailed(t: Throwable) = FailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
 }

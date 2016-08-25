@@ -51,6 +51,7 @@ class CallCache(database: CallCachingStore) {
       case "Int" => WdlIntegerType
       case "Float" => WdlFloatType
       case "Boolean" => WdlBooleanType
+      case "File" => WdlFileType
       case _ => throw new RuntimeException(s"$entry: unrecognized WDL type: ${entry.wdlType}")
     }
     WdlValueSimpleton(entry.simpletonKey, wdlType.coerceRawValue(entry.simpletonValue).get.asInstanceOf[WdlPrimitive])
@@ -58,9 +59,8 @@ class CallCache(database: CallCachingStore) {
 
   def convertToJobOutputs(cachedResult: CachedResult, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): JobOutputs = {
     //don't know how much error collection this *needs*
-    val simpletons = cachedResult.resultSimpletons map toSimpleton
-    val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
-    jobOutputs
+    val simpletonEntries = cachedResult.resultSimpletons map toSimpleton
+    WdlValueBuilder.toJobOutputs(taskOutputs, simpletonEntries)
   }
 
 }

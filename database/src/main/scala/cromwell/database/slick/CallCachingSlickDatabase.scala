@@ -54,4 +54,3 @@ trait CallCachingSlickDatabase extends CallCachingStore {
     }
   }
 }
-

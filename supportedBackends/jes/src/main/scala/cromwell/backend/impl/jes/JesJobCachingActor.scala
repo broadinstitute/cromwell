@@ -25,7 +25,5 @@ case class JesJobCachingActor(override val jobDescriptor: BackendJobDescriptor,
 
   override def abort = ???
 
-  override def copyCachedOutputs(): Future[BackendJobExecutionResponse] = {
-     //different Branch
-  }
+  override def copyCachedOutputs(): Future[BackendJobExecutionResponse]
 }

@@ -5,8 +5,6 @@ import java.time.OffsetDateTime
 import akka.actor.{ActorRef, DeadLetterSuppression}
 import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import spray.http.Uri
-import spray.routing._
 import wdl4s.values._
 
 import scala.language.postfixOps
@@ -57,18 +55,17 @@ object MetadataService {
     extends ReadAction
   case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
   case class GetStatus(workflowId: WorkflowId) extends ReadAction
-  case class WorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends ReadAction
+  case class WorkflowQuery[A](uri: A, parameters: Seq[(String, String)]) extends ReadAction
   case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
   case class GetLogs(workflowId: WorkflowId) extends ReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
-    def onMalformed: String => Route
-    def onRecognized: WorkflowId => Route
-    def onUnrecognized: String => Route
-    def onFailure: (String, Throwable) => Route
+    def onMalformed(possibleWorkflowId: String): Unit
+    def onRecognized(workflowId: WorkflowId): Unit
+    def onUnrecognized(possibleWorkflowId: String): Unit
+    def onFailure(possibleWorkflowId: String, throwable: Throwable): Unit
   }
   final case class ValidateWorkflowIdAndExecute(possibleWorkflowId: String,
-                                                requestContext: RequestContext,
                                                 validationCallback: ValidationCallback) extends MetadataServiceAction
 
   /**
@@ -88,7 +85,8 @@ object MetadataService {
   case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
   case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-  final case class WorkflowQuerySuccess(uri: Uri, response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataServiceResponse
+  final case class WorkflowQuerySuccess[A](uri: A, response: WorkflowQueryResponse, meta: Option[QueryMetadata])
+    extends MetadataServiceResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataServiceFailure
 
   final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse

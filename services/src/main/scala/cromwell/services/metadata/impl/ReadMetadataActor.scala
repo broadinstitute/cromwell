@@ -1,12 +1,11 @@
 package cromwell.services.metadata.impl
 
 import akka.actor.{Actor, ActorLogging, Props}
-import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.core.Dispatcher.ApiDispatcher
+import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.database.CromwellDatabase
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
-import spray.http.Uri
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -25,7 +24,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
-    case WorkflowQuery(uri, parameters) => queryWorkflowsAndRespond(uri, parameters)
+    case query: WorkflowQuery[_] => queryWorkflowsAndRespond(query.uri, query.parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
   }
 
@@ -48,7 +47,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     }
   }
 
-  private def queryWorkflowsAndRespond(uri: Uri, rawParameters: Seq[(String, String)]): Unit = {
+  private def queryWorkflowsAndRespond[A](uri: A, rawParameters: Seq[(String, String)]): Unit = {
     def queryWorkflows: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
       for {
       // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.

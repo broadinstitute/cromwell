@@ -3,10 +3,11 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
-import cromwell.core.logging.WorkflowLogging
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
+import cromwell.core.logging.WorkflowLogging
 import cromwell.database.CromwellDatabase
 import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
@@ -15,7 +16,6 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
-import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 
 import scala.util.{Failure, Success, Try}
 
@@ -27,7 +27,6 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               serviceRegistryActor: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
-                              dockerHashLookupActor: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging {
 
@@ -191,7 +190,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
     val props = EngineJobHashingActor.props(jobDescriptor, initializationData, factory.fileContentsHasherActor,
-      callCacheReadActor, dockerHashLookupActor, factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
+      callCacheReadActor, factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
     context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
@@ -273,7 +272,6 @@ object EngineJobExecutionActor {
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
-            dockerHashLookupActor: ActorRef,
             backendName: String,
             callCachingMode: CallCachingMode) = {
     Props(new EngineJobExecutionActor(jobDescriptorKey,
@@ -284,7 +282,6 @@ object EngineJobExecutionActor {
       serviceRegistryActor,
       jobStoreActor,
       callCacheReadActor,
-      dockerHashLookupActor,
       backendName: String,
       callCachingMode)).withDispatcher(EngineDispatcher)
   }

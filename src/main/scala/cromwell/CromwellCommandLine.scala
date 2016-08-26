@@ -7,9 +7,8 @@ import cromwell.core.{ErrorOr, WorkflowSourceFiles}
 import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
 
-import scalaz._
-import Scalaz._
 import scala.util.{Failure, Success, Try}
+import scalaz.Scalaz._
 
 sealed abstract class CromwellCommandLine
 case object UsageAndExit extends CromwellCommandLine
@@ -43,6 +42,7 @@ object RunSingle {
 
     val sourceFiles = (wdl |@| inputsJson |@| optionsJson) { WorkflowSourceFiles.apply }
 
+    import scalaz.Validation.FlatMap._
     val runSingle = for {
       sources <- sourceFiles
       _ <- writeableMetadataPath(metadataPath)

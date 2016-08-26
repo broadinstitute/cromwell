@@ -16,11 +16,10 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{BatchSubmitWor
 import cromwell.server.{CromwellServerActor, CromwellSystem}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.MetadataSummaryRefreshActor
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.MetadataSummarySuccess
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.CromwellApiHandler._
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{PatienceConfiguration, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import spray.http.{DateTime => _, _}
@@ -89,19 +88,17 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   def publishMetadata(events: Seq[MetadataEvent]): Unit = {
     val timeout: Timeout = 5.seconds.dilated
-    val patienceConfig = PatienceConfig(timeout.duration)
 
     import akka.pattern.ask
     val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
-    putResult.futureValue(patienceConfig) shouldBe a[MetadataPutAcknowledgement]
+    putResult.futureValue(PatienceConfiguration.Timeout(timeout.duration)) shouldBe a[MetadataPutAcknowledgement]
   }
 
   def forceSummary(): Unit = {
     val timeout: Timeout = 5.seconds.dilated
-    val patienceConfig = PatienceConfig(timeout.duration)
     val summaryResult = serviceRegistryActor.ask(RefreshSummary)(timeout)
 
-    val askResult = summaryResult.futureValue(patienceConfig)
+    val askResult = summaryResult.futureValue(PatienceConfiguration.Timeout(timeout.duration))
     askResult match {
       case MetadataSummarySuccess =>
       case _ =>

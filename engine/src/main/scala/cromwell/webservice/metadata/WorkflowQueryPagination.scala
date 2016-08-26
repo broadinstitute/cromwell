@@ -1,10 +1,25 @@
-package cromwell.services.metadata
+package cromwell.webservice.metadata
 
 import cromwell.services.metadata.MetadataService.QueryMetadata
 import spray.http.HttpHeaders.Link
 import spray.http.{HttpHeader, Uri}
 
-
+/**
+  * Attempts to add query parameters for pagination.
+  *
+  * NOTE: This trait is effectively broken, as the returned links are not suitable for use by cromwell clients.
+  *
+  * The trait discards the search parameters for GETs, for example it drops parameters such as "start" and "end". Also
+  * generates links incompatible with POSTs, as the endpoints read parameters from the HTTP body during POST, __not__
+  * from the URI.
+  *
+  * This trait may need to receive an entire `spray.http.HttpRequest` and not just the `spray.http.Uri` to ensure that
+  * it doesn't generate links for POST.
+  *
+  * The existing `CromwellApiServiceSpec` should be updated to verify the expected behavior for both GET and POST.
+  *
+  * Left behind for legacy reasons, but don't believe anyone has ever used these non-functional links.
+  */
 trait WorkflowQueryPagination {
 
   protected def generatePaginationParams(page: Int, pageSize: Int): String = {

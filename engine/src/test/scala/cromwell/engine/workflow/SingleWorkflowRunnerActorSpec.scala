@@ -12,7 +12,6 @@ import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
@@ -56,7 +55,6 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
-  private val dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor))
 
 
   def workflowManagerActor(): ActorRef = {
@@ -65,8 +63,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
       dummyServiceRegistryActor,
       dummyLogCopyRouter,
       jobStore,
-      callCacheReadActor,
-      dockerHashLookupActor)), "WorkflowManagerActor")
+      callCacheReadActor)), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

@@ -1,17 +1,16 @@
 package cromwell.engine.workflow
 
-import akka.actor.{Actor, Props}
+import akka.actor.Actor
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor
 import cromwell.util.SampleWdl.ThreeStep
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
 import org.scalatest.BeforeAndAfter
 
 class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter {
@@ -28,9 +27,6 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
   val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = wdlSources)
 
   private def createWorkflowActor(state: WorkflowActorState) = {
-    val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
-    val dockerHashLookupActor = system.actorOf(Props(new DockerHashLookupWorkerActor))
-
     val actor = TestFSMRef(new WorkflowActor(
       workflowId = WorkflowId.randomId(),
       startMode = StartNewWorkflow,
@@ -39,8 +35,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
       serviceRegistryActor = mockServiceRegistryActor,
       workflowLogCopyRouter = TestProbe().ref,
       jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
-      callCacheReadActor = callCacheReadActor,
-      dockerHashLookupActor = dockerHashLookupActor
+      callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
     ))
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
       AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState)))

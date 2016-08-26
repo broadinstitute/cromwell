@@ -4,7 +4,14 @@ object Dependencies {
   lazy val lenthallV = "0.18-e690fc2-SNAPSHOT"
   lazy val wdl4sV = "0.5-ed015a6-SNAPSHOT"
   lazy val sprayV = "1.3.2"
-  lazy val DowngradedSprayV = "1.3.1"
+  /*
+  spray-json is an independent project from the "spray suite"
+  - https://github.com/spray/spray
+  - https://github.com/spray/spray-json
+  - http://spray.io/documentation/1.2.2/spray-httpx/spray-json-support/
+  - http://doc.akka.io/docs/akka/2.4/scala/http/common/json-support.html#akka-http-spray-json
+   */
+  lazy val sprayJsonV = "1.3.1"
   lazy val akkaV = "2.3.15"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
@@ -16,7 +23,7 @@ object Dependencies {
   private val baseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
     "org.scalaz" %% "scalaz-core" % scalazCoreV,
-    "org.scalatest" %% "scalatest" % "2.2.5" % Test,
+    "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.specs2" %% "specs2" % "2.3.13" % Test
   )
 
@@ -34,12 +41,10 @@ object Dependencies {
     "com.mattbertolini" % "liquibase-slf4j" % "2.0.0"
   )
 
-  private val sprayDependencies = List(
+  private val sprayServerDependencies = List(
     "io.spray" %% "spray-can" % sprayV,
     "io.spray" %% "spray-routing-shapeless2" % sprayV,
-    "io.spray" %% "spray-client" % sprayV,
     "io.spray" %% "spray-http" % sprayV,
-    "io.spray" %% "spray-json" % DowngradedSprayV,
     "io.spray" %% "spray-testkit" % sprayV % Test
   )
 
@@ -75,11 +80,12 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.broadinstitute" %% "wdl4s" % wdl4sV,
     "org.apache.commons" % "commons-lang3" % "3.4",
+    "io.spray" %% "spray-json" % sprayJsonV,
     "com.typesafe" % "config" % "1.3.0",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
-  ) ++ baseDependencies ++ googleApiClientDependencies ++ sprayDependencies ++
+  ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
 
@@ -97,9 +103,7 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV,
     "io.swagger" % "swagger-parser" % "1.0.19" % Test,
     "org.yaml" % "snakeyaml" % "1.16" % Test
-  )
-
-  val serviceDependencies = sprayDependencies
+  ) ++ sprayServerDependencies
 
   val rootDependencies = slf4jBindingDependencies
 }

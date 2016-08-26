@@ -4,14 +4,14 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import cromwell.core
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.services.metadata.{WorkflowQueryPagination, MetadataService}
-import MetadataService.{QueryMetadata, WorkflowQueryResponse}
-import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.core
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
+import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
+import cromwell.webservice.PerRequest.RequestComplete
+import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 

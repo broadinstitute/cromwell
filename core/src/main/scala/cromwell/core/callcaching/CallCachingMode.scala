@@ -15,8 +15,7 @@ case object CallCachingOff extends CallCachingMode {
 }
 
 case class CallCachingActivity (readWriteMode: ReadWriteMode,
-                                dockerHashingType: DockerHashingType,
-                                fileHashingType: FileHashingType) extends CallCachingMode
+                                dockerHashingType: DockerHashingType = HashDockerName) extends CallCachingMode
 {
   override val readFromCache = readWriteMode.r
   override val writeToCache = readWriteMode.w
@@ -35,7 +34,3 @@ case object ReadAndWriteCache extends ReadWriteMode
 sealed trait DockerHashingType
 case object HashDockerName extends DockerHashingType
 case object HashDockerNameAndLookupDockerHash extends DockerHashingType
-
-sealed trait FileHashingType
-case object HashFilePath extends FileHashingType
-case object HashFileContents extends FileHashingType

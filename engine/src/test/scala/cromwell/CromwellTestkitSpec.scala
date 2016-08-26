@@ -3,7 +3,6 @@ package cromwell
 import java.nio.file.Paths
 import java.util.UUID
 
-import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit._
@@ -14,6 +13,8 @@ import cromwell.core._
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
@@ -551,4 +552,14 @@ class AlwaysHappyJobStoreActor extends Actor {
 
 object AlwaysHappyJobStoreActor {
   def props: Props = Props(new AlwaysHappyJobStoreActor)
+}
+
+class EmptyCallCacheReadActor extends Actor {
+  override def receive: Receive = {
+    case CacheLookupRequest(CallCacheHashes(hashes)) => sender ! CacheResultMatchesForHashes(hashes, Set.empty)
+  }
+}
+
+object EmptyCallCacheReadActor {
+  def props: Props = Props(new EmptyCallCacheReadActor)
 }

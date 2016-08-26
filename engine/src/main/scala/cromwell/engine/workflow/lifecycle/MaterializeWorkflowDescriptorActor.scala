@@ -293,20 +293,16 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
     if (enabled) {
       val lookupDockerHashes = conf.getBooleanOption("call-caching.lookup-docker-hash").getOrElse(false)
-      // TODO: This option isn't advertised in the README and probably won't last very long, so don't get used to it!
-      val hashFileContents = conf.getBooleanOption("call-caching.hash-file-contents").getOrElse(true)
-
       val dockerHashingType = if (lookupDockerHashes) HashDockerNameAndLookupDockerHash else HashDockerName
-      val fileHashingType = if (hashFileContents) HashFileContents else HashFilePath
 
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
       (readFromCache |@| writeToCache) {
         case (false, false) => CallCachingOff
-        case (true, false) => CallCachingActivity(ReadCache, dockerHashingType, fileHashingType)
-        case (false, true) => CallCachingActivity(WriteCache, dockerHashingType, fileHashingType)
-        case (true, true) => CallCachingActivity(ReadAndWriteCache, dockerHashingType, fileHashingType)
+        case (true, false) => CallCachingActivity(ReadCache, dockerHashingType)
+        case (false, true) => CallCachingActivity(WriteCache, dockerHashingType)
+        case (true, true) => CallCachingActivity(ReadAndWriteCache, dockerHashingType)
       }
     }
     else {

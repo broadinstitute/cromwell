@@ -26,6 +26,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
                               restarting: Boolean,
                               serviceRegistryActor: ActorRef,
                               jobStoreActor: ActorRef,
+                              callCacheReadActor: ActorRef,
                               dockerHashLookupActor: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging {
@@ -190,7 +191,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
     val props = EngineJobHashingActor.props(jobDescriptor, initializationData, factory.fileContentsHasherActor,
-      dockerHashLookupActor, factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
+      callCacheReadActor, dockerHashLookupActor, factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
     context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
@@ -271,6 +272,7 @@ object EngineJobExecutionActor {
             restarting: Boolean,
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
+            callCacheReadActor: ActorRef,
             dockerHashLookupActor: ActorRef,
             backendName: String,
             callCachingMode: CallCachingMode) = {
@@ -281,23 +283,21 @@ object EngineJobExecutionActor {
       restarting,
       serviceRegistryActor,
       jobStoreActor,
+      callCacheReadActor,
       dockerHashLookupActor,
       backendName: String,
       callCachingMode)).withDispatcher(EngineDispatcher)
   }
+
+  private[execution] sealed trait EJEAData { override def toString = getClass.getSimpleName }
+
+  private[execution] case object NoData extends EJEAData
+  private[execution] case class JobDescriptorData(jobDescriptor: BackendJobDescriptor, bjeaActorProps: Props) extends EJEAData
+
+  private[execution] case object EmptyPartialCompletionData extends EJEAData
+  private[execution] case class PartialCompletionDataWithSucceededResponse(response: SucceededResponse) extends EJEAData
+  private[execution] case class PartialCompletionDataWithHashes(hashes: Try[CallCacheHashes]) extends EJEAData
+
+  private[execution] case class CacheWriteOffCompletionData(jobResult: BackendJobExecutionResponse) extends EJEAData
+  private[execution] case class CacheWriteOnCompletionData(jobResult: SucceededResponse, hashes: CallCacheHashes) extends EJEAData
 }
-
-private[execution] sealed trait EJEAData { override def toString = getClass.getSimpleName }
-
-private[execution] case object NoData extends EJEAData
-private[execution] case class JobDescriptorData(jobDescriptor: BackendJobDescriptor, bjeaActorProps: Props) extends EJEAData
-
-private[execution] case object EmptyPartialCompletionData extends EJEAData
-private[execution] case class PartialCompletionDataWithSucceededResponse(response: SucceededResponse) extends EJEAData
-private[execution] case class PartialCompletionDataWithHashes(hashes: Try[CallCacheHashes]) extends EJEAData
-
-private[execution] case class CacheWriteOffCompletionData(jobResult: BackendJobExecutionResponse) extends EJEAData
-private[execution] case class CacheWriteOnCompletionData(jobResult: SucceededResponse, hashes: CallCacheHashes) extends EJEAData
-
-private[execution] case class CacheResultMatchesForHashes(hashResults: Set[HashResult], cacheResultIds: Set[MetaInfoId])
-private[execution] case class CacheResultLookupFailure(reason: Throwable)

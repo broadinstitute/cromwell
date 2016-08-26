@@ -399,7 +399,8 @@ trait SharedFileSystemAsyncJobExecutionActor
       case handle: SharedFileSystemPendingExecutionHandle =>
         val runId = handle.run
         jobLogger.debug(s"Polling Job $runId")
-        jobPaths.returnCode.exists match {
+        if (isAlive(runId)) Future.successful(previous)
+        else jobPaths.returnCode.exists match {
           case true =>
             processReturnCode()
           case false =>

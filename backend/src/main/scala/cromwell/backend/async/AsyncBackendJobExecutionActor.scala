@@ -30,9 +30,7 @@ object AsyncBackendJobExecutionActor {
   final case class Recover(recoveryId: JobId) extends ExecutionMode {
     override def jobId = Option(recoveryId)
   }
-  final case class UseCachedCall(cachedBackendCall: BackendJobDescriptor) extends ExecutionMode
 }
-
 
 trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
@@ -74,7 +72,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) =>
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
-    case Finish(SuccessfulExecutionHandle(outputs, returnCode, hash, resultsClonedFrom)) =>
+    case Finish(SuccessfulExecutionHandle(outputs, returnCode, resultsClonedFrom)) =>
       completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs))
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>

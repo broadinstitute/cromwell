@@ -14,8 +14,7 @@ case object CallCachingOff extends CallCachingMode {
   override val withoutRead = this
 }
 
-case class CallCachingActivity (readWriteMode: ReadWriteMode,
-                                dockerHashingType: DockerHashingType = HashDockerName) extends CallCachingMode
+case class CallCachingActivity(readWriteMode: ReadWriteMode) extends CallCachingMode
 {
   override val readFromCache = readWriteMode.r
   override val writeToCache = readWriteMode.w

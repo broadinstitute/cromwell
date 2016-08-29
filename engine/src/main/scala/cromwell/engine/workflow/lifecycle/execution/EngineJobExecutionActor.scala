@@ -189,8 +189,13 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
-    val props = EngineJobHashingActor.props(jobDescriptor, initializationData, factory.fileContentsHasherActor,
-      callCacheReadActor, factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
+    val props = EngineJobHashingActor.props(
+      self,
+      jobDescriptor,
+      initializationData,
+      factory.fileContentsHasherActor,
+      callCacheReadActor,
+      factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
     context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
@@ -274,16 +279,17 @@ object EngineJobExecutionActor {
             callCacheReadActor: ActorRef,
             backendName: String,
             callCachingMode: CallCachingMode) = {
-    Props(new EngineJobExecutionActor(jobDescriptorKey,
-      executionData,
-      factory,
-      initializationData,
-      restarting,
-      serviceRegistryActor,
-      jobStoreActor,
-      callCacheReadActor,
-      backendName: String,
-      callCachingMode)).withDispatcher(EngineDispatcher)
+    Props(new EngineJobExecutionActor(
+      jobKey = jobDescriptorKey,
+      executionData = executionData,
+      factory = factory,
+      initializationData = initializationData,
+      restarting = restarting,
+      serviceRegistryActor = serviceRegistryActor,
+      jobStoreActor = jobStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      backendName = backendName: String,
+      callCachingMode = callCachingMode)).withDispatcher(EngineDispatcher)
   }
 
   private[execution] sealed trait EJEAData { override def toString = getClass.getSimpleName }

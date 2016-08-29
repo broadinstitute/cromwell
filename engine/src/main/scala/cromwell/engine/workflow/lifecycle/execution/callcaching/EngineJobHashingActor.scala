@@ -15,15 +15,14 @@ import wdl4s.values.WdlFile
   *  * (if read enabled): Either a CacheHit(id) or CacheMiss message
   *  * (if write enabled): A CallCacheHashes(hashes) message
   */
-case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
+case class EngineJobHashingActor(receiver: ActorRef,
+                                 jobDescriptor: BackendJobDescriptor,
                                  initializationData: Option[BackendInitializationData],
-                                 fileHasherActor: ActorRef,
+                                 fileHashingActor: ActorRef,
                                  callCacheReadActor: ActorRef,
                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                  backendName: String,
-                                 mode: CallCachingActivity) extends LoggingFSM[EJHAState, EJHAData] with ActorLogging {
-
-  val receiver = context.parent
+                                 activity: CallCachingActivity) extends LoggingFSM[EJHAState, EJHAData] with ActorLogging {
 
   initializeEJHA()
 
@@ -75,15 +74,15 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
 
     val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.map(_.hashKey)
 
-    val initialState = if (mode.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
-    val initialData = EJHAData(hashesNeeded, mode)
+    val initialState = if (activity.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
+    val initialData = EJHAData(hashesNeeded, activity)
 
     startWith(initialState, initialData)
 
     // Submit the set of initial hashes for checking against the DB:
     self ! EJHAInitialHashingResults(initialHashes)
     // Find the hashes for all input files:
-    fileContentHashesNeeded.foreach(fileHasherActor ! _)
+    fileContentHashesNeeded.foreach(fileHashingActor ! _)
   }
 
   private def calculateInitialHashes(nonFileInputs: Iterable[WdlValueSimpleton], fileInputs: Iterable[WdlValueSimpleton]): Set[HashResult] = {
@@ -124,7 +123,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       case None => CacheMiss
     }
     receiver ! hitOrMissResponse
-    if (!mode.writeToCache) {
+    if (!activity.writeToCache) {
       context.stop(self)
       stay
     } else {
@@ -155,7 +154,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
   }
 
   def updateStateDataWithNewHashResultsAndTransition(hashResults: Set[HashResult]) = {
-    if (mode.writeToCache) {
+    if (activity.writeToCache) {
       val newData = stateData.withNewKnownHashes(hashResults)
       if (newData.isDefinitelyCacheHitOrMiss) {
         log.info("New hash results, hit or miss already known (none are cache-checked. Checking if we're done...)")
@@ -171,15 +170,22 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
 
 object EngineJobHashingActor {
 
-  def props(jobDescriptor: BackendJobDescriptor,
+  def props(receiver: ActorRef,
+            jobDescriptor: BackendJobDescriptor,
             initializationData: Option[BackendInitializationData],
-            fileHasherActor: ActorRef,
+            fileHashingActor: ActorRef,
             callCacheReadActor: ActorRef,
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
-            activity: CallCachingActivity): Props =
-    Props(new EngineJobHashingActor(jobDescriptor, initializationData, fileHasherActor, callCacheReadActor,
-      runtimeAttributeDefinitions, backendName, activity))
+            activity: CallCachingActivity): Props = Props(new EngineJobHashingActor(
+      receiver = receiver,
+      jobDescriptor = jobDescriptor,
+      initializationData = initializationData,
+      fileHashingActor = fileHashingActor,
+      callCacheReadActor = callCacheReadActor,
+      runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+      backendName = backendName,
+      activity = activity))
 
   private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends SuccessfulHashResultMessage
   private[callcaching] case object CheckWhetherAllHashesAreKnown

@@ -1,7 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.{FileAlreadyExistsException, Path, Paths}
-import java.util.{Calendar, Date}
+import java.util.{Calendar}
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive

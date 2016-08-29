@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import cromwell.backend.BackendSpec
 import org.mockito.Matchers._
 import org.mockito.Mockito._
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
 class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec with MockitoSugar {

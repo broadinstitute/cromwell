@@ -1,13 +1,11 @@
 package cromwell.util
 
-import cromwell.core.CromwellFatalException
 import cromwell.core.retry.SimpleExponentialBackoff
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Success
 
 class TryUtilSpec extends FlatSpec with Matchers with MockitoSugar {
 

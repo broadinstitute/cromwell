@@ -7,5 +7,5 @@ case class JobStoreResultSimpletonEntry
   wdlType: String,
   jobStoreId: Int,
   jobStoreSimpletonEntryId: Option[Int] = None
-)
+) extends DatabaseSimpleton
 

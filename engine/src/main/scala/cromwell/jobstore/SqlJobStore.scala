@@ -1,14 +1,13 @@
 package cromwell.jobstore
 
+import cromwell.Simpletons._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.WorkflowId
+import cromwell.core.simpleton.WdlValueBuilder
 import cromwell.core.simpleton.WdlValueSimpleton._
-import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import cromwell.database.sql.JobStoreSqlDatabase
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreResultSimpletonEntry}
 import wdl4s.TaskOutput
-import wdl4s.types._
-import wdl4s.values.WdlPrimitive
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -48,17 +47,6 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
         val simpletons: Int => Iterable[JobStoreResultSimpletonEntry] = _ => List.empty
         (entry, simpletons)
     }
-  }
-
-  private def toSimpleton(entry: JobStoreResultSimpletonEntry): WdlValueSimpleton = {
-    val wdlType: WdlType = entry.wdlType match {
-      case "String" => WdlStringType
-      case "Int" => WdlIntegerType
-      case "Float" => WdlFloatType
-      case "Boolean" => WdlBooleanType
-      case _ => throw new RuntimeException(s"$entry: unrecognized WDL type: ${entry.wdlType}")
-    }
-    WdlValueSimpleton(entry.simpletonKey, wdlType.coerceRawValue(entry.simpletonValue).get.asInstanceOf[WdlPrimitive])
   }
 
   override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {

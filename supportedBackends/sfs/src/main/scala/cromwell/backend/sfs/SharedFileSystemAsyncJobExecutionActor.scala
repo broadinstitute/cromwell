@@ -338,15 +338,18 @@ trait SharedFileSystemAsyncJobExecutionActor
   def isAlive(job: SharedFileSystemJob): Boolean = {
     val now = Calendar.getInstance()
     jobLogger.debug(s"executing isAlive for ${job.jobId}")
-    if (isAliveCash(job).cash && (isAliveCash(job).last.getTimeInMillis + isAliveTimeout) < now.getTimeInMillis) {
+    if (isAliveCash.contains(job) &&
+      isAliveCash(job).cash &&
+      (isAliveCash(job).last.getTimeInMillis + isAliveTimeout) < now.getTimeInMillis) {
       val argv = checkAliveArgs(job).argv
       jobLogger.debug(s"Executing shell for ${job.jobId}: " + argv.mkString("'", " ", "'"))
       val stdout = pathPlusSuffix(jobPaths.stdout, "check")
       val stderr = pathPlusSuffix(jobPaths.stderr, "check")
       val checkAlive = new ProcessRunner(argv, stdout, stderr)
-      isAliveCash(job) = IsAliveCash(now, checkAlive.run() == 0)
+      isAliveCash += job -> IsAliveCash(now, checkAlive.run() == 0)
     }
-    isAliveCash(job).cash
+    if (!isAliveCash.contains(job)) isAliveCash += job -> IsAliveCash(Calendar.getInstance(), true)
+    isAliveCash.get(job).map(_.cash).getOrElse(true)
   }
 
   def tryKill(job: SharedFileSystemJob): Unit = {

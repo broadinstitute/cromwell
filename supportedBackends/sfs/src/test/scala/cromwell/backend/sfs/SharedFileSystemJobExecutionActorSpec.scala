@@ -15,7 +15,7 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, OptionValues}
 import wdl4s.types._

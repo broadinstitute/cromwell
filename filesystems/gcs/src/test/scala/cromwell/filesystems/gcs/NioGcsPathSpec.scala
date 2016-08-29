@@ -2,7 +2,7 @@ package cromwell.filesystems.gcs
 
 import java.nio.file.Path
 
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}

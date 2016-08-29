@@ -18,7 +18,7 @@ import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.JobOutput
 import org.mockito.Mockito
 import org.mockito.Mockito._
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, MustMatchers, WordSpecLike}
 import wdl4s.Call
 import wdl4s.values.WdlString

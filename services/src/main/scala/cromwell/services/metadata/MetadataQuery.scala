@@ -12,6 +12,17 @@ case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
 case class MetadataKey(workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String)
 
+object MetadataKey {
+
+  val KeySeparator = ':'
+
+  def apply(workflowId: WorkflowId, jobKey: Option[MetadataJobKey], keys: String*): MetadataKey = {
+    new MetadataKey(workflowId, jobKey, compositeKey(keys:_*))
+  }
+
+  def compositeKey(keys: String*) = keys.toList.mkString(KeySeparator.toString)
+}
+
 object MetadataEvent {
   def apply(key: MetadataKey, value: MetadataValue) = new MetadataEvent(key, Option(value), OffsetDateTime.now)
   def empty(key: MetadataKey) = new MetadataEvent(key, None, OffsetDateTime.now)

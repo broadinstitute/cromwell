@@ -70,16 +70,17 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
 
   private def startNewWork(command: WorkflowStoreActorCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
-      case cmd @ SubmitWorkflow(source) =>
-        store.add(NonEmptyList(source)) map { ids =>
+      case cmd @ SubmitWorkflow(sourceFiles) =>
+        store.add(NonEmptyList(sourceFiles)) map { ids =>
           val id = ids.head
-          registerIdWithMetadataService(id)
+          registerSubmissionWithMetadataService(id, sourceFiles)
           sndr ! WorkflowSubmittedToStore(id)
           log.info("Workflow {} submitted.", id)
         }
       case cmd @ BatchSubmitWorkflows(sources) =>
         store.add(sources) map { ids =>
-          ids foreach registerIdWithMetadataService
+          val assignedSources = ids.zip(sources)
+          assignedSources foreach { case (id, sourceFiles) => registerSubmissionWithMetadataService(id, sourceFiles) }
           sndr ! WorkflowsBatchSubmittedToStore(ids)
           log.info("Workflows {} submitted.", ids.list.mkString(", "))
         }
@@ -144,11 +145,15 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerIdWithMetadataService(id: WorkflowId): Unit = {
+  private def registerSubmissionWithMetadataService(id: WorkflowId, sourceFiles: WorkflowSourceFiles): Unit = {
     val submissionEvents = List(
       MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
       MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
-      MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs))
+      MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)),
+
+      MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(sourceFiles.wdlSource)),
+      MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs), MetadataValue(sourceFiles.inputsJson)),
+      MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson))
     )
 
     serviceRegistryActor ! PutMetadataAction(submissionEvents)

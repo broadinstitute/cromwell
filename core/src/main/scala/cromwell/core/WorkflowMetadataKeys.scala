@@ -13,4 +13,9 @@ object WorkflowMetadataKeys {
   val WorkflowLog = "workflowLog"
   val Failures = "failures"
   val WorkflowRoot = "workflowRoot"
+
+  val SubmissionSection = "submittedFiles"
+  val SubmissionSection_Workflow = "workflow"
+  val SubmissionSection_Inputs = "inputs"
+  val SubmissionSection_Options = "options"
 }

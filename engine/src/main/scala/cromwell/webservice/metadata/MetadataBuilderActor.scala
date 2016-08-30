@@ -35,7 +35,7 @@ object MetadataBuilderActor {
 
   val log = LoggerFactory.getLogger("MetadataBuilder")
 
-  private val KeySeparator = ':'
+  private val KeySeparator = MetadataKey.KeySeparator
   private val bracketMatcher = """\[(\d*)\]""".r
   private val startMatcher = """^([^\[]+)\[""".r
   private val AttemptKey = "attempt"

@@ -15,7 +15,7 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-p parallelism factor] [-t refresh token]
+$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-t refresh token] [-e excludeTag]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
@@ -24,14 +24,14 @@ Arguments:
     -j    Path of a cromwell jar to use. Mutually exclusive with -b
     -r    Directory where script is run (defaults to current directory)
     -c    If supplied, the config file to pass to Cromwell
-    -p    Number of simultaneous tests to run. Defaults to 3
     -t    Refresh Token that can be passed into the appropriate options file
+    -e    If supplied, will exclude tests with this tag
 "
 
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 
-while getopts ":hb:r:c:p:j:t:" option; do
+while getopts ":hb:r:c:p:j:t:e:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -43,11 +43,12 @@ while getopts ":hb:r:c:p:j:t:" option; do
             ;;
         c) CONFIG_STRING=-Dconfig.file="${OPTARG}"
             ;;
-        p) PARALLELISM_FACTOR="${OPTARG}"
-            ;;
+
         j) CROMWELL_JAR="${OPTARG}"
             ;;
         t) REFRESH_TOKEN=-Dcentaur.optionalToken="${OPTARG}"
+            ;;
+        e) EXCLUDE_TAG="${OPTARG}"
             ;;
         :) printf "Missing argument for -%s\n" "$OPTARG" >&2
             echo "$usage" >&2
@@ -111,16 +112,15 @@ fi
 cd centaur
 TEST_STATUS="failed"
 
-if [[ -n ${PARALLELISM_FACTOR} ]]; then
-    echo "Running Centaur with ${PARALLELISM_FACTOR}-way parallelism"
-    TEST_COMMAND="./run_tests_parallel.sh ${PARALLELISM_FACTOR}"
+if [[ -n ${EXCLUDE_TAG} ]]; then
+    echo "Running Centaur filtering out ${EXCLUDE_TAG} tests"
+    TEST_COMMAND="sbt \"test-only -- -n ${EXCLUDE_TAG}\""
 else
     echo "Running Centaur with sbt test"
-    echo "About to run centaur as sbt ${REFRESH_TOKEN} test"
     TEST_COMMAND="sbt ${REFRESH_TOKEN} test"
 fi
 
-${TEST_COMMAND} >> "${CENTAUR_LOG}" 2>&1
+eval "${TEST_COMMAND} >> ${CENTAUR_LOG} 2>&1"
 
 if [ $? -eq 0 ]; then
     EXIT_CODE=0

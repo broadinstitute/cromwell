@@ -7,6 +7,7 @@ backend: Local
 
 files {
   wdl: input_localization/input_localization.wdl
+  options: input_localization/input_localization.options
 }
 
 metadata {

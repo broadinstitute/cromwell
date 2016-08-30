@@ -3,7 +3,7 @@
 name: local_backend
 testFormat: workflowsuccess
 ignore: false
-backend: Local
+backends: [Local]
 
 files {
   wdl: local_backend/local_backend.wdl

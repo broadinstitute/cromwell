@@ -1,6 +1,6 @@
 name: custom_mount_point
 testFormat: workflowsuccess
-backend: Jes
+backends: [Jes]
 
 files {
   wdl: custom_mount_point/custom_mount_point.wdl

@@ -43,7 +43,7 @@ Each test case file is a HOCON file with the following structure:
 ```
 name: NAME  // Required: Name of the test
 testFormat: TESTFORMAT // Required: One of WorkflowSuccessTest, WorkflowFailureTest
-backend: BACKENDNAME // Optional. If supplied, this test will be ignored if this backend is not supported by the Cromwell server
+backends: [BACKENDNAME1, BACKENDNAME2, ...] // Optional list of backends. If supplied, this test will be ignored if these backends are not supported by the Cromwell server
 basePath: /an/optional/field  // Optional, location for the files {} entries to be found relative to
 tags: [ "any", "custom", "tags" ]  // Optional, a set of custom tags to apply to this test
 ignore: false  // Optional, whether centaur will ignore this test when running

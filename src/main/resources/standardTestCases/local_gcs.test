@@ -1,6 +1,6 @@
 name: local_gcs
 testFormat: workflowsuccess
-backend: Jes # *really* needs this feature to support multiple backends
+backends: [Jes, Local]
 
 files {
   wdl: local_gcs/local_gcs.wdl

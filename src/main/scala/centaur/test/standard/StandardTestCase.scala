@@ -21,7 +21,7 @@ case class StandardTestCase(workflow: Workflow, testFormat: StandardTestFormat, 
   }
 
   def isIgnored(supportedBackends: List[String]): Boolean = {
-    val backendSupported = workflow.backend forall supportedBackends.contains
+    val backendSupported = workflow.backends forall supportedBackends.contains
     testOptions.ignore || !backendSupported
   }
 

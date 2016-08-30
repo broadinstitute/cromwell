@@ -3,7 +3,7 @@
 
 name: input_localization
 testFormat: workflowsuccess
-backend: Local
+backends: [Local]
 
 files {
   wdl: input_localization/input_localization.wdl

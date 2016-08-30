@@ -1,6 +1,6 @@
 name: refresh_token
 testFormat: workflowsuccess
-backend: Jes-Refresh
+backends: [Jes-Refresh]
 
 files {
   wdl: hello/hello.wdl

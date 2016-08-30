@@ -147,7 +147,9 @@ trait SharedFileSystem extends PathFactory {
       case (name, value) => localizeFunction(value) map { name -> _ }
     }
 
-    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap)
+    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recover {
+      case e => throw new CromwellFatalException(e)
+    }
   }
 
   /**

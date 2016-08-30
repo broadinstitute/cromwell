@@ -1,0 +1,20 @@
+# Tests that on a shared filesystem Cromwell is correctly localizing input files coming from the same as
+# well as different directories. Tests both docker and non-docker
+
+name: input_localization
+testFormat: workflowsuccess
+backend: Local
+
+files {
+  wdl: input_localization/input_localization.wdl
+}
+
+metadata {
+  workflowName: input_localization
+  status: Succeeded
+  "outputs.wf.fromDifferentDirectories_with_docker.ls": "1",
+  "outputs.wf.fromSameDirectory.ls": "2",
+  "outputs.wf.fromSameDirectory_with_docker.ls": "2",
+  "outputs.wf.fromDifferentDirectories.ls": "1"
+}
+

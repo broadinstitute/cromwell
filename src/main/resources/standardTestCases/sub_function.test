@@ -1,0 +1,16 @@
+# Tests the usage of the sub() engine function
+
+name: sub_function
+testFormat: workflowsuccess
+
+files {
+  wdl: sub_function/sub_function.wdl
+}
+
+metadata {
+  workflowName: wf
+  status: Succeeded
+  "outputs.wf.sub.o2": myfilename.txt
+  "outputs.wf.sub.stdout": myfilename.txt
+  "outputs.wf.sub.swappedContent": content
+}

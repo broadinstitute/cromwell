@@ -1,0 +1,17 @@
+# Tests interactions with an optional parameter. Supplying no value at all, using a default value and supplying a value
+
+name: optional_parameter
+testFormat: workflowsuccess
+
+files {
+  wdl: optional_parameter/optional_parameter.wdl
+  inputs: optional_parameter/optional_parameter.inputs
+}
+
+metadata {
+  workflowName: default
+  status: Succeeded
+  "outputs.default.hello_no_value.greeting": "hello default value"
+  "outputs.default.hello.greeting": "hello alice"
+  "outputs.default.hello_no_default.greeting": "hello"
+}

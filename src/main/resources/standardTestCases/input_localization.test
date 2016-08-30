@@ -10,7 +10,7 @@ files {
 }
 
 metadata {
-  workflowName: input_localization
+  workflowName: wf
   status: Succeeded
   "outputs.wf.fromDifferentDirectories_with_docker.ls": "1",
   "outputs.wf.fromSameDirectory.ls": "2",

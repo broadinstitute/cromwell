@@ -4,6 +4,7 @@
 name: input_localization
 testFormat: workflowsuccess
 backends: [Local]
+tags: [localdockertest]
 
 files {
   wdl: input_localization/input_localization.wdl

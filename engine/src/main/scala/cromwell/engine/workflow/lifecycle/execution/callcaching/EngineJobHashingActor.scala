@@ -3,12 +3,11 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.backend.callcaching.FileHasherWorkerActor.SingleFileHashRequest
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
-import cromwell.database.sql.MetaInfoId
-import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.core.callcaching._
+import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultLookupFailure, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.DockerHashLookupWorkerActor.{DockerHashLookupCommand, DockerHashLookupKey}
 import wdl4s.values.WdlFile
 
 /**
@@ -16,16 +15,14 @@ import wdl4s.values.WdlFile
   *  * (if read enabled): Either a CacheHit(id) or CacheMiss message
   *  * (if write enabled): A CallCacheHashes(hashes) message
   */
-case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
+case class EngineJobHashingActor(receiver: ActorRef,
+                                 jobDescriptor: BackendJobDescriptor,
                                  initializationData: Option[BackendInitializationData],
-                                 fileHasherActor: ActorRef,
+                                 fileHashingActor: ActorRef,
                                  callCacheReadActor: ActorRef,
-                                 dockerHashLookupActor: ActorRef,
                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                  backendName: String,
-                                 mode: CallCachingActivity) extends LoggingFSM[EJHAState, EJHAData] with ActorLogging {
-
-  val receiver = context.parent
+                                 activity: CallCachingActivity) extends LoggingFSM[EJHAState, EJHAData] with ActorLogging {
 
   initializeEJHA()
 
@@ -75,23 +72,17 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(s"input: File $name"), x, initializationData)
     }
 
-    val dockerLookupHashNeeded = (jobDescriptor.runtimeAttributes.get("docker"), mode.dockerHashingType) match {
-      case (Some(dockerName), HashDockerNameAndLookupDockerHash) => Set(DockerHashLookupCommand(dockerName.valueString))
-      case _ => Set.empty
-    }
+    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.map(_.hashKey)
 
-    val hashesNeeded: Set[HashKey] = initialHashes.map(_.hashKey) ++ fileContentHashesNeeded.map(_.hashKey) ++ dockerLookupHashNeeded.map(_ => DockerHashLookupKey)
-
-    val initialState = if (mode.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
-    val initialData = EJHAData(hashesNeeded, mode)
+    val initialState = if (activity.readFromCache) DeterminingHitOrMiss else GeneratingAllHashes
+    val initialData = EJHAData(hashesNeeded, activity)
 
     startWith(initialState, initialData)
 
     // Submit the set of initial hashes for checking against the DB:
     self ! EJHAInitialHashingResults(initialHashes)
     // Find the hashes for all input files:
-    fileContentHashesNeeded.foreach(fileHasherActor ! _)
-    dockerLookupHashNeeded.foreach(dockerHashLookupActor ! _)
+    fileContentHashesNeeded.foreach(fileHashingActor ! _)
   }
 
   private def calculateInitialHashes(nonFileInputs: Iterable[WdlValueSimpleton], fileInputs: Iterable[WdlValueSimpleton]): Set[HashResult] = {
@@ -109,7 +100,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       case WdlValueSimpleton(name, value) => HashResult(HashKey(s"input: ${value.wdlType.toWdlString} $name"),  value.toWdlString.md5HashValue)
     }
 
-    val outputExpressionHashResults = jobDescriptor.call.task.outputs map { case output =>
+    val outputExpressionHashResults = jobDescriptor.call.task.outputs map { output =>
       HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.name}"), output.requiredExpression.valueString.md5HashValue)
     }
 
@@ -132,7 +123,7 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
       case None => CacheMiss
     }
     receiver ! hitOrMissResponse
-    if (!mode.writeToCache) {
+    if (!activity.writeToCache) {
       context.stop(self)
       stay
     } else {
@@ -157,14 +148,13 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
 
     if (filtered.nonEmpty) {
       val hashes = CallCacheHashes(filtered)
-      val actorName = s"CallCacheReadActor-${jobDescriptor.workflowDescriptor.id}-${jobDescriptor.key.tag}-lookup_$lookupIndex"
       lookupIndex += 1
       callCacheReadActor ! CacheLookupRequest(hashes)
     } else ()
   }
 
   def updateStateDataWithNewHashResultsAndTransition(hashResults: Set[HashResult]) = {
-    if (mode.writeToCache) {
+    if (activity.writeToCache) {
       val newData = stateData.withNewKnownHashes(hashResults)
       if (newData.isDefinitelyCacheHitOrMiss) {
         log.info("New hash results, hit or miss already known (none are cache-checked. Checking if we're done...)")
@@ -180,15 +170,22 @@ case class EngineJobHashingActor(jobDescriptor: BackendJobDescriptor,
 
 object EngineJobHashingActor {
 
-  def props(jobDescriptor: BackendJobDescriptor,
+  def props(receiver: ActorRef,
+            jobDescriptor: BackendJobDescriptor,
             initializationData: Option[BackendInitializationData],
-            fileHasherActor: ActorRef,
+            fileHashingActor: ActorRef,
             callCacheReadActor: ActorRef,
-            dockerHashLookupActor: ActorRef,
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
-            activity: CallCachingActivity): Props =
-    Props(new EngineJobHashingActor(jobDescriptor, initializationData, fileHasherActor, callCacheReadActor, dockerHashLookupActor, runtimeAttributeDefinitions, backendName, activity))
+            activity: CallCachingActivity): Props = Props(new EngineJobHashingActor(
+      receiver = receiver,
+      jobDescriptor = jobDescriptor,
+      initializationData = initializationData,
+      fileHashingActor = fileHashingActor,
+      callCacheReadActor = callCacheReadActor,
+      runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+      backendName = backendName,
+      activity = activity))
 
   private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends SuccessfulHashResultMessage
   private[callcaching] case object CheckWhetherAllHashesAreKnown

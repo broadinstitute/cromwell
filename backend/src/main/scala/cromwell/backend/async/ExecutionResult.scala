@@ -1,6 +1,6 @@
 package cromwell.backend.async
 
-import cromwell.backend.{BackendJobDescriptor, ExecutionHash}
+import cromwell.backend.BackendJobDescriptor
 import cromwell.core.JobOutputs
 
 /**
@@ -11,7 +11,7 @@ sealed trait ExecutionResult
 /**
  * A successful execution with resolved outputs.
  */
-final case class SuccessfulExecution(outputs: JobOutputs, returnCode: Int, hash: ExecutionHash, resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
+final case class SuccessfulExecution(outputs: JobOutputs, returnCode: Int, resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
 
 /**
  * A user-requested abort of the command.

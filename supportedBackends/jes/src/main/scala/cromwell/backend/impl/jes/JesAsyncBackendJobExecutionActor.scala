@@ -16,7 +16,7 @@ import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.backend.impl.jes.JesJobExecutionActor.JesOperationIdKey
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, ExecutionHash, PreemptedException}
+import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging
@@ -582,12 +582,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def handleSuccess(outputMappings: Try[JobOutputs],
-                            returnCode: Int,
-                            hash: ExecutionHash,
-                            executionHandle: ExecutionHandle): ExecutionHandle = {
+  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, hash)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
@@ -661,8 +658,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
-        case _: RunStatus.Success =>
-          ExecutionHash.completelyRandomExecutionHash map { h => handleSuccess(postProcess, returnCode.get, h, handle) }
+        case _: RunStatus.Success => handleSuccess(postProcess, returnCode.get, handle).future
         case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {

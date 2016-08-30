@@ -2,6 +2,7 @@ package cromwell.backend.sfs
 
 import java.nio.file.{Files, Path, Paths}
 
+import akka.testkit.TestDuration
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, SucceededResponse}
@@ -14,12 +15,16 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import org.scalatest.{FlatSpecLike, OptionValues, ParallelTestExecution}
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.{FlatSpecLike, OptionValues}
 import wdl4s.types._
 import wdl4s.util.AggregatedException
 import wdl4s.values._
+
+import scala.concurrent.duration._
 
 class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
   with FlatSpecLike with BackendSpec with MockitoSugar with TableDrivenPropertyChecks with OptionValues with ParallelTestExecution {
@@ -184,7 +189,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
     backendRef ! kvPair
 
-    whenReady(execute) { executionResponse =>
+    whenReady(execute, Timeout(10.seconds.dilated)) { executionResponse =>
       if (writeReturnCode) {
         executionResponse should be(a[SucceededResponse])
         val succeededResponse = executionResponse.asInstanceOf[SucceededResponse]

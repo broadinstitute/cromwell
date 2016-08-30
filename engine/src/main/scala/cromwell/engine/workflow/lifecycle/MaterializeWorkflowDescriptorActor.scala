@@ -72,6 +72,33 @@ object MaterializeWorkflowDescriptorActor {
   case class MaterializeWorkflowDescriptorActorData()
 
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
+
+  private[lifecycle] def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
+
+    def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
+      workflowOptions.getBoolean(option.name) match {
+        case Success(x) => x.successNel
+        case Failure(_: OptionNotFoundException) => true.successNel
+        case Failure(t) => t.getMessage.failureNel
+      }
+    }
+
+    val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
+    if (enabled) {
+      val readFromCache = readOptionalOption(ReadFromCache)
+      val writeToCache = readOptionalOption(WriteToCache)
+
+      (readFromCache |@| writeToCache) {
+        case (false, false) => CallCachingOff
+        case (true, false) => CallCachingActivity(ReadCache)
+        case (false, true) => CallCachingActivity(WriteCache)
+        case (true, true) => CallCachingActivity(ReadAndWriteCache)
+      }
+    }
+    else {
+      CallCachingOff.successNel
+    }
+  }
 }
 
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val workflowId: WorkflowId, cromwellBackends: => CromwellBackends) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
@@ -277,36 +304,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     modeString flatMap WorkflowFailureMode.tryParse match {
         case Success(mode) => mode.successNel
         case Failure(t) => t.getMessage.failureNel
-    }
-  }
-
-  private def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
-
-    def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
-      workflowOptions.getBoolean(option.name) match {
-        case Success(x) => x.successNel
-        case Failure(_: OptionNotFoundException) => true.successNel
-        case Failure(t) => t.getMessage.failureNel
-      }
-    }
-
-    val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
-    if (enabled) {
-      val lookupDockerHashes = conf.getBooleanOption("call-caching.lookup-docker-hash").getOrElse(false)
-      val dockerHashingType = if (lookupDockerHashes) HashDockerNameAndLookupDockerHash else HashDockerName
-
-      val readFromCache = readOptionalOption(ReadFromCache)
-      val writeToCache = readOptionalOption(WriteToCache)
-
-      (readFromCache |@| writeToCache) {
-        case (false, false) => CallCachingOff
-        case (true, false) => CallCachingActivity(ReadCache, dockerHashingType)
-        case (false, true) => CallCachingActivity(WriteCache, dockerHashingType)
-        case (true, true) => CallCachingActivity(ReadAndWriteCache, dockerHashingType)
-      }
-    }
-    else {
-      CallCachingOff.successNel
     }
   }
 }

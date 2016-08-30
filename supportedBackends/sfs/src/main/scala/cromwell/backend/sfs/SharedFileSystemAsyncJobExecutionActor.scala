@@ -13,7 +13,7 @@ import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.io.{JobPaths, WorkflowPathsBackendInitializationData}
 import cromwell.backend.validation._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, ExecutionHash, OutputEvaluator}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, OutputEvaluator}
 import cromwell.core.JobOutputs
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -206,8 +206,6 @@ trait SharedFileSystemAsyncJobExecutionActor
             case job: SharedFileSystemJob => recoverScript(job)
             case other => throw new RuntimeException(s"Unable to recover $other")
           }
-        case _: UseCachedCall =>
-          ??? // TODO: PBE: Implement!
       }
     } recoverWith {
       case exception: Exception =>
@@ -382,8 +380,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     def processSuccess(returnCode: Int) = {
       val successfulFuture = for {
         outputs <- Future.fromTry(processOutputs())
-        hash <- ExecutionHash.completelyRandomExecutionHash
-      } yield SuccessfulExecutionHandle(outputs, returnCode, hash, None)
+      } yield SuccessfulExecutionHandle(outputs, returnCode, None)
 
       successfulFuture recover {
         case failed: Throwable =>

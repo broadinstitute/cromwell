@@ -24,7 +24,7 @@ object Settings {
     https://github.com/scala/pickling/issues/10
   */
   val compilerSettings = List(
-    //"-deprecation", // TODO: PBE: Re-enable deprecation warnings
+    "-deprecation",
     "-unchecked",
     "-feature",
     "-Xmax-classfile-name",
@@ -54,8 +54,7 @@ object Settings {
   ) ++ commonSettings
 
   val servicesSettings = List(
-    name := "cromwell-services",
-    libraryDependencies ++= serviceDependencies
+    name := "cromwell-services"
   ) ++ commonSettings
 
   val gcsFileSystemSettings = List(

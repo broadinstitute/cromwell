@@ -7,4 +7,4 @@ case class CallCachingResultSimpletonEntry
   wdlType: String,
   resultMetaInfoId: Int,
   callCachingResultSimpletonId: Option[Int]
-)
+) extends DatabaseSimpleton

@@ -6,7 +6,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
-import cromwell.database.CromwellDatabase
+import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction, RefreshSummary, ValidateWorkflowIdAndExecute}
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
@@ -30,7 +30,8 @@ object MetadataServiceActor {
   def props(serviceConfig: Config, globalConfig: Config) = Props(MetadataServiceActor(serviceConfig, globalConfig))
 }
 
-case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with ActorLogging with MetadataDatabaseAccess with CromwellDatabase {
+case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
+  extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {
 
   val summaryActor = context.actorOf(MetadataSummaryRefreshActor.props(MetadataSummaryTimestampMinimum), "metadata-summary-actor")
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")

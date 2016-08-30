@@ -8,12 +8,12 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
 import cromwell.core.callcaching.CallCachingOff
 import cromwell.core.{ExecutionStore, JobOutputs, OutputStore, WorkflowId}
-import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreActor, SqlJobStore, Pending => _}
+import cromwell.services.SingletonServicesStore
 import cromwell.util.SampleWdl
 import cromwell.{CromwellTestkitSpec, EmptyCallCacheReadActor}
 import org.scalatest.{BeforeAndAfterAll, Matchers}
@@ -53,7 +53,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     task.declarations returns Seq.empty
     task.runtimeAttributes returns RuntimeAttributes(Map.empty)
 
-    val jobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
+    val jobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
 
     val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
 

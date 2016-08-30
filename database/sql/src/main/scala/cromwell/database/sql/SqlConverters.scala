@@ -1,4 +1,4 @@
-package cromwell.database
+package cromwell.database.sql
 
 import java.sql.{Clob, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}

@@ -1,17 +1,34 @@
-package cromwell.database
+package cromwell.services
 
+import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
+import lenthall.config.ScalaConfig._
 
-
-object CromwellDatabase {
-  val databaseInterface: SqlDatabase = new SlickDatabase()
-}
-
-trait Database {
+trait ServicesStore {
   def databaseInterface: SqlDatabase
 }
 
-trait CromwellDatabase extends Database {
-  override def databaseInterface: SqlDatabase = CromwellDatabase.databaseInterface
+object ServicesStore {
+
+  implicit class EnhancedSqlDatabase[A <: SqlDatabase](val sqlDatabase: A) extends AnyVal {
+    def initialized: A = {
+      if (sqlDatabase.databaseConfig.getBooleanOr("liquibase.updateSchema", default = true)) {
+        sqlDatabase withConnection LiquibaseUtils.updateSchema
+      }
+      sqlDatabase
+    }
+  }
+
+}
+
+trait SingletonServicesStore extends ServicesStore {
+  final override val databaseInterface: SqlDatabase = SingletonServicesStore.databaseInterface
+}
+
+object SingletonServicesStore {
+
+  import ServicesStore.EnhancedSqlDatabase
+
+  val databaseInterface: SqlDatabase = new SlickDatabase(SqlDatabase.defaultDatabaseConfig).initialized
 }

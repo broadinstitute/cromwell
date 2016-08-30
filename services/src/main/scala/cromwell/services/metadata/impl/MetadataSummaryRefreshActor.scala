@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
-import cromwell.database.CromwellDatabase
+import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
 import scala.util.{Failure, Success}
@@ -34,7 +34,8 @@ object MetadataSummaryRefreshActor {
 }
 
 
-class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]) extends LoggingFSM[SummaryRefreshState, SummaryRefreshData] with MetadataDatabaseAccess with CromwellDatabase {
+class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime])
+  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData] with MetadataDatabaseAccess with SingletonServicesStore {
 
   val config = ConfigFactory.load
   implicit val ec = context.dispatcher

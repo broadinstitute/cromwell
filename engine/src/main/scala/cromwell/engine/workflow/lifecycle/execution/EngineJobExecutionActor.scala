@@ -8,14 +8,13 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.database.CromwellDatabase
-import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes, HashError}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
+import cromwell.services.SingletonServicesStore
 
 import scala.util.{Failure, Success, Try}
 
@@ -219,7 +218,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   }
 
   private def saveCacheResults(completionData: CacheWriteOnCompletionData) = {
-    val callCache = new CallCache(CromwellDatabase.databaseInterface)
+    val callCache = new CallCache(SingletonServicesStore.databaseInterface)
     context.actorOf(CallCacheWriteActor.props(callCache, workflowId, completionData.hashes, completionData.jobResult), s"CallCacheWriteActor-$tag")
     goto(UpdatingCallCache) using completionData
   }

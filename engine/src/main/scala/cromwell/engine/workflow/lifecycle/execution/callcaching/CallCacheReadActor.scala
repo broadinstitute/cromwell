@@ -1,13 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.pipe
+import cromwell.core.callcaching.HashResult
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.ExecutionContext
-import akka.pattern.pipe
-import cromwell.core.callcaching.HashResult
-import cromwell.database.sql.MetaInfoId
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 
 /**
   * Queues up work sent to it because its receive is non-blocking.

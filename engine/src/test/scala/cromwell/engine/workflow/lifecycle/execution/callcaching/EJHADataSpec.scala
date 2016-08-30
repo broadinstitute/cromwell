@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cromwell.core.callcaching._
-import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CacheResultMatchesForHashes
 import org.scalatest.{FlatSpec, Matchers}
 

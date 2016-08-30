@@ -5,7 +5,6 @@ import cromwell.backend.callcaching.FileHasherWorkerActor.SingleFileHashRequest
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultLookupFailure, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import wdl4s.values.WdlFile

@@ -2,7 +2,7 @@ package cromwell.services.keyvalue.impl
 
 import akka.actor.Props
 import com.typesafe.config.Config
-import cromwell.database.CromwellDatabase
+import cromwell.services.SingletonServicesStore
 import cromwell.services.keyvalue.KeyValueServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -12,7 +12,8 @@ object SqlKeyValueServiceActor {
   def props(serviceConfig: Config, globalConfig: Config) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig))
 }
 
-case class SqlKeyValueServiceActor(override val serviceConfig: Config, override val globalConfig: Config) extends KeyValueServiceActor with BackendKeyValueDatabaseAccess with CromwellDatabase {
+case class SqlKeyValueServiceActor(override val serviceConfig: Config, override val globalConfig: Config)
+  extends KeyValueServiceActor with BackendKeyValueDatabaseAccess with SingletonServicesStore {
   override implicit val ec = context.dispatcher
   private implicit val system = context.system
 

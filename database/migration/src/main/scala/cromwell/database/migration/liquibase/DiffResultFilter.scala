@@ -1,4 +1,4 @@
-package cromwell.database.liquibase
+package cromwell.database.migration.liquibase
 
 import liquibase.database.Database
 import liquibase.diff.{DiffResult, Difference, ObjectDifferences}

@@ -27,11 +27,16 @@ object Dependencies {
     "org.specs2" %% "specs2" % "2.3.13" % Test
   )
 
-  private val slf4jBindingDependencies: List[ModuleID] = List(
+  private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "ch.qos.logback" % "logback-access" % "1.1.3",
     "org.codehaus.janino" % "janino" % "2.7.8"
+  )
+
+  private val slickDependencies = List(
+    "com.typesafe.slick" %% "slick" % slickV,
+    "com.typesafe.slick" %% "slick-hikaricp" % slickV
   )
 
   private val liquibaseDependencies = List(
@@ -64,18 +69,21 @@ object Dependencies {
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
   )
 
+  private val dbmsDependencies = List(
+    "org.hsqldb" % "hsqldb" % "2.3.2",
+    "mysql" % "mysql-connector-java" % "5.1.36"
+  )
+
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
   val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
 
-  val databaseDependencies = List(
-    "com.typesafe.slick" %% "slick" % slickV,
-    "com.typesafe.slick" %% "slick-hikaricp" % slickV,
-    "org.hsqldb" % "hsqldb" % "2.3.4",
-    "mysql" % "mysql-connector-java" % "5.1.36",
-    "com.github.pathikrit" %% "better-files" % betterFilesV % Test,
-    "org.broadinstitute" %% "wdl4s" % wdl4sV // Used in migration scripts
-  ) ++ baseDependencies ++ liquibaseDependencies
+  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
+
+  val databaseMigrationDependencies = List(
+    "org.broadinstitute" %% "wdl4s" % wdl4sV, // Used in migration scripts
+    "com.github.pathikrit" %% "better-files" % betterFilesV % Test
+  ) ++ baseDependencies ++ liquibaseDependencies ++ dbmsDependencies
 
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",

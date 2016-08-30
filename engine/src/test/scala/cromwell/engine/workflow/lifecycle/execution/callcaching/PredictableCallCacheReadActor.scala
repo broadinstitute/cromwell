@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.core.callcaching.HashResult
-import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultLookupFailure, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 

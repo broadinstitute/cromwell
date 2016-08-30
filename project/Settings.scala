@@ -62,9 +62,14 @@ object Settings {
     libraryDependencies ++= gcsFileSystemDependencies
   ) ++ commonSettings
 
-  val databaseSettings = List(
-    name := "cromwell-database",
-    libraryDependencies ++= databaseDependencies
+  val databaseSqlSettings = List(
+    name := "cromwell-database-sql",
+    libraryDependencies ++= databaseSqlDependencies
+  ) ++ commonSettings
+
+  val databaseMigrationSettings = List(
+    name := "cromwell-database-migration",
+    libraryDependencies ++= databaseMigrationDependencies
   ) ++ commonSettings
 
   val backendSettings = List(

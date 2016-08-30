@@ -1,16 +1,18 @@
 package cromwell.database.sql
 
-import cromwell.database.sql.tables.{CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
+import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CallCachingStore {
-  def addToCache(metaInfo: CallCachingResultMetaInfoEntry, hashes: Iterable[HashKeyAndValue], result: Iterable[ResultSimpleton])(implicit ec: ExecutionContext): Future[Unit]
-  def metaInfoIdsMatchingHashes(hashKeyValuePairs: Set[HashKeyAndValue])(implicit ec: ExecutionContext): Future[Set[MetaInfoId]]
-  def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext): Future[Option[CachedResult]]
-}
+  def addToCache(callCachingResultMetaInfo: CallCachingResultMetaInfoEntry,
+                 hashesToInsert: Int => Iterable[CallCachingHashEntry],
+                 resultToInsert: Int => Iterable[CallCachingResultSimpletonEntry])
+                (implicit ec: ExecutionContext): Future[Unit]
 
-case class MetaInfoId(id: Int)
-case class HashKeyAndValue(hashKey: String, hashValue: String)
-case class ResultSimpleton(simpletonKey: String, simpletonValue: String, wdlType: String)
-case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingResultSimpletonEntry])
+  def metaInfoIdsMatchingHashes(hashKeyValuePairs: Seq[(String, String)])
+                               (implicit ec: ExecutionContext): Future[Seq[Seq[Int]]]
+
+  def fetchCachedResult(callCachingResultMetaInfoId: Int)(implicit ec: ExecutionContext):
+  Future[(Option[CallCachingResultMetaInfoEntry], Seq[CallCachingResultSimpletonEntry])]
+}

@@ -5,13 +5,12 @@ import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrat
 import akka.event.Logging
 import akka.routing.RoundRobinPool
 import com.typesafe.config.ConfigFactory
-import cromwell.database.CromwellDatabase
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
-import cromwell.services.ServiceRegistryActor
+import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
 /**
@@ -38,13 +37,13 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
       .props(CopyWorkflowLogsActor.props(serviceRegistryActor)),
       "WorkflowLogCopyRouter")
 
-  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(CromwellDatabase.databaseInterface)
+  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
   lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
 
-  lazy val jobStore: JobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
+  lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
 
-  lazy val callCache: CallCache = new CallCache(CromwellDatabase.databaseInterface)
+  lazy val callCache: CallCache = new CallCache(SingletonServicesStore.databaseInterface)
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(25)
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")

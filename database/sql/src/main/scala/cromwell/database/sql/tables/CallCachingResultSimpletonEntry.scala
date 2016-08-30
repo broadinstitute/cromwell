@@ -6,5 +6,5 @@ case class CallCachingResultSimpletonEntry
   simpletonValue: String,
   wdlType: String,
   resultMetaInfoId: Int,
-  callCachingResultSimpletonId: Option[Int]
-) extends DatabaseSimpleton
+  callCachingResultSimpletonId: Option[Int] = None
+)

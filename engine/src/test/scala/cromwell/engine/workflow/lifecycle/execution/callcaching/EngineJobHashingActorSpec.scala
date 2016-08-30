@@ -6,13 +6,12 @@ import cromwell.CromwellTestkitSpec
 import cromwell.backend.callcaching.FileHasherWorkerActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
-import cromwell.database.sql.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import wdl4s._
 import wdl4s.command.CommandPart
 import wdl4s.values.{WdlFile, WdlValue}
-import wdl4s._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

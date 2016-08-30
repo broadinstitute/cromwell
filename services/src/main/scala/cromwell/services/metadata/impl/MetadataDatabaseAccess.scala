@@ -3,9 +3,9 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
-import cromwell.database.Database
-import cromwell.database.SqlConverters._
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.{Metadatum, WorkflowMetadataSummary}
+import cromwell.services.ServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
 
@@ -63,7 +63,7 @@ object MetadataDatabaseAccess {
   }
 }
 
-trait MetadataDatabaseAccess extends AutoCloseable { this: Database =>
+trait MetadataDatabaseAccess extends AutoCloseable { this: ServicesStore =>
 
   override def close() = databaseInterface.close()
 

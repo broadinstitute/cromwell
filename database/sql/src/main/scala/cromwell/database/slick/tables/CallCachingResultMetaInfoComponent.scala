@@ -26,7 +26,7 @@ trait CallCachingResultMetaInfoComponent {
   protected val callCachingResultMetaInfo = TableQuery[CallCachingResultMetaInfoEntries]
 
   val callCachingResultMetaInfoAutoInc = callCachingResultMetaInfo returning callCachingResultMetaInfo.
-    map(_.callCachingResultMetaInfoId) into ((a, id) => a.copy(callCachingResultMetaInfoEntryId = Option(id)))
+    map(_.callCachingResultMetaInfoId)
 
   /**
     * Useful for finding the call caching result meta info for a given ID

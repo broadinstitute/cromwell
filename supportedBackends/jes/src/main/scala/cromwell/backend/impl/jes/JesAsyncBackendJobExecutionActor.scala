@@ -119,14 +119,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private def jesStderrFile = jesCallPaths.stderrPath
   private def jesLogFilename = jesCallPaths.jesLogFilename
   private lazy val call = jobDescriptor.key.call
-  private lazy val runtimeAttributes = {
-    val evaluatedAttributes = {
-      val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
-      // Fail the call if runtime attributes can't be evaluated
-      TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    }
-    JesRuntimeAttributes(evaluatedAttributes, jobDescriptor.workflowDescriptor.workflowOptions, jobLogger)
-  }
+  private lazy val runtimeAttributes = JesRuntimeAttributes(jobDescriptor.runtimeAttributes, jobLogger)
+
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
   private lazy val gcsExecPath: Path = callRootPath.resolve(JesExecScript)

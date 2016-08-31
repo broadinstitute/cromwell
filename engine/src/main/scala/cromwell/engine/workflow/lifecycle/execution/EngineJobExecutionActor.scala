@@ -18,7 +18,8 @@ import cromwell.services.SingletonServicesStore
 
 import scala.util.{Failure, Success, Try}
 
-class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
+class EngineJobExecutionActor(replyTo: ActorRef,
+                              jobKey: BackendJobDescriptorKey,
                               executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
@@ -64,15 +65,15 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     case Event(JobComplete(jobResult), NoData) =>
       jobResult match {
         case JobResultSuccess(returnCode, jobOutputs) =>
-          context.parent ! SucceededResponse(jobKey, returnCode, jobOutputs)
+          replyTo ! SucceededResponse(jobKey, returnCode, jobOutputs)
           context stop self
           stay()
         case JobResultFailure(returnCode, reason, false) =>
-          context.parent ! FailedNonRetryableResponse(jobKey, reason, returnCode)
+          replyTo ! FailedNonRetryableResponse(jobKey, reason, returnCode)
           context stop self
           stay()
         case JobResultFailure(returnCode, reason, true) =>
-          context.parent ! FailedRetryableResponse(jobKey, reason, returnCode)
+          replyTo ! FailedRetryableResponse(jobKey, reason, returnCode)
           context stop self
           stay()
       }
@@ -95,7 +96,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
         case CallCachingOff => runJob(jobDescriptor, bjeaProps)
       }
     case Event(response: BackendJobPreparationFailed, NoData) =>
-      context.parent forward response
+      replyTo forward response
       context stop self
       stay()
   }
@@ -146,7 +147,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     case Event(CallCacheWriteSuccess, CacheWriteOnCompletionData(response, _)) =>
       saveJobCompletionToJobStore(response)
     case Event(CallCacheWriteFailure(reason), CacheWriteOnCompletionData(response, _)) =>
-      context.parent ! FailedNonRetryableResponse(jobKey, reason, response.returnCode)
+      replyTo ! FailedNonRetryableResponse(jobKey, reason, response.returnCode)
       context stop self
       stay()
   }
@@ -154,11 +155,11 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
   // When UpdatingJobStore, the FSM always has EJEACompletionData
   when(UpdatingJobStore) {
     case Event(JobStoreWriteSuccess(_), CacheWriteOffCompletionData(response)) =>
-      context.parent forward response
+      replyTo forward response
       context stop self
       stay()
     case Event(JobStoreWriteFailure(t), CacheWriteOffCompletionData(_)) =>
-      context.parent ! FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None)
+      replyTo ! FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None)
       context.stop(self)
       stay()
   }
@@ -209,7 +210,7 @@ class EngineJobExecutionActor(jobKey: BackendJobDescriptorKey,
     val backendJobExecutionActor = context.actorOf(bjeaProps, buildJobExecutionActorName(jobDescriptor))
     val message = if (restarting) RecoverJobCommand else ExecuteJobCommand
     backendJobExecutionActor ! message
-    context.parent ! JobRunning(jobDescriptor, backendJobExecutionActor)
+    replyTo ! JobRunning(jobDescriptor, backendJobExecutionActor)
     goto(RunningJob) using EmptyPartialCompletionData
   }
 
@@ -268,7 +269,8 @@ object EngineJobExecutionActor {
 
   final case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: ActorRef)
 
-  def props(jobDescriptorKey: BackendJobDescriptorKey,
+  def props(replyTo: ActorRef,
+            jobDescriptorKey: BackendJobDescriptorKey,
             executionData: WorkflowExecutionActorData,
             factory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData],
@@ -279,6 +281,7 @@ object EngineJobExecutionActor {
             backendName: String,
             callCachingMode: CallCachingMode) = {
     Props(new EngineJobExecutionActor(
+      replyTo = replyTo,
       jobKey = jobDescriptorKey,
       executionData = executionData,
       factory = factory,

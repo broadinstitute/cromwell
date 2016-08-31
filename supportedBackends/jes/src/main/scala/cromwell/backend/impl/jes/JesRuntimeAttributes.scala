@@ -78,22 +78,19 @@ object JesRuntimeAttributes {
     DockerKey -> Set(WdlStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions, logger: Logger): JesRuntimeAttributes = {
-    val defaultsFromOptions = workflowOptionsDefault(options, coercionMap).get
-    val withDefaultValues = withDefaults(attrs, List(defaultsFromOptions, staticDefaults))
+  def apply(attrs: Map[String, WdlValue], logger: Logger): JesRuntimeAttributes = {
+    warnUnrecognized(attrs.keySet, coercionMap.keySet, logger)
 
-    warnUnrecognized(withDefaultValues.keySet, coercionMap.keySet, logger)
+    val cpu = validateCpu(attrs.get(CpuKey), noValueFoundFor(CpuKey))
+    val memory = validateMemory(attrs.get(MemoryKey), noValueFoundFor(MemoryKey))
+    val docker = validateDocker(attrs.get(DockerKey), noValueFoundFor(DockerKey))
+    val failOnStderr = validateFailOnStderr(attrs.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
+    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
 
-    val cpu = validateCpu(withDefaultValues.get(CpuKey), noValueFoundFor(CpuKey))
-    val memory = validateMemory(withDefaultValues.get(MemoryKey), noValueFoundFor(MemoryKey))
-    val docker = validateDocker(withDefaultValues.get(DockerKey), noValueFoundFor(DockerKey))
-    val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
-    val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
-
-    val zones = validateZone(withDefaultValues(ZonesKey))
-    val preemptible = validatePreemptible(withDefaultValues(PreemptibleKey))
-    val bootDiskSize = validateBootDisk(withDefaultValues(BootDiskSizeKey))
-    val disks = validateLocalDisks(withDefaultValues(DisksKey))
+    val zones = validateZone(attrs(ZonesKey))
+    val preemptible = validatePreemptible(attrs(PreemptibleKey))
+    val bootDiskSize = validateBootDisk(attrs(BootDiskSizeKey))
+    val disks = validateLocalDisks(attrs(DisksKey))
     (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode) {
       new JesRuntimeAttributes(_, _, _, _, _, _, _, _, _)
     } match {

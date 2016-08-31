@@ -1,4 +1,4 @@
-package cromwell.webservice
+package cromwell.util.JsonFormatting
 
 import spray.json._
 import wdl4s.WdlExpression

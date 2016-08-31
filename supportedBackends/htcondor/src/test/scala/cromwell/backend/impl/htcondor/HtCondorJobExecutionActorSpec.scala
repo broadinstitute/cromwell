@@ -410,10 +410,12 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     file
   }
 
+  val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+
   private def prepareJob(source: String = helloWorldWdl, runtimeString: String = "", inputFiles: Option[Map[String, WdlValue]] = None): TestJobDescriptor = {
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = source, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, ConfigFactory.load)
-    val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty))
+    val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), emptyWorkflowOptions, Set.empty)
     val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key)
     val executionDir = jobPaths.callRoot
     val stdout = Paths.get(executionDir.path.toString, "stdout")

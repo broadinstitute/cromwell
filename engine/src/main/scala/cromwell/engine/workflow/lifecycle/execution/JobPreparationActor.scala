@@ -6,32 +6,12 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{ExecutionStore, JobKey, OutputStore}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor._
-import cromwell.webservice.WdlValueJsonFormatter
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 import scala.util.{Failure, Success, Try}
-
-object JobPreparationActor {
-  sealed trait JobPreparationActorCommands
-  case object Start extends JobPreparationActorCommands
-
-  sealed trait JobPreparationActorResponse
-  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends JobPreparationActorResponse
-  case class BackendJobPreparationFailed(jobKey: JobKey, throwable: Throwable) extends JobPreparationActorResponse
-
-  def props(executionData: WorkflowExecutionActorData,
-            jobKey: BackendJobDescriptorKey,
-            factory: BackendLifecycleActorFactory,
-            initializationData: Option[BackendInitializationData],
-            serviceRegistryActor: ActorRef) = {
-    // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
-    // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor))
-  }
-}
 
 case class JobPreparationActor(executionData: WorkflowExecutionActorData,
                                jobKey: BackendJobDescriptorKey,
@@ -60,43 +40,24 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   }
 
   def prepareJobExecutionActor(inputs: Map[LocallyQualifiedName, WdlValue]): Try[BackendJobPreparationSucceeded] = {
+
+    import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
+    val curriedAddDefaultsToAttributes = addDefaultsToAttributes(factory.runtimeAttributeDefinitions(initializationData), workflowDescriptor.backendDescriptor.workflowOptions) _
+
     for {
-      evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(jobKey, expressionLanguageFunctions, inputs)
-      jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, evaluatedRuntimeAttributes, inputs)
+      unevaluatedRuntimeAttributes <- Try(jobKey.call.task.runtimeAttributes)
+      evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputs)
+      attributesWithDefault = curriedAddDefaultsToAttributes(evaluatedRuntimeAttributes)
+      jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, attributesWithDefault, inputs)
     } yield BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor))
   }
 
   // Split inputs map (= evaluated workflow declarations + coerced json inputs) into [init\.*].last
   private lazy val splitInputs = workflowDescriptor.backendDescriptor.inputs map { case (fqn, v) => splitFqn(fqn) -> v }
 
-  def evaluateRuntimeAttributes(jobKey: BackendJobDescriptorKey,
-                                wdlFunctions: WdlStandardLibraryFunctions,
-                                evaluatedInputs: Map[LocallyQualifiedName, WdlValue]): Try[Map[String, WdlValue]] = {
-    val tryInputs = evaluatedInputs map { case (x, y) => x -> Success(y) }
-    val mapOfTries = jobKey.call.task.runtimeAttributes.attrs mapValues {
-      expr => expr.evaluate(buildMapBasedLookup(tryInputs), wdlFunctions)
-    }
-    TryUtil.sequenceMap(mapOfTries).map(addDefaultsToAttributes)
-  }
-
-  def addDefaultsToAttributes(specifiedAttributes: Map[LocallyQualifiedName, WdlValue]): Map[LocallyQualifiedName, WdlValue] = {
-    import WdlValueJsonFormatter._
-    import spray.json._   // IGNORE INTELLIJ - this is deliberate...
-
-    val workflowOptions = executionData.workflowDescriptor.backendDescriptor.workflowOptions
-    def isUnspecifiedAttribute(name: String) = !specifiedAttributes.contains(name)
-
-    val missing = factory.runtimeAttributeDefinitions(initializationData) filter { x => isUnspecifiedAttribute(x.name) }
-    val defaults = missing map { x => (x, workflowOptions.getDefaultRuntimeOption(x.name)) } collect {
-      case (runtimeAttributeDefinition, Success(jsValue)) => runtimeAttributeDefinition.name -> jsValue.convertTo[WdlValue]
-      case (RuntimeAttributeDefinition(name, _, Some(defaultValue), _), _) => name -> defaultValue
-    }
-
-    specifiedAttributes ++ defaults
-  }
-
   def resolveAndEvaluateInputs(jobKey: BackendJobDescriptorKey,
                                wdlFunctions: WdlStandardLibraryFunctions): Try[Map[LocallyQualifiedName, WdlValue]] = {
+    import RuntimeAttributeDefinition.buildMapBasedLookup
     val call = jobKey.call
     lazy val callInputsFromFile = unqualifiedInputsFromInputFile(call)
     lazy val workflowScopedLookup = hierarchicalLookup(jobKey.call, jobKey.index) _
@@ -135,12 +96,23 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   private def unqualifiedInputsFromInputFile(call: Call): Map[LocallyQualifiedName, WdlValue] = splitInputs collect {
     case((root, inputName), v) if root == call.fullyQualifiedName => inputName -> v
   }
+}
 
-  private def buildMapBasedLookup(evaluatedDeclarations: Map[LocallyQualifiedName, Try[WdlValue]])(identifier: String): WdlValue = {
-    val successfulEvaluations = evaluatedDeclarations collect {
-      case (k, v) if v.isSuccess => k -> v.get
-    }
-    successfulEvaluations.getOrElse(identifier, throw new WdlExpressionException(s"Could not resolve variable $identifier as a task input"))
+object JobPreparationActor {
+  sealed trait JobPreparationActorCommands
+  case object Start extends JobPreparationActorCommands
+
+  sealed trait JobPreparationActorResponse
+  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends JobPreparationActorResponse
+  case class BackendJobPreparationFailed(jobKey: JobKey, throwable: Throwable) extends JobPreparationActorResponse
+
+  def props(executionData: WorkflowExecutionActorData,
+            jobKey: BackendJobDescriptorKey,
+            factory: BackendLifecycleActorFactory,
+            initializationData: Option[BackendInitializationData],
+            serviceRegistryActor: ActorRef) = {
+    // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
+    // (WDL expression evaluation using Backend's expressionLanguageFunctions)
+    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor))
   }
-
 }

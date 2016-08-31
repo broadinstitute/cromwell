@@ -181,14 +181,13 @@ object RuntimeAttributesValidation {
     */
   def toRuntimeAttributeDefinition(validation: RuntimeAttributesValidation[_]): RuntimeAttributeDefinition = {
     val name = validation.key
-    val unusedBoolean = false // ... at the time of this writing
     val default = validation.staticDefaultOption
     import cromwell.backend.validation.RuntimeAttributesKeys._
     val usedInCallCaching = name match {
       case DockerKey | ContinueOnReturnCodeKey | FailOnStderrKey => true
       case _ => false
     }
-    RuntimeAttributeDefinition(name, unusedBoolean, default, usedInCallCaching)
+    RuntimeAttributeDefinition(name, default, usedInCallCaching)
   }
 }
 

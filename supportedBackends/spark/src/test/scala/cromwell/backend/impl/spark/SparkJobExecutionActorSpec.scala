@@ -11,7 +11,7 @@ import better.files._
 
 import scala.concurrent.Future
 import cromwell.backend.io._
-import cromwell.core.{PathWriter, TailedWriter, TestKitSuite, UntailedWriter}
+import cromwell.core._
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
@@ -450,7 +450,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
   private def prepareJob(wdlSource: WdlSource = helloWorldWdl, runtimeString: String = passOnStderr, inputFiles: Option[Map[String, WdlValue]] = None, isCluster: Boolean = false): TestJobDescriptor = {
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = wdlSource, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = if (isCluster) BackendConfigurationDescriptor(backendClusterConfig, ConfigFactory.load) else BackendConfigurationDescriptor(backendClientConfig, ConfigFactory.load)
-    val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty))
+    val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), WorkflowOptions.empty, Set.empty)
     val jobPaths = if (isCluster) new JobPaths(backendWorkflowDescriptor, backendClusterConfig, jobDesc.key) else new JobPaths(backendWorkflowDescriptor, backendClientConfig, jobDesc.key)
     val executionDir = jobPaths.callRoot
     val stdout = Paths.get(executionDir.path.toString, "stdout")

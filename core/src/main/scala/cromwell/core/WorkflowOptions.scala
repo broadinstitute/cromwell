@@ -129,6 +129,8 @@ object WorkflowOptions {
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
     case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
   }
+
+  val empty = WorkflowOptions.fromMap(Map.empty).get
 }
 
 case class WorkflowOptions(jsObject: JsObject) {

@@ -167,11 +167,8 @@ trait SharedFileSystemAsyncJobExecutionActor
     as[SharedFileSystemBackendInitializationData](backendInitializationDataOption)
 
   lazy val validatedRuntimeAttributes: ValidatedRuntimeAttributes = {
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues evaluate
-    // Fail the call if runtime attributes can't be evaluated
-    val evaluatedAttributes = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
     val builder = initializationData.runtimeAttributesBuilder
-    builder.build(evaluatedAttributes, jobDescriptor.workflowDescriptor.workflowOptions, jobLogger)
+    builder.build(jobDescriptor.runtimeAttributes, jobLogger)
   }
 
   lazy val isDockerRun = RuntimeAttributesValidation.extractOption(

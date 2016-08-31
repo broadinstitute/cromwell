@@ -58,7 +58,8 @@ class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlData
   with WorkflowStoreSlickDatabase
   with BackendKVStoreSlickDatabase
   with JobStoreSlickDatabase
-  with CallCachingSlickDatabase {
+  with CallCachingSlickDatabase
+  with SummarizingSlickDatabase {
 
   override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
   private val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)

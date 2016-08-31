@@ -43,6 +43,7 @@
     <include file="changesets/call_caching_allow_result_reuse_fix.xml" relativeToChangelogFile="true" />
     <include file="changesets/job_store_simpletons.xml" relativeToChangelogFile="true" />
     <include file="changesets/restart_and_recover_migration.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/summary_status_table.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
 <!--
 

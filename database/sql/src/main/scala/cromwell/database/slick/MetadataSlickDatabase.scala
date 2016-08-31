@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scalaz._
 
 trait MetadataSlickDatabase extends MetadataSqlDatabase {
-  this: SlickDatabase =>
+  this: SlickDatabase with SummarizingSlickDatabase =>
 
   import dataAccess.driver.api._
 
@@ -100,17 +100,21 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
     }
   }
 
-  def refreshMetadataSummaries(startId: Long, startTimestamp: Option[Timestamp],
+  def refreshMetadataSummaries(startTimestamp: Option[Timestamp],
                                key1: String, key2: String, key3: String, key4: String,
                                buildUpdatedSummary: (Option[WorkflowMetadataSummary], Seq[Metadatum]) =>
                                  WorkflowMetadataSummary)
-                              (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
+                              (implicit ec: ExecutionContext): Future[Long] = {
     val action = for {
+      startIdOption <- getSummaryStatusMaximumId("WORKFLOW_METADATA_SUMMARY", "METADATA_JOURNAL")
+      startId = startIdOption.getOrElse(0L) + 1L
       metadata <- dataAccess.metadataWithIdAndTimestampGreaterThanOrEqual(startId, startTimestamp,
         key1, key2, key3, key4).result
       metadataByWorkflowUuid = metadata.groupBy(_.workflowUuid)
       _ <- DBIO.sequence(metadataByWorkflowUuid map updateMetadata(buildUpdatedSummary))
-    } yield metadata
+      maximumId = maximumOrZero(metadata.map(_.metadatumId.get))
+      _ <- upsertSummaryStatusMaximumId("WORKFLOW_METADATA_SUMMARY", "METADATA_JOURNAL", maximumId)
+    } yield maximumId
 
     runTransaction(action)
   }

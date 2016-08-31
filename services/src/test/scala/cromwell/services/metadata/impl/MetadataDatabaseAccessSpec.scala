@@ -105,7 +105,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name)
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(0L, None) map { max =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(None) map { max =>
           max should be > 0L
         }
 
@@ -187,7 +187,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     }
 
     it should "close the database" taggedAs DbmsTest in {
-      dataAccess.close()
+      dataAccess.closeDatabaseInterface()
     }
   }
 }

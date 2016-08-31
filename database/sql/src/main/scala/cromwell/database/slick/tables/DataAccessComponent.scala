@@ -4,21 +4,22 @@ import slick.driver.JdbcProfile
 
 class DataAccessComponent(val driver: JdbcProfile)
   extends DriverComponent
-  with WorkflowExecutionComponent
-  with WorkflowExecutionAuxComponent
-  with SymbolComponent
-  with ExecutionComponent
-  with ExecutionInfoComponent
-  with RuntimeAttributeComponent
-  with MetadataComponent
-  with WorkflowMetadataSummaryComponent
-  with WorkflowStoreComponent
-  with JobStoreComponent
-  with JobStoreResultSimpletonComponent
-  with BackendKVStoreComponent
-  with CallCachingResultMetaInfoComponent
-  with CallCachingHashComponent
-  with CallCachingResultSimpletonComponent {
+    with WorkflowExecutionComponent
+    with WorkflowExecutionAuxComponent
+    with SymbolComponent
+    with ExecutionComponent
+    with ExecutionInfoComponent
+    with RuntimeAttributeComponent
+    with MetadataComponent
+    with WorkflowMetadataSummaryComponent
+    with WorkflowStoreComponent
+    with JobStoreComponent
+    with JobStoreResultSimpletonComponent
+    with BackendKVStoreComponent
+    with CallCachingResultMetaInfoComponent
+    with CallCachingHashComponent
+    with CallCachingResultSimpletonComponent
+    with SummaryStatusComponent {
 
   import driver.api._
 
@@ -37,5 +38,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       backendKVStore.schema ++
       callCachingResultMetaInfo.schema ++
       callCachingHashes.schema ++
-      callCachingResultSimpletons.schema
+      callCachingResultSimpletons.schema ++
+      summaryStatuses.schema
 }

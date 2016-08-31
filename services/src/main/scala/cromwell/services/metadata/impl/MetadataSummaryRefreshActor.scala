@@ -9,7 +9,6 @@ import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
 import scala.util.{Failure, Success}
 
-
 /**
   * This looks for workflows whose metadata summaries are in need of refreshing and refreshes those summaries.
   * Despite its package location this is not actually a service, but a type of actor spawned at the behest of
@@ -25,41 +24,39 @@ object MetadataSummaryRefreshActor {
 
   def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp))
 
-  trait SummaryRefreshState
+  sealed trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState
   case object SummarizingMetadata extends SummaryRefreshState
-  private case class MetadataSummaryComplete(startMetadataId: Long) extends SummaryRefreshState
+  case object MetadataSummaryComplete extends SummaryRefreshState
 
-  final case class SummaryRefreshData(startMetadataId: Long)
+  case object SummaryRefreshData
 }
 
-
 class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime])
-  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData] with MetadataDatabaseAccess with SingletonServicesStore {
+  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type] with MetadataDatabaseAccess with SingletonServicesStore {
 
   val config = ConfigFactory.load
   implicit val ec = context.dispatcher
 
-  startWith(WaitingForRequest, SummaryRefreshData(startMetadataId = 0L))
+  startWith(WaitingForRequest, SummaryRefreshData)
 
   when (WaitingForRequest) {
     case (Event(SummarizeMetadata(respondTo), data)) =>
-      val startMetadataId = data.startMetadataId
-      refreshWorkflowMetadataSummaries(startMetadataId, startMetadataTimestamp) onComplete {
+      refreshWorkflowMetadataSummaries(startMetadataTimestamp) onComplete {
         case Success(id) =>
           respondTo ! MetadataSummarySuccess
-          self ! MetadataSummaryComplete(startMetadataId = id + 1)
+          self ! MetadataSummaryComplete
         case Failure(t) =>
-          log.error(t, "Failed to summarize metadata starting from index {}", startMetadataId)
+          log.error(t, "Failed to summarize metadata starting from date {}", startMetadataTimestamp)
           respondTo ! MetadataSummaryFailure(t)
-          self ! MetadataSummaryComplete(startMetadataId = startMetadataId)
+          self ! MetadataSummaryComplete
       }
       goto(SummarizingMetadata)
   }
 
   when (SummarizingMetadata) {
-    case Event(MetadataSummaryComplete(startMetadataId), _) =>
-      goto(WaitingForRequest) using SummaryRefreshData(startMetadataId)
+    case Event(MetadataSummaryComplete, _) =>
+      goto(WaitingForRequest) using SummaryRefreshData
   }
 
   whenUnhandled {

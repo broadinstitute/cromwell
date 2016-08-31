@@ -381,32 +381,60 @@ object SampleWdl {
       """.stripMargin
     override lazy val rawInputs = Map.empty[String, String]
   }
-  object OptionalParamWorkflow extends SampleWdl {
+
+
+  object DeclarationsWorkflow extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-    """
-      |task hello {
-      |  String? person
-      |  command {
-      |    echo "hello ${person}"
-      |  }
-      |  output {
-      |    String greeting = read_string(stdout())
-      |  }
-      |}
-      |
-      |workflow optional {
-      |  call hello
-      |  call hello as hello2
-      |  call hello as hello_person {
-      |    input: person = "world"
-      |  }
-      |}
-    """.stripMargin.replaceAll("RUNTIME", runtime)
+      """
+        |task cat {
+        |  File file
+        |  String? flags
+        |  command {
+        |    cat ${flags} ${file}
+        |  }
+        |  output {
+        |    File procs = stdout()
+        |  }
+        |}
+        |
+        |task cgrep {
+        |  String str_decl
+        |  String pattern
+        |  File in_file
+        |  command {
+        |    grep '${pattern}' ${in_file} | wc -l
+        |  }
+        |  output {
+        |    Int count = read_int(stdout())
+        |    String str = str_decl
+        |  }
+        |}
+        |
+        |workflow two_step {
+        |  String flags_suffix
+        |  String flags = "-" + flags_suffix
+        |  String static_string = "foobarbaz"
+        |  call cat {
+        |    input: flags = flags
+        |  }
+        |  call cgrep {
+        |    input: in_file = cat.procs
+        |  }
+        |}
+      """.stripMargin
 
+    private val fileContents =
+      s"""first line
+          |second line
+          |third line
+       """.stripMargin
 
-    override val rawInputs = {
-      Map("optional.hello.person" -> "john")
-    }
+    override val rawInputs: WorkflowRawInputs = Map(
+      "two_step.cgrep.pattern" -> "first",
+      "two_step.cgrep.str_decl" -> "foobar",
+      "two_step.cat.file" -> createCannedFile("canned", fileContents).getAbsolutePath,
+      "two_step.flags_suffix" -> "s"
+    )
   }
 
   trait ZeroOrMorePostfixQuantifier extends SampleWdl {
@@ -467,33 +495,6 @@ object SampleWdl {
     override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
   }
 
-  trait DefaultParameterValue extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
-      """
-        |task hello {
-        |  String? person
-        |  command {
-        |    echo "hello ${default = "default value" person}"
-        |  }
-        |  output {
-        |    String greeting = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow default {
-        |  call hello
-        |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
-  }
-
-  object DefaultParameterValueWithValueSpecified extends DefaultParameterValue {
-    override val rawInputs = Map("default.hello.person" -> "alice")
-  }
-
-  object DefaultParameterValueWithNOValueSpecified extends DefaultParameterValue {
-    override val rawInputs = Map.empty[String, String]
-  }
-
   object CurrentDirectory extends SampleWdl {
     override def wdlSource(runtime: String): String =
       """
@@ -513,60 +514,6 @@ object SampleWdl {
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
     override val rawInputs: Map[String, Any] = Map.empty
-  }
-
-  object DeclarationsWorkflow extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
-      """
-        |task cat {
-        |  File file
-        |  String? flags
-        |  command {
-        |    cat ${flags} ${file}
-        |  }
-        |  output {
-        |    File procs = stdout()
-        |  }
-        |}
-        |
-        |task cgrep {
-        |  String str_decl
-        |  String pattern
-        |  File in_file
-        |  command {
-        |    grep '${pattern}' ${in_file} | wc -l
-        |  }
-        |  output {
-        |    Int count = read_int(stdout())
-        |    String str = str_decl
-        |  }
-        |}
-        |
-        |workflow two_step {
-        |  String flags_suffix
-        |  String flags = "-" + flags_suffix
-        |  String static_string = "foobarbaz"
-        |  call cat {
-        |    input: flags = flags
-        |  }
-        |  call cgrep {
-        |    input: in_file = cat.procs
-        |  }
-        |}
-      """.stripMargin
-
-    private val fileContents =
-      s"""first line
-        |second line
-        |third line
-       """.stripMargin
-
-    override val rawInputs: WorkflowRawInputs = Map(
-      "two_step.cgrep.pattern" -> "first",
-      "two_step.cgrep.str_decl" -> "foobar",
-      "two_step.cat.file" -> createCannedFile("canned", fileContents).getAbsolutePath,
-      "two_step.flags_suffix" -> "s"
-    )
   }
 
   object ArrayIO extends SampleWdl {
@@ -708,71 +655,6 @@ object SampleWdl {
       """.stripMargin
 
     override val rawInputs = Map.empty[String, String]
-  }
-
-  object InputIsolationWdl extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
-      """
-        |task localize {
-        |    Array[File] array
-        |    command {
-        |        ls -1 "$(dirname ${array[0]})" | wc -l | tr -d '[[:space:]]'
-        |    }
-        |    output {
-        |        String ls = read_string(stdout())
-        |    }
-        |    RUNTIME
-        |}
-        |
-        |task echo_int {
-        |  Int int
-        |  command {echo ${int} > out }
-        |  output {File out = "out"}
-        |   RUNTIME
-        |}
-        |
-        |workflow wf {
-        |    Array[File] files
-        |    Array[Int] ints = [1,2]
-        |
-        |   scatter(i in ints) {
-        |    call echo_int {
-        |      input: int = i
-        |    }
-        |  }
-        |
-        |  call localize as fromDifferentDirectories { input: array = echo_int.out }
-        |  call localize as fromSameDirectory { input: array = files }
-        |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
-
-    val tempDir = Files.createTempDirectory("InputFiles")
-    val file1 = createCannedFile(prefix = "file1", contents = "", dir = Some(tempDir))
-    val file2 = createCannedFile(prefix = "file1", contents = "", dir = Some(tempDir))
-
-    override val rawInputs = Map(
-      "wf.files" -> Seq(file1.getAbsolutePath, file2.getAbsolutePath)
-    )
-  }
-
-  object BadTaskOutputWdl extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
-      """task bad {
-        |  command {
-        |    echo "hello" > a
-        |  }
-        |  output {
-        |    # Oops! we made a spelling mistake in our WDL!
-        |    File a = "b"
-        |  }
-        |}
-        |
-        |workflow badExample {
-        |  call bad
-        |}
-      """.stripMargin
-
-    override val rawInputs =  Map.empty[String, String]
   }
 
   class ScatterWdl extends SampleWdl {
@@ -1242,35 +1124,6 @@ object SampleWdl {
       "wf.a1" -> WdlString("hello"),
       "wf.a2" -> WdlString("world")
     )
-  }
-
-  object SingleToArrayCoercion extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
-      """task singleFile {
-        |  command {
-        |    echo hello
-        |  }
-        |  output {
-        |    File out = stdout()
-        |  }
-        |}
-        |
-        |task listFiles {
-        |  Array[File] manyIn
-        |  command {
-        |    cat ${sep=" " manyIn}
-        |  }
-        |  output {
-        |    String result = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow oneToMany {
-        |  call singleFile
-        |  call listFiles { input: manyIn = singleFile.out }
-        |}
-      """.stripMargin
-    override val rawInputs = Map.empty[String, String]
   }
 
   object WorkflowFailSlow extends SampleWdl {

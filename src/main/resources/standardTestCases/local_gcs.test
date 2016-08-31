@@ -11,6 +11,6 @@ metadata {
   status: Succeeded
   "calls.local_gcs.makeGcsFileInJes.executionStatus": Done
   "calls.local_gcs.makeGcsFileInJes.backend": "Jes"
-  "calls.local_gcs.readGcsFileFromLocal.backend": "LocalButDontUseDocker"
+  "calls.local_gcs.readGcsFileFromLocal.backend": "Local"
   "calls.local_gcs.readGcsFileFromLocal.outputs.result": "I am writing stuff"
 }

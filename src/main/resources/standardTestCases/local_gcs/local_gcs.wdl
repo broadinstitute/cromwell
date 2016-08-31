@@ -20,7 +20,7 @@ task readGcsFileFromLocal {
   }
 
   runtime {
-    backend: "LocalButDontUseDocker"
+    backend: "Local"
   }
 
   output {

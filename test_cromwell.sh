@@ -114,7 +114,7 @@ TEST_STATUS="failed"
 
 if [[ -n ${EXCLUDE_TAG} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG} tests"
-    TEST_COMMAND="sbt \"test-only -- -l ${EXCLUDE_TAG}\""
+    TEST_COMMAND="sbt ${REFRESH_TOKEN} \"test-only -- -l ${EXCLUDE_TAG}\""
 else
     echo "Running Centaur with sbt test"
     TEST_COMMAND="sbt ${REFRESH_TOKEN} test"

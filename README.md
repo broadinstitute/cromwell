@@ -37,6 +37,12 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Caching configuration](#caching-configuration)
     * [Docker](#docker)
     * [CPU, Memory and Disk](#cpu-memory-and-disk)
+  * [Spark Backend](#spark-backend)
+    * [Configuring Spark Project](#configuring-spark-project)
+    * [Configuring Spark Master and Deploy Mode](#configuring-spark-master-and-deploy-mode)
+    * [Spark runtime attributes](#spark-runtime-attributes)
+    * [Spark Environment](#spark-environment)
+    * [Sample Wdl](#sample-wdl)
   * [Google JES Backend](#google-jes-backend)
     * [Configuring Google Project](#configuring-google-project)
     * [Configuring Authentication](#configuring-authentication)
@@ -708,6 +714,151 @@ This backend supports CPU, memory and disk size configuration through the use of
 * disk: defines the amount of disk to use. Default value: "1024 MB". Type: String. Ex: "1 GB" or "1024 MB"
 
 It they are not set, HtCondor backend will use default values.
+
+## Spark Backend
+
+This backend adds support for execution of spark jobs in a workflow using the existing wdl format. 
+
+It supports the following Spark deploy modes:
+
+*  Client deploy mode using the spark standalone cluster manager
+*  Cluster deploy mode using the spark standalone cluster manager
+*  Client deploy mode using Yarn resource manager
+*  Cluster deploy mode using Yarn resource manager
+
+### Configuring Spark Project
+
+When using Spark backend uncomment the following Spark configuration in the application.conf file
+
+```conf
+Spark {
+       actor-factory = "cromwell.backend.impl.spark.SparkBackendFactory"
+       config {
+         // Root directory where Cromwell writes job results.  This directory must be
+         // visible and writeable by the Cromwell process as well as the jobs that Cromwell
+         // launches.
+         root: "cromwell-executions"
+
+         filesystems {
+           local {
+             // Cromwell makes a link to your input files within <root>/<workflow UUID>/workflow-inputs
+             // The following are strategies used to make those links.  They are ordered.  If one fails
+             // The next one is tried:
+             //
+             // hard-link: attempt to create a hard-link to the file
+             // copy: copy the file
+             // soft-link: create a symbolic link to the file
+             //
+             // NOTE: soft-link will be skipped for Docker jobs
+             localization: [
+               "hard-link", "soft-link", "copy"
+             ]
+           }
+         }
+		master: "local"
+		deployMode: "client"
+        }
+
+      }
+```
+and add backend provider as Spark. 
+
+```
+backend {
+  default = "Spark"
+  providers {
+  ....
+```
+
+### Configuring Spark Master and Deploy Mode
+
+Default configuration is as follows:
+
+```conf
+Spark {
+		......
+		master: "local"
+		deployMode: "client"
+
+      }
+```
+
+However to use Spark in standalone cluster mode change `master: spark://hostname:6066` and `deployMode: cluster` similarly, for yarn change `master: yarn` and `deployMode: cluster` or `deployMode: client` to run in cluster or client mode respectively. 
+
+### Spark runtime attributes
+
+Supported runtime attributes for a Spark Job is as follows:
+	
+* executorCores (default value is 1)
+* executorMemory (default value is "1 GB")
+* appMainClass ( Spark app/job entry point)
+* numberOfExecutors ( Specific to cluster deploy mode)
+
+Sample usage :
+
+```wdl
+task sparkjob_with_yarn_cluster {
+        .....
+        
+        runtime {
+                appMainClass: "${entry_point}"
+                executorMemory: "4G"
+                executorCores: "2"
+        }
+        
+        .....
+	}
+```
+
+### Spark Environment
+
+The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.
+
+Supported File Systems as follows: 
+
+* Local File System
+* Network File System
+* Distributed file system
+
+### Sample Wdl
+Next, create a Wdl, and it's json input like so:
+
+```wdl
+task sparkjob_with_yarn_cluster {
+        File input_jar
+        String input_1
+        String output_base
+        String entry_point
+        Int cores
+        String memory
+
+        command {
+                ${input_jar} ${input_1} ${output_base}
+        }
+
+        runtime {
+                appMainClass: "${entry_point}"
+                executorMemory: "${memory}"
+                executorCores: "${cores}"
+        }
+        output {
+                File out = "${output_base}"
+          }
+	}
+```
+
+and its accompanying json input as:
+
+```json
+{
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.memory": "4G",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.output_base":"/mnt/lustre/hadoop/home/yarn_cluster_output",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.entry_point": "com.org.spark.poc.nfs.SparkVowelLine",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.cores": "12",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.input_1": "/mnt/lustre/hadoop/home/inputfiles/sample.txt",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.input_jar": "/mnt/lustre/hadoop/home/inputjars/spark_hdfs.jar"
+}
+```
 
 ## Google JES Backend
 

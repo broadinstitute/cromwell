@@ -247,7 +247,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubProcess = mock[Process]
       val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
-
+      jobPaths.stderr < "failed"
       jobPaths.callRoot.resolve("cluster.json") < sampleSubmissionResponse
 
       val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {

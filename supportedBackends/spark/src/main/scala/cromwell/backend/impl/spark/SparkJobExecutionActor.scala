@@ -107,9 +107,9 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def resolveExecutionResult(jobReturnCode: Try[Int], failedOnStderr: Boolean): Future[BackendJobExecutionResponse] = {
     (jobReturnCode, failedOnStderr) match {
-      case (Success(0), false) if jobPaths.stderr.lines.toList.isEmpty => resolveExecutionProcess
-      case (Success(0), true) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
+      case (Success(0), true) if jobPaths.stderr.lines.toList.nonEmpty => Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
+      case (Success(0), _) => resolveExecutionProcess
       case (Success(rc), _) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed. Spark returned non zero status code: $rc"), Option(rc)))
       case (Failure(error), _) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key, error, None))

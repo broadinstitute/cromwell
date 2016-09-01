@@ -119,17 +119,23 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
 
   override def completeMonitoringProcess(rcPath: Path, status: String, promise: Promise[Unit]) = {
     rcPath write status
-    promise success(())
+    promise success (())
   }
 
   def pollForJobStatus(subId: String): Future[SparkDriverStateQueryResponse] = {
     // on failure we use spark-master as a default value for the master hostname
-    val SparkClusterMasterHostName = Try(sys.env("HOSTNAME")) match {
+    val sparkClusterMasterHostName = Try(sys.env("HOSTNAME")) match {
       case Success(s) => Option(s)
-      case Failure(_) => Option("spark-master")
+      case Failure(_) => None
     }
-    val SparkClusterMasterRestUri = s"http://$SparkClusterMasterHostName:6066"
-    val request = Get(s"$SparkClusterMasterRestUri/v1/submissions/status/$subId")
+
+    val request = sparkClusterMasterHostName match {
+      case Some(master) =>
+        Get(s"http://$master:6066/v1/submissions/status/$subId")
+      case None =>
+        Get(s"http://spark-master:6066/v1/submissions/status/$subId")
+    }
+
     makeHttpRequest(request) flatMap { v =>
       v.status match {
         case StatusCodes.OK => Future(v ~> unmarshal[SparkDriverStateQueryResponse])
@@ -162,4 +168,3 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
     sendAndReceive(httpRequest.withHeaders(headers))
   }
 }
-

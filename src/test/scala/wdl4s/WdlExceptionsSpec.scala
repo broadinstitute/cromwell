@@ -7,7 +7,7 @@ import scalaz.NonEmptyList
 class WdlExceptionsSpec extends FlatSpec with Matchers {
 
   "ThrowableWithErrors Exceptions" should "aggregate errors in getMessage method" in {
-    val exception = new Throwable with ThrowableWithErrors {
+    val exception = new RuntimeException with ThrowableWithErrors {
       val message = "This is absolutely NOT working."
       val errors = NonEmptyList("because of A", "and also B", "and maybe C")
     }

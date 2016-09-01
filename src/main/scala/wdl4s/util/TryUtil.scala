@@ -2,7 +2,6 @@ package wdl4s.util
 
 import java.io.{PrintWriter, StringWriter}
 
-import scala.language.postfixOps
 import scala.util.{Success, Failure, Try}
 
 /**
@@ -19,7 +18,7 @@ object TryUtil {
   private def stringifyFailure[T](failure: Try[T]): String = {
     val stringWriter = new StringWriter()
     val writer = new PrintWriter(stringWriter)
-    failure.recover { case e => e.printStackTrace(writer)}
+    failure recover { case e => e.printStackTrace(writer) }
     writer.flush()
     writer.close()
     stringWriter.toString
@@ -30,7 +29,9 @@ object TryUtil {
 
   private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
     tries collect { case f: Failure[_] => f } match {
-      case failures if failures.nonEmpty => Failure(new AggregatedException(failures map { _.exception } toSeq, prefixErrorMessage))
+      case failures if failures.nonEmpty =>
+        val exceptions = failures.toSeq.map(_.exception)
+        Failure(AggregatedException(exceptions, prefixErrorMessage))
       case _ => Success(unbox())
     }
   }

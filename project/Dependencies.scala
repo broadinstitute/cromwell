@@ -95,6 +95,10 @@ object Dependencies {
     "org.mongodb" %% "casbah" % "3.0.0"
   )
 
+  val sparkBackendDependencies = List(
+    "io.spray" %% "spray-client" % sprayV
+  ) ++ sprayServerDependencies
+
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "org.webjars" % "swagger-ui" % "2.1.1",

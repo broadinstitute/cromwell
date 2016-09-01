@@ -6,4 +6,5 @@ cromwell-executions
 cromwell-test-executions
 cromwell-workflow-logs
 cromwell-test-workflow-logs
+local-cromwell-executions
 native

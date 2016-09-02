@@ -1,15 +1,15 @@
 package wdl4s
 
-import java.io.File
-import scala.language.postfixOps
+import java.nio.file.Path
 
-import wdl4s.types._
-import wdl4s.values._
+import better.files._
 import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
-import wdl4s.util.FileUtil._
+import wdl4s.types._
+import wdl4s.values._
 
 import scala.collection.JavaConverters._
+import scala.language.postfixOps
 
 object AstTools {
   implicit class EnhancedAstNode(val astNode: AstNode) extends AnyVal {
@@ -41,7 +41,7 @@ object AstTools {
             case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
         case a: Ast =>
-          val subtypes = a.getAttribute("subtype").astListAsVector
+          val subtypes = a.getAttribute("subtype").astListAsVector()
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
           a.getAttribute("name").sourceString match {
             case "Array" =>
@@ -50,8 +50,8 @@ object AstTools {
               WdlArrayType(member)
             case "Map" =>
               if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.mapMustHaveExactlyTwoTypeParameters(typeTerminal))
-              val keyType = subtypes(0).wdlType(wdlSyntaxErrorFormatter)
-              val valueType = subtypes(1).wdlType(wdlSyntaxErrorFormatter)
+              val keyType = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
+              val valueType = subtypes.tail.head.wdlType(wdlSyntaxErrorFormatter)
               WdlMapType(keyType, valueType)
           }
         case null => WdlStringType
@@ -134,7 +134,7 @@ object AstTools {
     val parser = new WdlParser()
     val tokens = parser.lex(wdlSource, resource)
     val terminalMap = (tokens.asScala.toVector map {(_, wdlSource)}).toMap
-    val syntaxErrorFormatter = new WdlSyntaxErrorFormatter(terminalMap)
+    val syntaxErrorFormatter = WdlSyntaxErrorFormatter(terminalMap)
     parser.parse(tokens, syntaxErrorFormatter).toAst.asInstanceOf[Ast]
   }
 
@@ -144,14 +144,14 @@ object AstTools {
    * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
    * @throws WdlParser.SyntaxError if there was a problem parsing the source code
    */
-  def getAst(wdlFile: File): Ast = getAst(wdlFile.slurp, wdlFile.getName)
+  def getAst(wdlFile: Path): Ast = getAst(wdlFile.contentAsString, wdlFile.name)
 
   def findAsts(ast: AstNode, name: String): Seq[Ast] = {
     ast match {
       case x: Ast =>
         val thisAst = if (x.getName.equals(name)) Seq(x) else Seq.empty[Ast]
         x.getAttributes.values.asScala.flatMap(findAsts(_, name)).toSeq ++ thisAst
-      case x: AstList => x.asScala.toVector.flatMap(findAsts(_, name)).toSeq
+      case x: AstList => x.asScala.toVector.flatMap(findAsts(_, name))
       case x: Terminal => Seq.empty[Ast]
       case _ => Seq.empty[Ast]
     }
@@ -171,7 +171,7 @@ object AstTools {
   def findTerminals(ast: AstNode): Seq[Terminal] = {
     ast match {
       case x: Ast => x.getAttributes.values.asScala.flatMap(findTerminals).toSeq
-      case x: AstList => x.asScala.toVector.flatMap(findTerminals).toSeq
+      case x: AstList => x.asScala.toVector.flatMap(findTerminals)
       case x: Terminal => Seq(x)
       case _ => Seq.empty[Terminal]
     }
@@ -195,8 +195,8 @@ object AstTools {
    * key/value pairs (if the input section is specified).  This will then return a Seq of
    * IOMapping(key=<terminal> value=<expression ast>)
    *
-   * @param ast
-   * @param wdlSyntaxErrorFormatter
+   * @param ast The call AST
+   * @param wdlSyntaxErrorFormatter The wdl syntax error formatter
    * @return Seq[Ast] where the AST is a IOMapping(key=<terminal> value=<expression ast>)
    */
   def callInputSectionIOMappings(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[Ast] = {
@@ -216,7 +216,7 @@ object AstTools {
       case asts: Seq[Ast] if asts.isEmpty => Seq.empty[Ast]
       case asts: Seq[Ast] =>
         /* Uses of .head here are assumed by the above code that ensures that there are no empty maps */
-        val secondInputSectionIOMappings = asts(1).getAttribute("map").astListAsVector
+        val secondInputSectionIOMappings = asts(1).getAttribute("map").astListAsVector()
         val firstKeyTerminal = secondInputSectionIOMappings.head.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal]
         throw new SyntaxError(wdlSyntaxErrorFormatter.multipleInputStatementsOnCall(firstKeyTerminal))
     }
@@ -228,4 +228,3 @@ object AstTools {
     map1 ++ map2.map{ case (k,v) => k -> (v ++ map1.getOrElse(k, Seq.empty)) }
   }
 }
-

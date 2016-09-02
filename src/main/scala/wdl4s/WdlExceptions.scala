@@ -2,7 +2,7 @@ package wdl4s
 
 import scalaz.NonEmptyList
 
-trait ThrowableWithErrors extends Throwable {
+trait ThrowableWithErrors extends Exception {
   def message: String
   def errors: NonEmptyList[String]
 

@@ -667,13 +667,16 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   } flatten
 
   /**
-    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path
+    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path.
     *
+    * Matches the path generated via relativeLocalizationPath and passed in as JesFileInput.local.
+    *
+    * @param mountPoint The mount point for inputs
     * @param gcsPath The input path
     * @return A path which is unique per input path
     */
-  private def localFilePathFromCloudStoragePath(gcsPath: NioGcsPath): Path = {
-    Paths.get(gcsPath.bucket).resolve(gcsPath.objectName)
+  private def localFilePathFromCloudStoragePath(mountPoint: Path, gcsPath: NioGcsPath): Path = {
+    mountPoint.resolve(gcsPath.bucket).resolve(gcsPath.objectName)
   }
 
   /**
@@ -687,7 +690,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     wdlValue match {
       case wdlFile: WdlFile =>
         Try(getPath(wdlFile.valueString)) match {
-          case Success(gcsPath: NioGcsPath) => WdlFile(localFilePathFromCloudStoragePath(gcsPath).toString, wdlFile.isGlob)
+          case Success(gcsPath: NioGcsPath) =>
+            WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
           case Success(otherPath) => wdlValue
           case Failure(e) => wdlValue
         }

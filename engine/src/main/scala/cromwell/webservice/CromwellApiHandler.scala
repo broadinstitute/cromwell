@@ -73,7 +73,8 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
   val conf = ConfigFactory.load()
 
   def callNotFound(callFqn: String, id: WorkflowId) = {
-    RequestComplete(StatusCodes.NotFound, APIResponse.error(new Throwable(s"Call $callFqn not found for workflow '$id'.")))
+    RequestComplete(StatusCodes.NotFound, APIResponse.error(
+      new RuntimeException(s"Call $callFqn not found for workflow '$id'.")))
   }
 
   private def error(t: Throwable)(f: Throwable => RequestComplete[_]): Unit = context.parent ! f(t)

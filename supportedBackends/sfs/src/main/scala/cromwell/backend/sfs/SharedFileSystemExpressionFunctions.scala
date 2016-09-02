@@ -24,8 +24,8 @@ object SharedFileSystemExpressionFunctions {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = CallContext(
       jobPaths.callRoot,
-      jobPaths.stdout.toAbsolutePath.toString,
-      jobPaths.stderr.toAbsolutePath.toString
+      jobPaths.stdout.toString,
+      jobPaths.stderr.toString
     )
     new SharedFileSystemExpressionFunctions(fileSystems, callContext)
   }
@@ -33,8 +33,8 @@ object SharedFileSystemExpressionFunctions {
   def apply(jobPaths: JobPaths, fileSystems: List[FileSystem]): SharedFileSystemExpressionFunctions = {
     val callContext = CallContext(
       jobPaths.callRoot,
-      jobPaths.stdout.toAbsolutePath.toString,
-      jobPaths.stderr.toAbsolutePath.toString
+      jobPaths.stdout.toString,
+      jobPaths.stderr.toString
     )
     new SharedFileSystemExpressionFunctions(fileSystems, callContext)
   }
@@ -46,8 +46,8 @@ object SharedFileSystemExpressionFunctions {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = CallContext(
       jobPaths.callRoot,
-      jobPaths.stdout.toAbsolutePath.toString,
-      jobPaths.stderr.toAbsolutePath.toString
+      jobPaths.stdout.toString,
+      jobPaths.stderr.toString
     )
 
     new SharedFileSystemExpressionFunctions(WorkflowPathsBackendInitializationData.fileSystems(initializationData), callContext)
@@ -60,7 +60,7 @@ class SharedFileSystemExpressionFunctions(override val fileSystems: List[FileSys
   import SharedFileSystemExpressionFunctions._
   import better.files._
 
-  override def globPath(glob: String) = context.root.toAbsolutePath.toString
+  override def globPath(glob: String) = context.root.fullPath
   override def glob(path: String, pattern: String): Seq[String] = {
     toPath(path).glob(s"**/$pattern") map { _.path.fullPath } toSeq
   }

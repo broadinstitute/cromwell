@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.18-e690fc2-SNAPSHOT"
-  lazy val wdl4sV = "0.5-ed015a6-SNAPSHOT"
+  lazy val wdl4sV = "0.5-b136a4f-SNAPSHOT"
   lazy val sprayV = "1.3.2"
   /*
   spray-json is an independent project from the "spray suite"

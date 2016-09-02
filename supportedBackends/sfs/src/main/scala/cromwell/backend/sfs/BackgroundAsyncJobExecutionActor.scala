@@ -11,7 +11,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     writeBackgroundScript(backgroundScript, processArgs.argv.mkString("'", "' '", "'"))
     val stdout = pathPlusSuffix(jobPaths.stdout, "background")
     val stderr = pathPlusSuffix(jobPaths.stderr, "background")
-    val argv = Seq("/bin/bash", backgroundScript.toAbsolutePath)
+    val argv = Seq("/bin/bash", backgroundScript)
     new ProcessRunner(argv, stdout, stderr)
   }
 

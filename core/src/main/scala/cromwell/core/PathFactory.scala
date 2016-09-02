@@ -30,7 +30,7 @@ object PathFactory {
       path.getFileSystem.getPath(s"${path.toString.stripSuffix(oldExt)}$newExt")
     }
 
-    def untailed = new UntailedWriter(path)
+    def untailed = UntailedWriter(path)
 
     def tailed(tailedSize: Int) = TailedWriter(path, tailedSize)
   }

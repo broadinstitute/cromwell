@@ -140,7 +140,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def toDockerPath(path: WdlValue): WdlValue = {
     path match {
-      case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toAbsolutePath.toString)
+      case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toString)
       case array: WdlArray => WdlArray(array.wdlType, array.value map toDockerPath)
       case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toDockerPath)
       case wdlValue => wdlValue
@@ -229,8 +229,8 @@ trait SharedFileSystemAsyncJobExecutionActor
   val runtimeAttributesEvents = validatedRuntimeAttributes.attributes flatMap { case (k, v) => validatedRuntimeAttributeMetadataEvent(k, v) }
 
   def startMetadataEvents: Iterable[MetadataEvent] = runtimeAttributesEvents ++ List(
-    metadataEvent(CallMetadataKeys.Stdout, jobPaths.stdout.toAbsolutePath),
-    metadataEvent(CallMetadataKeys.Stderr, jobPaths.stderr.toAbsolutePath),
+    metadataEvent(CallMetadataKeys.Stdout, jobPaths.stdout),
+    metadataEvent(CallMetadataKeys.Stderr, jobPaths.stderr),
     metadataEvent("cache:allowResultReuse", true),
     metadataEvent(CallMetadataKeys.CallRoot, jobPaths.callRoot)
   )

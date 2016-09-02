@@ -36,7 +36,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val submitInputs = standardInputs ++ dockerInputs ++ runtimeAttributeInputs
     val submitTaskName = if (isDockerRun) SubmitDockerTask else SubmitTask
     writeTaskScript(submitScript, submitTaskName, submitInputs)
-    SharedFileSystemCommand("/bin/bash", submitScript.toAbsolutePath)
+    SharedFileSystemCommand("/bin/bash", submitScript)
   }
 
   /**
@@ -132,7 +132,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
       case jobIdRegex(jobId) => SharedFileSystemJob(jobId)
       case _ =>
         throw new RuntimeException("Could not find job ID from stdout file. " +
-          s"Check the stderr file for possible errors: ${stderr.toAbsolutePath}")
+          s"Check the stderr file for possible errors: $stderr")
     }
   }
 

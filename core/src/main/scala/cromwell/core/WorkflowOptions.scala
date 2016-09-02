@@ -76,7 +76,7 @@ object WorkflowOptions {
     (obj.fields.get("iv"), obj.fields.get("ciphertext")) match {
       case (Some(iv: JsString), Some(ciphertext: JsString)) =>
         Aes256Cbc.decrypt(EncryptedBytes(ciphertext.value, iv.value), SecretKey(WorkflowOptions.EncryptionKey)).map(new String(_, "utf-8"))
-      case _ => Failure(new Throwable(s"JsObject must have 'iv' and 'ciphertext' fields to decrypt: $obj"))
+      case _ => Failure(new RuntimeException(s"JsObject must have 'iv' and 'ciphertext' fields to decrypt: $obj"))
     }
   }
 
@@ -97,7 +97,7 @@ object WorkflowOptions {
     }
 
     encrypted.values collect { case f: Failure[_] => f } match {
-      case s if s.nonEmpty => Failure(new Throwable(s.map(_.exception.getMessage).mkString("\n")))
+      case s if s.nonEmpty => Failure(new RuntimeException(s.map(_.exception.getMessage).mkString("\n")))
       case _ => Success(WorkflowOptions(new JsObject(encrypted map { case (k, v) => k -> v.get })))
     }
   }
@@ -118,7 +118,7 @@ object WorkflowOptions {
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj) map JsString.apply
     case Some(jsObj: JsObject) => Success(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(OptionNotFoundException(s"Field not found: $key"))
   }
 
   private def get(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
@@ -127,7 +127,7 @@ object WorkflowOptions {
     case Some(jsBool: JsBoolean) => Success(jsBool.value.toString)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(OptionNotFoundException(s"Field not found: $key"))
   }
 
   val empty = WorkflowOptions.fromMap(Map.empty).get
@@ -144,17 +144,17 @@ case class WorkflowOptions(jsObject: JsObject) {
   def getBoolean(key: String): Try[Boolean] = jsObject.fields.get(key) match {
     case Some(jsBool: JsBoolean) => Success(jsBool.value)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported JsValue as JsBoolean: $jsVal"))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(OptionNotFoundException(s"Field not found: $key"))
   }
 
   def getDefaultRuntimeOption(key: String): Try[JsValue] = defaultRuntimeOptions map { attributes =>
-    attributes.getOrElse(key, throw new OptionNotFoundException(s"Field not found $key"))
+    attributes.getOrElse(key, throw OptionNotFoundException(s"Field not found $key"))
   }
 
   lazy val defaultRuntimeOptions = jsObject.fields.get(defaultRuntimeOptionKey) match {
     case Some(jsObj: JsObject) => TryUtil.sequenceMap(jsObj.fields map { case (k, v) => k -> WorkflowOptions.getAsJson(k, jsObj) })
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
-    case None => Failure(new OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
+    case None => Failure(OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {

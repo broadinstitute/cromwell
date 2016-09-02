@@ -17,9 +17,7 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
   def writeDirectory: Path
 
   private lazy val absoluteDirectory = {
-    val abs = writeDirectory.toAbsolutePath
-    abs.createDirectories
-    abs
+    writeDirectory.createDirectories().path
   }
 
   override def tempFilePath = absoluteDirectory.toString

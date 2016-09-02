@@ -125,12 +125,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
   private lazy val gcsExecPath: Path = callRootPath.resolve(JesExecScript)
   private lazy val cmdInput = JesFileInput(ExecParamName, gcsExecPath.toString, Paths.get(JesExecScript), workingDisk)
-  private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath.toAbsolutePath.toString}"
+  private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath.fullPath}"
   private lazy val defaultMonitoringOutputPath = callRootPath.resolve(JesMonitoringLogFile)
   private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toString, Paths.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
-  private lazy val returnCodeContents = Try(returnCodeGcsPath.toAbsolutePath.contentAsString)
+  private lazy val returnCodeContents = Try(returnCodeGcsPath.contentAsString)
   private lazy val dockerConfiguration = jesConfiguration.dockerCredentials
   private lazy val maxPreemption = runtimeAttributes.preemptible
   private[jes] lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
@@ -184,8 +184,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
     WdlExpression.standardLookupFunction(jobDescriptor.inputs, declarations, callEngineFunctions)
   }
-
-  private def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, callEngineFunctions)
 
   /**
     * Takes two arrays of remote and local WDL File paths and generates the necessary JesInputs.
@@ -306,8 +304,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           |./$JesMonitoringScript > $JesMonitoringLogFile &""".stripMargin
     } else ""
 
-    val tmpDir = Paths.get(JesWorkingDisk.MountPoint).resolve("tmp")
-    val rcPath = Paths.get(JesWorkingDisk.MountPoint).resolve(returnCodeFilename)
+    val tmpDir = File(JesWorkingDisk.MountPoint)./("tmp").path
+    val rcPath = File(JesWorkingDisk.MountPoint)./(returnCodeFilename).path
 
     val fileContent =
       s"""
@@ -385,8 +383,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val monitoringOutput = monitoringScript map { _ =>
-      JesFileOutput(s"$MonitoringParamName-out", defaultMonitoringOutputPath.toString, Paths.get(JesMonitoringLogFile), workingDisk)
+    val monitoringOutput = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
+      defaultMonitoringOutputPath.toString, File(JesMonitoringLogFile).path, workingDisk)
     }
 
     tellMetadata(CallMetadataKeys.CallRoot, callRootPath)
@@ -468,9 +466,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
     val events = runtimeAttributesEvent ++ List(
       metadataEvent("preemptible", preemptible),
-      metadataEvent(Stdout, jesCallPaths.stdoutPath.toAbsolutePath),
-      metadataEvent(Stderr, jesCallPaths.stderrPath.toAbsolutePath),
-      metadataEvent(BackendLogsPrefix + ":log", jesCallPaths.jesLogPath.toAbsolutePath),
+      metadataEvent(Stdout, jesCallPaths.stdoutPath),
+      metadataEvent(Stderr, jesCallPaths.stderrPath),
+      metadataEvent(BackendLogsPrefix + ":log", jesCallPaths.jesLogPath),
       metadataEvent("cache:allowResultReuse", true)
     )
 
@@ -626,8 +624,11 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         FailedRetryableExecutionHandle(e, None).future
       }
     } else {
-      val e = new Throwable(s"Task ${workflowDescriptor.id}:${jobDescriptor.call.unqualifiedName} failed: error code $errorCode. Message: ${errorMessage.getOrElse("null")}")
-      FailedNonRetryableExecutionHandle(e, None).future
+      val id = workflowDescriptor.id
+      val name = jobDescriptor.call.unqualifiedName
+      val message = errorMessage.getOrElse("null")
+      val exception = new RuntimeException(s"Task $id:$name failed: error code $errorCode. Message: $message")
+      FailedNonRetryableExecutionHandle(exception, None).future
     }
   }
 
@@ -641,14 +642,16 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       status match {
         case _: RunStatus.Success if runtimeAttributes.failOnStderr && stderrLength.intValue > 0 =>
           // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
-          FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: stderr has length $stderrLength"), returnCode.toOption).future
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+            s"execution failed: stderr has length $stderrLength"), returnCode.toOption).future
         case _: RunStatus.Success if returnCodeContents.isFailure =>
           val exception = returnCode.failed.get
           jobLogger.warn(s"could not download return code file, retrying", exception)
           // Return handle to try again.
           handle.future
         case _: RunStatus.Success if returnCode.isFailure =>
-          FailedNonRetryableExecutionHandle(new Throwable(s"execution failed: could not parse return code as integer: " + returnCodeContents.get)).future
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+            s"execution failed: could not parse return code as integer: ${returnCodeContents.get}")).future
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future

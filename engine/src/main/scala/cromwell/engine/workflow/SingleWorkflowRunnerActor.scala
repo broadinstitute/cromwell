@@ -9,7 +9,7 @@ import akka.pattern.pipe
 import akka.util.Timeout
 import better.files._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{WorkflowId, ExecutionStore => _, _}
+import cromwell.core.{ExecutionStore => _, _}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
@@ -52,7 +52,7 @@ object SingleWorkflowRunnerActor {
                               id: Option[WorkflowId] = None,
                               failures: Seq[Throwable] = Seq.empty) {
 
-    def addFailure(message: String): RunnerData = addFailure(new Throwable(message))
+    def addFailure(message: String): RunnerData = addFailure(new RuntimeException(message))
 
     def addFailure(e: Throwable): RunnerData = this.copy(failures = e +: failures)
   }

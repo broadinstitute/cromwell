@@ -39,7 +39,7 @@ class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
           *
           * TODO: this assumes that p.startsWith(localExecutionRoot)
           */
-        val subpath = p.subpath(executionRoot.toAbsolutePath.getNameCount, p.getNameCount)
+        val subpath = p.subpath(executionRoot.getNameCount, p.getNameCount)
         WorkflowPaths.DockerRoot.resolve(subpath)
     }
   }

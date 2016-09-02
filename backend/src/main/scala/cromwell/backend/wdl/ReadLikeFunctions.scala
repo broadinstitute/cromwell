@@ -28,7 +28,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
-  override def readFile(path: String): String = toPath(path).toAbsolutePath.contentAsString
+  override def readFile(path: String): String = toPath(path).contentAsString
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
@@ -94,7 +94,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(toPath(value.valueString).toAbsolutePath.size.toDouble, MemoryUnit.Bytes).to(unit).amount
+      } yield MemorySize(toPath(value.valueString).size.toDouble, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {

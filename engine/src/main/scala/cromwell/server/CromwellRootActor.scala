@@ -62,7 +62,9 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
     * of Cromwell by passing a Throwable to the guardian.
     */
   override val supervisorStrategy = OneForOneStrategy() {
-    case aie: ActorInitializationException => throw new Throwable(s"Unable to create actor for ActorRef ${aie.getActor}", aie.getCause)
+    case actorInitializationException: ActorInitializationException => throw new RuntimeException(
+      s"Unable to create actor for ActorRef ${actorInitializationException.getActor}",
+      actorInitializationException.getCause)
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

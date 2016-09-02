@@ -44,7 +44,7 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
       workflowLogger.workflowLogPath foreach { src =>
         if (src.exists) {
           val destPath = destinationDir.resolve(src.getFileName)
-          workflowLogger.info(s"Copying workflow logs from ${src.toAbsolutePath} to $destPath")
+          workflowLogger.info(s"Copying workflow logs from $src to $destPath")
 
           copyAndClean(src, destPath)
 

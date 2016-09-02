@@ -2,6 +2,7 @@ package cromwell.backend.io
 
 import java.nio.file.Paths
 
+import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec}
 import org.scalatest.{FlatSpec, Matchers}
@@ -36,37 +37,37 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val jobPaths = new JobPaths(wd, backendConfig, jobKey)
     val id = wd.id
     jobPaths.callRoot.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello"
+      File(s"local-cromwell-executions/hello/$id/call-hello").fullPath
     jobPaths.returnCode.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/rc"
+      File(s"local-cromwell-executions/hello/$id/call-hello/rc").fullPath
     jobPaths.script.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/script"
+      File(s"local-cromwell-executions/hello/$id/call-hello/script").fullPath
     jobPaths.stderr.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/stderr"
+      File(s"local-cromwell-executions/hello/$id/call-hello/stderr").fullPath
     jobPaths.stdout.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/stdout"
+      File(s"local-cromwell-executions/hello/$id/call-hello/stdout").fullPath
     jobPaths.callRoot.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello"
+      File(s"local-cromwell-executions/hello/$id/call-hello").fullPath
     jobPaths.callDockerRoot.toString shouldBe
-      s"/root/hello/$id/call-hello"
+      File(s"/root/hello/$id/call-hello").fullPath
     jobPaths.toDockerPath(Paths.get(s"local-cromwell-executions/hello/$id/call-hello/stdout")).toString shouldBe
-      s"/root/hello/$id/call-hello/stdout"
+      File(s"/root/hello/$id/call-hello/stdout").fullPath
     jobPaths.toDockerPath(Paths.get("/root/dock/path")).toString shouldBe
-      "/root/dock/path"
+      File("/root/dock/path").fullPath
 
     val jobKeySharded = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = new JobPaths(wd, backendConfig, jobKeySharded)
     jobPathsSharded.callRoot.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/shard-0"
+      File(s"local-cromwell-executions/hello/$id/call-hello/shard-0").fullPath
 
     val jobKeyAttempt = BackendJobDescriptorKey(call, None, 2)
     val jobPathsAttempt = new JobPaths(wd, backendConfig, jobKeyAttempt)
     jobPathsAttempt.callRoot.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/attempt-2"
+      File(s"local-cromwell-executions/hello/$id/call-hello/attempt-2").fullPath
 
     val jobKeyShardedAttempt = BackendJobDescriptorKey(call, Option(0), 2)
     val jobPathsShardedAttempt = new JobPaths(wd, backendConfig, jobKeyShardedAttempt)
     jobPathsShardedAttempt.callRoot.toString shouldBe
-      s"local-cromwell-executions/hello/$id/call-hello/shard-0/attempt-2"
+      File(s"local-cromwell-executions/hello/$id/call-hello/shard-0/attempt-2").fullPath
   }
 }

@@ -606,7 +606,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
     scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
       case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size) + (scatterKey -> ExecutionStatus.Done))
-      case v: WdlValue => throw new Throwable("Scatter collection must evaluate to an array")
+      case v: WdlValue => throw new RuntimeException("Scatter collection must evaluate to an array")
     }
   }
 

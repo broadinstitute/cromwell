@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystems, Files, Paths}
+import java.nio.file.{FileSystems, Files}
 
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -11,7 +11,7 @@ import wdl4s.values.WdlFile
 
 class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks {
 
-  behavior of "SharedFileSystemBackend"
+  behavior of "SharedFileSystem"
 
   val defaultLocalization = ConfigFactory.parseString(""" localization: [copy, hard-link, soft-link] """)
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
@@ -25,12 +25,12 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        fileAlreadyExists: Boolean = false,
                        symlink: Boolean = false,
                        linkNb: Int = 1) = {
-    val callDir = File.newTempDir("SharedFileSystemBackend").path
+    val callDir = File.newTempDir("SharedFileSystem").path
     val orig = if (fileInCallDir) callDir.createChild("inputFile").touch().path else File.newTemp("inputFile").touch().path
-    val dest = if (fileInCallDir) orig else Paths.get(callDir.toString, orig.toString)
+    val dest = if (fileInCallDir) orig else callDir.resolve(orig.toString.drop(1))
     if (fileAlreadyExists) dest.touch()
 
-    val inputs = Map("input" -> WdlFile(orig.toAbsolutePath.toString))
+    val inputs = Map("input" -> WdlFile(orig.toString))
     val sharedFS = new SharedFileSystem { override val sharedFileSystemConfig = config }
     val result = sharedFS.localizeInputs(callDir, docker = docker, localFS, inputs)
 

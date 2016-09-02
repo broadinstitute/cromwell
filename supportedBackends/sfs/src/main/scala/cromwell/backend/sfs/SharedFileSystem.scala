@@ -36,7 +36,7 @@ object SharedFileSystem {
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
   private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
-    if (executionPath.exists) Success(()) else Failure(new Throwable)
+    if (executionPath.exists) Success(()) else Failure(new RuntimeException)
   }
 
   private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
@@ -62,7 +62,7 @@ object SharedFileSystem {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
         executionPath.getParent.createDirectories()
-        Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
+        Try(Files.createSymbolicLink(executionPath, originalPath))
       }
   }
 }
@@ -135,7 +135,7 @@ trait SharedFileSystem extends PathFactory {
       val dest = if (callRoot.isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        Paths.get(callRoot.toAbsolutePath.toString, localInputPath.toString)
+        Paths.get(callRoot.fullPath, localInputPath.toString)
       }
 
       (src, dest)
@@ -184,7 +184,7 @@ trait SharedFileSystem extends PathFactory {
 
     def adjustFile(path: String) = {
       val (src, dst) = toDestPath(path)
-      localize(src, dst) map { Unit => WdlFile(dst.toAbsolutePath.toString) }
+      localize(src, dst) map { Unit => WdlFile(dst.fullPath) }
     }
 
     wdlValue match {

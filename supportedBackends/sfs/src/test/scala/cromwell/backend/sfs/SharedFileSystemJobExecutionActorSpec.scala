@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 
 import akka.testkit.TestDuration
 import better.files._
@@ -113,8 +113,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val localizedJsonInputFile = Paths.get(jobPaths.callRoot.toString, jsonInputFile.toString)
-        val localizedCallInputFile = Paths.get(jobPaths.callRoot.toString, callInputFile.toString)
+        val localizedJsonInputFile = jobPaths.callRoot.resolve(jsonInputFile.toString.drop(1))
+        val localizedCallInputFile = jobPaths.callRoot.resolve(callInputFile.toString.drop(1))
 
         Files.isSymbolicLink(localizedJsonInputFile) shouldBe isSymlink
         val realJsonInputFile =
@@ -166,7 +166,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       if (completed) {
         if (writeReturnCode)
           jobPaths.returnCode.write("0")
-        "123" // random
+        "0"
       } else {
         import sys.process._
         val proc = Seq("bash", "-c", s"sleep 2; echo 0 > ${jobPaths.returnCode}").run()
@@ -198,7 +198,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         val failedResponse = executionResponse.asInstanceOf[FailedNonRetryableResponse]
         failedResponse.returnCode should be(empty)
         failedResponse.throwable should be(a[RuntimeException])
-        failedResponse.throwable.getMessage should startWith("Unable to determine that 123 is alive, and")
+        failedResponse.throwable.getMessage should startWith("Unable to determine that 0 is alive, and")
         failedResponse.throwable.getMessage should endWith("call-hello/rc does not exist.")
       }
     }

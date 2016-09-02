@@ -31,7 +31,7 @@ object CromwellCommandLine {
 
 object RunSingle {
   def apply(args: Seq[String]): RunSingle = {
-    val wdlPath = Paths.get(args.head)
+    val wdlPath = Paths.get(args.head).toAbsolutePath
     val inputsPath = argPath(args, 1, Option(".inputs"), checkDefaultExists = false)
     val optionsPath = argPath(args, 2, Option(".options"), checkDefaultExists = true)
     val metadataPath = argPath(args, 3, None)
@@ -108,6 +108,6 @@ object RunSingle {
     // Return the path for the arg index, or the default, but remove "-" paths.
     for {
       path <- args.lift(index) orElse defaultPath filterNot (_ == "-")
-    } yield Paths.get(path)
+    } yield Paths.get(path).toAbsolutePath
   }
 }

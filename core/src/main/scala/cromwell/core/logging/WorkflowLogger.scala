@@ -59,7 +59,7 @@ object WorkflowLogger {
       workflowConfig <- conf.getConfigOption("workflow-options")
       dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
-    } yield WorkflowLogConfiguration(Paths.get(dir), temporary)
+    } yield WorkflowLogConfiguration(Paths.get(dir).toAbsolutePath, temporary)
   }
 
   val isEnabled = workflowLogConfiguration.isDefined

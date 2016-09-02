@@ -9,19 +9,22 @@ lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .settings(gcsFileSystemSettings:_*)
   .withTestSettings
 
-lazy val database = (project in file("database"))
-  .settings(databaseSettings:_*)
-  .dependsOn(core) // used for migration
-  .dependsOn(core % "test->test") // TODO: PBE: Remove once PostMVP tag removed from test
+lazy val databaseSql = (project in file("database/sql"))
+  .settings(databaseSqlSettings:_*)
+  .withTestSettings
+
+lazy val databaseMigration = (project in file("database/migration"))
+  .settings(databaseMigrationSettings: _*)
+  .dependsOn(core)
   .withTestSettings
 
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
   .withTestSettings
   .dependsOn(core)
-  .dependsOn(database) // Assuming services impl in services
+  .dependsOn(databaseSql)
+  .dependsOn(databaseMigration)
   .dependsOn(core % "test->test")
-  .dependsOn(database % "test->test")
 
 lazy val backendRoot = Path("supportedBackends")
 
@@ -65,7 +68,6 @@ lazy val engine = (project in file("engine"))
   .dependsOn(core)
   .dependsOn(services)
   .dependsOn(backend)
-  .dependsOn(database)
   .dependsOn(gcsFileSystem)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
@@ -80,7 +82,8 @@ lazy val root = (project in file("."))
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
   .aggregate(core)
   .aggregate(gcsFileSystem)
-  .aggregate(database)
+  .aggregate(databaseSql)
+  .aggregate(databaseMigration)
   .aggregate(services)
   .aggregate(backend)
   .aggregate(sfsBackend)

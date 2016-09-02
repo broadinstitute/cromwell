@@ -2,10 +2,11 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
+import cromwell.core.Tags.DbmsTest
 import cromwell.core._
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
-import cromwell.database.{CromwellDatabase, Database, DbmsTest}
+import cromwell.services.ServicesStore
 import cromwell.services.metadata._
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.ScalaFutures
@@ -36,16 +37,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
   def testWith(configPath: String): Unit = {
 
-    lazy val dataAccess: MetadataDatabaseAccess = configPath match {
-      case "global.singleton" => new MetadataDatabaseAccess with Database {
-        override val databaseInterface: SqlDatabase = CromwellDatabase.databaseInterface
-      }
-      case "main.hsqldb" => new MetadataDatabaseAccess with Database {
-        override val databaseInterface: SqlDatabase = new SlickDatabase()
-      }
-      case _ => new MetadataDatabaseAccess with Database {
-        override val databaseInterface: SqlDatabase = new SlickDatabase(SlickDatabase.getDatabaseConfig(configPath))
-      }
+    import ServicesStore.EnhancedSqlDatabase
+
+    lazy val dataAccess: MetadataDatabaseAccess = new MetadataDatabaseAccess with ServicesStore {
+      override val databaseInterface = new SlickDatabase(SqlDatabase.getDatabaseConfig(configPath)).initialized
     }
 
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {
@@ -110,7 +105,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name)
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(0L, None) map { max =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(None) map { max =>
           max should be > 0L
         }
 
@@ -192,7 +187,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     }
 
     it should "close the database" taggedAs DbmsTest in {
-      dataAccess.close()
+      dataAccess.closeDatabaseInterface()
     }
   }
 }

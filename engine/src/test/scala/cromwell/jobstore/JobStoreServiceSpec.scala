@@ -4,9 +4,9 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
-import cromwell.database.CromwellDatabase
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
+import cromwell.services.SingletonServicesStore
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl4s.types.WdlStringType
@@ -26,7 +26,7 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
   "JobStoreService" should {
     "work" in {
       val config = ConfigFactory.parseString("{}")
-      lazy val jobStore: JobStore = new SqlJobStore(CromwellDatabase.databaseInterface)
+      lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 
       val workflowId = WorkflowId.randomId()

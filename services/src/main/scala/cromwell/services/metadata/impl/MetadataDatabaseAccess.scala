@@ -3,9 +3,9 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
-import cromwell.database.Database
-import cromwell.database.SqlConverters._
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.{Metadatum, WorkflowMetadataSummary}
+import cromwell.services.ServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
 
@@ -63,9 +63,11 @@ object MetadataDatabaseAccess {
   }
 }
 
-trait MetadataDatabaseAccess extends AutoCloseable { this: Database =>
+trait MetadataDatabaseAccess {
+  this: ServicesStore =>
 
-  override def close() = databaseInterface.close()
+  // Only for tests
+  private[impl] def closeDatabaseInterface() = databaseInterface.close()
 
   def addMetadataEvents(metadataEvents: Iterable[MetadataEvent])(implicit ec: ExecutionContext): Future[Unit] = {
     val metadata = metadataEvents map { metadataEvent =>
@@ -138,15 +140,12 @@ trait MetadataDatabaseAccess extends AutoCloseable { this: Database =>
     databaseInterface.queryMetadataEventsWithWildcardKeys(id.id.toString, keys, requireEmptyJobKey = false) map metadataToMetadataEvents(id)
   }
 
-  def refreshWorkflowMetadataSummaries(startMetadataId: Long, startMetadataDateTime: Option[OffsetDateTime])
+  def refreshWorkflowMetadataSummaries(startMetadataDateTime: Option[OffsetDateTime])
                                       (implicit ec: ExecutionContext): Future[Long] = {
     val startTimestamp = startMetadataDateTime.map(_.toSystemTimestamp)
-    val metadataFuture = databaseInterface.refreshMetadataSummaries(startMetadataId, startTimestamp,
-        WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
-        WorkflowMetadataKeys.Status, MetadataDatabaseAccess.buildUpdatedSummary)
-    metadataFuture map {
-      _.map(_.metadatumId.get).:+(0L).max // Get the PKs per row, tack on a zero jic they're empty, and then max.
-    }
+    databaseInterface.refreshMetadataSummaries(startTimestamp,
+      WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
+      WorkflowMetadataKeys.Status, MetadataDatabaseAccess.buildUpdatedSummary)
   }
 
   def getWorkflowStatus(id: WorkflowId)

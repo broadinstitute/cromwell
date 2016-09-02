@@ -1,6 +1,7 @@
 package cromwell.webservice
 
 import akka.actor._
+import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
@@ -12,8 +13,6 @@ import spray.http._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing._
-
-import scalaz.NonEmptyList
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromwell"
@@ -127,7 +126,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
               import spray.json._
               workflowInputs.parseJson match {
                 case JsArray(Seq(x, xs@_*)) =>
-                  val nelInputses = NonEmptyList.nels(x, xs: _*)
+                  val nelInputses = NonEmptyList.of(x, xs: _*)
                   val sources = nelInputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
                   perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
                 case JsArray(_) => failBadRequest(new RuntimeException("Nothing was submitted"))
@@ -158,10 +157,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def metadataRoute =
     path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
       parameterMultiMap { parameters =>
-        // import scalaz_ & Scalaz._ add too many slow implicits, on top of the spray and json implicits
-        import scalaz.syntax.std.list._
-        val includeKeysOption = parameters.getOrElse("includeKey", List.empty).toNel
-        val excludeKeysOption = parameters.getOrElse("excludeKey", List.empty).toNel
+        val includeKeysOption = NonEmptyList.fromList(parameters.getOrElse("includeKey", List.empty))
+        val excludeKeysOption = NonEmptyList.fromList(parameters.getOrElse("excludeKey", List.empty))
         (includeKeysOption, excludeKeysOption) match {
           case (Some(_), Some(_)) =>
             failBadRequest(new IllegalArgumentException("includeKey and excludeKey may not be specified together"))

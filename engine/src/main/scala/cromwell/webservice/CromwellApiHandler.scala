@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
+import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -13,7 +14,6 @@ import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
 import scala.language.postfixOps
-import scalaz.NonEmptyList
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
@@ -71,6 +71,6 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
 
     case WorkflowStoreActor.WorkflowsBatchSubmittedToStore(ids) =>
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
-      context.parent ! RequestComplete(StatusCodes.OK, responses.list.toList)
+      context.parent ! RequestComplete(StatusCodes.OK, responses.toList)
   }
 }

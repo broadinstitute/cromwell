@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import spray.json._
 import wdl4s.values.WdlValue
-import wdl4s.{FullyQualifiedName, ExceptionWithErrors}
+import wdl4s.{ExceptionWithErrors, FullyQualifiedName}
 
 import scala.language.postfixOps
 
@@ -19,14 +19,12 @@ case class CallOutputResponse(id: String, callFqn: String, outputs: Map[FullyQua
 case class WorkflowMetadataQueryParameters(outputs: Boolean = true, timings: Boolean = true)
 
 object APIResponse {
-  import WorkflowJsonSupport._
-  import spray.httpx.SprayJsonSupport._
 
   private def constructFailureResponse(status: String, ex: Throwable) ={
     ex match {
       case exceptionWithErrors: ExceptionWithErrors =>
         FailureResponse(status, exceptionWithErrors.message,
-          Option(JsArray(exceptionWithErrors.errors.list.toList.map(JsString(_)).toVector)))
+          Option(JsArray(exceptionWithErrors.errors.toList.map(JsString(_)).toVector)))
       case e: Throwable => FailureResponse(status, e.getMessage, None)
     }
   }

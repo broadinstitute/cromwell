@@ -1,18 +1,21 @@
 package cromwell.backend.impl.jes
 
+import cats.data.Validated._
+import cats.syntax.cartesian._
+import cats.syntax.validated._
 import cromwell.backend.MemorySize
-import cromwell.backend.impl.jes.io.{JesWorkingDisk, JesAttachedDisk}
+import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.validation._
 import cromwell.core._
 import lenthall.exception.MessageAggregation
+import cromwell.core.ErrorOr._
+import mouse.string._
 import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values._
-import cromwell.backend.validation.RuntimeAttributesDefault._
-import scalaz._
-import Scalaz._
 
 case class JesRuntimeAttributes(cpu: Int,
                                 zones: Vector[String],
@@ -98,28 +101,28 @@ object JesRuntimeAttributes {
     val noAddress = validateNoAddress(attrs(NoAddressKey))
     val bootDiskSize = validateBootDisk(attrs(BootDiskSizeKey))
     val disks = validateLocalDisks(attrs(DisksKey))
-    (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode |@| noAddress) {
+    (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode |@| noAddress) map {
       new JesRuntimeAttributes(_, _, _, _, _, _, _, _, _, _)
     } match {
-      case Success(x) => x
-      case Failure(nel) => throw new RuntimeException with MessageAggregation {
+      case Valid(x) => x
+      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
-        override def errorMessages: Traversable[String] = nel.list.toList
+        override def errorMessages: Traversable[String] = nel.toList
       }
     }
   }
 
   private def validateZone(zoneValue: WdlValue): ErrorOr[Vector[String]] = {
     zoneValue match {
-      case WdlString(s) => s.split("\\s+").toVector.successNel
+      case WdlString(s) => s.split("\\s+").toVector.validNel
       case WdlArray(wdlType, value) if wdlType.memberType == WdlStringType =>
-        value.map(_.valueString).toVector.successNel
-      case _ => s"Expecting $ZonesKey runtime attribute to be either a whitespace separated String or an Array[String]".failureNel
+        value.map(_.valueString).toVector.validNel
+      case _ => s"Expecting $ZonesKey runtime attribute to be either a whitespace separated String or an Array[String]".invalidNel
     }
   }
 
   private def contextualizeFailure[T](validation: ErrorOr[T], key: String): ErrorOr[T] = {
-    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.toList.mkString(",")).toValidationNel
+    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.toList.mkString(",")).toValidatedNel
   }
 
   private def validatePreemptible(preemptible: WdlValue): ErrorOr[Int] = {
@@ -133,23 +136,23 @@ object JesRuntimeAttributes {
   private def validateBootDisk(diskSize: WdlValue): ErrorOr[Int] = diskSize match {
     case x if WdlIntegerType.isCoerceableFrom(x.wdlType) =>
       WdlIntegerType.coerceRawValue(x) match {
-        case scala.util.Success(x: WdlInteger) => x.value.intValue.successNel
-        case scala.util.Success(unhandled) => s"Coercion was expected to create an Integer but instead got $unhandled".failureNel
-        case scala.util.Failure(t) => s"Expecting $BootDiskSizeKey runtime attribute to be an Integer".failureNel
+        case scala.util.Success(x: WdlInteger) => x.value.intValue.validNel
+        case scala.util.Success(unhandled) => s"Coercion was expected to create an Integer but instead got $unhandled".invalidNel
+        case scala.util.Failure(t) => s"Expecting $BootDiskSizeKey runtime attribute to be an Integer".invalidNel
       }
   }
 
   private def validateLocalDisks(value: WdlValue): ErrorOr[Seq[JesAttachedDisk]] = {
-    val nels = value match {
+    val nels: Seq[ErrorOr[JesAttachedDisk]] = value match {
       case WdlString(s) => s.split(",\\s*").toSeq.map(validateLocalDisk)
       case WdlArray(wdlType, seq) if wdlType.memberType == WdlStringType =>
         seq.map(_.valueString).map(validateLocalDisk)
       case _ =>
-        Seq(s"Expecting $DisksKey runtime attribute to be a comma separated String or Array[String]".failureNel[JesAttachedDisk])
+        Seq(s"Expecting $DisksKey runtime attribute to be a comma separated String or Array[String]".invalidNel)
     }
 
-    val emptyDiskNel = Vector.empty[JesAttachedDisk].successNel[String]
-    val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) { (a, v) => a :+ v })
+    val emptyDiskNel = Vector.empty[JesAttachedDisk].validNel[String]
+    val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) map { (a, v) => a :+ v })
 
     disksNel map {
       case disks if disks.exists(_.name == JesWorkingDisk.Name) => disks
@@ -159,8 +162,8 @@ object JesRuntimeAttributes {
 
   private def validateLocalDisk(disk: String): ErrorOr[JesAttachedDisk] = {
     JesAttachedDisk.parse(disk) match {
-      case scala.util.Success(localDisk) => localDisk.successNel
-      case scala.util.Failure(ex) => ex.getMessage.failureNel
+      case scala.util.Success(localDisk) => localDisk.validNel
+      case scala.util.Failure(ex) => ex.getMessage.invalidNel
     }
   }
 

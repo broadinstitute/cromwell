@@ -1,5 +1,6 @@
 package cromwell.engine
 
+import cats.data.NonEmptyList
 import cromwell.CromwellTestkitSpec
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -9,7 +10,6 @@ import org.scalatest.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scalaz.NonEmptyList
 
 class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources()
@@ -42,25 +42,25 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
     "return 3 IDs for a batch submission of 3" in {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestkitSpec.ServiceRegistryActorInstance))
-      storeActor ! BatchSubmitWorkflows(NonEmptyList(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
+      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       expectMsgPF(10 seconds) {
-        case WorkflowsBatchSubmittedToStore(ids) => ids.size shouldBe 3
+        case WorkflowsBatchSubmittedToStore(ids) => ids.toList.size shouldBe 3
       }
     }
 
     "fetch exactly N workflows" in {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestkitSpec.ServiceRegistryActorInstance))
-      storeActor ! BatchSubmitWorkflows(NonEmptyList(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
-      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list.toList
+      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
+      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
 
       storeActor ! FetchRunnableWorkflows(2)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
-          workflowNel.size shouldBe 2
-          checkDistinctIds(workflowNel.list.toList) shouldBe true
-          workflowNel.foreach {
+          workflowNel.toList.size shouldBe 2
+          checkDistinctIds(workflowNel.toList) shouldBe true
+          workflowNel map {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloWorldSourceFiles
@@ -72,16 +72,16 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
     "return only the remaining workflows if N is larger than size" in {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestkitSpec.ServiceRegistryActorInstance))
-      storeActor ! BatchSubmitWorkflows(NonEmptyList(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
-      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list.toList
+      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
+      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
-          workflowNel.size shouldBe 3
-          checkDistinctIds(workflowNel.list.toList) shouldBe true
-          workflowNel.foreach {
+          workflowNel.toList.size shouldBe 3
+          checkDistinctIds(workflowNel.toList) shouldBe true
+          workflowNel map {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloWorldSourceFiles

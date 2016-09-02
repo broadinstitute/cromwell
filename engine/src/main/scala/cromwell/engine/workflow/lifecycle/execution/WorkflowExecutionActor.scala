@@ -4,8 +4,9 @@ import java.time.OffsetDateTime
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor._
+import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedRetryableResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -17,10 +18,10 @@ import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -34,8 +35,6 @@ import wdl4s.{Scope, _}
 import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
-import scalaz.NonEmptyList
-import scalaz.Scalaz._
 
 object WorkflowExecutionActor {
 
@@ -130,7 +129,7 @@ object WorkflowExecutionActor {
   }
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
-    override val throwables = exceptions.list.toList
+    override val throwables = exceptions.toList
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
@@ -592,7 +591,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
             ejeaRef ! EngineJobExecutionActor.Execute
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>
-            throw WorkflowExecutionException(new Exception(s"Could not get BackendLifecycleActor for backend $backendName").wrapNel)
+            throw WorkflowExecutionException(NonEmptyList.of(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
         }
     }
   }

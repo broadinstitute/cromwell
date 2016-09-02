@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.lifecycle
 
+import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowOptions
 import cromwell.core.callcaching.CallCachingMode
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
-import scalaz.{Failure => ScalazFailure, Success => ScalazSuccess}
 import scala.util.{Success, Try}
 
 class CachingConfigSpec extends FlatSpec with Matchers {
@@ -62,9 +62,9 @@ class CachingConfigSpec extends FlatSpec with Matchers {
       combinations foreach {
         case (config, Success(wfOptions)) =>
           MaterializeWorkflowDescriptorActor.validateCallCachingMode(wfOptions, config) match {
-            case ScalazSuccess(activity) => verificationFunction(activity)
-            case ScalazFailure(errors) =>
-              val errorsList = errors.list.toList.mkString(", ")
+            case Valid(activity) => verificationFunction(activity)
+            case Invalid(errors) =>
+              val errorsList = errors.toList.mkString(", ")
               fail(s"Failure generating Call Config Mode: $errorsList")
           }
         case x => fail(s"Unexpected test tuple: $x")

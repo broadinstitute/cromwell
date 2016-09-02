@@ -337,7 +337,7 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
    */
   // FIXME: This is currently only used in commented out specs
   def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
-    val futureAny = actorRef ? message
+    val futureAny = actorRef.ask(message)
     Await.result(futureAny.mapTo[M], TimeoutDuration)
   }
 

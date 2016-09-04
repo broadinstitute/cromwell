@@ -335,11 +335,14 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
    * </ol>
    *
    */
-  // FIXME: This is currently only used in commented out specs
-  def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
-    val futureAny = actorRef.ask(message)
-    Await.result(futureAny.mapTo[M], TimeoutDuration)
-  }
+  /*
+    FIXME: This is currently only used in commented out specs - w/ the akka upgrade it's now throwing
+     an exception but I'll leave it until if/when someone actually uses it for real
+    */
+//  def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
+//    val futureAny = actorRef.ask(message)
+//    Await.result(futureAny.mapTo[M], TimeoutDuration)
+//  }
 
   /**
    * Wait for exactly one occurrence of the specified info pattern in the specified block within a limited amount of

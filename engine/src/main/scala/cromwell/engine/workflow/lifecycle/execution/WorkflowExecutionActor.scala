@@ -128,8 +128,8 @@ object WorkflowExecutionActor {
     override val tag = s"Collector-${scope.unqualifiedName}"
   }
 
-  case class WorkflowExecutionException(exceptions: NonEmptyList[Throwable]) extends ThrowableAggregation {
-    override val throwables = exceptions.list
+  case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
+    override val throwables = exceptions.list.toList
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 

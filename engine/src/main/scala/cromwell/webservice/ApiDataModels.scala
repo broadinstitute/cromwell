@@ -1,11 +1,8 @@
 package cromwell.webservice
 
-import cromwell.core.WorkflowId
-import cromwell.webservice.PerRequest.RequestComplete
-import spray.http.StatusCodes
 import spray.json._
 import wdl4s.values.WdlValue
-import wdl4s.{FullyQualifiedName, ThrowableWithErrors}
+import wdl4s.{FullyQualifiedName, ExceptionWithErrors}
 
 import scala.language.postfixOps
 
@@ -27,7 +24,9 @@ object APIResponse {
 
   private def constructFailureResponse(status: String, ex: Throwable) ={
     ex match {
-      case cex: ThrowableWithErrors => FailureResponse(status, cex.message, Option(JsArray(cex.errors.list.map(JsString(_)).toVector)))
+      case exceptionWithErrors: ExceptionWithErrors =>
+        FailureResponse(status, exceptionWithErrors.message,
+          Option(JsArray(exceptionWithErrors.errors.list.toList.map(JsString(_)).toVector)))
       case e: Throwable => FailureResponse(status, e.getMessage, None)
     }
   }

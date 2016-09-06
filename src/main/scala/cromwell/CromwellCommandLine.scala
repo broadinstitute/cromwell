@@ -52,7 +52,7 @@ object RunSingle {
       case scalaz.Success(r) => r
       case scalaz.Failure(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "ERROR: Unable to run Cromwell:"
-        override def errorMessages: Traversable[String] = nel.list
+        override def errorMessages: Traversable[String] = nel.list.toList
       }
     }
   }
@@ -70,7 +70,7 @@ object RunSingle {
       s"$inputDescription does not exist: $path".failureNel
     } else if (!Files.isReadable(path)) {
       s"$inputDescription is not readable: $path".failureNel
-    } else path.contentAsString.successNel
+    } else File(path).contentAsString.successNel
   }
 
   /** Read the path to a string, unless the path is None, in which case returns "{}". */
@@ -82,7 +82,7 @@ object RunSingle {
   }
 
   private def metadataPathIsWriteable(metadataPath: Path): Boolean = {
-    Try(metadataPath.createIfNotExists().append("")) match {
+    Try(File(metadataPath).createIfNotExists(asDirectory = false, createParents = true).append("")) match {
       case Success(_) => true
       case Failure(_) => false
     }

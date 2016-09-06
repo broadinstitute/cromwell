@@ -28,7 +28,7 @@ object Testing {
   lazy val PostMVPTag = "PostMVP"
   lazy val DontUsePostMVPTaggedTests = Tests.Argument("-l", PostMVPTag)
 
-  lazy val TestReportArgs = Tests.Argument("-oDSI", "-h", "target/test-reports")
+  lazy val TestReportArgs = Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
 
   /*
   The arguments that will be added to the default test config, but removed from all other configs.

@@ -34,21 +34,21 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
        &    | send the entire compound command, including the || to the background
        $!   | a variable containing the previous background command's process id (PID)
      */
-    backgroundScript.write(
+    File(backgroundScript).write(
       s"""|#!/bin/bash
           |$backgroundCommand \\
-          |  > ${jobPaths.stdout.fullPath} \\
-          |  2> ${jobPaths.stderr.fullPath} \\
+          |  > ${jobPaths.stdout} \\
+          |  2> ${jobPaths.stderr} \\
           |  < /dev/null \\
           |  || echo -1 \\
-          |  > ${jobPaths.returnCode.fullPath} \\
+          |  > ${jobPaths.returnCode} \\
           |  &
           |echo $$!
           |""".stripMargin)
   }
 
   override def getJob(exitValue: Int, stdout: Path, stderr: Path) = {
-    val pid = stdout.contentAsString.stripLineEnd
+    val pid = File(stdout).contentAsString.stripLineEnd
     SharedFileSystemJob(pid)
   }
 
@@ -66,7 +66,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     /*
     Use pgrep to find the children of a process, and recursively kill the children before killing the parent.
      */
-    killScript.write(
+    File(killScript).write(
       s"""|#!/bin/bash
           |kill_children() {
           |  local pid=$$1

@@ -31,10 +31,10 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
     with PathFactory {
 
   def copyAndClean(src: Path, dest: Path): Unit = {
-    dest.parent.createDirectories()
+    File(dest).parent.createDirectories()
 
-    src.copyTo(dest, overwrite = true)
-    if (WorkflowLogger.isTemporary) src.delete()
+    File(src).copyTo(dest, overwrite = true)
+    if (WorkflowLogger.isTemporary) File(src).delete()
   }
 
   override def receive = {
@@ -42,7 +42,7 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
       val workflowLogger = new WorkflowLogger(self.path.name, workflowId, Option(log))
 
       workflowLogger.workflowLogPath foreach { src =>
-        if (src.exists) {
+        if (File(src).exists) {
           val destPath = destinationDir.resolve(src.getFileName)
           workflowLogger.info(s"Copying workflow logs from $src to $destPath")
 

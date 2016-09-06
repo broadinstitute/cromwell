@@ -118,10 +118,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
           sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
           goto(MaterializationSuccessfulState)
         case scalaz.Failure(error) =>
-          sender() ! MaterializeWorkflowDescriptorFailureResponse(new IllegalArgumentException() with ThrowableWithErrors {
-            val message = s"Workflow input processing failed."
-            val errors = error
-          })
+          sender() ! MaterializeWorkflowDescriptorFailureResponse(
+            new IllegalArgumentException with ExceptionWithErrors {
+              val message = s"Workflow input processing failed."
+              val errors = error
+            })
           goto(MaterializationFailedState)
       }
     case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>
@@ -195,7 +196,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
         allDeclarations.find(_.fullyQualifiedName == k) match {
           case Some(decl) if decl.wdlType.coerceRawValue(v).isFailure =>
             s"Invalid right-side type of '$k'.  Expecting ${decl.wdlType.toWdlString}, got ${v.wdlType.toWdlString}".failureNel
-          case _ => (k, v).successNel
+          case _ => (k, v).successNel[String]
         }
       }).toList.sequence[ErrorOr, (FullyQualifiedName, WdlValue)].map(_.toMap)
     }
@@ -282,7 +283,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                     namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
     namespace.coerceRawInputs(rawInputs) match {
       case Success(r) => r.successNel
-      case Failure(e: ThrowableWithErrors) => scalaz.Failure(e.errors)
+      case Failure(e: ExceptionWithErrors) => scalaz.Failure(e.errors)
       case Failure(e) => e.getMessage.failureNel
     }
   }

@@ -21,6 +21,6 @@ object FileUtil {
   }
 
   implicit class EnhancedFile(val file: Path) extends AnyVal with Hashable {
-    def md5Sum: String = file.md5.toLowerCase // toLowerCase for backwards compatibility
+    def md5Sum: String = File(file).md5.toLowerCase // toLowerCase for backwards compatibility
   }
 }

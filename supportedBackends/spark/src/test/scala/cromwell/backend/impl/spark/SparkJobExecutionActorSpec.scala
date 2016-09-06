@@ -1,30 +1,28 @@
 package cromwell.backend.impl.spark
 
-import java.io.{File, FileWriter, Writer}
-import java.nio.file.{Path, Paths}
+import java.io.Writer
+import java.nio.file.Path
 
 import akka.testkit.{ImplicitSender, TestActorRef}
-import com.typesafe.config.ConfigFactory
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
-import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
 import better.files._
-
-import scala.concurrent.Future
+import com.typesafe.config.ConfigFactory
+import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
-import cromwell.core._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
+import cromwell.core.{PathWriter, TailedWriter, TestKitSuite, UntailedWriter, _}
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
 import wdl4s._
 import wdl4s.values.WdlValue
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.sys.process.{Process, ProcessLogger}
-import cromwell.backend.impl.spark.SparkClusterProcess._
-import org.scalatest.mock.MockitoSugar
-
 
 class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
   with WordSpecLike
@@ -146,7 +144,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     Mockito.reset(sparkClusterProcess)
   }
 
-  override def afterAll(): Unit = system.shutdown()
+  override def afterAll(): Unit = system.terminate()
 
   "executeTask method in cluster deploy mode " should {
     "return succeed response when the spark cluster process monitor method returns finished status" in {
@@ -247,8 +245,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubProcess = mock[Process]
       val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
-      jobPaths.stderr < "failed"
-      jobPaths.callRoot.resolve("cluster.json") < sampleSubmissionResponse
+      File(jobPaths.stderr) < "failed"
+      File(jobPaths.callRoot.resolve("cluster.json")) < sampleSubmissionResponse
 
       val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
         override lazy val clusterExtProcess = sparkClusterProcess
@@ -393,7 +391,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubProcess = mock[Process]
       val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
-      jobPaths.stderr < "failed"
+      File(jobPaths.stderr) < "failed"
 
       when(sparkProcess.externalProcess(any[Seq[String]], any[ProcessLogger])).thenReturn(stubProcess)
       when(stubProcess.exitValue()).thenReturn(0)
@@ -437,15 +435,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
 
   }
 
-  private def write(file: File, contents: String) = {
-    val writer = new FileWriter(file)
-    writer.write(contents)
-    writer.flush()
-    writer.close()
-    file
-  }
-
-  private def cleanUpJob(jobPaths: JobPaths): Unit = jobPaths.workflowRoot.delete(true)
+  private def cleanUpJob(jobPaths: JobPaths): Unit = File(jobPaths.workflowRoot).delete(true)
 
   private def prepareJob(wdlSource: WdlSource = helloWorldWdl, runtimeString: String = passOnStderr, inputFiles: Option[Map[String, WdlValue]] = None, isCluster: Boolean = false): TestJobDescriptor = {
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = wdlSource, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
@@ -453,10 +443,10 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), WorkflowOptions.empty, Set.empty)
     val jobPaths = if (isCluster) new JobPaths(backendWorkflowDescriptor, backendClusterConfig, jobDesc.key) else new JobPaths(backendWorkflowDescriptor, backendClientConfig, jobDesc.key)
     val executionDir = jobPaths.callRoot
-    val stdout = Paths.get(executionDir.path.toString, "stdout")
-    stdout.toString.toFile.createIfNotExists(false)
-    val stderr = Paths.get(executionDir.path.toString, "stderr")
-    stderr.toString.toFile.createIfNotExists(false)
+    val stdout = File(executionDir.toString, "stdout")
+    stdout.createIfNotExists(asDirectory = false, createParents = true)
+    val stderr = File(executionDir.toString, "stderr")
+    stderr.createIfNotExists(asDirectory = false, createParents = true)
     TestJobDescriptor(jobDesc, jobPaths, backendConfigurationDescriptor)
   }
 

@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Paths}
 
 import akka.testkit.TestDuration
 import better.files._
@@ -79,8 +79,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val symConf = templateConf("soft-link")
     val copyConf = templateConf("copy")
 
-    val jsonInputFile = createCannedFile("localize", "content from json inputs").fullPath
-    val callInputFile = createCannedFile("localize", "content from call inputs").fullPath
+    val jsonInputFile = createCannedFile("localize", "content from json inputs").pathAsString
+    val callInputFile = createCannedFile("localize", "content from call inputs").pathAsString
     val inputs = Map(
       "inputFileFromCallInputs" -> WdlFile(callInputFile),
       "inputFileFromJson" -> WdlFile(jsonInputFile)
@@ -113,8 +113,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val localizedJsonInputFile = jobPaths.callRoot.resolve(jsonInputFile.toString.drop(1))
-        val localizedCallInputFile = jobPaths.callRoot.resolve(callInputFile.toString.drop(1))
+        val localizedJsonInputFile = Paths.get(jobPaths.callRoot.toString, jsonInputFile)
+        val localizedCallInputFile = Paths.get(jobPaths.callRoot.toString, callInputFile)
 
         Files.isSymbolicLink(localizedJsonInputFile) shouldBe isSymlink
         val realJsonInputFile =
@@ -158,14 +158,14 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val backend = backendRef.underlyingActor
 
     val jobPaths = new JobPaths(workflowDescriptor, ConfigFactory.empty, jobDescriptor.key)
-    jobPaths.callRoot.createDirectories()
-    jobPaths.stdout.write("Hello stubby ! ")
-    jobPaths.stderr.touch()
+    File(jobPaths.callRoot).createDirectories()
+    File(jobPaths.stdout).write("Hello stubby ! ")
+    File(jobPaths.stderr).touch()
 
     val pid =
       if (completed) {
         if (writeReturnCode)
-          jobPaths.returnCode.write("0")
+          File(jobPaths.returnCode).write("0")
         "0"
       } else {
         import sys.process._
@@ -238,7 +238,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   it should "post process outputs" in {
-    val inputFile = createCannedFile("localize", "content from json inputs").fullPath
+    val inputFile = createCannedFile("localize", "content from json inputs").pathAsString
     val inputs = Map {
       "inputFile" -> WdlFile(inputFile)
     }
@@ -266,13 +266,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     testWorkflow(workflow, backend)
   }
 
-  def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): Path = {
+  def createCannedFile(prefix: String, contents: String): File = {
     val suffix = ".out"
-    val file = dir match {
-      case Some(path) => Files.createTempFile(path, prefix, suffix)
-      case None => Files.createTempFile(prefix, suffix)
-    }
-    file.write(contents)
-    file
+    File.newTemporaryFile(prefix, suffix).write(contents)
   }
 }

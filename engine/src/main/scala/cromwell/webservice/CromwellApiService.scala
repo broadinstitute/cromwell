@@ -18,7 +18,7 @@ import scalaz.NonEmptyList
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromwell"
 
-  override def swaggerUiVersion = "2.1.1"
+  override def swaggerUiVersion = "2.2.2"
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
@@ -127,7 +127,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
               import spray.json._
               workflowInputs.parseJson match {
                 case JsArray(Seq(x, xs@_*)) =>
-                  val nelInputses = NonEmptyList.nel(x, xs.toList)
+                  val nelInputses = NonEmptyList.nels(x, xs: _*)
                   val sources = nelInputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
                   perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
                 case JsArray(_) => failBadRequest(new RuntimeException("Nothing was submitted"))

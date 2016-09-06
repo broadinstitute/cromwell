@@ -97,6 +97,6 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
 
     case WorkflowStoreActor.WorkflowsBatchSubmittedToStore(ids) =>
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
-      context.parent ! RequestComplete(StatusCodes.OK, responses.list)
+      context.parent ! RequestComplete(StatusCodes.OK, responses.list.toList)
   }
 }

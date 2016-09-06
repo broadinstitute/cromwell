@@ -1,7 +1,7 @@
 package cromwell.backend.impl.htcondor
 
-import java.io.{File, FileWriter, Writer}
-import java.nio.file.{Files, Path, Paths}
+import java.io.Writer
+import java.nio.file.{Files, Path}
 
 import akka.actor.{Actor, Props}
 import akka.testkit.{ImplicitSender, TestActorRef}
@@ -275,7 +275,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
           | dockerOutputDir: "/outputDir"
           |}
         """.stripMargin
-      val jsonInputFile = createCannedFile("testFile", "some content").toPath.toAbsolutePath.toString
+      val jsonInputFile = createCannedFile("testFile", "some content").pathAsString
       val inputs = Map(
         "inputFile" -> WdlFile(jsonInputFile)
       )
@@ -353,8 +353,10 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
     val tempDir1 = Files.createTempDirectory("dir1")
     val tempDir2 = Files.createTempDirectory("dir2")
-    val jsonInputFile = createCannedFile(prefix = "testFile", contents = "some content", dir = Some(tempDir1)).toPath.toAbsolutePath.toString
-    val jsonInputFile2 = createCannedFile(prefix = "testFile2", contents = "some other content", dir = Some(tempDir2)).toPath.toAbsolutePath.toString
+    val jsonInputFile =
+      createCannedFile(prefix = "testFile", contents = "some content", dir = Some(tempDir1)).pathAsString
+    val jsonInputFile2 =
+      createCannedFile(prefix = "testFile2", contents = "some other content", dir = Some(tempDir2)).pathAsString
 
     val inputs = Map(
       "inputFiles" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile(jsonInputFile), WdlFile(jsonInputFile2)))
@@ -391,23 +393,12 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     cleanUpJob(jobPaths)
   }
 
-  private def cleanUpJob(jobPaths: JobPaths): Unit = jobPaths.workflowRoot.delete(true)
+  private def cleanUpJob(jobPaths: JobPaths): Unit = File(jobPaths.workflowRoot).delete(true)
 
   private def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
     val suffix = ".out"
-    val file = dir match {
-      case Some(path) => Files.createTempFile(path, prefix, suffix)
-      case None => Files.createTempFile(prefix, suffix)
-    }
-    write(file.toFile, contents)
-  }
-
-  private def write(file: File, contents: String) = {
-    val writer = new FileWriter(file)
-    writer.write(contents)
-    writer.flush()
-    writer.close()
-    file
+    val file = File.newTemporaryFile(prefix, suffix, dir.map(File.apply))
+    file.write(contents)
   }
 
   val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
@@ -417,17 +408,17 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), emptyWorkflowOptions, Set.empty)
     val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key)
-    val executionDir = jobPaths.callRoot
-    val stdout = Paths.get(executionDir.path.toString, "stdout")
-    stdout.toString.toFile.createIfNotExists(false)
-    val submitFileStderr = executionDir.resolve("submitfile.stderr")
-    val submitFileStdout = executionDir.resolve("submitfile.stdout")
-    submitFileStdout.toString.toFile.createIfNotExists(false)
+    val executionDir = File(jobPaths.callRoot)
+    val stdout = File(executionDir.pathAsString, "stdout")
+    stdout.createIfNotExists(asDirectory = false, createParents = true)
+    val submitFileStderr = executionDir./("submitfile.stderr")
+    val submitFileStdout = executionDir./("submitfile.stdout")
+    submitFileStdout.createIfNotExists(asDirectory = false, createParents = true)
     submitFileStdout <<
       """Submitting job(s)..
         |1 job(s) submitted to cluster 88.
       """.stripMargin.trim
-    submitFileStderr.toString.toFile.createIfNotExists(false)
+    submitFileStderr.createIfNotExists(asDirectory = false, createParents = true)
     TestJobDescriptor(jobDesc, jobPaths, backendConfigurationDescriptor)
   }
 
@@ -457,7 +448,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
   class KVServiceActor extends Actor {
     override def receive: Receive = {
       case KvPut => // Do nothing
-      case KvGet(key) => sender ! KvPair(key, Option("123"))
+      case KvGet(kvKey) => sender ! KvPair(kvKey, Option("123"))
     }
   }
 

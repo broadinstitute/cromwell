@@ -34,9 +34,9 @@ import scala.util._
  */
 object SingleWorkflowRunnerActorSpec {
 
-  def tempFile() = File.newTemp("metadata.", ".json").path
+  def tempFile() = File.newTemporaryFile("metadata.", ".json")
 
-  def tempDir() = File.newTempDir("metadata.dir.").path
+  def tempDir() = File.newTemporaryDirectory("metadata.dir.")
 
   implicit class OptionJsValueEnhancer(val jsValue: Option[JsValue]) extends AnyVal {
     def toOffsetDateTime = OffsetDateTime.parse(jsValue.toStringValue)
@@ -96,7 +96,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
   val metadataFile = tempFile()
 
   override protected def afterAll() = {
-    metadataFile.delete(ignoreIOExceptions = true)
+    metadataFile.delete(swallowIOExceptions = true)
     super.afterAll()
   }
 
@@ -105,7 +105,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     within(TimeoutDuration) {
       singleWorkflowActor(
         sampleWdl = wdlFile,
-        outputFile = Option(metadataFile))
+        outputFile = Option(metadataFile.path))
     }
     TestKit.shutdownActorSystem(system, TimeoutDuration)
 
@@ -170,7 +170,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
   val metadataFile = tempFile()
 
   override protected def afterAll() = {
-    metadataFile.delete(ignoreIOExceptions = true)
+    metadataFile.delete(swallowIOExceptions = true)
     super.afterAll()
   }
 
@@ -178,7 +178,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
     "fail to run a workflow and still output metadata" in {
       val testStart = OffsetDateTime.now
       within(TimeoutDuration) {
-        singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
+        singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile.path))
       }
       TestKit.shutdownActorSystem(system, TimeoutDuration)
 
@@ -223,14 +223,14 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
   val metadataDir = tempDir()
 
   override protected def afterAll() = {
-    metadataDir.delete(ignoreIOExceptions = true)
+    metadataDir.delete(swallowIOExceptions = true)
     super.afterAll()
   }
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow requesting a bad metadata path" in {
       within(TimeoutDuration) {
-        val runner = createRunnerActor(outputFile = Option(metadataDir))
+        val runner = createRunnerActor(outputFile = Option(metadataDir.path))
         waitForErrorWithException(s"Specified metadata path is a directory, should be a file: $metadataDir") {
           val futureResult = runner ? RunWorkflow
           Await.ready(futureResult, Duration.Inf)
@@ -276,7 +276,7 @@ class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorS
           runner ? RunWorkflow
           runner ! "expected unexpected"
         }
-        assert(!system.isTerminated)
+        assert(!system.whenTerminated.isCompleted)
       }
       TestKit.shutdownActorSystem(system, TimeoutDuration)
     }

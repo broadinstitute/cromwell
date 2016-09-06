@@ -88,7 +88,7 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
     pollForJobStatus(subId) onComplete {
       case Success(resp: SparkDriverStateQueryResponse) if resp.driverState == "RUNNING" =>
         logger.debug(s"{} Spark Driver is now in :{} state", tag, "RUNNING")
-        system.scheduler.scheduleOnce(1000 milliseconds) {
+        system.scheduler.scheduleOnce(1000.milliseconds) {
           monitorSparkClusterJob(subId, rcPath, promise)
         }
       case Success(resp: SparkDriverStateQueryResponse) if resp.driverState == "FINISHED" =>
@@ -108,7 +108,7 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
 
   override def evaluateMonitoringFuture(rcPath: Path) = {
     monitorPromise.future.onComplete {
-      case Success(_) if rcPath.contentAsString.stripLineEnd.toInt == 0 =>
+      case Success(_) if File(rcPath).contentAsString.stripLineEnd.toInt == 0 =>
         completionPromise success Finished
       case Success(_) =>
         completionPromise success Failed(new IllegalStateException("Spark Driver returned failed status"))
@@ -118,8 +118,8 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
   }
 
   override def completeMonitoringProcess(rcPath: Path, status: String, promise: Promise[Unit]) = {
-    rcPath write status
-    promise success (())
+    File(rcPath) write status
+    promise success Unit
   }
 
   def pollForJobStatus(subId: String): Future[SparkDriverStateQueryResponse] = {
@@ -150,7 +150,7 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
   }
 
   override def parseJsonForSubmissionIdAndStatus(jsonFile: Path): SparkJobSubmissionResponse = {
-    val lines = jsonFile.contentAsString
+    val lines = File(jsonFile).contentAsString
     val sparkClusterSubmissionResponseRegex = """(?s)\{(.*)}""".r.unanchored
     val line = sparkClusterSubmissionResponseRegex findFirstIn lines match {
       case Some(content) => content

@@ -18,7 +18,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec with Moc
     val workflowPaths = new WorkflowPaths(wd, backendConfig)
     val id = wd.id
     workflowPaths.workflowRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id").fullPath
+      File(s"local-cromwell-executions/hello/$id").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe
       s"/root/hello/$id"
   }

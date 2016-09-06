@@ -25,24 +25,28 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        fileAlreadyExists: Boolean = false,
                        symlink: Boolean = false,
                        linkNb: Int = 1) = {
-    val callDir = File.newTempDir("SharedFileSystem").path
-    val orig = if (fileInCallDir) callDir.createChild("inputFile").touch().path else File.newTemp("inputFile").touch().path
-    val dest = if (fileInCallDir) orig else callDir.resolve(orig.toString.drop(1))
-    if (fileAlreadyExists) dest.touch()
+    val callDir = File.newTemporaryDirectory("SharedFileSystem")
+    val orig = if (fileInCallDir) callDir.createChild("inputFile") else File.newTemporaryFile("inputFile")
+    val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.drop(1))
+    orig.touch()
+    if (fileAlreadyExists) {
+      dest.parent.createDirectories()
+      dest.touch()
+    }
 
-    val inputs = Map("input" -> WdlFile(orig.toString))
+    val inputs = Map("input" -> WdlFile(orig.pathAsString))
     val sharedFS = new SharedFileSystem { override val sharedFileSystemConfig = config }
-    val result = sharedFS.localizeInputs(callDir, docker = docker, localFS, inputs)
+    val result = sharedFS.localizeInputs(callDir.path, docker = docker, localFS, inputs)
 
     result.isSuccess shouldBe true
-    result.get should contain theSameElementsAs Map("input" -> WdlFile(dest.toString))
+    result.get should contain theSameElementsAs Map("input" -> WdlFile(dest.pathAsString))
 
     dest.exists shouldBe true
     countLinks(dest) should be(linkNb)
     isSymLink(dest) should be(symlink)
 
-    orig.delete(ignoreIOExceptions = true)
-    dest.delete(ignoreIOExceptions = true)
+    orig.delete(swallowIOExceptions = true)
+    dest.delete(swallowIOExceptions = true)
   }
 
   it should "not localize a file already in the call root" in {

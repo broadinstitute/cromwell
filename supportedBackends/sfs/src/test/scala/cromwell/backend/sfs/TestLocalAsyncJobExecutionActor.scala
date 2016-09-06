@@ -2,7 +2,6 @@ package cromwell.backend.sfs
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestActorRef
-import better.files._
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
@@ -13,11 +12,11 @@ import scala.concurrent.Promise
 class TestLocalAsyncJobExecutionActor(override val params: SharedFileSystemAsyncJobExecutionActorParams)
   extends BackgroundAsyncJobExecutionActor {
   override lazy val processArgs = {
-    val script = jobPaths.script.fullPath
+    val script = jobPaths.script.toString
     if (isDockerRun) {
       val docker = RuntimeAttributesValidation.extract(DockerValidation.instance, validatedRuntimeAttributes)
-      val cwd = jobPaths.callRoot.fullPath
-      val dockerCwd = jobPaths.callDockerRoot.fullPath
+      val cwd = jobPaths.callRoot.toString
+      val dockerCwd = jobPaths.callDockerRoot.toString
       SharedFileSystemCommand("/bin/bash", "-c",
         s"docker run --rm -v $cwd:$dockerCwd -i $docker /bin/bash < $script")
     } else {

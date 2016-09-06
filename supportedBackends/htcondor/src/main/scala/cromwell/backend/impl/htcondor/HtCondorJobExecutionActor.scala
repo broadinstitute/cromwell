@@ -91,7 +91,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   override def receive = super.receive orElse {
     case ExecutionResultFound(succeededResponse) => executionResponse success succeededResponse.copy(jobKey = jobDescriptor.key)
 
-    case ExecutionResultNotFound => prepareAndExecute
+    case ExecutionResultNotFound => prepareAndExecute()
 
     case ExecutionResultStored(hash) => log.debug("{} Cache entry was stored for Job with hash {}.", tag, hash)
 
@@ -128,7 +128,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     log.debug("{} Checking if hash {{}} is in the cache.", tag, jobHash)
     cacheActor match {
       case Some(actorRef) => actorRef ! ReadExecutionResult(jobHash)
-      case None => prepareAndExecute
+      case None => prepareAndExecute()
     }
     executionResponse.future
   }
@@ -147,12 +147,12 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     List(stdoutWriter.writer, stderrWriter.writer).foreach(_.flushAndClose())
 
     condorReturnCode match {
-      case 0 if submitFileStderr.lines.toList.isEmpty =>
+      case 0 if File(submitFileStderr).lines.toList.isEmpty =>
         log.info("{} {} submitted to HtCondor. Waiting for the job to complete via. RC file status.", tag, jobDescriptor.call.fullyQualifiedName)
         val job = HtCondorCommands.SubmitOutputPattern.r
         //Number of lines in stdout for submit job will be 3 at max therefore reading all lines at once.
-        log.debug(s"{} Output of submit process : {}", tag, submitFileStdout.lines.toList)
-        val line = submitFileStdout.lines.toList.last
+        log.debug(s"{} Output of submit process : {}", tag, File(submitFileStdout).lines.toList)
+        val line = File(submitFileStdout).lines.toList.last
         line match {
           case job(jobId, clusterId) =>
             val overallJobIdentifier = s"$clusterId.${jobId.toInt - 1}" // Condor has 0 based indexing on the jobs, probably won't work on stuff like `queue 150`
@@ -167,7 +167,8 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         }
 
       case 0 =>
-        log.error(s"Unexpected! Received return code for condor submission as 0, although stderr file is non-empty: {}", submitFileStderr.lines)
+        log.error(s"Unexpected! Received return code for condor submission as 0, although stderr file is non-empty: {}",
+          File(submitFileStderr).lines)
         FailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed. HtCondor returned zero status code but non empty stderr file: $condorReturnCode"), Option(condorReturnCode))
 
@@ -208,7 +209,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private def calculateHash: String = {
     val cmd = call.task.instantiateCommand(jobDescriptor.inputs, callEngineFunction, identity) match {
-      case Success(cmd) => cmd
+      case Success(command) => command
       case Failure(ex) =>
         val errMsg = s"$tag Cannot instantiate job command for caching purposes due to ${ex.getMessage}."
         log.error(ex.getCause, errMsg)
@@ -228,7 +229,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private def createExecutionFolderAndScript(): Unit = {
     try {
       log.debug("{} Creating execution folder: {}", tag, executionDir)
-      executionDir.toString.toFile.createIfNotExists(true)
+      executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
       val command = localizeInputs(jobPaths.callRoot, runtimeAttributes.dockerImage.isDefined, fileSystems, jobDescriptor.inputs) flatMap {
@@ -237,7 +238,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)
       cmds.writeScript(command.get, scriptPath.toAbsolutePath, executionDir.toAbsolutePath) // Writes the bash script for executing the command
-      scriptPath.addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
+      File(scriptPath).addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
       //TODO: Need to append other runtime attributes from Wdl to Condor submit file
       val attributes: Map[String, Any] = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toAbsolutePath,
           HtCondorRuntimeKeys.InitialWorkingDir -> jobPaths.callRoot.toAbsolutePath,
@@ -292,7 +293,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     }
   }
 
-  private def prepareAndExecute: Unit = {
+  private def prepareAndExecute(): Unit = {
     Try {
       createExecutionFolderAndScript()
       executionResponse success executeTask()

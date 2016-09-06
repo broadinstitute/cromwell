@@ -6,7 +6,7 @@ import Version._
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
-import sbtrelease.ReleasePlugin._
+import sbtrelease.ReleasePlugin
 
 object Settings {
 
@@ -39,7 +39,7 @@ object Settings {
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
 
-  val commonSettings = releaseSettings ++ testSettings ++ assemblySettings ++
+  val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := "2.11.8",

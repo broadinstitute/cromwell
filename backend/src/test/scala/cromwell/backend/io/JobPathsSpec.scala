@@ -37,37 +37,37 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val jobPaths = new JobPaths(wd, backendConfig, jobKey)
     val id = wd.id
     jobPaths.callRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello").pathAsString
     jobPaths.returnCode.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/rc").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/rc").pathAsString
     jobPaths.script.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/script").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/script").pathAsString
     jobPaths.stderr.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/stderr").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/stderr").pathAsString
     jobPaths.stdout.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/stdout").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/stdout").pathAsString
     jobPaths.callRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello").pathAsString
     jobPaths.callDockerRoot.toString shouldBe
-      File(s"/root/hello/$id/call-hello").fullPath
+      File(s"/root/hello/$id/call-hello").pathAsString
     jobPaths.toDockerPath(Paths.get(s"local-cromwell-executions/hello/$id/call-hello/stdout")).toString shouldBe
-      File(s"/root/hello/$id/call-hello/stdout").fullPath
+      File(s"/root/hello/$id/call-hello/stdout").pathAsString
     jobPaths.toDockerPath(Paths.get("/root/dock/path")).toString shouldBe
-      File("/root/dock/path").fullPath
+      File("/root/dock/path").pathAsString
 
     val jobKeySharded = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = new JobPaths(wd, backendConfig, jobKeySharded)
     jobPathsSharded.callRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/shard-0").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/shard-0").pathAsString
 
     val jobKeyAttempt = BackendJobDescriptorKey(call, None, 2)
     val jobPathsAttempt = new JobPaths(wd, backendConfig, jobKeyAttempt)
     jobPathsAttempt.callRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/attempt-2").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/attempt-2").pathAsString
 
     val jobKeyShardedAttempt = BackendJobDescriptorKey(call, Option(0), 2)
     val jobPathsShardedAttempt = new JobPaths(wd, backendConfig, jobKeyShardedAttempt)
     jobPathsShardedAttempt.callRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id/call-hello/shard-0/attempt-2").fullPath
+      File(s"local-cromwell-executions/hello/$id/call-hello/shard-0/attempt-2").pathAsString
   }
 }

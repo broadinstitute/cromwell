@@ -125,12 +125,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
   private lazy val gcsExecPath: Path = callRootPath.resolve(JesExecScript)
   private lazy val cmdInput = JesFileInput(ExecParamName, gcsExecPath.toString, Paths.get(JesExecScript), workingDisk)
-  private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath.fullPath}"
+  private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
   private lazy val defaultMonitoringOutputPath = callRootPath.resolve(JesMonitoringLogFile)
   private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toString, Paths.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
-  private lazy val returnCodeContents = Try(returnCodeGcsPath.contentAsString)
+  private lazy val returnCodeContents = Try(File(returnCodeGcsPath).contentAsString)
   private lazy val dockerConfiguration = jesConfiguration.dockerCredentials
   private lazy val maxPreemption = runtimeAttributes.preemptible
   private[jes] lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
@@ -318,7 +318,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def writeScript(): Future[Unit] = Future(gcsExecPath.write(fileContent))
+    def writeScript(): Future[Unit] = Future(File(gcsExecPath).write(fileContent))
 
     implicit val system = context.system
     Retry.withRetry(
@@ -635,7 +635,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private[jes] def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)
                                   (implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     try {
-      lazy val stderrLength: Long = jesStderrFile.size
+      lazy val stderrLength: Long = File(jesStderrFile).size
       lazy val returnCode = returnCodeContents map { _.trim.toInt }
       lazy val continueOnReturnCode = runtimeAttributes.continueOnReturnCode
 

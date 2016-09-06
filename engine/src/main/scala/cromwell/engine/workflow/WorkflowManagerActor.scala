@@ -68,7 +68,7 @@ object WorkflowManagerActor {
 
     def withAddition(entries: NonEmptyList[WorkflowIdToActorRef]): WorkflowManagerData = {
       val entryTuples = entries map { e => e.workflowId -> e.workflowActor }
-      this.copy(workflows = workflows ++ entryTuples.list)
+      this.copy(workflows = workflows ++ entryTuples.list.toList)
     }
 
     def without(id: WorkflowId): WorkflowManagerData = this.copy(workflows = workflows - id)

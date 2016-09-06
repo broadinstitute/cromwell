@@ -8,7 +8,7 @@ import cromwell.core.{ErrorOr, WorkflowOptions}
 import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
 import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
-import wdl4s.ThrowableWithErrors
+import wdl4s.ExceptionWithErrors
 
 import scala.language.postfixOps
 import scalaz.Scalaz._
@@ -64,7 +64,7 @@ object JesAttributes {
     } match {
       case Success(r) => r
       case Failure(f) =>
-        throw new IllegalArgumentException() with ThrowableWithErrors {
+        throw new IllegalArgumentException with ExceptionWithErrors {
           override val message = "Jes Configuration is not valid: Errors"
           override val errors = f
         }

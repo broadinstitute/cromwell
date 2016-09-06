@@ -370,5 +370,5 @@ trait OptionalRuntimeAttributesValidation[ValidatedType] extends RuntimeAttribut
     override def apply(wdlValue: WdlValue) = validateOption.apply(wdlValue).map(Option.apply)
   }
 
-  override final protected lazy val validateNone = None.successNel
+  override final protected lazy val validateNone = None.successNel[String]
 }

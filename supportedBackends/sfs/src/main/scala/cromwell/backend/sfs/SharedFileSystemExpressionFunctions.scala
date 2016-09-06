@@ -60,9 +60,9 @@ class SharedFileSystemExpressionFunctions(override val fileSystems: List[FileSys
   import SharedFileSystemExpressionFunctions._
   import better.files._
 
-  override def globPath(glob: String) = context.root.fullPath
+  override def globPath(glob: String) = context.root.toString
   override def glob(path: String, pattern: String): Seq[String] = {
-    toPath(path).glob(s"**/$pattern") map { _.path.fullPath } toSeq
+    File(toPath(path)).glob(s"**/$pattern") map { _.pathAsString } toSeq
   }
 
   override val writeDirectory = context.root

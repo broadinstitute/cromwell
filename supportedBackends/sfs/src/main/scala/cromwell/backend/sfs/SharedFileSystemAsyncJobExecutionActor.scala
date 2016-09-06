@@ -242,12 +242,12 @@ trait SharedFileSystemAsyncJobExecutionActor
     serviceRegistryActor ! PutMetadataAction(events)
   }
 
-  def pathPlusSuffix(path: Path, suffix: String) = path.resolveSibling(s"${path.name}.$suffix")
+  def pathPlusSuffix(path: Path, suffix: String) = path.resolveSibling(s"${File(path).name}.$suffix")
 
   def executeScript(): ExecutionHandle = {
     val script = instantiatedScript
     jobLogger.info(s"`$script`")
-    jobPaths.callRoot.createDirectories()
+    File(jobPaths.callRoot).createDirectories()
     val cwd = if (isDockerRun) jobPaths.callDockerRoot else jobPaths.callRoot
     writeScript(script, cwd)
     jobLogger.info(s"command: $processArgs")
@@ -255,7 +255,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     val exitValue = runner.run()
     if (exitValue != 0) {
       FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
-        s"Check the stderr file for possible errors: ${runner.stderrPath.fullPath}"))
+        s"Check the stderr file for possible errors: ${runner.stderrPath}"))
     } else {
       val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
       context.become(sharedReceive(Option(runningJob)) orElse super.receive)
@@ -282,9 +282,9 @@ trait SharedFileSystemAsyncJobExecutionActor
     * as some extra shell code for monitoring jobs
     */
   private def writeScript(instantiatedCommand: String, cwd: Path) = {
-    jobPaths.script.write(
+    File(jobPaths.script).write(
       s"""#!/bin/sh
-          |cd ${cwd.fullPath}
+          |cd $cwd
           |$instantiatedCommand
           |echo $$? > rc
           |""".stripMargin)
@@ -308,7 +308,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   def recoverScript(job: SharedFileSystemJob): ExecutionHandle = {
     context.become(sharedReceive(Option(job)) orElse super.receive)
     // To avoid race conditions, check for the rc file after checking if the job is alive.
-    if (isAlive(job) || jobPaths.returnCode.exists) {
+    if (isAlive(job) || File(jobPaths.returnCode).exists) {
       // If we're done, we'll get to the rc during the next poll.
       // Or if we're still running, return pending also.
       jobLogger.info(s"Recovering using job id: ${job.jobId}")
@@ -316,7 +316,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     } else {
       // Could start executeScript(), but for now fail because we shouldn't be in this state.
       FailedNonRetryableExecutionHandle(new RuntimeException(
-        s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode.fullPath} does not exist."), None)
+        s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None)
     }
   }
 
@@ -329,7 +329,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   def tryKill(job: SharedFileSystemJob): Unit = {
-    val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
+    val returnCodeTmp = File(pathPlusSuffix(jobPaths.returnCode, "kill"))
     returnCodeTmp.write(s"$SIGTERM\n")
     try {
       returnCodeTmp.moveTo(jobPaths.returnCode)
@@ -346,7 +346,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   def processReturnCode()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val returnCodeTry = Try(jobPaths.returnCode.contentAsString.stripLineEnd.toInt)
+    val returnCodeTry = Try(File(jobPaths.returnCode).contentAsString.stripLineEnd.toInt)
 
     lazy val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCodeTry.getOrElse("(none)")}"
 
@@ -375,7 +375,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     def failForStderr = {
       val failOnStderr = RuntimeAttributesValidation.extract(
         FailOnStderrValidation.instance, validatedRuntimeAttributes)
-      failOnStderr && jobPaths.stderr.size > 0
+      failOnStderr && File(jobPaths.stderr).size > 0
     }
 
     returnCodeTry match {
@@ -393,7 +393,7 @@ trait SharedFileSystemAsyncJobExecutionActor
       case handle: SharedFileSystemPendingExecutionHandle =>
         val runId = handle.run
         jobLogger.debug(s"Polling Job $runId")
-        jobPaths.returnCode.exists match {
+        File(jobPaths.returnCode).exists match {
           case true =>
             processReturnCode()
           case false =>

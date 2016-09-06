@@ -1,6 +1,5 @@
 package cromwell
 
-import java.nio.file.Path
 import better.files._
 import cromwell.core.PathFactory._
 import cromwell.util.SampleWdl
@@ -64,7 +63,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
 
   it should "fail if inputs path is not writeable" in {
     val threeStep = WdlAndInputs(ThreeStep)
-    threeStep.inputsPath setPermissions Set.empty
+    threeStep.inputsFile setPermissions Set.empty
     val ccl = Try(CromwellCommandLine(List("run", threeStep.wdl, threeStep.inputs)))
     ccl.isFailure shouldBe true
     ccl.failed.get.getMessage should include("Inputs is not readable")
@@ -72,8 +71,8 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
 
   it should "fail if metadata path is not writeable" in {
     val threeStep = WdlAndInputs(ThreeStep)
-    threeStep.metadataPath write "foo"
-    threeStep.metadataPath setPermissions Set.empty
+    threeStep.metadataFile write "foo"
+    threeStep.metadataFile setPermissions Set.empty
     val ccl = Try(CromwellCommandLine(List("run", threeStep.wdl, threeStep.inputs, "-", threeStep.metadata)))
     ccl.isFailure shouldBe true
     ccl.failed.get.getMessage should include("Unable to write to metadata directory:")
@@ -82,7 +81,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
 
 object CromwellCommandLineSpec {
   val ThreeStepWithoutOptions = WdlAndInputs(ThreeStep)
-  val ThreeStepInputs = ThreeStepWithoutOptions.inputsPath.contentAsString
+  val ThreeStepInputs = ThreeStepWithoutOptions.inputsFile.contentAsString
 
   /**
    * Create a temporary wdl file and inputs for the sampleWdl.
@@ -90,43 +89,40 @@ object CromwellCommandLineSpec {
    */
   case class WdlAndInputs(sampleWdl: SampleWdl, optionsJson: String = "{}") {
     // Track all the temporary files we create, and delete them after the test.
-    private var tempFiles = Vector.empty[Path]
+    private var tempFiles = Vector.empty[File]
 
-    lazy val wdlPath: Path = {
-      val path = File.newTemp(s"${sampleWdl.name}.", ".wdl").path
+    lazy val wdlFile = {
+      val file = File.newTemporaryFile(s"${sampleWdl.name}.", ".wdl")
+      tempFiles :+= file
+      file write sampleWdl.wdlSource("")
+    }
+
+    lazy val wdl = wdlFile.pathAsString
+
+    lazy val inputsFile = {
+      val file = File(wdlFile.path.swapExt(".wdl", ".inputs"))
+      tempFiles :+= file
+      file write sampleWdl.wdlJson
+    }
+
+    lazy val inputs = inputsFile.pathAsString
+
+    lazy val optionsFile = {
+      val file = File(wdlFile.path.swapExt(".wdl", ".options"))
+      tempFiles :+= file
+      file write optionsJson
+    }
+
+    lazy val options = optionsFile.pathAsString
+
+    lazy val metadataFile = {
+      val path = File(wdlFile.path.swapExt(".wdl", ".metadata.json"))
       tempFiles :+= path
-      path write sampleWdl.wdlSource("")
       path
     }
 
-    lazy val wdl = wdlPath.fullPath
+    lazy val metadata = metadataFile.pathAsString
 
-    lazy val inputsPath = {
-      val path = wdlPath.swapExt(".wdl", ".inputs")
-      tempFiles :+= path
-      path write sampleWdl.wdlJson
-      path
-    }
-
-    lazy val inputs = inputsPath.fullPath
-
-    lazy val optionsPath = {
-      val path = wdlPath.swapExt(".wdl", ".options")
-      tempFiles :+= path
-      path write optionsJson
-      path
-    }
-
-    lazy val options = optionsPath.fullPath
-
-    lazy val metadataPath = {
-      val path = wdlPath.swapExt(".wdl", ".metadata.json")
-      tempFiles :+= path
-      path.toAbsolutePath
-    }
-
-    lazy val metadata = metadataPath.fullPath
-
-    def deleteTempFiles() = tempFiles.foreach(_.delete(ignoreIOExceptions = true))
+    def deleteTempFiles() = tempFiles.foreach(_.delete(swallowIOExceptions = true))
   }
 }

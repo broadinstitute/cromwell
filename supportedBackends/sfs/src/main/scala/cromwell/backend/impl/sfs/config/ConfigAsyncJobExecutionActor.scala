@@ -52,7 +52,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
     val command = task.instantiateCommand(inputs, NoFunctions).get
     jobLogger.info(s"executing: $command")
-    script.write(
+    File(script).write(
       s"""|#!/bin/bash
           |$command
           |""".stripMargin)
@@ -65,10 +65,10 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   private lazy val standardInputs: CallInputs = {
     Map(
       JobNameInput -> WdlString(jobName),
-      CwdInput -> WdlString(jobPaths.callRoot.fullPath),
-      StdoutInput -> WdlString(jobPaths.stdout.fullPath),
-      StderrInput -> WdlString(jobPaths.stderr.fullPath),
-      ScriptInput -> WdlString(jobPaths.script.fullPath)
+      CwdInput -> WdlString(jobPaths.callRoot.toString),
+      StdoutInput -> WdlString(jobPaths.stdout.toString),
+      StderrInput -> WdlString(jobPaths.stderr.toString),
+      ScriptInput -> WdlString(jobPaths.script.toString)
     )
   }
 
@@ -78,7 +78,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   private lazy val dockerInputs: CallInputs = {
     if (isDockerRun) {
       Map(
-        DockerCwdInput -> WdlString(jobPaths.callDockerRoot.fullPath)
+        DockerCwdInput -> WdlString(jobPaths.callDockerRoot.toString)
       )
     } else {
       Map.empty
@@ -127,7 +127,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
     */
   override def getJob(exitValue: Int, stdout: Path, stderr: Path): SharedFileSystemJob = {
     val jobIdRegex = configurationDescriptor.backendConfig.getString(JobIdRegexConfig).r
-    val output = stdout.contentAsString.stripLineEnd
+    val output = File(stdout).contentAsString.stripLineEnd
     output match {
       case jobIdRegex(jobId) => SharedFileSystemJob(jobId)
       case _ =>

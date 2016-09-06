@@ -51,7 +51,7 @@ trait PathWriter {
   import better.files._
 
   val path: Path
-  lazy val writer: Writer = path.newBufferedWriter
+  lazy val writer: Writer = File(path).newBufferedWriter
 
   /**
     * Passed to `ProcessLogger` to add a new line.

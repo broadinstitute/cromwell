@@ -28,7 +28,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
-  override def readFile(path: String): String = toPath(path).contentAsString
+  override def readFile(path: String): String = File(toPath(path)).contentAsString
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
@@ -94,7 +94,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(toPath(value.valueString).size.toDouble, MemoryUnit.Bytes).to(unit).amount
+      } yield MemorySize(File(toPath(value.valueString)).size.toDouble, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {
@@ -110,7 +110,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
       globVal = singleArgument.valueString
       files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }
-    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
+    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles)
   }
 
   override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError(s"read_json() not implemented yet"))

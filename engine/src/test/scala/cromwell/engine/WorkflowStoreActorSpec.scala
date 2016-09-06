@@ -52,14 +52,14 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestkitSpec.ServiceRegistryActorInstance))
       storeActor ! BatchSubmitWorkflows(NonEmptyList(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
-      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list
+      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list.toList
 
 
       storeActor ! FetchRunnableWorkflows(2)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
           workflowNel.size shouldBe 2
-          checkDistinctIds(workflowNel.list) shouldBe true
+          checkDistinctIds(workflowNel.list.toList) shouldBe true
           workflowNel.foreach {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
@@ -73,14 +73,14 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestkitSpec.ServiceRegistryActorInstance))
       storeActor ! BatchSubmitWorkflows(NonEmptyList(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
-      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list
+      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list.toList
 
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {
         case NewWorkflowsToStart(workflowNel) =>
           workflowNel.size shouldBe 3
-          checkDistinctIds(workflowNel.list) shouldBe true
+          checkDistinctIds(workflowNel.list.toList) shouldBe true
           workflowNel.foreach {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true

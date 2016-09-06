@@ -1,9 +1,9 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.18-e690fc2-SNAPSHOT"
-  lazy val wdl4sV = "0.5-b136a4f-SNAPSHOT"
-  lazy val sprayV = "1.3.2"
+  lazy val lenthallV = "0.18-fca8809-SNAPSHOT"
+  lazy val wdl4sV = "0.5-7f31fef-SNAPSHOT"
+  lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
   - https://github.com/spray/spray
@@ -11,12 +11,12 @@ object Dependencies {
   - http://spray.io/documentation/1.2.2/spray-httpx/spray-json-support/
   - http://doc.akka.io/docs/akka/2.4/scala/http/common/json-support.html#akka-http-spray-json
    */
-  lazy val sprayJsonV = "1.3.1"
-  lazy val akkaV = "2.4.7"
+  lazy val sprayJsonV = "1.3.2"
+  lazy val akkaV = "2.4.9"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
-  lazy val betterFilesV = "2.13.0"
-  lazy val scalazCoreV = "7.1.3"
+  lazy val betterFilesV = "2.16.0"
+  lazy val scalazCoreV = "7.2.5"
 
   // Internal collections of dependencies
 
@@ -24,14 +24,14 @@ object Dependencies {
     "org.broadinstitute" %% "lenthall" % lenthallV,
     "org.scalaz" %% "scalaz-core" % scalazCoreV,
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
-    "org.specs2" %% "specs2" % "2.3.13" % Test
+    "org.specs2" %% "specs2" % "3.7" % Test
   )
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % "1.1.3",
-    "ch.qos.logback" % "logback-access" % "1.1.3",
-    "org.codehaus.janino" % "janino" % "2.7.8"
+    "ch.qos.logback" % "logback-classic" % "1.1.7",
+    "ch.qos.logback" % "logback-access" % "1.1.7",
+    "org.codehaus.janino" % "janino" % "3.0.1"
   )
 
   private val slickDependencies = List(
@@ -56,7 +56,7 @@ object Dependencies {
   private val googleApiClientDependencies = List(
     // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
     // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
-    "com.fasterxml.jackson.core" % "jackson-core" % "2.4.5",
+    "com.fasterxml.jackson.core" % "jackson-core" % "2.8.2",
     // The exclusions prevent guava 13 from colliding at assembly time with guava 18 brought in elsewhere.
     "com.google.api-client" % "google-api-client-java6" % googleClientApiV exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV exclude("com.google.guava", "guava-jdk5")
@@ -70,8 +70,16 @@ object Dependencies {
   )
 
   private val dbmsDependencies = List(
-    "org.hsqldb" % "hsqldb" % "2.3.2",
-    "mysql" % "mysql-connector-java" % "5.1.36"
+    "org.hsqldb" % "hsqldb" % "2.3.4",
+    /*
+    When going to 6.0.x, will need to change the jdbc driver to com.mysql.cj.jdbc.Driver
+    - https://dev.mysql.com/doc/connector-j/6.0/en/connector-j-api-changes.html
+
+    The url may also need the parameters:
+    - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
+    - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
+     */
+    "mysql" % "mysql-connector-java" % "5.1.39"
   )
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
@@ -88,7 +96,7 @@ object Dependencies {
   ) ++ liquibaseDependencies ++ dbmsDependencies
 
   val coreDependencies = List(
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
     "org.broadinstitute" %% "wdl4s" % wdl4sV,
     "org.apache.commons" % "commons-lang3" % "3.4",
     "io.spray" %% "spray-json" % sprayJsonV,
@@ -110,14 +118,14 @@ object Dependencies {
   ) ++ sprayServerDependencies
 
   val engineDependencies = List(
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
-    "org.webjars" % "swagger-ui" % "2.1.1",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
+    "org.webjars" % "swagger-ui" % "2.2.2",
     "commons-codec" % "commons-codec" % "1.10",
-    "commons-io" % "commons-io" % "2.4",
+    "commons-io" % "commons-io" % "2.5",
     "org.scalaz" %% "scalaz-core" % scalazCoreV,
     "com.github.pathikrit" %% "better-files" % betterFilesV,
-    "io.swagger" % "swagger-parser" % "1.0.19" % Test,
-    "org.yaml" % "snakeyaml" % "1.16" % Test
+    "io.swagger" % "swagger-parser" % "1.0.22" % Test,
+    "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies
 
   val rootDependencies = slf4jBindingDependencies

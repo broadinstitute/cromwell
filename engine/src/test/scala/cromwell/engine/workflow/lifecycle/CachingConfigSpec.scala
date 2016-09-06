@@ -64,7 +64,7 @@ class CachingConfigSpec extends FlatSpec with Matchers {
           MaterializeWorkflowDescriptorActor.validateCallCachingMode(wfOptions, config) match {
             case ScalazSuccess(activity) => verificationFunction(activity)
             case ScalazFailure(errors) =>
-              val errorsList = (List(errors.head) ++ errors.tail).mkString(", ")
+              val errorsList = errors.list.toList.mkString(", ")
               fail(s"Failure generating Call Config Mode: $errorsList")
           }
         case x => fail(s"Unexpected test tuple: $x")

@@ -40,7 +40,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths)) => Future(paths.gcsAuthFilePath.delete(false)) map { _ => () }
+      case (true, Some(paths)) => Future(File(paths.gcsAuthFilePath).delete(false)) map { _ => () }
       case _ => Future.successful(())
     }
   }

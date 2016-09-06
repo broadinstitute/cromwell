@@ -186,12 +186,12 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
 
   private def outputMetadata(metadata: JsObject): Try[Unit] = {
     Try {
-      val path = metadataOutputPath.get
+      val path = File(metadataOutputPath.get)
       if (path.isDirectory) {
         log.error("Specified metadata path is a directory, should be a file: " + path)
       } else {
         log.info(s"$Tag writing metadata to $path")
-        path.createIfNotExists().write(metadata.prettyPrint)
+        path.createIfNotExists(asDirectory = false, createParents = true).write(metadata.prettyPrint)
       }
     }
   }

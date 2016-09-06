@@ -458,8 +458,8 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
         eventually(isFatal) {
           import better.files._
           val (stdout, stderr) = getFirstCallLogs(workflowId, rootActor.underlyingActor.serviceRegistryActor)
-          Paths.get(stdout).contentAsString shouldBe expectedStdoutContent
-          Paths.get(stderr).contentAsString shouldBe expectedStderrContent
+          File(stdout).contentAsString shouldBe expectedStdoutContent
+          File(stderr).contentAsString shouldBe expectedStderrContent
           workflowId
         }
       }

@@ -12,7 +12,7 @@ object PathCopier {
   }
 
   def copy(sourceFilePath: Path, destinationFilePath: Path): Unit = {
-    Option(destinationFilePath.parent).foreach(_.createDirectories())
-    sourceFilePath.copyTo(destinationFilePath)
+    Option(File(destinationFilePath).parent).foreach(_.createDirectories())
+    File(sourceFilePath).copyTo(destinationFilePath)
   }
 }

@@ -14,9 +14,11 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import org.scalatest.{FlatSpecLike, OptionValues, ParallelTestExecution}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpecLike, OptionValues}
 import wdl4s.types._
 import wdl4s.util.AggregatedException
@@ -25,9 +27,11 @@ import wdl4s.values._
 import scala.concurrent.duration._
 
 class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
-  with FlatSpecLike with BackendSpec with MockitoSugar with TableDrivenPropertyChecks with OptionValues {
+  with FlatSpecLike with BackendSpec with MockitoSugar with TableDrivenPropertyChecks with OptionValues with ParallelTestExecution {
 
   behavior of "SharedFileSystemJobExecutionActor"
+
+  override implicit val defaultPatience = PatienceConfig(timeout = Span(60, Seconds), interval = Span(10000, Millis))
 
   def executeSpec(docker: Boolean) = {
     val expectedOutputs: JobOutputs = Map(

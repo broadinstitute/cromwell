@@ -1,6 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.{FileAlreadyExistsException, Path, Paths}
+import java.util.{Calendar}
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
@@ -23,6 +24,7 @@ import wdl4s.WdlExpression
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -265,6 +267,7 @@ trait SharedFileSystemAsyncJobExecutionActor
       tellKvJobId(runningJob)
       jobLogger.info(s"job id: ${runningJob.jobId}")
       tellMetadata(Seq(metadataEvent("jobId", runningJob.jobId)))
+      isAliveCash += runningJob -> IsAliveCash(Calendar.getInstance(), true)
       SharedFileSystemPendingExecutionHandle(jobDescriptor, runningJob)
     }
   }
@@ -323,12 +326,28 @@ trait SharedFileSystemAsyncJobExecutionActor
     }
   }
 
+  //TODO: This maybe should be a config value
+  /** Number of miliseconds between isAlive calls */
+  val isAliveTimeout = 20000
+
+  private case class IsAliveCash(last: Calendar, cash: Boolean)
+  private var isAliveCash: mutable.Map[SharedFileSystemJob, IsAliveCash] = mutable.Map()
+
   def isAlive(job: SharedFileSystemJob): Boolean = {
-    val argv = checkAliveArgs(job).argv
-    val stdout = pathPlusSuffix(jobPaths.stdout, "check")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "check")
-    val checkAlive = new ProcessRunner(argv, stdout, stderr)
-    checkAlive.run() == 0
+    val now = Calendar.getInstance()
+    jobLogger.debug(s"executing isAlive for ${job.jobId}")
+    if (isAliveCash.contains(job) &&
+      isAliveCash(job).cash &&
+      (isAliveCash(job).last.getTimeInMillis + isAliveTimeout) < now.getTimeInMillis) {
+      val argv = checkAliveArgs(job).argv
+      jobLogger.debug(s"Executing shell for ${job.jobId}: " + argv.mkString("'", " ", "'"))
+      val stdout = pathPlusSuffix(jobPaths.stdout, "check")
+      val stderr = pathPlusSuffix(jobPaths.stderr, "check")
+      val checkAlive = new ProcessRunner(argv, stdout, stderr)
+      isAliveCash += job -> IsAliveCash(now, checkAlive.run() == 0)
+    }
+    if (!isAliveCash.contains(job)) isAliveCash += job -> IsAliveCash(Calendar.getInstance(), true)
+    isAliveCash.get(job).map(_.cash).getOrElse(true)
   }
 
   def tryKill(job: SharedFileSystemJob): Unit = {
@@ -396,7 +415,8 @@ trait SharedFileSystemAsyncJobExecutionActor
       case handle: SharedFileSystemPendingExecutionHandle =>
         val runId = handle.run
         jobLogger.debug(s"Polling Job $runId")
-        jobPaths.returnCode.exists match {
+        if (isAlive(runId)) Future.successful(previous)
+        else jobPaths.returnCode.exists match {
           case true =>
             processReturnCode()
           case false =>

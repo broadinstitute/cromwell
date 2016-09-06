@@ -16,7 +16,7 @@ import lenthall.config.ScalaConfig._
 import cromwell.webservice.WorkflowJsonSupport._
 import spray.json._
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -38,7 +38,7 @@ object CromwellServer {
     futureBind andThen {
       case Success(_) =>
         actorSystem.log.info("Cromwell service started...")
-        actorSystem.awaitTermination()
+        Await.result(actorSystem.whenTerminated, Duration.Inf)
       case Failure(throwable) =>
         /*
         TODO:

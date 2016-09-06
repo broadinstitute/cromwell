@@ -39,8 +39,6 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     }
   })
   val factory = new BackendLifecycleActorFactory {
-    override def actorSystem = system
-
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                   calls: Seq[Call],
                                                   serviceRegistryActor: ActorRef): Option[Props] = None

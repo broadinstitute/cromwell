@@ -1,4 +1,3 @@
-
 package cromwell.server
 
 import akka.actor.ActorSystem
@@ -15,5 +14,5 @@ trait CromwellSystem {
 
   def shutdownActorSystem(): Unit = actorSystem.terminate()
 
-  CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries, actorSystem)
+  CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
 }

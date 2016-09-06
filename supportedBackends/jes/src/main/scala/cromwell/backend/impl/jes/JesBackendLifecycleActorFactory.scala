@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
 import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
@@ -15,7 +15,8 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.language.postfixOps
 
-case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
+case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+  extends BackendLifecycleActorFactory {
   import JesBackendLifecycleActorFactory._
 
   val jesConfiguration = new JesConfiguration(configurationDescriptor)

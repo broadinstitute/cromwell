@@ -1,17 +1,16 @@
 package cromwell.engine.backend
 
-import akka.actor.ActorSystem
 import cromwell.backend.BackendLifecycleActorFactory
 
 import scala.language.postfixOps
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Provides a global singleton access to the instantiated backend factories.
   */
-case class CromwellBackends(backendEntries: List[BackendConfigurationEntry], actorSystem: ActorSystem) {
+case class CromwellBackends(backendEntries: List[BackendConfigurationEntry]) {
 
-  val backendLifecycleActorFactories = backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory(actorSystem)).toMap
+  val backendLifecycleActorFactories = backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory).toMap
 
   def backendLifecycleActorFactoryByName(backendName: String): Try[BackendLifecycleActorFactory] = {
     backendLifecycleActorFactories.get(backendName) match {
@@ -38,8 +37,7 @@ object CromwellBackends {
     }
   }
 
-  def initBackends(backendEntries: List[BackendConfigurationEntry],
-                   actorSystem: ActorSystem): Unit = {
-    instance = Option(CromwellBackends(backendEntries, actorSystem))
+  def initBackends(backendEntries: List[BackendConfigurationEntry]): Unit = {
+    instance = Option(CromwellBackends(backendEntries))
   }
 }

@@ -2,7 +2,6 @@ package cromwell.webservice
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
-import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.core
 import cromwell.core._
@@ -15,7 +14,6 @@ import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 import scalaz.NonEmptyList
 
@@ -68,7 +66,6 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
   import CromwellApiHandler._
   import WorkflowJsonSupport._
 
-  implicit val timeout = Timeout(2 seconds)
   val log = Logging(context.system, classOf[CromwellApiHandler])
   val conf = ConfigFactory.load()
 

@@ -158,7 +158,6 @@ class WorkflowActor(val workflowId: WorkflowId,
                     callCacheReadActor: ActorRef)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
-  implicit val actorSystem = context.system
   implicit val ec = context.dispatcher
 
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
@@ -169,7 +168,8 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId), s"MaterializeWorkflowDescriptorActor-$workflowId")
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId),
+        "MaterializeWorkflowDescriptorActor")
       val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
       serviceRegistryActor ! PutMetadataAction(startEvent)
 

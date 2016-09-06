@@ -2,8 +2,7 @@ package cromwell.backend
 
 import java.nio.file.Path
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.routing.RoundRobinPool
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHasherWorkerActor
 import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
@@ -14,9 +13,6 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 
 trait BackendLifecycleActorFactory {
-
-  def actorSystem: ActorSystem
-
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        calls: Seq[Call],
                                        serviceRegistryActor: ActorRef): Option[Props]
@@ -48,7 +44,5 @@ trait BackendLifecycleActorFactory {
   lazy val fileHashingFunction: Option[FileHashingFunction] = None
   lazy val fileHashingWorkerCount: Int = 50
 
-  final lazy val fileContentsHasherActor: ActorRef = actorSystem.actorOf(RoundRobinPool(fileHashingWorkerCount)
-    .props(FileHasherWorkerActor.props(fileHashingFunction)),
-    "FileContentsHasherActor")
+  def fileContentsHasherActorProps: Props = FileHasherWorkerActor.props(fileHashingFunction)
 }

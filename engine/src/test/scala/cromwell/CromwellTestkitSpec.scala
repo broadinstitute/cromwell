@@ -42,7 +42,8 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
-case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
+case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+  extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None

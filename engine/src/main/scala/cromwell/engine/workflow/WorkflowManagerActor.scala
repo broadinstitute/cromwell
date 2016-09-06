@@ -3,7 +3,6 @@ package cromwell.engine.workflow
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
-import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
@@ -95,14 +94,11 @@ class WorkflowManagerActor(config: Config,
            jobStoreActor: ActorRef,
            callCacheReadActor: ActorRef) = this(
     ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
-  implicit val actorSystem = context.system
-  private implicit val timeout = Timeout(5 seconds)
 
   private val maxWorkflowsRunning = config.getConfig("system").getIntOr("max-concurrent-workflows", default=DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").getIntOr("max-workflow-launch-count", default=DefaultMaxWorkflowsToLaunch)
   private val newWorkflowPollRate = config.getConfig("system").getIntOr("new-workflow-poll-rate", default=DefaultNewWorkflowPollRate).seconds
 
-  private val restartDelay: FiniteDuration = 200 milliseconds
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 

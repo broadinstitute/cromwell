@@ -194,7 +194,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       val fauxBackendEntries = List(
         BackendConfigurationEntry("SpecifiedBackend", placeholdingActorFactoryClass, ConfigFactory.parseString("")),
         BackendConfigurationEntry("DefaultBackend", placeholdingActorFactoryClass, ConfigFactory.parseString("")))
-      val cromwellBackends = CromwellBackends(fauxBackendEntries, system)
+      val cromwellBackends = CromwellBackends(fauxBackendEntries)
 
       // Run the test:
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, cromwellBackends))

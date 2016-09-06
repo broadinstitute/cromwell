@@ -14,8 +14,8 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
 import cromwell.core.OutputStore.OutputEntry
 import cromwell.core.WorkflowOptions.WorkflowFailureMode
+import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.{WorkflowId, _}
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
@@ -255,7 +255,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   val tag = s"WorkflowExecutionActor [UUID(${workflowId.shortString})]"
   private lazy val DefaultMaxRetriesFallbackValue = 10
 
-  implicit val actorSystem = context.system
   implicit val ec = context.dispatcher
 
   val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {

@@ -1,6 +1,5 @@
 package cromwell.backend.impl.sfs.config
 
-import akka.actor.ActorSystem
 import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
@@ -12,7 +11,7 @@ import lenthall.config.ScalaConfig._
   *
   * @param configurationDescriptor The config information.
   */
-class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendConfigurationDescriptor, val actorSystem: ActorSystem)
+class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendConfigurationDescriptor)
   extends SharedFileSystemBackendLifecycleActorFactory {
 
   override def initializationActorClass = classOf[ConfigInitializationActor]

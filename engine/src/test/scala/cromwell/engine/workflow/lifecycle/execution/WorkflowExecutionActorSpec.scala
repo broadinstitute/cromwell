@@ -35,7 +35,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
     """.stripMargin
 
   "WorkflowExecutionActor" should {
-    "retry a job 2 times and succeed in the third attempt" in {
+    "retry a job 2 times and succeed in the third attempt" ignore { // Issue #1311 un-ignores this
       import spray.json._
       val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load()))
       val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)

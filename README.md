@@ -330,12 +330,13 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 # Backends
 
 A backend represents a way to run the user's command specified in the `task` section.  Cromwell allows for backends conforming to
-the Cromwell backend specification to be plugged into the Cromwell engine.  Additionally, three backends are included with the
+the Cromwell backend specification to be plugged into the Cromwell engine.  Additionally, backends are included with the
 Cromwell distribution:
 
-* Local - Run jobs as subprocesses.  Supports launching in Docker containers.
-* Sun GridEngine - Use `qsub` and job monitoring to run scripts.
+* Local / GridEngine / LSF / etc. - Run jobs as subprocesses or via a dispatcher.  Supports launching in Docker containers. Use `bash`, `qsub`, `bsub`, etc. to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
+* HtCondor - Allows to execute jobs using HTCondor.
+* Spark - Adds support for execution of spark jobs.
 
 Backends are specified in the `backend` configuration block under `providers`.  Each backend has a configuration that looks like:
 
@@ -358,7 +359,7 @@ backend {
 The structure within the `config` block will vary from one backend to another; it is the backend implementation's responsibility
 to be able to interpret its configuration.
 
-In the example below all three backend types are named within the `providers` section here, so all three
+In the example below two backend types are named within the `providers` section here, so both
 are available.  The default backend is specified by `backend.default` and must match the `name` of one of the
 configured backends:
 
@@ -379,19 +380,6 @@ backend {
           gcs {
             // References an auth scheme defined in the 'google' stanza.
             auth = "application-default"
-          }
-        }
-      }
-    },
-    SGE {
-      actor-factory = "cromwell.backend.impl.sge.SgeBackendLifecycleActorFactory"
-      config {
-        root: "cromwell-executions"
-        filesystems = {
-          local {
-            localization: [
-              "hard-link", "soft-link", "copy"
-            ]
           }
         }
       }
@@ -426,25 +414,21 @@ backend {
 
 ## Backend Filesystems
 
-Each backend will utilize one filesystem to store the directory structure of an executed workflow.  Currently, the backend and the type of filesystem that the backend uses are tightly coupled.  In future versions of Cromwell, they may be more loosely coupled.
+Each backend will utilize filesystems to store the directory structure of an executed workflow.  Currently, the backends and the type of filesystems that the backend use are tightly coupled.  In future versions of Cromwell, they may be more loosely coupled.
 
 The backend/filesystem pairings are as follows:
 
-* [Local Backend](#local-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
-* [SGE Backend](#sun-gridengine-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
+* [Local Backend](#local-backend) and associated backends primarily use the [Shared Local Filesystem](#shared-local-filesystem).
 * [JES Backend](#google-jes-backend) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
 
-Note that while Local and SGE backends use the local filesystem for the directory structure of a workflow, they are able to localize inputs
+Note that while Local, SGE, LSF, etc. backends use the local or network filesystem for the directory structure of a workflow, they are able to localize inputs
 from GCS paths if configured to use a GCS filesystem.  See [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem) for more details.
 
 ### Shared Local Filesystem
 
 For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) backends, the following is required of the underlying filesystem:
 
-* (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
-* (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
-
-Cromwell is configured with a root execution directory which is set in the configuration file under `backend.providers.[Local|SGE].config.root`.  This is called the `cromwell_root` and it is set to `./cromwell-executions` by default.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
+Cromwell is configured with a root execution directory which is set in the configuration file under `backend.providers.<backend_name>.config.root`.  This is called the `cromwell_root` and it is set to `./cromwell-executions` by default.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
 
 When Cromwell runs a workflow, it first creates a directory `<cromwell_root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
@@ -543,7 +527,7 @@ Any input files to a call need to be localized into the `<call_dir>`.  There are
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
 * `copy` - Make a copy the file
 
-Shared filesystem localization is defined in the `config` section of each backend.  The default stanza for the Local and SGE backends looks like this:
+Shared filesystem localization is defined in the `config` section of each backend.  The default stanza for the Local, SGE, and associated backends looks like this:
 
 ```
 filesystems {
@@ -558,13 +542,13 @@ filesystems {
 ### Google Cloud Storage Filesystem
 
 On the JES backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
-On the Local and SGE backends any GCS URI will be downloaded locally.  For the JES backend the `jes_gcs_root` [workflow option](#workflow-options) will take
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the JES backend the `jes_gcs_root` [workflow option](#workflow-options) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the JES backend.
 
 ## Local Backend
 
-The local backend will simply launch a subprocess for each task invocation and wait for it to exit.
+The local backend will simply launch a subprocess for each task invocation and wait for it to produce its rc file.
 
 This backend creates three files in the `<call_dir>` (see previous section):
 
@@ -583,22 +567,22 @@ echo $? > rc
 
 `<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/root/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
 
-The subprocess command that the local backend will launch is:
+When running without docker, the subprocess command that the local backend will launch is:
 
 ```
-"/bin/bash" "-c" "cat script | <docker_run> /bin/bash <&0"
+/bin/bash <script>"
 ```
 
-Where `<docker_run>` will be non-empty if this particular task specified a Docker container to run in.  `<docker_run>` looks like this:
+When running with docker, the subprocess command that the local backend will launch is:
 
 ```
-docker run --rm -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
+docker run --rm -v <cwd>:<docker_cwd> -i <docker_image> /bin/bash < <script>
 ```
 
 > **NOTE**: If you are using the local backend with Docker and Docker Machine on Mac OS X, by default Cromwell can only
 > run from in any path under your home directory.
 >
-> The `-v` flag will only work if `<local_workflow_dir>` is within your home directory because VirtualBox with
+> The `-v` flag will only work if `<cwd>` is within your home directory because VirtualBox with
 > Docker Machine only exposes the home directory by default.  Any local path used in `-v` that is not within the user's
 > home directory will silently be interpreted as references to paths on the VirtualBox VM.  This can manifest in
 > Cromwell as tasks failing for odd reasons (like missing RC file)
@@ -607,36 +591,230 @@ docker run --rm -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
 
 ## Sun GridEngine Backend
 
-The GridEngine backend uses `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
+The GridEngine and similar backends use programs such as `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
+
+The backend is specified via the actor factory `ConfigBackendLifecycleActorFactory`:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+        // ... other configuration
+      }
+    }
+  }
+}
+```
 
 This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
 
-The CWD will contain a `script.sh` file which will contain:
+The CWD will contain a `script.sh` file which will contain the same contents as the Local backend:
 
 ```
-\#!/bin/sh
+#!/bin/sh
+cd <container_call_root>
 <user_command>
 echo $? > rc
 ```
 
-The job is launched using the following command:
+The job is launched with a configurable command such as:
 
+```bash
+qsub \
+    -terse \
+    -V \
+    -b n \
+    -N ${job_name} \
+    -wd ${cwd} \
+    -o ${out} \
+    -e ${err} \
+    -pe smp ${cpu} \
+    ${"-l m_mem_free=" + memory_gb + "gb"} \
+    ${"-q " + sge_queue} \
+    ${"-P " + sge_project} \
+    ${script}
 ```
-qsub -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
-```
-
-`<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
-
-the `<call_dir>` contains the following special files added by the SGE backend:
-
-* `qsub.stdout`, `qsub.stderr` - The results of the qsub command.
-* `script.sh` - File containing the user's command and some wrapper code.
-* `stdout`, `stderr` - Standard output streams of the actual job.
-* `rc` - Return code of the SGE job, populated when the job has finished.
 
 The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
 
 Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+The command used to submit the job is specified under the configuration key `backend.providers.SGE.config.submit`. It uses the same syntax as a command in WDL, and will be provided the variables:
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `cwd` - The path where the script should be run.
+* `out` - The path to the stdout.
+* `err` - The path to the stderr.
+* `job_name` - A unique name for the job.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        submit = """
+        qsub \
+            -terse \
+            -V \
+            -b n \
+            -N ${job_name} \
+            -wd ${cwd} \
+            -o ${out} \
+            -e ${err} \
+            ${script}
+        """
+      }
+    }
+  }
+}
+```
+
+If the backend supports docker, another optional configuration key `backend.providers.<backend>.config.submit-docker` may be specified. When the WDL contains a docker runtime attribute, this command will be provided the two additional variables:
+
+* `docker` - The docker image name.
+* `docker_cwd` - The path where `cwd` should be mounted within the docker container.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        submit-docker = """
+        qsub \
+            -terse \
+            -V \
+            -b n \
+            -N ${job_name} \
+            -wd ${cwd} \
+            -o ${out} \
+            -e ${err} \
+            -l docker,docker_images="${docker}"
+            -xdv ${cwd}:${docker_cwd}
+            ${script}
+        """
+      }
+    }
+  }
+}
+```
+
+If the backend would like to support additional runtime attributes they may be specified in the configuration key `backend.providers.<backend>.config.runtime-attributes`. It uses the same syntax as specifying runtime attributes in a task in WDL.
+
+There are two special runtime attribute configurations, `cpu`, and `memory_<unit>`.
+
+When the runtime attribute configuration `Int cpu` is specified, it is always validated as a positive integer.
+
+When the runtime attribute configuration `Int memory_<unit>` or `Float memory_<unit>` is specified, it is provided to submit by the runtime attribute in WDL `memory`.
+
+For example, if the backend specifies the configuration for `backend.providers.<backend>.config.runtime-attributes` as:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        runtime-attributes = "Float memory_mb"
+      }
+    }
+  }
+}
+```
+
+And the WDL specifies a task with:
+
+```
+task hello_gigabyte {
+  command { echo "hello world" }
+  runtime { memory: "1 GB" }
+}
+```
+
+Then for this call, the backend will be provided an additional variable `memory_mb` set to `1000.0`.
+
+Other runtime attributes may be defined by specifying them in under the runtime attributes configuration.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        runtime-attributes = """
+        Float memory_mb
+        String sge_project
+        """
+      }
+    }
+  }
+}
+```
+
+These variables will then be passed from the WDL into the submit configuration. If one would like to have a default value, just like in WDL, the configuration may specify that the value have a default. The default must match the defined type or an error will be produced.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        runtime-attributes = """
+        Float memory_mb = 2.0
+        String sge_project = "default"
+        """
+      }
+    }
+  }
+}
+```
+
+Optional values may also be used by appending `?` to the type:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        runtime-attributes = """
+        Float? memory_mb
+        String? sge_project
+        """
+      }
+    }
+  }
+}
+```
+
+The value will be passed to the submit configuration if provided, and omitted otherwise.
+
+There are also configuration values related to how jobs are rechecked on startup and aborted.
+
+The option is `backend.providers.<backend>.config.run-in-background`. When `true` the backend runs the submit configuration and records the unix process id (PID). To abort the job, the PID is stopped with the unix command `kill`. Upon a cromwell restart, the PID is checked via the unix command `ps` to see if it is still alive, before cromwell goes back to polling for the `rc` file.
+
+When `backend.providers.<backend>.config.run-in-background` is `false`, the default, the backend must specify how read the job identifier from the stdout of the submit, how to kill the job, and how to check if the job is still running during a cromwell restart. These three configuration values are `job-id-regex`, `kill`, and `check-alive`, respectively:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        // ... other configuration
+        job-id-regex = "(\\d+)"
+        kill = "qdel ${job_id}"
+        check-alive = "qstat -j ${job_id}"
+        """
+      }
+    }
+  }
+}
+```
+
+The `job-id-regex` should contain one capture group while matching against the whole line or stdout file. The `check-alive` should return zero if the job is still alive.
 
 ## HtCondor Backend
 
@@ -1063,12 +1241,12 @@ This table lists the currently available runtime attributes for cromwell:
 | Runtime Attribute    | LOCAL |  JES  |  SGE  |
 | -------------------- |:-----:|:-----:|:-----:|
 | continueOnReturnCode |   x   |   x   |   x   |
-| cpu                  |       |   x   |       |
+| cpu                  |       |   x   |   x   |
 | disks                |       |   x   |       |
 | zones                |       |   x   |       |
 | docker               |   x   |   x   |   x   |
 | failOnStderr         |   x   |   x   |   x   |
-| memory               |       |   x   |       |
+| memory               |       |   x   |   x   |
 | preemptible          |       |   x   |       |
 | bootDiskSizeGb       |       |   x   |       |
 
@@ -1089,6 +1267,8 @@ task runtime_test {
   }
 }
 ```
+
+SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](#sun-gridengine-backend) for more information.
 
 ## Specifying Default Values
 
@@ -1170,6 +1350,8 @@ Defaults to "0".
 ## cpu
 
 Passed to JES: "The minimum number of cores to use."
+
+Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of number of cores.
 
 ```
 runtime {
@@ -1262,6 +1444,8 @@ Defaults to "false".
 ## memory
 
 Passed to JES: "The minimum amount of RAM to use."
+
+Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of memory.
 
 The memory size is specified as an amount and units of memory, for example "4 G".
 

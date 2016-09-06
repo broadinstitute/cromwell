@@ -13,7 +13,7 @@ trait CromwellSystem {
   val logger = LoggerFactory.getLogger(getClass.getName)
   implicit final lazy val actorSystem = newActorSystem()
 
-  def shutdownActorSystem(): Unit = actorSystem.shutdown()
+  def shutdownActorSystem(): Unit = actorSystem.terminate()
 
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries, actorSystem)
 }

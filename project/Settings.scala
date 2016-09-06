@@ -42,7 +42,7 @@ object Settings {
   val commonSettings = releaseSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
-    scalaVersion := "2.11.7",
+    scalaVersion := "2.11.8",
     resolvers ++= commonResolvers,
     scalacOptions ++= compilerSettings,
     parallelExecution := false

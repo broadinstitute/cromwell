@@ -11,10 +11,10 @@ trait TestFileUtil {
       case Some(path) => Files.createTempFile(path, prefix, suffix)
       case None => Files.createTempFile(prefix, suffix)
     }
-    file.write(contents).path
+    File(file).write(contents).path
   }
 
   def createFile(name: String, dir: Path, contents: String) = {
-    dir.createDirectories()./(name).write(contents).path
+    File(dir).createDirectories()./(name).write(contents).path
   }
 }

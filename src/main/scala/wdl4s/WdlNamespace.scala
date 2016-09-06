@@ -293,7 +293,7 @@ object WdlNamespace {
 
   private def localImportResolver(path: String): WdlSource = readFile(Paths.get(path))
 
-  private def readFile(wdlFile: Path): WdlSource = wdlFile.contentAsString
+  private def readFile(wdlFile: Path): WdlSource = File(wdlFile).contentAsString
 }
 
 object NamespaceWithWorkflow {

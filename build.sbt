@@ -4,7 +4,7 @@ name := "lenthall"
 
 organization := "org.broadinstitute"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
 // Upcoming release, or current if we're on the master branch
 git.baseVersion := "0.18"
@@ -19,22 +19,22 @@ versionWithGit
 
 val sprayV = "1.3.3"
 
-val akkaV = "2.3.12"
+val akkaV = "2.4.10"
 
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.2.1",
-  "org.slf4j" % "slf4j-api" % "1.7.7",
+  "com.typesafe" % "config" % "1.3.0",
+  "org.slf4j" % "slf4j-api" % "1.7.21",
   //---------- Provided libraries -------------------//
-  "org.scalaz" %% "scalaz-core" % "7.1.4" % Provided,
-  "ch.qos.logback" % "logback-classic" % "1.1.3" % Provided,
-  "org.webjars" % "swagger-ui" % "2.1.1" % Provided,
+  "org.scalaz" %% "scalaz-core" % "7.2.5" % Provided,
+  "ch.qos.logback" % "logback-classic" % "1.1.7" % Provided,
+  "org.webjars" % "swagger-ui" % "2.2.2" % Provided,
   "io.spray" %% "spray-routing" % sprayV % Provided,
   "io.spray" %% "spray-http" % sprayV % Provided,
   "io.spray" %% "spray-can" % sprayV % Provided,
   "com.typesafe.akka" %% "akka-actor" % akkaV % Provided,
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
-  "org.scalatest" %% "scalatest" % "2.2.5" % Test
+  "org.scalatest" %% "scalatest" % "3.0.0" % Test
 )
 
 shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), git.baseVersion.value)}
@@ -64,3 +64,5 @@ testOptions in Test += Tests.Setup(classLoader =>
     .getMethod("getLogger", classLoader.loadClass("java.lang.String"))
     .invoke(null, "ROOT")
 )
+
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI")

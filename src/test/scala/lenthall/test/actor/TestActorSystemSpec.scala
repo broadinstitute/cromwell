@@ -5,6 +5,7 @@ import akka.testkit._
 import lenthall.test.actor.TestActorSystem._
 import org.scalatest.{Assertions, FlatSpec, Matchers}
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class TestActorSystemSpec extends FlatSpec with Matchers with Assertions {
@@ -15,10 +16,10 @@ class TestActorSystemSpec extends FlatSpec with Matchers with Assertions {
     withActorSystem { system =>
       system.name should be("test-system")
       lentSystem = system
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
-    // Should always be terminated
-    assert(lentSystem.isTerminated)
+    // Should always be completed
+    assert(lentSystem.whenTerminated.isCompleted)
   }
 
   it should "create and start shutting down a named system" in {
@@ -28,9 +29,9 @@ class TestActorSystemSpec extends FlatSpec with Matchers with Assertions {
       system.name should be("my-name")
       timeout = 1.second.dilated(system)
       lentSystem = system
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
     // As we told the block not to wait, we're going to wait a bit for this termination
-    lentSystem.awaitTermination(timeout)
+    Await.ready(lentSystem.whenTerminated, timeout)
   }
 }

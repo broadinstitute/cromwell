@@ -26,7 +26,7 @@ trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with Swa
 SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestSwaggerUiVersion = "2.1.1"
+  val TestSwaggerUiVersion = "2.2.2"
   val SwaggerIndexPreamble =
     """
       |<!DOCTYPE html>

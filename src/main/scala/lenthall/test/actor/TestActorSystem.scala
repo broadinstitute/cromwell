@@ -2,6 +2,9 @@ package lenthall.test.actor
 
 import akka.actor.ActorSystem
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 /**
  * Provides an individual ActorSystem for tests.
  * An alternative to the NOT thread-safe TestKit, that may run into problems with parallel testing.
@@ -17,9 +20,9 @@ object TestActorSystem {
     try {
       f(system)
     } finally {
-      system.shutdown()
+      system.terminate()
       if (awaitTermination)
-        system.awaitTermination()
+        Await.ready(system.whenTerminated, Duration.Inf)
     }
   }
 }

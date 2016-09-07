@@ -144,7 +144,7 @@ object AstTools {
    * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
    * @throws WdlParser.SyntaxError if there was a problem parsing the source code
    */
-  def getAst(wdlFile: Path): Ast = getAst(wdlFile.contentAsString, wdlFile.name)
+  def getAst(wdlFile: Path): Ast = getAst(File(wdlFile).contentAsString, File(wdlFile).name)
 
   def findAsts(ast: AstNode, name: String): Seq[Ast] = {
     ast match {

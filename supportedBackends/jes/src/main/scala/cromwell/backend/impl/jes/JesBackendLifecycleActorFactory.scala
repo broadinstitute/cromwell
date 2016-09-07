@@ -35,12 +35,14 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
     JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
   }
 
-  override def cacheHitCopyingActorProps(jobDescriptor: BackendJobDescriptor,
+  override def cacheHitCopyingActorProps = Option(cacheHitCopyingActorInner _)
+
+  def cacheHitCopyingActorInner(jobDescriptor: BackendJobDescriptor,
                                          initializationData: Option[BackendInitializationData],
-                                         serviceRegistryActor: ActorRef): Option[Props] = {
+                                         serviceRegistryActor: ActorRef): Props = {
     // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
     // invocation, so the `get` here is safe.
-    Option(JesCacheHitCopyingActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher))
+    JesCacheHitCopyingActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,

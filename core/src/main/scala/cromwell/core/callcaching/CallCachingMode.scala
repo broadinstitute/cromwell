@@ -17,8 +17,7 @@ case object CallCachingOff extends CallCachingMode {
   override val withoutWrite = this
 }
 
-case class CallCachingActivity(readWriteMode: ReadWriteMode) extends CallCachingMode
-{
+case class CallCachingActivity(readWriteMode: ReadWriteMode) extends CallCachingMode {
   override val readFromCache = readWriteMode.r
   override val writeToCache = readWriteMode.w
   override lazy val withoutRead: CallCachingMode = if (!writeToCache) CallCachingOff else this.copy(readWriteMode = WriteCache)

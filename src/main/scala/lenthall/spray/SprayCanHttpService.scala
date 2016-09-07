@@ -12,8 +12,8 @@ import spray.can.server.ServerSettings
 import spray.io.ServerSSLEngineProvider
 
 import scala.collection.immutable
+import scala.concurrent._
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 
 /**
  * Adds bind and unbind to http services running on spray-can.
@@ -51,8 +51,13 @@ object SprayCanHttpService {
       bind(interface, port, backlog, options, settings) recover {
         case throwable =>
           actorSystem.log.error(throwable, s"Binding failed interface $interface port $port")
-          actorSystem.shutdown()
-          actorSystem.awaitTermination()
+          actorSystem.terminate()
+          /*
+          Using scala's Await.ready due to akka recommendations:
+          - http://doc.akka.io/docs/akka/2.4/project/migration-guide-2.3.x-2.4.x.html#Actor_system_shutdown
+          - https://github.com/akka/akka/blob/v2.4.10/akka-actor/src/main/scala/akka/actor/ActorSystem.scala#L664-L665
+           */
+          Await.ready(actorSystem.whenTerminated, Duration.Inf)
           throw throwable
       }
     }
@@ -75,8 +80,13 @@ object SprayCanHttpService {
     : Future[Unbound] = {
       unbind(duration) andThen {
         case _ =>
-          actorSystem.shutdown()
-          actorSystem.awaitTermination()
+          actorSystem.terminate()
+          /*
+          Using scala's Await.ready due to akka recommendations:
+          - http://doc.akka.io/docs/akka/2.4/project/migration-guide-2.3.x-2.4.x.html#Actor_system_shutdown
+          - https://github.com/akka/akka/blob/v2.4.10/akka-actor/src/main/scala/akka/actor/ActorSystem.scala#L664-L665
+           */
+          Await.ready(actorSystem.whenTerminated, Duration.Inf)
       }
     }
 

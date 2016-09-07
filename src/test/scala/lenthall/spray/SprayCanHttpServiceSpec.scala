@@ -37,7 +37,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       port should be > 0
       unbound should be(Http.Unbound)
 
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
   }
 
@@ -55,7 +55,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       port should be > 0
       unbound should be(Http.Unbound)
 
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
   }
 
@@ -73,7 +73,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       port should be > 0
       unbound should be(Http.Unbound)
 
-      assert(system.isTerminated)
+      assert(system.whenTerminated.isCompleted)
     }
   }
 
@@ -90,7 +90,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       exception should be(an[IllegalArgumentException])
       exception.getMessage should be("port out of range:-1")
 
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
   }
 
@@ -107,7 +107,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       exception should be(an[IllegalArgumentException])
       exception.getMessage should be("port out of range:-1")
 
-      assert(system.isTerminated)
+      assert(system.whenTerminated.isCompleted)
     }
   }
 
@@ -127,7 +127,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       exception should be(a[BindFailedException])
       unbound should be(Http.Unbound)
 
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
   }
 
@@ -164,7 +164,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       unbound should be(Http.Unbound)
       exception should be(an[UnbindTimeoutException])
 
-      assert(!system.isTerminated)
+      assert(!system.whenTerminated.isCompleted)
     }
   }
 
@@ -184,7 +184,7 @@ class SprayCanHttpServiceSpec extends FlatSpec with Matchers with ScalaFutures w
       unbound should be(Http.Unbound)
       exception should be(an[UnbindTimeoutException])
 
-      assert(system.isTerminated)
+      assert(system.whenTerminated.isCompleted)
     }
   }
 

@@ -42,9 +42,10 @@ case class EngineJobHashingActor(receiver: ActorRef,
   }
 
   whenUnhandled {
-    case Event(failure: CacheResultLookupFailure, _) =>
-      // Crash and let the supervisor deal with it.
-      throw new RuntimeException("Failure looking up call cache results", failure.reason)
+    case Event(CacheResultLookupFailure(reason), _) =>
+      receiver ! HashError(new Exception(s"Failure looking up call cache results: ${reason.getMessage}"))
+      context.stop(self)
+      stay
     case Event(HashingFailedMessage(hashKey, reason), _) =>
       receiver ! HashError(new Exception(s"Unable to generate ${hashKey.key} hash. Caused by ${reason.getMessage}", reason))
       context.stop(self)
@@ -117,10 +118,8 @@ case class EngineJobHashingActor(receiver: ActorRef,
   }
 
   private def respondWithHitOrMissThenTransition(newData: EJHAData) = {
-    val hitOrMissResponse = newData.cacheHit match {
-      case Some(cacheResultId) => CacheHit(cacheResultId)
-      case None => CacheMiss
-    }
+    val hitOrMissResponse: EJHAResponse = newData.cacheHit map CacheHit getOrElse CacheMiss
+
     receiver ! hitOrMissResponse
     if (!activity.writeToCache) {
       context.stop(self)
@@ -195,11 +194,11 @@ object EngineJobHashingActor {
 
   sealed trait EJHAResponse
   case class CacheHit(cacheResultId: MetaInfoId) extends EJHAResponse
-  case object CacheMiss
-  case class HashError(t: Throwable) {
+  case object CacheMiss extends EJHAResponse
+  case class HashError(t: Throwable) extends EJHAResponse {
     override def toString = s"HashError(${t.getMessage})"
   }
-  case class CallCacheHashes(hashes: Set[HashResult])
+  case class CallCacheHashes(hashes: Set[HashResult]) extends EJHAResponse
   object UnspecifiedRuntimeAttributeHashValue extends HashValue("N/A")
 
   implicit class StringMd5er(unhashedString: String) {

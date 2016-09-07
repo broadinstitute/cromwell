@@ -38,11 +38,16 @@ trait BackendLifecycleActor extends Actor {
   protected def configurationDescriptor: BackendConfigurationDescriptor
 
   protected def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
-                                         onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse) = {
+                                         onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse,
+                                         andThen: => Unit = ()) = {
     val respondTo: ActorRef = sender
     operation onComplete {
-      case Success(r) => respondTo ! r
-      case Failure(t) => respondTo ! onFailure(t)
+      case Success(r) =>
+        respondTo ! r
+        andThen
+      case Failure(t) =>
+        respondTo ! onFailure(t)
+        andThen
     }
   }
 }

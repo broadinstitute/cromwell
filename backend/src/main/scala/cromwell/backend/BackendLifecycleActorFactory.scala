@@ -8,9 +8,10 @@ import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHasherWorkerActor
 import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
 import cromwell.backend.io.WorkflowPaths
-import cromwell.core.{ExecutionStore, OutputStore}
+import cromwell.core.{ExecutionStore, JobOutputs, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
+
 
 trait BackendLifecycleActorFactory {
 
@@ -24,6 +25,10 @@ trait BackendLifecycleActorFactory {
                              initializationData: Option[BackendInitializationData],
                              serviceRegistryActor: ActorRef): Props
 
+  def cacheHitCopyingActorProps(jobDescriptor: BackendJobDescriptor,
+                                initializationData: Option[BackendInitializationData],
+                                serviceRegistryActor: ActorRef): Option[Props] = None
+
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],
                                      executionStore: ExecutionStore,
@@ -35,7 +40,7 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
-      new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot
+    new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot
   }
 
   def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = Set.empty

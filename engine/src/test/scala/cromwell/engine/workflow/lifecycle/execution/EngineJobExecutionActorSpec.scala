@@ -47,6 +47,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                         initializationData: Option[BackendInitializationData],
                                         serviceRegistryActor: ActorRef): Props = mockBackendProps
+
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey, initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
       NoFunctions
     }
@@ -179,7 +180,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       def ejeaInRunningState() = {
         val ejea = buildEJEA(restarting = true)
-        ejea.setState(stateName = RunningJob, stateData = EmptyPartialCompletionData)
+        ejea.setState(stateName = RunningJob, stateData = ResponsePendingData(null, Props.empty))
         ejea
       }
 

@@ -5,7 +5,7 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.core._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import cromwell.webservice.WdlValueJsonFormatter
+import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import wdl4s.Scope
 
 import scala.language.postfixOps

@@ -35,24 +35,38 @@ trait BackendSpec extends ScalaFutures with Matchers {
   }
 
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
-                                          inputs: Map[String, WdlValue] = Map.empty): BackendJobDescriptor = {
+                                          inputs: Map[String, WdlValue],
+                                          options: WorkflowOptions,
+                                          runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    BackendJobDescriptor(workflowDescriptor, jobKey, Map.empty, inputs)
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputs).get // .get is OK here because this is a test
+    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputs)
   }
 
-  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource): BackendJobDescriptor = {
+  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
+                                          options: WorkflowOptions,
+                                          runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    BackendJobDescriptor(workflowDescriptor, jobKey, Map.empty, workflowDescriptor.inputs)
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, workflowDescriptor.inputs).get // .get is OK here because this is a test
+    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, workflowDescriptor.inputs)
   }
 
-  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource, runtime: String, attempt: Int): BackendJobDescriptor = {
+  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
+                                          runtime: String,
+                                          attempt: Int,
+                                          options: WorkflowOptions,
+                                          runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
-    BackendJobDescriptor(workflowDescriptor, jobKey, Map.empty, workflowDescriptor.inputs)
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, workflowDescriptor.inputs).get // .get is OK here because this is a test
+    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, workflowDescriptor.inputs)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -66,7 +80,6 @@ trait BackendSpec extends ScalaFutures with Matchers {
             expectedOut.get.wdlValue.valueString shouldBe out.wdlValue.valueString
         }
       case (FailedNonRetryableResponse(_, failure, _), FailedNonRetryableResponse(_, expectedFailure, _)) =>
-        // TODO improve this
         failure.getClass shouldBe expectedFailure.getClass
         failure.getMessage should include(expectedFailure.getMessage)
       case (FailedRetryableResponse(_, failure, _), FailedRetryableResponse(_, expectedFailure, _)) =>
@@ -95,7 +108,8 @@ trait BackendSpec extends ScalaFutures with Matchers {
     BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, inputs)
   }
 
-  def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = "") = {
+  @deprecated("This is an unnecessarily circuitous way of generating a Seq[Map[String, WdlValue]]...", "Sep 2 2016")
+  def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = ""): Seq[Map[String, WdlValue]] = {
     val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
 
     def createLookup(call: Call): ScopedLookupFunction = {

@@ -1,14 +1,15 @@
 package cromwell.backend.sfs
 
 import cromwell.backend.BackendSpec._
+import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation._
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
-import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString, JsValue}
-import wdl4s.values.WdlValue
+import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
+import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Matchers with Mockito {
 
@@ -31,6 +32,7 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       |}
     """.stripMargin
 
+
   val defaultRuntimeAttributes = Map(
     DockerKey -> None,
     FailOnStderrKey -> false,
@@ -41,45 +43,31 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
   }
 
   "SharedFileSystemValidatedRuntimeAttributesBuilder" should {
-    "return an instance of itself when there are no runtime attributes defined." in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
+    "validate when there are no runtime attributes defined" in {
+      val runtimeAttributes = Map.empty[String, WdlValue]
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, defaultRuntimeAttributes)
     }
 
-    "return an instance of itself when tries to validate a valid Docker entry" in {
+    "validate a valid Docker entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"))
       val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("ubuntu:latest"))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" }""").head
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "return an instance of itself when tries to validate a valid Docker entry based on input" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("you"))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "\${addressee}" }""").head
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "use workflow options as default if docker key is missing" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("ubuntu:latest"))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
-      val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(Map(DockerKey -> JsString("ubuntu:latest")))
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        workflowOptions = workflowOptions)
-    }
-
-    "throw an exception when tries to validate an invalid Docker entry" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: 1 }""").head
+    "fail to validate an invalid Docker entry" in {
+      val runtimeAttributes = Map("docker" -> WdlInteger(1))
       assertRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
     }
 
-    "return an instance of itself when tries to validate a valid failOnStderr entry" in {
+    "validate a valid failOnStderr entry" in {
+      val runtimeAttributes = Map("failOnStderr" -> WdlBoolean(true))
       val expectedRuntimeAttributes = defaultRuntimeAttributes + (FailOnStderrKey -> true)
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "true" }""").head
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "log a warning and return an instance of itself when tries to validate a valid Docker entry" in {
+    "log a warning and validate a valid Docker entry" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" }""").head
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"))
       val mockWarnings = new MockWarnings
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
         includeDockerSupport = false, logger = mockWarnings.mockLogger)
@@ -88,9 +76,9 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       message should include("Unrecognized runtime attribute keys: docker")
     }
 
-    "log a warning and return an instance of itself when tries to validate a valid Docker entry based on input" in {
+    "log a warning and fail to validate an invalid Docker entry" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "\${addressee}" }""").head
+      val runtimeAttributes = Map("docker" -> WdlInteger(1))
       val mockWarnings = new MockWarnings
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
         includeDockerSupport = false, logger = mockWarnings.mockLogger)
@@ -99,66 +87,39 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       message should include("Unrecognized runtime attribute keys: docker")
     }
 
-    "log a warning and throw an exception when tries to validate an invalid Docker entry" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: 1 }""").head
-      val mockWarnings = new MockWarnings
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        includeDockerSupport = false, logger = mockWarnings.mockLogger)
-      mockWarnings.warnings.size should be(1)
-      val message = mockWarnings.warnings.head
-      message should include("Unrecognized runtime attribute keys: docker")
-    }
-
-    "throw an exception when tries to validate an invalid failOnStderr entry" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { failOnStderr: "yes" }""").head
+    "fail to validate an invalid failOnStderr entry" in {
+      val runtimeAttributes = Map("failOnStderr" -> WdlString("yes"))
       assertRuntimeAttributesFailedCreation(runtimeAttributes,
         "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
     "use workflow options as default if failOnStdErr key is missing" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes + (FailOnStderrKey -> true)
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
       val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(Map(FailOnStderrKey -> JsBoolean(true)))
+      val runtimeAttributes = Map.empty[String, WdlValue]
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
         workflowOptions = workflowOptions)
     }
 
-    "return an instance of itself when tries to validate a valid continueOnReturnCode entry" in {
-      val expectedRuntimeAttributes = defaultRuntimeAttributes +
-        (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { continueOnReturnCode: 1 }""").head
+    "validate a valid continueOnReturnCode entry" in {
+      val runtimeAttributes = Map("continueOnReturnCode" -> WdlInteger(1))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "throw an exception when tries to validate an invalid continueOnReturnCode entry" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { continueOnReturnCode: "value" }""").head
-      assertRuntimeAttributesFailedCreation(runtimeAttributes,
-        "Expecting continueOnReturnCode runtime attribute to be either " +
-          "a Boolean, a String 'true' or 'false', or an Array[Int]")
+    "fail to validate an invalid continueOnReturnCode entry" in {
+      val runtimeAttributes = Map("continueOnReturnCode" -> WdlString("value"))
+      assertRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
     }
 
     "use workflow options as default if continueOnReturnCode key is missing" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes +
         (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1, 2)))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { }""").head
       val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(
         Map(ContinueOnReturnCodeKey -> JsArray(Vector(JsNumber(1), JsNumber(2)))))
+      val runtimeAttributes = Map.empty[String, WdlValue]
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
         workflowOptions = workflowOptions)
-    }
-
-    "warn for unrecognized keys" in {
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld,
-        """runtime { whatIsThis: "noIdea" andThis: "donno" }""").head
-      val mockWarnings = new MockWarnings
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, defaultRuntimeAttributes,
-        logger = mockWarnings.mockLogger)
-      mockWarnings.warnings.size should be(1)
-      val message = mockWarnings.warnings.head
-      message should include("Unrecognized runtime attribute keys:")
-      message should include("whatIsThis")
-      message should include("andThis")
     }
 
     /**
@@ -193,7 +154,10 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
     } else {
       SharedFileSystemValidatedRuntimeAttributesBuilder.default
     }
-    val validatedRuntimeAttributes = builder.build(runtimeAttributes, workflowOptions, logger)
+    val runtimeAttributeDefinitions = builder.definitions.toSet
+    val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
+
+    val validatedRuntimeAttributes = builder.build(addDefaultsToAttributes(runtimeAttributes), logger)
 
     val docker = RuntimeAttributesValidation.extractOption(
       DockerValidation.instance, validatedRuntimeAttributes)
@@ -218,7 +182,10 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       } else {
         SharedFileSystemValidatedRuntimeAttributesBuilder.default
       }
-      builder.build(runtimeAttributes, workflowOptions, logger)
+      val runtimeAttributeDefinitions = builder.definitions.toSet
+      val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
+
+      builder.build(addDefaultsToAttributes(runtimeAttributes), logger)
     }
     thrown.getMessage should include(exMsg)
   }

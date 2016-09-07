@@ -38,8 +38,7 @@ trait BackendLifecycleActorFactory {
       new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot
   }
 
-  def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
-  Set[RuntimeAttributeDefinition] = Set.empty
+  def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = Set.empty
 
   lazy val fileHashingFunction: Option[FileHashingFunction] = None
   lazy val fileHashingWorkerCount: Int = 50

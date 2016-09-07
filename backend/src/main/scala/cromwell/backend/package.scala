@@ -3,7 +3,10 @@ package cromwell
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.{JobKey, WorkflowId, WorkflowOptions}
+import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import wdl4s._
+import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 import scala.language.postfixOps
@@ -60,6 +63,4 @@ package object backend {
   }
 
   case class PreemptedException(msg: String) extends Exception(msg)
-
-  case class RuntimeAttributeDefinition(name: String, required: Boolean, default: Option[WdlValue], usedInCallCaching: Boolean)
 }

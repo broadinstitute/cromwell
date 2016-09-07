@@ -47,25 +47,12 @@ trait ValidatedRuntimeAttributesBuilder {
 
   def unsupportedKeys(keys: Seq[String]): Seq[String] = keys.diff(validationKeys)
 
-  private lazy val coercionMap: Map[String, Traversable[WdlType]] =
-    validations.map(attr => attr.key -> attr.coercion).toMap
-
   private lazy val validationKeys = validations.map(_.key)
 
-  private lazy val staticDefaults: Map[String, WdlValue] = (validations collect {
-    case attr if attr.staticDefaultOption.isDefined => attr.key -> attr.staticDefaultOption.get
-  }).toMap
+  def build(attrs: Map[String, WdlValue], logger: Logger): ValidatedRuntimeAttributes = {
+    RuntimeAttributesValidation.warnUnrecognized(attrs.keySet, validationKeys.toSet, logger)
 
-  def build(attrs: Map[String, WdlValue], options: WorkflowOptions, logger: Logger): ValidatedRuntimeAttributes = {
-    import RuntimeAttributesDefault._
-
-    // Fail now if some workflow options are specified but can't be parsed correctly
-    val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
-    val withDefaultValues: Map[String, WdlValue] = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
-
-    RuntimeAttributesValidation.warnUnrecognized(withDefaultValues.keySet, validationKeys.toSet, logger)
-
-    val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(withDefaultValues)
+    val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(attrs)
     runtimeAttributesErrorOr match {
       case Success(runtimeAttributes) => runtimeAttributes
       case Failure(nel) => throw new RuntimeException with MessageAggregation {

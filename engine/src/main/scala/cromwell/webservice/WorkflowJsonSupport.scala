@@ -6,7 +6,8 @@ import cromwell.core.WorkflowSourceFiles
 import cromwell.engine._
 import cromwell.services.metadata.MetadataService
 import MetadataService.{WorkflowQueryResponse, WorkflowQueryResult}
-import cromwell.webservice.WdlValueJsonFormatter._
+import cromwell.util.JsonFormatting.WdlValueJsonFormatter
+import WdlValueJsonFormatter._
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {

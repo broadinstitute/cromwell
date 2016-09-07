@@ -1,7 +1,8 @@
 package cromwell.jobstore
 
 import cromwell.core.JobOutput
-import cromwell.webservice.WdlValueJsonFormatter.WdlValueJsonFormat
+import cromwell.util.JsonFormatting.WdlValueJsonFormatter
+import WdlValueJsonFormatter.WdlValueJsonFormat
 import spray.json.{DefaultJsonProtocol, JsValue, RootJsonFormat, _}
 
 object JobResultJsonFormatter extends DefaultJsonProtocol {

@@ -12,7 +12,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNo
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException, RuntimeAttributeDefinition}
 import cromwell.core._
 import cromwell.core.logging.LoggerWrapper
 import cromwell.filesystems.gcs._
@@ -26,7 +26,7 @@ import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
-import wdl4s.{LocallyQualifiedName, NamespaceWithWorkflow}
+import wdl4s.{Call, LocallyQualifiedName, NamespaceWithWorkflow}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -37,7 +37,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   import JesTestConfig._
 
-  val Timeout = 5.seconds.dilated
+  implicit val Timeout = 5.seconds.dilated
 
   val YoSup =
     """
@@ -112,7 +112,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       |}
     """.stripMargin
 
-  private def buildPreemptibleJobDescriptor(attempt: Int, preemptible: Int) = {
+  private def buildPreemptibleJobDescriptor(attempt: Int, preemptible: Int): BackendJobDescriptor = {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       NamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible")),
@@ -120,8 +120,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, attempt)
-    BackendJobDescriptor(workflowDescriptor, key, Map.empty, Inputs)
+    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val key = BackendJobDescriptorKey(job, None, attempt)
+    val runtimeAttributes = makeRuntimeAttributes(job)
+    BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Inputs)
   }
 
   private def executionActor(jobDescriptor: BackendJobDescriptor,
@@ -146,10 +148,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   private def run(attempt: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int): BackendJobExecutionResponse = {
     within(Timeout) {
       val promise = Promise[BackendJobExecutionResponse]()
-      val jobDescriptor = buildPreemptibleJobDescriptor(attempt, preemptible)
+      val jobDescriptor =  buildPreemptibleJobDescriptor(attempt, preemptible)
       val backend = executionActor(jobDescriptor, JesBackendConfigurationDescriptor, promise, errorCode, innerErrorCode)
       backend ! Execute
-      Await.result(promise.future, Duration.Inf)
+      Await.result(promise.future, Timeout)
     }
   }
 
@@ -161,7 +163,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   behavior of "JesAsyncBackendJobExecutionActor"
 
-  it should "handle call failures appropriately with respect to preemption" in {
+  { // Set of "handle call failures appropriately with respect to preemption" tests
     val expectations = Table(
       ("attempt", "preemptible", "errorCode", "innerErrorCode", "shouldRetry"),
       // No preemptible attempts allowed, nothing should be retryable.
@@ -185,10 +187,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     expectations foreach { case (attempt, preemptible, errorCode, innerErrorCode, shouldRetry) =>
-      run(attempt, preemptible, errorCode, innerErrorCode).getClass.getSimpleName match {
-        case "FailedNonRetryableResponse" => shouldRetry shouldBe false
-        case "FailedRetryableResponse" => shouldRetry shouldBe true
-        case huh => fail(s"Unexpected response class name: '$huh'")
+      it should s"handle call failures appropriately with respect to preemption (attempt=$attempt, preemptible=$preemptible, errorCode=$errorCode, innerErrorCode=$innerErrorCode)" in {
+        run(attempt, preemptible, errorCode, innerErrorCode).getClass.getSimpleName match {
+          case "FailedNonRetryableResponse" => false shouldBe shouldRetry
+          case "FailedRetryableResponse" => true shouldBe shouldRetry
+          case huh => fail(s"Unexpected response class name: '$huh'")
+        }
       }
     }
   }
@@ -339,8 +343,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
+    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val runtimeAttributes = makeRuntimeAttributes(job)
+    val key = BackendJobDescriptorKey(job, None, 1)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -378,7 +384,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val call = workflowDescriptor.workflowNamespace.workflow.findCallByName(callName).get
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
     TestActorRef[TestableJesJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -436,8 +443,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
+    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val runtimeAttributes = makeRuntimeAttributes(job)
+    val key = BackendJobDescriptorKey(job, None, 1)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -462,8 +471,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
+    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val runtimeAttributes = makeRuntimeAttributes(job)
+    val key = BackendJobDescriptorKey(job, None, 1)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -530,8 +541,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
+    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val runtimeAttributes = makeRuntimeAttributes(job)
+    val key = BackendJobDescriptorKey(job, None, 1)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -641,5 +654,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val descriptorWithMax2AndKey2 = attempt2(max = 2)
     descriptorWithMax2AndKey2.preemptible shouldBe true
+  }
+
+  private def makeRuntimeAttributes(job: Call) = {
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
+    RuntimeAttributeDefinition.addDefaultsToAttributes(JesBackendLifecycleActorFactory.staticRuntimeAttributeDefinitions, NoOptions)(evaluatedAttributes.get) // Fine to throw the exception if this "get" fails. This is a test after all!
   }
 }

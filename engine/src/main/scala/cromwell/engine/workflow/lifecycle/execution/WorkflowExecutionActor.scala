@@ -589,7 +589,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
           case Some(factory) =>
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val ejeaProps = EngineJobExecutionActor.props(
-              jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
+              self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
               jobStoreActor, callCacheReadActor, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             pushNewJobMetadata(jobKey, backendName)

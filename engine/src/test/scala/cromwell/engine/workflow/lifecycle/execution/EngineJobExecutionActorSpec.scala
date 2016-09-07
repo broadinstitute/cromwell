@@ -21,19 +21,23 @@ import org.specs2.mock.Mockito
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.{Call, RuntimeAttributes, Task}
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with WorkflowDescriptorBuilder with Mockito with BeforeAndAfterAll {
 
   override implicit val actorSystem = system
 
   private val workflowId: WorkflowId = WorkflowId.randomId()
   val descriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources())
-  val backendProbe = TestProbe()
+  val messageProbe = TestProbe()
+  val replyToProbe = TestProbe()
+  val parentProbe = TestProbe()
   val mockBackendProps = Props(new Actor {
     def receive = {
-      case x => backendProbe.ref forward x
+      case x => messageProbe.ref forward x
     }
   })
-  val ejeaParent = TestProbe()
   val factory = new BackendLifecycleActorFactory {
     override def actorSystem = system
 
@@ -49,6 +53,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
   }
 
   def buildEJEA(restarting: Boolean) = {
+
     val task = mock[Task]
     task.declarations returns Seq.empty
     task.runtimeAttributes returns RuntimeAttributes(Map.empty)
@@ -58,6 +63,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
 
     new TestFSMRef[EngineJobExecutionActorState, EJEAData, EngineJobExecutionActor](system, EngineJobExecutionActor.props(
+      replyTo = replyToProbe.ref,
       BackendJobDescriptorKey(Call(None, "foo.bar", task, Set.empty, Map.empty, None), None, 1),
       WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty)),
       factory,
@@ -68,7 +74,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       callCacheReadActor = callCacheReadActor,
       backendName = "NOT USED",
       callCachingMode = CallCachingOff
-    ), ejeaParent.ref, s"EngineJobExecutionActorSpec-$workflowId")
+    ), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
   }
 
   "EngineJobExecutionActorSpec" should {
@@ -80,7 +86,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       ejea ! JobComplete(JobResultSuccess(returnCode, jobOutputs))
 
-      ejeaParent.expectMsgPF(awaitTimeout) {
+      replyToProbe.expectMsgPF(awaitTimeout) {
         case response: SucceededResponse =>
           response.returnCode shouldBe returnCode
           response.jobOutputs shouldBe jobOutputs
@@ -97,7 +103,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
 
       ejea ! JobComplete(JobResultFailure(returnCode, reason, retryable = false))
 
-      ejeaParent.expectMsgPF(awaitTimeout) {
+      replyToProbe.expectMsgPF(awaitTimeout) {
         case response: FailedNonRetryableResponse =>
           response.returnCode shouldBe returnCode
           response.throwable shouldBe reason
@@ -109,12 +115,10 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     "send a RecoverJobCommand to the backend if the job is not complete and EJEA is in restarting mode" in {
       val ejea = buildEJEA(restarting = true)
       ejea.setState(CheckingJobStore)
-      val task = mock[Task]
-      task.declarations returns Seq.empty
-
       ejea ! JobNotComplete
 
-      backendProbe.expectMsg(awaitTimeout, RecoverJobCommand)
+      messageProbe.expectMsg(10 seconds, "expecting RecoverJobCommand", RecoverJobCommand)
+      replyToProbe.expectMsgType[JobRunning]
 
       ejea.stop()
     }
@@ -124,12 +128,11 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     "send a RecoverJobCommand to the backend when getting an Execute message if the Job is not complete and EJEA is in restarting mode" in {
       val ejea = buildEJEA(restarting = true)
       ejea.setState(Pending)
-      val task = mock[Task]
-      task.declarations returns Seq.empty
 
       ejea ! EngineJobExecutionActor.Execute
 
-      backendProbe.expectMsg(awaitTimeout, RecoverJobCommand)
+      replyToProbe.expectMsgType[JobRunning](awaitTimeout)
+      messageProbe.expectMsg(awaitTimeout, "RecoverJobCommand", RecoverJobCommand)
 
       ejea.stop()
     }
@@ -137,12 +140,11 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
     "send an ExecuteJobCommand to the backend when getting an Execute message if the Job is not complete and EJEA is NOT in restarting mode" in {
       val ejea = buildEJEA(restarting = false)
       ejea.setState(Pending)
-      val task = mock[Task]
-      task.declarations returns Seq.empty
 
       ejea ! EngineJobExecutionActor.Execute
 
-      backendProbe.expectMsg(awaitTimeout, ExecuteJobCommand)
+      messageProbe.expectMsg(awaitTimeout, ExecuteJobCommand)
+      replyToProbe.expectMsgType[JobRunning](awaitTimeout)
 
       ejea.stop()
     }
@@ -158,8 +160,7 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       deathWatch watch ejea
 
       ejea ! failed
-      ejeaParent.expectMsg(awaitTimeout, failed)
-      ejeaParent.lastSender shouldBe self
+      replyToProbe.expectMsg(awaitTimeout, failed)
 
       deathWatch.expectTerminated(ejea)
     }
@@ -190,31 +191,30 @@ class EngineJobExecutionActorSpec extends CromwellTestkitSpec with Matchers with
       val ejea1 = ejeaInRunningState()
       deathWatch watch ejea1
       ejea1 ! successResponse
-      ejeaParent.expectMsg(awaitTimeout, successResponse)
+      replyToProbe.expectMsg(awaitTimeout, successResponse)
       deathWatch.expectTerminated(ejea1)
 
       val ejea2 = ejeaInRunningState()
       deathWatch watch ejea2
       ejea2 ! failureRetryableResponse
-      ejeaParent.expectMsg(awaitTimeout, failureRetryableResponse)
+      replyToProbe.expectMsg(awaitTimeout, failureRetryableResponse)
       deathWatch.expectTerminated(ejea2)
 
       val ejea3 = ejeaInRunningState()
       deathWatch watch ejea3
       ejea3 ! failureNonRetryableResponse
-      ejeaParent.expectMsg(awaitTimeout, failureNonRetryableResponse)
+      replyToProbe.expectMsg(awaitTimeout, failureNonRetryableResponse)
       deathWatch.expectTerminated(ejea3)
 
       val ejea4 = ejeaInRunningState()
       deathWatch watch ejea4
       ejea4 ! abortedResponse
-      ejeaParent.expectMsg(awaitTimeout, abortedResponse)
+      replyToProbe.expectMsg(awaitTimeout, abortedResponse)
       deathWatch.expectTerminated(ejea4)
     }
   }
 
   override def afterAll(): Unit = {
-    system.shutdown()
+    system.terminate()
   }
-
 }

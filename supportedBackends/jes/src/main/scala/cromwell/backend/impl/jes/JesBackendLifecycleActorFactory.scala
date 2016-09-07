@@ -15,15 +15,6 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.language.postfixOps
 
-object JesBackendLifecycleActorFactory {
-  implicit class Jessify(val genericInitializationData: Option[BackendInitializationData]) {
-    // This leaves the result in an `Option` as finalization will be called even if initialization has failed, and if
-    // initialization fails there won't be any initialization data.  The various `.get`s that occur below are in instances
-    // where the workflow has successfully gotten past initialization and the JES initialization data is defined.
-    def toJes: Option[JesBackendInitializationData] = genericInitializationData collectFirst { case d: JesBackendInitializationData => d }
-  }
-}
-
 case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
   import JesBackendLifecycleActorFactory._
 
@@ -49,23 +40,7 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
     Option(JesFinalizationActor.props(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData.toJes).withDispatcher(BackendDispatcher))
   }
 
-  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
-  Set[RuntimeAttributeDefinition] = {
-    import RuntimeAttributesKeys._
-    import JesRuntimeAttributes._
-
-    Set(
-      RuntimeAttributeDefinition(DockerKey, required = false, None, usedInCallCaching = true),
-      RuntimeAttributeDefinition(ContinueOnReturnCodeKey, required = false, Some(staticDefaults(ContinueOnReturnCodeKey)), usedInCallCaching = true),
-      RuntimeAttributeDefinition(CpuKey, required = false, Some(staticDefaults(CpuKey)), usedInCallCaching = false),
-      RuntimeAttributeDefinition(FailOnStderrKey, required = false, Some(staticDefaults(FailOnStderrKey)), usedInCallCaching = true),
-      RuntimeAttributeDefinition(MemoryKey, required = false, Some(staticDefaults(MemoryKey)), usedInCallCaching = false),
-      RuntimeAttributeDefinition(DisksKey, required = false, Some(staticDefaults(DisksKey)), usedInCallCaching = false),
-      RuntimeAttributeDefinition(ZonesKey, required = false, Some(staticDefaults(ZonesKey)), usedInCallCaching = false),
-      RuntimeAttributeDefinition(PreemptibleKey, required = false, Some(staticDefaults(PreemptibleKey)), usedInCallCaching = false),
-      RuntimeAttributeDefinition(BootDiskSizeKey, required = false, Some(staticDefaults(BootDiskSizeKey)), usedInCallCaching = false)
-    )
-  }
+  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]) = staticRuntimeAttributeDefinitions
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
@@ -81,4 +56,30 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
   }
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(JesBackendFileHashing.getCrc32c))
+}
+
+object JesBackendLifecycleActorFactory {
+  implicit class Jessify(val genericInitializationData: Option[BackendInitializationData]) {
+    // This leaves the result in an `Option` as finalization will be called even if initialization has failed, and if
+    // initialization fails there won't be any initialization data.  The various `.get`s that occur below are in instances
+    // where the workflow has successfully gotten past initialization and the JES initialization data is defined.
+    def toJes: Option[JesBackendInitializationData] = genericInitializationData collectFirst { case d: JesBackendInitializationData => d }
+  }
+
+  val staticRuntimeAttributeDefinitions = {
+    import RuntimeAttributesKeys._
+    import JesRuntimeAttributes._
+
+    Set(
+      RuntimeAttributeDefinition(DockerKey, None, usedInCallCaching = true),
+      RuntimeAttributeDefinition(ContinueOnReturnCodeKey, Option(staticDefaults(ContinueOnReturnCodeKey)), usedInCallCaching = true),
+      RuntimeAttributeDefinition(CpuKey, Option(staticDefaults(CpuKey)), usedInCallCaching = false),
+      RuntimeAttributeDefinition(FailOnStderrKey, Option(staticDefaults(FailOnStderrKey)), usedInCallCaching = true),
+      RuntimeAttributeDefinition(MemoryKey, Option(staticDefaults(MemoryKey)), usedInCallCaching = false),
+      RuntimeAttributeDefinition(DisksKey, Option(staticDefaults(DisksKey)), usedInCallCaching = false),
+      RuntimeAttributeDefinition(ZonesKey, Option(staticDefaults(ZonesKey)), usedInCallCaching = false),
+      RuntimeAttributeDefinition(PreemptibleKey, Option(staticDefaults(PreemptibleKey)), usedInCallCaching = false),
+      RuntimeAttributeDefinition(BootDiskSizeKey, Option(staticDefaults(BootDiskSizeKey)), usedInCallCaching = false)
+    )
+  }
 }

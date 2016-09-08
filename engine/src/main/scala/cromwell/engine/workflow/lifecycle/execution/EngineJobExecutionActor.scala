@@ -71,20 +71,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(JobNotComplete, NoData) =>
       prepareJob()
     case Event(JobComplete(jobResult), NoData) =>
-      jobResult match {
-        case JobResultSuccess(returnCode, jobOutputs) =>
-          replyTo ! SucceededResponse(jobKey, returnCode, jobOutputs)
-          context stop self
-          stay()
-        case JobResultFailure(returnCode, reason, false) =>
-          replyTo ! FailedNonRetryableResponse(jobKey, reason, returnCode)
-          context stop self
-          stay()
-        case JobResultFailure(returnCode, reason, true) =>
-          replyTo ! FailedRetryableResponse(jobKey, reason, returnCode)
-          context stop self
-          stay()
+      val response = jobResult match {
+        case JobResultSuccess(returnCode, jobOutputs) => SucceededResponse(jobKey, returnCode, jobOutputs)
+        case JobResultFailure(returnCode, reason, false) => FailedNonRetryableResponse(jobKey, reason, returnCode)
+        case JobResultFailure(returnCode, reason, true) => FailedRetryableResponse(jobKey, reason, returnCode)
       }
+      respondAndStop(response)
     case Event(f: JobStoreReadFailure, NoData) =>
       log.error(f.reason, "{}: Error reading from JobStore", tag)
       // Escalate
@@ -107,9 +99,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         case CallCachingOff => runJob(updatedData)
       }
     case Event(response: BackendJobPreparationFailed, NoData) =>
-      replyTo forward response
-      context stop self
-      stay()
+      forwardAndStop(response)
   }
 
   private val callCachingReadResultMetadataKey = "Call caching read result"
@@ -143,8 +133,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(BackendIsCopyingCachedOutputs) {
-    // It's possible that cache writing was turned off due to a `HashError`, hence the `writeToCache` guard.
-    case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)))) if effectiveCallCachingMode.writeToCache =>
+    case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)))) =>
       saveCacheResults(hashes, response.updatedData(data))
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, None)) if effectiveCallCachingMode.writeToCache =>
       // Wait for the CallCacheHashes
@@ -202,13 +191,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When UpdatingJobStore, the FSM always has ResponseData.
   when(UpdatingJobStore) {
     case Event(JobStoreWriteSuccess(_), data: ResponseData) =>
-      replyTo forward data.response
-      context stop self
-      stay()
+      forwardAndStop(data.response)
     case Event(JobStoreWriteFailure(t), data: ResponseData) =>
-      context.parent ! FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None)
-      context.stop(self)
-      stay()
+      respondAndStop(FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None))
   }
 
   onTransition {
@@ -220,6 +205,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(msg, _) =>
       log.error(s"Bad message to EngineJobExecutionActor in state $stateName(with data $stateData): $msg")
       stay
+  }
+
+  private def forwardAndStop(response: Any): State = {
+    replyTo forward response
+    context stop self
+    stay()
+  }
+
+  private def respondAndStop(response: Any): State = {
+    replyTo ! response
+    context stop self
+    stay()
   }
 
   private def disableCallCaching(reason: Throwable) = {
@@ -314,7 +311,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
       case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
-      case AbortedResponse(jobKey: BackendJobDescriptorKey) => log.debug("Won't save 'aborted' job response to JobStore")
+      case AbortedResponse(jobKey: BackendJobDescriptorKey) =>
+        log.debug("{}: Won't save aborted job response to JobStore", jobTag)
+        forwardAndStop(updatedData.response)
       case FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
       case FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
     }

@@ -119,7 +119,7 @@ object JesRuntimeAttributes {
   }
 
   private def contextualizeFailure[T](validation: ErrorOr[T], key: String): ErrorOr[T] = {
-    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.list.mkString(",")).toValidationNel
+    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.toList.mkString(",")).toValidationNel
   }
 
   private def validatePreemptible(preemptible: WdlValue): ErrorOr[Int] = {

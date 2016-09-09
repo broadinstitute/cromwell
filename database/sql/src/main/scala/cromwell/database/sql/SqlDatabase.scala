@@ -2,7 +2,7 @@ package cromwell.database.sql
 
 import java.sql.Connection
 import java.util.UUID
-import lenthall.config.ScalaConfig._
+
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 trait SqlDatabase extends AutoCloseable
@@ -21,12 +21,6 @@ trait SqlDatabase extends AutoCloseable
 }
 
 object SqlDatabase {
-  lazy val rootConfig = ConfigFactory.load()
-  private lazy val rootDatabaseConfig = rootConfig.getConfig("database")
-  private lazy val databaseConfigName = rootDatabaseConfig.getStringOption("config")
-  lazy val defaultDatabaseConfig = databaseConfigName.map(getDatabaseConfig).getOrElse(rootDatabaseConfig)
-
-  def getDatabaseConfig(path: String) = rootDatabaseConfig.getConfig(path)
 
   /**
     * Modifies config.getString("url") to return a unique schema, if the original url contains the text

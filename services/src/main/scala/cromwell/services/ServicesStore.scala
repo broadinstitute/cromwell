@@ -1,5 +1,6 @@
 package cromwell.services
 
+import cromwell.database.core.SqlConfiguration
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
@@ -30,5 +31,5 @@ object SingletonServicesStore {
 
   import ServicesStore.EnhancedSqlDatabase
 
-  val databaseInterface: SqlDatabase = new SlickDatabase(SqlDatabase.defaultDatabaseConfig).initialized
+  val databaseInterface: SqlDatabase = new SlickDatabase(SqlConfiguration.defaultDatabaseConfig).initialized
 }

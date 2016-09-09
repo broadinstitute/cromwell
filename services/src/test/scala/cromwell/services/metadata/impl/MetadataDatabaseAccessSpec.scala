@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
+import cromwell.database.core.SqlConfiguration
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
 import cromwell.services.ServicesStore
@@ -40,7 +41,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     import ServicesStore.EnhancedSqlDatabase
 
     lazy val dataAccess: MetadataDatabaseAccess = new MetadataDatabaseAccess with ServicesStore {
-      override val databaseInterface = new SlickDatabase(SqlDatabase.getDatabaseConfig(configPath)).initialized
+      override val databaseInterface = new SlickDatabase(SqlConfiguration.getDatabaseConfig(configPath)).initialized
     }
 
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {

@@ -1,24 +1,14 @@
 package cromwell.database.migration.restart.table
 
-import java.io.{ByteArrayInputStream, IOException}
-import java.util.zip.GZIPInputStream
-
 import cromwell.core.simpleton.WdlValueSimpleton._
-import liquibase.change.custom.CustomTaskChange
-import liquibase.database.Database
+import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
-import liquibase.exception.ValidationErrors
-import liquibase.resource.ResourceAccessor
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.io.IOUtils
-import wdl4s.types.{WdlPrimitiveType, WdlType}
+import wdl4s.types.WdlType
 
 import scala.language.postfixOps
-import scala.util.Try
 
 
 class JobStoreSimpletonMigration extends AbstractRestartMigration {
-
   override val description = "WORKFLOW_EXECUTION + EXECUTION + SYMBOL + JOB_STORE -> JOB_STORE_RESULT_SIMPLETON"
 
   // GOTC (substituting COUNT(*) for the projection): 1 row in set (5.22 sec)
@@ -52,14 +42,6 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
           VALUES(?, ?, ?, ?)
     """
 
-  private def inflate(value: String) = {
-    Try {
-      IOUtils.toString(new GZIPInputStream(new ByteArrayInputStream(Base64.decodeBase64(value))))
-    } recover {
-      case e: IOException => value
-    } get
-  }
-
   protected def doMigration(connection: JdbcConnection): Unit = {
     val query = connection.createStatement()
     lazy val insert = connection.prepareStatement(InsertJobStoreSimpleton)
@@ -68,11 +50,8 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
     while (results.next()) {
       val wdlType = WdlType.fromWdlString(results.getString(4))
       val rawValue = results.getString(3)
-      val inflated = inflate(rawValue)
-      val wdlValue = wdlType match {
-        case p: WdlPrimitiveType => p.coerceRawValue(inflated).get
-        case o => o.fromWdlString(inflated)
-      }
+      val inflated = inflate(rawValue).get
+      val wdlValue = coerceStringToWdl(inflated, wdlType)
       val name = results.getString(2)
       val simpletons = wdlValue.simplify(name)
       simpletons foreach { s =>

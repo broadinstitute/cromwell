@@ -44,6 +44,8 @@
     <include file="changesets/job_store_simpletons.xml" relativeToChangelogFile="true" />
     <include file="changesets/restart_and_recover_migration.xml" relativeToChangelogFile="true"/>
     <include file="changesets/summary_status_table.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/standardize_column_names.xml" relativeToChangelogFile="true" />
+    <include file="changesets/metadata_migration.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

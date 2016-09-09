@@ -10,7 +10,7 @@ trait JobStoreComponent {
 
   class JobStoreEntries(tag: Tag) extends Table[JobStoreEntry](tag, "JOB_STORE") {
     def jobStoreId = column[Int]("JOB_STORE_ID", O.PrimaryKey, O.AutoInc)
-    def workflowUuid = column[String]("WORKFLOW_UUID")
+    def workflowUuid = column[String]("WORKFLOW_EXECUTION_UUID")
     def callFqn = column[String]("CALL_FQN")
     def scatterIndex = column[Int]("JOB_SCATTER_INDEX")
     def attempt = column[Int]("JOB_RETRY_ATTEMPT")

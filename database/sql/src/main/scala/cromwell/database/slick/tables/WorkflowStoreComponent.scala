@@ -12,7 +12,7 @@ trait WorkflowStoreComponent {
 
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE") {
     def workflowStoreTableId = column[Int]("WORKFLOW_STORE_ID", O.PrimaryKey, O.AutoInc)
-    def workflowUuid = column[String]("WORKFLOW_UUID")
+    def workflowUuid = column[String]("WORKFLOW_EXECUTION_UUID")
     def workflowDefinition = column[Clob]("WORKFLOW_DEFINITION")
     def workflowInputs = column[Clob]("WORKFLOW_INPUTS")
     def workflowOptions = column[Clob]("WORKFLOW_OPTIONS")

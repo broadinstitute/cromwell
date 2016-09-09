@@ -97,7 +97,7 @@ object JesRuntimeAttributes {
       case Success(x) => x
       case Failure(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
-        override def errorMessages: Traversable[String] = nel.list
+        override def errorMessages: Traversable[String] = nel.list.toList
       }
     }
   }

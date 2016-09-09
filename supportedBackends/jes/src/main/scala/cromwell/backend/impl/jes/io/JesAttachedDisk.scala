@@ -4,7 +4,7 @@ import java.nio.file.{Path, Paths}
 
 import com.google.api.services.genomics.model.Disk
 import cromwell.core.ErrorOr
-import wdl4s.ThrowableWithErrors
+import wdl4s.ExceptionWithErrors
 import wdl4s.values._
 
 import scala.util.Try
@@ -34,7 +34,7 @@ object JesAttachedDisk {
     Try(validation match {
       case Success(localDisk) => localDisk
       case Failure(nels) =>
-        throw new UnsupportedOperationException with ThrowableWithErrors {
+        throw new UnsupportedOperationException with ExceptionWithErrors {
           val message = ""
           val errors = nels
         }

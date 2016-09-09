@@ -22,11 +22,10 @@ trait WorkflowLogging extends ActorLogging { this: Actor =>
 }
 
 object WorkflowLogger {
-  def makeFileLogger(path: Path, level: Level): Logger = {
+  def makeFileLogger(path: Path, level: Level): Logger = synchronized { // see below
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
     val name = path.getFileName.toString
 
-    // This *should* be thread-safe according to logback implementation.
     Option(ctx.exists(name)) match {
       case Some(existingLogger) => existingLogger
       case None =>
@@ -36,10 +35,18 @@ object WorkflowLogger {
         encoder.start()
 
         val appender = new FileAppender[ILoggingEvent]()
-        appender.setFile(path.fullPath)
+        appender.setFile(path.toString)
         appender.setEncoder(encoder)
         appender.setName(name)
         appender.setContext(ctx)
+        /*
+        logback-core 1.1.6 started iterating over an internal hashmap, and now throws a ConcurrentModificationException
+        if two appenders call start() at the same time.
+
+        So now we synchronize makeFileLogger(). Could also try just synchronizing just the appender.start().
+
+        https://github.com/qos-ch/logback/commit/77128a003a7fd7e8bd7a6ddb12da7a65cf296593#diff-f8cd32379a53986c2e70e2abe86fa0faR145
+         */
         appender.start()
 
         val fileLogger = ctx.getLogger(name)
@@ -59,7 +66,7 @@ object WorkflowLogger {
       workflowConfig <- conf.getConfigOption("workflow-options")
       dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
-    } yield WorkflowLogConfiguration(Paths.get(dir), temporary)
+    } yield WorkflowLogConfiguration(Paths.get(dir).toAbsolutePath, temporary)
   }
 
   val isEnabled = workflowLogConfiguration.isDefined
@@ -90,11 +97,12 @@ class WorkflowLogger(name: String,
 
   import better.files._
 
-  def deleteLogFile() = workflowLogPath foreach { _.delete(ignoreIOExceptions = false) }
+  def deleteLogFile() = workflowLogPath foreach { File(_).delete(swallowIOExceptions = false) }
 
   import WorkflowLogger._
 
-  val workflowLogPath = workflowLogConfiguration.map(_.dir.createDirectories() / s"workflow.$workflowId.log").map(_.path)
+  val workflowLogPath = workflowLogConfiguration.map(workflowLogConfigurationActual =>
+    File(workflowLogConfigurationActual.dir).createDirectories() / s"workflow.$workflowId.log").map(_.path)
 
   val fileLogger = workflowLogPath match {
     case Some(path) => makeFileLogger(path, Level.toLevel(sys.props.getOrElse("LOG_LEVEL", "debug")))

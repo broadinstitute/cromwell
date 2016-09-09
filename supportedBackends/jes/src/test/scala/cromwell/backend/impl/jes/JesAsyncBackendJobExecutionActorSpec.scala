@@ -291,8 +291,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, inputs)
+    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val key = BackendJobDescriptorKey(call, None, 1)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -311,7 +313,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     }
 
     mappedInputs(gcsFileKey) match {
-      case wdlFile: WdlFile => assert(wdlFile.value.equalsIgnoreCase("blah/abc"))
+      case wdlFile: WdlFile => assert(wdlFile.value.equalsIgnoreCase("/cromwell_root/blah/abc"))
       case _ => fail("test setup error")
     }
   }
@@ -515,8 +517,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
+    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val key = BackendJobDescriptorKey(call, None, 1)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -562,8 +566,10 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       NoOptions
     )
 
-    val key = BackendJobDescriptorKey(workflowDescriptor.workflowNamespace.workflow.calls.head, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
+    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val key = BackendJobDescriptorKey(job, None, 1)
+    val runtimeAttributes = makeRuntimeAttributes(job)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -583,7 +589,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val call = workflowDescriptor.workflowNamespace.workflow.findCallByName("hello").get
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -614,7 +621,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val call = workflowDescriptor.workflowNamespace.workflow.findCallByName("B").get
     val key = BackendJobDescriptorKey(call, Option(2), 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, Map.empty, Map.empty)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](

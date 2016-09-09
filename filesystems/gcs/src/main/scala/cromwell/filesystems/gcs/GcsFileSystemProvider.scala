@@ -59,7 +59,7 @@ object GcsFileSystemProvider {
   */
 object ExecutionContextExecutorServiceBridge {
   def apply(ec: ExecutionContext): ExecutionContextExecutorService = ec match {
-    case null => throw new Throwable("Execution context cannot be null")
+    case null => throw new RuntimeException("Execution context cannot be null")
     case eces: ExecutionContextExecutorService => eces
     case executionContext => new AbstractExecutorService with ExecutionContextExecutorService {
       override def prepare(): ExecutionContext = executionContext

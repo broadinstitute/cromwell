@@ -14,8 +14,8 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core.ExecutionStore.ExecutionStoreEntry
 import cromwell.core.OutputStore.OutputEntry
 import cromwell.core.WorkflowOptions.WorkflowFailureMode
+import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.{WorkflowId, _}
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
@@ -128,8 +128,8 @@ object WorkflowExecutionActor {
     override val tag = s"Collector-${scope.unqualifiedName}"
   }
 
-  case class WorkflowExecutionException(exceptions: NonEmptyList[Throwable]) extends ThrowableAggregation {
-    override val throwables = exceptions.list
+  case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
+    override val throwables = exceptions.list.toList
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
@@ -255,7 +255,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   val tag = s"WorkflowExecutionActor [UUID(${workflowId.shortString})]"
   private lazy val DefaultMaxRetriesFallbackValue = 10
 
-  implicit val actorSystem = context.system
   implicit val ec = context.dispatcher
 
   val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {
@@ -606,7 +605,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
     scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
       case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size) + (scatterKey -> ExecutionStatus.Done))
-      case v: WdlValue => throw new Throwable("Scatter collection must evaluate to an array")
+      case v: WdlValue => throw new RuntimeException("Scatter collection must evaluate to an array")
     }
   }
 

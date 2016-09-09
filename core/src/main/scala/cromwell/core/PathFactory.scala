@@ -30,7 +30,7 @@ object PathFactory {
       path.getFileSystem.getPath(s"${path.toString.stripSuffix(oldExt)}$newExt")
     }
 
-    def untailed = new UntailedWriter(path)
+    def untailed = UntailedWriter(path)
 
     def tailed(tailedSize: Int) = TailedWriter(path, tailedSize)
   }
@@ -51,7 +51,7 @@ trait PathWriter {
   import better.files._
 
   val path: Path
-  lazy val writer: Writer = path.newBufferedWriter
+  lazy val writer: Writer = File(path).newBufferedWriter
 
   /**
     * Passed to `ProcessLogger` to add a new line.

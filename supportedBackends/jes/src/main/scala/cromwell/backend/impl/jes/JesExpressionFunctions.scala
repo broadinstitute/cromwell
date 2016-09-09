@@ -23,7 +23,8 @@ class JesExpressionFunctions(override val fileSystems: List[FileSystem],
   override def globPath(glob: String): String = context.root.resolve(globDirectory(glob)).toString
 
   override def glob(path: String, pattern: String): Seq[String] = {
-    path.toAbsolutePath(fileSystems).asDirectory.glob("**/*") map { _.path.fullPath } filterNot { _.toString == path } toSeq
+    File(path.toAbsolutePath(fileSystems).asDirectory).
+      glob("**/*") map { _.pathAsString } filterNot { _.toString == path } toSeq
   }
 
   override def preMapping(str: String): String = if (!GcsFileSystem.isAbsoluteGcsPath(str)) context.root.resolve(str).toString else str

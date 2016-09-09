@@ -1,7 +1,7 @@
 package cromwell.filesystems.gcs
 
-import java.io._
-import java.nio.file.Paths
+import java.io.{FileNotFoundException, IOException, InputStreamReader}
+import java.nio.file.{Files, Paths}
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp
@@ -12,13 +12,12 @@ import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.storage.{Storage, StorageScopes}
-import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
+import com.typesafe.config.Config
+import cromwell.filesystems.gcs.GoogleAuthMode.{GcsScopes, GoogleAuthOptions}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-import GoogleAuthMode.GcsScopes
-import com.typesafe.config.Config
 
 object GoogleAuthMode {
 
@@ -77,7 +76,7 @@ sealed trait GoogleAuthMode {
 
   protected def validateCredentials(credential: Credential) = {
     Try(credential.refreshToken()) match {
-      case Failure(ex) => throw new Throwable(s"Google credentials are invalid: ${ex.getMessage}")
+      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}")
       case Success(_) => credential
     }
   }
@@ -98,33 +97,33 @@ sealed trait GoogleAuthMode {
 
 final case class ServiceAccountMode(override val name: String, accountId: String, pemPath: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
   override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
-    val pemFile = new File(pemPath)
-    if (!pemFile.exists()) {
-      throw new FileNotFoundException(s"PEM file ${Paths.get(pemPath).toAbsolutePath} does not exist")
+    val pemFile = Paths.get(pemPath).toAbsolutePath
+    if (!Files.exists(pemFile)) {
+      throw new FileNotFoundException(s"PEM file $pemFile does not exist")
     }
     new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setServiceAccountId(accountId)
       .setServiceAccountScopes(scopes.asJava)
-      .setServiceAccountPrivateKeyFromPemFile(pemFile)
+      .setServiceAccountPrivateKeyFromPemFile(pemFile.toFile)
       .build()
   }
 }
 
 final case class UserMode(override val name: String, user: String, secretsFile: String, datastoreDir: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
   private def filePathToSecrets(secrets: String, jsonFactory: JsonFactory) = {
-    val secretsPath = Paths.get(secrets)
-    if(!secretsPath.toFile.canRead) {
+    val secretsPath = Paths.get(secrets).toAbsolutePath
+    if(!Files.isReadable(secretsPath)) {
       log.warn("Secrets file does not exist or is not readable.")
     }
-    val secretStream = new InputStreamReader(new FileInputStream(secretsPath.toFile))
+    val secretStream = new InputStreamReader(Files.newInputStream(secretsPath))
 
     GoogleClientSecrets.load(jsonFactory, secretStream)
   }
 
   override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
     val clientSecrets = filePathToSecrets(secretsFile, jsonFactory)
-    val dataStore = Paths.get(datastoreDir)
+    val dataStore = Paths.get(datastoreDir).toAbsolutePath
     val dataStoreFactory = new FileDataStoreFactory(dataStore.toFile)
     val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,
       jsonFactory,

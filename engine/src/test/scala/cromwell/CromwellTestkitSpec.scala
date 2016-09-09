@@ -42,7 +42,8 @@ import scala.language.postfixOps
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
-case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
+case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+  extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None
@@ -457,8 +458,8 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
         eventually(isFatal) {
           import better.files._
           val (stdout, stderr) = getFirstCallLogs(workflowId, rootActor.underlyingActor.serviceRegistryActor)
-          Paths.get(stdout).contentAsString shouldBe expectedStdoutContent
-          Paths.get(stderr).contentAsString shouldBe expectedStderrContent
+          File(stdout).contentAsString shouldBe expectedStdoutContent
+          File(stderr).contentAsString shouldBe expectedStderrContent
           workflowId
         }
       }

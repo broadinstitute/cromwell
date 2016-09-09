@@ -58,7 +58,7 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {
       publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-      workflowPaths.workflowRoot.createDirectories()
+      File(workflowPaths.workflowRoot).createDirectories()
       Option(initializationData)
     })
   }

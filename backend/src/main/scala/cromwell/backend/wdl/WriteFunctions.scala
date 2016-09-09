@@ -17,9 +17,7 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
   def writeDirectory: Path
 
   private lazy val absoluteDirectory = {
-    val abs = writeDirectory.toAbsolutePath
-    abs.createDirectories
-    abs
+    File(writeDirectory).createDirectories().path
   }
 
   override def tempFilePath = absoluteDirectory.toString
@@ -27,12 +25,12 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
   def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = throw new NotImplementedError("This method is not used anywhere and should be removed")
 
   private def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    val fullPath = absoluteDirectory.resolve(s"$baseName${content.md5Sum}.tmp")
+    val fullPath = File(absoluteDirectory)./(s"$baseName${content.md5Sum}.tmp")
 
     Try {
       if (!fullPath.exists) fullPath.write(content)
     } map { _ =>
-      WdlFile(fullPath.toString)
+      WdlFile(fullPath.pathAsString)
     }
   }
 

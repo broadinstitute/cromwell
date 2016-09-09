@@ -42,7 +42,7 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   val rcFileName = "rc"
 
   before {
-    testRoot = File.newTempDir("spark-test")
+    testRoot = File.newTemporaryDirectory("spark-test")
     jsonFile = testRoot / jsonFileName
     rcFile = testRoot / rcFileName
   }

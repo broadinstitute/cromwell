@@ -36,16 +36,16 @@ object SharedFileSystem {
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
   private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
-    if (executionPath.exists) Success(()) else Failure(new Throwable)
+    if (File(executionPath).exists) Success(()) else Failure(new Throwable)
   }
 
   private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
-    executionPath.getParent.createDirectories()
-    Try(originalPath.copyTo(executionPath))
+    File(executionPath).parent.createDirectories()
+    Try(File(originalPath).copyTo(executionPath))
   }
 
   private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
-    executionPath.getParent.createDirectories()
+    File(executionPath).parent.createDirectories()
     Try(Files.createLink(executionPath, originalPath))
   }
 
@@ -59,9 +59,9 @@ object SharedFileSystem {
     */
 
   private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Try[Unit] = {
-      if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
+      if (File(originalPath).isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
-        executionPath.getParent.createDirectories()
+        File(executionPath).parent.createDirectories()
         Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
       }
   }
@@ -87,7 +87,7 @@ trait SharedFileSystem extends PathFactory {
     case "copy" => localizePathViaCopy _
   })
 
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
+  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
     val wdlPath = Paths.get(pathString)
     callRoot.resolve(wdlPath).toAbsolutePath
   }
@@ -95,8 +95,9 @@ trait SharedFileSystem extends PathFactory {
   def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
     wdlValue match {
       case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).exists =>
-        Failure(new RuntimeException(s"Could not process output, file not found: ${hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).toString}"))
-      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callRoot, file.valueString).toString))
+        Failure(new RuntimeException("Could not process output, file not found: " +
+          s"${hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).pathAsString}"))
+      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callRoot, file.valueString).pathAsString))
       case array: WdlArray =>
         val mappedArray = array.value map outputMapper(job)
         TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
@@ -132,10 +133,10 @@ trait SharedFileSystem extends PathFactory {
       val src = buildPath(path, filesystems)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src)
-      val dest = if (callRoot.isParentOf(localInputPath)) localInputPath
+      val dest = if (File(callRoot).isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        Paths.get(callRoot.toAbsolutePath.toString, localInputPath.toString)
+        Paths.get(callRoot.toString, localInputPath.toString)
       }
 
       (src, dest)
@@ -184,7 +185,7 @@ trait SharedFileSystem extends PathFactory {
 
     def adjustFile(path: String) = {
       val (src, dst) = toDestPath(path)
-      localize(src, dst) map { Unit => WdlFile(dst.toAbsolutePath.toString) }
+      localize(src, dst) map { Unit => WdlFile(dst.toString) }
     }
 
     wdlValue match {

@@ -107,7 +107,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def resolveExecutionResult(jobReturnCode: Try[Int], failedOnStderr: Boolean): Future[BackendJobExecutionResponse] = {
     (jobReturnCode, failedOnStderr) match {
-      case (Success(0), true) if jobPaths.stderr.lines.toList.nonEmpty => Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
+      case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
+        Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess
       case (Success(rc), _) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
@@ -150,7 +151,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private def createExecutionFolderAndScript(): Unit = {
     try {
       log.debug("{} Creating execution folder: {}", tag, executionDir)
-      executionDir.toString.toFile.createIfNotExists(true)
+      executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
       val command = localizeInputs(jobPaths.callRoot, docker = false, DefaultFileSystems, jobDescriptor.inputs) flatMap {
@@ -176,7 +177,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       }
 
       cmds.writeScript(sparkCommand, scriptPath, executionDir)
-      scriptPath.addPermission(PosixFilePermission.OWNER_EXECUTE)
+      File(scriptPath).addPermission(PosixFilePermission.OWNER_EXECUTE)
 
     } catch {
       case ex: Exception =>

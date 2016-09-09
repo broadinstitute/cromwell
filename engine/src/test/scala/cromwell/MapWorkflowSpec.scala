@@ -1,8 +1,7 @@
 package cromwell
 
-import java.nio.file.{Files, Paths}
-
 import akka.testkit._
+import better.files._
 import cromwell.util.SampleWdl
 import wdl4s.NamespaceWithWorkflow
 import wdl4s.expression.{NoFunctions, WdlFunctions}
@@ -13,8 +12,8 @@ import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestkitSpec {
-  val tmpDir = Files.createTempDirectory("MapWorkflowSpec")
-  private val sampleWdl = SampleWdl.MapLiteral(Paths.get("."))
+  private val pwd = File(".")
+  private val sampleWdl = SampleWdl.MapLiteral(pwd.path)
   val ns = NamespaceWithWorkflow.load(sampleWdl.wdlSource(""))
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
@@ -25,8 +24,9 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
 
   "A task which contains a parameter " should {
     "accept an array for the value" in {
+      val sampleWdl = SampleWdl.MapLiteral(pwd.path)
       runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.MapLiteral(Paths.get(".")),
+        sampleWdl = sampleWdl,
         EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
         expectedOutputs = Map(
           "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
@@ -37,6 +37,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
           "wf.write_map.contents" -> WdlString("f1\talice\nf2\tbob\nf3\tchuck")
         )
       )
+      sampleWdl.cleanup()
     }
   }
 
@@ -70,18 +71,19 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
       command shouldEqual "cat /test/map/path"
     }
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
-      val outputs =
-        runWdlAndAssertOutputs(
-          SampleWdl.MapLiteral(Paths.get(".")),
-          eventFilter = EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
-          expectedOutputs = Map(
-            "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
-              WdlString("x") -> WdlInteger(500),
-              WdlString("y") -> WdlInteger(600),
-              WdlString("z") -> WdlInteger(700)
-            ))
-          )
+      val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+      runWdlAndAssertOutputs(
+        sampleWdl,
+        eventFilter = EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
+        expectedOutputs = Map(
+          "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
+            WdlString("x") -> WdlInteger(500),
+            WdlString("y") -> WdlInteger(600),
+            WdlString("z") -> WdlInteger(700)
+          ))
         )
+      )
+      sampleWdl.cleanup()
     }
   }
 }

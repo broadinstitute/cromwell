@@ -1,9 +1,9 @@
 package cromwell.util
 
-import java.io.{File, FileWriter}
 import java.nio.file.{Files, Path}
 import java.util.UUID
 
+import better.files._
 import cromwell.core.WorkflowSourceFiles
 import spray.json._
 import wdl4s._
@@ -432,7 +432,7 @@ object SampleWdl {
     override val rawInputs: WorkflowRawInputs = Map(
       "two_step.cgrep.pattern" -> "first",
       "two_step.cgrep.str_decl" -> "foobar",
-      "two_step.cat.file" -> createCannedFile("canned", fileContents).getAbsolutePath,
+      "two_step.cat.file" -> createCannedFile("canned", fileContents),
       "two_step.flags_suffix" -> "s"
     )
   }
@@ -583,14 +583,14 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    val tempDir = Files.createTempDirectory("ArrayIO")
+    val tempDir = File.newTemporaryDirectory("ArrayIO").path
     val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Some(tempDir))
     val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Some(tempDir))
 
     override val rawInputs = Map(
-      "wf.find.root" -> tempDir.toAbsolutePath.toString,
+      "wf.find.root" -> tempDir.toString,
       "wf.find.pattern" -> "*.out", // createCannedFile makes files that have .out extension
-      "wf.files" -> Seq(firstFile.getAbsolutePath, secondFile.getAbsolutePath)
+      "wf.files" -> Seq(firstFile.toString, secondFile.toString)
     )
   }
 
@@ -861,7 +861,7 @@ object SampleWdl {
            |text file is 11
            |""".stripMargin
 
-    override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).getAbsolutePath,
+    override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).toString,
     "sc_test.do_scatter.salt" -> salt)
   }
 
@@ -885,8 +885,8 @@ object SampleWdl {
     val secondFile = createFile(name = "file.txt", contents = "second file.txt", dir = tempDir2)
 
     override val rawInputs = Map(
-      "two.x.in" -> firstFile.getAbsolutePath,
-      "two.y.in" -> secondFile.getAbsolutePath
+      "two.x.in" -> firstFile.toString,
+      "two.y.in" -> secondFile.toString
     )
   }
 
@@ -918,7 +918,7 @@ object SampleWdl {
     private val fileContents = s"foo bar baz"
 
     override val rawInputs: WorkflowRawInputs = Map(
-      "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath
+      "file_passing.f" -> createCannedFile("canned", fileContents).toString
     )
   }
 
@@ -962,7 +962,7 @@ object SampleWdl {
     private val fileContents = s"foo bar baz"
 
     override val rawInputs: WorkflowRawInputs = Map(
-      "file_passing.f" -> createCannedFile("canned", fileContents).getAbsolutePath,
+      "file_passing.f" -> createCannedFile("canned", fileContents).toString,
       "file_passing.a.salt" -> salt,
       "file_passing.b.salt" -> salt
     )
@@ -1012,8 +1012,8 @@ object SampleWdl {
 
     override val rawInputs = {
       Map(
-        "w.array_file" -> createCannedFile("array.txt", CannedArray).getAbsolutePath,
-        "w.map_file" -> createCannedFile("map.txt", CannedMap).getAbsolutePath
+        "w.array_file" -> createCannedFile("array.txt", CannedArray).toString,
+        "w.map_file" -> createCannedFile("map.txt", CannedMap).toString
       )
     }
   }
@@ -1051,8 +1051,8 @@ object SampleWdl {
       "wf.nested_file" ->
         WdlArray(WdlArrayType(WdlArrayType(WdlStringType)),
         Seq(
-          WdlArray(WdlArrayType(WdlStringType), Seq(firstFile.getAbsolutePath, secondFile.getAbsolutePath).map(WdlString)),
-          WdlArray(WdlArrayType(WdlStringType), Seq(thirdFile.getAbsolutePath, fourthFile.getAbsolutePath).map(WdlString))
+          WdlArray(WdlArrayType(WdlStringType), Seq(firstFile.toString, secondFile.toString).map(WdlString)),
+          WdlArray(WdlArrayType(WdlStringType), Seq(thirdFile.toString, fourthFile.toString).map(WdlString))
         )
       )
     )
@@ -1092,7 +1092,7 @@ object SampleWdl {
       "w.t.a" -> WdlInteger(1),
       "w.t.b" -> WdlFloat(1.1),
       "w.t.c" -> WdlString("foobar"),
-      "w.t.d" -> WdlFile(cannedFile.getAbsolutePath)
+      "w.t.d" -> WdlFile(cannedFile.toString)
     )
   }
 

@@ -23,7 +23,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.names should be('empty)
           r.statuses should be('empty)
         case Failure(fs) =>
-          throw new RuntimeException(fs.list.mkString(", "))
+          throw new RuntimeException(fs.list.toList.mkString(", "))
       }
     }
 
@@ -44,7 +44,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.names should be(Set("my_workflow", "my_other_workflow"))
           r.statuses should be(Set("Succeeded", "Running"))
         case Failure(fs) =>
-          throw new RuntimeException(fs.list.mkString(", "))
+          throw new RuntimeException(fs.list.toList.mkString(", "))
       }
     }
 
@@ -58,8 +58,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 1
-          fs.list.head should include("Unrecognized query keys: Bogosity")
+          fs.list.toList should have size 1
+          fs.list.toList.head should include("Unrecognized query keys: Bogosity")
       }
     }
 
@@ -74,8 +74,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 1
-          fs.list.head should include("Specified start date is after specified end date")
+          fs.list.toList should have size 1
+          fs.list.toList.head should include("Specified start date is after specified end date")
       }
     }
 
@@ -91,8 +91,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 1
-          fs.list.head should include("Name values do not match allowed workflow naming pattern")
+          fs.list.toList should have size 1
+          fs.list.toList.head should include("Name values do not match allowed workflow naming pattern")
       }
     }
 
@@ -107,8 +107,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 1
-          fs.list.head should include("does not parse as a datetime")
+          fs.list.toList should have size 1
+          fs.list.toList.head should include("does not parse as a datetime")
       }
     }
 
@@ -122,8 +122,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 1
-          fs.list.head should include("at most one is allowed")
+          fs.list.toList should have size 1
+          fs.list.toList.head should include("at most one is allowed")
       }
     }
 
@@ -138,8 +138,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 1
-          fs.list.head should be("Unrecognized status values: Moseying")
+          fs.list.toList should have size 1
+          fs.list.toList.head should be("Unrecognized status values: Moseying")
       }
     }
 
@@ -155,10 +155,10 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Success(r) =>
           throw new RuntimeException(s"Unexpected success: $r")
         case Failure(fs) =>
-          fs.list should have size 3
-          fs.list find { _ == "Unrecognized status values: Moseying" } getOrElse fail
-          fs.list find { _ contains "does not parse as a datetime" } getOrElse fail
-          fs.list find { _ contains "Name values do not match allowed workflow naming pattern" } getOrElse fail
+          fs.list.toList should have size 3
+          fs.list.toList find { _ == "Unrecognized status values: Moseying" } getOrElse fail
+          fs.list.toList find { _ contains "does not parse as a datetime" } getOrElse fail
+          fs.list.toList find { _ contains "Name values do not match allowed workflow naming pattern" } getOrElse fail
       }
     }
   }

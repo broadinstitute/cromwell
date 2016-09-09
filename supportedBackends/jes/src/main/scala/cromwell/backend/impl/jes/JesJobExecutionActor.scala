@@ -7,12 +7,12 @@ import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesJobId
+import cromwell.backend.impl.jes.JesJobExecutionActor._
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{Future, Promise}
 import scala.language.postfixOps
-import cromwell.backend.impl.jes.JesJobExecutionActor._
-import cromwell.services.keyvalue.KeyValueServiceActor._
 
 object JesJobExecutionActor {
   val logger = LoggerFactory.getLogger("JesBackend")
@@ -65,7 +65,7 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       jesConfiguration,
       initializationData,
       serviceRegistryActor)
-    val executorRef = context.actorOf(executionProps)
+    val executorRef = context.actorOf(executionProps, "JesAsyncBackendJobExecutionActor")
     executor = Option(executorRef)
     ()
   }

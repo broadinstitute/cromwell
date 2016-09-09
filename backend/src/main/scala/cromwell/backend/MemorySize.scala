@@ -18,12 +18,12 @@ object MemorySize {
         val unit = MemoryUnit.values find {
           _.suffixes.contains(unitString)
         } match {
-          case Some(s) => s.successNel
+          case Some(s) => s.successNel[String]
           case None => s"$unitString is an invalid memory unit".failureNel
         }
         (amount |@| unit) { (a, u) => new MemorySize(a, u) } match {
           case scalaz.Success(memorySize) => Success(memorySize)
-          case scalaz.Failure(nel) => Failure(new UnsupportedOperationException(nel.list.mkString("\n")))
+          case scalaz.Failure(nel) => Failure(new UnsupportedOperationException(nel.list.toList.mkString("\n")))
         }
       case _ => Failure(new UnsupportedOperationException(s"$unparsed should be of the form 'X Unit' where X is a number, e.g. 8 GB"))
     }

@@ -43,7 +43,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     val returnValue = asStoreEntries map { x => WorkflowId.fromString(x.workflowUuid) }
 
     // The results from the Future aren't useful, so on completion map it into the precalculated return value instead. Magic!
-    sqlDatabase.addWorkflow(asStoreEntries.list) map { _ => returnValue }
+    sqlDatabase.addWorkflow(asStoreEntries.list.toList) map { _ => returnValue }
   }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {

@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, FSM, Props}
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowInitializationActor}
-import cromwell.core.WorkflowId
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor._
@@ -83,7 +83,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId,
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, serviceRegistryActor)
           ).get
-          actor = context.actorOf(props)
+          actor = context.actorOf(props, backend)
         } yield BackendActorAndBackend(actor, backend)
       }
 

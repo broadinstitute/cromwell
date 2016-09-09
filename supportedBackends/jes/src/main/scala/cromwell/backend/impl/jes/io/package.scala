@@ -13,7 +13,7 @@ package object io {
 
     def hash = path match {
       case gcs: NioGcsPath => gcs.getFileSystem.provider().asInstanceOf[GcsFileSystemProvider].crc32cHash(gcs)
-      case _ => path.md5
+      case _ => File(path).md5
     }
 
     def writeAsJson(content: String): File = {

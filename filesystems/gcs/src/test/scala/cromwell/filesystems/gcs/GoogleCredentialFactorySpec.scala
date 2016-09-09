@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs
 
-import java.io.File
+import java.nio.file.Paths
 
 import com.google.api.client.auth.oauth2.Credential
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -144,7 +144,7 @@ object GoogleCredentialFactorySpec {
 
    */
 
-  private lazy val credentialsConfig = ConfigFactory.parseFile(new File("cromwell-credentials.conf"))
+  private lazy val credentialsConfig = ConfigFactory.parseFile(Paths.get("cromwell-credentials.conf").toFile)
 
   private def secretConf(path: String) = credentialsConfig.getString(path)
 

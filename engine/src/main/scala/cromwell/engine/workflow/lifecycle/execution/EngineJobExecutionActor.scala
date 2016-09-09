@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.routing.RoundRobinPool
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
@@ -268,10 +269,25 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       self,
       jobDescriptor,
       initializationData,
-      factory.fileContentsHasherActor,
+      fileContentsHasherActor,
       callCacheReadActor,
       factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
     context.actorOf(props, s"ejha_for_$jobDescriptor")
+  }
+
+  /**
+    * Returns a RoundRobinPool of actors based on this.factory.
+    *
+    * See also: factorySingletonRouters
+    *
+    * @return a RoundRobinPool of actors based on this.factory.
+    */
+  private def fileContentsHasherActor: ActorRef = {
+    factorySingletonRouters.getOrElseUpdate(factory,
+      context.actorOf(
+        RoundRobinPool(factory.fileHashingWorkerCount).props(factory.fileContentsHasherActorProps),
+        "FileContentsHasherActor")
+    )
   }
 
   def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
@@ -421,4 +437,11 @@ object EngineJobExecutionActor {
 
   private[execution] case class NotSucceededResponseData(response: BackendJobExecutionResponse,
                                                          hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData
+
+  /**
+    * Deliberately a singleton (well, a singleton router), so we can globally rate limit hash lookups per backend.
+    *
+    * More refinement may appear via #1377.
+    */
+  private val factorySingletonRouters = scala.collection.mutable.Map[BackendLifecycleActorFactory, ActorRef]()
 }

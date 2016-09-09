@@ -67,12 +67,13 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
             _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, executionStore, outputStore, initializationData.get(backend))
           ).get
-          actor = context.actorOf(props)
+          actor = context.actorOf(props, backend)
         } yield actor
       }
 
       val engineFinalizationActor = Try {
-        context.actorOf(CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, outputStore, initializationData))
+        context.actorOf(CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, outputStore, initializationData),
+          "CopyWorkflowOutputsActor")
       }
 
       val allActors = for {

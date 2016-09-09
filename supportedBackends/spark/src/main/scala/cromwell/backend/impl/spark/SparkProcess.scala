@@ -30,7 +30,7 @@ class SparkCommands extends StrictLogging {
     * as some extra shell code for monitoring jobs
     */
   def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path) = {
-    filePath.write(
+    File(filePath).write(
       s"""#!/bin/sh
           |cd $containerRoot
           |$instantiatedCommand

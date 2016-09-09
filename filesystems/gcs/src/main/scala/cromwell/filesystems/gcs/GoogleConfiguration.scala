@@ -1,7 +1,7 @@
 package cromwell.filesystems.gcs
 
 import com.google.api.services.storage.StorageScopes
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import lenthall.config.ConfigValidationException
 import lenthall.config.ValidatedConfig._
 import org.slf4j.LoggerFactory
@@ -56,7 +56,7 @@ object GoogleConfiguration {
         cfg => RefreshTokenMode(name, cfg.getString("client-id"), cfg.getString("client-secret"))
       }
 
-      def applicationDefaultAuth(name: String) = ApplicationDefaultMode(name, GoogleScopes).successNel
+      def applicationDefaultAuth(name: String) = ApplicationDefaultMode(name, GoogleScopes).successNel[String]
 
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")
@@ -88,7 +88,7 @@ object GoogleConfiguration {
     } match {
       case Success(r) => r
       case Failure(f) =>
-        val errorMessages = f.list.mkString(", ")
+        val errorMessages = f.list.toList.mkString(", ")
         log.error(errorMessages)
         throw new ConfigValidationException("Google", errorMessages)
     }

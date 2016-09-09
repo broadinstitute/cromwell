@@ -12,7 +12,7 @@ object WorkflowPaths{
 }
 
 class WorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, config: Config, val fileSystems: List[FileSystem] = List(FileSystems.getDefault)) extends PathFactory {
-  val executionRoot = Paths.get(config.getStringOr("root", "cromwell-executions"))
+  val executionRoot = Paths.get(config.getStringOr("root", "cromwell-executions")).toAbsolutePath
 
   private def workflowPathBuilder(root: Path) = {
     root.resolve(workflowDescriptor.workflowNamespace.workflow.unqualifiedName)

@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystems, Files, Paths}
+import java.nio.file.{FileSystems, Files}
 
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -11,7 +11,7 @@ import wdl4s.values.WdlFile
 
 class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks {
 
-  behavior of "SharedFileSystemBackend"
+  behavior of "SharedFileSystem"
 
   val defaultLocalization = ConfigFactory.parseString(""" localization: [copy, hard-link, soft-link] """)
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
@@ -25,24 +25,28 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        fileAlreadyExists: Boolean = false,
                        symlink: Boolean = false,
                        linkNb: Int = 1) = {
-    val callDir = File.newTempDir("SharedFileSystemBackend").path
-    val orig = if (fileInCallDir) callDir.createChild("inputFile").touch().path else File.newTemp("inputFile").touch().path
-    val dest = if (fileInCallDir) orig else Paths.get(callDir.toString, orig.toString)
-    if (fileAlreadyExists) dest.touch()
+    val callDir = File.newTemporaryDirectory("SharedFileSystem")
+    val orig = if (fileInCallDir) callDir.createChild("inputFile") else File.newTemporaryFile("inputFile")
+    val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.drop(1))
+    orig.touch()
+    if (fileAlreadyExists) {
+      dest.parent.createDirectories()
+      dest.touch()
+    }
 
-    val inputs = Map("input" -> WdlFile(orig.toAbsolutePath.toString))
+    val inputs = Map("input" -> WdlFile(orig.pathAsString))
     val sharedFS = new SharedFileSystem { override val sharedFileSystemConfig = config }
-    val result = sharedFS.localizeInputs(callDir, docker = docker, localFS, inputs)
+    val result = sharedFS.localizeInputs(callDir.path, docker = docker, localFS, inputs)
 
     result.isSuccess shouldBe true
-    result.get should contain theSameElementsAs Map("input" -> WdlFile(dest.toString))
+    result.get should contain theSameElementsAs Map("input" -> WdlFile(dest.pathAsString))
 
     dest.exists shouldBe true
     countLinks(dest) should be(linkNb)
     isSymLink(dest) should be(symlink)
 
-    orig.delete(ignoreIOExceptions = true)
-    dest.delete(ignoreIOExceptions = true)
+    orig.delete(swallowIOExceptions = true)
+    dest.delete(swallowIOExceptions = true)
   }
 
   it should "not localize a file already in the call root" in {

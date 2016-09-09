@@ -7,6 +7,7 @@ import cromwell.core.{ErrorOr, WorkflowId, WorkflowState}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 import scalaz.Scalaz._
+import scalaz.ValidationNel
 
 object WorkflowQueryKey {
   val ValidKeys = Set(StartDate, EndDate, Name, Id, Status, Page, PageSize) map { _.name }
@@ -38,7 +39,7 @@ object WorkflowQueryKey {
 
       val values = valuesFromMap(grouped).toList
       val nels = values map {
-        case Patterns.WorkflowName(n) => n.successNel
+        case Patterns.WorkflowName(n) => n.successNel[String]
         case v => v.failureNel
       }
       sequenceListOfValidationNels(s"Name values do not match allowed workflow naming pattern", nels)
@@ -51,7 +52,7 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel else v.failureNel
+        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel[String] else v.failureNel
       }
       sequenceListOfValidationNels(s"Id values do match allowed workflow id pattern", nels)
     }
@@ -63,7 +64,7 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Seq[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowState.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel else v.failureNel
+        if (Try(WorkflowState.fromString(v.toLowerCase.capitalize)).isSuccess) v.successNel[String] else v.failureNel
       }
       sequenceListOfValidationNels("Unrecognized status values", nels)
     }
@@ -100,7 +101,7 @@ sealed trait SeqStringWorkflowQueryKey extends WorkflowQueryKey[Seq[String]] {
     val errorOr = errorOrList.sequence[ErrorOr, String]
     // With a leftMap, prepend an error message to the concatenated error values if there are error values.
     // This turns the ValidationNel into a Validation, force it back to a ValidationNel with toValidationNel.
-    errorOr.leftMap(prefix + ": " + _.list.mkString(", ")).toValidationNel
+    errorOr.leftMap(prefix + ": " + _.list.toList.mkString(", ")).toValidationNel
   }
 }
 

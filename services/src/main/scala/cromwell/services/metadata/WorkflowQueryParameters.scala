@@ -42,7 +42,7 @@ object WorkflowQueryParameters {
 
     keysByCanonicalCapitalization.keys.toSet -- WorkflowQueryKey.ValidKeys match {
       case set if set.nonEmpty =>
-        val unrecognized = set.flatMap { k => keysByCanonicalCapitalization.get(k).get }
+        val unrecognized = set flatMap keysByCanonicalCapitalization
         ("Unrecognized query keys: " + unrecognized.mkString(", ")).failureNel
       case _ => ().successNel
     }
@@ -69,7 +69,7 @@ object WorkflowQueryParameters {
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEnd = (startDate, endDate) match {
       case (Success(s), Success(e)) => validateStartBeforeEnd(s, e)
-      case _ => ().successNel
+      case _ => ().successNel[String]
     }
 
     (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| startDate |@| endDate |@| page |@| pageSize) {
@@ -82,7 +82,7 @@ object WorkflowQueryParameters {
   def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters = {
     runValidation(rawParameters) match {
       case Success(queryParameters) => queryParameters
-      case Failure(x) => throw new IllegalArgumentException(x.list.mkString("\n"))
+      case Failure(x) => throw new IllegalArgumentException(x.list.toList.mkString("\n"))
     }
   }
 }

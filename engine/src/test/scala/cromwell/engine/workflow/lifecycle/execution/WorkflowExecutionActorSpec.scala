@@ -44,7 +44,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
         stubbedConfig
       )
-      CromwellBackends.initBackends(List(MockBackendConfigEntry), system)
+      CromwellBackends.initBackends(List(MockBackendConfigEntry))
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection))
@@ -90,7 +90,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.DefaultBackendLifecycleActorFactory",
         stubbedConfig
       )
-      CromwellBackends.initBackends(List(MockBackendConfigEntry), system)
+      CromwellBackends.initBackends(List(MockBackendConfigEntry))
 
       val workflowId = WorkflowId.randomId()
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))

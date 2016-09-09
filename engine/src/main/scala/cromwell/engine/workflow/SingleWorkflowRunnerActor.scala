@@ -5,18 +5,15 @@ import java.util.UUID
 
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
-import akka.pattern.pipe
-import akka.util.Timeout
 import better.files._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{WorkflowId, ExecutionStore => _, _}
+import cromwell.core.{ExecutionStore => _, _}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
-import cromwell.util.PromiseActor._
 import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -52,7 +49,7 @@ object SingleWorkflowRunnerActor {
                               id: Option[WorkflowId] = None,
                               failures: Seq[Throwable] = Seq.empty) {
 
-    def addFailure(message: String): RunnerData = addFailure(new Throwable(message))
+    def addFailure(message: String): RunnerData = addFailure(new RuntimeException(message))
 
     def addFailure(e: Throwable): RunnerData = this.copy(failures = e +: failures)
   }
@@ -74,8 +71,6 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
-  private implicit val system = context.system
-  private implicit val timeout = Timeout(5 seconds)
 
   startWith(NotStarted, RunnerData())
 
@@ -94,7 +89,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
     // Cromwell's eventual consistency means it isn't safe to use an FSM transition to a terminal state as the signal for
     // when outputs or metadata have stabilized.
     val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"StatusRequest-Workflow-${stateData.id.get}-request-${UUID.randomUUID()}")
-    metadataBuilder.askNoTimeout(GetStatus(stateData.id.get)) pipeTo self
+    metadataBuilder ! GetStatus(stateData.id.get)
   }
 
   private def issueReply: State = {
@@ -126,7 +121,8 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
       schedulePollRequest()
       stay()
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if jsObject.state == WorkflowSucceeded =>
-      val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor))
+      val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
+        s"CompleteRequest-Workflow-${stateData.id.get}-request-${UUID.randomUUID()}")
       metadataBuilder ! WorkflowOutputs(data.id.get)
       goto(RequestingOutputs) using data.copy(terminalState = Option(WorkflowSucceeded))
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if jsObject.state == WorkflowFailed =>
@@ -190,12 +186,12 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
 
   private def outputMetadata(metadata: JsObject): Try[Unit] = {
     Try {
-      val path = metadataOutputPath.get
+      val path = File(metadataOutputPath.get)
       if (path.isDirectory) {
         log.error("Specified metadata path is a directory, should be a file: " + path)
       } else {
         log.info(s"$Tag writing metadata to $path")
-        path.createIfNotExists().write(metadata.prettyPrint)
+        path.createIfNotExists(asDirectory = false, createParents = true).write(metadata.prettyPrint)
       }
     }
   }

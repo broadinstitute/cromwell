@@ -82,7 +82,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
           val assignedSources = ids.zip(sources)
           assignedSources foreach { case (id, sourceFiles) => registerSubmissionWithMetadataService(id, sourceFiles) }
           sndr ! WorkflowsBatchSubmittedToStore(ids)
-          log.info("Workflows {} submitted.", ids.list.mkString(", "))
+          log.info("Workflows {} submitted.", ids.list.toList.mkString(", "))
         }
       case cmd @ FetchRunnableWorkflows(n) =>
         newWorkflowMessage(n) map { nwm =>
@@ -137,7 +137,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     } yield restartableWorkflows ++ submittedWorkflows
 
     runnableWorkflows map {
-      case x :: xs => NewWorkflowsToStart(NonEmptyList.nel(x, xs))
+      case x :: xs => NewWorkflowsToStart(NonEmptyList.nels(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     }
   }

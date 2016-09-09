@@ -1,9 +1,8 @@
 package cromwell.util
 
-import java.io.{File, FileInputStream, Writer}
+import java.nio.file.Path
 
 import better.files._
-import org.apache.commons.codec.digest.DigestUtils
 import wdl4s.values.Hashable
 
 import scala.util.{Failure, Success, Try}
@@ -21,26 +20,7 @@ object FileUtil {
     }
   }
 
-  implicit class FlushingAndClosingWriter(writer: Writer) {
-    /** Convenience method to flush and close in one shot. */
-    def flushAndClose() = {
-      writer.flush()
-      writer.close()
-    }
-  }
-
-  implicit class EnhancedFile(val file: File) extends AnyVal with Hashable {
-    /** Read an entire file into a string, closing the underlying stream. */
-    def slurp: String = {
-      // TODO: deprecate slurp, and java.io.File in general?
-      file.toPath.contentAsString
-    }
-
-    def md5Sum: String = {
-      val fis = new FileInputStream(file)
-      try {
-        DigestUtils.md5Hex(fis)
-      } finally fis.close()
-    }
+  implicit class EnhancedFile(val file: Path) extends AnyVal with Hashable {
+    def md5Sum: String = File(file).md5.toLowerCase // toLowerCase for backwards compatibility
   }
 }

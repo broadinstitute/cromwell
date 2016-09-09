@@ -1,6 +1,6 @@
 package cromwell.backend.impl.htcondor
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
@@ -13,7 +13,8 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.util.{Failure, Success, Try}
 
-case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory with StrictLogging {
+case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor)
+  extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],

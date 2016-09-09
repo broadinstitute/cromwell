@@ -57,7 +57,7 @@ class HtCondorCommands extends StrictLogging {
     */
   def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path): Unit = {
     logger.debug(s"Writing bash script for execution. Command: $instantiatedCommand.")
-    filePath.write(
+    File(filePath).write(
       s"""#!/bin/sh
           |cd $containerRoot
           |$instantiatedCommand
@@ -75,7 +75,7 @@ class HtCondorCommands extends StrictLogging {
     submitFileWriter.writeWithNewline(HtCondorRuntimeKeys.Queue)
     submitFileWriter.writer.flushAndClose()
     logger.debug(s"submit file name is : $path")
-    logger.debug(s"content of file is : ${path.lines.toList}")
+    logger.debug(s"content of file is : ${File(path).lines.toList}")
     htCondorSubmitCommand(path)
   }
 
@@ -104,7 +104,7 @@ class HtCondorProcess extends StrictLogging {
       checkStatus(jobId) match {
         case status if JobStatus.isTerminal(status) =>
           Files.exists(returnCodeFilePath) match {
-            case true => returnCodeFilePath.contentAsString.stripLineEnd.toInt
+            case true => File(returnCodeFilePath).contentAsString.stripLineEnd.toInt
             case false =>
               val msg = s"JobStatus from Condor is terminal ($status) and no RC file exists!"
               logger.debug(msg)

@@ -122,7 +122,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
     "fail to validate an invalid preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "preemptible" -> WdlString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer")
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Failed to validate preemptible runtime attribute: Could not coerce value into an integer")
     }
 
     "validate a valid bootDiskSizeGb entry" in {
@@ -177,7 +177,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
     "fail to validate an invalid noAddress entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "noAddress" -> WdlInteger(1))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting noAddress runtime attribute to be a Boolean")
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Failed to validate noAddress runtime attribute: Could not coerce 1 into a boolean")
     }
 
     "use reasonable default values" in {

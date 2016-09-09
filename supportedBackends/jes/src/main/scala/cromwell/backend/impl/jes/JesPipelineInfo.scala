@@ -23,7 +23,7 @@ trait JesPipelineInfoBuilder {
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)
-      .set(Run.noAddressFieldName, runtimeAttributes.noAddress)
+      .set(Run.NoAddressFieldName, runtimeAttributes.noAddress)
   }
 
   def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo

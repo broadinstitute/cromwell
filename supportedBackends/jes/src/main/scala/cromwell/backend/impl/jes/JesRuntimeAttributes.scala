@@ -118,24 +118,16 @@ object JesRuntimeAttributes {
     }
   }
 
+  private def contextualizeFailure[T](validation: ErrorOr[T], key: String): ErrorOr[T] = {
+    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.list.mkString(",")).toValidationNel
+  }
+
   private def validatePreemptible(preemptible: WdlValue): ErrorOr[Int] = {
-    val preemptibleValidation = validateInt(preemptible)
-    if (preemptibleValidation.isFailure) {
-      s"Expecting $PreemptibleKey runtime attribute to be an Integer".failureNel
-    }
-    else {
-      preemptibleValidation
-    }
+    contextualizeFailure(validateInt(preemptible), PreemptibleKey)
   }
 
   private def validateNoAddress(noAddress: WdlValue): ErrorOr[Boolean] = {
-    val noAddressValidation = validateBoolean(noAddress)
-    if (noAddressValidation.isFailure) {
-      s"Expecting $NoAddressKey runtime attribute to be a Boolean".failureNel
-    }
-    else {
-      noAddressValidation
-    }
+    contextualizeFailure(validateBoolean(noAddress), NoAddressKey)
   }
 
   private def validateBootDisk(diskSize: WdlValue): ErrorOr[Int] = diskSize match {

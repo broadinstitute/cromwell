@@ -28,7 +28,7 @@ object Run {
   private val PollingBackoffFactor = 1.1
   private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown", "preempted")
 
-  val noAddressFieldName = "noAddress"
+  val NoAddressFieldName = "noAddress"
 
   val slf4jLogger = LoggerFactory.getLogger(Run.getClass)
 
@@ -57,7 +57,7 @@ object Run {
              .setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
     def runPipeline: String = {
-      val runtimeResources = new PipelineResources().set(noAddressFieldName, runtimeAttributes.noAddress)
+      val runtimeResources = new PipelineResources().set(NoAddressFieldName, runtimeAttributes.noAddress)
       val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount).setResources(runtimeResources)
 
       rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)

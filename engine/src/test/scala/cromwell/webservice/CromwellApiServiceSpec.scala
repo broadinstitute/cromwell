@@ -10,15 +10,13 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.core.Tags._
 import cromwell.core._
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
-import cromwell.engine.workflow.WorkflowManagerActor.AbortWorkflowCommand
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{BatchSubmitWorkflows, SubmitWorkflow, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{WorkflowAborted => _, _}
 import cromwell.server.{CromwellServerActor, CromwellSystem}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.MetadataSummarySuccess
 import cromwell.util.SampleWdl.HelloWorld
-import cromwell.webservice.CromwellApiHandler._
 import org.scalatest.concurrent.{PatienceConfiguration, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -29,6 +27,10 @@ import spray.testkit.ScalatestRouteTest
 
 object MockWorkflowStoreActor {
   val submittedWorkflowId = WorkflowId(UUID.randomUUID())
+  val runningWorkflowId = WorkflowId.randomId()
+  val unknownId = WorkflowId.randomId()
+  val submittedScatterWorkflowId = WorkflowId.randomId()
+  val abortedWorkflowId = WorkflowId.randomId()
 }
 
 class MockWorkflowStoreActor extends Actor {
@@ -39,27 +41,17 @@ class MockWorkflowStoreActor extends Actor {
     case BatchSubmitWorkflows(sources) =>
       val response = WorkflowsBatchSubmittedToStore(sources map { _ => submittedWorkflowId })
       sender ! response
-  }
-}
-
-object MockWorkflowManagerActor {
-  val runningWorkflowId = WorkflowId.randomId()
-  val unknownId = WorkflowId.randomId()
-  val submittedScatterWorkflowId = WorkflowId.randomId()
-  val abortedWorkflowId = WorkflowId.randomId()
-}
-
-class MockWorkflowManagerActor extends Actor {
-  def receive = {
-    case AbortWorkflowCommand(id) =>
+    case AbortWorkflow(id, manager) =>
       val message = id match {
-        case MockWorkflowManagerActor.runningWorkflowId => WorkflowManagerAbortSuccess(id)
-        case MockWorkflowManagerActor.abortedWorkflowId =>
-          WorkflowManagerAbortFailure(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
+        case MockWorkflowStoreActor.runningWorkflowId =>
+          WorkflowStoreActor.WorkflowAborted(id)
+        case MockWorkflowStoreActor.abortedWorkflowId =>
+          WorkflowAbortFailed(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
       }
       sender ! message
   }
 }
+
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers
   with ScalaFutures with Mockito {
@@ -78,11 +70,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   override def actorRefFactory = system
   override val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
 
-  override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor() with WorkflowDescriptorBuilder {
-    override implicit  val actorSystem = context.system
-  }))
-
   override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
+  override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
 
   val version = "v1"
 
@@ -177,7 +166,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   behavior of "REST API /abort endpoint"
 
   it should "return 404 for abort of unknown workflow" in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/abort") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/abort") ~>
       abortRoute ~>
       check {
         assertResult(StatusCodes.NotFound) {
@@ -186,7 +175,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "Unrecognized workflow ID: ${MockWorkflowManagerActor.unknownId}"
+              |  "message": "Unrecognized workflow ID: ${MockWorkflowStoreActor.unknownId}"
               |}""".stripMargin
         ) {
           responseAs[String]
@@ -213,9 +202,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 403 for abort of a workflow in a terminal state" in {
-    publishStatusAndSubmission(MockWorkflowManagerActor.abortedWorkflowId, WorkflowAborted)
+    publishStatusAndSubmission(MockWorkflowStoreActor.abortedWorkflowId, WorkflowAborted)
 
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.abortedWorkflowId}/abort") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.abortedWorkflowId}/abort") ~>
     abortRoute ~>
     check {
       assertResult(StatusCodes.Forbidden) {
@@ -224,7 +213,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       assertResult(
         s"""{
             |  "status": "error",
-            |  "message": "Workflow ID '${MockWorkflowManagerActor.abortedWorkflowId}' is in terminal state 'Aborted' and cannot be aborted."
+            |  "message": "Workflow ID '${MockWorkflowStoreActor.abortedWorkflowId}' is in terminal state 'Aborted' and cannot be aborted."
             |}""".stripMargin
       ) {
         responseAs[String]
@@ -233,14 +222,14 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 200 for abort of a known workflow id" in {
-    publishStatusAndSubmission(MockWorkflowManagerActor.runningWorkflowId, WorkflowRunning)
+    publishStatusAndSubmission(MockWorkflowStoreActor.runningWorkflowId, WorkflowRunning)
 
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.runningWorkflowId}/abort") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.runningWorkflowId}/abort") ~>
       abortRoute ~>
       check {
         assertResult(
           s"""{
-              |  "id": "${MockWorkflowManagerActor.runningWorkflowId.toString}",
+              |  "id": "${MockWorkflowStoreActor.runningWorkflowId.toString}",
               |  "status": "Aborted"
               |}"""
             .stripMargin) {
@@ -317,7 +306,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 404 with outputs on unknown workflow" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/outputs") ~>
+    Get(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/outputs") ~>
     workflowOutputsRoute ~>
     check {
       assertResult(StatusCodes.NotFound) {
@@ -365,7 +354,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   it should "return 404 with logs on unknown workflow" in {
-    Get(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/logs") ~>
+    Get(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/logs") ~>
       workflowLogsRoute ~>
       check {
         assertResult(StatusCodes.NotFound) {
@@ -625,7 +614,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   behavior of "REST API /call-caching endpoint"
 
   ignore should "disallow call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>
     callCachingRoute ~>
     check {
       assertResult(StatusCodes.OK) { status }
@@ -633,7 +622,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject missing 'allow' when disabling call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/w.good_call") ~>
     callCachingRoute ~>
     check {
       assertResult(StatusCodes.BadRequest) { status }
@@ -644,7 +633,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject bogus calls" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/bogus?allow=true") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/bogus?allow=true") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) { status }
@@ -655,7 +644,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject invalid parameter keys when enabling call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=true&bogusKey=foo") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=true&bogusKey=foo") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) { status }
@@ -666,7 +655,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject bogus workflows when enabling call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/call-caching/w.good_call?allow=true") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/call-caching/w.good_call?allow=true") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) { status }
@@ -677,7 +666,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "disallow call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching?allow=false") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching?allow=false") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.OK) { status }
@@ -685,7 +674,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject missing 'allow' when disabling call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) { status }
@@ -696,7 +685,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject invalid parameter keys when enabling call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.submittedScatterWorkflowId}/call-caching?allow=true&bogusKey=foo") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching?allow=true&bogusKey=foo") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) { status }
@@ -707,7 +696,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   }
 
   ignore should "reject bogus workflows when enabling call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowManagerActor.unknownId}/call-caching?allow=true") ~>
+    Post(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/call-caching?allow=true") ~>
       callCachingRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) { status }

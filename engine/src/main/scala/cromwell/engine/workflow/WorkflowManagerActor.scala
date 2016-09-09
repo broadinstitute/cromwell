@@ -5,13 +5,12 @@ import akka.actor._
 import akka.event.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice.CromwellApiHandler._
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
 import scala.concurrent.duration._
@@ -33,14 +32,9 @@ object WorkflowManagerActor {
     */
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
-  case class AbortWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
+  final case class AbortWorkflowCommand(id: WorkflowId, replyTo: ActorRef) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
-  case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
-
-  /**
-    * Responses
-    */
-  sealed trait WorkflowManagerActorResponse extends WorkflowManagerActorMessage
+  final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
 
   def props(workflowStore: ActorRef,
             serviceRegistryActor: ActorRef,
@@ -104,6 +98,8 @@ class WorkflowManagerActor(config: Config,
 
   private val donePromise = Promise[Unit]()
 
+  private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
+
   override def preStart() {
     addShutdownHook()
     // Starts the workflow polling cycle
@@ -150,14 +146,18 @@ class WorkflowManagerActor(config: Config,
     case Event(SubscribeToWorkflowCommand(id), data) =>
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
       stay()
-    case Event(WorkflowManagerActor.AbortWorkflowCommand(id), stateData) =>
+    case Event(WorkflowManagerActor.AbortWorkflowCommand(id, replyTo), stateData) =>
       val workflowActor = stateData.workflows.get(id)
       workflowActor match {
         case Some(actor) =>
           actor ! WorkflowActor.AbortWorkflowCommand
+          abortingWorkflowToReplyTo += id -> replyTo
+          // Wait until the workflow transitions to the aborted state to respond with `WorkflowAborted`.
           stay()
         case None =>
-          sender ! WorkflowManagerAbortFailure(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
+          // All cool, if we got this far the workflow ID was found in the workflow store so this workflow must have never
+          // made it to the workflow manager.
+          replyTo ! WorkflowStoreActor.WorkflowAborted(id)
           stay()
       }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
@@ -180,7 +180,13 @@ class WorkflowManagerActor(config: Config,
       // This silently fails if idFromActor is None, but data.without call right below will as well
       data.idFromActor(workflowActor) foreach { workflowId =>
         jobStoreActor ! RegisterWorkflowCompleted(workflowId)
-        workflowStore ! WorkflowStoreActor.RemoveWorkflow(workflowId)
+        if (toState.workflowState == WorkflowAborted) {
+          val replyTo = abortingWorkflowToReplyTo(workflowId)
+          replyTo ! WorkflowStoreActor.WorkflowAborted(workflowId)
+          abortingWorkflowToReplyTo -= workflowId
+        } else {
+          workflowStore ! WorkflowStoreActor.RemoveWorkflow(workflowId)
+        }
       }
       stay using data.without(workflowActor)
   }

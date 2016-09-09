@@ -20,7 +20,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     )))
   }
 
-  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-a"), 0, 10, MemorySize(2, MemoryUnit.GB), Seq(JesWorkingDisk(DiskType.SSD, 10)), None, false, ContinueOnReturnCodeSet(Set(0)))
+  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-a"), 0, 10, MemorySize(2, MemoryUnit.GB), Seq(JesWorkingDisk(DiskType.SSD, 10)), None, false, ContinueOnReturnCodeSet(Set(0)), false)
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = Some("ubuntu:latest"))
 
   "JesRuntimeAttributes" should {
@@ -122,7 +122,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
     "fail to validate an invalid preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "preemptible" -> WdlString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer")
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Failed to validate preemptible runtime attribute: Could not coerce value into an integer")
     }
 
     "validate a valid bootDiskSizeGb entry" in {
@@ -167,6 +167,17 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     "fail to validate an invalid memory entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("blah"))
       assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+    }
+
+    "validate a valid noAddress entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "noAddress" -> WdlBoolean(true))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(noAddress = true)
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid noAddress entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "noAddress" -> WdlInteger(1))
+      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Failed to validate noAddress runtime attribute: Could not coerce 1 into a boolean")
     }
 
     "use reasonable default values" in {

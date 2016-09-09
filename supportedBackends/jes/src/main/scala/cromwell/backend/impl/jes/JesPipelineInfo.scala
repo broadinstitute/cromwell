@@ -5,12 +5,12 @@ import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 
-sealed trait JesRuntimeInfo {
+sealed trait JesPipelineInfo {
   def resources: PipelineResources
   def docker: DockerExecutor
 }
 
-trait JesRuntimeInfoBuilder {
+trait JesPipelineInfoBuilder {
   def buildDockerExecutor(commandLine: String, dockerImage: String): DockerExecutor = {
     val docker = new DockerExecutor()
     docker.setImageName(dockerImage).setCmd(commandLine)
@@ -23,13 +23,14 @@ trait JesRuntimeInfoBuilder {
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)
+      .set(Run.NoAddressFieldName, runtimeAttributes.noAddress)
   }
 
-  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo
 }
 
-object NonPreemptibleJesRuntimeInfoBuilder extends JesRuntimeInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo = {
+object NonPreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo = {
     /*
      It should be impossible for docker to be None here. Enforcing that w/ ADTs seemed more trouble than
       it was worth. If you're ever debugging a NoSuchElementException which leads you here, that means
@@ -38,18 +39,18 @@ object NonPreemptibleJesRuntimeInfoBuilder extends JesRuntimeInfoBuilder {
     */
     val dockerImage = runtimeAttributes.dockerImage.get
     val resources = buildResources(runtimeAttributes).setPreemptible(false)
-    new NonPreemptibleJesRuntimeInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
+    new NonPreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
-object PreemptibleJesRuntimeInfoBuilder extends JesRuntimeInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesRuntimeInfo = {
+object PreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo = {
     // See comment above
     val dockerImage = runtimeAttributes.dockerImage.get
     val resources = buildResources(runtimeAttributes).setPreemptible(true)
-    new PreemptibleJesRuntimeInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
+    new PreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
-case class NonPreemptibleJesRuntimeInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
-case class PreemptibleJesRuntimeInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesRuntimeInfo
+case class NonPreemptibleJesPipelineInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesPipelineInfo
+case class PreemptibleJesPipelineInfoBuilder private(resources: PipelineResources, docker: DockerExecutor) extends JesPipelineInfo

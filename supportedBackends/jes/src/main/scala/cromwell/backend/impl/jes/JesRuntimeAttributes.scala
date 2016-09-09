@@ -22,7 +22,8 @@ case class JesRuntimeAttributes(cpu: Int,
                                 disks: Seq[JesAttachedDisk],
                                 dockerImage: Option[String],
                                 failOnStderr: Boolean,
-                                continueOnReturnCode: ContinueOnReturnCode) {
+                                continueOnReturnCode: ContinueOnReturnCode,
+                                noAddress: Boolean) {
   import JesRuntimeAttributes._
 
   lazy val asMap = Map[String, Any](
@@ -52,6 +53,9 @@ object JesRuntimeAttributes {
   val BootDiskSizeKey = "bootDiskSizeGb"
   private val BootDiskSizeDefaultValue = 10
 
+  val NoAddressKey = "noAddress"
+  private val NoAddressDefaultValue = false
+
   val DisksKey = "disks"
   private val DisksDefaultValue = s"${JesWorkingDisk.Name} 10 SSD"
 
@@ -63,7 +67,8 @@ object JesRuntimeAttributes {
     FailOnStderrKey -> WdlBoolean.False,
     PreemptibleKey -> WdlInteger(PreemptibleDefaultValue),
     MemoryKey -> WdlString(MemoryDefaultValue),
-    BootDiskSizeKey -> WdlInteger(BootDiskSizeDefaultValue)
+    BootDiskSizeKey -> WdlInteger(BootDiskSizeDefaultValue),
+    NoAddressKey -> WdlBoolean(NoAddressDefaultValue)
   )
 
   private[jes] val coercionMap: Map[String, Set[WdlType]] = Map(
@@ -75,6 +80,7 @@ object JesRuntimeAttributes {
     PreemptibleKey -> Set(WdlIntegerType),
     MemoryKey -> Set(WdlStringType),
     BootDiskSizeKey -> Set(WdlIntegerType),
+    NoAddressKey -> Set(WdlBooleanType),
     DockerKey -> Set(WdlStringType)
   )
 
@@ -89,10 +95,11 @@ object JesRuntimeAttributes {
 
     val zones = validateZone(attrs(ZonesKey))
     val preemptible = validatePreemptible(attrs(PreemptibleKey))
+    val noAddress = validateNoAddress(attrs(NoAddressKey))
     val bootDiskSize = validateBootDisk(attrs(BootDiskSizeKey))
     val disks = validateLocalDisks(attrs(DisksKey))
-    (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode) {
-      new JesRuntimeAttributes(_, _, _, _, _, _, _, _, _)
+    (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode |@| noAddress) {
+      new JesRuntimeAttributes(_, _, _, _, _, _, _, _, _, _)
     } match {
       case Success(x) => x
       case Failure(nel) => throw new RuntimeException with MessageAggregation {
@@ -111,14 +118,16 @@ object JesRuntimeAttributes {
     }
   }
 
+  private def contextualizeFailure[T](validation: ErrorOr[T], key: String): ErrorOr[T] = {
+    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.toList.mkString(",")).toValidationNel
+  }
+
   private def validatePreemptible(preemptible: WdlValue): ErrorOr[Int] = {
-    val preemptibleValidation = validateInt(preemptible)
-    if (preemptibleValidation.isFailure) {
-      s"Expecting $PreemptibleKey runtime attribute to be an Integer".failureNel
-    }
-    else {
-      preemptibleValidation
-    }
+    contextualizeFailure(validateInt(preemptible), PreemptibleKey)
+  }
+
+  private def validateNoAddress(noAddress: WdlValue): ErrorOr[Boolean] = {
+    contextualizeFailure(validateBoolean(noAddress), NoAddressKey)
   }
 
   private def validateBootDisk(diskSize: WdlValue): ErrorOr[Int] = diskSize match {

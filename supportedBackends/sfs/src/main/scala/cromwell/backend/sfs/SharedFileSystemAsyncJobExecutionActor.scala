@@ -20,7 +20,6 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._
 import wdl4s.WdlExpression
-import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
 import scala.concurrent.duration._
@@ -282,12 +281,17 @@ trait SharedFileSystemAsyncJobExecutionActor
     * as some extra shell code for monitoring jobs
     */
   private def writeScript(instantiatedCommand: String, cwd: Path) = {
+    val rcTmpPath = cwd.resolve("rc.tmp")
+    val rcPath = cwd.resolve("rc")
+
     File(jobPaths.script).write(
       s"""#!/bin/sh
-          |cd $cwd
-          |$instantiatedCommand
-          |echo $$? > rc
-          |""".stripMargin)
+          |(
+          | cd $cwd
+          | $instantiatedCommand
+          |)
+          |echo $$? > $rcTmpPath
+          |mv $rcTmpPath $rcPath""")
   }
 
   /**

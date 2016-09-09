@@ -3,7 +3,7 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.services.SingletonServicesStore
@@ -18,8 +18,10 @@ import scala.util.{Failure, Success, Try}
 
 object MetadataServiceActor {
 
-  val MetadataSummaryRefreshInterval =
-    Duration(ConfigFactory.load().getStringOr("services.MetadataService.metadata-summary-refresh-interval", "2 seconds")).asInstanceOf[FiniteDuration]
+  val MetadataSummaryRefreshInterval: Option[FiniteDuration] = {
+    val duration = Duration(ConfigFactory.load().getStringOr("services.MetadataService.metadata-summary-refresh-interval", "2 seconds"))
+    if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
+  }
 
   val MetadataSummaryTimestampMinimum =
     ConfigFactory.load().getStringOption("services.MetadataService.metadata-summary-timestamp-minimum") map OffsetDateTime.parse
@@ -33,14 +35,29 @@ object MetadataServiceActor {
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {
 
-  val summaryActor = context.actorOf(MetadataSummaryRefreshActor.props(MetadataSummaryTimestampMinimum), "metadata-summary-actor")
+  private val summaryActor: Option[ActorRef] = buildSummaryActor
+
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
   val writeActor = context.actorOf(WriteMetadataActor.props(), "write-metadata-actor")
   implicit val ec = context.dispatcher
 
-  self ! RefreshSummary
+  summaryActor foreach { _ => self ! RefreshSummary }
 
-  private def scheduleSummary = context.system.scheduler.scheduleOnce(MetadataSummaryRefreshInterval, self, RefreshSummary)(context.dispatcher, self)
+  private def scheduleSummary = {
+    MetadataSummaryRefreshInterval map { context.system.scheduler.scheduleOnce(_, self, RefreshSummary)(context.dispatcher, self) }
+  }
+
+  private def buildSummaryActor: Option[ActorRef] = {
+    val actor = MetadataSummaryRefreshInterval map {
+      _ => context.actorOf(MetadataSummaryRefreshActor.props(MetadataSummaryTimestampMinimum), "metadata-summary-actor")
+    }
+    val message = MetadataSummaryRefreshInterval match {
+      case Some(interval) => s"Metadata summary refreshing every $interval."
+      case None => "Metadata summary refresh is off."
+    }
+    log.info(message)
+    actor
+  }
 
   private def validateWorkflowId(validation: ValidateWorkflowIdAndExecute): Unit = {
     val possibleWorkflowId = validation.possibleWorkflowId
@@ -64,9 +81,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
     case action@PutMetadataAction(events) => writeActor forward action
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
-    case RefreshSummary =>
-      val sndr = sender()
-      summaryActor ! SummarizeMetadata(sndr)
+    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }
     case MetadataSummarySuccess => scheduleSummary
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")

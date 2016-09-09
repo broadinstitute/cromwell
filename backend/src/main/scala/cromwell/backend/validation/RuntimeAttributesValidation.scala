@@ -6,7 +6,7 @@ import cromwell.core._
 import org.slf4j.Logger
 import wdl4s.WdlExpression
 import wdl4s.WdlExpression._
-import wdl4s.types.{WdlIntegerType, WdlType}
+import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlType}
 import wdl4s.values._
 
 import scala.util.{Failure, Success}
@@ -57,6 +57,13 @@ object RuntimeAttributesValidation {
     WdlIntegerType.coerceRawValue(value) match {
       case scala.util.Success(WdlInteger(i)) => i.intValue.successNel
       case _ => s"Could not coerce $value into an integer".failureNel
+    }
+  }
+
+  def validateBoolean(value: WdlValue): ErrorOr[Boolean] = {
+    WdlBooleanType.coerceRawValue(value) match {
+      case scala.util.Success(WdlBoolean(b)) => b.booleanValue.successNel
+      case _ => s"Could not coerce $value into a boolean".failureNel
     }
   }
 

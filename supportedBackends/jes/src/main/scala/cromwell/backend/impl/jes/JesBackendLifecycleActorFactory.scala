@@ -93,7 +93,8 @@ object JesBackendLifecycleActorFactory {
       RuntimeAttributeDefinition(DisksKey, Option(staticDefaults(DisksKey)), usedInCallCaching = false),
       RuntimeAttributeDefinition(ZonesKey, Option(staticDefaults(ZonesKey)), usedInCallCaching = false),
       RuntimeAttributeDefinition(PreemptibleKey, Option(staticDefaults(PreemptibleKey)), usedInCallCaching = false),
-      RuntimeAttributeDefinition(BootDiskSizeKey, Option(staticDefaults(BootDiskSizeKey)), usedInCallCaching = false)
+      RuntimeAttributeDefinition(BootDiskSizeKey, Option(staticDefaults(BootDiskSizeKey)), usedInCallCaching = false),
+      RuntimeAttributeDefinition(NoAddressKey, Option(staticDefaults(NoAddressKey)), usedInCallCaching = false)
     )
   }
 }

@@ -314,7 +314,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |export TMPDIR=$tmpDir
          |cd ${JesWorkingDisk.MountPoint}
          |$monitoring
+         |(
          |$command
+         |)
          |echo $$? > $rcPath
        """.stripMargin.trim
 

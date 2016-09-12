@@ -34,3 +34,11 @@ task {
     }
 }
 ```
+
+* The Local and the SGE backend have been merged into a generic
+Shared File System (SFS) backend. This updated backend can be configured
+to work with various other command line dispatchers such as LSF. See the
+[README](README.md#sun-gridengine-backend) for more info.
+
+* On the JES and SFS backends, task `command` blocks are now always
+passed absolute paths for input `File`s.

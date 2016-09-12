@@ -62,8 +62,8 @@ object JesAsyncBackendJobExecutionActor {
   private val ExecParamName = "exec"
   private val MonitoringParamName = "monitoring"
 
-  private val JesMonitoringScript = "monitoring.sh"
-  private val JesMonitoringLogFile = "monitoring.log"
+  private val JesMonitoringScript = JesWorkingDisk.MountPoint.resolve("monitoring.sh")
+  private val JesMonitoringLogFile = JesWorkingDisk.MountPoint.resolve("monitoring.log")
   private val JesExecScript = "exec.sh"
   private val ExtraConfigParamName = "__extra_config_gcs_path"
 
@@ -108,7 +108,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private[jes] lazy val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
   private[jes] lazy val monitoringScript: Option[JesInput] = {
     jobDescriptor.workflowDescriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
-      JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, Paths.get(JesMonitoringScript), workingDisk)
+      JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
     } toOption
   }
 
@@ -252,7 +252,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     */
   private def relativePathAndAttachedDisk(path: String, disks: Seq[JesAttachedDisk]): (Path, JesAttachedDisk) = {
     val absolutePath = Paths.get(path) match {
-      case p if !p.isAbsolute => Paths.get(JesWorkingDisk.MountPoint).resolve(p)
+      case p if !p.isAbsolute => JesWorkingDisk.MountPoint.resolve(p)
       case p => p
     }
 
@@ -301,7 +301,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val monitoring = if (withMonitoring) {
       s"""|touch $JesMonitoringLogFile
           |chmod u+x $JesMonitoringScript
-          |./$JesMonitoringScript > $JesMonitoringLogFile &""".stripMargin
+          |$JesMonitoringScript > $JesMonitoringLogFile &""".stripMargin
     } else ""
 
     val tmpDir = File(JesWorkingDisk.MountPoint)./("tmp").path
@@ -312,9 +312,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |#!/bin/bash
          |export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpDir
          |export TMPDIR=$tmpDir
-         |cd ${JesWorkingDisk.MountPoint}
          |$monitoring
          |(
+         |cd ${JesWorkingDisk.MountPoint}
          |$command
          |)
          |echo $$? > $rcPath

@@ -79,12 +79,12 @@ case class JesEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path
 }
 
 object JesWorkingDisk {
-  val MountPoint = "/cromwell_root"
+  val MountPoint = Paths.get("/cromwell_root")
   val Name = "local-disk"
 }
 
 case class JesWorkingDisk(diskType: DiskType, sizeGb: Int) extends JesAttachedDisk {
-  val mountPoint = Paths.get(JesWorkingDisk.MountPoint)
+  val mountPoint = JesWorkingDisk.MountPoint
   val name = JesWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
 }

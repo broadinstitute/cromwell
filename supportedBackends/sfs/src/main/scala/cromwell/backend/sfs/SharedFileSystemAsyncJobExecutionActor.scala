@@ -291,7 +291,7 @@ trait SharedFileSystemAsyncJobExecutionActor
           | $instantiatedCommand
           |)
           |echo $$? > $rcTmpPath
-          |mv $rcTmpPath $rcPath""")
+          |mv $rcTmpPath $rcPath""".stripMargin)
   }
 
   /**

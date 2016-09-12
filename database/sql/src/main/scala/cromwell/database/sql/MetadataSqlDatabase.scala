@@ -60,13 +60,10 @@ trait MetadataSqlDatabase {
   /**
     * Retrieves all summarizable metadata satisfying the specified criteria.
     *
-    * @param startMetadataTimestamp An optional timestamp.  If specified, a metadatum must have a timestamp greater than
-    *                               or equal to this value.
     * @param buildUpdatedSummary    Takes in the optional existing summary and the metadata, returns the new summary.
     * @return A `Future` with the maximum metadatumId summarized by the invocation of this method.
     */
-  def refreshMetadataSummaries(startMetadataTimestamp: Option[Timestamp],
-                               key1: String, key2: String, key3: String, key4: String,
+  def refreshMetadataSummaries(key1: String, key2: String, key3: String, key4: String,
                                buildUpdatedSummary:
                                (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
                               (implicit ec: ExecutionContext): Future[Long]

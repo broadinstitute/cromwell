@@ -22,7 +22,7 @@ object MetadataSummaryRefreshActor {
   case object MetadataSummarySuccess extends MetadataSummaryActorMessage
   final case class MetadataSummaryFailure(t: Throwable) extends MetadataSummaryActorMessage
 
-  def props(startMetadataTimestamp: Option[OffsetDateTime]) = Props(new MetadataSummaryRefreshActor(startMetadataTimestamp))
+  def props() = Props(new MetadataSummaryRefreshActor())
 
   sealed trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState
@@ -32,7 +32,7 @@ object MetadataSummaryRefreshActor {
   case object SummaryRefreshData
 }
 
-class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime])
+class MetadataSummaryRefreshActor()
   extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type] with MetadataDatabaseAccess with SingletonServicesStore {
 
   val config = ConfigFactory.load
@@ -42,12 +42,12 @@ class MetadataSummaryRefreshActor(startMetadataTimestamp: Option[OffsetDateTime]
 
   when (WaitingForRequest) {
     case (Event(SummarizeMetadata(respondTo), data)) =>
-      refreshWorkflowMetadataSummaries(startMetadataTimestamp) onComplete {
+      refreshWorkflowMetadataSummaries() onComplete {
         case Success(id) =>
           respondTo ! MetadataSummarySuccess
           self ! MetadataSummaryComplete
         case Failure(t) =>
-          log.error(t, "Failed to summarize metadata starting from date {}", startMetadataTimestamp)
+          log.error(t, "Failed to summarize metadata")
           respondTo ! MetadataSummaryFailure(t)
           self ! MetadataSummaryComplete
       }

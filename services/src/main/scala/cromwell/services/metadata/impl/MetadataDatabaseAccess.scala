@@ -140,11 +140,8 @@ trait MetadataDatabaseAccess {
     databaseInterface.queryMetadataEventsWithWildcardKeys(id.id.toString, keys, requireEmptyJobKey = false) map metadataToMetadataEvents(id)
   }
 
-  def refreshWorkflowMetadataSummaries(startMetadataDateTime: Option[OffsetDateTime])
-                                      (implicit ec: ExecutionContext): Future[Long] = {
-    val startTimestamp = startMetadataDateTime.map(_.toSystemTimestamp)
-    databaseInterface.refreshMetadataSummaries(startTimestamp,
-      WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
+  def refreshWorkflowMetadataSummaries()(implicit ec: ExecutionContext): Future[Long] = {
+    databaseInterface.refreshMetadataSummaries(WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
       WorkflowMetadataKeys.Status, MetadataDatabaseAccess.buildUpdatedSummary)
   }
 

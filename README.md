@@ -2048,15 +2048,10 @@ Query data is refreshed from raw data periodically according to the configuratio
 This interval represents the duration between the end of one summary refresh sweep and the beginning of the next sweep.  If not specified the
 refresh interval will default to 2 seconds.  To turn off metadata summary refresh, specify an infinite refresh interval value with "Inf".
 
-Cromwell can also be configured to ignore particularly old raw data via the configuration value `services.MetadataService.metadata-summary-timestamp-minimum`.
-This prevents Cromwell from attempting to scan and summarize data that has already been added to its internal summary table.  This setting is optional, if
-not specified Cromwell will scan all raw data for summary refresh on startup.
-
 ```
 services {
   MetadataService {
     metadata-summary-refresh-interval = "10 seconds"
-    metadata-summary-timestamp-minimum = "2016-05-31T13:59:55.947-04:00"
   }
 }
 ```

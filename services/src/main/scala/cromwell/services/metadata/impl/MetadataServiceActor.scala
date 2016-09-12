@@ -23,12 +23,6 @@ object MetadataServiceActor {
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 
-  val MetadataSummaryTimestampMinimum =
-    ConfigFactory.load().getStringOption("services.MetadataService.metadata-summary-timestamp-minimum") map OffsetDateTime.parse
-
-  // A workflow will stay in the existence cache for this many runs of the workflow summary actor before being expired out.
-  val CacheExpiryCount = 5
-
   def props(serviceConfig: Config, globalConfig: Config) = Props(MetadataServiceActor(serviceConfig, globalConfig))
 }
 
@@ -49,7 +43,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
 
   private def buildSummaryActor: Option[ActorRef] = {
     val actor = MetadataSummaryRefreshInterval map {
-      _ => context.actorOf(MetadataSummaryRefreshActor.props(MetadataSummaryTimestampMinimum), "metadata-summary-actor")
+      _ => context.actorOf(MetadataSummaryRefreshActor.props(), "metadata-summary-actor")
     }
     val message = MetadataSummaryRefreshInterval match {
       case Some(interval) => s"Metadata summary refreshing every $interval."

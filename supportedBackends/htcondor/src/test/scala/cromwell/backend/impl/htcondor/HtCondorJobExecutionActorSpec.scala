@@ -107,6 +107,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
         |      ]
         |    }
         |  }
+        |  poll-interval = 3
         |}
         """.stripMargin)
 

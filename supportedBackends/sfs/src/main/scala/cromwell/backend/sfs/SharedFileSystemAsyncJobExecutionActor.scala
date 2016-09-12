@@ -281,8 +281,8 @@ trait SharedFileSystemAsyncJobExecutionActor
     * as some extra shell code for monitoring jobs
     */
   private def writeScript(instantiatedCommand: String, cwd: Path) = {
-    val rcTmpPath = cwd.resolve("rc.tmp")
-    val rcPath = cwd.resolve("rc")
+    val rcPath = if (isDockerRun) jobPaths.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
+    val rcTmpPath = s"$rcPath.tmp"
 
     File(jobPaths.script).write(
       s"""#!/bin/sh

@@ -70,7 +70,7 @@ trait MetadataComponent {
       if metadatum.attempt === attempt
     } yield metadatum)
 
-  val metadataWithIdAndTimestampGreaterThanOrEqual = Compiled(
+  val metadataWithIdGreaterThanOrEqual = Compiled(
     (id: Rep[Long], key1: Rep[String], key2: Rep[String], key3: Rep[String], key4: Rep[String]) => for {
       m <- metadata
       if m.metadataId >= id

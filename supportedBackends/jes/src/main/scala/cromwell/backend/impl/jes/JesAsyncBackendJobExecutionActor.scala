@@ -136,6 +136,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private[jes] lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
   private lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
 
+  private var runId: Option[String] = None
 
   private lazy val metadataJobKey = {
     val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
@@ -144,18 +145,11 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
-      serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id,
-        KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
-        JesOperationIdKey))
-    case KvPair(scopedKey, operationId) if scopedKey.key == JesOperationIdKey =>
-      operationId match {
-        case Some(id) =>
-          jobLogger.info(s"$tag Aborting $id")
-          Try(Run(id, initializationData.genomics).abort()) match {
-            case Success(_) => jobLogger.info(s"$tag Aborted $id")
-            case Failure(ex) => jobLogger.warn(s"$tag Failed to abort $id: ${ex.getMessage}")
-          }
-        case None => jobLogger.warn(s"$tag Failed to abort ${jobDescriptor.call.fullyQualifiedName}. Run Id metadata field was empty.")
+      runId foreach { id =>
+        Try(Run(id, initializationData.genomics).abort()) match {
+          case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, id)
+          case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, id, ex.getMessage)
+        }
       }
       context.parent ! AbortedResponse(jobDescriptor.key)
       context.stop(self)
@@ -357,10 +351,11 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     ) andThen {
       case Success(run) =>
         // If this execution represents a resumption don't publish the operation ID since clearly it is already persisted.
+        runId = Option(run.runId)
         if (runIdForResumption.isEmpty) {
           serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.workflowDescriptor.id,
             KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
-            JesOperationIdKey), Option(run.runId)))
+            JesOperationIdKey), runId))
         }
     }
   }

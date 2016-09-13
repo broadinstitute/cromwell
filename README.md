@@ -304,7 +304,7 @@ database {
       db.user = "root"
       db.password = ""
       db.driver = "com.mysql.jdbc.Driver"
-      db.connectionTimeout = 5000 // NOTE: The default 1000ms is often too short for production mysql use
+      db.connectionTimeout = 5000 # NOTE: The default 1000ms is often too short for production mysql use
       driver = "slick.driver.MySQLDriver$"
     }
   }
@@ -378,7 +378,7 @@ backend {
             ]
           }
           gcs {
-            // References an auth scheme defined in the 'google' stanza.
+            # References an auth scheme defined in the 'google' stanza.
             auth = "application-default"
           }
         }
@@ -391,18 +391,18 @@ backend {
         root = "gs://my-cromwell-workflows-bucket"
         maximum-polling-interval = 600
         dockerhub {
-          // account = ""
-          // token = ""
+          # account = ""
+          # token = ""
         }
         genomics {
-          // A reference to an auth defined in the 'google' stanza at the top.  This auth is used to create
-          // Pipelines and manipulate auth JSONs.
+          # A reference to an auth defined in the 'google' stanza at the top.  This auth is used to create
+          # Pipelines and manipulate auth JSONs.
           auth = "application-default"
           endpoint-url = "https://genomics.googleapis.com/"
         }
         filesystems = {
           gcs {
-            // A reference to a potentially different auth for manipulating files via engine functions.
+            # A reference to a potentially different auth for manipulating files via engine functions.
             auth = "user-via-refresh"
           }
         }
@@ -601,7 +601,7 @@ backend {
     SGE {
       config {
         actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
-        // ... other configuration
+        # ... other configuration
       }
     }
   }
@@ -654,7 +654,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         submit = """
         qsub \
             -terse \
@@ -682,7 +682,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         submit-docker = """
         qsub \
             -terse \
@@ -717,7 +717,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         runtime-attributes = "Float memory_mb"
       }
     }
@@ -743,7 +743,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         runtime-attributes = """
         Float memory_mb
         String sge_project
@@ -761,7 +761,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         runtime-attributes = """
         Float memory_mb = 2.0
         String sge_project = "default"
@@ -779,7 +779,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         runtime-attributes = """
         Float? memory_mb
         String? sge_project
@@ -803,7 +803,7 @@ backend {
   providers {
     SGE {
       config {
-        // ... other configuration
+        # ... other configuration
         job-id-regex = "(\\d+)"
         kill = "qdel ${job_id}"
         check-alive = "qstat -j ${job_id}"
@@ -912,22 +912,13 @@ When using Spark backend uncomment the following Spark configuration in the appl
 Spark {
        actor-factory = "cromwell.backend.impl.spark.SparkBackendFactory"
        config {
-         // Root directory where Cromwell writes job results.  This directory must be
-         // visible and writeable by the Cromwell process as well as the jobs that Cromwell
-         // launches.
+         # Root directory where Cromwell writes job results.  This directory must be
+         # visible and writeable by the Cromwell process as well as the jobs that Cromwell
+         # launches.
          root: "cromwell-executions"
 
          filesystems {
            local {
-             // Cromwell makes a link to your input files within <root>/<workflow UUID>/workflow-inputs
-             // The following are strategies used to make those links.  They are ordered.  If one fails
-             // The next one is tried:
-             //
-             // hard-link: attempt to create a hard-link to the file
-             // copy: copy the file
-             // soft-link: create a symbolic link to the file
-             //
-             // NOTE: soft-link will be skipped for Docker jobs
              localization: [
                "hard-link", "soft-link", "copy"
              ]

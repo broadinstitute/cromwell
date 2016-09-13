@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorRef, ActorRefFactory, LoggingFSM, Props}
 import akka.routing.RoundRobinPool
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
@@ -269,25 +269,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       self,
       jobDescriptor,
       initializationData,
-      fileContentsHasherActor,
+      // Use context.system instead of context as the factory. Otherwise when we die, so will the child actors.
+      factoryFileHashingRouter(backendName, factory, context.system),
       callCacheReadActor,
       factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
     context.actorOf(props, s"ejha_for_$jobDescriptor")
-  }
-
-  /**
-    * Returns a RoundRobinPool of actors based on this.factory.
-    *
-    * See also: factorySingletonRouters
-    *
-    * @return a RoundRobinPool of actors based on this.factory.
-    */
-  private def fileContentsHasherActor: ActorRef = {
-    factorySingletonRouters.getOrElseUpdate(factory,
-      context.actorOf(
-        RoundRobinPool(factory.fileHashingWorkerCount).props(factory.fileContentsHasherActorProps),
-        "FileContentsHasherActor")
-    )
   }
 
   def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
@@ -443,5 +429,54 @@ object EngineJobExecutionActor {
     *
     * More refinement may appear via #1377.
     */
-  private val factorySingletonRouters = scala.collection.mutable.Map[BackendLifecycleActorFactory, ActorRef]()
+  private var factoryFileHashingRouters = Map[BackendLifecycleActorFactory, ActorRef]()
+
+  /**
+    * Returns a RoundRobinPool of actors based on the backend factory.
+    *
+    * @param backendName                  Name of the backend.
+    * @param backendLifecycleActorFactory A backend factory.
+    * @param actorRefFactory              An actor factory.
+    * @return a RoundRobinPool of actors based on backend factory.
+    */
+  private def factoryFileHashingRouter(backendName: String,
+                                       backendLifecycleActorFactory: BackendLifecycleActorFactory,
+                                       actorRefFactory: ActorRefFactory): ActorRef = {
+    val (originalOrUpdated, result) = getOrElseUpdated(
+      factoryFileHashingRouters, backendLifecycleActorFactory, {
+        val numberOfInstances = backendLifecycleActorFactory.fileHashingActorCount
+        val props = backendLifecycleActorFactory.fileHashingActorProps
+        actorRefFactory.actorOf(RoundRobinPool(numberOfInstances).props(props), s"FileHashingActor-$backendName")
+      }
+    )
+    factoryFileHashingRouters = originalOrUpdated
+    result
+  }
+
+  /**
+    * Immutable version of mutable.Map.getOrElseUpdate based on:
+    * http://stackoverflow.com/questions/4385976/idiomatic-get-or-else-update-for-immutable-map#answer-5840119
+    *
+    * If given key is already in this map, returns associated value in the copy of the Map.
+    *
+    * Otherwise, computes value from given expression `op`, stores with key
+    * in map and returns that value in a copy of the Map.
+    *
+    * @param map the immutable map
+    * @param key the key to test
+    * @param op  the computation yielding the value to associate with `key`, if
+    *            `key` is previously unbound.
+    * @tparam K type of the key
+    * @tparam V type of the value
+    * @return the value associated with key (either previously or as a result
+    *         of executing the method).
+    */
+  def getOrElseUpdated[K, V](map: Map[K, V], key: K, op: => V): (Map[K, V], V) = {
+    map.get(key) match {
+      case Some(value) => (map, value)
+      case None =>
+        val value = op
+        (map.updated(key, value), value)
+    }
+  }
 }

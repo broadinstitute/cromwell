@@ -4,10 +4,10 @@ import java.nio.file.Path
 
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
-import cromwell.backend.callcaching.FileHasherWorkerActor
-import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
+import cromwell.backend.callcaching.FileHashingActor
+import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.io.WorkflowPaths
-import cromwell.core.{ExecutionStore, JobOutputs, OutputStore}
+import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
@@ -42,7 +42,7 @@ trait BackendLifecycleActorFactory {
   def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = Set.empty
 
   lazy val fileHashingFunction: Option[FileHashingFunction] = None
-  lazy val fileHashingWorkerCount: Int = 50
+  lazy val fileHashingActorCount: Int = 50
 
-  def fileContentsHasherActorProps: Props = FileHasherWorkerActor.props(fileHashingFunction)
+  def fileHashingActorProps: Props = FileHashingActor.props(fileHashingFunction)
 }

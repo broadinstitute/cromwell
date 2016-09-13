@@ -1,7 +1,7 @@
 package cromwell.backend.impl.jes.callcaching
 
 import akka.event.LoggingAdapter
-import cromwell.backend.callcaching.FileHasherWorkerActor.SingleFileHashRequest
+import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.impl.jes.JesBackendInitializationData
 
 import scala.util.{Failure, Try}

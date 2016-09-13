@@ -2,7 +2,7 @@ package cromwell.backend.impl.sfs.config
 
 import akka.event.LoggingAdapter
 import better.files._
-import cromwell.backend.callcaching.FileHasherWorkerActor.SingleFileHashRequest
+import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.util.TryWithResource._
 
 import scala.util.Try

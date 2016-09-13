@@ -214,12 +214,12 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     log.debug("{} Process complete. RC file now exists with value: {}", tag, jobReturnCode)
 
     jobReturnCode match {
-      case Success(rc) if rc == extProcess.IncompleteRcIdentifier =>
+      case Success(None) =>
         import scala.concurrent.duration._
         // Job is still running in HtCondor. Check back again after `pollingInterval` seconds
         context.system.scheduler.scheduleOnce(pollingInterval.seconds, self, TrackTaskStatus(jobIdentifier))
-      case Success(rc) if rc == 0 | runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
-      case Success(rc) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+      case Success(Some(rc)) if rc == 0 | runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
+      case Success(Some(rc)) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc)))
       case Failure(error) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, error, None))
     }

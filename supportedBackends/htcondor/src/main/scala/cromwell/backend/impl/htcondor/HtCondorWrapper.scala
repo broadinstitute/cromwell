@@ -12,7 +12,7 @@ import scala.language.postfixOps
 import scala.sys.process._
 
 object JobStatus {
-  val MapOfstatuses = Map(
+  val MapOfStatuses = Map(
     0 -> Created, // This is actually `unexpanded` in HtCondor, not sure what that actually means
     1 -> Created, // Idle
     2 -> Running,
@@ -23,7 +23,7 @@ object JobStatus {
   )
 
   def fromCondorStatusCode(statusCode: Int): JobStatus = {
-    MapOfstatuses.getOrElse(statusCode, SubmissionError) // By default we return SubmissionError
+    MapOfStatuses.getOrElse(statusCode, SubmissionError) // By default we return SubmissionError
   }
 
   def isTerminal(jobStatus: JobStatus): Boolean = jobStatus.isInstanceOf[TerminalJobStatus]
@@ -81,9 +81,6 @@ class HtCondorCommands extends StrictLogging {
 }
 
 class HtCondorProcess extends StrictLogging {
-  // This default value for return code is sent if the job is still running
-  final val IncompleteRcIdentifier = Integer.MIN_VALUE
-
   private val stdout = new StringBuilder
   private val stderr = new StringBuilder
 
@@ -96,21 +93,20 @@ class HtCondorProcess extends StrictLogging {
   def externalProcess(cmdList: Seq[String], processLogger: ProcessLogger = processLogger): Process = cmdList.run(processLogger)
 
   /**
-    * Returns the RC of this job when it finishes.  Sleeps and polls
-    * until the 'rc' file is generated
+    * Returns the RC of this job if it has finished.
     */
-  def jobReturnCode(jobId: String, returnCodeFilePath: Path): Int = {
+  def jobReturnCode(jobId: String, returnCodeFilePath: Path): Option[Int] = {
 
     checkStatus(jobId) match {
       case status if JobStatus.isTerminal(status) =>
         Files.exists(returnCodeFilePath) match {
-          case true => File(returnCodeFilePath).contentAsString.stripLineEnd.toInt
+          case true => Option(File(returnCodeFilePath).contentAsString.stripLineEnd.toInt)
           case false =>
             val msg = s"JobStatus from Condor is terminal ($status) and no RC file exists!"
             logger.debug(msg)
             throw new IllegalStateException(msg)
         }
-      case nonTerminalStatus => IncompleteRcIdentifier
+      case nonTerminalStatus => None
     }
   }
 

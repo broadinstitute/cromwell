@@ -132,6 +132,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
       val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, None) {
         override lazy val cmds = htCondorCommands
@@ -163,6 +164,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
       val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, kVServiceActor, None) {
         override lazy val cmds = htCondorCommands
@@ -190,6 +192,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
       val backend = TestActorRef(new HtCondorJobExecutionActor(job, backendConfigDesc, system.deadLetters, Some(cacheActorMockProps)) {
         override lazy val cmds = htCondorCommands
@@ -224,7 +227,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
-      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(-1)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(-1))
 
       whenReady(backend.execute, timeout) { response =>
         response shouldBe a[FailedNonRetryableResponse]
@@ -258,7 +261,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
-      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(911)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(911))
 
       whenReady(backend.execute, timeout) { response =>
         response shouldBe a[SucceededResponse]
@@ -297,6 +300,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
       whenReady(backend.execute) { response =>
         response shouldBe a[SucceededResponse]
@@ -331,7 +335,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
       when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
       when(htCondorProcess.processStderr).thenReturn(stderrResult)
-      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(-1)
+      when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(-1))
 
       whenReady(backend.execute, timeout) { response =>
         response shouldBe a[FailedNonRetryableResponse]
@@ -379,6 +383,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     when(htCondorProcess.tailedWriter(any[Int], any[Path])).thenReturn(stubTailed)
     when(htCondorProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
     when(htCondorProcess.processStderr).thenReturn(stderrResult)
+    when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
     whenReady(backend.execute) { response =>
       response shouldBe a[SucceededResponse]

@@ -51,7 +51,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
 
   // Files
-  private val executionDir = jobPaths.callRoot
+  private val executionDir = jobPaths.callExecutionRoot
   private val returnCodePath = jobPaths.returnCode
   private val stdoutPath = jobPaths.stdout
   private val stderrPath = jobPaths.stderr
@@ -232,7 +232,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callRoot, runtimeAttributes.dockerImage.isDefined, fileSystems, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined, fileSystems, jobDescriptor.inputs) flatMap {
         localizedInputs => resolveJobCommand(localizedInputs)
       }
 
@@ -241,7 +241,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       File(scriptPath).addPermission(PosixFilePermission.OWNER_EXECUTE) // Add executable permissions to the script.
       //TODO: Need to append other runtime attributes from Wdl to Condor submit file
       val attributes: Map[String, Any] = Map(HtCondorRuntimeKeys.Executable -> scriptPath.toAbsolutePath,
-          HtCondorRuntimeKeys.InitialWorkingDir -> jobPaths.callRoot.toAbsolutePath,
+          HtCondorRuntimeKeys.InitialWorkingDir -> jobPaths.callExecutionRoot.toAbsolutePath,
           HtCondorRuntimeKeys.Output -> stdoutPath.toAbsolutePath,
           HtCondorRuntimeKeys.Error -> stderrPath.toAbsolutePath,
           HtCondorRuntimeKeys.Log -> htCondorLog.toAbsolutePath,

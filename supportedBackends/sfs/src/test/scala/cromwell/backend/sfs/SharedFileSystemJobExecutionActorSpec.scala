@@ -79,11 +79,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val symConf = templateConf("soft-link")
     val copyConf = templateConf("copy")
 
-    val jsonInputFile = createCannedFile("localize", "content from json inputs").pathAsString
-    val callInputFile = createCannedFile("localize", "content from call inputs").pathAsString
+    val jsonInputFile = createCannedFile("localize", "content from json inputs")
+    val callInputFile = createCannedFile("localize", "content from call inputs")
     val inputs = Map(
-      "inputFileFromCallInputs" -> WdlFile(callInputFile),
-      "inputFileFromJson" -> WdlFile(jsonInputFile)
+      "inputFileFromCallInputs" -> WdlFile(callInputFile.pathAsString),
+      "inputFileFromJson" -> WdlFile(jsonInputFile.pathAsString)
     )
 
     val expectedOutputs: JobOutputs = Map(
@@ -113,8 +113,10 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val localizedJsonInputFile = Paths.get(jobPaths.callRoot.toString, jsonInputFile)
-        val localizedCallInputFile = Paths.get(jobPaths.callRoot.toString, callInputFile)
+        val hashJsonInputFile = jsonInputFile.parent.toString.md5Sum
+        val localizedJsonInputFile = Paths.get(jobPaths.callInputsRoot.toString, hashJsonInputFile, jsonInputFile.name)
+        val hashCallInputFile = callInputFile.parent.toString.md5Sum
+        val localizedCallInputFile = Paths.get(jobPaths.callInputsRoot.toString, hashCallInputFile, callInputFile.name)
 
         Files.isSymbolicLink(localizedJsonInputFile) shouldBe isSymlink
         val realJsonInputFile =
@@ -158,7 +160,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val backend = backendRef.underlyingActor
 
     val jobPaths = new JobPaths(workflowDescriptor, ConfigFactory.empty, jobDescriptor.key)
-    File(jobPaths.callRoot).createDirectories()
+    File(jobPaths.callExecutionRoot).createDirectories()
     File(jobPaths.stdout).write("Hello stubby ! ")
     File(jobPaths.stderr).touch()
 
@@ -199,7 +201,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         failedResponse.returnCode should be(empty)
         failedResponse.throwable should be(a[RuntimeException])
         failedResponse.throwable.getMessage should startWith("Unable to determine that 0 is alive, and")
-        failedResponse.throwable.getMessage should endWith("call-hello/rc does not exist.")
+        failedResponse.throwable.getMessage should endWith("call-hello/execution/rc does not exist.")
       }
     }
   }
@@ -246,8 +248,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, emptyBackendConfig)
     val jobPaths = new JobPaths(workflowDescriptor, emptyBackendConfig.backendConfig, jobDescriptor.key)
-    val expectedA = WdlFile(jobPaths.callRoot.resolve("a").toAbsolutePath.toString)
-    val expectedB = WdlFile(jobPaths.callRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
+    val expectedA = WdlFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.toString)
+    val expectedB = WdlFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
     val expectedOutputs = Map(
       "o1" -> JobOutput(expectedA),
       "o2" -> JobOutput(WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB))),

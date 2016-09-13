@@ -36,10 +36,10 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
       )
 
       forAll(outputs) { (call, file) =>
-        val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, file))
+        val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, "execution", file))
         path.toFile should exist
       }
-      val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, "call-C", "out"))
+      val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, "call-C", "execution", "out"))
       path.toFile shouldNot exist
     }
 
@@ -54,7 +54,7 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
       val outputTuples = for {
         shard <- shards
         output <- outputNames
-      } yield ("call-A", s"shard-$shard/$output")
+      } yield ("call-A", s"shard-$shard/execution/$output")
 
       val outputs = Table(("call", "file"), outputTuples: _*)
 

@@ -25,9 +25,10 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        fileAlreadyExists: Boolean = false,
                        symlink: Boolean = false,
                        linkNb: Int = 1) = {
+    import wdl4s.values._
     val callDir = File.newTemporaryDirectory("SharedFileSystem")
     val orig = if (fileInCallDir) callDir.createChild("inputFile") else File.newTemporaryFile("inputFile")
-    val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.drop(1))
+    val dest = if (fileInCallDir) orig else callDir./(orig.parent.toString.md5Sum)./(orig.name)
     orig.touch()
     if (fileAlreadyExists) {
       dest.parent.createDirectories()

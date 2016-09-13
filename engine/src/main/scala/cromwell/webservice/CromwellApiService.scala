@@ -102,7 +102,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / Segment / "abort") { (version, possibleWorkflowId) =>
       post {
         withRecognizedWorkflowId(possibleWorkflowId) { id =>
-          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowManagerActor), CromwellApiHandler.ApiHandlerWorkflowAbort(id))
+          requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowAbort(id, workflowManagerActor))
         }
       }
     }

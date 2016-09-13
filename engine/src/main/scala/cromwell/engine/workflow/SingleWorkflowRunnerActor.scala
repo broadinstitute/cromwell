@@ -14,7 +14,6 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
-import cromwell.webservice.CromwellApiHandler._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import spray.http.StatusCodes
@@ -164,8 +163,8 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
   }
 
   whenUnhandled {
-    // Handle failures for all WorkflowManagerFailureResponses generically.
-    case Event(r: WorkflowManagerFailureResponse, data) => failAndFinish(r.failure)
+    // Handle failures for all failure responses generically.
+    case Event(r: WorkflowStoreActor.WorkflowAbortFailed, data) => failAndFinish(r.reason)
     case Event(Failure(e), data) => failAndFinish(e)
     case Event(Status.Failure(e), data) => failAndFinish(e)
     case Event(RequestComplete((_, snap)), _) => failAndFinish(new RuntimeException(s"Unexpected API completion message: $snap"))

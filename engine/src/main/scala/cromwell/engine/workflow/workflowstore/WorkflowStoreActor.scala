@@ -4,6 +4,8 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSourceFiles}
+import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -25,14 +27,11 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
 
   when(Unstarted) {
     case Event(InitializerCommand, _) =>
-      val work = store.initialize map { unit =>
+      val work = store.initialize map { _ =>
         log.debug("Workflow store initialization successful")
       }
       addWorkCompletionHooks(InitializerCommand, work)
-      goto(Working) using stateData.setCurrentCommand(InitializerCommand, sender)
-    case Event(WorkDone, _) =>
-      log.error("Shouldn't ever receive {} while Unstarted", WorkDone)
-      stay
+      goto(Working) using stateData.withCurrentCommand(InitializerCommand, sender)
     case Event(x: WorkflowStoreActorCommand, _) =>
       stay using stateData.withPendingCommand(x, sender)
   }
@@ -42,7 +41,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
       if (stateData.currentOperation.nonEmpty || stateData.pendingOperations.nonEmpty) {
         log.error("Non-empty WorkflowStoreActorData when in Idle state: {}", stateData)
       }
-      startNewWork(cmd, sender, stateData.setCurrentCommand(cmd, sender))
+      startNewWork(cmd, sender, stateData.withCurrentCommand(cmd, sender))
   }
 
   when(Working) {
@@ -92,6 +91,15 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
             case _ => log.error("Unexpected response from newWorkflowMessage({}): {}", n, nwm)
           }
           sndr ! nwm
+        }
+      case cmd @ AbortWorkflow(id, manager) =>
+        store.remove(id) map { removed =>
+          if (removed) {
+            log.debug(s"Workflow $id aborted and removed from the workflow store.")
+            manager ! WorkflowManagerActor.AbortWorkflowCommand(id, sndr)
+          } else {
+            sndr ! WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
+          }
         }
       case cmd @ RemoveWorkflow(id) =>
         store.remove(id) map { removed =>
@@ -165,7 +173,7 @@ object WorkflowStoreActor {
   private[workflowstore] case class WorkflowStoreActorCommandWithSender(command: WorkflowStoreActorCommand, sender: ActorRef)
 
   private[workflowstore] case class WorkflowStoreActorData(currentOperation: Option[WorkflowStoreActorCommandWithSender], pendingOperations: List[WorkflowStoreActorCommandWithSender]) {
-    def setCurrentCommand(command: WorkflowStoreActorCommand, sender: ActorRef) = this.copy(currentOperation = Option(WorkflowStoreActorCommandWithSender(command, sender)))
+    def withCurrentCommand(command: WorkflowStoreActorCommand, sender: ActorRef) = this.copy(currentOperation = Option(WorkflowStoreActorCommandWithSender(command, sender)))
     def withPendingCommand(newCommand: WorkflowStoreActorCommand, sender: ActorRef) = this.copy(pendingOperations = this.pendingOperations :+ WorkflowStoreActorCommandWithSender(newCommand, sender))
     def pop = {
       if (pendingOperations.isEmpty) { WorkflowStoreActorData(None, List.empty) }
@@ -179,19 +187,22 @@ object WorkflowStoreActor {
   private[workflowstore] case object Idle extends WorkflowStoreActorState
 
   sealed trait WorkflowStoreActorCommand
-  case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowStoreActorCommand
-  case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFiles]) extends WorkflowStoreActorCommand
-  case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorCommand
-  case class RemoveWorkflow(id: WorkflowId) extends WorkflowStoreActorCommand
+  final case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowStoreActorCommand
+  final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFiles]) extends WorkflowStoreActorCommand
+  final case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorCommand
+  final case class RemoveWorkflow(id: WorkflowId) extends WorkflowStoreActorCommand
+  final case class AbortWorkflow(id: WorkflowId, manager: ActorRef) extends WorkflowStoreActorCommand
 
   private case object InitializerCommand extends WorkflowStoreActorCommand
   private case object WorkDone
 
   sealed trait WorkflowStoreActorResponse
-  case class WorkflowSubmittedToStore(workflowId: WorkflowId) extends WorkflowStoreActorResponse
-  case class WorkflowsBatchSubmittedToStore(workflowIds: NonEmptyList[WorkflowId]) extends WorkflowStoreActorResponse
+  final case class WorkflowSubmittedToStore(workflowId: WorkflowId) extends WorkflowStoreActorResponse
+  final case class WorkflowsBatchSubmittedToStore(workflowIds: NonEmptyList[WorkflowId]) extends WorkflowStoreActorResponse
   case object NoNewWorkflowsToStart extends WorkflowStoreActorResponse
-  case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreActorResponse
+  final case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreActorResponse
+  final case class WorkflowAborted(workflowId: WorkflowId) extends WorkflowStoreActorResponse
+  final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreActorResponse
 
   def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
     Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor))

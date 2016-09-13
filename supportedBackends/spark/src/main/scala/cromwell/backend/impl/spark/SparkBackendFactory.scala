@@ -22,7 +22,7 @@ case class SparkBackendFactory(configurationDescriptor: BackendConfigurationDesc
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = new CallContext(
-      jobPaths.callRoot,
+      jobPaths.callExecutionRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString
     )

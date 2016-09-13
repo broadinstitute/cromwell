@@ -82,6 +82,5 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
     val failure = failedSub.failed.get
     failure.isInstanceOf[IllegalArgumentException] shouldBe true
     failure.getMessage shouldBe "Invalid number of parameters for engine function sub: 4. sub takes exactly 3 parameters."
-
   }
 }

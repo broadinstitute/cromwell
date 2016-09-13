@@ -23,7 +23,7 @@ object SharedFileSystemExpressionFunctions {
             fileSystems: List[FileSystem]): SharedFileSystemExpressionFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = CallContext(
-      jobPaths.callRoot,
+      jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,
       jobPaths.stderr.toString
     )
@@ -32,7 +32,7 @@ object SharedFileSystemExpressionFunctions {
 
   def apply(jobPaths: JobPaths, fileSystems: List[FileSystem]): SharedFileSystemExpressionFunctions = {
     val callContext = CallContext(
-      jobPaths.callRoot,
+      jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,
       jobPaths.stderr.toString
     )
@@ -45,7 +45,7 @@ object SharedFileSystemExpressionFunctions {
             initializationData: Option[BackendInitializationData]) = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = CallContext(
-      jobPaths.callRoot,
+      jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,
       jobPaths.stderr.toString
     )

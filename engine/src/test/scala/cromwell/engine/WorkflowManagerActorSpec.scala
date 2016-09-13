@@ -17,7 +17,7 @@ class WorkflowManagerActorSpec extends CromwellTestkitSpec with WorkflowDescript
       val outputName = "whereami.whereami.pwd"
       val salutation = outputs.get(outputName).get
       val actualOutput = salutation.valueString.trim
-      actualOutput should endWith("/call-whereami")
+      actualOutput should endWith("/call-whereami/execution")
     }
   }
 }

@@ -47,8 +47,13 @@ class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
   val callRoot = callPathBuilder(workflowRoot)
   val callDockerRoot = callPathBuilder(dockerWorkflowRoot)
 
-  val stdout = callRoot.resolve("stdout")
-  val stderr = callRoot.resolve("stderr")
-  val script = callRoot.resolve("script")
-  val returnCode = callRoot.resolve("rc")
+  val callExecutionRoot = callRoot.resolve("execution")
+  val callExecutionDockerRoot = callDockerRoot.resolve("execution")
+
+  val callInputsRoot = callRoot.resolve("inputs")
+
+  val stdout = callExecutionRoot.resolve("stdout")
+  val stderr = callExecutionRoot.resolve("stderr")
+  val script = callExecutionRoot.resolve("script")
+  val returnCode = callExecutionRoot.resolve("rc")
 }

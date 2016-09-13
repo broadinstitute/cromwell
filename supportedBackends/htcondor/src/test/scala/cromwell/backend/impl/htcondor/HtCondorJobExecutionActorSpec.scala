@@ -310,7 +310,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
       assert(bashScript.contains("docker run -w /workingDir -v"))
       assert(bashScript.contains(":ro"))
-      assert(bashScript.contains("/call-hello:/outputDir --rm ubuntu/latest echo"))
+      assert(bashScript.contains("/call-hello/execution:/outputDir --rm ubuntu/latest echo"))
 
       cleanUpJob(jobPaths)
     }
@@ -394,7 +394,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     assert(bashScript.contains("docker run -w /workingDir -v"))
     assert(bashScript.contains(tempDir1.toAbsolutePath.toString))
     assert(bashScript.contains(tempDir2.toAbsolutePath.toString))
-    assert(bashScript.contains("/call-hello:/outputDir --rm ubuntu/latest echo"))
+    assert(bashScript.contains("/call-hello/execution:/outputDir --rm ubuntu/latest echo"))
 
     cleanUpJob(jobPaths)
   }
@@ -414,7 +414,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), emptyWorkflowOptions, Set.empty)
     val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key)
-    val executionDir = File(jobPaths.callRoot)
+    val executionDir = File(jobPaths.callExecutionRoot)
     val stdout = File(executionDir.pathAsString, "stdout")
     stdout.createIfNotExists(asDirectory = false, createParents = true)
     val submitFileStderr = executionDir./("submitfile.stderr")

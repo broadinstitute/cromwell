@@ -181,7 +181,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def instantiatedScript: String = {
     val pathTransformFunction: WdlValue => WdlValue = if (isDockerRun) toDockerPath else identity
-    val tryCommand = sharedFileSystem.localizeInputs(jobPaths.callRoot,
+    val tryCommand = sharedFileSystem.localizeInputs(jobPaths.callInputsRoot,
       isDockerRun, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }
@@ -231,7 +231,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     metadataEvent(CallMetadataKeys.Stdout, jobPaths.stdout),
     metadataEvent(CallMetadataKeys.Stderr, jobPaths.stderr),
     metadataEvent("cache:allowResultReuse", true),
-    metadataEvent(CallMetadataKeys.CallRoot, jobPaths.callRoot)
+    metadataEvent(CallMetadataKeys.CallRoot, jobPaths.callExecutionRoot)
   )
 
   /**
@@ -246,8 +246,8 @@ trait SharedFileSystemAsyncJobExecutionActor
   def executeScript(): ExecutionHandle = {
     val script = instantiatedScript
     jobLogger.info(s"`$script`")
-    File(jobPaths.callRoot).createDirectories()
-    val cwd = if (isDockerRun) jobPaths.callDockerRoot else jobPaths.callRoot
+    File(jobPaths.callExecutionRoot).createDirectories()
+    val cwd = if (isDockerRun) jobPaths.callExecutionDockerRoot else jobPaths.callExecutionRoot
     writeScript(script, cwd)
     jobLogger.info(s"command: $processArgs")
     val runner = makeProcessRunner()

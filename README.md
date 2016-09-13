@@ -1227,7 +1227,7 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    zones: "us-central1-c us-central1-a"
+    zones: "us-central1-c us-central1-b"
     disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
@@ -1298,7 +1298,7 @@ And this set of workflow options:
 {
   "default_runtime_attributes": {
     "docker": "ubuntu:latest",
-    "zones": "us-central1-a us-central1-b"
+    "zones": "us-central1-c us-central1-b"
   }
 }
 ```
@@ -1307,14 +1307,14 @@ Then these values for `docker` and `zones` will be used for any task that does n
 ```
 {
     "docker": "ubuntu:latest",
-    "zones": "us-central1-a us-central1-b"
+    "zones": "us-central1-c us-central1-b"
   }
 ```
 And the effective runtime for `task second` is:
 ```
 {
     "docker": "my_docker_image",
-    "zones": "us-central1-a us-central1-b"
+    "zones": "us-central1-c us-central1-b"
   }
 ```
 Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
@@ -1411,11 +1411,11 @@ The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  zones: "us-central1-a us-central1-b"
+  zones: "us-central1-c us-central1-b"
 }
 ```
 
-Defaults to "us-central1-a"
+Defaults to "us-central1-b"
 
 ## docker
 

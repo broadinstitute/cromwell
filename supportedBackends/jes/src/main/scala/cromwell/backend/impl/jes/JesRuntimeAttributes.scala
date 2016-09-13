@@ -45,7 +45,7 @@ object JesRuntimeAttributes {
   private val MemoryDefaultValue = "2 GB"
 
   val ZonesKey = "zones"
-  private val ZoneDefaultValue = "us-central1-a"
+  private val ZoneDefaultValue = "us-central1-b"
 
   val PreemptibleKey = "preemptible"
   private val PreemptibleDefaultValue = 0

@@ -20,7 +20,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     )))
   }
 
-  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-a"), 0, 10, MemorySize(2, MemoryUnit.GB), Seq(JesWorkingDisk(DiskType.SSD, 10)), None, false, ContinueOnReturnCodeSet(Set(0)), false)
+  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-b"), 0, 10, MemorySize(2, MemoryUnit.GB), Seq(JesWorkingDisk(DiskType.SSD, 10)), None, false, ContinueOnReturnCodeSet(Set(0)), false)
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = Some("ubuntu:latest"))
 
   "JesRuntimeAttributes" should {

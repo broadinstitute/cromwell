@@ -246,7 +246,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       val stubUntailed = new UntailedWriter(jobPaths.stdout) with MockPathWriter
       val stubTailed = new TailedWriter(jobPaths.stderr, 100) with MockPathWriter
       File(jobPaths.stderr) < "failed"
-      File(jobPaths.callRoot.resolve("cluster.json")) < sampleSubmissionResponse
+      File(jobPaths.callExecutionRoot.resolve("cluster.json")) < sampleSubmissionResponse
 
       val backend = TestActorRef(new SparkJobExecutionActor(job, backendConfigDesc) {
         override lazy val clusterExtProcess = sparkClusterProcess
@@ -442,7 +442,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     val backendConfigurationDescriptor = if (isCluster) BackendConfigurationDescriptor(backendClusterConfig, ConfigFactory.load) else BackendConfigurationDescriptor(backendClientConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), WorkflowOptions.empty, Set.empty)
     val jobPaths = if (isCluster) new JobPaths(backendWorkflowDescriptor, backendClusterConfig, jobDesc.key) else new JobPaths(backendWorkflowDescriptor, backendClientConfig, jobDesc.key)
-    val executionDir = jobPaths.callRoot
+    val executionDir = jobPaths.callExecutionRoot
     val stdout = File(executionDir.toString, "stdout")
     stdout.createIfNotExists(asDirectory = false, createParents = true)
     val stderr = File(executionDir.toString, "stderr")

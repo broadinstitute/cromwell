@@ -33,7 +33,7 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = CallContext(
-      jobPaths.callRoot,
+      jobPaths.callExecutionRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString
     )

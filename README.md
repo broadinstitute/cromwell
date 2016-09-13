@@ -637,7 +637,7 @@ qsub \
     ${script}
 ```
 
-The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
+The SGE backend gets the job ID from parsing the `submit.stdout` text file.
 
 Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
 

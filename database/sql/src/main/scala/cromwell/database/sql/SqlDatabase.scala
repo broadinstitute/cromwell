@@ -6,7 +6,6 @@ import java.util.UUID
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 trait SqlDatabase extends AutoCloseable
-  with OldeWorldeSqlDatabase
   with MetadataSqlDatabase
   with WorkflowStoreSqlDatabase
   with BackendKVStoreSqlDatabase

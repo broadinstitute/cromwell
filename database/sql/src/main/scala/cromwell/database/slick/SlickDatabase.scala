@@ -53,7 +53,6 @@ object SlickDatabase {
   * those exceptions would have been wrapped in a failed Future and returned.
   */
 class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlDatabase
-  with OldeWorldeSlickDatabase
   with MetadataSlickDatabase
   with WorkflowStoreSlickDatabase
   with BackendKVStoreSlickDatabase

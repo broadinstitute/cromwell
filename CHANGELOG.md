@@ -49,6 +49,8 @@ passed absolute paths for input `File`s.
 
 * Override the default database configuration by setting the keys
 `database.driver`, `database.db.driver`, `database.db.url`, etc.
+* Override the default database configuration by setting the keys
+`database.driver`, `database.db.driver`, `database.db.url`, etc. 
 
 For example:
 ```

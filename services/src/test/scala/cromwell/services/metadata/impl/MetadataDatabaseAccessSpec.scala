@@ -106,7 +106,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name)
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(None) map { max =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
           max should be > 0L
         }
 

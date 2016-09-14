@@ -1,10 +1,11 @@
 package cromwell.services
 
-import cromwell.database.core.SqlConfiguration
+import com.typesafe.config.ConfigFactory
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
 import lenthall.config.ScalaConfig._
+import org.slf4j.LoggerFactory
 
 trait ServicesStore {
   def databaseInterface: SqlDatabase
@@ -29,7 +30,23 @@ trait SingletonServicesStore extends ServicesStore {
 
 object SingletonServicesStore {
 
+  private lazy val log = LoggerFactory.getLogger("SingletonServicesStore")
+  private val databaseConfig = {
+    val config = ConfigFactory.load.getConfig("database")
+    if (config.hasPath("config")) {
+      log.warn(
+        """
+          |Use of configuration path 'database.config' is deprecated.
+          |
+          |Move the configuration directly under the 'database' element, and remove the key 'database.config'.
+          |""".stripMargin)
+      config.getConfig(config.getString("config"))
+    } else {
+      config
+    }
+  }
+
   import ServicesStore.EnhancedSqlDatabase
 
-  val databaseInterface: SqlDatabase = new SlickDatabase(SqlConfiguration.defaultDatabaseConfig).initialized
+  val databaseInterface: SqlDatabase = new SlickDatabase(databaseConfig).initialized
 }

@@ -46,3 +46,22 @@ passed absolute paths for input `File`s.
 * On the SFS backends, the call directory now contains two sub-directories:
     * `inputs` contains all the input files that have been localized for this task (see next below for more details)
     * `execution` contains all other files (script, logs, rc, potential outputs etc...)
+
+* Override the default database configuration by setting the keys
+`database.driver`, `database.db.driver`, `database.db.url`, etc.
+
+For example:
+```
+# use a mysql database
+database {
+  driver = "slick.driver.MySQLDriver$"
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://host/cromwell"
+    user = "user"
+    password = "pass"
+    connectionTimeout = 5000
+  }
+}
+```
+

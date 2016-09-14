@@ -4,9 +4,7 @@ import java.sql.{PreparedStatement, ResultSet}
 
 import com.typesafe.config.ConfigFactory
 import cromwell.core.simpleton.WdlValueSimpleton._
-import cromwell.database.core.SqlConfiguration
 import cromwell.database.migration.WdlTransformation
-import lenthall.config.ScalaConfig._
 import liquibase.change.custom.CustomTaskChange
 import liquibase.database.Database
 import liquibase.database.jvm.JdbcConnection
@@ -33,23 +31,22 @@ trait SymbolTableMigration extends CustomTaskChange {
   import cromwell.database.migration.WdlTransformation._
 
   // Nb of rows to retrieve / process in a batch
-  val config = SqlConfiguration.defaultDatabaseConfig
+  val config = ConfigFactory.load
 
   /**
    * Specify the size of a "page".
    * For databases with a very large number of symbols, selecting all the rows at once can generate a variety of problems.
    * In order to avoid any issue, the selection is paginated. This value sets how many rows should be retrieved and processed at a time, before asking for the next chunk.
    */
-  val readBatchSize = config.getIntOr("migration.read-batch-size", 100000)
+  val readBatchSize = config.getInt("database.migration.read-batch-size")
 
   /**
    * Because a symbol row can contain any arbitrary wdl value, the amount of metadata rows to insert from a single symbol row can vary from 1 to several thousands (or more).
    * To keep the size of the insert batch from growing out of control we monitor its size and execute/commit when it reaches or exceeds writeBatchSize.
    */
-  val writeBatchSize = config.getIntOr("migration.write-batch-size", 100000)
+  val writeBatchSize = config.getInt("database.migration.write-batch-size")
+
   val logger = LoggerFactory.getLogger("LiquibaseMetadataMigration")
-
-
 
   override def execute(database: Database): Unit = {
     try {

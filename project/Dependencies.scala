@@ -119,7 +119,7 @@ object Dependencies {
 
   val engineDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
-    "org.webjars" % "swagger-ui" % "2.2.2",
+    "org.webjars" % "swagger-ui" % "2.1.1",
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
     "org.scalaz" %% "scalaz-core" % scalazCoreV,

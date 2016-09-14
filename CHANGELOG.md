@@ -42,3 +42,21 @@ to work with various other command line dispatchers such as LSF. See the
 
 * On the JES and SFS backends, task `command` blocks are now always
 passed absolute paths for input `File`s.
+
+* Override the default database configuration by setting the keys
+`database.driver`, `database.db.driver`, `database.db.url`, etc. 
+
+For example:
+```
+# use a mysql database
+database {
+  driver = "slick.driver.MySQLDriver$"
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://host/cromwell"
+    user = "user"
+    password = "pass"
+    connectionTimeout = 5000
+  }
+}
+```

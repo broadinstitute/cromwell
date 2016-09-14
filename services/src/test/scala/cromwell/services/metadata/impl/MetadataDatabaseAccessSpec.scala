@@ -2,11 +2,10 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
+import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
-import cromwell.database.core.SqlConfiguration
 import cromwell.database.slick.SlickDatabase
-import cromwell.database.sql.SqlDatabase
 import cromwell.services.ServicesStore
 import cromwell.services.metadata._
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
@@ -28,9 +27,9 @@ object MetadataDatabaseAccessSpec {
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   import MetadataDatabaseAccessSpec._
 
-  "MetadataDatabaseAccess (main.hsqldb)" should behave like testWith("main.hsqldb")
+  "MetadataDatabaseAccess (hsqldb)" should behave like testWith("database")
 
-  "MetadataDatabaseAccess (test.mysql)" should behave like testWith("test.mysql")
+  "MetadataDatabaseAccess (mysql)" should behave like testWith("database-test-mysql")
 
   implicit val ec = ExecutionContext.global
 
@@ -41,7 +40,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     import ServicesStore.EnhancedSqlDatabase
 
     lazy val dataAccess: MetadataDatabaseAccess = new MetadataDatabaseAccess with ServicesStore {
-      override val databaseInterface = new SlickDatabase(SqlConfiguration.getDatabaseConfig(configPath)).initialized
+      override val databaseInterface = new SlickDatabase(ConfigFactory.load.getConfig(configPath)).initialized
     }
 
     def publishMetadataEvents(baseKey: MetadataKey, keyValues: Array[(String, String)]): Future[Unit] = {

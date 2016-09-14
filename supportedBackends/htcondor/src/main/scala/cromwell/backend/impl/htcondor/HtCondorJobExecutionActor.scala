@@ -165,7 +165,6 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       else
         log.error("{}: Failed to kill / remove job {}. Exit Code: {}, Stderr: {}", tag, id, exitVal, abortProcess.processStderr)
     }
-    self ! JobExecutionResponse(AbortedResponse(jobDescriptor.key))
   }
 
   private def executeTask(): Unit = {
@@ -218,7 +217,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         import scala.concurrent.duration._
         // Job is still running in HtCondor. Check back again after `pollingInterval` seconds
         context.system.scheduler.scheduleOnce(pollingInterval.seconds, self, TrackTaskStatus(jobIdentifier))
-      case Success(Some(rc)) if rc == 0 | runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
+      case Success(Some(rc)) if runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
       case Success(Some(rc)) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc)))
       case Failure(error) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, error, None))

@@ -8,10 +8,8 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import spray.json.{JsObject, JsValue}
-import wdl4s.WdlExpression._
 import wdl4s._
 import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 trait BackendSpec extends ScalaFutures with Matchers {
@@ -106,23 +104,6 @@ trait BackendSpec extends ScalaFutures with Matchers {
   def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                          inputs: Map[String, WdlValue] = Map.empty) = {
     BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, inputs)
-  }
-
-  @deprecated("This is an unnecessarily circuitous way of generating a Seq[Map[String, WdlValue]]...", "Sep 2 2016")
-  def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String = ""): Seq[Map[String, WdlValue]] = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
-
-    def createLookup(call: Call): ScopedLookupFunction = {
-      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-      val knownInputs = workflowDescriptor.inputs
-      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
-    }
-
-    workflowDescriptor.workflowNamespace.workflow.calls map {
-      call =>
-        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
-        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
-    }
   }
 }
 

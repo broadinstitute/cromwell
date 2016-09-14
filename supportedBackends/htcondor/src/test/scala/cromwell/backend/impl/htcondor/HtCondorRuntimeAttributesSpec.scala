@@ -6,6 +6,10 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json._
+import wdl4s.WdlExpression._
+import wdl4s._
+import wdl4s.expression.NoFunctions
+import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
@@ -249,6 +253,22 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
+    }
+  }
+
+  private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String): Seq[Map[String, WdlValue]] = {
+    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
+
+    def createLookup(call: Call): ScopedLookupFunction = {
+      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
+      val knownInputs = workflowDescriptor.inputs
+      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
+    }
+
+    workflowDescriptor.workflowNamespace.workflow.calls map {
+      call =>
+        val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
+        TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get
     }
   }
 }

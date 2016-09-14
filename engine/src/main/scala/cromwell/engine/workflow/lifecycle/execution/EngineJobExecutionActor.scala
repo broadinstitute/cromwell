@@ -20,10 +20,10 @@ import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
 import wdl4s.TaskOutput
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 class EngineJobExecutionActor(replyTo: ActorRef,
-                              jobKey: BackendJobDescriptorKey,
+                              jobDescriptorKey: BackendJobDescriptorKey,
                               executionData: WorkflowExecutionActorData,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
@@ -36,17 +36,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   override val workflowId = executionData.workflowDescriptor.id
 
-  val jobTag = s"${workflowId.shortString}:${jobKey.call.fullyQualifiedName}:${jobKey.index.fromIndex}:${jobKey.attempt}"
+  val jobTag = s"${workflowId.shortString}:${jobDescriptorKey.call.fullyQualifiedName}:${jobDescriptorKey.index.fromIndex}:${jobDescriptorKey.attempt}"
   val tag = s"EJEA_$jobTag"
 
-  // The code that deals with the call cache copying actor only runs if call cache reading is turned on, which it won't be
-  // if there isn't a call cache copying actor available. i.e. no code should try to read this variable if this variable
-  // isn't set, so while this could be wrapped in an `Option` that would only mask a violation of that invariant.
-  private var callCachingActorProps: Props = _
-
-  // There's no need to check for a cache hit again if we got preempted
+  // There's no need to check for a cache hit again if we got preempted, or if there's no result copying actor defined
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
-  private var effectiveCallCachingMode = if (jobKey.attempt > 1) callCachingMode.withoutRead else callCachingMode
+  private var effectiveCallCachingMode = if (factory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) callCachingMode.withoutRead else callCachingMode
+
+  // For tests:
+  private[execution] def checkEffectiveCallCachingMode = effectiveCallCachingMode
 
   private val effectiveCallCachingKey = "Effective call caching mode"
 
@@ -59,8 +57,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(Pending) {
     case Event(Execute, NoData) =>
       if (restarting) {
-        val jobStoreKey = jobKey.toJobStoreKey(workflowId)
-        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobKey.call.task.outputs)
+        val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowId)
+        jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.task.outputs)
         goto(CheckingJobStore)
       } else {
         prepareJob()
@@ -73,9 +71,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       prepareJob()
     case Event(JobComplete(jobResult), NoData) =>
       val response = jobResult match {
-        case JobResultSuccess(returnCode, jobOutputs) => SucceededResponse(jobKey, returnCode, jobOutputs)
-        case JobResultFailure(returnCode, reason, false) => FailedNonRetryableResponse(jobKey, reason, returnCode)
-        case JobResultFailure(returnCode, reason, true) => FailedRetryableResponse(jobKey, reason, returnCode)
+        case JobResultSuccess(returnCode, jobOutputs) => SucceededResponse(jobDescriptorKey, returnCode, jobOutputs)
+        case JobResultFailure(returnCode, reason, false) => FailedNonRetryableResponse(jobDescriptorKey, reason, returnCode)
+        case JobResultFailure(returnCode, reason, true) => FailedRetryableResponse(jobDescriptorKey, reason, returnCode)
       }
       respondAndStop(response)
     case Event(f: JobStoreReadFailure, NoData) =>
@@ -87,8 +85,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When PreparingJob, the FSM always has NoData
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, bjeaProps), NoData) =>
-      effectiveCallCachingMode = checkCallCachingAvailable(jobDescriptor, bjeaProps)
-      writeCallCachingModeToMetadata()
       val updatedData = ResponsePendingData(jobDescriptor, bjeaProps)
       effectiveCallCachingMode match {
         case activity: CallCachingActivity if activity.readFromCache =>
@@ -109,10 +105,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       writeToMetadata(Map(callCachingReadResultMetadataKey -> "Cache Miss"))
       log.debug("Cache miss for job {}", jobTag)
       runJob(data)
-    case Event(hit: CacheHit, data: ResponsePendingData) =>
-      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit (from result ID ${hit.cacheResultId})"))
-      log.debug("Cache hit for {}! Fetching cached result {}", jobTag, hit.cacheResultId)
-      fetchCachedResults(data, jobKey.call.task.outputs, hit)
+    case Event(hit @ CacheHit(cacheResultId), data: ResponsePendingData) =>
+      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit (from result ID $cacheResultId)"))
+      log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
+      fetchCachedResults(data, jobDescriptorKey.call.task.outputs, hit)
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       disableCallCaching(t)
@@ -130,32 +126,37 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCacheWrite(t)
       // Can't write hashes for this job, but continue to wait for the lookup response.
-      stay
+      stay using data.copy(hashes = Option(Failure(t)))
   }
 
   when(BackendIsCopyingCachedOutputs) {
+    // Backend copying response:
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)))) =>
-      saveCacheResults(hashes, response.updatedData(data))
+      saveCacheResults(hashes, data.withSuccessResponse(response))
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, None)) if effectiveCallCachingMode.writeToCache =>
       // Wait for the CallCacheHashes
-      stay using response.updatedData(data)
+      stay using data.withSuccessResponse(response)
     case Event(response: SucceededResponse, data: ResponsePendingData) => // bad hashes or cache write off
-      saveJobCompletionToJobStore(response.updatedData(data))
+      saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
       // This matches all response types other than `SucceededResponse`.
-      log.error("{}: Failed copying cache results, falling back to running job.", jobKey)
+      log.error("{}: Failed copying cache results, falling back to running job.", jobDescriptorKey)
       runJob(data)
+
+    // Hashes arrive:
     case Event(hashes: CallCacheHashes, data: SucceededResponseData) =>
       saveCacheResults(hashes, data)
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
+
+    // Hash error occurs:
     case Event(HashError(t), data: SucceededResponseData) =>
-      disableCallCaching(t)
-      saveJobCompletionToJobStore(data)
+      disableCacheWrite(t)
+      saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCacheWrite(t)
       // Can't write hashes for this job, but continue to wait for the copy response.
-      stay
+      stay using data.copy(hashes = Option(Failure(t)))
   }
 
   when(RunningJob) {
@@ -166,18 +167,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
     case Event(HashError(t), data: SucceededResponseData) =>
       disableCallCaching(t)
-      saveJobCompletionToJobStore(data)
+      saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCallCaching(t)
-      stay
+      stay using data.copy(hashes = Option(Failure(t)))
 
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)))) if effectiveCallCachingMode.writeToCache =>
-      saveCacheResults(hashes, response.updatedData(data))
-    case Event(response: SucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache =>
+      saveCacheResults(hashes, data.withSuccessResponse(response))
+    case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, None)) if effectiveCallCachingMode.writeToCache =>
       log.debug(s"Got job result for {}, awaiting hashes", jobTag)
-      stay using response.updatedData(data)
+      stay using data.withSuccessResponse(response)
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
-      saveJobCompletionToJobStore(response.updatedData(data))
+      saveJobCompletionToJobStore(data.withResponse(response))
   }
 
   // When UpdatingCallCache, the FSM always has SucceededResponseData.
@@ -194,7 +195,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(JobStoreWriteSuccess(_), data: ResponseData) =>
       forwardAndStop(data.response)
     case Event(JobStoreWriteFailure(t), data: ResponseData) =>
-      respondAndStop(FailedNonRetryableResponse(jobKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None))
+      respondAndStop(FailedNonRetryableResponse(jobDescriptorKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None))
   }
 
   onTransition {
@@ -204,7 +205,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   whenUnhandled {
     case Event(msg, _) =>
-      log.error(s"Bad message to EngineJobExecutionActor in state $stateName(with data $stateData): $msg")
+      log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender, stateName, stateData, msg)
       stay
   }
 
@@ -238,33 +239,16 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     writeToMetadata(Map(effectiveCallCachingKey -> effectiveCallCachingMode.toString))
   }
 
+  def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
   def prepareJob() = {
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
-    val jobPrepProps = JobPreparationActor.props(executionData, jobKey, factory, initializationData, serviceRegistryActor)
-    val jobPreparationActor = context.actorOf(jobPrepProps, jobPreparationActorName)
+    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, initializationData, serviceRegistryActor)
+    val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! JobPreparationActor.Start
     goto(PreparingJob)
   }
 
-  /**
-    * If this backend doesn't offer a cache hit copying actor, remove 'read' from the effective cache options.
-    * i.e. there's no way to copy a cache hit so don't bother looking for cache hits.  If this backend does
-    * offer a cache hit copying actor, squirrel away its props so we can create this actor later if there's a hit.
-    */
-  private def checkCallCachingAvailable(jobDescriptor: BackendJobDescriptor, bjeaProps: Props): CallCachingMode = {
-    if (effectiveCallCachingMode.readFromCache) {
-      factory.cacheHitCopyingActorProps(jobDescriptor, initializationData, serviceRegistryActor) match {
-        case Some(props) =>
-          callCachingActorProps = props
-          effectiveCallCachingMode
-        case None =>
-          log.warning("{}: Turning off cache reading for this job as no cache copying actor is available for this backend.", jobTag)
-          effectiveCallCachingMode.withoutRead
-      }
-    } else effectiveCallCachingMode
-  }
-
-  def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
+  def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity): Unit = {
     val props = EngineJobHashingActor.props(
       self,
       jobDescriptor,
@@ -276,15 +260,26 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
+  def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]): Unit = context.actorOf(FetchCachedResultsActor.props(cacheHit, taskOutputs, self, new CallCache(SingletonServicesStore.databaseInterface)))
   def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
-    context.actorOf(FetchCachedResultsActor.props(cacheHit, taskOutputs, self, new CallCache(SingletonServicesStore.databaseInterface)))
+    makeFetchCachedResultsActor(cacheHit, taskOutputs)
     goto(FetchingCachedOutputsFromDatabase)
   }
 
   def makeBackendCopyCacheHit(cacheHit: CacheHit, cachedJobOutputs: JobOutputs, data: ResponsePendingData) = {
-    val cacheHitCopyActor = context.actorOf(callCachingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor))
-    cacheHitCopyActor ! CopyOutputsCommand(cachedJobOutputs)
-    goto(BackendIsCopyingCachedOutputs)
+    factory.cacheHitCopyingActorProps match {
+      case Some(propsMaker) =>
+        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor)
+        val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor))
+        cacheHitCopyActor ! CopyOutputsCommand(cachedJobOutputs)
+        goto(BackendIsCopyingCachedOutputs)
+      case None =>
+        // This should be impossible with the FSM, but luckily, we CAN recover if some foolish future programmer makes this happen:
+        val errorMessage = "Call caching copying should never have even been attempted with no copy actor props! (Programmer error!)"
+        log.error(errorMessage)
+        self ! FailedNonRetryableResponse(data.jobDescriptor.key, new RuntimeException(errorMessage), None)
+        goto(BackendIsCopyingCachedOutputs)
+    }
   }
 
   def runJob(data: ResponsePendingData) = {
@@ -303,9 +298,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     s"$workflowId-BackendCacheHitCopyingActor-$jobTag"
   }
 
-  private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {
+  protected def createSaveCacheResultsActor(hashes: CallCacheHashes, success: SucceededResponse): Unit = {
     val callCache = new CallCache(SingletonServicesStore.databaseInterface)
-    context.actorOf(CallCacheWriteActor.props(callCache, workflowId, hashes, data.successResponse), s"CallCacheWriteActor-$tag")
+    context.actorOf(CallCacheWriteActor.props(callCache, workflowId, hashes, success), s"CallCacheWriteActor-$tag")
+  }
+
+  private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {
+    createSaveCacheResultsActor(hashes, data.successResponse)
     val updatedData = data.copy(hashes = Option(Success(hashes)))
     goto(UpdatingCallCache) using updatedData
   }
@@ -336,7 +335,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def writeToMetadata(keyValues: Map[String, String]) = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoputter
-    serviceRegistryActor.putMetadata(workflowId, Option(jobKey), keyValues)
+    serviceRegistryActor.putMetadata(workflowId, Option(jobDescriptorKey), keyValues)
   }
 
   private def addHashesAndStay(data: ResponsePendingData, hashes: CallCacheHashes): State = {
@@ -377,7 +376,7 @@ object EngineJobExecutionActor {
             callCachingMode: CallCachingMode) = {
     Props(new EngineJobExecutionActor(
       replyTo = replyTo,
-      jobKey = jobDescriptorKey,
+      jobDescriptorKey = jobDescriptorKey,
       executionData = executionData,
       factory = factory,
       initializationData = initializationData,
@@ -389,18 +388,6 @@ object EngineJobExecutionActor {
       callCachingMode = callCachingMode)).withDispatcher(EngineDispatcher)
   }
 
-  implicit class EnhancedSuccess(val response: SucceededResponse) extends AnyVal {
-    def updatedData(data: ResponsePendingData): SucceededResponseData = {
-      SucceededResponseData(response, data.hashes)
-    }
-  }
-
-  implicit class EnhancedNotSuccess(val response: BackendJobExecutionResponse) extends AnyVal {
-    def updatedData(data: ResponsePendingData): NotSucceededResponseData = {
-      NotSucceededResponseData(response, data.hashes)
-    }
-  }
-
   private[execution] sealed trait EJEAData {
     override def toString = getClass.getSimpleName
   }
@@ -409,7 +396,15 @@ object EngineJobExecutionActor {
 
   private[execution] case class ResponsePendingData(jobDescriptor: BackendJobDescriptor,
                                                     bjeaProps: Props,
-                                                    hashes: Option[Try[CallCacheHashes]] = None) extends EJEAData
+                                                    hashes: Option[Try[CallCacheHashes]] = None) extends EJEAData {
+
+    def withSuccessResponse(success: SucceededResponse) = SucceededResponseData(success, hashes)
+
+    def withResponse(response: BackendJobExecutionResponse) = response match {
+      case success: SucceededResponse => SucceededResponseData(success, hashes)
+      case failure => NotSucceededResponseData(failure, hashes)
+    }
+  }
 
   private[execution] trait ResponseData extends EJEAData {
     def response: BackendJobExecutionResponse

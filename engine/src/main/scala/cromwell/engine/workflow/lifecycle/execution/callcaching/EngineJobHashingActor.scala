@@ -50,6 +50,9 @@ case class EngineJobHashingActor(receiver: ActorRef,
       receiver ! HashError(new Exception(s"Unable to generate ${hashKey.key} hash. Caused by ${reason.getMessage}", reason))
       context.stop(self)
       stay
+    case Event(other, _) =>
+      log.error(s"Bad message in $stateName with $stateData: $other")
+      stay
   }
 
   onTransition {
@@ -60,6 +63,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
   private def initializeEJHA() = {
 
     import cromwell.core.simpleton.WdlValueSimpleton._
+
     val inputSimpletons = jobDescriptor.inputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
       case WdlValueSimpleton(_, f: WdlFile) => true
@@ -87,9 +91,10 @@ case class EngineJobHashingActor(receiver: ActorRef,
 
   private def calculateInitialHashes(nonFileInputs: Iterable[WdlValueSimpleton], fileInputs: Iterable[WdlValueSimpleton]): Set[HashResult] = {
 
-    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.call.task.commandTemplate.toString.md5HashValue)
+    val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.call.task.commandTemplateString.md5HashValue)
     val backendNameHash = HashResult(HashKey("backend name"), backendName.md5HashValue)
     val inputCountHash = HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
+    val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.call.task.outputs.size.toString.md5HashValue)
 
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
       case Some(wdlValue) => HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), wdlValue.valueString.md5HashValue)
@@ -105,7 +110,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
     }
 
     // Build these all together for the final set of initial hashes:
-    Set(commandTemplateHash, backendNameHash, inputCountHash) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults
+    Set(commandTemplateHash, backendNameHash, inputCountHash, outputCountHash) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults
   }
 
   private def checkWhetherHitOrMissIsKnownThenTransition(newData: EJHAData) = {

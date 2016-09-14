@@ -21,9 +21,16 @@ trait BackendLifecycleActorFactory {
                              initializationData: Option[BackendInitializationData],
                              serviceRegistryActor: ActorRef): Props
 
-  def cacheHitCopyingActorProps(jobDescriptor: BackendJobDescriptor,
-                                initializationData: Option[BackendInitializationData],
-                                serviceRegistryActor: ActorRef): Option[Props] = None
+  /**
+    * Providing this method to generate Props for a cache hit copying actor is optional.
+    * To implement it, add a function:
+    * def cacheHitCopyingActorInner(jobDescriptor: BackendJobDescriptor,initializationData: Option[BackendInitializationData], serviceRegistryActor: ActorRef): Props
+    * And then override this method to point to it:
+    * override def cacheHitCopyingActorProps = Option(cacheHitCopyingActorInner _)
+    *
+    * Simples!
+    */
+  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef) => Props] = None
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],

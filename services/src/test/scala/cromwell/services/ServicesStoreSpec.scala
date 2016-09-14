@@ -9,7 +9,6 @@ import cromwell.core.Tags._
 import cromwell.database.core.SqlConfiguration
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
-import cromwell.database.sql.SqlDatabase
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
@@ -45,8 +44,14 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
         // TODO PBE get rid of this after the migration of #789 has run.
         val oldeTables = Seq(
+          "EXECUTION",
+          "EXECUTION_INFO",
           "EXECUTION_EVENT",
-          "FAILURE_EVENT"
+          "FAILURE_EVENT",
+          "RUNTIME_ATTRIBUTES",
+          "SYMBOL",
+          "WORKFLOW_EXECUTION",
+          "WORKFLOW_EXECUTION_AUX"
         )
 
         import cromwell.database.migration.liquibase.DiffResultFilter._

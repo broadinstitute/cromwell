@@ -4,7 +4,7 @@ import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.FileSystems
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.io.JobPaths
@@ -41,6 +41,8 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   import cromwell.core.PathFactory._
 
   private val tag = s"CondorJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
+
+  implicit val executionContext = context.dispatcher
 
   lazy val cmds = new HtCondorCommands
   lazy val extProcess = new HtCondorProcess
@@ -88,25 +90,39 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
+  // Message sent (by self, to self) wrapping over the response produced by HtCondor
+  private final case class JobExecutionResponse(resp: BackendJobExecutionResponse)
+
+  // Message sent (by self, to self) to trigger a status check to HtCondor
+  private final case class TrackTaskStatus(id: String)
+
+  private var condorJobId: Option[String] = None
+
+  private val pollingInterval = configurationDescriptor.backendConfig.getInt("poll-interval")
+
   override def receive = super.receive orElse {
-    case ExecutionResultFound(succeededResponse) => executionResponse success succeededResponse.copy(jobKey = jobDescriptor.key)
+    case JobExecutionResponse(resp) =>
+      log.debug("{}: Completing job [{}] with response: [{}]", tag, jobDescriptor.key, resp)
+      executionResponse trySuccess resp
+    case TrackTaskStatus(id) =>
+      // Avoid the redundant status check if the response is already completed (e.g. in case of abort)
+      if (!executionResponse.isCompleted) trackTask(id)
 
+    // Messages received from Caching actor
+    case ExecutionResultFound(succeededResponse) => executionResponse trySuccess succeededResponse.copy(jobKey = jobDescriptor.key)
     case ExecutionResultNotFound => prepareAndExecute()
-
     case ExecutionResultStored(hash) => log.debug("{} Cache entry was stored for Job with hash {}.", tag, hash)
-
     case ExecutionResultAlreadyExist => log.warning("{} Cache entry for hash {} already exist.", tag, jobHash)
 
+    // Messages received from KV actor
     case KvPair(scopedKey, Some(jobId)) if scopedKey.key == HtCondorJobIdKey =>
       log.info("{} Found job id {}. Trying to recover job now.", tag, jobId)
-      executionResponse success trackTaskToCompletion(jobId)
-
+      self ! TrackTaskStatus(jobId)
     case KvKeyLookupFailed(_) =>
       log.debug("{} Job id not found. Falling back to execute.", tag)
       execute
-
     case KvFailure(_, e) =>
-      log.error(s"$tag Failure attempting to look up HtCondor job id. Exception message: ${e.getMessage}. Falling back to execute.")
+      log.error("{} Failure attempting to look up HtCondor job id. Exception message: {}. Falling back to execute.", tag, e.getMessage)
       execute
   }
 
@@ -136,9 +152,22 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   /**
     * Abort a running job.
     */
-  override def abort(): Unit = throw new UnsupportedOperationException("HtCondorBackend currently doesn't support aborting jobs.")
+  override def abort(): Unit = {
+    // Nothing to do in case `condorJobId` is not defined
+    condorJobId foreach { id =>
+      log.info("{}: Aborting job [{}:{}].", tag, jobDescriptor.key.tag, id)
+      val abortProcess = new HtCondorProcess
+      val argv = Seq(HtCondorCommands.Remove, id)
+      val process = abortProcess.externalProcess(argv)
+      val exitVal = process.exitValue()
+      if (exitVal == 0)
+        log.info("{}: Job {} successfully killed and removed from the queue.", tag, id)
+      else
+        log.error("{}: Failed to kill / remove job {}. Exit Code: {}, Stderr: {}", tag, id, exitVal, abortProcess.processStderr)
+    }
+  }
 
-  private def executeTask(): BackendJobExecutionResponse = {
+  private def executeTask(): Unit = {
     val argv = Seq(HtCondorCommands.Submit, submitFilePath.toString)
     val process = extProcess.externalProcess(argv, ProcessLogger(stdoutWriter.writeWithNewline, stderrWriter.writeWithNewline))
     val condorReturnCode = process.exitValue() // blocks until process (i.e. condor submission) finishes
@@ -160,43 +189,47 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
             serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.workflowDescriptor.id,
               KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
               HtCondorJobIdKey), Option(overallJobIdentifier)))
-            trackTaskToCompletion(overallJobIdentifier)
+            condorJobId = Option(overallJobIdentifier)
+            self ! TrackTaskStatus(overallJobIdentifier)
 
-          case _ => FailedNonRetryableResponse(jobDescriptor.key,
-            new IllegalStateException("Failed to retrieve job(id) and cluster id"), Option(condorReturnCode))
+          case _ => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+            new IllegalStateException("Failed to retrieve job(id) and cluster id"), Option(condorReturnCode)))
         }
 
       case 0 =>
-        log.error(s"Unexpected! Received return code for condor submission as 0, although stderr file is non-empty: {}",
-          File(submitFileStderr).lines)
-        FailedNonRetryableResponse(jobDescriptor.key,
-          new IllegalStateException(s"Execution process failed. HtCondor returned zero status code but non empty stderr file: $condorReturnCode"), Option(condorReturnCode))
+        log.error(s"Unexpected! Received return code for condor submission as 0, although stderr file is non-empty: {}", File(submitFileStderr).lines)
+        self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+          new IllegalStateException(s"Execution process failed. HtCondor returned zero status code but non empty stderr file: $condorReturnCode"),
+          Option(condorReturnCode)))
 
       case nonZeroExitCode: Int =>
-        FailedNonRetryableResponse(jobDescriptor.key,
-          new IllegalStateException(s"Execution process failed. HtCondor returned non zero status code: $condorReturnCode"), Option(condorReturnCode))
+        self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+          new IllegalStateException(s"Execution process failed. HtCondor returned non zero status code: $condorReturnCode"), Option(condorReturnCode)))
     }
   }
 
-  private def trackTaskToCompletion(jobIdentifier: String): BackendJobExecutionResponse = {
-    val jobReturnCode = Try(extProcess.jobReturnCode(jobIdentifier, returnCodePath)) // Blocks until process completes
+  private def trackTask(jobIdentifier: String): Unit = {
+    val jobReturnCode = Try(extProcess.jobReturnCode(jobIdentifier, returnCodePath))
     log.debug("{} Process complete. RC file now exists with value: {}", tag, jobReturnCode)
 
-    // TODO: Besides return code, do we also need to check based on stderr file?
     jobReturnCode match {
-      case Success(rc) if rc == 0 | runtimeAttributes.continueOnReturnCode.continueFor(rc) => processSuccess(rc)
-      case Success(rc) => FailedNonRetryableResponse(jobDescriptor.key,
-        new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc))
-      case Failure(error) => FailedNonRetryableResponse(jobDescriptor.key, error, None)
+      case Success(None) =>
+        import scala.concurrent.duration._
+        // Job is still running in HtCondor. Check back again after `pollingInterval` seconds
+        context.system.scheduler.scheduleOnce(pollingInterval.seconds, self, TrackTaskStatus(jobIdentifier))
+      case Success(Some(rc)) if runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
+      case Success(Some(rc)) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+        new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc)))
+      case Failure(error) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, error, None))
     }
   }
 
-  private def processSuccess(rc: Int) = {
+  private def processSuccess(rc: Int): BackendJobExecutionResponse = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) =>
         val succeededResponse = SucceededResponse(jobDescriptor.key, Some(rc), outputs)
         log.debug("{} Storing data into cache for hash {}.", tag, jobHash)
-        //If cache fails to store data for any reason it should not stop the workflow/task execution but log the issue.
+        // If cache fails to store data for any reason it should not stop the workflow/task execution but log the issue.
         cacheActor foreach { _ ! StoreExecutionResult(jobHash, succeededResponse) }
         succeededResponse
       case Failure(e) =>
@@ -296,9 +329,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private def prepareAndExecute(): Unit = {
     Try {
       createExecutionFolderAndScript()
-      executionResponse success executeTask()
+      executeTask()
     } recover {
-      case exception => executionResponse success FailedNonRetryableResponse(jobDescriptor.key, exception, None)
+      case exception => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, exception, None))
     }
   }
 }

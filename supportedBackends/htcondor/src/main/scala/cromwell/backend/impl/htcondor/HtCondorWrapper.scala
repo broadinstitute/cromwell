@@ -8,23 +8,22 @@ import cromwell.backend.impl.htcondor
 import cromwell.core.PathFactory.{EnhancedPath, FlushingAndClosingWriter}
 import cromwell.core.{TailedWriter, UntailedWriter}
 
-import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.sys.process._
 
 object JobStatus {
-    val MapOfstatuses = Map(
-      0 -> Created, // This is actually `unexpanded` in HtCondor, not sure what that actually means
-      1 -> Created, // Idle
-      2 -> Running,
-      3 -> Removed,
-      4 -> Completed,
-      5 -> Failed, // SystemOnHold
-      6 -> SubmissionError // Also the default
-    )
+  val MapOfStatuses = Map(
+    0 -> Created, // This is actually `unexpanded` in HtCondor, not sure what that actually means
+    1 -> Created, // Idle
+    2 -> Running,
+    3 -> Removed,
+    4 -> Completed,
+    5 -> Failed, // SystemOnHold
+    6 -> SubmissionError // Also the default
+  )
 
   def fromCondorStatusCode(statusCode: Int): JobStatus = {
-    MapOfstatuses.getOrElse(statusCode, SubmissionError) // By default we return SubmissionError
+    MapOfStatuses.getOrElse(statusCode, SubmissionError) // By default we return SubmissionError
   }
 
   def isTerminal(jobStatus: JobStatus): Boolean = jobStatus.isInstanceOf[TerminalJobStatus]
@@ -94,28 +93,21 @@ class HtCondorProcess extends StrictLogging {
   def externalProcess(cmdList: Seq[String], processLogger: ProcessLogger = processLogger): Process = cmdList.run(processLogger)
 
   /**
-    * Returns the RC of this job when it finishes.  Sleeps and polls
-    * until the 'rc' file is generated
+    * Returns the RC of this job if it has finished.
     */
-  def jobReturnCode(jobId: String, returnCodeFilePath: Path): Int = {
+  def jobReturnCode(jobId: String, returnCodeFilePath: Path): Option[Int] = {
 
-    @tailrec
-    def recursiveWait(): Int =
-      checkStatus(jobId) match {
-        case status if JobStatus.isTerminal(status) =>
-          Files.exists(returnCodeFilePath) match {
-            case true => File(returnCodeFilePath).contentAsString.stripLineEnd.toInt
-            case false =>
-              val msg = s"JobStatus from Condor is terminal ($status) and no RC file exists!"
-              logger.debug(msg)
-              throw new IllegalStateException(msg)
-          }
-        case nonTerminalStatus =>
-          Thread.sleep(5000)
-          recursiveWait()
-      }
-
-    recursiveWait()
+    checkStatus(jobId) match {
+      case status if JobStatus.isTerminal(status) =>
+        Files.exists(returnCodeFilePath) match {
+          case true => Option(File(returnCodeFilePath).contentAsString.stripLineEnd.toInt)
+          case false =>
+            val msg = s"JobStatus from Condor is terminal ($status) and no RC file exists!"
+            logger.debug(msg)
+            throw new IllegalStateException(msg)
+        }
+      case nonTerminalStatus => None
+    }
   }
 
   private def checkStatus(jobId: String): JobStatus = {

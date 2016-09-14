@@ -9,19 +9,13 @@ lazy val gcsFileSystem = (project in file("filesystems/gcs"))
   .settings(gcsFileSystemSettings:_*)
   .withTestSettings
 
-lazy val databaseCore = (project in file("database/core"))
-  .settings(databaseCoreSettings:_*)
-  .withTestSettings
-
 lazy val databaseSql = (project in file("database/sql"))
   .settings(databaseSqlSettings:_*)
-  .dependsOn(databaseCore)
   .withTestSettings
 
 lazy val databaseMigration = (project in file("database/migration"))
   .settings(databaseMigrationSettings: _*)
   .dependsOn(core)
-  .dependsOn(databaseCore)
   .withTestSettings
 
 lazy val services = (project in file("services"))
@@ -89,7 +83,6 @@ lazy val root = (project in file("."))
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
   .aggregate(core)
   .aggregate(gcsFileSystem)
-  .aggregate(databaseCore)
   .aggregate(databaseSql)
   .aggregate(databaseMigration)
   .aggregate(services)

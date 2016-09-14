@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import cromwell.CromwellTestkitSpec
-import cromwell.backend.callcaching.FileHasherWorkerActor.{FileHashResponse, SingleFileHashRequest}
+import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
@@ -57,10 +57,10 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
         deathWatch.expectTerminated(ejha, 5 seconds)
       }
 
-      s"Wait for requests to the FileHasherActor for the ${activity.readWriteMode} activity" in {
+      s"Wait for requests to the FileHashingActor for the ${activity.readWriteMode} activity" in {
         val singleMetaInfoIdSet = Set(MetaInfoId(1))
         val replyTo = TestProbe()
-        val fileHasherActor = TestProbe()
+        val fileHashingActor = TestProbe()
         val deathWatch = TestProbe()
 
         val initialCacheLookupResponses: Map[String, Set[MetaInfoId]] = if (activity.readFromCache) standardCacheLookupResponses(singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet) else Map.empty
@@ -73,16 +73,16 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
           replyTo = replyTo.ref,
           activity = activity,
           jobDescriptor = jobDescriptor,
-          fileHashingActor = Some(fileHasherActor.ref),
+          fileHashingActor = Option(fileHashingActor.ref),
           cacheLookupResponses = initialCacheLookupResponses ++ fileCacheLookupResponses)
 
         deathWatch watch ejha
 
         twice { iteration =>
-          fileHasherActor.expectMsgPF(max = 5 seconds, hint = s"awaiting file hash request #$iteration") {
+          fileHashingActor.expectMsgPF(max = 5 seconds, hint = s"awaiting file hash request #$iteration") {
             case SingleFileHashRequest(jobKey, hashKey, file, initializationData) =>
               file should be(WdlFile("path"))
-              fileHasherActor.send(ejha, FileHashResponse(HashResult(hashKey, HashValue("blah di blah"))))
+              fileHashingActor.send(ejha, FileHashResponse(HashResult(hashKey, HashValue("blah di blah"))))
             case x => fail(s"SingleFileHashRequest anticipated! Instead got a ${x.getClass.getSimpleName}")
           }
         }
@@ -96,10 +96,10 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
         deathWatch.expectTerminated(ejha, 5 seconds)
       }
 
-      s"Cache miss for bad FileHasherActor results but still return hashes in the ${activity.readWriteMode} activity" in {
+      s"Cache miss for bad FileHashingActor results but still return hashes in the ${activity.readWriteMode} activity" in {
         val singleMetaInfoIdSet = Set(MetaInfoId(1))
         val replyTo = TestProbe()
-        val fileHasherActor = TestProbe()
+        val fileHashingActor = TestProbe()
         val deathWatch = TestProbe()
 
         val initialCacheLookupResponses: Map[String, Set[MetaInfoId]] = if (activity.readFromCache) standardCacheLookupResponses(singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet) else Map.empty
@@ -112,7 +112,7 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
           replyTo = replyTo.ref,
           activity = activity,
           jobDescriptor = jobDescriptor,
-          fileHashingActor = Some(fileHasherActor.ref),
+          fileHashingActor = Option(fileHashingActor.ref),
           cacheLookupResponses = initialCacheLookupResponses ++ fileCacheLookupResponses)
 
         deathWatch watch ejha
@@ -122,10 +122,10 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
         // only to the "cache miss" file and then check that the test probe receives the appropriate "cancellation" message.
         // ... or not! Don't just blindly allow a ghost of the past to tell you what to do! Live your own life and excel!
         twice { iteration =>
-          fileHasherActor.expectMsgPF(max = 5 seconds, hint = s"awaiting file hash request #$iteration") {
+          fileHashingActor.expectMsgPF(max = 5 seconds, hint = s"awaiting file hash request #$iteration") {
             case SingleFileHashRequest(jobKey, hashKey, file, initializationData) =>
               file should be(WdlFile("path"))
-              fileHasherActor.send(ejha, FileHashResponse(HashResult(hashKey, HashValue("blah di blah"))))
+              fileHashingActor.send(ejha, FileHashResponse(HashResult(hashKey, HashValue("blah di blah"))))
             case x => fail(s"SingleFileHashRequest anticipated! Instead got a ${x.getClass.getSimpleName}")
           }
         }

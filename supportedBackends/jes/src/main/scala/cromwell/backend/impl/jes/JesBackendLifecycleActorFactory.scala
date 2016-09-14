@@ -5,7 +5,7 @@ import java.nio.file.Path
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
-import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
+import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.impl.jes.callcaching.JesBackendFileHashing
 import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.core.Dispatcher.BackendDispatcher

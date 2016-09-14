@@ -1,6 +1,6 @@
 package cromwell.backend.impl.sfs.config
 
-import cromwell.backend.callcaching.FileHasherWorkerActor.FileHashingFunction
+import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, RuntimeAttributeDefinition}
@@ -33,5 +33,5 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
   }
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(ConfigBackendFileHashing.getMd5Result))
-  override lazy val fileHashingWorkerCount: Int = 5
+  override lazy val fileHashingActorCount: Int = 5
 }

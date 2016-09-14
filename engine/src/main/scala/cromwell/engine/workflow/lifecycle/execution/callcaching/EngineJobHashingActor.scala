@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
-import cromwell.backend.callcaching.FileHasherWorkerActor.SingleFileHashRequest
+import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WdlValueSimpleton

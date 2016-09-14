@@ -6,14 +6,14 @@ import cromwell.backend.BackendInitializationData
 import cromwell.core.JobKey
 import cromwell.core.callcaching._
 import wdl4s.values.WdlFile
-import FileHasherWorkerActor._
+import FileHashingActor._
 
 import scala.util.{Failure, Success, Try}
 
 /**
   * Blocking worker. Warning! If this actor dies then its mailbox of hash requests will be lost
   */
-class FileHasherWorkerActor(workerFunction: Option[FileHashingFunction]) extends Actor with ActorLogging {
+class FileHashingActor(workerFunction: Option[FileHashingFunction]) extends Actor with ActorLogging {
   override def receive = {
     case x: SingleFileHashRequest =>
 
@@ -27,8 +27,8 @@ class FileHasherWorkerActor(workerFunction: Option[FileHashingFunction]) extends
   }
 }
 
-object FileHasherWorkerActor {
-  def props(workerFunction: Option[FileHashingFunction]): Props = Props(new FileHasherWorkerActor(workerFunction))
+object FileHashingActor {
+  def props(workerFunction: Option[FileHashingFunction]): Props = Props(new FileHashingActor(workerFunction))
 
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
 

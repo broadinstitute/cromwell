@@ -4,10 +4,12 @@ import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import EngineJobExecutionActorSpec._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.core.callcaching.{CallCachingActivity, ReadAndWriteCache}
+import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, HashError}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.MetaInfoId
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
+import wdl4s.values.WdlString
 
 import scala.util.{Failure, Success}
 
@@ -29,9 +31,11 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
         ejhaResponse foreach { ejea ! _ }
 
         // Send the response from the "Fetch" actor
-        val cachedResults = successResponse.jobOutputs
-        ejea ! CachedOutputLookupSucceeded(cachedResults, CacheHit(MetaInfoId(75)))
-        helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedResults))
+        val cachedSimpletons = Seq(WdlValueSimpleton("a", WdlString("hullo")), WdlValueSimpleton("b", WdlString("cheerio")))
+        val detritusMap = Map("stdout" -> "//somePath")
+        val cachedReturnCode = Some(17)
+        ejea ! CachedOutputLookupSucceeded(cachedSimpletons, detritusMap, cachedReturnCode, CacheHit(MetaInfoId(75)))
+        helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedSimpletons, detritusMap, cachedReturnCode))
 
         // Check we end up in the right state:
         ejea.stateName should be(BackendIsCopyingCachedOutputs)

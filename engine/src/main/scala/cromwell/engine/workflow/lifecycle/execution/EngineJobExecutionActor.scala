@@ -261,8 +261,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
+  def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]): Unit = context.actorOf(FetchCachedResultsActor.props(cacheHit, self, new CallCache(SingletonServicesStore.databaseInterface)))
   def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
-    context.actorOf(FetchCachedResultsActor.props(cacheHit, self, new CallCache(SingletonServicesStore.databaseInterface)))
+    makeFetchCachedResultsActor(cacheHit, taskOutputs)
     goto(FetchingCachedOutputsFromDatabase)
   }
 

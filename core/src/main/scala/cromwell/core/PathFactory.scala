@@ -11,7 +11,7 @@ class FileSystemNotFound(str: String) extends CromwellFatalException(
 )
 
 trait PathFactory {
-  private val schemeMatcher = """([a-z]*://).*""".r
+  private val schemeMatcher = """([a-z]+://).*""".r
 
   def findFileSystem(rawString: String, fss: List[FileSystem], mapping: PartialFunction[FileSystem, Try[Path]]) = {
     fss.toStream collect mapping collectFirst { case Success(p) => p } getOrElse {
@@ -32,7 +32,7 @@ trait PathFactory {
 
   private def hasWrongScheme(rawString: String, fileSystem: FileSystem): Boolean = {
     schemeMatcher.findFirstMatchIn(rawString) match {
-      case Some(m) if m.groupCount == 1 => m.group(1) != fileSystem.provider().getScheme
+      case Some(m) => m.group(1) != fileSystem.provider().getScheme
       case _ => false
     }
   }

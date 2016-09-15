@@ -186,7 +186,7 @@ trait SharedFileSystem extends PathFactory {
 
     def adjustFile(path: String) = {
       toDestPath(path) flatMap {
-        case (src, dst) => localize(src, dst) map { Unit => WdlFile(dst.toString) }
+        case (src, dst) => localize(src, dst) map { _ => WdlFile(dst.toString) }
       }
     }
 

@@ -38,7 +38,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ callCachingRoute ~ statusRoute ~ backendRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute
 
   private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -177,17 +177,6 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
       withRecognizedWorkflowId(possibleWorkflowId) { id =>
         getFromResource("workflowTimings/workflowTimings.html")
-      }
-    }
-
-  def callCachingRoute =
-    path("workflows" / Segment / Segment / "call-caching" ~ (Slash ~ Segment).?) { (version, workflowId, callFqn) =>
-      parameterSeq { parameters =>
-        val queryParameters = parameters map { case (k, v) => QueryParameter(k, v) }
-        post {
-          // TODO: PBE: Certainly want to do something for this! But probably not to the WMA
-          failBadRequest(new UnsupportedOperationException(s"Call caching is currently unsupported."))
-        }
       }
     }
 

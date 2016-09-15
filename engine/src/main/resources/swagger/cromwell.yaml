@@ -509,79 +509,6 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/call-caching':
-    post:
-      summary: Alter call cache result reuse settings for all calls within the specified workflow.
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-        - name: allow
-          description: Whether to allow call cache result reuse for all calls within the specified workflow.
-          required: true
-          type: boolean
-          in: query
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/CallCachingResponse'
-        '400':
-          description: Validation error
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
-  '/workflows/{version}/{id}/call-caching/{callFqn}':
-    post:
-      summary: Alter call cache result reuse settings for the specified call within the specified workflow.
-      parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
-        - name: id
-          description: Workflow ID
-          required: true
-          type: string
-          in: path
-        - name: callFqn
-          description: Call fully qualified name
-          required: true
-          type: string
-          in: path
-        - name: allow
-          description: Whether to allow call cache result reuse for the specified call within the workflow.
-          required: true
-          type: boolean
-          in: query
-      tags:
-        - Workflows
-      responses:
-        '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/CallCachingResponse'
-        '400':
-          description: Validation error
-        '500':
-          description: Internal Error
-      security:
-        - google_oauth:
-            - openid
   '/workflows/{version}/backends':
     get:
       summary: Returns the backends supported by this Cromwell.
@@ -812,14 +739,6 @@ definitions:
         type: string
         format: date-time
         description: Workflow end datetime
-  CallCachingResponse:
-    description: Update count for call caching result reuse endpoints.
-    required:
-      - updateCount
-    properties:
-      updateCount:
-        type: integer
-        description: Number of calls updated by this request.
   BackendResponse:
     description: ''
     required:

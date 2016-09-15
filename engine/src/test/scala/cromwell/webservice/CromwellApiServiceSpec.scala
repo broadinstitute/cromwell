@@ -8,7 +8,6 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
-import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{WorkflowAborted => _, _}
@@ -51,7 +50,6 @@ class MockWorkflowStoreActor extends Actor {
       sender ! message
   }
 }
-
 
 class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with ScalatestRouteTest with Matchers
   with ScalaFutures with Mockito {
@@ -607,101 +605,6 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
       check {
         assertResult(StatusCodes.BadRequest) {
           status
-        }
-      }
-  }
-
-  behavior of "REST API /call-caching endpoint"
-
-  ignore should "disallow call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=false") ~>
-    callCachingRoute ~>
-    check {
-      assertResult(StatusCodes.OK) { status }
-    }
-  }
-
-  ignore should "reject missing 'allow' when disabling call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/w.good_call") ~>
-    callCachingRoute ~>
-    check {
-      assertResult(StatusCodes.BadRequest) { status }
-      assertResult(true) {
-        responseAs[String].contains("must specify 'allow' exactly once")
-      }
-    }
-  }
-
-  ignore should "reject bogus calls" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/bogus?allow=true") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) { status }
-        assertResult(true) {
-          responseAs[String].contains("Invalid call")
-        }
-      }
-  }
-
-  ignore should "reject invalid parameter keys when enabling call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching/w.good_call?allow=true&bogusKey=foo") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) { status }
-        assertResult(true) {
-          responseAs[String].contains("Unrecognized parameters: ")
-        }
-      }
-  }
-
-  ignore should "reject bogus workflows when enabling call caching for a call" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/call-caching/w.good_call?allow=true") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) { status }
-        assertResult(true) {
-          responseAs[String].contains("Unknown workflow")
-        }
-      }
-  }
-
-  ignore should "disallow call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching?allow=false") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.OK) { status }
-      }
-  }
-
-  ignore should "reject missing 'allow' when disabling call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) { status }
-        assertResult(true) {
-          responseAs[String].contains("must specify 'allow' exactly once")
-        }
-      }
-  }
-
-  ignore should "reject invalid parameter keys when enabling call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.submittedScatterWorkflowId}/call-caching?allow=true&bogusKey=foo") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) { status }
-        assertResult(true) {
-          responseAs[String].contains("Unrecognized parameters: ")
-        }
-      }
-  }
-
-  ignore should "reject bogus workflows when enabling call caching for a workflow" taggedAs PostMVP in {
-    Post(s"/workflows/$version/${MockWorkflowStoreActor.unknownId}/call-caching?allow=true") ~>
-      callCachingRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) { status }
-        assertResult(true) {
-          responseAs[String].contains("Unknown workflow")
         }
       }
   }

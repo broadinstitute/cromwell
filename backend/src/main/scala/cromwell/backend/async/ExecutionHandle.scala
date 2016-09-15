@@ -12,9 +12,9 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, callOutputFiles: Map[String, String], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, String], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, returnCode, callOutputFiles, resultsClonedFrom)
+  override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, resultsClonedFrom)
 }
 
 final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {

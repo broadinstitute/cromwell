@@ -29,7 +29,6 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
   override def copyCachedOutputs(seqOfSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String],
                                  returnCode: Option[Int]): Future[BackendJobExecutionResponse] = {
 
-    def tryCaching = {
       val gcsFileSystem = initializationData.workflowPaths.gcsFileSystemWithUserAuth
       val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
       val destinationCallRootPath: Path = jesCallPaths.callRootPath
@@ -37,6 +36,8 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
         case Some(srcPath) => gcsFileSystem.getPath(srcPath)
         case None => val error = new RuntimeException(s"The call detritus files for source cache hit aren't found for call ${jobDescriptor.call.fullyQualifiedName}")
       }
+
+    def cacheIfPossible = {
       getSourceCallRootPath match {
         case Some(path: Path) =>
           copyFiles(path)
@@ -49,7 +50,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
         seqOfSimpletons ++ jobDetritusFiles foreach {
           case WdlValueSimpleton(key, wdlFile: WdlFile) =>
             copyCachedCallOutputFiles(wdlFile.value, sourceCallRootPath)
-          case (fileName: String, filePath: String) if fileName != "callRootPath" =>
+          case (fileName: String, filePath: String) if fileName != jesCallPaths.callRootPathKey =>
             copyCachedCallOutputFiles(filePath, sourceCallRootPath)
           case _ =>
             val error = new RuntimeException(s"Unable to copy cached job outputs for ${jobDescriptor.call.fullyQualifiedName}")
@@ -85,7 +86,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
 
     def createJobOutputs: JobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, seqOfSimpletons)
 
-    tryCaching
+    cacheIfPossible
   }
 }
 

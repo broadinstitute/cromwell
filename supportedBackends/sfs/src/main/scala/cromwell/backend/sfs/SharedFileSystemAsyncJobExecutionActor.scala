@@ -362,7 +362,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     def processSuccess(returnCode: Int) = {
       val successfulFuture = for {
         outputs <- Future.fromTry(processOutputs())
-      } yield SuccessfulExecutionHandle(outputs, returnCode, Map.empty) //Ruchi: Need to fix this for SFS caching
+      } yield SuccessfulExecutionHandle(outputs, returnCode, Map.empty) //FIXME: Need to pass in real detritus files
 
       successfulFuture recover {
         case failed: Throwable =>

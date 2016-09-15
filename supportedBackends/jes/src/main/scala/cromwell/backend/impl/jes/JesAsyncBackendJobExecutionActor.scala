@@ -564,13 +564,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def postProcess: Try[JobOutputs] = {
-    //RUCHI: Move KvPut elsewhere, temporary position for testing.
-    val forStorage = Option(List(jesCallPaths.stderrPath, jesCallPaths.returnCodePath, jesCallPaths.stdoutPath, gcsExecPath).mkString)
-    println(s"the value being stored is: $forStorage")
-    serviceRegistryActor ! KvPut(KvPair(ScopedKey(jobDescriptor.workflowDescriptor.id,
-      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
-      callOutputFiles), forStorage))
-
     val outputs = call.task.outputs
     val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
@@ -579,15 +572,15 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def gatherJobDetritusFiles: Map[String,String] = {
-      val callOutputFiles = List(jesCallPaths.stderrPath, jesCallPaths.returnCodePath, jesCallPaths.stdoutPath, gcsExecPath)
-      val mapOfFiles = callOutputFiles map { path => path.getFileName.toString -> path.toString } toMap
+      val jobDetritusFiles = List(jesCallPaths.stderrPath, jesCallPaths.returnCodePath, jesCallPaths.stdoutPath, gcsExecPath)
+      val mapOfFiles = jobDetritusFiles map { path => path.getFileName.toString -> path.toString } toMap
       val result = mapOfFiles ++ Map(jesCallPaths.callRootPathKey -> callRootPath.toString)
       result
   }
 
-  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobOutputFiles: Map[String, String], executionHandle: ExecutionHandle): ExecutionHandle = {
+  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, String], executionHandle: ExecutionHandle): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobOutputFiles)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle

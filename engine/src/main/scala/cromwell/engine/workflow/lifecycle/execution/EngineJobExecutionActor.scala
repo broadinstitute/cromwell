@@ -21,7 +21,7 @@ import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
 import wdl4s.TaskOutput
 
-import scala.util.{Success, Try}
+import scala.util.{Success, Try, Failure}
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
@@ -311,7 +311,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
-      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(jobKey: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)
         forwardAndStop(updatedData.response)

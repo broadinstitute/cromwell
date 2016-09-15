@@ -128,7 +128,7 @@ trait SharedFileSystem extends PathFactory {
       * Transform an original input path to a path in the call directory.
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
-    def toCallPath(path: String): PathsPair = {
+    def toCallPath(path: String): Try[PathsPair] = Try {
       val src = buildPath(path, filesystems)
       val inputsRootFile = File(inputsRoot)
       val dest = if (inputsRootFile.isParentOf(File(src))) src
@@ -138,7 +138,7 @@ trait SharedFileSystem extends PathFactory {
           case parent => parent.toString.md5Sum
         }
 
-        inputsRoot.resolve(pathHash).resolve(src.getFileName)
+        inputsRoot.resolve(pathHash).resolve(src.getFileName.toString)
       }
       (src, dest)
     }
@@ -162,7 +162,7 @@ trait SharedFileSystem extends PathFactory {
    * @param wdlValue WdlValue to localize
    * @return localized wdlValue
    */
-  private def localizeWdlValue(toDestPath: (String => PathsPair), strategies: Stream[LocalizationStrategy])(wdlValue: WdlValue): Try[WdlValue] = {
+  private def localizeWdlValue(toDestPath: (String => Try[PathsPair]), strategies: Stream[LocalizationStrategy])(wdlValue: WdlValue): Try[WdlValue] = {
 
     def localize(source: Path, dest: Path) = strategies map { _(source, dest) } find { _.isSuccess } getOrElse {
       Failure(new UnsupportedOperationException(s"Could not localize $source -> $dest"))
@@ -185,8 +185,9 @@ trait SharedFileSystem extends PathFactory {
     }
 
     def adjustFile(path: String) = {
-      val (src, dst) = toDestPath(path)
-      localize(src, dst) map { Unit => WdlFile(dst.toString) }
+      toDestPath(path) flatMap {
+        case (src, dst) => localize(src, dst) map { Unit => WdlFile(dst.toString) }
+      }
     }
 
     wdlValue match {

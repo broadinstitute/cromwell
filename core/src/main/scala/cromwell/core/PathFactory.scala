@@ -4,19 +4,37 @@ import java.io.Writer
 import java.nio.file.{FileSystem, Path}
 
 import scala.collection.immutable.Queue
-import scala.util.{Success, Try}
+import scala.util.{Success, Failure, Try}
+
+class FileSystemNotFound(str: String) extends CromwellFatalException(
+  new IllegalArgumentException(s"Could not find suitable filesystem to parse $str")
+)
 
 trait PathFactory {
+  private val schemeMatcher = """([a-z]*://).*""".r
+
   def findFileSystem(rawString: String, fss: List[FileSystem], mapping: PartialFunction[FileSystem, Try[Path]]) = {
     fss.toStream collect mapping collectFirst { case Success(p) => p } getOrElse {
-      throw new IllegalArgumentException(s"Could not find suitable filesystem to parse $rawString")
+      throw new FileSystemNotFound(rawString)
     }
   }
 
   def buildPath(rawString: String, fileSystems: List[FileSystem]): Path = {
     findFileSystem(rawString, fileSystems, {
-      case fs: FileSystem => Try(fs.getPath(rawString))
+      case fs: FileSystem =>
+        if (hasWrongScheme(rawString, fs)) {
+          Failure(new IllegalArgumentException(s"$rawString scheme doesn't match ${fs.provider.getScheme}"))
+        } else {
+          Try(fs.getPath(rawString))
+        }
     })
+  }
+
+  private def hasWrongScheme(rawString: String, fileSystem: FileSystem): Boolean = {
+    schemeMatcher.findFirstMatchIn(rawString) match {
+      case Some(m) if m.groupCount == 1 => m.group(1) != fileSystem.provider().getScheme
+      case _ => false
+    }
   }
 }
 

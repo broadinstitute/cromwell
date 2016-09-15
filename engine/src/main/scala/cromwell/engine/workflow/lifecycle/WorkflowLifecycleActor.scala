@@ -85,10 +85,10 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
 
   onTransition {
     case _ -> state if state.terminal =>
-      workflowLogger.info("State is now terminal. Shutting down.")
+      workflowLogger.debug("State is now terminal. Stopping self.")
       context.stop(self)
     case fromState -> toState =>
-      workflowLogger.info(s"State is transitioning from $fromState to $toState.")
+      workflowLogger.debug(s"State is transitioning from $fromState to $toState.")
   }
 
   protected def checkForDoneAndTransition(newData: WorkflowLifecycleActorData): State = {

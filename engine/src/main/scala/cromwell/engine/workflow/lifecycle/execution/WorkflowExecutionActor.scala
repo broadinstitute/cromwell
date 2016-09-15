@@ -404,10 +404,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   onTransition {
     case fromState -> toState if toState.terminal =>
-      workflowLogger.info(s"$tag transitioning from $fromState to $toState. Shutting down.")
+      workflowLogger.debug(s"$tag transitioning from $fromState to $toState. Stopping self.")
       context.stop(self)
     case fromState -> toState =>
-      workflowLogger.info(s"$tag transitioning from $fromState to $toState.")
+      workflowLogger.debug(s"$tag transitioning from $fromState to $toState.")
   }
 
   onTransition {
@@ -416,11 +416,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       context.parent ! WorkflowExecutionSucceededResponse(nextStateData.executionStore, nextStateData.outputStore)
     case _ -> WorkflowExecutionAbortedState =>
       context.parent ! WorkflowExecutionAbortedResponse(nextStateData.executionStore, nextStateData.outputStore)
-  }
-
-  onTransition {
-    case _ -> toState if toState.terminal =>
-      workflowLogger.info(s"$tag done. Shutting down.")
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {

@@ -259,7 +259,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   onTransition {
     case fromState -> toState =>
-      workflowLogger.info(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
+      workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
       // This updates the workflow status
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
@@ -270,7 +270,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   onTransition {
     case (oldState, terminalState: WorkflowActorTerminalState) =>
-      workflowLogger.info(s"transition from {} to {}. Shutting down.", arg1 = oldState, arg2 = terminalState)
+      workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
       // Add the end time of the workflow in the MetadataService
       val now = OffsetDateTime.now
       val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(now))
@@ -309,14 +309,16 @@ class WorkflowActor(val workflowId: WorkflowId,
     goto(finalState) using data.copy(currentLifecycleStateActor = None)
   }
 
+  private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = {
+    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, executionStore, outputStore, stateData.initializationData), name = s"WorkflowFinalizationActor")
+  }
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.
     */
   private def finalizeWorkflow(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor,
                                executionStore: ExecutionStore, outputStore: OutputStore,
                                failures: Option[List[Throwable]]) = {
-    val finalizationActor = context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor,
-      executionStore, outputStore, stateData.initializationData), name = s"WorkflowFinalizationActor-$workflowId")
+    val finalizationActor = makeFinalizationActor(workflowDescriptor, executionStore, outputStore)
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
   }

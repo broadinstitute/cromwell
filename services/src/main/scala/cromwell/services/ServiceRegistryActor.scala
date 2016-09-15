@@ -14,7 +14,13 @@ object ServiceRegistryActor {
     def serviceName: String
   }
 
-  def props(config: Config) = Props(ServiceRegistryActor(config))
+  def props(config: Config) = Props(new ServiceRegistryActor(serviceNameToPropsMap(config)))
+
+  // To enable testing, this lets us override a config value with a Props of our choice:
+  def props(config: Config, overrides: Map[String, Props]) = {
+    val fromConfig = serviceNameToPropsMap(config).filterNot { case (name: String, _: Props) => overrides.keys.toList.contains(name) }
+    Props(new ServiceRegistryActor(fromConfig ++ overrides))
+  }
 
   def serviceNameToPropsMap(globalConfig: Config): Map[String, Props] = {
     val serviceNamesToConfigStanzas = globalConfig.getObject("services").entrySet.asScala.map(x => x.getKey -> x.getValue).toMap
@@ -35,10 +41,10 @@ object ServiceRegistryActor {
   }
 }
 
-case class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging {
+class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with ActorLogging {
   import ServiceRegistryActor._
 
-  val services: Map[String, ActorRef] = serviceNameToPropsMap(globalConfig) map {
+  val services: Map[String, ActorRef] = serviceProps map {
     case (name, props) => name -> context.actorOf(props, name)
   }
 

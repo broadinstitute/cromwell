@@ -136,10 +136,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
   onTransition {
     case oldState -> terminalState if terminalState.terminal =>
-      workflowLogger.info(s"transition from $oldState to $terminalState: shutting down")
+      workflowLogger.debug(s"transition from $oldState to $terminalState. Stopping self")
       context.stop(self)
     case fromState -> toState =>
-      workflowLogger.info(s"transitioning from $fromState to $toState")
+      workflowLogger.debug(s"transitioning from $fromState to $toState")
   }
 
   whenUnhandled {

@@ -401,7 +401,7 @@ trait SharedFileSystemAsyncJobExecutionActor
           case true =>
             processReturnCode()
           case false =>
-            jobLogger.info(s"'${jobPaths.returnCode}' file does not exist yet")
+            jobLogger.debug(s"'${jobPaths.returnCode}' file does not exist yet")
             Future.successful(previous)
         }
       case failed: FailedNonRetryableExecutionHandle => Future.successful(failed)

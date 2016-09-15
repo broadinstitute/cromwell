@@ -1,21 +1,24 @@
 package cromwell.backend.impl.htcondor
 
 import java.nio.file.attribute.PosixFilePermission
-import java.nio.file.FileSystems
+import java.nio.file.{FileSystems, Files, Path, Paths}
 
 import akka.actor.{ActorRef, Props}
+import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
+import cromwell.backend.impl.htcondor.caching.localization.CachedResultLocalization
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.core.{JobOutput, JobOutputs, LocallyQualifiedName}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s._
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
-import wdl4s.values.WdlArray
+import wdl4s.values.{WdlArray, WdlFile, WdlSingleFile, WdlValue}
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -34,7 +37,8 @@ object HtCondorJobExecutionActor {
 class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                 override val configurationDescriptor: BackendConfigurationDescriptor,
                                 serviceRegistryActor: ActorRef,
-                                cacheActorProps: Option[Props]) extends BackendJobExecutionActor with SharedFileSystem {
+                                cacheActorProps: Option[Props])
+  extends BackendJobExecutionActor with CachedResultLocalization with SharedFileSystem {
 
   import HtCondorJobExecutionActor._
   import better.files._
@@ -109,7 +113,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       if (!executionResponse.isCompleted) trackTask(id)
 
     // Messages received from Caching actor
-    case ExecutionResultFound(succeededResponse) => executionResponse trySuccess succeededResponse.copy(jobKey = jobDescriptor.key)
+    case ExecutionResultFound(succeededResponse) => executionResponse trySuccess localizeCachedResponse(succeededResponse)
     case ExecutionResultNotFound => prepareAndExecute()
     case ExecutionResultStored(hash) => log.debug("{} Cache entry was stored for Job with hash {}.", tag, hash)
     case ExecutionResultAlreadyExist => log.warning("{} Cache entry for hash {} already exist.", tag, jobHash)
@@ -332,6 +336,15 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       executeTask()
     } recover {
       case exception => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, exception, None))
+    }
+  }
+
+  private def localizeCachedResponse(succeededResponse: SucceededResponse): BackendJobExecutionResponse = {
+    Try(localizeCachedOutputs(executionDir, succeededResponse.jobOutputs)) match {
+      case Success(outputs) =>
+        executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
+        SucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs)
+      case Failure(exception) => FailedNonRetryableResponse(jobDescriptor.key, exception, None)
     }
   }
 }

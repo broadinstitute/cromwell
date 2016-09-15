@@ -4,7 +4,7 @@ import better.files._
 
 import org.scalatest.{Matchers, WordSpecLike}
 
-class HtCondorCommandSpec extends WordSpecLike with Matchers{
+class HtCondorCommandSpec extends WordSpecLike with Matchers {
   val attributes = Map("executable" -> "test.sh", "input" -> "/temp/test", "error"->"stderr")
   val resultAttributes = List("executable=test.sh","input=/temp/test","error=stderr", "queue")
   val htCondorCommands = new HtCondorCommands

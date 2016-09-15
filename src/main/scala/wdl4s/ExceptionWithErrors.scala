@@ -1,13 +1,13 @@
 package wdl4s
 
-import scalaz.NonEmptyList
+import cats.data.NonEmptyList
 
 trait ExceptionWithErrors extends Exception {
   def message: String
   def errors: NonEmptyList[String]
 
   override def getMessage = {
-    s"""$message\n${errors.list.toList.mkString("\n")}"""
+    s"""$message\n${errors.toList.mkString("\n")}"""
   }
 }
 

@@ -20,7 +20,7 @@ object Task {
   /** The function validateDeclaration() and the DeclarationAccumulator class are used
     * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.
     *
-    * We're using this approach instead of a scalaz ValidationNel because we still want to
+    * We're using this approach instead of a cats ValidatedNel because we still want to
     * accumulate Declarations even if there was an error with that particular
     * Declaration
     */

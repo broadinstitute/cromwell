@@ -45,6 +45,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
           Future(SucceededResponse(jobDescriptor.key, returnCode, createJobOutputs))
         case error: RuntimeException => Future(FailedNonRetryableResponse(jobDescriptor.key, error, Option(-1)))
       }
+    }
 
       def copyFiles(sourceCallRootPath: Path) = {
         seqOfSimpletons ++ jobDetritusFiles foreach {
@@ -62,6 +63,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
         val sourcePath = gcsFileSystem.getPath(sourceString)
         PathCopier.copy(srcContextPath, sourcePath, destinationCallRootPath)
       }
+
 
       def tellMetadata(key: String, value: Any): Unit = {
         val event = metadataEvent(key, value)
@@ -82,7 +84,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
         tellMetadata(JesMetadataKeys.ExecutionBucket, jesAttributes.executionBucket)
         tellMetadata(JesMetadataKeys.EndpointUrl, jesAttributes.endpointUrl)
       }
-    }
+
 
     def createJobOutputs: JobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, seqOfSimpletons)
 

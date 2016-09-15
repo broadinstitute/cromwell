@@ -10,7 +10,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWor
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.{RefreshTokenMode, SimpleClientSecrets}
-import cromwell.util.SampleWdl
+import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
@@ -132,7 +132,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |}
       | """.stripMargin))
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfig = BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
@@ -183,7 +183,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
     val calls = workflowDescriptor.workflowNamespace.workflow.calls
-    val backendConfigurationDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig)
+    val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 
     val actorRef = TestActorRef[JesInitializationActor](
@@ -193,12 +193,16 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "create a GcsLocalizing instance" in {
+    EncryptionSpec.assumeAes256Cbc()
+
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits(refreshTokenConfig)
     val actor = actorRef.underlyingActor
     actor.refreshTokenAuth should be(Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret"), "mytoken")))
   }
 
   it should "generate the correct json content for no docker token and no refresh token" in {
+    EncryptionSpec.assumeAes256Cbc()
+
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
@@ -211,6 +215,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "generate the correct json content for a docker token and no refresh token" in {
+    EncryptionSpec.assumeAes256Cbc()
+
     val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
@@ -234,6 +240,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "generate the correct json content for no docker token and a refresh token" in {
+    EncryptionSpec.assumeAes256Cbc()
+
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
@@ -259,6 +267,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   }
 
   it should "generate the correct json content for a docker token and a refresh token" in {
+    EncryptionSpec.assumeAes256Cbc()
+
     val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 

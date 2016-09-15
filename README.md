@@ -78,8 +78,6 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
-  * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
-  * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
   * [Error handling](#error-handling)
 * [Developer](#developer)
@@ -2546,81 +2544,6 @@ Server: spray-can/1.3.3
     "status": "Aborted"
 }
 ```
-
-## POST /api/workflows/:version/:id/call-caching
-
-This endpoint allows for reconfiguration of call cache result reuse settings for all calls within a workflow.
-
-Accepted parameters are:
-
-* `allow` Mandatory boolean value, specifies whether call cache result reuse is allowed for all calls in the
-   specified workflow.
-
-cURL:
-
-```
-$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching?allow=false
-```
-
-HTTPie:
-
-```
-$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching?allow=false
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 17
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 04 Jun 2015 12:15:33 GMT
-Server: spray-can/1.3.3
-
-{
-    "updateCount": 3
-}
-
-```
-
-## POST /api/workflows/:version/:id/call-caching/:call
-
-This endpoint allows for reconfiguration of call cache result reuse settings for a single call within a workflow.
-
-Accepted parameters are:
-
-* `allow` Mandatory boolean value, specifies whether call cache result reuse is allowed for the specified call in the
-  specified workflow.
-
-For scattered calls, individual calls within the scatter can be targeted by appending a dot and the zero-based shard index.
-e.g. `scatter_workflow.A.0` would target the zeroth shard of a scattered `A` call.  If a shard index is not supplied for
-a scattered call, all shards are targeted for update.
-
-cURL:
-
-```
-$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching/three_step.wc?allow=false
-```
-
-HTTPie:
-
-```
-$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching/three_step.wc?allow=false
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 17
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 04 Jun 2015 12:15:33 GMT
-Server: spray-can/1.3.3
-
-{
-    "updateCount": 1
-}
-
-```
-
 
 ## GET /api/workflows/:version/backends
 

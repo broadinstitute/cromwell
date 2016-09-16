@@ -145,14 +145,15 @@ case class EngineJobHashingActor(receiver: ActorRef,
   /**
     * Needs to convert a hash result into the set of CachedResults which are consistent with it
     */
-  private var lookupIndex = 0
   private def findCacheResults(hashResults: Set[HashResult]) = {
     val filtered = hashResults.filter(_.hashKey.checkForHitOrMiss)
 
     if (filtered.nonEmpty) {
       val hashes = CallCacheHashes(filtered)
-      lookupIndex += 1
-      callCacheReadActor ! CacheLookupRequest(hashes)
+      val subsets = hashes.hashes.sliding(100,100)
+      subsets foreach { subset =>
+        callCacheReadActor ! CacheLookupRequest(CallCacheHashes(subset))
+      }
     } else ()
   }
 

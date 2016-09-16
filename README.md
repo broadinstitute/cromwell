@@ -69,7 +69,6 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
   * [POST /api/workflows/:version/batch](#post-apiworkflowsversionbatch)
-  * [POST /api/workflows/:version/validate](#post-apiworkflowsversionvalidate)
   * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [POST /api/workflows/:version/query](#post-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
@@ -1890,76 +1889,6 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 }
 
 --f3fd038395644de596c460257626edd8--
-```
-
-## POST /api/workflows/:version/validate
-
-This endpoint allows WDL to be validated in the context of a running Cromwell server and a given inputs file.
-
-
-Validation includes checking that the WDL is syntactically correct, that the runtime attributes are correct and (if supplied) that
-the inputs file satisfies the WDL file's input requirements.
-
-* `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.
-* `workflowOptions` - *Optional* JSON file containing the workflow options. The options file is validated structurally
-and can supply default runtime attributes for tasks in the source file.
-
-
-cURL:
-```
-$ curl -v "localhost:8000/api/workflows/v1/validate" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
-```
-
-HTTPie:
-
-```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/validate wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
-```
-
-Request:
-```
-POST /api/workflows/v1/validate HTTP/1.1
-Accept: */*
-Accept-Encoding: gzip, deflate
-Connection: keep-alive
-Content-Length: 463
-Content-Type: application/x-www-form-urlencoded; charset=utf-8
-Host: localhost:8000
-User-Agent: HTTPie/0.9.2
-
-wdlSource=...wdlInputs=...
-```
-
-Response (successful validation):
-```
-HTTP/1.1 200 OK
-Content-Length: 63
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 21 Jan 2016 16:57:39 GMT
-Server: spray-can/1.3.2
-
-{
-    "message": "Validation succeeded.",
-    "status": "success"
-}
-```
-
-Response (failed validation example):
-```
-HTTP/1.1 400 Bad Request
-Content-Length: 159
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 21 Jan 2016 16:56:32 GMT
-Server: spray-can/1.3.2
-
-{
-    "errors": [
-        "Missing required keys in runtime configuration for backend 'JES': docker"
-    ],
-    "message": "RuntimeAttribute is not valid.",
-    "status": "fail"
-}
 ```
 
 

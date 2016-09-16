@@ -100,6 +100,11 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
   private val backendConfig = ConfigFactory.parseString(
     s"""{
         |  root = "local-cromwell-executions"
+        |
+        |  docker {
+        |    cmd = "docker run -w %s %s %s --rm %s %s"
+        |  }
+        |
         |  filesystems {
         |    local {
         |      localization = [

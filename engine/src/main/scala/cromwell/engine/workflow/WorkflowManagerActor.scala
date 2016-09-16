@@ -230,10 +230,10 @@ class WorkflowManagerActor(config: Config,
 
   onTransition {
     case _ -> Done =>
-      logger.info(s"$tag All workflows finished. Shutting down.")
+      logger.info(s"$tag All workflows finished. Stopping self.")
       donePromise.trySuccess(())
     case fromState -> toState =>
-      logger.info(s"$tag transitioning from $fromState to $toState")
+      logger.debug(s"$tag transitioning from $fromState to $toState")
   }
 
   /**

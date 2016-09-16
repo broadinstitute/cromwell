@@ -2,17 +2,17 @@ package cromwell
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
+import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowActor
-import cromwell.engine.workflow.WorkflowActor.{StartNewWorkflow, StartWorkflowCommand}
-import cromwell.services.metadata.MetadataEvent
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.engine.workflow.WorkflowActor._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
+import org.scalatest.BeforeAndAfter
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
@@ -20,138 +20,136 @@ import scala.language.postfixOps
 
 object SimpleWorkflowActorSpec {
 
-  val failurePatternMatcher = """failures\[\d*\].message""".r
-
-  object MetadataWatchActor {
-    def props(matcher: Option[FailureMatcher], promise: Promise[Unit]): Props = Props(MetadataWatchActor(matcher, promise))
-  }
-
-  // This actor stands in for the service registry and watches for metadata messages that match the optional `matcher`.
-  // If there is no predicate then use `emptyBehavior` which ignores all messages.  This is here because there is no
-  // WorkflowManagerActor in this test that would spin up a real ServiceRegistry.
-  case class MetadataWatchActor(matcher: Option[FailureMatcher], promise: Promise[Unit]) extends Actor {
-    override def receive = matcher match {
-      case None =>
-        promise.trySuccess(())
-        Actor.emptyBehavior
-      case Some(m) => {
-        case PutMetadataAction(events) if m.matches(events) =>
-          promise.trySuccess(())
-          context.stop(self)
-      }
-    }
-  }
-
-  case class FailureMatcher(value: String) {
-    def matches(events: Traversable[MetadataEvent]): Boolean = {
-      events.exists(e => failurePatternMatcher.findFirstIn(e.key.key).isDefined && e.value.exists { v => v.value.contains(value) })
-    }
-  }
-
-  case class WorkflowActorAndMetadataPromise(workflowActor: ActorRef, promise: Promise[Unit])
+  case class TestableWorkflowActorAndMetadataPromise
+  (
+    workflowActor: TestFSMRef[WorkflowActorState, WorkflowActorData, WorkflowActor],
+    supervisor: TestProbe,
+    promise: Promise[Unit])
 }
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec {
+class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
 
-  private def buildWorkflowActor(sampleWdl: SampleWdl, rawInputsOverride: String,
-                                 workflowId: WorkflowId = WorkflowId.randomId(),
-                                 matcher: Option[FailureMatcher] = None): WorkflowActorAndMetadataPromise = {
+  private def buildWorkflowActor(sampleWdl: SampleWdl,
+                                 rawInputsOverride: String,
+                                 workflowId: WorkflowId,
+                                 matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
     val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val promise = Promise[Unit]()
-    val watchActor = system.actorOf(MetadataWatchActor.props(matcher, promise), s"service-registry-$workflowId-${UUID.randomUUID()}")
+    val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
+    val supervisor = TestProbe()
     val workflowActor = TestFSMRef(
       factory = new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)),
+      supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )
-    WorkflowActorAndMetadataPromise(workflowActor, promise)
+    TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise)
   }
 
-  val TestExecutionTimeout = 10.seconds.dilated
+  implicit val TestExecutionTimeout = 10.seconds.dilated
+  val AwaitAlmostNothing = 100.milliseconds.dilated
+  var workflowId: WorkflowId = _
+  before {
+    workflowId = WorkflowId.randomId()
+  }
 
   "A WorkflowActor" should {
     "start, run, succeed and die" in {
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.wdlJson, workflowId)
+      val probe = TestProbe()
+      probe watch workflowActor
       startingCallsFilter("hello.hello") {
-        val WorkflowActorAndMetadataPromise(workflowActor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.wdlJson)
-        val probe = TestProbe()
-        probe watch workflowActor
-        within(TestExecutionTimeout) {
-          waitForPattern("transition from ReadyToMaterializeState to MaterializationSuccessfulState") {
-            waitForPattern("transition from FinalizingWorkflowState to WorkflowSucceededState") {
-              workflowActor ! StartWorkflowCommand
-            }
-          }
-        }
-        probe.expectTerminated(workflowActor, 10.seconds.dilated)
+        workflowActor ! StartWorkflowCommand
       }
+
+      probe.expectTerminated(workflowActor, TestExecutionTimeout)
+      // Check the parent didn't see anything:
+      supervisor.expectNoMsg(AwaitAlmostNothing) // The actor's already terminated. No point hanging around waiting...
+
     }
 
     "fail to construct with missing inputs" in {
-      val workflowId = WorkflowId.randomId()
-      val failureMatcher = FailureMatcher("Required workflow input 'hello.hello.addressee' not specified.")
-      val WorkflowActorAndMetadataPromise(workflowActor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, Option(failureMatcher))
+      val expectedError = "Required workflow input 'hello.hello.addressee' not specified."
+      val failureMatcher = FailureMatcher(expectedError)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, failureMatcher)
       val probe = TestProbe()
       probe watch workflowActor
-      within(TestExecutionTimeout) {
-        waitForPattern("transition from MaterializingWorkflowDescriptorState to WorkflowFailedState") {
-          workflowActor ! StartWorkflowCommand
-          Await.result(promise.future, Duration.Inf)
-        }
+      workflowActor ! StartWorkflowCommand
+      Await.result(promise.future, TestExecutionTimeout)
+      probe.expectTerminated(workflowActor, AwaitAlmostNothing)
+      supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
+        case x: WorkflowFailedResponse =>
+          x.workflowId should be(workflowId)
+          x.reasons.size should be(1)
+          x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
-      probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
 
     "fail to construct with inputs of the wrong type" in {
-      val failureMatcher = FailureMatcher("Could not coerce value for 'hello.hello.addressee' into: WdlStringType")
-      val WorkflowActorAndMetadataPromise(workflowActor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
-        WorkflowId.randomId(), Option(failureMatcher))
+      val expectedError = "Could not coerce value for 'hello.hello.addressee' into: WdlStringType"
+      val failureMatcher = FailureMatcher(expectedError)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
+        workflowId, failureMatcher)
 
       val probe = TestProbe()
       probe watch workflowActor
-      within(TestExecutionTimeout) {
-        waitForPattern("transition from MaterializingWorkflowDescriptorState to WorkflowFailedState") {
-          workflowActor ! StartWorkflowCommand
-          Await.result(promise.future, Duration.Inf)
-        }
+      workflowActor ! StartWorkflowCommand
+      Await.result(promise.future, TestExecutionTimeout)
+      probe.expectTerminated(workflowActor, AwaitAlmostNothing)
+      supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
+        case x: WorkflowFailedResponse =>
+          x.workflowId should be(workflowId)
+          x.reasons.size should be(1)
+          x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
-      probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
 
     "fail when a call fails" in {
+      val expectedError = "Call goodbye.goodbye: return code was 1"
+      val failureMatcher = FailureMatcher(expectedError)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson, workflowId, failureMatcher)
+      val probe = TestProbe()
+      probe watch workflowActor
       startingCallsFilter("goodbye.goodbye") {
-        val WorkflowActorAndMetadataPromise(workflowActor, _) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson)
-        val probe = TestProbe()
-        probe watch workflowActor
-        within(TestExecutionTimeout) {
-          waitForPattern("transitioning from WorkflowExecutionInProgressState to WorkflowExecutionFailedState.") {
-            waitForPattern("transitioning from FinalizationInProgressState to FinalizationSucceededState.") {
-              workflowActor ! StartWorkflowCommand
-            }
-          }
-        }
-        probe.expectTerminated(workflowActor, 10.seconds.dilated)
+        workflowActor ! StartWorkflowCommand
+      }
+      Await.result(promise.future, TestExecutionTimeout)
+      probe.expectTerminated(workflowActor, AwaitAlmostNothing)
+      supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
+        case x: WorkflowFailedResponse =>
+          x.workflowId should be(workflowId)
+          x.reasons.size should be(1)
+          x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
     }
 
     "gracefully handle malformed WDL" in {
-      val WorkflowActorAndMetadataPromise(workflowActor, _) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson)
+      val expectedError = "Input evaluation for Call test1.summary failedVariable 'Can't find bfile' not found"
+      val failureMatcher = FailureMatcher(expectedError)
+      val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()
       probe watch workflowActor
-      within(TestExecutionTimeout) {
-        waitForPattern("transitioning from WorkflowExecutionInProgressState to WorkflowExecutionFailedState") {
-          workflowActor ! StartWorkflowCommand
-        }
+      workflowActor ! StartWorkflowCommand
+      Await.result(promise.future, TestExecutionTimeout)
+      probe.expectTerminated(workflowActor, AwaitAlmostNothing)
+      supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
+        case x: WorkflowFailedResponse =>
+          x.workflowId should be(workflowId)
+          x.reasons.size should be(1)
+          x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
-      probe.expectTerminated(workflowActor, 10.seconds.dilated)
     }
   }
 
   private def startingCallsFilter[T](callNames: String*)(block: => T): T = {
-    waitForPattern(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$") {
-      block
+    import CromwellTestkitSpec.waitForInfo
+    within(TestExecutionTimeout) {
+      waitForInfo(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$", 1) {
+        block
+      }
     }
   }
 }

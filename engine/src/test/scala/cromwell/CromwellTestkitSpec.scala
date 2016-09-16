@@ -10,7 +10,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestkitSpec._
 import cromwell.backend._
 import cromwell.core._
-import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
@@ -26,7 +25,7 @@ import cromwell.util.SampleWdl
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalactic.Equality
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
 import spray.http.StatusCode
@@ -37,9 +36,8 @@ import wdl4s.types._
 import wdl4s.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
-import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
 case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
@@ -276,7 +274,7 @@ object CromwellTestkitSpec {
 }
 
 abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
-  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest {
+  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with Eventually {
 
   override protected def afterAll() = { twms.shutdownTestActorSystem() }
 
@@ -325,69 +323,23 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
     }
   }
 
-  /**
-   * Performs the following steps:
-   *
-   * <ol>
-   * <li> Sends the specified message to the implicitly passed `ActorRef` via an `ask`.
-   * <li> Collects the `Future[Any]` response.
-   * <li> Downcasts the `Future[Any]` to a `Future[M]`.
-   * <li> Issues a blocking `Await.result` on the `Future`, yielding an `M`.
-   * </ol>
-   *
-   */
-  // FIXME: This is currently only used in commented out specs
-  def messageAndWait[M: ClassTag](message: AnyRef)(implicit actorRef: ActorRef): M = {
-    val futureAny = actorRef.?(message)(timeout = timeout, sender = actorRef)
-    Await.result(futureAny.mapTo[M], TimeoutDuration)
-  }
-
-  /**
-   * Wait for exactly one occurrence of the specified info pattern in the specified block within a limited amount of
-   * time. The block is in its own parameter list for usage syntax reasons.
-   */
-  // FIXME: Used here & SimpleWorkflowActorSpec
-  def waitForPattern[T](pattern: String, occurrences: Int = 1)(block: => T): T = {
-    within(TimeoutDuration) {
-      waitForInfo(pattern, occurrences) {
-        block
-      }
-    }
-  }
-
   private def buildCromwellRootActor(config: Config) = {
     TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor")
   }
 
-  def workflowSuccessFilter = EventFilter.info(pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1)
-
   def runWdl(sampleWdl: SampleWdl,
-             eventFilter: EventFilter = workflowSuccessFilter,
              runtime: String = "",
              workflowOptions: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = DefaultConfig)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val rootActor = buildCromwellRootActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
-    val id = eventFilter.intercept {
-      within(TimeoutDuration) {
-        val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-        verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState)
-        getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
-      }
-    }
-
+    val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
+    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) }
+    val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
     system.stop(rootActor)
-    id
-  }
-
-  def eventually[T](isFatal: Throwable => Boolean, maxRetries: Int = 3)(f: => T): T = {
-    // Retry because we have no guarantee that all the metadata is there when the workflow finishes...
-    Await.result(Retry.withRetry(
-      () => Future(f),
-      maxRetries = Some(maxRetries),
-      isFatal = isFatal,
-      backoff = SimpleExponentialBackoff(0.5 seconds, 0.5 second, 1D)), TimeoutDuration)
+    // And return the outcome:
+    outcome
   }
 
   def runWdlAndAssertOutputs(sampleWdl: SampleWdl,
@@ -401,72 +353,27 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
                             (implicit ec: ExecutionContext): WorkflowId = {
     val rootActor = buildCromwellRootActor(config)
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
-    def isFatal(e: Throwable) = e match {
-      case _: OutputNotFoundException => false
-      case _ => true
+
+    val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
+    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) }
+
+    val outputs = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
+    val actualOutputNames = outputs.keys mkString ", "
+    val expectedOutputNames = expectedOutputs.keys mkString " "
+
+    expectedOutputs foreach { case (outputFqn, expectedValue) =>
+      val actualValue = outputs.getOrElse(outputFqn, throw OutputNotFoundException(outputFqn, actualOutputNames))
+      if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
     }
-    val id = eventFilter.intercept {
-      within(TimeoutDuration) {
-        val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-        verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState)
-
-        eventually(isFatal) {
-          val outputs = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
-          val actualOutputNames = outputs.keys mkString ", "
-          val expectedOutputNames = expectedOutputs.keys mkString " "
-
-          expectedOutputs foreach { case (outputFqn, expectedValue) =>
-            val actualValue = outputs.getOrElse(outputFqn, throw OutputNotFoundException(outputFqn, actualOutputNames))
-            if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
-          }
-          if (!allowOtherOutputs) {
-            outputs foreach { case (actualFqn, actualValue) =>
-              val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
-              if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
-            }
-          }
-          workflowId
-        }
+    if (!allowOtherOutputs) {
+      outputs foreach { case (actualFqn, actualValue) =>
+        val expectedValue = expectedOutputs.getOrElse(actualFqn, throw new RuntimeException(s"Actual output $actualFqn was not wanted in '$expectedOutputNames'"))
+        if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
       }
     }
 
     system.stop(rootActor)
-    id
-  }
-
-  def runWdlAndAssertLogs(sampleWdl: SampleWdl,
-                          eventFilter: EventFilter,
-                          expectedStdoutContent: String,
-                          expectedStderrContent: String,
-                          runtime: String = "",
-                          workflowOptions: String = "{}",
-                          allowOtherOutputs: Boolean = true,
-                          terminalState: WorkflowState = WorkflowSucceeded,
-                          config: Config = DefaultConfig)
-                         (implicit ec: ExecutionContext): WorkflowId = {
-    val rootActor = buildCromwellRootActor(config)
-    val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
-    def isFatal(e: Throwable) = e match {
-      case _: LogNotFoundException => false
-      case _ => true
-    }
-    val id = eventFilter.intercept {
-      within(TimeoutDuration) {
-        val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-        verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState)
-
-        eventually(isFatal) {
-          import better.files._
-          val (stdout, stderr) = getFirstCallLogs(workflowId, rootActor.underlyingActor.serviceRegistryActor)
-          File(stdout).contentAsString shouldBe expectedStdoutContent
-          File(stderr).contentAsString shouldBe expectedStderrContent
-          workflowId
-        }
-      }
-    }
-
-    system.stop(rootActor)
-    id
+    workflowId
   }
 
   def getWorkflowMetadata(workflowId: WorkflowId, serviceRegistryActor: ActorRef, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {

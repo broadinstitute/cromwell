@@ -18,7 +18,7 @@ class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendW
   val CallPrefix = "call"
   val ShardPrefix = "shard"
   val AttemptPrefix = "attempt"
-  val callRootPathKey = "callRootPath"
+  val CallRootPathKey = "callRootPath"
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")

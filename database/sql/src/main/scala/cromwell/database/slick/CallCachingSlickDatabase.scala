@@ -40,8 +40,8 @@ trait CallCachingSlickDatabase extends CallCachingStore {
 
   override def fetchCachedResult(callCachingResultMetaInfoId: Int)(implicit ec: ExecutionContext):
                                   Future[(Option[CallCachingResultMetaInfoEntry],
-                                  Seq[CallCachingResultSimpletonEntry],
-                                  Seq[CallCachingJobDetritusEntry])] = {
+                                         Seq[CallCachingResultSimpletonEntry],
+                                         Seq[CallCachingJobDetritusEntry])] = {
     val action = for {
       metaInfo <- dataAccess.metaInfoById(callCachingResultMetaInfoId).result.headOption
       resultSimpletons <- dataAccess.resultSimpletonsForMetaInfoId(callCachingResultMetaInfoId).result

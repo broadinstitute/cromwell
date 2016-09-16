@@ -5,9 +5,11 @@
 
     <changeSet author="rmunshi" id="call_caching_job_detritus">
         <comment>
-            One row per job detritus file per job (i.e, one row for the stdout, stderr, etc)
-            The standard output key contains the filename, such as hello-stdout, and the standard
-            output value contains the file path, such as gs://cromwell-root/hello/call-hello/hello-stdout.log.
+            One row per job detritus file (i.e, one row for the stdout, stderr, etc)
+            The job detritus key contains the filename, such as hello-stdout, and the job detritus
+            value contains the file path, such as gs://cromwell-root/hello/call-hello/hello-stdout.log.
+            Additionally there is a backend-specific key used to save the root directory path of the
+            given job.
         </comment>
         <createTable tableName="CALL_CACHING_JOB_DETRITUS">
             <column autoIncrement="true" name="CALL_CACHING_JOB_DETRITUS_ID" type="INT">

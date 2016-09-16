@@ -572,10 +572,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def gatherJobDetritusFiles: Map[String,String] = {
-      val jobDetritusFiles = List(jesCallPaths.stderrPath, jesCallPaths.returnCodePath, jesCallPaths.stdoutPath, gcsExecPath)
-      val mapOfFiles = jobDetritusFiles map { path => path.getFileName.toString -> path.toString } toMap
-      val result = mapOfFiles ++ Map(jesCallPaths.callRootPathKey -> callRootPath.toString)
-      result
+      Map("stdout" -> jesCallPaths.stdoutPath.toString, "stderr" -> jesCallPaths.stderrPath.toString,
+        "returnCode" -> jesCallPaths.returnCodePath.toString, "jesLog" -> jesCallPaths.jesLogPath.toString,
+        "gcsExec" -> gcsExecPath.toString, jesCallPaths.CallRootPathKey -> callRootPath.toString)
   }
 
   private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, String], executionHandle: ExecutionHandle): ExecutionHandle = {

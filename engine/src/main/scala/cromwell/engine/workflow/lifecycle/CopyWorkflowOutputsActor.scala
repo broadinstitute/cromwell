@@ -35,7 +35,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
 
     outputFilePaths foreach {
       case (workflowRootPath, srcPath) =>
-        PathCopier.copy(workflowRootPath, srcPath, workflowOutputsPath)
+        PathCopier.copy(workflowRootPath, srcPath, workflowOutputsPath, false)
     }
   }
 

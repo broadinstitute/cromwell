@@ -8,7 +8,7 @@ trait CallCachingHashComponent {
 
   import driver.api._
 
-  class CallCachingHashes(tag: Tag) extends Table[CallCachingHashEntry](tag, "CALL_CACHING_HASH") {
+  class CallCachingHashEntries(tag: Tag) extends Table[CallCachingHashEntry](tag, "CALL_CACHING_HASH") {
     def callCachingHashId = column[Int]("CALL_CACHING_HASH_ID", O.PrimaryKey, O.AutoInc)
 
     def hashKey = column[String]("HASH_KEY")
@@ -27,7 +27,7 @@ trait CallCachingHashComponent {
       "CCH_RESULT_METAINFO_ID_FK", resultMetaInfoId, callCachingResultMetaInfos)(_.callCachingResultMetaInfoId)
   }
 
-  protected val callCachingHashes = TableQuery[CallCachingHashes]
+  protected val callCachingHashes = TableQuery[CallCachingHashEntries]
 
   val callCachingHashEntryIdsAutoInc = callCachingHashes returning
     callCachingHashes.map(_.callCachingHashId)

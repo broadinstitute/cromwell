@@ -10,12 +10,12 @@ import cromwell.core.simpleton.WdlValueSimpleton
 import scala.concurrent.Future
 
 object BackendCacheHitCopyingActor {
-  final case class CopyOutputsCommand(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int])
+  final case class CopyOutputsCommand(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int])
 }
 
 trait BackendCacheHitCopyingActor extends Actor with ActorLogging with BackendJobLifecycleActor {
 
-  def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int]): Future[BackendJobExecutionResponse]
+  def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int]): Future[BackendJobExecutionResponse]
 
   def receive: Receive = LoggingReceive {
     case CopyOutputsCommand(simpletons, jobDetritus, returnCode) =>

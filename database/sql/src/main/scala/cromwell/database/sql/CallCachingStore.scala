@@ -15,6 +15,7 @@ trait CallCachingStore {
                                (implicit ec: ExecutionContext): Future[Seq[Seq[Int]]]
 
   def fetchCachedResult(callCachingResultMetaInfoId: Int)(implicit ec: ExecutionContext):
-                         Future[(Option[CallCachingResultMetaInfoEntry],
-                         Seq[CallCachingResultSimpletonEntry], Seq[CallCachingJobDetritusEntry])]
+                        Future[(Option[CallCachingResultMetaInfoEntry],
+                        Seq[CallCachingResultSimpletonEntry],
+                        Seq[CallCachingJobDetritusEntry])]
 }

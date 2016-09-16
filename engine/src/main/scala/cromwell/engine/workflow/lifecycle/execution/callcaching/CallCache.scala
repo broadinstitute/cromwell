@@ -21,6 +21,10 @@ final case class CacheHitJobFile(fileKey: String, fileValue: String)
 
 final case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingResultSimpletonEntry], jobDetritus: Seq[CallCachingJobDetritusEntry])
 
+final case class CachingPackage(metaInfoEntry: Option[CallCachingResultMetaInfoEntry],
+                                simpletonEntries: Seq[CallCachingResultSimpletonEntry],
+                                detritusEntries: Seq[CallCachingJobDetritusEntry])
+
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
   */

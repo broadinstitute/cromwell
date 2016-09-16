@@ -18,6 +18,7 @@ class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendW
   val CallPrefix = "call"
   val ShardPrefix = "shard"
   val AttemptPrefix = "attempt"
+  val CallRootPathKey = "callRootPath"
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
@@ -37,10 +38,12 @@ class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendW
   val stdoutFilename: String = s"$jesLogBasename-stdout.log"
   val stderrFilename: String = s"$jesLogBasename-stderr.log"
   val jesLogFilename: String = s"$jesLogBasename.log"
+  val gcsExecFilename: String = s"exec.sh"
 
   lazy val returnCodePath: Path = callRootPath.resolve(returnCodeFilename)
   lazy val stdoutPath: Path = callRootPath.resolve(stdoutFilename)
   lazy val stderrPath: Path = callRootPath.resolve(stderrFilename)
   lazy val jesLogPath: Path = callRootPath.resolve(jesLogFilename)
+  lazy val gcsExecPath: Path = callRootPath.resolve(gcsExecFilename)
   lazy val callContext = new CallContext(callRootPath, stdoutFilename, stderrFilename)
 }

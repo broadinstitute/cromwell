@@ -8,7 +8,7 @@ trait CallCachingResultSimpletonComponent {
 
   import driver.api._
 
-  class CallCachingResultSimpletonEntries(tag: Tag) extends Table[CallCachingResultSimpletonEntry](tag, "CALL_CACHING_RESULT_SIMPLETON") {
+  class CallCachingResultSimpletons(tag: Tag) extends Table[CallCachingResultSimpletonEntry](tag, "CALL_CACHING_RESULT_SIMPLETON") {
     def callCachingResultSimpletonId = column[Int]("CALL_CACHING_RESULT_SIMPLETON_ID", O.PrimaryKey, O.AutoInc)
     def simpletonKey = column[String]("SIMPLETON_KEY")
     def simpletonValue = column[String]("SIMPLETON_VALUE")
@@ -18,11 +18,14 @@ trait CallCachingResultSimpletonComponent {
     override def * = (simpletonKey, simpletonValue, wdlType, resultMetaInfoId, callCachingResultSimpletonId.?) <>
       (CallCachingResultSimpletonEntry.tupled, CallCachingResultSimpletonEntry.unapply)
 
-    def ccrsUniquenessConstraint = index("UK_CALL_CACHING_RESULT_SIMPLETON", (simpletonKey, resultMetaInfoId), unique = true)
-    def resultMetaInfoForeignKey = foreignKey("CCRS_RESULT_METAINFO_ID_FK", resultMetaInfoId, callCachingResultMetaInfo)(_.callCachingResultMetaInfoId)
+    def callCachingResultSimpletonUniquenessConstraint =
+      index("UK_CALL_CACHING_RESULT_SIMPLETON", (simpletonKey, resultMetaInfoId), unique = true)
+
+    def callCachingResultMetaInfo = foreignKey(
+      "CCRS_RESULT_METAINFO_ID_FK", resultMetaInfoId, callCachingResultMetaInfos)(_.callCachingResultMetaInfoId)
   }
 
-  protected val callCachingResultSimpletons = TableQuery[CallCachingResultSimpletonEntries]
+  protected val callCachingResultSimpletons = TableQuery[CallCachingResultSimpletons]
 
   val callCachingResultSimpletonAutoInc = callCachingResultSimpletons returning callCachingResultSimpletons.map(_.callCachingResultSimpletonId)
 

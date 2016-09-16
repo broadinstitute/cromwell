@@ -1,9 +1,10 @@
 package cromwell.database.slick
 
 import cromwell.database.sql._
-import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
+import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingJobDetritusEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scalaz.NonEmptyList
 
 trait CallCachingSlickDatabase extends CallCachingStore {
   this: SlickDatabase =>
@@ -12,33 +13,40 @@ trait CallCachingSlickDatabase extends CallCachingStore {
 
   override def addToCache(callCachingResultMetaInfo: CallCachingResultMetaInfoEntry,
                           hashesToInsert: Int => Iterable[CallCachingHashEntry],
-                          resultToInsert: Int => Iterable[CallCachingResultSimpletonEntry])
+                          resultToInsert: Int => Iterable[CallCachingResultSimpletonEntry],
+                          jobDetritusToInsert: Int => Iterable[CallCachingJobDetritusEntry])
                          (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
-      callCachingResultMetaInfoId <- dataAccess.callCachingResultMetaInfoAutoInc += callCachingResultMetaInfo
-      _ <- dataAccess.callCachingHashAutoInc ++= hashesToInsert(callCachingResultMetaInfoId)
+      callCachingResultMetaInfoId <- dataAccess.callCachingResultMetaInfoIdsAutoInc += callCachingResultMetaInfo
+      _ <- dataAccess.callCachingHashEntryIdsAutoInc ++= hashesToInsert(callCachingResultMetaInfoId)
       _ <- dataAccess.callCachingResultSimpletonAutoInc ++= resultToInsert(callCachingResultMetaInfoId)
+      _ <- dataAccess.callCachingJobDetritusIdAutoInc ++= jobDetritusToInsert(callCachingResultMetaInfoId)
     } yield ()
     runTransaction(action)
   }
 
-  override def metaInfoIdsMatchingHashes(hashKeyValuePairs: Seq[(String, String)])
+  override def metaInfoIdsMatchingHashes(hashKeyHashValues: Seq[(String, String)])
                                         (implicit ec: ExecutionContext): Future[Seq[Seq[Int]]] = {
+    val nel: NonEmptyList[(String, String)] = NonEmptyList(hashKeyHashValues.head, hashKeyHashValues.tail: _*)
+    metaInfoIdsMatchingHashes(nel).map(Seq.apply(_))
+  }
 
-    val actions = hashKeyValuePairs map {
-      case (hashKey, hashValue) => dataAccess.resultMetaInfoIdsForHashMatch(hashKey, hashValue).result
-    }
-    val action = DBIO.sequence(actions)
+  def metaInfoIdsMatchingHashes(hashKeyHashValues: NonEmptyList[(String, String)])
+                               (implicit ec: ExecutionContext): Future[Seq[Int]] = {
+    val action = dataAccess.callCachingResultMetaInfoIdByHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
   }
 
   override def fetchCachedResult(callCachingResultMetaInfoId: Int)(implicit ec: ExecutionContext):
-  Future[(Option[CallCachingResultMetaInfoEntry], Seq[CallCachingResultSimpletonEntry])] = {
+                                  Future[(Option[CallCachingResultMetaInfoEntry],
+                                         Seq[CallCachingResultSimpletonEntry],
+                                         Seq[CallCachingJobDetritusEntry])] = {
     val action = for {
       metaInfo <- dataAccess.metaInfoById(callCachingResultMetaInfoId).result.headOption
       resultSimpletons <- dataAccess.resultSimpletonsForMetaInfoId(callCachingResultMetaInfoId).result
-    } yield (metaInfo, resultSimpletons)
+      jobDetritus <- dataAccess.jobDetritusForMetaInfoId(callCachingResultMetaInfoId).result
+    } yield (metaInfo, resultSimpletons, jobDetritus)
 
     runTransaction(action)
   }

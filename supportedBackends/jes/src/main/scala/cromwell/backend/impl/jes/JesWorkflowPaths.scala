@@ -25,11 +25,11 @@ class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, jesConfigu
 
   val finalCallLogsPath = workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map { gcsFileSystemWithUserAuth.getPath(_) }
 
-  private val storage = jesConfiguration.jesAttributes.genomicsAuth.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
-  val fileSystemProvider = GcsFileSystemProvider(storage)(gcsFileSystemWithUserAuth.gcsFileSystemProvider.executionContext)
-  val fileSystemWithGenomicsAuth = GcsFileSystem(fileSystemProvider)
-
   val gcsAuthFilePath: Path = {
+
+    val storage = jesConfiguration.jesAttributes.genomicsAuth.buildStorage(workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
+    val fileSystemProvider = GcsFileSystemProvider(storage)(gcsFileSystemWithUserAuth.gcsFileSystemProvider.executionContext)
+    val fileSystemWithGenomicsAuth = GcsFileSystem(fileSystemProvider)
     /*
      * This is an "exception". The filesystem used here is built from genomicsAuth
      * unlike everywhere else where the filesystem used is built from gcsFileSystemAuth

@@ -22,10 +22,10 @@ object BackendJobExecutionActor {
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
 
   sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse { def jobKey: BackendJobDescriptorKey }
-  case class SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) extends BackendJobExecutionResponse
+  case class SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, jobDetritusFiles: Option[Map[String, String]] = None) extends BackendJobExecutionResponse
+  case class AbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   case class FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobExecutionResponse
   case class FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobExecutionResponse
-  case class AbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
 }
 
 /**

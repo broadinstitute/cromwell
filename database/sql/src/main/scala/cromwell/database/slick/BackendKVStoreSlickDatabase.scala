@@ -10,7 +10,6 @@ trait BackendKVStoreSlickDatabase extends BackendKVStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-
   override def addBackendStoreKeyValuePair(workflowUuid: String, callFqn: String, callIndex: Int, callAttempt: Int, storeKey: String, storeValue: String)(implicit ec: ExecutionContext): Future[Unit] = {
 
     val entry = BackendKVStoreEntry(workflowUuid,
@@ -43,4 +42,3 @@ trait BackendKVStoreSlickDatabase extends BackendKVStoreSqlDatabase {
     runTransaction(action)
   }
 }
-

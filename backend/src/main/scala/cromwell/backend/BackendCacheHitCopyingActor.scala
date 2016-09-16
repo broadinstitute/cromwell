@@ -5,21 +5,21 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse}
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.core.JobOutputs
+import cromwell.core.simpleton.WdlValueSimpleton
 
 import scala.concurrent.Future
 
 object BackendCacheHitCopyingActor {
-  final case class CopyOutputsCommand(outputs: JobOutputs)
+  final case class CopyOutputsCommand(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int])
 }
 
 trait BackendCacheHitCopyingActor extends Actor with ActorLogging with BackendJobLifecycleActor {
 
-  def copyCachedOutputs(cachedOutputs: JobOutputs): Future[BackendJobExecutionResponse]
+  def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int]): BackendJobExecutionResponse
 
   def receive: Receive = LoggingReceive {
-    case CopyOutputsCommand(cachedOutputs) =>
-      performActionThenRespond(copyCachedOutputs(cachedOutputs), onFailure = cachingFailed, andThen = context stop self)
+    case CopyOutputsCommand(simpletons, jobDetritus, returnCode) =>
+      performActionThenRespond(Future(copyCachedOutputs(simpletons, jobDetritus, returnCode)), onFailure = cachingFailed, andThen = context stop self)
     case AbortJobCommand =>
       abort()
       context.parent ! AbortedResponse(jobDescriptor.key)

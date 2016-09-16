@@ -5,19 +5,25 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.core.{JobOutputs, WorkflowId}
 import cromwell.database.sql._
-import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
+import cromwell.database.sql.tables.{CallCachingJobDetritusEntry, CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-case class MetaInfoId(id: Int)
+final case class MetaInfoId(id: Int)
 
-case class HashKeyAndValue(hashKey: String, hashValue: String)
+final case class HashKeyAndValue(hashKey: String, hashValue: String)
 
-case class ResultSimpleton(simpletonKey: String, simpletonValue: String, wdlType: String)
+final case class ResultSimpleton(simpletonKey: String, simpletonValue: String, wdlType: String)
 
-case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingResultSimpletonEntry])
+final case class CacheHitJobFile(fileKey: String, fileValue: String)
+
+final case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingResultSimpletonEntry], jobDetritus: Seq[CallCachingJobDetritusEntry])
+
+final case class CachingPackage(metaInfoEntry: Option[CallCachingResultMetaInfoEntry],
+                                simpletonEntries: Seq[CallCachingResultSimpletonEntry],
+                                detritusEntries: Seq[CallCachingJobDetritusEntry])
 
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
@@ -33,12 +39,13 @@ class CallCache(database: CallCachingStore) {
       callCachingResultMetaInfoEntryId = None)
     val hashes = callCacheHashes.hashes map { hash => HashKeyAndValue(hash.hashKey.key, hash.hashValue.value) }
     val result = toResultSimpletons(response.jobOutputs)
+    val jobDetritus = response.jobDetritusFiles.get map  { case (fileName, filePath) => CacheHitJobFile(fileName, filePath) }
 
-    addToCache(metaInfo, hashes, result)
+    addToCache(metaInfo, hashes, result, jobDetritus)
   }
 
   private def addToCache(metaInfo: CallCachingResultMetaInfoEntry, hashes: Iterable[HashKeyAndValue],
-                         result: Iterable[ResultSimpleton])(implicit ec: ExecutionContext): Future[Unit] = {
+                         result: Iterable[ResultSimpleton], jobDetritus: Iterable[CacheHitJobFile])(implicit ec: ExecutionContext): Future[Unit] = {
 
     def hashesToInsert(callCachingResultMetaInfoEntryId: Int): Iterable[CallCachingHashEntry] = {
       hashes map {
@@ -54,7 +61,13 @@ class CallCache(database: CallCachingStore) {
       }
     }
 
-    database.addToCache(metaInfo, hashesToInsert, resultToInsert)
+    def jobDetritusToInsert(callCachingResultMetaInfoEntryId: Int): Iterable[CallCachingJobDetritusEntry] = {
+      jobDetritus map {
+        case CacheHitJobFile(fileName, filePath) => CallCachingJobDetritusEntry(fileName, filePath, callCachingResultMetaInfoEntryId)
+      }
+    }
+
+    database.addToCache(metaInfo, hashesToInsert, resultToInsert, jobDetritusToInsert)
   }
 
   private def toResultSimpletons(jobOutputs: JobOutputs): Seq[ResultSimpleton] = {
@@ -84,10 +97,11 @@ class CallCache(database: CallCachingStore) {
   }
 
   private def cachedResultOption(callCachingResultMetaInfoEntryOption: Option[CallCachingResultMetaInfoEntry],
-                                 callCachingResultSimpletonEntries: Seq[CallCachingResultSimpletonEntry]):
+                                 callCachingResultSimpletonEntries: Seq[CallCachingResultSimpletonEntry],
+                                 callCachingJobDetritusEntries: Seq[CallCachingJobDetritusEntry]):
   Option[CachedResult] = {
     callCachingResultMetaInfoEntryOption map { callCachingResultMetaInfoEntry =>
-      CachedResult(callCachingResultMetaInfoEntry.returnCode, callCachingResultSimpletonEntries)
+      CachedResult(callCachingResultMetaInfoEntry.returnCode, callCachingResultSimpletonEntries, callCachingJobDetritusEntries)
     }
   }
 }

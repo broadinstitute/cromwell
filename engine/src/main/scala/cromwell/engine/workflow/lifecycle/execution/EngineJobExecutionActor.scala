@@ -10,6 +10,7 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes, HashError}
@@ -20,7 +21,7 @@ import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
 import wdl4s.TaskOutput
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try, Failure}
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
@@ -116,8 +117,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(FetchingCachedOutputsFromDatabase) {
-    case Event(CachedOutputLookupSucceeded(cachedJobOutputs, cacheHit), data: ResponsePendingData) =>
-      makeBackendCopyCacheHit(cacheHit, cachedJobOutputs, data)
+    case Event(CachedOutputLookupSucceeded(wdlValueSimpletons, jobDetritus, returnCode, cacheHit), data: ResponsePendingData) =>
+      makeBackendCopyCacheHit(cacheHit, wdlValueSimpletons, jobDetritus, returnCode, data)
     case Event(CachedOutputLookupFailed(metaInfoId, error), data: ResponsePendingData) =>
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
       runJob(data)
@@ -260,19 +261,19 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     context.actorOf(props, s"ejha_for_$jobDescriptor")
   }
 
-  def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]): Unit = context.actorOf(FetchCachedResultsActor.props(cacheHit, taskOutputs, self, new CallCache(SingletonServicesStore.databaseInterface)))
+  def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]): Unit = context.actorOf(FetchCachedResultsActor.props(cacheHit, self, new CallCache(SingletonServicesStore.databaseInterface)))
   def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
     makeFetchCachedResultsActor(cacheHit, taskOutputs)
     goto(FetchingCachedOutputsFromDatabase)
   }
 
-  def makeBackendCopyCacheHit(cacheHit: CacheHit, cachedJobOutputs: JobOutputs, data: ResponsePendingData) = {
+  def makeBackendCopyCacheHit(cacheHit: CacheHit, wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData) = {
     factory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
         val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor))
-        cacheHitCopyActor ! CopyOutputsCommand(cachedJobOutputs)
-        goto(BackendIsCopyingCachedOutputs)
+        cacheHitCopyActor ! CopyOutputsCommand(wdlValueSimpletons, jobDetritusFiles, returnCode)
+        goto(BackendIsCopyingCachedOutputs) using data
       case None =>
         // This should be impossible with the FSM, but luckily, we CAN recover if some foolish future programmer makes this happen:
         val errorMessage = "Call caching copying should never have even been attempted with no copy actor props! (Programmer error!)"
@@ -311,7 +312,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
-      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(jobKey: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)
         forwardAndStop(updatedData.response)
@@ -437,15 +438,17 @@ object EngineJobExecutionActor {
   private def factoryFileHashingRouter(backendName: String,
                                        backendLifecycleActorFactory: BackendLifecycleActorFactory,
                                        actorRefFactory: ActorRefFactory): ActorRef = {
-    val (originalOrUpdated, result) = getOrElseUpdated(
-      factoryFileHashingRouters, backendLifecycleActorFactory, {
-        val numberOfInstances = backendLifecycleActorFactory.fileHashingActorCount
-        val props = backendLifecycleActorFactory.fileHashingActorProps
-        actorRefFactory.actorOf(RoundRobinPool(numberOfInstances).props(props), s"FileHashingActor-$backendName")
-      }
-    )
-    factoryFileHashingRouters = originalOrUpdated
-    result
+    synchronized {
+      val (originalOrUpdated, result) = getOrElseUpdated(
+        factoryFileHashingRouters, backendLifecycleActorFactory, {
+          val numberOfInstances = backendLifecycleActorFactory.fileHashingActorCount
+          val props = backendLifecycleActorFactory.fileHashingActorProps
+          actorRefFactory.actorOf(RoundRobinPool(numberOfInstances).props(props), s"FileHashingActor-$backendName")
+        }
+      )
+      factoryFileHashingRouters = originalOrUpdated
+      result
+    }
   }
 
   /**

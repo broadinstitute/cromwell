@@ -6,8 +6,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, S
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.services.metadata.MetadataService
-import MetadataService.MetadataServiceResponse
+import cromwell.services.metadata.MetadataService.MetadataServiceResponse
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -72,8 +71,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) =>
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
-    case Finish(SuccessfulExecutionHandle(outputs, returnCode, resultsClonedFrom)) =>
-      completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs))
+    case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, resultsClonedFrom)) =>
+      completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles)))
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>
       completionPromise.success(FailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))

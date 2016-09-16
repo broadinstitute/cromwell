@@ -13,7 +13,8 @@ class DataAccessComponent(val driver: JdbcProfile)
     with CallCachingResultMetaInfoComponent
     with CallCachingHashComponent
     with CallCachingResultSimpletonComponent
-    with SummaryStatusComponent {
+    with SummaryStatusComponent
+    with CallCachingJobDetritusComponent {
 
   import driver.api._
 
@@ -24,8 +25,9 @@ class DataAccessComponent(val driver: JdbcProfile)
       jobStore.schema ++
       jobStoreResultSimpletons.schema ++
       backendKVStore.schema ++
-      callCachingResultMetaInfo.schema ++
+      callCachingResultMetaInfos.schema ++
       callCachingHashes.schema ++
       callCachingResultSimpletons.schema ++
-      summaryStatuses.schema
+      summaryStatuses.schema ++
+      callCachingJobDetritus.schema
 }

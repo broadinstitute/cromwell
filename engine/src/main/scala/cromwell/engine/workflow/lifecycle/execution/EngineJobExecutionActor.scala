@@ -438,15 +438,17 @@ object EngineJobExecutionActor {
   private def factoryFileHashingRouter(backendName: String,
                                        backendLifecycleActorFactory: BackendLifecycleActorFactory,
                                        actorRefFactory: ActorRefFactory): ActorRef = {
-    val (originalOrUpdated, result) = getOrElseUpdated(
-      factoryFileHashingRouters, backendLifecycleActorFactory, {
-        val numberOfInstances = backendLifecycleActorFactory.fileHashingActorCount
-        val props = backendLifecycleActorFactory.fileHashingActorProps
-        actorRefFactory.actorOf(RoundRobinPool(numberOfInstances).props(props), s"FileHashingActor-$backendName")
-      }
-    )
-    factoryFileHashingRouters = originalOrUpdated
-    result
+    synchronized {
+      val (originalOrUpdated, result) = getOrElseUpdated(
+        factoryFileHashingRouters, backendLifecycleActorFactory, {
+          val numberOfInstances = backendLifecycleActorFactory.fileHashingActorCount
+          val props = backendLifecycleActorFactory.fileHashingActorProps
+          actorRefFactory.actorOf(RoundRobinPool(numberOfInstances).props(props), s"FileHashingActor-$backendName")
+        }
+      )
+      factoryFileHashingRouters = originalOrUpdated
+      result
+    }
   }
 
   /**

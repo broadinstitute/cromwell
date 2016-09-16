@@ -14,7 +14,7 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._
 import wdl4s.values.WdlFile
 
-import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescriptor,
                                    jesConfiguration: JesConfiguration,
@@ -31,56 +31,52 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
   }
 
   override def copyCachedOutputs(seqOfSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String],
-                                 returnCode: Option[Int]): Future[BackendJobExecutionResponse] = {
+                                 returnCode: Option[Int]): BackendJobExecutionResponse = {
 
     val gcsFileSystem = initializationData.workflowPaths.gcsFileSystemWithUserAuth
     val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
     val destinationCallRootPath: Path = jesCallPaths.callRootPath
-    val getSourceCallRootPath = jobDetritusFiles.get(jesCallPaths.CallRootPathKey) match {
-      case Some(srcPath) => gcsFileSystem.getPath(srcPath)
-      case None => new RuntimeException(s"The call detritus files for source cache hit aren't found for call ${jobDescriptor.call.fullyQualifiedName}")
+    val getSourceCallRootPath: Try[Path] = Try {
+      jobDetritusFiles.get(jesCallPaths.CallRootPathKey) match {
+        case Some(srcPath) => gcsFileSystem.getPath(srcPath)
+        case None => throw new RuntimeException(s"The call detritus files for source cache hit aren't found for call ${jobDescriptor.call.fullyQualifiedName}")
+      }
     }
 
-    def cacheIfPossible: Future[BackendJobExecutionResponse] = {
+    def copyIfPossible: BackendJobExecutionResponse = {
       getSourceCallRootPath match {
-        case Some(path: Path) =>
+        case Success(path: Path) =>
           copyAndRenameFiles(path)
           updateMetadata
-          Future(SucceededResponse(jobDescriptor.key, returnCode, createJobOutputs))
-        case error: Throwable => Future(FailedNonRetryableResponse(jobDescriptor.key, error, None))
+          SucceededResponse(jobDescriptor.key, returnCode, createJobOutputs, Option(jobDetritusFiles))
+        case Failure(error) => FailedNonRetryableResponse(jobDescriptor.key, error, None)
       }
     }
 
     def copyAndRenameFiles(sourceCallRootPath: Path) = {
-      seqOfSimpletons ++ jobDetritusFiles foreach {
+      seqOfSimpletons foreach {
         case WdlValueSimpleton(key, wdlFile: WdlFile) =>
           copyFile(wdlFile.value, sourceCallRootPath)
-        case (fileName: String, filePath: String) if fileName != jesCallPaths.CallRootPathKey =>
-          copyFile(filePath, sourceCallRootPath)
-          fileName match {
-            case "stdout" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.stdoutPath)
-            case "stderr" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.stderrPath)
-            case "returnCode" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.returnCodePath)
-            case "jesLog" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.jesLogPath)
-          }
-
-        case _ =>
-          val error = new RuntimeException(s"Unable to copy cached job outputs for ${jobDescriptor.call.fullyQualifiedName}")
-          FailedNonRetryableResponse(jobDescriptor.key, error, Option(-1))
+        case _ => //ignoring non-WDLValueSimpleton:wdlFiles since they are not interesting here
       }
-      jobLogger.info(s"{} successfully finished copying all cached job outputs.", tag)
+
+      jobDetritusFiles foreach {
+        case (fileName: String, filePath: String) =>
+          fileName match {
+            case jesCallPaths.CallRootPathKey => // ignore
+            case "stdout" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.stdoutPath, true)
+            case "stderr" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.stderrPath, true)
+            case "returnCode" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.returnCodePath, true)
+            case "jesLog" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.jesLogPath, true)
+            case "gcsExec" => File(gcsFileSystem.getPath(filePath)).copyTo(jesCallPaths.gcsExecPath, true)
+          }
+      }
+      jobLogger.info("{} successfully finished copying all cached job outputs.", tag)
     }
 
     def copyFile(sourceString: String, srcContextPath: Path): Unit = {
       val sourcePath = gcsFileSystem.getPath(sourceString)
       PathCopier.copy(srcContextPath, sourcePath, destinationCallRootPath, overwrite = true)
-    }
-
-
-    def tellMetadata(key: String, value: Any): Unit = {
-      val event = metadataEvent(key, value)
-      val putMetadataAction = PutMetadataAction(event)
-      serviceRegistryActor ! putMetadataAction
     }
 
     def metadataEvent(key: String, value: Any) = {
@@ -107,6 +103,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
           metadataEvent(ReturnCode, jesCallPaths.returnCodePath),
           metadataEvent(BackendLogsPrefix + ":log", jesCallPaths.jesLogPath),
           metadataEvent("cache:allowResultReuse", true)
+          //TODO: Wire in copying of the monitoring log file some happy day
       )
 
       val events = runtimeAttributesEvent ++ projectEvents ++ detritusEvents
@@ -116,7 +113,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
 
     def createJobOutputs: JobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, seqOfSimpletons)
 
-    cacheIfPossible
+    copyIfPossible
   }
 }
 

@@ -150,7 +150,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
 
     if (filtered.nonEmpty) {
       val hashes = CallCacheHashes(filtered)
-      val subsets = hashes.hashes.sliding(100,100)
+      val subsets = hashes.hashes.grouped(100)
       subsets foreach { subset =>
         callCacheReadActor ! CacheLookupRequest(CallCacheHashes(subset))
       }

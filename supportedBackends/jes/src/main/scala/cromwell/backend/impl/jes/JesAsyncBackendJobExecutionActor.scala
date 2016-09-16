@@ -166,7 +166,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     else None
   }
 
-  private val callContext = CallContext(
+  private lazy val callContext = CallContext(
     callRootPath,
     jesStdoutFile.toString,
     jesStderrFile.toString

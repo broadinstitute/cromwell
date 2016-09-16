@@ -55,7 +55,6 @@ object JesAsyncBackendJobExecutionActor {
 
   object WorkflowOptionKeys {
     val MonitoringScript = "monitoring_script"
-    val AuthFilePath = "auth_bucket"
     val GoogleProject = "google_project"
   }
 

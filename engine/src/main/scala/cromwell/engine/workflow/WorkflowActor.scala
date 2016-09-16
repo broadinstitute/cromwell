@@ -193,9 +193,6 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(InitializingWorkflowState) {
     case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      // Add Workflow name and inputs to the metadata
-      pushWfNameAndInputsToMetadataService(workflowDescriptor)
-
       val restarting = startMode match {
         case StartNewWorkflow => false
         case RestartExistingWorkflow => true
@@ -321,23 +318,6 @@ class WorkflowActor(val workflowId: WorkflowId,
     val finalizationActor = makeFinalizationActor(workflowDescriptor, executionStore, outputStore)
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
-  }
-
-  private def pushWfNameAndInputsToMetadataService(workflowDescriptor: EngineWorkflowDescriptor): Unit = {
-    // Inputs
-    val inputEvents = workflowDescriptor.workflowInputs match {
-      case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
-      case inputs =>
-        inputs flatMap { case (inputName, wdlValue) =>
-          wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
-        }
-    }
-
-    // Workflow name:
-    val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(workflowDescriptor.name))
-
-    serviceRegistryActor ! PutMetadataAction(inputEvents ++ List(nameEvent))
   }
 
   // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service

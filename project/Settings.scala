@@ -7,6 +7,7 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtrelease.ReleasePlugin
+import sbtdocker.DockerPlugin.autoImport._
 
 object Settings {
 
@@ -38,9 +39,36 @@ object Settings {
     logLevel in assembly := Level.Info,
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
+  
+  lazy val dockerSettings = Seq(
+    imageNames in docker := Seq(
+        ImageName(
+          namespace = Option("broadinstitute"),
+          repository = name.value,
+          tag = Some(s"${version.value}")
+        )
+    ),
+    dockerfile in docker := {
+      // The assembly task generates a fat JAR file
+      val artifact: File = assembly.value
+      val artifactTargetPath = s"/app/${artifact.name}"
+
+      new Dockerfile {
+        from("openjdk:8")
+        expose(8000)
+        add(artifact, artifactTargetPath)
+        entryPoint("java", "-jar", artifactTargetPath)
+      }
+    },
+    buildOptions in docker := BuildOptions(
+      cache = false,
+      removeIntermediateContainers = BuildOptions.Remove.Always
+    )
+    )
+  
 
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
-    cromwellVersionWithGit ++ publishingSettings ++ List(
+    dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := "2.11.8",
     resolvers ++= commonResolvers,
@@ -108,4 +136,5 @@ object Settings {
     name := "cromwell",
     libraryDependencies ++= rootDependencies
   ) ++ commonSettings
+
 }

@@ -20,6 +20,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.webservice.EngineStatsActor
 
 import scala.language.postfixOps
 import scala.util.Random
@@ -220,6 +221,13 @@ class WorkflowActor(val workflowId: WorkflowId,
     case Event(WorkflowExecutionFailedResponse(executionStore, outputStore, failures),
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, Option(failures.toList))
+    case Event(msg @ EngineStatsActor.JobCountQuery, data) =>
+      data.currentLifecycleStateActor match {
+        case Some(a) => a forward msg
+        case None => sender ! EngineStatsActor.NoJobs // This should be impossible, but if somehow here it's technically correct
+      }
+
+      stay()
   }
 
   when(FinalizingWorkflowState) {
@@ -249,6 +257,9 @@ class WorkflowActor(val workflowId: WorkflowId,
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)
+    case Event(EngineStatsActor.JobCountQuery, _) =>
+      sender ! EngineStatsActor.NoJobs
+      stay()
     case unhandledMessage =>
       workflowLogger.warn(s"received an unhandled message $unhandledMessage in state $stateName")
       stay

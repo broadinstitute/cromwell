@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.util.UUID
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -11,6 +13,7 @@ import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
+import cromwell.webservice.EngineStatsActor
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
 import scala.concurrent.duration._
@@ -35,6 +38,7 @@ object WorkflowManagerActor {
   final case class AbortWorkflowCommand(id: WorkflowId, replyTo: ActorRef) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
+  case object EngineStatsCommand extends WorkflowManagerActorCommand
 
   def props(workflowStore: ActorRef,
             serviceRegistryActor: ActorRef,
@@ -221,6 +225,10 @@ class WorkflowManagerActor(config: Config,
     case Event(JobStoreWriteFailure(t), _) =>
       log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)
       // This is minorly bad. The JobStore would never rid itself of this workflow's entries. Unlikely to be a big deal
+      stay()
+    case Event(EngineStatsCommand, data) =>
+      val sndr = sender()
+      context.actorOf(EngineStatsActor.props(data.workflows.values.toList, sndr), s"EngineStatsActor-${sndr.hashCode()}")
       stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>

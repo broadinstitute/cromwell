@@ -38,7 +38,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute
 
   private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -177,6 +177,14 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
       withRecognizedWorkflowId(possibleWorkflowId) { id =>
         getFromResource("workflowTimings/workflowTimings.html")
+      }
+    }
+
+  def statsRoute =
+    path("engine" / Segment / "stats") { version =>
+      get {
+        requestContext =>
+          perRequest(requestContext, CromwellApiHandler.props(workflowManagerActor), CromwellApiHandler.ApiHandlerEngineStats)
       }
     }
 

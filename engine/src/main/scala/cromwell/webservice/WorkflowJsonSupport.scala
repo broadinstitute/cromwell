@@ -16,6 +16,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowSubmitResponseProtocol = jsonFormat2(WorkflowSubmitResponse)
   implicit val workflowOutputResponseProtocol = jsonFormat2(WorkflowOutputResponse)
   implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
+  implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
   implicit val callAttempt = jsonFormat2(CallAttempt)
   implicit val workflowSourceData = jsonFormat3(WorkflowSourceFiles)
   implicit val errorResponse = jsonFormat3(FailureResponse)

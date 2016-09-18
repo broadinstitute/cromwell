@@ -1,7 +1,7 @@
 package cromwell.backend.validation
 
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.backend.wdl.OnlyPureFunctions
+import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.core._
 import org.slf4j.Logger
 import wdl4s.WdlExpression
@@ -108,6 +108,22 @@ object RuntimeAttributesValidation {
   }
 
   /**
+    * Returns the value from the attributes, unpacking options.
+    *
+    * @param validatedRuntimeAttributes The values to search.
+    * @return The keys and extracted values.
+    */
+  def extract(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Map[String, Any] = {
+    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.mapValues(unpackOption)
+
+    val attributes = attributeOptions collect {
+      case (name, Some(value)) => (name, value)
+    }
+
+    attributes
+  }
+
+  /**
     * Returns the value from the attributes matching the validation key.
     *
     * Do not use an optional validation as the type internal implementation will throw a `ClassCastException` due to the
@@ -172,7 +188,7 @@ object RuntimeAttributesValidation {
     * @tparam A The type to cast the unpacked value.
     * @return The Some(value) matching the key or None.
     */
-  private final def unpackOption[A](value: Any): Option[A] = {
+  final def unpackOption[A](value: Any): Option[A] = {
     value match {
       case None => None
       case Some(innerValue) => unpackOption(innerValue)

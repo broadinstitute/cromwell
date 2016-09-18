@@ -8,7 +8,7 @@ import cromwell.core._
 import wdl4s.CallInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.util.TryUtil
-import wdl4s.values.{WdlValue, _}
+import wdl4s.values._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -30,18 +30,19 @@ object SharedFileSystem {
   }
 
   type PathsPair = (Path, Path)
-  type LocalizationStrategy = (Path, Path) => Try[Unit]
+  type DuplicationStrategy = (Path, Path) => Try[Unit]
 
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
   private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
-    if (File(executionPath).exists) Success(()) else Failure(new Throwable)
+    if (File(executionPath).exists) Success(Unit) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
   }
 
   private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
     File(executionPath).parent.createDirectories()
-    Try(File(originalPath).copyTo(executionPath))
+    val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
+    Try(File(originalPath).copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true))
   }
 
   private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
@@ -65,6 +66,14 @@ object SharedFileSystem {
         Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
       }
   }
+
+  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]) = {
+    strategies.map(_ (source, dest)).find(_.isSuccess) getOrElse {
+      Failure(new UnsupportedOperationException(s"Could not $description $source -> $dest"))
+    }
+  }
+
+  def pathPlusSuffix(path: Path, suffix: String) = path.resolveSibling(s"${File(path).name}.$suffix")
 }
 
 trait SharedFileSystem extends PathFactory {
@@ -73,19 +82,41 @@ trait SharedFileSystem extends PathFactory {
 
   def sharedFileSystemConfig: Config
 
-  lazy val LocalizationStrategies = sharedFileSystemConfig.getStringList("localization").asScala
-  lazy val Localizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies map {
-    case "hard-link" => localizePathViaHardLink _
-    case "soft-link" => localizePathViaSymbolicLink _
-    case "copy" => localizePathViaCopy _
-    case unsupported => throw new UnsupportedOperationException(s"Localization strategy $unsupported is not recognized")
-  })
+  lazy val DefaultStrategies = Seq("hard-link", "soft-link", "copy")
 
-  // Note that any unrecognized configuration will be raised when Localizers (just above) gets resolved.
-  lazy val DockerLocalizers = localizePathAlreadyLocalized _ +: (LocalizationStrategies collect {
-    case "hard-link" => localizePathViaHardLink _
-    case "copy" => localizePathViaCopy _
-  })
+  lazy val LocalizationStrategies = getConfigStrategies("localization")
+  lazy val Localizers = createStrategies(LocalizationStrategies, docker = false)
+  lazy val DockerLocalizers = createStrategies(LocalizationStrategies, docker = true)
+
+  lazy val CachingStrategies = getConfigStrategies("caching")
+  lazy val Cachers = createStrategies(CachingStrategies, docker = false)
+
+  private def getConfigStrategies(configPath: String): Seq[String] = {
+    if (sharedFileSystemConfig.hasPath(configPath)) {
+      sharedFileSystemConfig.getStringList(configPath).asScala
+    } else {
+      DefaultStrategies
+    }
+  }
+
+  private def createStrategies(configStrategies: Seq[String], docker: Boolean): Seq[DuplicationStrategy] = {
+    // If localizing for a docker job, remove soft-link as an option
+    val filteredConfigStrategies = configStrategies filter {
+      case "soft-link" if docker => false
+      case _ => true
+    }
+
+    // Convert the (remaining) config strategies to duplication strategies
+    val mappedDuplicationStrategies = filteredConfigStrategies map {
+      case "hard-link" => localizePathViaHardLink _
+      case "soft-link" => localizePathViaSymbolicLink _
+      case "copy" => localizePathViaCopy _
+      case unsupported => throw new UnsupportedOperationException(s"Strategy $unsupported is not recognized")
+    }
+
+    // Prepend the default duplication strategy, and return the sequence
+    localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
+  }
 
   private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
     val wdlPath = Paths.get(pathString)
@@ -103,6 +134,10 @@ trait SharedFileSystem extends PathFactory {
         TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
       case other => Success(other)
     }
+  }
+
+  def cacheCopy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
+    duplicate("cache", sourceFilePath, destinationFilePath, Cachers.toStream)
   }
 
   /**
@@ -160,11 +195,8 @@ trait SharedFileSystem extends PathFactory {
    * @param wdlValue WdlValue to localize
    * @return localized wdlValue
    */
-  private def localizeWdlValue(toDestPath: (String => Try[PathsPair]), strategies: Stream[LocalizationStrategy])(wdlValue: WdlValue): Try[WdlValue] = {
-
-    def localize(source: Path, dest: Path) = strategies map { _(source, dest) } find { _.isSuccess } getOrElse {
-      Failure(new UnsupportedOperationException(s"Could not localize $source -> $dest"))
-    }
+  private def localizeWdlValue(toDestPath: (String => Try[PathsPair]), strategies: Stream[DuplicationStrategy])
+                              (wdlValue: WdlValue): Try[WdlValue] = {
 
     def adjustArray(t: WdlArrayType, inputArray: Seq[WdlValue]): Try[WdlArray] = {
       val tryAdjust = inputArray map localizeWdlValue(toDestPath, strategies)
@@ -184,7 +216,7 @@ trait SharedFileSystem extends PathFactory {
 
     def adjustFile(path: String) = {
       toDestPath(path) flatMap {
-        case (src, dst) => localize(src, dst) map { _ => WdlFile(dst.toString) }
+        case (src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.toString) }
       }
     }
 

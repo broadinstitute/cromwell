@@ -36,8 +36,8 @@ object MetadataService {
     * Import from here with care! We extend every ActorRef, so import as locally as possible!
     */
   object implicits {
-    implicit class MetadataAutoputter(serviceRegistryActor: ActorRef) {
-      def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, String]) = {
+    implicit class MetadataAutoPutter(serviceRegistryActor: ActorRef) {
+      def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, Any]) = {
         val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.scope.fullyQualifiedName, jk.index, jk.attempt) }
 
         val events = keyValue map { case (key, value) =>

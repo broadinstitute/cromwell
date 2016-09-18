@@ -15,5 +15,6 @@ object CallMetadataKeys {
   val Stdout = "stdout"
   val Stderr = "stderr"
   val BackendLogsPrefix = "backendLogs"
+  val JobId = "jobId"
   val CallRoot = "callRoot"
 }

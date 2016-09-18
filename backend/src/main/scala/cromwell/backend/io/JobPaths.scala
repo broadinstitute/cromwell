@@ -4,11 +4,17 @@ import java.nio.file.Path
 
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.services.metadata.CallMetadataKeys
 
 object JobPaths {
-  private val CallPrefix = "call"
-  private val ShardPrefix = "shard"
-  private val AttemptPrefix = "attempt"
+  val CallPrefix = "call"
+  val ShardPrefix = "shard"
+  val AttemptPrefix = "attempt"
+  val ScriptPathKey = "script"
+  val StdoutPathKey = "stdout"
+  val StdErrPathKey = "stderr"
+  val ReturnCodePathKey = "returnCode"
+  val CallRootPathKey = "callRootPath"
 }
 
 class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
@@ -56,4 +62,18 @@ class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
   val stderr = callExecutionRoot.resolve("stderr")
   val script = callExecutionRoot.resolve("script")
   val returnCode = callExecutionRoot.resolve("rc")
+
+  lazy val metadataPaths: Map[String, Path] = Map(
+    CallMetadataKeys.CallRoot -> callRoot,
+    CallMetadataKeys.Stdout -> stdout,
+    CallMetadataKeys.Stderr -> stderr
+  )
+
+  lazy val detritusPaths: Map[String, Path] = Map(
+    JobPaths.CallRootPathKey -> callRoot,
+    JobPaths.ScriptPathKey -> script,
+    JobPaths.StdoutPathKey -> stdout,
+    JobPaths.StdErrPathKey -> stderr,
+    JobPaths.ReturnCodePathKey -> returnCode
+  )
 }

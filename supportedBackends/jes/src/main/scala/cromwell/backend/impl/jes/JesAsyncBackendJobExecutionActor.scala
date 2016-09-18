@@ -16,15 +16,13 @@ import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.backend.impl.jes.JesJobExecutionActor.JesOperationIdKey
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException}
+import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendWorkflowDescriptor, PreemptedException}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import cromwell.services.metadata.CallMetadataKeys._
-import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata._
 import wdl4s.AstTools._
 import wdl4s.WdlExpression.ScopedLookupFunction
@@ -58,12 +56,7 @@ object JesAsyncBackendJobExecutionActor {
     val GoogleProject = "google_project"
   }
 
-  private val ExecParamName = "exec"
-  private val MonitoringParamName = "monitoring"
 
-  private val JesMonitoringScript = JesWorkingDisk.MountPoint.resolve("monitoring.sh")
-  private val JesMonitoringLogFile = JesWorkingDisk.MountPoint.resolve("monitoring.log")
-  private val JesExecScript = "exec.sh"
   private val ExtraConfigParamName = "__extra_config_gcs_path"
 
   /**
@@ -84,10 +77,10 @@ object JesAsyncBackendJobExecutionActor {
 
 class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                        override val completionPromise: Promise[BackendJobExecutionResponse],
-                                       jesConfiguration: JesConfiguration,
-                                       initializationData: JesBackendInitializationData,
-                                       serviceRegistryActor: ActorRef)
-  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
+                                       override val jesConfiguration: JesConfiguration,
+                                       override val initializationData: JesBackendInitializationData,
+                                       override val serviceRegistryActor: ActorRef)
+  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JesJobCachingActorHelper with JobLogging {
 
   import JesAsyncBackendJobExecutionActor._
 
@@ -99,48 +92,20 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
 
-  // For Logging
-  val workflowId = workflowDescriptor.id
-  val jobTag = jobDescriptor.key.tag
-
-  private lazy val jesAttributes = jesConfiguration.jesAttributes
-  private[jes] lazy val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
-  private[jes] lazy val monitoringScript: Option[JesInput] = {
-    jobDescriptor.workflowDescriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
-      JesFileInput(s"$MonitoringParamName-in", getPath(path).toString, JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
-    } toOption
-  }
-
-  private def callRootPath: Path = jesCallPaths.callRootPath
-  private def returnCodeFilename = jesCallPaths.returnCodeFilename
-  private def returnCodeGcsPath = jesCallPaths.returnCodePath
-  private def jesStdoutFile = jesCallPaths.stdoutPath
-  private def jesStderrFile = jesCallPaths.stderrPath
-  private def jesLogFilename = jesCallPaths.jesLogFilename
   private lazy val call = jobDescriptor.key.call
-  private lazy val runtimeAttributes = JesRuntimeAttributes(jobDescriptor.runtimeAttributes, jobLogger)
 
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
-  private lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
-  private lazy val gcsExecPath: Path = callRootPath.resolve(JesExecScript)
-  private lazy val cmdInput = JesFileInput(ExecParamName, gcsExecPath.toString, Paths.get(JesExecScript), workingDisk)
+  private lazy val cmdInput =
+    JesFileInput(ExecParamName, jesCallPaths.gcsExecPath.toString, Paths.get(jesCallPaths.gcsExecFilename), workingDisk)
   private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
-  private lazy val defaultMonitoringOutputPath = callRootPath.resolve(JesMonitoringLogFile)
   private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toString, Paths.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
   private lazy val returnCodeContents = Try(File(returnCodeGcsPath).contentAsString)
   private lazy val dockerConfiguration = jesConfiguration.dockerCredentials
-  private lazy val maxPreemption = runtimeAttributes.preemptible
-  private[jes] lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
   private lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
 
   private var runId: Option[String] = None
-
-  private lazy val metadataJobKey = {
-    val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
-    MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
-  }
 
   def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -313,7 +278,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def writeScript(): Future[Unit] = Future(File(gcsExecPath).write(fileContent))
+    def writeScript(): Future[Unit] = Future(File(jesCallPaths.gcsExecPath).write(fileContent))
 
     implicit val system = context.system
     Retry.withRetry(
@@ -372,23 +337,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val jesJobSetup = for {
       _ <- uploadCommandScript(command, withMonitoring)
       run <- createJesRun(jesParameters, runIdForResumption)
-      _ = tellRunMetadata(run)
+      _ = tellMetadata(Map(CallMetadataKeys.JobId -> run.runId))
     } yield run
 
     jesJobSetup map { run => JesPendingExecutionHandle(jobDescriptor, jesOutputs, run, previousStatus = None) }
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    val monitoringOutput = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
-      defaultMonitoringOutputPath.toString, File(JesMonitoringLogFile).path, workingDisk)
-    }
-
-    tellMetadata(CallMetadataKeys.CallRoot, callRootPath)
-    tellMetadata(JesMetadataKeys.GoogleProject, jesAttributes.project)
-    tellMetadata(JesMetadataKeys.ExecutionBucket, jesAttributes.executionBucket)
-    tellMetadata(JesMetadataKeys.EndpointUrl, jesAttributes.endpointUrl)
-    monitoringOutput foreach { o => tellMetadata(JesMetadataKeys.MonitoringLog, o.gcs) }
-
     // Force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     Try(runtimeAttributes) match {
       case Success(_) => startExecuting(monitoringOutput, mode)
@@ -423,15 +378,23 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
             // just use the state names.
             val prevStateName = previousStatus map { _.toString } getOrElse "-"
             jobLogger.info(s"$tag Status change from $prevStateName to $currentStatus")
-            tellMetadata("backendStatus", currentStatus.toString)
+            tellMetadata(Map("backendStatus" -> currentStatus))
           }
         }
         status match {
           case Success(s: TerminalRunStatus) =>
-            tellEventMetadata(s.eventList)
-            tellMetadata(JesMetadataKeys.MachineType, s.machineType.getOrElse("unknown"))
-            tellMetadata(JesMetadataKeys.InstanceName, s.instanceName.getOrElse("unknown"))
-            tellMetadata(JesMetadataKeys.Zone, s.zone.getOrElse("unknown"))
+            val eventMetadata = getEventMetadataOption(s.eventList) match {
+              case Some(metadata) => metadata
+              case None => Map.empty
+            }
+
+            val otherMetadata = Map(
+              JesMetadataKeys.MachineType -> s.machineType.getOrElse("unknown"),
+              JesMetadataKeys.InstanceName -> s.instanceName.getOrElse("unknown"),
+              JesMetadataKeys.Zone -> s.zone.getOrElse("unknown")
+            )
+
+            tellMetadata(eventMetadata ++ otherMetadata)
             executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
@@ -456,67 +419,57 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * Fire and forget start info to the metadata service
     */
   private def tellStartMetadata(): Unit = {
-    val runtimeAttributesEvent = runtimeAttributes.asMap map {
-      case (key, value) => MetadataEvent(metadataKey(s"runtimeAttributes:$key"), MetadataValue(value))
+    val runtimeAttributesMetadata: Map[String, Any] = runtimeAttributes.asMap map {
+      case (key, value) => s"runtimeAttributes:$key" -> value
     }
 
-    val events = runtimeAttributesEvent ++ List(
-      metadataEvent("preemptible", preemptible),
-      metadataEvent(Stdout, jesCallPaths.stdoutPath),
-      metadataEvent(Stderr, jesCallPaths.stderrPath),
-      metadataEvent(BackendLogsPrefix + ":log", jesCallPaths.jesLogPath),
-      metadataEvent("cache:allowResultReuse", true)
+    var fileMetadata: Map[String, Any] = jesCallPaths.metadataPaths
+    if (monitoringOutput.nonEmpty) {
+      // TODO: Move this to JesCallPaths
+      fileMetadata += JesMetadataKeys.MonitoringLog -> monitoringOutput.get.gcs
+    }
+
+    val otherMetadata = Map(
+      JesMetadataKeys.GoogleProject -> jesAttributes.project,
+      JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
+      JesMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,
+      "preemptible" -> preemptible,
+      "cache:allowResultReuse" -> true
     )
 
-    serviceRegistryActor ! PutMetadataAction(events)
+    val metadataKeyValues = runtimeAttributesMetadata ++ fileMetadata ++ otherMetadata
+
+    tellMetadata(metadataKeyValues)
   }
 
-  /**
-    * Fire and forget events to the metadata service
-    */
-  private def tellEventMetadata(eventList: Seq[EventStartTime]): Unit = {
-    eventList.headOption foreach { firstEvent =>
+  private def getEventMetadataOption(eventList: Seq[EventStartTime]): Option[Map[String, Any]] = {
+    eventList.headOption map { firstEvent =>
       // The final event is only used as the book-end for the final pairing so the name is never actually used...
       val offset = firstEvent.offsetDateTime.getOffset
       val now = OffsetDateTime.now.withOffsetSameInstant(offset)
       val lastEvent = EventStartTime("unused_name", now)
       val tailedEventList = eventList :+ lastEvent
-      val events = tailedEventList.sliding(2).zipWithIndex flatMap {
+      val events: TraversableOnce[(String, Any)] = tailedEventList.sliding(2).zipWithIndex flatMap {
         case (Seq(eventCurrent, eventNext), index) =>
           val eventKey = s"executionEvents[$index]"
           List(
-            metadataEvent(s"$eventKey:description", eventCurrent.name),
-            metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
-            metadataEvent(s"$eventKey:endTime", eventNext.offsetDateTime)
+            (s"$eventKey:description", eventCurrent.name),
+            (s"$eventKey:startTime", eventCurrent.offsetDateTime),
+            (s"$eventKey:endTime", eventNext.offsetDateTime)
           )
       }
 
-      serviceRegistryActor ! PutMetadataAction(events.toIterable)
+      events.toMap
     }
   }
 
   /**
-    * Fire and forget run info to the metadata service
+    * Fire and forget info to the metadata service
     */
-  private def tellRunMetadata(run: Run): Unit = {
-    tellMetadata("jobId", run.runId)
+  def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
-
-  /**
-    * Fire and forget to the metadata service
-    */
-  private def tellMetadata(key: String, value: Any): Unit = {
-    val event = metadataEvent(key, value)
-    val putMetadataAction = PutMetadataAction(event)
-    serviceRegistryActor ! putMetadataAction // and forget
-  }
-
-  private def metadataEvent(key: String, value: Any) = {
-    val metadataValue = MetadataValue(value)
-    MetadataEvent(metadataKey(key), metadataValue)
-  }
-
-  private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
 
   private def customLookupFunction(alreadyGeneratedOutputs: Map[String, WdlValue])(toBeLookedUp: String): WdlValue = alreadyGeneratedOutputs.getOrElse(toBeLookedUp, lookup(toBeLookedUp))
 
@@ -568,12 +521,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     TryUtil.sequenceMap(outputMappings) map { outputMap =>
       outputMap mapValues { v => JobOutput(v) }
     }
-  }
-
-  private def gatherJobDetritusFiles: Map[String,String] = {
-      Map("stdout" -> jesCallPaths.stdoutPath.toString, "stderr" -> jesCallPaths.stderrPath.toString,
-        "returnCode" -> jesCallPaths.returnCodePath.toString, "jesLog" -> jesCallPaths.jesLogPath.toString,
-        "gcsExec" -> gcsExecPath.toString, jesCallPaths.CallRootPathKey -> callRootPath.toString)
   }
 
   private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, String], executionHandle: ExecutionHandle): ExecutionHandle = {
@@ -657,7 +604,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
-        case _: RunStatus.Success => handleSuccess(postProcess, returnCode.get, gatherJobDetritusFiles, handle).future
+        case _: RunStatus.Success =>
+          handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths.mapValues(_.toString), handle).future
         case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {
@@ -702,8 +650,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       case _ => wdlValue
     }
   }
-
-  private def getPath(str: String) = jesCallPaths.gcsFileSystem.getPath(str)
 
   protected implicit def ec: ExecutionContext = context.dispatcher
 }

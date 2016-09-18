@@ -335,7 +335,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def writeToMetadata(keyValues: Map[String, String]) = {
-    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoputter
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(workflowId, Option(jobDescriptorKey), keyValues)
   }
 

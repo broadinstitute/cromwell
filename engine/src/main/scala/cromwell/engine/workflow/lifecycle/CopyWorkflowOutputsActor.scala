@@ -35,7 +35,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
 
     outputFilePaths foreach {
       case (workflowRootPath, srcPath) =>
-        PathCopier.copy(workflowRootPath, srcPath, workflowOutputsPath, false)
+        // WARNING: PathCopier does not do atomic copies. The files may be partially written.
+        PathCopier.copy(workflowRootPath, srcPath, workflowOutputsPath)
     }
   }
 

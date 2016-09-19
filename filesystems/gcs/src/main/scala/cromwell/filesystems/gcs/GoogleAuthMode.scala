@@ -91,7 +91,7 @@ sealed trait GoogleAuthMode {
 final case class ServiceAccountMode(override val name: String, accountId: String, pemPath: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
   import GoogleAuthMode._
 
-  private val credentials: Credential = {
+  private lazy val credentials: Credential = {
     val pemFile = Paths.get(pemPath).toAbsolutePath
     if (!Files.exists(pemFile)) {
       throw new FileNotFoundException(s"PEM file $pemFile does not exist")
@@ -122,7 +122,7 @@ final case class UserMode(override val name: String, user: String, secretsFile: 
     GoogleClientSecrets.load(jsonFactory, secretStream)
   }
 
-  private val credentials: Credential = {
+  private lazy val credentials: Credential = {
     val clientSecrets = filePathToSecrets(secretsFile, jsonFactory)
     val dataStore = Paths.get(datastoreDir).toAbsolutePath
     val dataStoreFactory = new FileDataStoreFactory(dataStore.toFile)
@@ -140,7 +140,7 @@ final case class UserMode(override val name: String, user: String, secretsFile: 
 final case class ApplicationDefaultMode(override val name: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
   import GoogleAuthMode._
 
-  private val credentials: Credential = {
+  private lazy val credentials: Credential = {
     try {
       validateCredentials(GoogleCredential.getApplicationDefault().createScoped(scopes.asJava))
     } catch {

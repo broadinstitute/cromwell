@@ -33,7 +33,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
   override def copyCachedOutputs(seqOfSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String],
                                  returnCode: Option[Int]): BackendJobExecutionResponse = {
 
-    val gcsFileSystem = initializationData.workflowPaths.gcsFileSystemWithUserAuth
+    val gcsFileSystem = initializationData.workflowPaths.gcsFileSystem
     val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
     val destinationCallRootPath: Path = jesCallPaths.callRootPath
     val getSourceCallRootPath: Try[Path] = Try {

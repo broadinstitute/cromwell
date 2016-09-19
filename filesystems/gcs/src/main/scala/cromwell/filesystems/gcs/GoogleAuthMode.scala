@@ -12,7 +12,6 @@ import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.store.FileDataStoreFactory
 import com.google.api.services.storage.{Storage, StorageScopes}
-import com.typesafe.config.Config
 import cromwell.filesystems.gcs.GoogleAuthMode.{GcsScopes, GoogleAuthOptions}
 import org.slf4j.LoggerFactory
 
@@ -21,6 +20,8 @@ import scala.util.{Failure, Success, Try}
 
 object GoogleAuthMode {
 
+  lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
   val RefreshTokenOptionKey = "refresh_token"
 
   /**
@@ -46,6 +47,13 @@ object GoogleAuthMode {
     }
   }
 
+  def buildStorage(credential: Credential, applicationName: String) = {
+    new Storage.Builder(
+      httpTransport,
+      jsonFactory,
+      credential).setApplicationName(applicationName).build()
+  }
+
   trait GoogleAuthOptions {
     def get(key: String): Try[String]
   }
@@ -58,19 +66,13 @@ object GoogleAuthMode {
 
 
 sealed trait GoogleAuthMode {
-
-  def credential(options: GoogleAuthOptions): Credential = {
-    validateCredentials(buildCredentials(options))
-  }
+  def credential(options: GoogleAuthOptions): Credential
 
   def assertWorkflowOptions(options: GoogleAuthOptions): Unit = ()
 
   def name: String
 
   def requiresAuthFile: Boolean = false
-
-  protected lazy val jsonFactory = JacksonFactory.getDefaultInstance
-  protected lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
 
   protected lazy val log = LoggerFactory.getLogger(getClass.getSimpleName)
 
@@ -81,36 +83,35 @@ sealed trait GoogleAuthMode {
     }
   }
 
-  protected def buildCredentials(options: GoogleAuthOptions): Credential
-
-  def buildStorage(options: GoogleAuthOptions, config: Config): Storage = {
-    buildStorage(options, GoogleConfiguration(config))
-  }
-
-  def buildStorage(options: GoogleAuthOptions, googleConfig: GoogleConfiguration): Storage = {
-    new Storage.Builder(
-      httpTransport,
-      jsonFactory,
-      credential(options)).setApplicationName(googleConfig.applicationName).build()
+  def buildStorage(options: GoogleAuthOptions, applicationName: String): Storage = {
+    GoogleAuthMode.buildStorage(credential(options), applicationName)
   }
 }
 
 final case class ServiceAccountMode(override val name: String, accountId: String, pemPath: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
-  override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
+  import GoogleAuthMode._
+
+  private lazy val credentials: Credential = {
     val pemFile = Paths.get(pemPath).toAbsolutePath
     if (!Files.exists(pemFile)) {
       throw new FileNotFoundException(s"PEM file $pemFile does not exist")
     }
-    new GoogleCredential.Builder().setTransport(httpTransport)
+    validateCredentials(
+      new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setServiceAccountId(accountId)
       .setServiceAccountScopes(scopes.asJava)
       .setServiceAccountPrivateKeyFromPemFile(pemFile.toFile)
       .build()
+    )
   }
+
+  override def credential(options: GoogleAuthOptions) = credentials
 }
 
 final case class UserMode(override val name: String, user: String, secretsFile: String, datastoreDir: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
+  import GoogleAuthMode._
+
   private def filePathToSecrets(secrets: String, jsonFactory: JsonFactory) = {
     val secretsPath = Paths.get(secrets).toAbsolutePath
     if(!Files.isReadable(secretsPath)) {
@@ -121,7 +122,7 @@ final case class UserMode(override val name: String, user: String, secretsFile: 
     GoogleClientSecrets.load(jsonFactory, secretStream)
   }
 
-  override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
+  private lazy val credentials: Credential = {
     val clientSecrets = filePathToSecrets(secretsFile, jsonFactory)
     val dataStore = Paths.get(datastoreDir).toAbsolutePath
     val dataStoreFactory = new FileDataStoreFactory(dataStore.toFile)
@@ -129,21 +130,27 @@ final case class UserMode(override val name: String, user: String, secretsFile: 
       jsonFactory,
       clientSecrets,
       scopes.asJava).setDataStoreFactory(dataStoreFactory).build
-    new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user)
+    validateCredentials(new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver).authorize(user))
   }
+
+  override def credential(options: GoogleAuthOptions) = credentials
 }
 
 // It would be goofy to have multiple auths that are application_default, but Cromwell won't prevent it.
 final case class ApplicationDefaultMode(override val name: String, scopes: List[String] = GcsScopes) extends GoogleAuthMode {
-  override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
+  import GoogleAuthMode._
+
+  private lazy val credentials: Credential = {
     try {
-      GoogleCredential.getApplicationDefault().createScoped(scopes.asJava)
+      validateCredentials(GoogleCredential.getApplicationDefault().createScoped(scopes.asJava))
     } catch {
       case e: IOException =>
         log.warn("Failed to get application default credentials", e)
         throw e
     }
   }
+
+  override def credential(options: GoogleAuthOptions) = credentials
 }
 
 final case class RefreshTokenMode(name: String, clientId: String, clientSecret: String) extends GoogleAuthMode with ClientSecrets {
@@ -160,12 +167,14 @@ final case class RefreshTokenMode(name: String, clientId: String, clientSecret: 
     options.get(RefreshTokenOptionKey).getOrElse(throw new IllegalArgumentException(s"Missing parameters in workflow options: $RefreshTokenOptionKey"))
   }
 
-  override protected def buildCredentials(options: GoogleAuthOptions): Credential = {
-    new GoogleCredential.Builder().setTransport(httpTransport)
+  override def credential(options: GoogleAuthOptions): Credential = {
+    validateCredentials(
+      new GoogleCredential.Builder().setTransport(httpTransport)
       .setJsonFactory(jsonFactory)
       .setClientSecrets(clientId, clientSecret)
       .build()
       .setRefreshToken(getToken(options))
+    )
   }
 }
 

@@ -55,7 +55,6 @@ object JesAsyncBackendJobExecutionActor {
 
   object WorkflowOptionKeys {
     val MonitoringScript = "monitoring_script"
-    val AuthFilePath = "auth_bucket"
     val GoogleProject = "google_project"
   }
 
@@ -172,7 +171,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     jesStderrFile.toString
   )
 
-  private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsFileSystemWithUserAuth), callContext)
+  private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsFileSystem), callContext)
 
   private val lookup: ScopedLookupFunction = {
     val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
@@ -704,7 +703,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def getPath(str: String) = jesCallPaths.gcsFileSystemWithUserAuth.getPath(str)
+  private def getPath(str: String) = jesCallPaths.gcsFileSystem.getPath(str)
 
   protected implicit def ec: ExecutionContext = context.dispatcher
 }

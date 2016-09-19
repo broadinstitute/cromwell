@@ -21,12 +21,8 @@ case class JesAttributes(project: String,
                          executionBucket: String,
                          endpointUrl: URL,
                          maxPollingInterval: Int) {
-
-  def assertWorkflowOptions(options: WorkflowOptions): Unit = {
-    // These methods throw on bad options
-    genomicsAuth.assertWorkflowOptions(options.toGoogleAuthOptions)
-    gcsFilesystemAuth.assertWorkflowOptions(options.toGoogleAuthOptions)
-  }
+  def genomicsCredential(options: WorkflowOptions) = genomicsAuth.credential(options.toGoogleAuthOptions)
+  def gcsCredential(options: WorkflowOptions) = gcsFilesystemAuth.credential(options.toGoogleAuthOptions)
 }
 
 object JesAttributes {

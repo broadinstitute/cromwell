@@ -276,7 +276,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     WorkflowExecutionActorData(
       workflowDescriptor,
       executionStore = buildInitialExecutionStore(),
-      backendJobExecutionActors = Map.empty,
+      backendJobExecuteOrCacheActors = Map.empty,
       outputStore = OutputStore.empty
     )
   )
@@ -294,7 +294,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData, failedJobKey: JobKey, reason: Throwable) = {
     val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(failedJobKey -> ExecutionStatus.Failed)))
-      .removeBackendJobExecutionActor(failedJobKey)
+      .removeBackendJobActor(failedJobKey)
 
     if (workflowDescriptor.getWorkflowOption(WorkflowFailureMode).contains(ContinueWhilePossible.toString)) {
       mergedStateData.workflowCompletionStatus match {
@@ -317,10 +317,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionInProgressState) {
-    case Event(JobRunning(jobDescriptor, backendJobExecutionActor), stateData) =>
+    case Event(JobRunning(jobDescriptor, backendJobExecuteOrCacheActor), stateData) =>
       pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
-        .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
+        .addBackendJobActor(jobDescriptor.key, backendJobExecuteOrCacheActor)
         .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
@@ -374,8 +374,8 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   when(WorkflowExecutionAbortingState) {
     case Event(AbortedResponse(jobKey), stateData) =>
       workflowLogger.info(s"$tag job aborted: ${jobKey.tag}")
-      val newStateData = stateData.removeBackendJobExecutionActor(jobKey)
-      if (newStateData.backendJobExecutionActors.isEmpty) {
+      val newStateData = stateData.removeBackendJobActor(jobKey)
+      if (newStateData.backendJobExecuteOrCacheActors.isEmpty) {
         workflowLogger.info(s"$tag all jobs aborted")
         goto(WorkflowExecutionAbortedState)
       } else {
@@ -390,9 +390,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       stay
     case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
-      if (stateData.backendJobExecutionActors.nonEmpty) {
-        log.info(s"$tag: Abort received. Aborting ${stateData.backendJobExecutionActors.size} EJEAs")
-        stateData.backendJobExecutionActors.values foreach {_ ! AbortJobCommand}
+      if (stateData.backendJobExecuteOrCacheActors.nonEmpty) {
+        log.info(s"$tag: Abort received. Aborting ${stateData.backendJobExecuteOrCacheActors.size} EJEAs")
+        stateData.backendJobExecuteOrCacheActors.values foreach {_ ! AbortJobCommand}
         goto(WorkflowExecutionAbortingState)
       } else {
         goto(WorkflowExecutionAbortedState)

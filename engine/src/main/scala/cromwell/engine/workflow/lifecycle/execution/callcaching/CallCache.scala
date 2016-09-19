@@ -17,7 +17,7 @@ import scalaz._
 
 final case class MetaInfoId(id: Int)
 
-case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingSimpletonEntry],
+case class CachedResult(callCachingEntry: CallCachingEntry, resultSimpletons: Seq[CallCachingSimpletonEntry],
                         jobDetritus: Seq[CallCachingDetritusEntry])
 
 /**
@@ -86,7 +86,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   private def cachedResultOption(callCachingJoinOption: Option[CallCachingJoin]): Option[CachedResult] = {
     callCachingJoinOption map { callCachingJoin =>
       CachedResult(
-        callCachingJoin.callCachingEntry.returnCode,
+        callCachingJoin.callCachingEntry,
         callCachingJoin.callCachingSimpletonEntries,
         callCachingJoin.callCachingDetritusEntries)
     }

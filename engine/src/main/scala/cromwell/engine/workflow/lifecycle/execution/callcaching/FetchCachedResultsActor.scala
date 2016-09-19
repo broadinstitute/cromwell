@@ -15,7 +15,8 @@ object FetchCachedResultsActor {
 
   sealed trait CachedResultResponse
   case class CachedOutputLookupFailed(metaInfoId: MetaInfoId, failure: Throwable) extends CachedResultResponse
-  case class CachedOutputLookupSucceeded(simpletons: Seq[WdlValueSimpleton], callOutputFiles: Map[String,String], returnCode: Option[Int], cacheHit: CacheHit) extends CachedResultResponse
+  case class CachedOutputLookupSucceeded(simpletons: Seq[WdlValueSimpleton], callOutputFiles: Map[String,String],
+                                         returnCode: Option[Int], cacheHit: CacheHit, cacheHitDetails: String) extends CachedResultResponse
 }
 
 
@@ -32,7 +33,13 @@ class FetchCachedResultsActor(cacheHit: CacheHit, replyTo: ActorRef, callCache: 
         val jobDetritusFiles = result.jobDetritus map { jobDetritusEntry =>
           jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue
         }
-        replyTo ! CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap, result.returnCode, cacheHit)
+        val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
+                                    result.callCachingEntry.callFullyQualifiedName,
+                                    result.callCachingEntry.jobIndex).mkString(".")
+
+        replyTo ! CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap,
+                                              result.callCachingEntry.returnCode,
+                                              cacheHit, sourceCacheDetails)
       case Success(None) =>
         val reason = new RuntimeException(s"Cache hit vanished between discovery and retrieval: $cacheResultId")
         replyTo ! CachedOutputLookupFailed(cacheResultId, reason)

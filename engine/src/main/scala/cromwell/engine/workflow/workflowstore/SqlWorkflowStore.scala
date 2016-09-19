@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
-import java.sql.Timestamp
-import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.database.sql.SqlConverters._
@@ -20,7 +19,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   }
 
   override def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
-    sqlDatabase.removeWorkflow(id.toString).map(_ > 0) // i.e. did anything get deleted
+    sqlDatabase.removeWorkflowStoreEntry(id.toString).map(_ > 0) // i.e. did anything get deleted
   }
 
   /**
@@ -28,7 +27,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * flag to true
     */
   override def fetchRunnableWorkflows(n: Int, state: StartableState)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    sqlDatabase.fetchRunnableWorkflows(n, state.toString, WorkflowStoreState.Running.toString) map {
+    sqlDatabase.queryWorkflowStoreEntries(n, state.toString, WorkflowStoreState.Running.toString) map {
       _.toList map fromWorkflowStoreEntry
     }
   }
@@ -40,21 +39,21 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   override def add(sources: NonEmptyList[WorkflowSourceFiles])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]] = {
 
     val asStoreEntries = sources map toWorkflowStoreEntry
-    val returnValue = asStoreEntries map { x => WorkflowId.fromString(x.workflowUuid) }
+    val returnValue = asStoreEntries map { workflowStore => WorkflowId.fromString(workflowStore.workflowExecutionUuid) }
 
     // The results from the Future aren't useful, so on completion map it into the precalculated return value instead. Magic!
-    sqlDatabase.addWorkflow(asStoreEntries.list.toList) map { _ => returnValue }
+    sqlDatabase.addWorkflowStoreEntries(asStoreEntries.list.toList) map { _ => returnValue }
   }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {
     val sources = WorkflowSourceFiles(
-      workflowStoreEntry.workflowSource.toRawString,
+      workflowStoreEntry.workflowDefinition.toRawString,
       workflowStoreEntry.workflowInputs.toRawString,
       workflowStoreEntry.workflowOptions.toRawString)
     WorkflowToStart(
-      WorkflowId.fromString(workflowStoreEntry.workflowUuid),
+      WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
       sources,
-      fromDbStateStringToStartableState(workflowStoreEntry.state))
+      fromDbStateStringToStartableState(workflowStoreEntry.workflowState))
   }
 
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFiles): WorkflowStoreEntry = {
@@ -64,7 +63,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowSourceFiles.inputsJson.toClob,
       workflowSourceFiles.workflowOptionsJson.toClob,
       WorkflowStoreState.Submitted.toString,
-      timestamp = Timestamp.valueOf(LocalDateTime.now())
+      OffsetDateTime.now.toSystemTimestamp
     )
   }
 

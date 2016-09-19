@@ -1,11 +1,11 @@
 package cromwell.database.sql.tables
 
-case class CallCachingResultMetaInfoEntry
+case class CallCachingEntry
 (
-  workflowUuid: String,
-  callFqn: String,
-  scatterIndex: Int,
+  workflowExecutionUuid: String,
+  callFullyQualifiedName: String,
+  jobIndex: Int,
   returnCode: Option[Int],
   allowResultReuse: Boolean,
-  callCachingResultMetaInfoEntryId: Option[Int] = None
+  callCachingEntryId: Option[Int] = None
 )

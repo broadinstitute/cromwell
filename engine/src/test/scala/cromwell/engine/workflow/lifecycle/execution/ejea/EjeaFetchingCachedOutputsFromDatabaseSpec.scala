@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cromwell.core.WorkflowId
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import EngineJobExecutionActorSpec._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
@@ -34,7 +35,8 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
         val cachedSimpletons = Seq(WdlValueSimpleton("a", WdlString("hullo")), WdlValueSimpleton("b", WdlString("cheerio")))
         val detritusMap = Map("stdout" -> "//somePath")
         val cachedReturnCode = Some(17)
-        ejea ! CachedOutputLookupSucceeded(cachedSimpletons, detritusMap, cachedReturnCode, CacheHit(MetaInfoId(75)))
+        val sourceCacheDetails = Seq(WorkflowId.randomId.toString,"call-someTask",1).mkString(":")
+        ejea ! CachedOutputLookupSucceeded(cachedSimpletons, detritusMap, cachedReturnCode, CacheHit(MetaInfoId(75)), sourceCacheDetails)
         helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedSimpletons, detritusMap, cachedReturnCode))
 
         // Check we end up in the right state:

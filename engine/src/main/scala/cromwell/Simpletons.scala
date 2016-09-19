@@ -1,7 +1,7 @@
 package cromwell
 
 import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.database.sql.tables.{CallCachingResultSimpletonEntry, JobStoreResultSimpletonEntry}
+import cromwell.database.sql.tables.{CallCachingSimpletonEntry, JobStoreSimpletonEntry}
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlPrimitive, WdlSingleFile, WdlValue}
 
@@ -11,11 +11,11 @@ import scala.util.Try
   * to `WdlSingleFile` instances.
   */
 object Simpletons {
-  def toSimpleton(entry: CallCachingResultSimpletonEntry): WdlValueSimpleton = {
+  def toSimpleton(entry: CallCachingSimpletonEntry): WdlValueSimpleton = {
     toSimpleton(entry.wdlType, entry.simpletonKey, entry.simpletonValue)
   }
 
-  def toSimpleton(entry: JobStoreResultSimpletonEntry): WdlValueSimpleton = {
+  def toSimpleton(entry: JobStoreSimpletonEntry): WdlValueSimpleton = {
     toSimpleton(entry.wdlType, entry.simpletonKey, entry.simpletonValue)
   }
 

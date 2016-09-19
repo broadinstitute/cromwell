@@ -1,44 +1,46 @@
 package cromwell.database.slick
 
-import cromwell.database.sql.BackendKVStoreSqlDatabase
-import cromwell.database.sql.tables.BackendKVStoreEntry
+import cromwell.database.sql.JobKeyValueSqlDatabase
+import cromwell.database.sql.tables.JobKeyValueEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait BackendKVStoreSlickDatabase extends BackendKVStoreSqlDatabase {
+trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
   this: SlickDatabase =>
 
   import dataAccess.driver.api._
 
-  override def addBackendStoreKeyValuePair(workflowUuid: String, callFqn: String, callIndex: Int, callAttempt: Int, storeKey: String, storeValue: String)(implicit ec: ExecutionContext): Future[Unit] = {
-
-    val entry = BackendKVStoreEntry(workflowUuid,
-      callFqn,
-      callIndex,
-      callAttempt,
-      storeKey,
-      storeValue)
-
+  override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
+                                  (implicit ec: ExecutionContext): Future[Unit] = {
     val action = if (useSlickUpserts) {
       for {
-        _ <- dataAccess.backendKVStoreAutoInc.insertOrUpdate(entry)
+        _ <- dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate(jobKeyValueEntry)
       } yield ()
     } else {
       for {
         updateCount <- dataAccess.
-          backendJobValueByBackendJobKey(workflowUuid, callFqn, callIndex, callAttempt, storeKey).
-          update(storeValue)
+          storeValuesForJobKeyAndStoreKey(
+            jobKeyValueEntry.workflowExecutionUuid,
+            jobKeyValueEntry.callFullyQualifiedName,
+            jobKeyValueEntry.jobIndex,
+            jobKeyValueEntry.jobAttempt,
+            jobKeyValueEntry.storeKey).
+          update(jobKeyValueEntry.storeValue)
         _ <- updateCount match {
-          case 0 => dataAccess.backendKVStoreAutoInc += entry
-          case _ => assertUpdateCount("addBackendJobKeyValuePair", updateCount, 1)
+          case 0 => dataAccess.jobKeyValueEntryIdsAutoInc += jobKeyValueEntry
+          case _ => assertUpdateCount("addJobKeyValueEntry", updateCount, 1)
         }
-      } yield () // <-- maps the result to a DBIO[Unit]
+      } yield ()
     }
     runTransaction(action)
   }
 
-  override def queryBackendStoreValueByStoreKey(workflowUuid: String, callFqn: String, callIndex: Int, callAttempt: Int, jobKey: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    val action = dataAccess.backendJobValueByBackendJobKey(workflowUuid, callFqn, callIndex, callAttempt, jobKey).result.headOption
+  override def queryStoreValue(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
+                               jobRetryAttempt: Int, storeKey: String)
+                              (implicit ec: ExecutionContext): Future[Option[String]] = {
+    val action = dataAccess.
+      storeValuesForJobKeyAndStoreKey(workflowExecutionUuid, callFqn, jobScatterIndex, jobRetryAttempt, storeKey).
+      result.headOption
     runTransaction(action)
   }
 }

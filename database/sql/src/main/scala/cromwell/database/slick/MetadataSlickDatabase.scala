@@ -3,144 +3,158 @@ package cromwell.database.slick
 import java.sql.Timestamp
 
 import cromwell.database.sql.MetadataSqlDatabase
-import cromwell.database.sql.tables.{Metadatum, WorkflowMetadataSummary}
+import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalaz._
 
 trait MetadataSlickDatabase extends MetadataSqlDatabase {
-  this: SlickDatabase with SummarizingSlickDatabase =>
+  this: SlickDatabase with SummaryStatusSlickDatabase =>
 
   import dataAccess.driver.api._
 
-  override def addMetadata(events: Iterable[Metadatum])
-                          (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.metadataAutoInc ++= events
+  override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+                                 (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.metadataEntryIdsAutoInc ++= metadataEntries
     runTransaction(action).map(_ => ())
   }
 
-  override def queryMetadataEvents(workflowUuid: String)
-                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.metadataByWorkflowUuid(workflowUuid).result
+  override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.metadataEntryExistsForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action)
   }
 
-  override def queryMetadataEvents(workflowUuid: String,
-                                   key: String)
-                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.metadataByWorkflowUuidAndKey(workflowUuid, key).result
+  override def queryMetadataEntries(workflowExecutionUuid: String)
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action)
   }
 
-  override def queryMetadataEvents(workflowUuid: String,
-                                   callFqn: String,
-                                   index: Option[Int],
-                                   attempt: Int)
-                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.metadataByWorkflowUuidAndCallFqnAndIndexAndAttempt(workflowUuid, callFqn, index,
-      attempt).result
+  override def queryMetadataEntries(workflowExecutionUuid: String,
+                                    metadataKey: String)
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    val action =
+      dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey(workflowExecutionUuid, metadataKey).result
     runTransaction(action)
   }
 
-  override def queryMetadataEvents(workflowUuid: String,
-                                   key: String,
-                                   callFqn: String,
-                                   index: Option[Int],
-                                   attempt: Int)
-                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.metadataByWorkflowUuidAndKeyAndCallFqnAndIndexAndAttempt(workflowUuid, key, callFqn, index,
-      attempt).result
+  override def queryMetadataEntries(workflowExecutionUuid: String,
+                                    callFullyQualifiedName: String,
+                                    jobIndex: Option[Int],
+                                    jobAttempt: Int)
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    val action = dataAccess.
+      metadataEntriesForJobKey(workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt).result
     runTransaction(action)
   }
 
-  override def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
-                                                   wildcardKeys: NonEmptyList[String],
-                                                   requireEmptyJobKey: Boolean)
-                                                  (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.queryMetadataMatchingAnyWildcardKeys(workflowUuid, wildcardKeys, requireEmptyJobKey).result
+  override def queryMetadataEntries(workflowUuid: String,
+                                    metadataKey: String,
+                                    callFullyQualifiedName: String,
+                                    jobIndex: Option[Int],
+                                    jobAttempt: Int)
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    val action = dataAccess.metadataEntriesForJobKeyAndMetadataKey(
+      workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt).result
     runTransaction(action)
   }
 
-  override def queryMetadataEventsWithoutWildcardKeys(workflowUuid: String,
-                                                      wildcardKeys: NonEmptyList[String],
-                                                      requireEmptyJobKey: Boolean)
-                                                     (implicit ec: ExecutionContext): Future[Seq[Metadatum]] = {
-    val action = dataAccess.queryMetadataNotMatchingAnyWildcardKeys(workflowUuid, wildcardKeys,
-      requireEmptyJobKey).result
+  override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
+                                                    metadataKeys: NonEmptyList[String],
+                                                    requireEmptyJobKey: Boolean)
+                                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    val action =
+      dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey).result
     runTransaction(action)
   }
 
-  private def updateMetadata(buildUpdatedSummary:
-                             (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
-                            (metadataByUuid: (String, Seq[Metadatum]))(implicit ec: ExecutionContext): DBIO[Unit] = {
-    val (uuid, metadataForUuid) = metadataByUuid
+  override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
+                                                     metadataKeys: NonEmptyList[String],
+                                                     requireEmptyJobKey: Boolean)
+                                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    val action =
+      dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey).result
+    runTransaction(action)
+  }
+
+  private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:
+                                                 (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
+                                                   WorkflowMetadataSummaryEntry)
+                                                (workflowExecutionUuuidAndMetadataEntries: (String, Seq[MetadataEntry]))
+                                                (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val (workflowExecutionUuid, metadataEntries) = workflowExecutionUuuidAndMetadataEntries
     for {
     // There might not be a preexisting summary for a given UUID, so `headOption` the result
-      existingSummary <- dataAccess.workflowMetadataSummariesByUuid(uuid).result.headOption
-      updatedSummary = buildUpdatedSummary(existingSummary, metadataForUuid)
-      _ <- upsertWorkflowMetadataSummary(updatedSummary)
+      existingWorkflowMetadataSummaryEntry <- dataAccess.
+        workflowMetadataSummaryEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result.headOption
+      updatedWorkflowMetadataSummaryEntry = buildUpdatedWorkflowMetadataSummaryEntry(
+        existingWorkflowMetadataSummaryEntry, metadataEntries)
+      _ <- upsertWorkflowMetadataSummaryEntry(updatedWorkflowMetadataSummaryEntry)
     } yield ()
   }
 
-  private def upsertWorkflowMetadataSummary(summary: WorkflowMetadataSummary)
-                                           (implicit ec: ExecutionContext): DBIO[Unit] = {
+  private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)
+                                                (implicit ec: ExecutionContext): DBIO[Unit] = {
     if (useSlickUpserts) {
       for {
-        _ <- dataAccess.workflowMetadataSummaryAutoInc.insertOrUpdate(summary)
+        _ <- dataAccess.workflowMetadataSummaryEntryIdsAutoInc.insertOrUpdate(workflowMetadataSummaryEntry)
       } yield ()
     } else {
       for {
-        updateCount <- dataAccess.workflowMetadataSummariesByUuid(summary.workflowUuid).update(summary)
+        updateCount <- dataAccess.
+          workflowMetadataSummaryEntriesForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid).
+          update(workflowMetadataSummaryEntry)
         _ <- updateCount match {
-          case 0 => dataAccess.workflowMetadataSummaryAutoInc += summary
-          case 1 => DBIO.successful(Unit)
-          case _ => DBIO.failed(new RuntimeException(s"Unexpected summary update count $updateCount"))
+          case 0 => dataAccess.workflowMetadataSummaryEntryIdsAutoInc += workflowMetadataSummaryEntry
+          case _ => assertUpdateCount("upsertWorkflowMetadataSummaryEntry", updateCount, 1)
         }
       } yield ()
     }
   }
 
-  def refreshMetadataSummaries(key1: String, key2: String, key3: String, key4: String,
-                               buildUpdatedSummary: (Option[WorkflowMetadataSummary], Seq[Metadatum]) =>
-                                 WorkflowMetadataSummary)
-                              (implicit ec: ExecutionContext): Future[Long] = {
+  override def refreshMetadataSummaryEntries(metadataKey1: String, metadataKey2: String, metadataKey3: String,
+                                             metadataKey4: String, buildUpdatedSummary:
+                                             (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
+                                               WorkflowMetadataSummaryEntry)
+                                            (implicit ec: ExecutionContext): Future[Long] = {
     val action = for {
-      startIdOption <- getSummaryStatusMaximumId("WORKFLOW_METADATA_SUMMARY", "METADATA_JOURNAL")
-      startId = startIdOption.getOrElse(0L) + 1L
-      metadata <- dataAccess.metadataWithIdGreaterThanOrEqual(startId, key1, key2, key3, key4).result
-      metadataByWorkflowUuid = metadata.groupBy(_.workflowUuid)
-      _ <- DBIO.sequence(metadataByWorkflowUuid map updateMetadata(buildUpdatedSummary))
-      maximumId = maximumOrZero(metadata.map(_.metadatumId.get))
-      _ <- upsertSummaryStatusMaximumId("WORKFLOW_METADATA_SUMMARY", "METADATA_JOURNAL", maximumId)
-    } yield maximumId
+      startMetadataEntryIdOption <- getSummaryStatusEntryMaximumId("WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
+      startMetadataEntryId = startMetadataEntryIdOption.getOrElse(0L) + 1L
+      metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual(
+        startMetadataEntryId, metadataKey1, metadataKey2, metadataKey3, metadataKey4).result
+      metadataByWorkflowUuid = metadataEntries.groupBy(_.workflowExecutionUuid)
+      _ <- DBIO.sequence(metadataByWorkflowUuid map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      maximumMetadataEntryId = maximumOrZero(metadataEntries.map(_.metadataEntryId.get))
+      _ <- upsertSummaryStatusEntryMaximumId(
+        "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", maximumMetadataEntryId)
+    } yield maximumMetadataEntryId
 
     runTransaction(action)
   }
 
-  def getStatus(workflowUuid: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    val action = dataAccess.workflowStatusByUuid(workflowUuid).result.headOption
+  override def getWorkflowStatus(workflowExecutionUuid: String)
+                                (implicit ec: ExecutionContext): Future[Option[String]] = {
+    val action = dataAccess.workflowStatusesForWorkflowExecutionUuid(workflowExecutionUuid).result.headOption
     // The workflow might not exist, so `headOption`.  But even if the workflow does exist, the status might be None.
     // So flatten the Option[Option[String]] to Option[String].
     runTransaction(action).map(_.flatten)
   }
 
-  def workflowExists(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
-    val action = dataAccess.workflowExists(possibleWorkflowId).result
+  override def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
+                                      workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                      endTimestampOption: Option[Timestamp], page: Option[Int], pageSize: Option[Int])
+                                     (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+    val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
+      startTimestampOption, endTimestampOption, page, pageSize).result
     runTransaction(action)
   }
 
-  override def queryWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                      startDate: Option[Timestamp], endDate: Option[Timestamp],
-                                      page: Option[Int], pageSize: Option[Int])
-                                     (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummary]] = {
-    val action = dataAccess.queryWorkflowSummaries(statuses, names, uuids, startDate, endDate, page, pageSize).result
-    runTransaction(action)
-  }
-
-  override def countWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                                      startDate: Option[Timestamp], endDate: Option[Timestamp])
+  override def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
+                                      workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                      endTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess.countWorkflowSummaries(statuses, names, uuids, startDate, endDate).result
+    val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
+      startTimestampOption, endTimestampOption).result
     runTransaction(action)
   }
 }

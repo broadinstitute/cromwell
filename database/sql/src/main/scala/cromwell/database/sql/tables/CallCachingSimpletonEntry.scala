@@ -1,10 +1,10 @@
 package cromwell.database.sql.tables
 
-case class CallCachingResultSimpletonEntry
+case class CallCachingSimpletonEntry
 (
   simpletonKey: String,
   simpletonValue: String,
   wdlType: String,
-  resultMetaInfoId: Int,
-  callCachingResultSimpletonId: Option[Int] = None
+  callCachingEntryId: Option[Int] = None,
+  callCachingSimpletonEntryId: Option[Int] = None
 )

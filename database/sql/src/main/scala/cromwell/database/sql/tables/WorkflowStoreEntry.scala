@@ -4,11 +4,11 @@ import java.sql.{Clob, Timestamp}
 
 case class WorkflowStoreEntry
 (
-  workflowUuid: String,
-  workflowSource: Clob,
+  workflowExecutionUuid: String,
+  workflowDefinition: Clob,
   workflowInputs: Clob,
   workflowOptions: Clob,
-  state: String,
-  timestamp: Timestamp,
-  workflowStoreId: Option[Int] = None
+  workflowState: String,
+  submissionTime: Timestamp,
+  workflowStoreEntryId: Option[Int] = None
 )

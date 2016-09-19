@@ -10,7 +10,8 @@ package cromwell.database.sql
   *
   * '''TL;DR Keep the database logic to an absolute minimum!'''
   *
-  * Each case class name should match the table name, as close as possible.
+  * Each case class name should match the table name, replacing capital letters in the class name with an underscore,
+  * and then converting the entire string to upper case.
   *
   * The columns in each class should be a primitive type matching the database column.
   *
@@ -24,7 +25,7 @@ package cromwell.database.sql
   *
   * Nullable columns should be wrapped in an `Option`.
   *
-  * Auto-increment columns are the only columns that should be defaulted, only because they are to be filled in by the
+  * Primary and foreign key columns are the only columns that should be defaulted, as they are to be filled in by the
   * database, and cannot and should not be set within the business logic. On the other hand, columns to be filled in by
   * the business logic should __not__ have a default in the database package, even if they are nullable.
   *

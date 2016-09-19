@@ -1,7 +1,7 @@
 package cromwell.database.slick
 
 import cromwell.database.sql.JobStoreSqlDatabase
-import cromwell.database.sql.tables.{JobStoreEntry, JobStoreResultSimpletonEntry}
+import cromwell.database.sql.joins.JobStoreJoin
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -10,35 +10,42 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  private def addJobStoreEntry(jobStoreEntry: JobStoreEntry, jobStoreSimpletonEntries: Int => Iterable[JobStoreResultSimpletonEntry])
-                              (implicit ec: ExecutionContext): DBIO[Unit] = {
+  private def addJobStore(jobStoreJoin: JobStoreJoin)(implicit ec: ExecutionContext): DBIO[Unit] = {
     for {
-      insertedJobStoreId <- dataAccess.jobStoreAutoInc += jobStoreEntry
-      _ <- dataAccess.jobStoreResultSimpletonAutoInc ++= jobStoreSimpletonEntries(insertedJobStoreId)
+      jobStoreEntryId <- dataAccess.jobStoreEntryIdsAutoInc += jobStoreJoin.jobStoreEntry
+      _ <- dataAccess.jobStoreSimpletonEntryIdsAutoInc ++=
+        jobStoreJoin.jobStoreSimpletonEntries.map(_.copy(jobStoreEntryId = Option(jobStoreEntryId)))
     } yield ()
   }
 
-  override def addJobStoreEntries(entries: Iterable[(JobStoreEntry, Int => Iterable[JobStoreResultSimpletonEntry])])(implicit ec: ExecutionContext): Future[Unit] = {
-    val action = DBIO.sequence(entries map (addJobStoreEntry _).tupled)
+  override def addJobStores(jobStoreJoins: Seq[JobStoreJoin])
+                           (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = DBIO.sequence(jobStoreJoins map addJobStore)
     runTransaction(action) map { _ => () }
   }
 
-  override def fetchJobResult(workflowUuid: String, callFqn: String, index: Int, attempt: Int)
-                    (implicit ec: ExecutionContext): Future[Option[(JobStoreEntry, Iterable[JobStoreResultSimpletonEntry])]] = {
+  override def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
+                              jobScatterAttempt: Int)(implicit ec: ExecutionContext):
+  Future[Option[JobStoreJoin]] = {
 
     val action = for {
-      jobResults <- dataAccess.jobStoreEntriesByJobStoreKey(workflowUuid, callFqn, index, attempt).result.headOption
-      simpletons <- jobResults match {
-        case Some(r) => dataAccess.jobStoreResultSimpletonsForJobStoreId(r.jobStoreId.get).result
+      jobStoreEntryOption <- dataAccess.
+        jobStoreEntriesForJobKey(workflowExecutionUuid, callFqn, jobScatterIndex, jobScatterAttempt).result.headOption
+      jobStoreSimpletonEntries <- jobStoreEntryOption match {
+        case Some(jobStoreEntry) =>
+          dataAccess.jobStoreSimpletonEntriesForJobStoreEntryId(jobStoreEntry.jobStoreEntryId.get).result
         case _ => DBIO.successful(Seq.empty)
       }
-    } yield jobResults map { j => j -> simpletons }
-    
+    } yield jobStoreEntryOption.map(JobStoreJoin(_, jobStoreSimpletonEntries))
+
     runTransaction(action)
   }
 
-  override def removeJobResultsForWorkflows(workflowUuids: Iterable[String])(implicit ec: ExecutionContext): Future[Int] = {
-    val actions = workflowUuids map { workflowUuid => dataAccess.jobStoreEntryByWorkflowUuid(workflowUuid).delete }
-    runTransaction(DBIO.sequence(actions)) map { _.sum }
+  override def removeJobStores(workflowExecutionUuids: Seq[String])
+                              (implicit ec: ExecutionContext): Future[Seq[Int]] = {
+    val actions = workflowExecutionUuids map {
+      workflowExecutionUuid => dataAccess.jobStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).delete
+    }
+    runTransaction(DBIO.sequence(actions))
   }
 }

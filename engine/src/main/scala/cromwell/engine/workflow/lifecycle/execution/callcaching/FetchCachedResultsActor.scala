@@ -29,7 +29,9 @@ class FetchCachedResultsActor(cacheHit: CacheHit, replyTo: ActorRef, callCache: 
     callCache.fetchCachedResult(cacheResultId) onComplete {
       case Success(Some(result)) =>
         val simpletons = result.resultSimpletons map toSimpleton
-        val jobDetritusFiles = result.jobDetritus map { jobDetritusEntry => jobDetritusEntry.jobDetritusKey -> jobDetritusEntry.jobDetritusValue }
+        val jobDetritusFiles = result.jobDetritus map { jobDetritusEntry =>
+          jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue
+        }
         replyTo ! CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap, result.returnCode, cacheHit)
       case Success(None) =>
         val reason = new RuntimeException(s"Cache hit vanished between discovery and retrieval: $cacheResultId")

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="boolean.type" value="BOOLEAN" dbms="!mysql"/>
+    <property name="boolean.type" value="TINYINT" dbms="mysql"/>
+
+    <changeSet id="job_store_fix_job_successful" author="mcovarr">
+        <modifyDataType columnName="JOB_SUCCESSFUL"
+                        newDataType="${boolean.type}"
+                        tableName="JOB_STORE"/>
+    </changeSet>
+
+    <changeSet id="job_store_fix_job_retryable_failure" author="mcovarr">
+        <modifyDataType columnName="RETRYABLE_FAILURE"
+                        newDataType="${boolean.type}"
+                        tableName="JOB_STORE"/>
+
+    </changeSet>
+
+    <changeSet id="job_store_not_nullable_job_successful" author="mcovarr">
+        <addNotNullConstraint tableName="JOB_STORE"
+                              columnName="JOB_SUCCESSFUL"
+                              columnDataType="${boolean.type}" />
+    </changeSet>
+
+</databaseChangeLog>

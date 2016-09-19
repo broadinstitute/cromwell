@@ -24,22 +24,24 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
    */
 
-  def updateWorkflowState(oldState: String, newState: String)(implicit ec: ExecutionContext): Future[Unit]
+  def updateWorkflowState(queryWorkflowState: String, updateWorkflowState: String)
+                         (implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.
     */
-  def addWorkflow(entries: Iterable[WorkflowStoreEntry])(implicit ec: ExecutionContext): Future[Unit]
+  def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
+                             (implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Retrieves up to limit workflows which have not already been pulled into the engine and updates their state.
-    * NOTE: Rows are returned with the fetch state, NOT the update state.
+    * NOTE: Rows are returned with the query state, NOT the update state.
     */
-  def fetchRunnableWorkflows(limit: Int, fetchState: String, updateState: String)
-                            (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
+  def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
+                               (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   /**
     * Deletes a workflow from the database, returning the number of rows affected.
     */
-  def removeWorkflow(id: String)(implicit ec: ExecutionContext): Future[Int]
+  def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int]
 }

@@ -1,39 +1,47 @@
 package cromwell.database.slick.tables
 
-import cromwell.database.sql.tables.CallCachingResultSimpletonEntry
+import cromwell.database.sql.tables.CallCachingSimpletonEntry
 
-trait CallCachingResultSimpletonComponent {
+trait CallCachingSimpletonEntryComponent {
 
-  this: DriverComponent with CallCachingResultMetaInfoComponent =>
+  this: DriverComponent with CallCachingEntryComponent =>
 
   import driver.api._
 
-  class CallCachingResultSimpletons(tag: Tag) extends Table[CallCachingResultSimpletonEntry](tag, "CALL_CACHING_RESULT_SIMPLETON") {
-    def callCachingResultSimpletonId = column[Int]("CALL_CACHING_RESULT_SIMPLETON_ID", O.PrimaryKey, O.AutoInc)
+  class CallCachingSimpletonEntries(tag: Tag)
+    extends Table[CallCachingSimpletonEntry](tag, "CALL_CACHING_SIMPLETON_ENTRY") {
+    def callCachingSimpletonEntryId = column[Int]("CALL_CACHING_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+
     def simpletonKey = column[String]("SIMPLETON_KEY")
+
     def simpletonValue = column[String]("SIMPLETON_VALUE")
+
     def wdlType = column[String]("WDL_TYPE")
-    def resultMetaInfoId = column[Int]("RESULT_METAINFO_ID")
 
-    override def * = (simpletonKey, simpletonValue, wdlType, resultMetaInfoId, callCachingResultSimpletonId.?) <>
-      (CallCachingResultSimpletonEntry.tupled, CallCachingResultSimpletonEntry.unapply)
+    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 
-    def callCachingResultSimpletonUniquenessConstraint =
-      index("UK_CALL_CACHING_RESULT_SIMPLETON", (simpletonKey, resultMetaInfoId), unique = true)
+    override def * = (simpletonKey, simpletonValue, wdlType, callCachingEntryId.?, callCachingSimpletonEntryId.?) <>
+      (CallCachingSimpletonEntry.tupled, CallCachingSimpletonEntry.unapply)
 
-    def callCachingResultMetaInfo = foreignKey(
-      "CCRS_RESULT_METAINFO_ID_FK", resultMetaInfoId, callCachingResultMetaInfos)(_.callCachingResultMetaInfoId)
+    def fkCallCachingSimpletonEntryCallCachingEntryId = foreignKey(
+      "FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID", callCachingEntryId, callCachingEntries)(_.callCachingEntryId)
+
+    def ucCallCachingSimpletonEntryCceiSk =
+      index("UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK", (callCachingEntryId, simpletonKey), unique = true)
   }
 
-  protected val callCachingResultSimpletons = TableQuery[CallCachingResultSimpletons]
+  protected val callCachingSimpletonEntries = TableQuery[CallCachingSimpletonEntries]
 
-  val callCachingResultSimpletonAutoInc = callCachingResultSimpletons returning callCachingResultSimpletons.map(_.callCachingResultSimpletonId)
+  val callCachingSimpletonEntryIdsAutoInc = callCachingSimpletonEntries returning
+    callCachingSimpletonEntries.map(_.callCachingSimpletonEntryId)
 
   /**
-    * Find all result simpletons which match a given RESULT_METAINFO_ID
+    * Find all result simpletons which match a given CALL_CACHING_ENTRY_ID
     */
-  val resultSimpletonsForMetaInfoId = Compiled(
-    (resultMetaInfoId: Rep[Int]) => for {
-      simpleton <- callCachingResultSimpletons if simpleton.resultMetaInfoId === resultMetaInfoId
-    } yield simpleton)
+  val callCachingSimpletonEntriesForCallCachingEntryId = Compiled(
+    (callCachingEntryId: Rep[Int]) => for {
+      callCachingSimpletonEntry <- callCachingSimpletonEntries
+      if callCachingSimpletonEntry.callCachingEntryId === callCachingEntryId
+    } yield callCachingSimpletonEntry
+  )
 }

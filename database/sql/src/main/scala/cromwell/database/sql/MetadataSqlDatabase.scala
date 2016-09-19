@@ -2,7 +2,7 @@ package cromwell.database.sql
 
 import java.sql.Timestamp
 
-import cromwell.database.sql.tables.{Metadatum, WorkflowMetadataSummary}
+import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalaz.NonEmptyList
@@ -21,65 +21,63 @@ trait MetadataSqlDatabase {
    */
 
   /**
-    * Add metadata events to the database transactionally. normalized type structure is as follows:
-    * (WorkflowId, MetadataKey, Option[CallFqn, CallIndex, CallAttempt], MetadataValue, MetadataValueType, Timestamp)
+    * Add metadata events to the database transactionally.
     */
-  def addMetadata(events: Iterable[Metadatum])
-                 (implicit ec: ExecutionContext): Future[Unit]
+  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext): Future[Unit]
 
-  def queryMetadataEvents(workflowUuid: String)
-                         (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+  def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
-  def queryMetadataEvents(workflowUuid: String,
-                          key: String)
-                         (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+  def queryMetadataEntries(workflowExecutionUuid: String)
+                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def queryMetadataEvents(workflowUuid: String,
-                          callFqn: String,
-                          index: Option[Int],
-                          attempt: Int)
-                         (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+  def queryMetadataEntries(workflowExecutionUuid: String,
+                           metadataKey: String)
+                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def queryMetadataEvents(workflowUuid: String,
-                          key: String,
-                          callFqn: String,
-                          index: Option[Int],
-                          attempt: Int)
-                         (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+  def queryMetadataEntries(workflowExecutionUuid: String,
+                           callFullyQualifiedName: String,
+                           jobIndex: Option[Int],
+                           jobAttempt: Int)
+                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def queryMetadataEventsWithWildcardKeys(workflowUuid: String,
-                                          wildcardKeys: NonEmptyList[String],
-                                          requireEmptyJobKey: Boolean)
-                                         (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+  def queryMetadataEntries(workflowUuid: String,
+                           metadataKey: String,
+                           callFullyQualifiedName: String,
+                           jobIndex: Option[Int],
+                           jobAttempt: Int)
+                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def queryMetadataEventsWithoutWildcardKeys(workflowUuid: String,
-                                             wildcardKeys: NonEmptyList[String],
-                                             requireEmptyJobKey: Boolean)
-                                            (implicit ec: ExecutionContext): Future[Seq[Metadatum]]
+  def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
+                                           metadataKeys: NonEmptyList[String],
+                                           requireEmptyJobKey: Boolean)
+                                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
+                                            metadataKeys: NonEmptyList[String],
+                                            requireEmptyJobKey: Boolean)
+                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**
     * Retrieves all summarizable metadata satisfying the specified criteria.
     *
-    * @param buildUpdatedSummary    Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadatumId summarized by the invocation of this method.
+    * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
+    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
     */
-  def refreshMetadataSummaries(key1: String, key2: String, key3: String, key4: String,
-                               buildUpdatedSummary:
-                               (Option[WorkflowMetadataSummary], Seq[Metadatum]) => WorkflowMetadataSummary)
-                              (implicit ec: ExecutionContext): Future[Long]
+  def refreshMetadataSummaryEntries(metadataKey1: String, metadataKey2: String, metadataKey3: String, metadataKey4: String,
+                                    buildUpdatedSummary:
+                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
+                                      => WorkflowMetadataSummaryEntry)
+                                   (implicit ec: ExecutionContext): Future[Long]
 
-  def getStatus(workflowUuid: String)
-               (implicit ec: ExecutionContext): Future[Option[String]]
+  def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
-  def workflowExists(possibleWorkflowId: String)
-                    (implicit ec: ExecutionContext): Future[Boolean]
+  def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
+                             workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                             endTimestampOption: Option[Timestamp], page: Option[Int], pageSize: Option[Int])
+                            (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
-  def queryWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                             startDate: Option[Timestamp], endDate: Option[Timestamp],
-                             page: Option[Int], pageSize: Option[Int])
-                            (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummary]]
-
-  def countWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                             startDate: Option[Timestamp], endDate: Option[Timestamp])
+  def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
+                             workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                             endTimestampOption: Option[Timestamp])
                             (implicit ec: ExecutionContext): Future[Int]
 }

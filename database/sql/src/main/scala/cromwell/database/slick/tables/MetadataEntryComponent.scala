@@ -2,117 +2,143 @@ package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.sql.tables.Metadatum
+import cromwell.database.sql.tables.MetadataEntry
 
 import scalaz._
 
-trait MetadataComponent {
+trait MetadataEntryComponent {
 
   this: DriverComponent =>
 
   import driver.api._
 
-  class Metadata(tag: Tag) extends Table[Metadatum](tag, "METADATA_JOURNAL") {
-    def metadataId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
+  class MetadataEntries(tag: Tag) extends Table[MetadataEntry](tag, "METADATA_ENTRY") {
+    def metadataEntryId = column[Long]("METADATA_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
-    def key = column[String]("METADATA_KEY")
-    def callFqn = column[Option[String]]("CALL_FQN")
-    def index = column[Option[Int]]("JOB_SCATTER_INDEX")
-    def attempt = column[Option[Int]]("JOB_RETRY_ATTEMPT")
-    def value = column[Option[String]]("METADATA_VALUE")
-    def valueType = column[Option[String]]("METADATA_VALUE_TYPE")
-    def timestamp = column[Timestamp]("METADATA_TIMESTAMP")
 
-    override def * = (workflowExecutionUuid, key, callFqn, index, attempt, value, valueType, timestamp, metadataId.?) <>
-      (Metadatum.tupled, Metadatum.unapply)
+    def metadataKey = column[String]("METADATA_KEY")
 
-    def workflowIndex = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
+    def callFullyQualifiedName = column[Option[String]]("CALL_FULLY_QUALIFIED_NAME")
 
-    def jobIndex = index("METADATA_JOB_IDX", (workflowExecutionUuid, callFqn, index, attempt), unique = false)
+    def jobIndex = column[Option[Int]]("JOB_INDEX")
 
-    def jobAndKeyIndex = index("METADATA_JOB_AND_KEY_IDX", (workflowExecutionUuid, key, callFqn, index, attempt), unique = false)
+    def jobAttempt = column[Option[Int]]("JOB_ATTEMPT")
+
+    def metadataValue = column[Option[String]]("METADATA_VALUE")
+
+    def metadataValueType = column[Option[String]]("METADATA_VALUE_TYPE")
+
+    def metadataTimestamp = column[Timestamp]("METADATA_TIMESTAMP")
+
+    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey, metadataValue,
+      metadataValueType, metadataTimestamp, metadataEntryId.?) <> (MetadataEntry.tupled, MetadataEntry.unapply)
+
+    def ixMetadataEntryWeu = index("IX_METADATA_ENTRY_WEU", workflowExecutionUuid, unique = false)
+
+    def ixMetadataEntryWeuCfqnJiJa = index("IX_METADATA_ENTRY_WEU_CFQN_JI_JA",
+      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
+
+    def ixMetadataEntryWeuCfqnJiJaMk = index("IX_METADATA_ENTRY_WEU_CFQN_JI_JA_MK",
+      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey), unique = false)
   }
 
-  protected val metadata = TableQuery[Metadata]
+  protected val metadataEntries = TableQuery[MetadataEntries]
 
-  val metadataByWorkflowUuid = Compiled(
+  val metadataEntryIdsAutoInc = metadataEntries returning metadataEntries.map(_.metadataEntryId)
+
+  val metadataEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
-      metadatum <- metadata
-      if metadatum.workflowExecutionUuid === workflowExecutionUuid
-    } yield metadatum)
-
-  val metadataByWorkflowUuidAndKey = Compiled(
-    (workflowExecutionUuid: Rep[String], key: Rep[String]) => for {
-      metadatum <- metadata
-      if metadatum.workflowExecutionUuid === workflowExecutionUuid
-      if metadatum.key === key
-      if metadatum.callFqn.isEmpty
-      if metadatum.index.isEmpty
-      if metadatum.attempt.isEmpty
-    } yield metadatum)
-
-  val metadataByWorkflowUuidAndCallFqnAndIndexAndAttempt = Compiled(
-    (workflowExecutionUuid: Rep[String], callFqn: Rep[String], index: Rep[Option[Int]], attempt: Rep[Int]) => for {
-      metadatum <- metadata
-      if metadatum.workflowExecutionUuid === workflowExecutionUuid
-      if metadatum.callFqn === callFqn
-      if (metadatum.index === index) || (metadatum.index.isEmpty && index.isEmpty)
-      if metadatum.attempt === attempt
-    } yield metadatum)
-
-  val metadataByWorkflowUuidAndKeyAndCallFqnAndIndexAndAttempt = Compiled(
-    (workflowExecutionUuid: Rep[String], key: Rep[String], callFqn: Rep[String], index: Rep[Option[Int]], attempt: Rep[Int]) => for {
-      metadatum <- metadata
-      if metadatum.workflowExecutionUuid === workflowExecutionUuid
-      if metadatum.key === key
-      if metadatum.callFqn === callFqn
-      if (metadatum.index === index) || (metadatum.index.isEmpty && index.isEmpty)
-      if metadatum.attempt === attempt
-    } yield metadatum)
-
-  val metadataWithIdGreaterThanOrEqual = Compiled(
-    (id: Rep[Long], key1: Rep[String], key2: Rep[String], key3: Rep[String], key4: Rep[String]) => for {
-      m <- metadata
-      if m.metadataId >= id
-      if (m.key === key1 || m.key === key2 || m.key === key3 || m.key === key4 ) &&
-        (m.callFqn.isEmpty && m.index.isEmpty && m.attempt.isEmpty)
-    } yield m
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield metadataEntry
   )
 
-  val workflowExists = Compiled(
+  val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
-      m <- metadata
-      if m.workflowExecutionUuid === workflowExecutionUuid
-    } yield m).exists
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield metadataEntry).exists
   )
 
-  val metadataAutoInc = metadata returning metadata.map(_.metadataId)
+  val metadataEntriesForWorkflowExecutionUuidAndMetadataKey = Compiled(
+    (workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) => for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+      if metadataEntry.metadataKey === metadataKey
+      if metadataEntry.callFullyQualifiedName.isEmpty
+      if metadataEntry.jobIndex.isEmpty
+      if metadataEntry.jobAttempt.isEmpty
+    } yield metadataEntry
+  )
 
-  def queryMetadataMatchingAnyWildcardKeys(workflowUuid: String, keys: NonEmptyList[String], requireEmptyJobKey: Boolean) = {
-    val repRequireEmptyJobKey: Rep[Boolean] = requireEmptyJobKey
+  val metadataEntriesForJobKey = Compiled(
+    (workflowExecutionUuid: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Option[Int]],
+     jobAttempt: Rep[Int]) => for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+      if metadataEntry.callFullyQualifiedName === callFullyQualifiedName
+      if (metadataEntry.jobIndex === jobIndex) ||
+        (metadataEntry.jobIndex.isEmpty && jobIndex.isEmpty)
+      if metadataEntry.jobAttempt === jobAttempt
+    } yield metadataEntry
+  )
 
+  val metadataEntriesForJobKeyAndMetadataKey = Compiled(
+    (workflowExecutionUuid: Rep[String], metadataKey: Rep[String], callFullyQualifiedName: Rep[String],
+     jobIndex: Rep[Option[Int]], jobAttempt: Rep[Int]) => for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+      if metadataEntry.metadataKey === metadataKey
+      if metadataEntry.callFullyQualifiedName === callFullyQualifiedName
+      if (metadataEntry.jobIndex === jobIndex) ||
+        (metadataEntry.jobIndex.isEmpty && jobIndex.isEmpty)
+      if metadataEntry.jobAttempt === jobAttempt
+    } yield metadataEntry
+  )
+
+  val metadataEntriesForIdGreaterThanOrEqual = Compiled(
+    (metadataEntryId: Rep[Long], metadataKey1: Rep[String], metadataKey2: Rep[String], metadataKey3: Rep[String],
+     metadataKey4: Rep[String]) => for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.metadataEntryId >= metadataEntryId
+      if (metadataEntry.metadataKey === metadataKey1 || metadataEntry.metadataKey === metadataKey2 ||
+        metadataEntry.metadataKey === metadataKey3 || metadataEntry.metadataKey === metadataKey4) &&
+        (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
+          metadataEntry.jobAttempt.isEmpty)
+    } yield metadataEntry
+  )
+
+  def metadataEntriesLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
+                                      requireEmptyJobKey: Boolean) = {
     for {
-      m <- metadata
-      if m.workflowExecutionUuid === workflowUuid
-      if keys.list.toList map { m.key like _ } reduce (_ || _)
-      if !repRequireEmptyJobKey || hasEmptyJobKey(m)
-    } yield m
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
+      if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
+    } yield metadataEntry
   }
 
-  def queryMetadataNotMatchingAnyWildcardKeys(workflowUuid: String, keys: NonEmptyList[String],
-                                              requireEmptyJobKey: Boolean) = {
-    val repRequireEmptyJobKey: Rep[Boolean] = requireEmptyJobKey
-
+  def metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
+                                         requireEmptyJobKey: Boolean) = {
     for {
-      metadatum <- metadata
-      if metadatum.workflowExecutionUuid === workflowUuid
-      if !(keys.list.toList map { metadatum.key like _ } reduce (_ || _))
-      if !repRequireEmptyJobKey || hasEmptyJobKey(metadatum)
-    } yield metadatum
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+      if !metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
+      if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
+    } yield metadataEntry
   }
 
-  private[this] def hasEmptyJobKey(metadatum: Metadata): Rep[Boolean] = {
-    metadatum.callFqn.isEmpty && metadatum.index.isEmpty && metadatum.attempt.isEmpty
+  private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
+                                                     metadataKeys: NonEmptyList[String]): Rep[Boolean] = {
+    metadataKeys.list.toList.map(metadataEntry.metadataKey like _).reduce(_ || _)
   }
 
+  private[this] def metadataEntryHasEmptyJobKey(metadataEntry: MetadataEntries,
+                                                requireEmptyJobKey: Rep[Boolean]): Rep[Boolean] = {
+    !requireEmptyJobKey ||
+      (metadataEntry.callFullyQualifiedName.isEmpty &&
+        metadataEntry.jobIndex.isEmpty &&
+        metadataEntry.jobAttempt.isEmpty)
+  }
 }

@@ -1,14 +1,14 @@
 package cromwell.database.slick.tables
 
-import cromwell.database.sql.tables.SummaryStatus
+import cromwell.database.sql.tables.SummaryStatusEntry
 
-trait SummaryStatusComponent {
+trait SummaryStatusEntryComponent {
   this: DriverComponent =>
 
   import driver.api._
 
-  class SummaryStatuses(tag: Tag) extends Table[SummaryStatus](tag, "SUMMARY_STATUS") {
-    def summaryStatusId = column[Int]("SUMMARY_STATUS_ID", O.PrimaryKey, O.AutoInc)
+  class SummaryStatusEntries(tag: Tag) extends Table[SummaryStatusEntry](tag, "SUMMARY_STATUS_ENTRY") {
+    def summaryStatusEntryId = column[Int]("SUMMARY_STATUS_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def summaryTableName = column[String]("SUMMARY_TABLE_NAME")
 
@@ -16,22 +16,22 @@ trait SummaryStatusComponent {
 
     def maximumId = column[Long]("MAXIMUM_ID")
 
-    override def * = (summaryTableName, summarizedTableName, maximumId, summaryStatusId.?) <>
-      (SummaryStatus.tupled, SummaryStatus.unapply)
+    override def * = (summaryTableName, summarizedTableName, maximumId, summaryStatusEntryId.?) <>
+      (SummaryStatusEntry.tupled, SummaryStatusEntry.unapply)
 
-    def summarizedTableNameIndex = index("SUMMARY_STATUS_SUMMARY_TABLE_NAME_SUMMARIZED_TABLE_NAME_INDEX",
+    def ucSummaryStatusEntryStnStn = index("UC_SUMMARY_STATUS_ENTRY_STN_STN",
       (summaryTableName, summarizedTableName), unique = true)
   }
 
-  protected val summaryStatuses = TableQuery[SummaryStatuses]
+  protected val summaryStatusEntries = TableQuery[SummaryStatusEntries]
 
-  val summaryStatusIdsAutoInc = summaryStatuses returning summaryStatuses.map(_.summaryStatusId)
+  val summaryStatusEntryIdsAutoInc = summaryStatusEntries returning summaryStatusEntries.map(_.summaryStatusEntryId)
 
-  def summaryStatusMaximumIdBySummaryTableNameSummarizedTableName = Compiled(
+  val maximumIdForSummaryTableNameSummarizedTableName = Compiled(
     (summaryTableName: Rep[String], summarizedTableName: Rep[String]) => for {
-      summaryStatus <- summaryStatuses
-      if summaryStatus.summaryTableName === summaryTableName
-      if summaryStatus.summarizedTableName === summarizedTableName
-    } yield summaryStatus.maximumId
+      summaryStatusEntry <- summaryStatusEntries
+      if summaryStatusEntry.summaryTableName === summaryTableName
+      if summaryStatusEntry.summarizedTableName === summarizedTableName
+    } yield summaryStatusEntry.maximumId
   )
 }

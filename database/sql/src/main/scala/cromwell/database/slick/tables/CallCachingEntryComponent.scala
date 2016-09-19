@@ -1,91 +1,43 @@
 package cromwell.database.slick.tables
 
-import cromwell.database.sql.tables.CallCachingResultMetaInfoEntry
+import cromwell.database.sql.tables.CallCachingEntry
 import slick.profile.RelationalProfile.ColumnOption.Default
 
-import scalaz._
+trait CallCachingEntryComponent {
 
-trait CallCachingResultMetaInfoComponent {
-
-  this: DriverComponent with CallCachingHashComponent =>
+  this: DriverComponent =>
 
   import driver.api._
 
-  class CallCachingResultMetaInfoEntries(tag: Tag) extends Table[CallCachingResultMetaInfoEntry](tag, "CALL_CACHING_RESULT_METAINFO") {
-    def callCachingResultMetaInfoId = column[Int]("CALL_CACHING_RESULT_METAINFO_ID", O.PrimaryKey, O.AutoInc)
+  class CallCachingEntries(tag: Tag) extends Table[CallCachingEntry](tag, "CALL_CACHING_ENTRY") {
+    def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
 
-    def callFqn = column[String]("CALL_FQN")
+    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME")
+
+    def jobIndex = column[Int]("JOB_INDEX")
 
     def returnCode = column[Option[Int]]("RETURN_CODE")
 
-    def scatterIndex = column[Int]("JOB_SCATTER_INDEX")
-
     def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", Default(true))
 
-    override def * = (workflowUuid, callFqn, scatterIndex, returnCode, allowResultReuse, callCachingResultMetaInfoId.?) <>
-      (CallCachingResultMetaInfoEntry.tupled, CallCachingResultMetaInfoEntry.unapply)
+    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, returnCode, allowResultReuse,
+      callCachingEntryId.?) <> (CallCachingEntry.tupled, CallCachingEntry.unapply)
 
-    def ccmUniquenessConstraint = index("UK_CALL_CACHING_RESULT_METAINFO", (workflowUuid, callFqn, scatterIndex), unique = true)
+    def ucCallCachingEntryWeuCqfnJi =
+      index("UC_CALL_CACHING_ENTRY_WEU_CQFN_JI", (workflowExecutionUuid, callFullyQualifiedName, jobIndex),
+        unique = true)
   }
 
-  protected val callCachingResultMetaInfos = TableQuery[CallCachingResultMetaInfoEntries]
+  protected val callCachingEntries = TableQuery[CallCachingEntries]
 
-  val callCachingResultMetaInfoIdsAutoInc =
-    callCachingResultMetaInfos returning callCachingResultMetaInfos.map(_.callCachingResultMetaInfoId)
+  val callCachingEntryIdsAutoInc = callCachingEntries returning callCachingEntries.map(_.callCachingEntryId)
 
-  /**
-    * Useful for finding the call caching result meta info for a given ID
-    */
-  val metaInfoById = Compiled(
-    (metaInfoId: Rep[Int]) => for {
-      metaInfo <- callCachingResultMetaInfos
-      if metaInfo.callCachingResultMetaInfoId === metaInfoId
-    } yield metaInfo)
-
-  /**
-    * Returns true if there exists a row in callCachingHashes that matches the parameters.
-    *
-    * @param callCachingResultMetaInfoId The foreign key.
-    * @param hashKeyHashValue            The hash key and hash value as a tuple.
-    * @return True or false if the row exists.
-    */
-  private def existsCallCachingResultMetaInfoIdHashKeyHashValue(callCachingResultMetaInfoId: Rep[Int])
-                                                               (hashKeyHashValue: (String, String)): Rep[Boolean] = {
-    callCachingHashes.filter(callCachingHashEntry =>
-      callCachingHashEntry.resultMetaInfoId === callCachingResultMetaInfoId &&
-        callCachingHashEntry.hashKey === hashKeyHashValue._1 &&
-        callCachingHashEntry.hashValue === hashKeyHashValue._2
-    ).exists
-  }
-
-  /**
-    * Returns true if there exists rows for all the hashKeyHashValues.
-    *
-    * @param callCachingResultMetaInfoId The foreign key.
-    * @param hashKeyHashValues           The hash keys and hash values as tuples.
-    * @return True or false if all the rows exist.
-    */
-  private def existsAllCallCachingResultMetaInfoIdHashKeyHashValues(callCachingResultMetaInfoId: Rep[Int],
-                                                                    hashKeyHashValues: NonEmptyList[(String, String)]):
-  Rep[Boolean] = {
-    hashKeyHashValues.
-      map(existsCallCachingResultMetaInfoIdHashKeyHashValue(callCachingResultMetaInfoId)).
-      list.toList.reduce(_ && _)
-  }
-
-  /**
-    * Returns the callCachingResultMetaInfoId where all the hash keys and hash values exist.
-    *
-    * @param hashKeyHashValues The hash keys and hash values as tuples.
-    * @return The callCachingResultMetaInfoIds with all of the hash keys and hash values.
-    */
-  def callCachingResultMetaInfoIdByHashKeyHashValues(hashKeyHashValues: NonEmptyList[(String, String)]) = {
-    for {
-      callCachingResultMetaInfo <- callCachingResultMetaInfos
-      if existsAllCallCachingResultMetaInfoIdHashKeyHashValues(
-        callCachingResultMetaInfo.callCachingResultMetaInfoId, hashKeyHashValues)
-    } yield callCachingResultMetaInfo.callCachingResultMetaInfoId
-  }
+  val callCachingEntriesForId = Compiled(
+    (callCachingEntryId: Rep[Int]) => for {
+      callCachingEntry <- callCachingEntries
+      if callCachingEntry.callCachingEntryId === callCachingEntryId
+    } yield callCachingEntry
+  )
 }

@@ -1,9 +1,9 @@
 package cromwell.database.sql.tables
 
-final case class CallCachingJobDetritusEntry
+case class CallCachingDetritusEntry
 (
-  jobDetritusKey: String,
-  jobDetritusValue: String,
-  resultMetaInfoId: Int,
-  callCachingJobDetritusId: Option[Int] = None
+  detritusKey: String,
+  detritusValue: String,
+  callCachingEntryId: Option[Int] = None,
+  callCachingDetritusId: Option[Int] = None
 )

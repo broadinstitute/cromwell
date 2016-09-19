@@ -6,7 +6,8 @@ import cromwell.core.WorkflowId
 import cromwell.core.simpleton.WdlValueBuilder
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.sql.JobStoreSqlDatabase
-import cromwell.database.sql.tables.{JobStoreEntry, JobStoreResultSimpletonEntry}
+import cromwell.database.sql.joins.JobStoreJoin
+import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import wdl4s.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -14,12 +15,12 @@ import scala.concurrent.{ExecutionContext, Future}
 class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
   override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])(implicit ec: ExecutionContext): Future[Unit] = {
     for {
-      _ <- sqlDatabase.addJobStoreEntries(jobCompletions map toDatabase)
-      _ <- sqlDatabase.removeJobResultsForWorkflows(workflowCompletions map {_.toString})
+      _ <- sqlDatabase.addJobStores(jobCompletions.toSeq map toDatabase)
+      _ <- sqlDatabase.removeJobStores(workflowCompletions.map(_.toString))
     } yield ()
   }
 
-  private def toDatabase(jobCompletion: (JobStoreKey, JobResult)): (JobStoreEntry, Int => Iterable[JobStoreResultSimpletonEntry]) = {
+  private def toDatabase(jobCompletion: (JobStoreKey, JobResult)): JobStoreJoin = {
     jobCompletion match {
       case (key, JobResultSuccess(returnCode, jobOutputs)) =>
         val entry = JobStoreEntry(
@@ -31,9 +32,13 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           returnCode,
           None,
           None)
-        val simpletons: Int => Iterable[JobStoreResultSimpletonEntry] = fk => jobOutputs.mapValues(_.wdlValue).simplify.map {
-          s => JobStoreResultSimpletonEntry(s.simpletonKey, s.simpletonValue.valueString, s.simpletonValue.wdlType.toWdlString, fk) }
-        (entry, simpletons)
+        val jobStoreResultSimpletons =
+          jobOutputs.mapValues(_.wdlValue).simplify.map {
+            wdlValueSimpleton => JobStoreSimpletonEntry(
+              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString,
+              wdlValueSimpleton.simpletonValue.wdlType.toWdlString)
+          }
+        JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
       case (key, JobResultFailure(returnCode, throwable, retryable)) =>
         val entry = JobStoreEntry(
           key.workflowId.toString,
@@ -42,16 +47,16 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           key.attempt,
           jobSuccessful = false,
           returnCode,
-          Some(throwable.getMessage),
-          Some(retryable))
-        val simpletons: Int => Iterable[JobStoreResultSimpletonEntry] = _ => List.empty
-        (entry, simpletons)
+          Option(throwable.getMessage),
+          Option(retryable))
+        JobStoreJoin(entry, Seq.empty)
     }
   }
 
   override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {
-    sqlDatabase.fetchJobResult(jobStoreKey.workflowId.toString, jobStoreKey.callFqn, jobStoreKey.index.fromIndex, jobStoreKey.attempt) map {
-      _ map { case (entry, simpletonEntries) =>
+    sqlDatabase.queryJobStores(jobStoreKey.workflowId.toString, jobStoreKey.callFqn, jobStoreKey.index.fromIndex,
+      jobStoreKey.attempt) map {
+      _ map { case JobStoreJoin(entry, simpletonEntries) =>
         entry match {
           case JobStoreEntry(_, _, _, _, true, returnCode, None, None, _) =>
             val simpletons = simpletonEntries map toSimpleton

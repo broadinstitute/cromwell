@@ -2,12 +2,12 @@ package cromwell.database.sql.tables
 
 import java.sql.Timestamp
 
-case class WorkflowMetadataSummary
+case class WorkflowMetadataSummaryEntry
 (
-  workflowUuid: String,
-  name: Option[String],
-  status: Option[String],
-  startDate: Option[Timestamp],
-  endDate: Option[Timestamp],
-  workflowMetadataSummaryId: Option[Long] = None
+  workflowExecutionUuid: String,
+  workflowName: Option[String],
+  workflowStatus: Option[String],
+  startTimestamp: Option[Timestamp],
+  endTimestamp: Option[Timestamp],
+  workflowMetadataSummaryEntryId: Option[Long] = None
 )

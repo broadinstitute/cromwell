@@ -4,30 +4,30 @@ import slick.driver.JdbcProfile
 
 class DataAccessComponent(val driver: JdbcProfile)
   extends DriverComponent
-    with MetadataComponent
-    with WorkflowMetadataSummaryComponent
-    with WorkflowStoreComponent
-    with JobStoreComponent
-    with JobStoreResultSimpletonComponent
-    with BackendKVStoreComponent
-    with CallCachingResultMetaInfoComponent
-    with CallCachingHashComponent
-    with CallCachingResultSimpletonComponent
-    with SummaryStatusComponent
-    with CallCachingJobDetritusComponent {
+    with CallCachingDetritusEntryComponent
+    with CallCachingEntryComponent
+    with CallCachingHashEntryComponent
+    with CallCachingSimpletonEntryComponent
+    with JobKeyValueEntryComponent
+    with JobStoreEntryComponent
+    with JobStoreSimpletonEntryComponent
+    with MetadataEntryComponent
+    with SummaryStatusEntryComponent
+    with WorkflowMetadataSummaryEntryComponent
+    with WorkflowStoreEntryComponent {
 
   import driver.api._
 
   lazy val schema =
-    metadata.schema ++
-      workflowMetadataSummaries.schema ++
-      workflowStore.schema ++
-      jobStore.schema ++
-      jobStoreResultSimpletons.schema ++
-      backendKVStore.schema ++
-      callCachingResultMetaInfos.schema ++
-      callCachingHashes.schema ++
-      callCachingResultSimpletons.schema ++
-      summaryStatuses.schema ++
-      callCachingJobDetritus.schema
+    callCachingDetritusEntries.schema ++
+      callCachingEntries.schema ++
+      callCachingHashEntries.schema ++
+      callCachingSimpletonEntries.schema ++
+      jobKeyValueEntries.schema ++
+      jobStoreEntries.schema ++
+      jobStoreSimpletonEntries.schema ++
+      metadataEntries.schema ++
+      summaryStatusEntries.schema ++
+      workflowMetadataSummaryEntries.schema ++
+      workflowStoreEntries.schema
 }

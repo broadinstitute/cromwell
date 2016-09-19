@@ -48,6 +48,7 @@
     <include file="changesets/metadata_migration.xml" relativeToChangelogFile="true" />
     <include file="changesets/call_caching_job_detritus.xml" relativeToChangelogFile="true"/>
     <include file="changesets/job_store_tinyints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/standardize_column_names_again.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 
@@ -61,7 +62,7 @@ DON'T
 
 DO
 
-    Add a unique _constraint_ with `<addUniqueConstraint constraintName="..." />`.
+    Add a unique _constraint_ with `<addUniqueConstraint constraintName="UC_..." />`.
 
 WHY
     In slick schemas, `index(unique = false)` always creates an index. Depending on the database type,
@@ -81,7 +82,7 @@ DO
 
     Create constraints with a name.
 
-    `<addUniqueConstraint constraintName="MY_TABLE_MY_COLUMN_IDX" tableName="MY_TABLE" columnNames="MY_COLUMN" />`
+    `<addUniqueConstraint constraintName="UC_MY_TABLE_MC" tableName="MY_TABLE" columnNames="MY_COLUMN" />`
 
 WHY
 
@@ -95,6 +96,6 @@ WHY
     previous change logs have created the constraints _after_ the table creation, especially those constraints that must
     span multiple columns, so `<constraints unique...` should be avoided for consistency.
 
-    `<constraints unique="true" uniqueConstraintName="MY_TABLE_MY_SINGLE_COLUMN_IDX"/>`
+    `<constraints unique="true" uniqueConstraintName="UC_MY_TABLE_MSC"/>`
 
 -->

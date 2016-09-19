@@ -1,39 +1,46 @@
 package cromwell.database.slick.tables
 
-import cromwell.database.sql.tables.JobStoreResultSimpletonEntry
+import cromwell.database.sql.tables.JobStoreSimpletonEntry
 import slick.model.ForeignKeyAction.Cascade
 
+trait JobStoreSimpletonEntryComponent {
 
-trait JobStoreResultSimpletonComponent {
-
-  this: DriverComponent with JobStoreComponent =>
+  this: DriverComponent with JobStoreEntryComponent =>
 
   import driver.api._
 
-  class JobStoreResultSimpletonEntries(tag: Tag) extends Table[JobStoreResultSimpletonEntry](tag, "JOB_STORE_RESULT_SIMPLETON") {
-    def jobStoreSimpletonId = column[Int]("JOB_STORE_RESULT_SIMPLETON_ID", O.PrimaryKey, O.AutoInc)
+  class JobStoreSimpletonEntries(tag: Tag) extends Table[JobStoreSimpletonEntry](tag, "JOB_STORE_SIMPLETON_ENTRY") {
+    def jobStoreSimpletonEntryId = column[Int]("JOB_STORE_SIMPLETON_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+
     def simpletonKey = column[String]("SIMPLETON_KEY")
+
     def simpletonValue = column[String]("SIMPLETON_VALUE")
+
     def wdlType = column[String]("WDL_TYPE")
-    def jobStoreId = column[Int]("JOB_STORE_ID")
 
-    override def * = (simpletonKey, simpletonValue, wdlType, jobStoreId, jobStoreSimpletonId.?) <>
-      (JobStoreResultSimpletonEntry.tupled, JobStoreResultSimpletonEntry.unapply)
+    def jobStoreEntryId = column[Int]("JOB_STORE_ENTRY_ID")
 
-    def jobStoreResultSimpletonsUniquenessConstraint = index("UK_JOB_STORE_RESULT_SIMPLETON", (simpletonKey, jobStoreId), unique = true)
-    def jobStoreForeignKey = foreignKey("JSRS_JOB_STORE_FK", jobStoreId, jobStore)(_.jobStoreId, onDelete = Cascade)
+    override def * = (simpletonKey, simpletonValue, wdlType, jobStoreEntryId.?, jobStoreSimpletonEntryId.?) <>
+      (JobStoreSimpletonEntry.tupled, JobStoreSimpletonEntry.unapply)
+
+    def fkJobStoreResultSimpletonJobStoreEntryId = foreignKey("FK_JOB_STORE_RESULT_SIMPLETON_JOB_STORE_ENTRY_ID",
+      jobStoreEntryId, jobStoreEntries)(_.jobStoreEntryId, onDelete = Cascade)
+
+    def ucJobStoreSimpletonEntryJseiSk =
+      index("UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK", (jobStoreEntryId, simpletonKey), unique = true)
   }
 
-  protected val jobStoreResultSimpletons = TableQuery[JobStoreResultSimpletonEntries]
+  protected val jobStoreSimpletonEntries = TableQuery[JobStoreSimpletonEntries]
 
-  val jobStoreResultSimpletonAutoInc = jobStoreResultSimpletons returning jobStoreResultSimpletons.map(_.jobStoreSimpletonId)
+  val jobStoreSimpletonEntryIdsAutoInc = jobStoreSimpletonEntries returning
+    jobStoreSimpletonEntries.map(_.jobStoreSimpletonEntryId)
 
   /**
-    * Find all result simpletons which match a given JOB_STORE_ID
+    * Find all result simpletons which match a given JOB_STORE_ENTRY_ID
     */
-  val jobStoreResultSimpletonsForJobStoreId = Compiled(
-    (jobStoreId: Rep[Int]) => for {
-      simpleton <- jobStoreResultSimpletons if simpleton.jobStoreId === jobStoreId
-    } yield simpleton)
+  val jobStoreSimpletonEntriesForJobStoreEntryId = Compiled(
+    (jobStoreEntryId: Rep[Int]) => for {
+      jobStoreSimpletonEntry <- jobStoreSimpletonEntries if jobStoreSimpletonEntry.jobStoreEntryId === jobStoreEntryId
+    } yield jobStoreSimpletonEntry
+  )
 }
-

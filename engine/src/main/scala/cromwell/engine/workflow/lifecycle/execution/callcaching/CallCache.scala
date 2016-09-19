@@ -2,106 +2,93 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cromwell.backend.BackendJobExecutionActor.SucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
+import cromwell.core.WorkflowId
+import cromwell.core.callcaching.HashResult
 import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.core.{JobOutputs, WorkflowId}
 import cromwell.database.sql._
-import cromwell.database.sql.tables.{CallCachingJobDetritusEntry, CallCachingHashEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
+import cromwell.database.sql.joins.CallCachingJoin
+import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry, CallCachingHashEntry, CallCachingSimpletonEntry}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scalaz.Scalaz._
+import scalaz._
 
 final case class MetaInfoId(id: Int)
 
-final case class HashKeyAndValue(hashKey: String, hashValue: String)
-
-final case class ResultSimpleton(simpletonKey: String, simpletonValue: String, wdlType: String)
-
-final case class CacheHitJobFile(fileKey: String, fileValue: String)
-
-final case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingResultSimpletonEntry], jobDetritus: Seq[CallCachingJobDetritusEntry])
-
-final case class CachingPackage(metaInfoEntry: Option[CallCachingResultMetaInfoEntry],
-                                simpletonEntries: Seq[CallCachingResultSimpletonEntry],
-                                detritusEntries: Seq[CallCachingJobDetritusEntry])
+case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingSimpletonEntry],
+                        jobDetritus: Seq[CallCachingDetritusEntry])
 
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
   */
-class CallCache(database: CallCachingStore) {
+class CallCache(database: CallCachingSqlDatabase) {
   def addToCache(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, response: SucceededResponse)(implicit ec: ExecutionContext): Future[Unit] = {
-    val metaInfo = CallCachingResultMetaInfoEntry(
-      workflowUuid = workflowId.toString,
-      callFqn = response.jobKey.call.fullyQualifiedName,
-      scatterIndex = response.jobKey.index.fromIndex,
+    val metaInfo = CallCachingEntry(
+      workflowExecutionUuid = workflowId.toString,
+      callFullyQualifiedName = response.jobKey.call.fullyQualifiedName,
+      jobIndex = response.jobKey.index.fromIndex,
       returnCode = response.returnCode,
-      allowResultReuse = true,
-      callCachingResultMetaInfoEntryId = None)
-    val hashes = callCacheHashes.hashes map { hash => HashKeyAndValue(hash.hashKey.key, hash.hashValue.value) }
-    val result = toResultSimpletons(response.jobOutputs)
-    val jobDetritus = response.jobDetritusFiles.get map  { case (fileName, filePath) => CacheHitJobFile(fileName, filePath) }
+      allowResultReuse = true)
+    val hashes = callCacheHashes.hashes
+    import cromwell.core.simpleton.WdlValueSimpleton._
+    val result = response.jobOutputs.mapValues(_.wdlValue).simplify
+    val jobDetritus = response.jobDetritusFiles.getOrElse(Map.empty)
 
     addToCache(metaInfo, hashes, result, jobDetritus)
   }
 
-  private def addToCache(metaInfo: CallCachingResultMetaInfoEntry, hashes: Iterable[HashKeyAndValue],
-                         result: Iterable[ResultSimpleton], jobDetritus: Iterable[CacheHitJobFile])(implicit ec: ExecutionContext): Future[Unit] = {
+  private def addToCache(metaInfo: CallCachingEntry, hashes: Set[HashResult],
+                         result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, String])
+                        (implicit ec: ExecutionContext): Future[Unit] = {
 
-    def hashesToInsert(callCachingResultMetaInfoEntryId: Int): Iterable[CallCachingHashEntry] = {
-      hashes map {
-        case HashKeyAndValue(hashKey, hashValue) =>
-          CallCachingHashEntry(hashKey, hashValue, callCachingResultMetaInfoEntryId)
-      }
+    val hashesToInsert: Iterable[CallCachingHashEntry] = {
+      hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
     }
 
-    def resultToInsert(callCachingResultMetaInfoEntryId: Int): Iterable[CallCachingResultSimpletonEntry] = {
+    val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
-        case ResultSimpleton(simpletonKey, simpletonValue, wdlType) =>
-          CallCachingResultSimpletonEntry(simpletonKey, simpletonValue, wdlType, callCachingResultMetaInfoEntryId)
+        case WdlValueSimpleton(simpletonKey, wdlPrimitive) =>
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.wdlType.toWdlString)
       }
     }
 
-    def jobDetritusToInsert(callCachingResultMetaInfoEntryId: Int): Iterable[CallCachingJobDetritusEntry] = {
+    val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case CacheHitJobFile(fileName, filePath) => CallCachingJobDetritusEntry(fileName, filePath, callCachingResultMetaInfoEntryId)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath)
       }
     }
 
-    database.addToCache(metaInfo, hashesToInsert, resultToInsert, jobDetritusToInsert)
-  }
+    val callCachingJoin =
+      CallCachingJoin(metaInfo, hashesToInsert.toSeq, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
 
-  private def toResultSimpletons(jobOutputs: JobOutputs): Seq[ResultSimpleton] = {
-    import cromwell.core.simpleton.WdlValueSimpleton._
-    jobOutputs.mapValues(_.wdlValue).simplify map {
-      case WdlValueSimpleton(simpletonKey, wdlPrimitive) => ResultSimpleton(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.wdlType.toWdlString)
-    } toSeq
+    database.addCallCaching(callCachingJoin)
   }
 
   def fetchMetaInfoIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
-    metaInfoIdsMatchingHashes(callCacheHashes.hashes.toSeq map {
-      hash => HashKeyAndValue(hash.hashKey.key, hash.hashValue.value)
-    })
+    metaInfoIdsMatchingHashes(callCacheHashes.hashes.toList.toNel.get)
   }
 
-  private def metaInfoIdsMatchingHashes(hashKeyValuePairs: Seq[HashKeyAndValue])
+  private def metaInfoIdsMatchingHashes(hashKeyValuePairs: NonEmptyList[HashResult])
                                        (implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
-    val result = database.metaInfoIdsMatchingHashes(hashKeyValuePairs map {
-      hashKeyValuePair => (hashKeyValuePair.hashKey, hashKeyValuePair.hashValue)
+    val result = database.queryCallCachingEntryIds(hashKeyValuePairs map {
+      case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
     })
 
-    result.map(_.flatten.toSet.map(MetaInfoId))
+    result.map(_.toSet.map(MetaInfoId))
   }
 
   def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext): Future[Option[CachedResult]] = {
-    database.fetchCachedResult(metaInfoId.id) map (cachedResultOption _).tupled
+    database.queryCallCaching(metaInfoId.id) map cachedResultOption
   }
 
-  private def cachedResultOption(callCachingResultMetaInfoEntryOption: Option[CallCachingResultMetaInfoEntry],
-                                 callCachingResultSimpletonEntries: Seq[CallCachingResultSimpletonEntry],
-                                 callCachingJobDetritusEntries: Seq[CallCachingJobDetritusEntry]):
-  Option[CachedResult] = {
-    callCachingResultMetaInfoEntryOption map { callCachingResultMetaInfoEntry =>
-      CachedResult(callCachingResultMetaInfoEntry.returnCode, callCachingResultSimpletonEntries, callCachingJobDetritusEntries)
+  private def cachedResultOption(callCachingJoinOption: Option[CallCachingJoin]): Option[CachedResult] = {
+    callCachingJoinOption map { callCachingJoin =>
+      CachedResult(
+        callCachingJoin.callCachingEntry.returnCode,
+        callCachingJoin.callCachingSimpletonEntries,
+        callCachingJoin.callCachingDetritusEntries)
     }
   }
 }

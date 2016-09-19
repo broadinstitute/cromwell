@@ -2,72 +2,90 @@ package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.sql.tables.WorkflowMetadataSummary
+import cromwell.database.sql.tables.WorkflowMetadataSummaryEntry
 
-trait WorkflowMetadataSummaryComponent {
+trait WorkflowMetadataSummaryEntryComponent {
 
-  this: DriverComponent with MetadataComponent =>
+  this: DriverComponent =>
 
   import driver.api._
 
-  class WorkflowMetadataSummaries(tag: Tag) extends Table[WorkflowMetadataSummary](tag, "WORKFLOW_METADATA_SUMMARY") {
-    def workflowMetadataSummaryId = column[Long]("WORKFLOW_METADATA_SUMMARY_ID", O.PrimaryKey, O.AutoInc)
+  class WorkflowMetadataSummaryEntries(tag: Tag)
+    extends Table[WorkflowMetadataSummaryEntry](tag, "WORKFLOW_METADATA_SUMMARY_ENTRY") {
+    def workflowMetadataSummaryEntryId = column[Long]("WORKFLOW_METADATA_SUMMARY_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
-    def name = column[Option[String]]("WORKFLOW_NAME")
-    def status = column[Option[String]]("WORKFLOW_STATUS")
-    def startDate = column[Option[Timestamp]]("START_DT")
-    def endDate = column[Option[Timestamp]]("END_DT")
 
-    // WorkflowMetadataSummary has a companion object which apparently necessitates the weird apply / tupled syntax.
-    override def * = (workflowExecutionUuid, name, status, startDate, endDate, workflowMetadataSummaryId.?) <>
-      ((WorkflowMetadataSummary.apply _ ).tupled, WorkflowMetadataSummary.unapply)
+    def workflowName = column[Option[String]]("WORKFLOW_NAME")
 
-    def uuidIndex = index("WORKFLOW_METADATA_UUID_IDX", workflowExecutionUuid, unique = true)
+    def workflowStatus = column[Option[String]]("WORKFLOW_STATUS")
 
-    def nameIndex = index("WORKFLOW_METADATA_NAME_IDX", name, unique = false)
+    def startTimestamp = column[Option[Timestamp]]("START_TIMESTAMP")
 
-    def statusIndex = index("WORKFLOW_METADATA_STATUS_IDX", status, unique = false)
+    def endTimestamp = column[Option[Timestamp]]("END_TIMESTAMP")
+
+    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
+      workflowMetadataSummaryEntryId.?) <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
+
+    def ucWorkflowMetadataSummaryEntryWeu =
+      index("UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU", workflowExecutionUuid, unique = true)
+
+    def ixWorkflowMetadataSummaryEntryWn = index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WN", workflowName, unique = false)
+
+    def ixWorkflowMetadataSummaryEntryWs =
+      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WS", workflowStatus, unique = false)
   }
 
-  val workflowMetadataSummaries = TableQuery[WorkflowMetadataSummaries]
+  val workflowMetadataSummaryEntries = TableQuery[WorkflowMetadataSummaryEntries]
 
-  val workflowMetadataSummaryAutoInc = workflowMetadataSummaries returning workflowMetadataSummaries.map(_.workflowMetadataSummaryId)
+  val workflowMetadataSummaryEntryIdsAutoInc = workflowMetadataSummaryEntries returning
+    workflowMetadataSummaryEntries.map(_.workflowMetadataSummaryEntryId)
 
-  val workflowMetadataSummariesByUuid = Compiled(
-    (workflowUuid: Rep[String]) => for {
-      workflowMetadataSummary <- workflowMetadataSummaries
-      if workflowMetadataSummary.workflowExecutionUuid === workflowUuid
-    } yield workflowMetadataSummary)
+  val workflowMetadataSummaryEntriesForWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield workflowMetadataSummaryEntry)
 
-  val workflowStatusByUuid = Compiled(
-    (workflowUuid: Rep[String]) => for {
-      workflowMetadataSummary <- workflowMetadataSummaries
-      if workflowMetadataSummary.workflowExecutionUuid === workflowUuid
-    } yield workflowMetadataSummary.status
+  val workflowStatusesForWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
-  def filterWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                              startDate: Option[Timestamp], endDate: Option[Timestamp]): (WorkflowMetadataSummaries) => Rep[Boolean] = {
+  def filterWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
+                                           workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                           endTimestampOption: Option[Timestamp]):
+  (WorkflowMetadataSummaryEntries) => Rep[Boolean] = {
     val include: Rep[Boolean] = true
     val exclude: Rep[Boolean] = false
 
-    { workflowSummary =>
+    { workflowMetadataSummaryEntry =>
       // All query parameters are either Options or Sets, so they might have no values specified at all.  The general
       // pattern for these criteria is to map Options and map/reduceLeftOption Sets, resulting in optional filters.
 
       // All fields but UUID are nullable, necessitating the folds.  If these fields are null in the database we want to
       // filter the row if the relevant filter has been specified.
-      val startDateTimeFilter = startDate.map(start => workflowSummary.startDate.fold(ifEmpty = exclude) { _ >= start })
-      val endDateTimeFilter = endDate.map(end => workflowSummary.endDate.fold(ifEmpty = exclude) { _ <= end })
+      val startTimestampFilter = startTimestampOption.
+        map(startTimestamp => workflowMetadataSummaryEntry.startTimestamp.fold(ifEmpty = exclude)(_ >= startTimestamp))
+      val endTimestampFilter = endTimestampOption.
+        map(endTimestamp => workflowMetadataSummaryEntry.endTimestamp.fold(ifEmpty = exclude)(_ <= endTimestamp))
       // Names, UUIDs, and statuses are potentially multi-valued, the reduceLeftOption ORs together any name, UUID, or
       // status criteria to include all matching names, UUIDs, and statuses.
-      val nameFilter = names.map(name => workflowSummary.name.fold(ifEmpty = exclude) { _ === name }).reduceLeftOption(_ || _)
-      val uuidFilter = uuids.map(uuid => workflowSummary.workflowExecutionUuid === uuid).reduceLeftOption(_ || _)
-      val statusFilter = statuses.map(status => workflowSummary.status.fold(ifEmpty = exclude) { _ === status }).reduceLeftOption(_ || _)
+      val workflowNameFilter = workflowNames.
+        map(workflowName => workflowMetadataSummaryEntry.workflowName.fold(ifEmpty = exclude)(_ === workflowName)).
+        reduceLeftOption(_ || _)
+      val workflowExecutionUuidFilter = workflowExecutionUuids.
+        map(workflowExecutionUuid => workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid).
+        reduceLeftOption(_ || _)
+      val workflowStatusFilter = workflowStatuses.
+        map(workflowStatus => workflowMetadataSummaryEntry.workflowStatus.fold(ifEmpty = exclude)(_ === workflowStatus)).
+        reduceLeftOption(_ || _)
 
       // Put all the optional filters above together in one place.
-      val optionalFilters: List[Option[Rep[Boolean]]] =
-        List(nameFilter, uuidFilter, statusFilter, startDateTimeFilter, endDateTimeFilter)
+      val optionalFilters: List[Option[Rep[Boolean]]] = List(
+        workflowNameFilter, workflowExecutionUuidFilter, workflowStatusFilter, startTimestampFilter, endTimestampFilter)
       // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
       // rows which might otherwise have been filtered.
       val filters = optionalFilters.map(_.getOrElse(include))
@@ -76,18 +94,24 @@ trait WorkflowMetadataSummaryComponent {
     }
   }
 
-  def countWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                             startDate: Option[Timestamp], endDate: Option[Timestamp]) = {
-    workflowMetadataSummaries.filter(filterWorkflowSummaries(statuses, names, uuids, startDate, endDate)).length
+  def countWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
+                                          workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                          endTimestampOption: Option[Timestamp]) = {
+    val filter = filterWorkflowMetadataSummaryEntries(
+      workflowStatuses, workflowNames, workflowExecutionUuids, startTimestampOption, endTimestampOption)
+    workflowMetadataSummaryEntries.filter(filter).length
   }
 
   /**
     * Query workflow execution using the filter criteria encapsulated by the `WorkflowExecutionQueryParameters`.
     */
-  def queryWorkflowSummaries(statuses: Set[String], names: Set[String], uuids: Set[String],
-                             startDate: Option[Timestamp], endDate: Option[Timestamp],
-                             page: Option[Int], pageSize: Option[Int]) = {
-    val query = workflowMetadataSummaries.filter(filterWorkflowSummaries(statuses, names, uuids, startDate, endDate))
+  def queryWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
+                                          workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                          endTimestampOption: Option[Timestamp], page: Option[Int],
+                                          pageSize: Option[Int]) = {
+    val filter = filterWorkflowMetadataSummaryEntries(
+      workflowStatuses, workflowNames, workflowExecutionUuids, startTimestampOption, endTimestampOption)
+    val query = workflowMetadataSummaryEntries.filter(filter)
     (page, pageSize) match {
       case (Some(p), Some(ps)) => query.drop((p - 1) * ps).take(ps)
       case _ => query

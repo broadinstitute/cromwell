@@ -29,13 +29,13 @@ class FetchCachedResultsActor(cacheHit: CacheHit, replyTo: ActorRef, callCache: 
 
     callCache.fetchCachedResult(cacheResultId) onComplete {
       case Success(Some(result)) =>
-        val simpletons = result.resultSimpletons map toSimpleton
-        val jobDetritusFiles = result.jobDetritus map { jobDetritusEntry =>
+        val simpletons = result.callCachingSimpletonEntries map toSimpleton
+        val jobDetritusFiles = result.callCachingDetritusEntries map { jobDetritusEntry =>
           jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue
         }
         val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
                                     result.callCachingEntry.callFullyQualifiedName,
-                                    result.callCachingEntry.jobIndex).mkString(".")
+                                    result.callCachingEntry.jobIndex).mkString(":")
 
         replyTo ! CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap,
                                               result.callCachingEntry.returnCode,

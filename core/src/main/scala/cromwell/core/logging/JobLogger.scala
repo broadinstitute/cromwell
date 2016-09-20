@@ -15,12 +15,12 @@ trait JobLogging extends ActorLogging { this: Actor =>
 /**
   * Similar to WorkflowLogger, with the addition that the log tag includes the call tag.
   */
-class JobLogger(name: String,
+class JobLogger(loggerName: String,
                 workflowId: WorkflowId,
                 jobTag: String,
                 akkaLogger: Option[LoggingAdapter] = None,
                 otherLoggers: Set[Logger] = Set.empty[Logger])
-  extends WorkflowLogger(name, workflowId, akkaLogger, otherLoggers) {
+  extends WorkflowLogger(loggerName, workflowId, akkaLogger, otherLoggers) {
 
-  override def tag = s"$name [UUID(${workflowId.shortString})$jobTag]"
+  override def tag = s"$loggerName [UUID(${workflowId.shortString})$jobTag]"
 }

@@ -4,7 +4,6 @@ import java.nio.file.{Path, Paths}
 
 import akka.actor.{Actor, ActorLogging}
 import akka.event.LoggingAdapter
-import better.files._
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
@@ -22,10 +21,27 @@ trait WorkflowLogging extends ActorLogging { this: Actor =>
 }
 
 object WorkflowLogger {
-  def makeFileLogger(path: Path, level: Level): Logger = synchronized { // see below
+  def makeFileLogger(path: Path, level: Level): Logger = {
+    // see below
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
     val name = path.getFileName.toString
 
+    Option(ctx.exists(name)) match {
+      case Some(existingLogger) => existingLogger
+      case None => makeSynchronizedFileLogger(path, level, ctx, name)
+    }
+  }
+
+  /*
+  logback-core 1.1.6 started iterating over an internal hashmap, and now throws a ConcurrentModificationException
+  if two appenders call start() at the same time.
+
+  So now we synchronize makeSynchronizedFileLogger(). Could also try just synchronizing just the appender.start().
+
+  https://github.com/qos-ch/logback/commit/77128a003a7fd7e8bd7a6ddb12da7a65cf296593#diff-f8cd32379a53986c2e70e2abe86fa0faR145
+   */
+  private def makeSynchronizedFileLogger(path: Path, level: Level, ctx: LoggerContext, name: String): Logger =
+  synchronized {
     Option(ctx.exists(name)) match {
       case Some(existingLogger) => existingLogger
       case None =>
@@ -39,14 +55,6 @@ object WorkflowLogger {
         appender.setEncoder(encoder)
         appender.setName(name)
         appender.setContext(ctx)
-        /*
-        logback-core 1.1.6 started iterating over an internal hashmap, and now throws a ConcurrentModificationException
-        if two appenders call start() at the same time.
-
-        So now we synchronize makeFileLogger(). Could also try just synchronizing just the appender.start().
-
-        https://github.com/qos-ch/logback/commit/77128a003a7fd7e8bd7a6ddb12da7a65cf296593#diff-f8cd32379a53986c2e70e2abe86fa0faR145
-         */
         appender.start()
 
         val fileLogger = ctx.getLogger(name)
@@ -70,7 +78,9 @@ object WorkflowLogger {
   }
 
   val isEnabled = workflowLogConfiguration.isDefined
-  val isTemporary = workflowLogConfiguration exists { _.temporary }
+  val isTemporary = workflowLogConfiguration exists {
+    _.temporary
+  }
 }
 
 /**
@@ -89,13 +99,15 @@ object WorkflowLogger {
   * 3) otherLoggers (optional) - any org.slf4j.Logger instances to also log to.
   *    (defaults to Seq.empty)
   */
-class WorkflowLogger(name: String,
+class WorkflowLogger(loggerName: String,
                      workflowId: WorkflowId,
                      override val akkaLogger: Option[LoggingAdapter],
                      otherLoggers: Set[Logger] = Set.empty[Logger])
   extends LoggerWrapper {
 
   import better.files._
+
+  override def getName = loggerName
 
   def deleteLogFile() = workflowLogPath foreach { File(_).delete(swallowIOExceptions = false) }
 
@@ -111,5 +123,5 @@ class WorkflowLogger(name: String,
 
   override val slf4jLoggers = otherLoggers + fileLogger
 
-  override def tag = s"$name [UUID(${workflowId.shortString})]"
+  override def tag = s"$loggerName [UUID(${workflowId.shortString})]"
 }

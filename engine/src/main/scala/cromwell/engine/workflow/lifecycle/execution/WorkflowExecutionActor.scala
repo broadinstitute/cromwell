@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor._
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor._
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedRetryableResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -17,10 +17,10 @@ import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.CromwellBackends
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -31,6 +31,7 @@ import wdl4s.values.{WdlArray, WdlValue}
 import wdl4s.{Scope, _}
 
 import scala.Option
+import scala.Option._
 import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
@@ -318,10 +319,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionInProgressState) {
-    case Event(JobRunning(jobDescriptor, Option(backendJobExecutionActor)), stateData) =>
+    case Event(JobRunning(jobDescriptor, Some(backendJobExecutionActor)), stateData) =>
       pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
-        .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
+        .addBackendJobExecutionActor(jobDescriptor.key, Some(backendJobExecutionActor))
         .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)

@@ -3,6 +3,7 @@ package cromwell.backend.sfs
 import java.nio.file.Path
 
 import better.files._
+import cromwell.backend.sfs.SharedFileSystem._
 
 trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecutionActor {
 

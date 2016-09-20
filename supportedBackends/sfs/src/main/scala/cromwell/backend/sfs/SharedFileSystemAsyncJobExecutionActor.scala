@@ -5,21 +5,18 @@ import java.nio.file.{FileAlreadyExistsException, Path, Paths}
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import better.files._
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
-import cromwell.backend.io.{JobPaths, WorkflowPathsBackendInitializationData}
+import cromwell.backend.io.WorkflowPathsBackendInitializationData
+import cromwell.backend.sfs.SharedFileSystem._
 import cromwell.backend.validation._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, OutputEvaluator}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, OutputEvaluator}
 import cromwell.core.JobOutputs
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import cromwell.services.metadata.MetadataService.PutMetadataAction
-import cromwell.services.metadata._
-import wdl4s.WdlExpression
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
 import scala.concurrent.duration._
@@ -69,7 +66,8 @@ case class SharedFileSystemAsyncJobExecutionActorParams
   * messages.
   */
 trait SharedFileSystemAsyncJobExecutionActor
-  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
+  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with SharedFileSystemJobCachingActorHelper
+    with JobLogging {
 
   case class SharedFileSystemPendingExecutionHandle(jobDescriptor: BackendJobDescriptor,
                                                     run: SharedFileSystemJob) extends ExecutionHandle {
@@ -127,15 +125,15 @@ trait SharedFileSystemAsyncJobExecutionActor
     */
   def killArgs(job: SharedFileSystemJob): SharedFileSystemCommand
 
-  override def jobDescriptor: BackendJobDescriptor = params.jobDescriptor
+  override lazy val jobDescriptor = params.jobDescriptor
 
-  override lazy val completionPromise: Promise[BackendJobExecutionResponse] = params.completionPromise
+  override lazy val completionPromise = params.completionPromise
 
-  lazy val serviceRegistryActor: ActorRef = params.serviceRegistryActor
+  override lazy val serviceRegistryActor = params.serviceRegistryActor
 
-  def configurationDescriptor: BackendConfigurationDescriptor = params.configurationDescriptor
+  override lazy val configurationDescriptor = params.configurationDescriptor
 
-  def backendInitializationDataOption: Option[BackendInitializationData] = params.backendInitializationDataOption
+  override lazy val backendInitializationDataOption = params.backendInitializationDataOption
 
   def toDockerPath(path: WdlValue): WdlValue = {
     path match {
@@ -152,23 +150,10 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
   lazy val call = jobDescriptor.key.call
-  lazy val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
   lazy val fileSystems = WorkflowPathsBackendInitializationData.fileSystems(backendInitializationDataOption)
   lazy val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, fileSystems)
   override lazy val workflowId = jobDescriptor.workflowDescriptor.id
   override lazy val jobTag = jobDescriptor.key.tag
-
-  private val lookup = jobDescriptor.inputs.apply _
-
-  private def evaluate(wdlExpression: WdlExpression) = wdlExpression.evaluate(lookup, callEngineFunction)
-
-  private lazy val initializationData = BackendInitializationData.
-    as[SharedFileSystemBackendInitializationData](backendInitializationDataOption)
-
-  lazy val validatedRuntimeAttributes: ValidatedRuntimeAttributes = {
-    val builder = initializationData.runtimeAttributesBuilder
-    builder.build(jobDescriptor.runtimeAttributes, jobLogger)
-  }
 
   lazy val isDockerRun = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined
@@ -193,7 +178,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     Future.fromTry(Try {
       mode match {
         case Execute =>
-          tellMetadata(startMetadataEvents)
+          tellMetadata(metadataKeyValues)
           executeScript()
         case Recover(recoveryId) =>
           recoveryId match {
@@ -208,40 +193,13 @@ trait SharedFileSystemAsyncJobExecutionActor
     })
   }
 
-  private lazy val metadataJobKey = {
-    val jobDescriptorKey: BackendJobDescriptorKey = jobDescriptor.key
-    MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
-  }
-
-  private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
-  private def metadataEvent(key: String, value: Any) = MetadataEvent(metadataKey(key), MetadataValue(value))
-  private def runtimeMetadataEvent(key: String, value: Any) = metadataEvent(s"runtimeAttributes:$key", value)
-
-  private def validatedRuntimeAttributeMetadataEvent(key: String, value: Any): Option[MetadataEvent] = {
-    value match {
-      case Some(v) => Option(runtimeMetadataEvent(key, v))
-      case None => None
-      case v => Option(metadataEvent(s"runtimeAttributes:$key", v))
-    }
-  }
-
-  val runtimeAttributesEvents = validatedRuntimeAttributes.attributes flatMap { case (k, v) => validatedRuntimeAttributeMetadataEvent(k, v) }
-
-  def startMetadataEvents: Iterable[MetadataEvent] = runtimeAttributesEvents ++ List(
-    metadataEvent(CallMetadataKeys.Stdout, jobPaths.stdout),
-    metadataEvent(CallMetadataKeys.Stderr, jobPaths.stderr),
-    metadataEvent("cache:allowResultReuse", true),
-    metadataEvent(CallMetadataKeys.CallRoot, jobPaths.callExecutionRoot)
-  )
-
   /**
     * Fire and forget info to the metadata service
     */
-  def tellMetadata(events: Iterable[MetadataEvent]): Unit = {
-    serviceRegistryActor ! PutMetadataAction(events)
+  def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
-
-  def pathPlusSuffix(path: Path, suffix: String) = path.resolveSibling(s"${File(path).name}.$suffix")
 
   def executeScript(): ExecutionHandle = {
     val script = instantiatedScript
@@ -260,7 +218,7 @@ trait SharedFileSystemAsyncJobExecutionActor
       context.become(sharedReceive(Option(runningJob)) orElse super.receive)
       tellKvJobId(runningJob)
       jobLogger.info(s"job id: ${runningJob.jobId}")
-      tellMetadata(Seq(metadataEvent("jobId", runningJob.jobId)))
+      tellMetadata(Map("jobId" -> runningJob.jobId))
       SharedFileSystemPendingExecutionHandle(jobDescriptor, runningJob)
     }
   }
@@ -362,7 +320,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     def processSuccess(returnCode: Int) = {
       val successfulFuture = for {
         outputs <- Future.fromTry(processOutputs())
-      } yield SuccessfulExecutionHandle(outputs, returnCode, Map.empty) //FIXME: Need to pass in real detritus files
+      } yield SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths.mapValues(_.toString))
 
       successfulFuture recover {
         case failed: Throwable =>
@@ -412,13 +370,5 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   private def processOutputs(): Try[JobOutputs] = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, callEngineFunction, sharedFileSystem.outputMapper(jobPaths))
-  }
-
-  private val sharedFileSystem = new SharedFileSystem {
-    override lazy val sharedFileSystemConfig = {
-      import lenthall.config.ScalaConfig._
-      val config = configurationDescriptor.backendConfig.getConfigOption("filesystems.local")
-      config.getOrElse(ConfigFactory.parseString("""localization: [ "hard-link", "soft-link", "copy" ]"""))
-    }
   }
 }

@@ -1533,7 +1533,7 @@ To enable Call Caching, add the following to your Cromwell [configuration](#conf
 
 ```
 call-caching {
-  enabled = false
+  enabled = true
 }
 ```
 

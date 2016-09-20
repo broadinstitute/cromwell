@@ -77,7 +77,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   private def copyLogs(callLogsDirPath: Path, logPaths: Seq[Path]): Unit = {
     workflowPaths match {
-      case Some(paths) => logPaths.foreach(PathCopier.copy(paths.rootPath, _, callLogsDirPath, false))
+      case Some(paths) => logPaths.foreach(PathCopier.copy(paths.rootPath, _, callLogsDirPath))
       case None =>
     }
   }

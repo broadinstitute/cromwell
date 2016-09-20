@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher
+import cromwell.core.Dispatcher._
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
@@ -59,6 +60,17 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
     Props(new SharedFileSystemJobExecutionActor(
       jobDescriptor, configurationDescriptor, serviceRegistryActor, propsCreator)
     ).withDispatcher(Dispatcher.BackendDispatcher)
+  }
+
+  override def cacheHitCopyingActorProps = Option(cacheHitCopyingActorInner _)
+
+  def cacheHitCopyingActorInner(jobDescriptor: BackendJobDescriptor,
+                                initializationDataOption: Option[BackendInitializationData],
+                                serviceRegistryActor: ActorRef): Props = {
+    Props(
+      new SharedFileSystemCacheHitCopyingActor(
+        jobDescriptor, configurationDescriptor, initializationDataOption, serviceRegistryActor)
+    ).withDispatcher(BackendDispatcher)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

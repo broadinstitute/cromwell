@@ -30,6 +30,7 @@ import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
 import wdl4s.{Scope, _}
 
+import scala.Option
 import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
@@ -317,7 +318,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionInProgressState) {
-    case Event(JobRunning(jobDescriptor, backendJobExecutionActor), stateData) =>
+    case Event(JobRunning(jobDescriptor, Option(backendJobExecutionActor)), stateData) =>
       pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
         .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)

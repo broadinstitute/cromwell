@@ -46,38 +46,3 @@ passed absolute paths for input `File`s.
 * On the SFS backends, the call directory now contains two sub-directories:
     * `inputs` contains all the input files that have been localized for this task (see next below for more details)
     * `execution` contains all other files (script, logs, rc, potential outputs etc...)
-    
-* On the SFS backends, inputs are now localized as follow:
-    The absolute path of the directory containing the input is hashed.
-    This hash is used to create a directory under `inputs` where the file will be localized
-    e.g:
-    
-    ```
-    ├── execution
-    │   ├── rc
-    │   ├── script
-    │   ├── script.background
-    │   ├── script.submit
-    │   ├── stderr
-    │   ├── stderr.background
-    │   ├── stdout
-    │   └── stdout.background
-    └── inputs
-        ├── 2c142eed1d519eabc0520becff443327
-        │   ├── file3.txt
-        │   └── file4.txt
-        └── 63a9f0ea7bb98050796b649e85481845
-            ├── file1.txt
-            └── file2.txt
-    ```
-    
-    where the file*.txt input files path structure would be similar too:
-    
-    ```
-    root
-    ├── file1.txt       -> will be localized under hash("root")/file1.txt
-    ├── file2.txt       -> will be localized under hash("root")/file2.txt
-    └── mydir
-        ├── file3.txt   -> will be localized under hash("root/mydir")/file3.txt
-        └── file4.txt   -> will be localized under hash("root/mydir")/file4.txt
-    ```

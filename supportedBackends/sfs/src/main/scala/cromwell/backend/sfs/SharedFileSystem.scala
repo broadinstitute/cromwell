@@ -130,16 +130,14 @@ trait SharedFileSystem extends PathFactory {
       */
     def toCallPath(path: String): Try[PathsPair] = Try {
       val src = buildPath(path, filesystems)
-      val inputsRootFile = File(inputsRoot)
-      val dest = if (inputsRootFile.isParentOf(File(src))) src
+      // Strip out potential prefix protocol
+      val localInputPath = stripProtocolScheme(src)
+      val dest = if (File(inputsRoot).isParentOf(localInputPath)) localInputPath
       else {
-        val pathHash = src.getParent match {
-          case null => src.toString.md5Sum
-          case parent => parent.toString.md5Sum
-        }
-
-        inputsRoot.resolve(pathHash).resolve(src.getFileName.toString)
+        // Concatenate call directory with absolute input path
+        Paths.get(inputsRoot.toString, localInputPath.toString)
       }
+
       (src, dest)
     }
 

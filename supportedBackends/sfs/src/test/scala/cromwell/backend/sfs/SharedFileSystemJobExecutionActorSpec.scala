@@ -79,11 +79,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val symConf = templateConf("soft-link")
     val copyConf = templateConf("copy")
 
-    val jsonInputFile = createCannedFile("localize", "content from json inputs")
-    val callInputFile = createCannedFile("localize", "content from call inputs")
+    val jsonInputFile = createCannedFile("localize", "content from json inputs").pathAsString
+    val callInputFile = createCannedFile("localize", "content from call inputs").pathAsString
     val inputs = Map(
-      "inputFileFromCallInputs" -> WdlFile(callInputFile.pathAsString),
-      "inputFileFromJson" -> WdlFile(jsonInputFile.pathAsString)
+      "inputFileFromCallInputs" -> WdlFile(callInputFile),
+      "inputFileFromJson" -> WdlFile(jsonInputFile)
     )
 
     val expectedOutputs: JobOutputs = Map(
@@ -113,10 +113,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val hashJsonInputFile = jsonInputFile.parent.toString.md5Sum
-        val localizedJsonInputFile = Paths.get(jobPaths.callInputsRoot.toString, hashJsonInputFile, jsonInputFile.name)
-        val hashCallInputFile = callInputFile.parent.toString.md5Sum
-        val localizedCallInputFile = Paths.get(jobPaths.callInputsRoot.toString, hashCallInputFile, callInputFile.name)
+        val localizedJsonInputFile = Paths.get(jobPaths.callInputsRoot.toString, jsonInputFile)
+        val localizedCallInputFile = Paths.get(jobPaths.callInputsRoot.toString, callInputFile)
 
         Files.isSymbolicLink(localizedJsonInputFile) shouldBe isSymlink
         val realJsonInputFile =

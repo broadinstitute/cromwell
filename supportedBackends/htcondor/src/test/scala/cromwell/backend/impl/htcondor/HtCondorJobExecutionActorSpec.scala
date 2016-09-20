@@ -347,8 +347,6 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
   }
 
   "return a successful task status when it tries to run a docker command containing file data from a WDL file array" in {
-    import wdl4s.values._
-
     val runtime =
       """
         |runtime {
@@ -394,8 +392,8 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
 
     assert(bashScript.contains("docker run -w /workingDir -v"))
-    assert(bashScript.contains(tempDir1.toAbsolutePath.toString.md5Sum))
-    assert(bashScript.contains(tempDir2.toAbsolutePath.toString.md5Sum))
+    assert(bashScript.contains(tempDir1.toAbsolutePath.toString))
+    assert(bashScript.contains(tempDir2.toAbsolutePath.toString))
     assert(bashScript.contains("/call-hello/execution:/outputDir --rm ubuntu/latest echo"))
 
     cleanUpJob(jobPaths)

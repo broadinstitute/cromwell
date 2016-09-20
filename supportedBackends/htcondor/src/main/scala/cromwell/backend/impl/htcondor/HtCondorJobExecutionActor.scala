@@ -318,7 +318,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       }.flatten.toSeq
 
       log.debug("{} List of input volumes: {}", tag, dockerInputDataVol.mkString(","))
-      val dockerCmd = "docker run -w %s %s %s --rm %s %s"
+      val dockerCmd = configurationDescriptor.backendConfig.getString("docker.cmd")
       val dockerVolume = "-v %s:%s"
       val dockerVolumeInputs = s"$dockerVolume:ro"
       // `v.get` is safe below since we filtered the list earlier with only defined elements

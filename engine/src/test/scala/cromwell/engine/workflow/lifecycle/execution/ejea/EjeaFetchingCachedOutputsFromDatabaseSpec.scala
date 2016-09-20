@@ -35,7 +35,7 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
         val cachedSimpletons = Seq(WdlValueSimpleton("a", WdlString("hullo")), WdlValueSimpleton("b", WdlString("cheerio")))
         val detritusMap = Map("stdout" -> "//somePath")
         val cachedReturnCode = Some(17)
-        val sourceCacheDetails = Seq(WorkflowId.randomId.toString,"call-someTask",1).mkString(":")
+        val sourceCacheDetails = s"${WorkflowId.randomId}:call-someTask:1"
         ejea ! CachedOutputLookupSucceeded(cachedSimpletons, detritusMap, cachedReturnCode, CacheHit(MetaInfoId(75)), sourceCacheDetails)
         helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedSimpletons, detritusMap, cachedReturnCode))
 

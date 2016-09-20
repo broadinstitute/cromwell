@@ -1,5 +1,7 @@
 package cromwell.backend.impl.jes
 
+import java.io.IOException
+
 import akka.actor.{ActorRef, Props}
 import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.JesInitializationActor._
@@ -94,7 +96,9 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       val upload = () => Future(path.writeAsJson(content))
 
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
-      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () }
+      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () } recover {
+        case failure => throw new IOException("Failed to upload authentication file", failure)
+      }
     } getOrElse Future.successful(())
   }
 

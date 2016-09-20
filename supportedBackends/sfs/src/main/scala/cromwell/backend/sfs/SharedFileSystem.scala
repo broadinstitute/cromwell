@@ -94,10 +94,10 @@ trait SharedFileSystem extends PathFactory {
 
   def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
     wdlValue match {
-      case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).exists =>
+      case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
         Failure(new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(job.callRoot, fileNotFound.valueString).pathAsString}"))
-      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callRoot, file.valueString).pathAsString))
+          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}"))
+      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, file.valueString).pathAsString))
       case array: WdlArray =>
         val mappedArray = array.value map outputMapper(job)
         TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
@@ -112,8 +112,7 @@ trait SharedFileSystem extends PathFactory {
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def localizeInputs(callRoot: Path, docker: Boolean, filesystems: List[FileSystem], inputs: CallInputs): Try[CallInputs] = {
-
+  def localizeInputs(inputsRoot: Path, docker: Boolean, filesystems: List[FileSystem], inputs: CallInputs): Try[CallInputs] = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Use URI to identify protocol scheme and strip it out
@@ -129,14 +128,14 @@ trait SharedFileSystem extends PathFactory {
       * Transform an original input path to a path in the call directory.
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
-    def toCallPath(path: String): PathsPair = {
+    def toCallPath(path: String): Try[PathsPair] = Try {
       val src = buildPath(path, filesystems)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src)
-      val dest = if (File(callRoot).isParentOf(localInputPath)) localInputPath
+      val dest = if (File(inputsRoot).isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        Paths.get(callRoot.toString, localInputPath.toString)
+        Paths.get(inputsRoot.toString, localInputPath.toString)
       }
 
       (src, dest)
@@ -161,7 +160,7 @@ trait SharedFileSystem extends PathFactory {
    * @param wdlValue WdlValue to localize
    * @return localized wdlValue
    */
-  private def localizeWdlValue(toDestPath: (String => PathsPair), strategies: Stream[LocalizationStrategy])(wdlValue: WdlValue): Try[WdlValue] = {
+  private def localizeWdlValue(toDestPath: (String => Try[PathsPair]), strategies: Stream[LocalizationStrategy])(wdlValue: WdlValue): Try[WdlValue] = {
 
     def localize(source: Path, dest: Path) = strategies map { _(source, dest) } find { _.isSuccess } getOrElse {
       Failure(new UnsupportedOperationException(s"Could not localize $source -> $dest"))
@@ -184,8 +183,9 @@ trait SharedFileSystem extends PathFactory {
     }
 
     def adjustFile(path: String) = {
-      val (src, dst) = toDestPath(path)
-      localize(src, dst) map { Unit => WdlFile(dst.toString) }
+      toDestPath(path) flatMap {
+        case (src, dst) => localize(src, dst) map { _ => WdlFile(dst.toString) }
+      }
     }
 
     wdlValue match {

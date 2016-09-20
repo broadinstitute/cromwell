@@ -47,7 +47,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
 
   // Files
-  private val executionDir = jobPaths.callRoot
+  private val executionDir = jobPaths.callExecutionRoot
   private val scriptPath = jobPaths.script
 
   private lazy val stdoutWriter = extProcess.untailedWriter(jobPaths.stdout)
@@ -121,7 +121,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private def resolveExecutionProcess: Future[BackendJobExecutionResponse] = {
     isClusterMode match {
       case true =>
-        clusterExtProcess.startMonitoringSparkClusterJob(jobPaths.callRoot, SubmitJobJson.format(sparkDeployMode)) collect {
+        clusterExtProcess.startMonitoringSparkClusterJob(jobPaths.callExecutionRoot, SubmitJobJson.format(sparkDeployMode)) collect {
           case Finished => processSuccess(0)
           case Failed(error: Throwable) => FailedNonRetryableResponse(jobDescriptor.key, error, None)
         } recover {
@@ -154,7 +154,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callRoot, docker = false, DefaultFileSystems, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callInputsRoot, docker = false, DefaultFileSystems, jobDescriptor.inputs) flatMap {
         localizedInputs => call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
       }
 

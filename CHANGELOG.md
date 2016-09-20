@@ -42,3 +42,7 @@ to work with various other command line dispatchers such as LSF. See the
 
 * On the JES and SFS backends, task `command` blocks are now always
 passed absolute paths for input `File`s.
+
+* On the SFS backends, the call directory now contains two sub-directories:
+    * `inputs` contains all the input files that have been localized for this task (see next below for more details)
+    * `execution` contains all other files (script, logs, rc, potential outputs etc...)

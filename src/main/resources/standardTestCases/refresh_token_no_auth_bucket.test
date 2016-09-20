@@ -1,0 +1,15 @@
+name: refresh_token_no_auth_bucket
+testFormat: workflowfailure
+backends: [Jes-Refresh]
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  options: refresh_token_no_auth_bucket/refresh_token_no_auth_bucket.options
+}
+
+metadata {
+  workflowName: hello
+  status: Failed
+  "failures.0.message":"Failed to upload authentication file"
+}

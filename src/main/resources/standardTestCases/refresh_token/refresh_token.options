@@ -1,4 +1,5 @@
 {
     "backend": "Jes-Refresh",
-    "refresh_token": ""
+    "refresh_token": "",
+    "auth_bucket": "gs://centaur-auth"
 }

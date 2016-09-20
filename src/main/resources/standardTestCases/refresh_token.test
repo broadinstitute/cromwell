@@ -3,8 +3,8 @@ testFormat: workflowsuccess
 backends: [Jes-Refresh]
 
 files {
-  wdl: hello/hello.wdl
-  inputs: hello/hello.inputs
+  wdl: refresh_token/refresh_token.wdl
+  inputs: refresh_token/refresh_token.inputs
   options: refresh_token/refresh_token.options
 }
 

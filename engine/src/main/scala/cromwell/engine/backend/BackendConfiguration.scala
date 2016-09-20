@@ -1,6 +1,5 @@
 package cromwell.engine.backend
 
-import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
 import lenthall.config.ScalaConfig._
@@ -11,8 +10,8 @@ import scala.util.{Failure, Success, Try}
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
   def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
     Class.forName(lifecycleActorFactoryClass)
-         .getConstructor(classOf[BackendConfigurationDescriptor])
-         .newInstance(asBackendConfigurationDescriptor)
+         .getConstructor(classOf[String], classOf[BackendConfigurationDescriptor])
+         .newInstance(name, asBackendConfigurationDescriptor)
          .asInstanceOf[BackendLifecycleActorFactory]
   }
 

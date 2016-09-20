@@ -18,6 +18,7 @@ import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{Backend
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes, HashError}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
@@ -25,7 +26,9 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataKey, MetadataValue}
 import wdl4s.TaskOutput
 
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.util.{Failure, Random, Success, Try}
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
@@ -36,6 +39,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               serviceRegistryActor: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
+                              jobTokenDispenserActor: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging {
 
@@ -51,7 +55,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // For tests:
   private[execution] def checkEffectiveCallCachingMode = effectiveCallCachingMode
 
+  private[execution] var executionToken: Option[JobExecutionToken] = None
+
   private val effectiveCallCachingKey = "Effective call caching mode"
+
+  implicit val ec: ExecutionContext = context.dispatcher
 
   log.debug(s"$tag: $effectiveCallCachingKey: $effectiveCallCachingMode")
   writeCallCachingModeToMetadata()
@@ -62,6 +70,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When Pending, the FSM always has NoData
   when(Pending) {
     case Event(Execute, NoData) =>
+      requestExecutionToken()
+      goto(RequestingExecutionToken)
+  }
+
+  when(RequestingExecutionToken) {
+    case Event(JobExecutionTokenDispensed(jobExecutionToken), NoData) =>
+      executionToken = Option(jobExecutionToken)
       if (restarting) {
         val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowId)
         jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.task.outputs)
@@ -69,6 +84,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       } else {
         prepareJob()
       }
+    case Event(JobExecutionTokenDenied, NoData) =>
+      // Wait randomly between 100 and 200 millis, then retry:
+      // TODO: Make this a queue on the dispensor. This way is far too likely to cause starvation!
+      val delay = 1000 + Random.nextInt(1000)
+      context.system.scheduler.scheduleOnce(delay.milliseconds) { requestExecutionToken() }
+      stay()
   }
 
   // When CheckingJobStore, the FSM always has NoData
@@ -146,7 +167,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
       // This matches all response types other than `SucceededResponse`.
-      log.error("{}: Failed copying cache results, falling back to running job.", jobDescriptorKey)
+      response match {
+        case f: FailedNonRetryableResponse =>log.error("{}: Failed copying cache results, falling back to running job: {}", jobDescriptorKey, f.throwable)
+        case f: FailedRetryableResponse =>log.error("{}: Failed copying cache results, falling back to running job: {}", jobDescriptorKey, f.throwable)
+        case _ => //
+      }
       runJob(data)
 
     // Hashes arrive:
@@ -217,8 +242,17 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay
   }
 
+  private def requestExecutionToken(): Unit = {
+    jobTokenDispenserActor ! JobExecutionTokenRequest(factory.jobExecutionTokenType)
+  }
+
+  private def returnExecutionToken(): Unit = {
+    executionToken foreach { jobTokenDispenserActor ! JobExecutionTokenReturn(_) }
+  }
+
   private def forwardAndStop(response: Any): State = {
     replyTo forward response
+    returnExecutionToken()
     tellEventMetadata()
     context stop self
     stay()
@@ -226,6 +260,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def respondAndStop(response: Any): State = {
     replyTo ! response
+    returnExecutionToken()
     tellEventMetadata()
     context stop self
     stay()
@@ -393,6 +428,7 @@ object EngineJobExecutionActor {
   /** States */
   sealed trait EngineJobExecutionActorState
   case object Pending extends EngineJobExecutionActorState
+  case object RequestingExecutionToken extends EngineJobExecutionActorState
   case object CheckingJobStore extends EngineJobExecutionActorState
   case object CheckingCallCache extends EngineJobExecutionActorState
   case object FetchingCachedOutputsFromDatabase extends EngineJobExecutionActorState
@@ -417,6 +453,7 @@ object EngineJobExecutionActor {
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            jobTokenDispenserActor: ActorRef,
             backendName: String,
             callCachingMode: CallCachingMode) = {
     Props(new EngineJobExecutionActor(
@@ -429,6 +466,7 @@ object EngineJobExecutionActor {
       serviceRegistryActor = serviceRegistryActor,
       jobStoreActor = jobStoreActor,
       callCacheReadActor = callCacheReadActor,
+      jobTokenDispenserActor = jobTokenDispenserActor,
       backendName = backendName: String,
       callCachingMode = callCachingMode)).withDispatcher(EngineDispatcher)
   }

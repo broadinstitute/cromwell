@@ -70,6 +70,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val callCacheReadActorProbe = TestProbe()
   val callCacheHitCopyingProbe = TestProbe()
   val jobPreparationProbe = TestProbe()
+  val jobTokenDispenserProbe = TestProbe()
 
   def buildFactory() = new BackendLifecycleActorFactory {
 
@@ -113,6 +114,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       serviceRegistryActor = serviceRegistryProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
       callCacheReadActor = callCacheReadActorProbe.ref,
+      jobTokenDispenserActor = jobTokenDispenserProbe.ref,
       backendName = "NOT USED",
       callCachingMode = callCachingMode
     )), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
@@ -133,8 +135,9 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              serviceRegistryActor: ActorRef,
                              jobStoreActor: ActorRef,
                              callCacheReadActor: ActorRef,
+                             jobTokenDispenserActor: ActorRef,
                              backendName: String,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, backendName, callCachingMode) {
+                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendName, callCachingMode) {
 
   override def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheHit, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))

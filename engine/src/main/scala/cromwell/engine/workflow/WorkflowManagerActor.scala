@@ -44,9 +44,10 @@ object WorkflowManagerActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
-            callCacheReadActor: ActorRef): Props = {
+            callCacheReadActor: ActorRef,
+            jobTokenDispenserActor: ActorRef): Props = {
     Props(new WorkflowManagerActor(
-      workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+      workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor)
     ).withDispatcher(EngineDispatcher)
   }
 
@@ -83,15 +84,17 @@ class WorkflowManagerActor(config: Config,
                            val serviceRegistryActor: ActorRef,
                            val workflowLogCopyRouter: ActorRef,
                            val jobStoreActor: ActorRef,
-                           val callCacheReadActor: ActorRef)
+                           val callCacheReadActor: ActorRef,
+                           val jobTokenDispenserActor: ActorRef)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
 
   def this(workflowStore: ActorRef,
            serviceRegistryActor: ActorRef,
            workflowLogCopyRouter: ActorRef,
            jobStoreActor: ActorRef,
-           callCacheReadActor: ActorRef) = this(
-    ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+           callCacheReadActor: ActorRef,
+           jobTokenDispenserActor: ActorRef) = this(
+    ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor)
 
   private val maxWorkflowsRunning = config.getConfig("system").getIntOr("max-concurrent-workflows", default=DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").getIntOr("max-workflow-launch-count", default=DefaultMaxWorkflowsToLaunch)
@@ -260,7 +263,7 @@ class WorkflowManagerActor(config: Config,
     }
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+      workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)
@@ -273,4 +276,3 @@ class WorkflowManagerActor(config: Config,
     context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher)
   }
 }
-

@@ -48,7 +48,7 @@ trait CacheHitDuplicating {
 
   private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
     sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).getOrElse(throw new RuntimeException(
-      s"The call detritus files for source cache hit aren't found for call ${jobDescriptor.call.fullyQualifiedName}")
+      s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}")
     )
   }
 

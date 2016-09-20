@@ -319,10 +319,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionInProgressState) {
-    case Event(JobRunning(jobDescriptor, Some(backendJobExecutionActor)), stateData) =>
+    case Event(JobRunning(jobDescriptor, backendJobExecutionActor), stateData) =>
       pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
-        .addBackendJobExecutionActor(jobDescriptor.key, Some(backendJobExecutionActor))
+        .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
         .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
     case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)

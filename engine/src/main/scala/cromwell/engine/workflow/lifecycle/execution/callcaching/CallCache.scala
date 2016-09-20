@@ -17,9 +17,6 @@ import scalaz._
 
 final case class MetaInfoId(id: Int)
 
-case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingSimpletonEntry],
-                        jobDetritus: Seq[CallCachingDetritusEntry])
-
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
   */
@@ -79,16 +76,7 @@ class CallCache(database: CallCachingSqlDatabase) {
     result.map(_.toSet.map(MetaInfoId))
   }
 
-  def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext): Future[Option[CachedResult]] = {
-    database.queryCallCaching(metaInfoId.id) map cachedResultOption
-  }
-
-  private def cachedResultOption(callCachingJoinOption: Option[CallCachingJoin]): Option[CachedResult] = {
-    callCachingJoinOption map { callCachingJoin =>
-      CachedResult(
-        callCachingJoin.callCachingEntry.returnCode,
-        callCachingJoin.callCachingSimpletonEntries,
-        callCachingJoin.callCachingDetritusEntries)
-    }
+  def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+    database.queryCallCaching(metaInfoId.id)
   }
 }

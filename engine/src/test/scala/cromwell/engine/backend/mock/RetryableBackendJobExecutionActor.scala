@@ -18,7 +18,7 @@ case class RetryableBackendJobExecutionActor(override val jobDescriptor: Backend
     if (jobDescriptor.key.attempt < attempts)
       Future.successful(FailedRetryableResponse(jobDescriptor.key, new RuntimeException("An apparent transient Exception!"), None))
     else
-      Future.successful(SucceededResponse(jobDescriptor.key, Some(0), (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap))
+      Future.successful(SucceededResponse(jobDescriptor.key, Some(0), (jobDescriptor.call.task.outputs map taskOutputToJobOutput).toMap, None, Seq.empty))
   }
 
   override def recover = execute

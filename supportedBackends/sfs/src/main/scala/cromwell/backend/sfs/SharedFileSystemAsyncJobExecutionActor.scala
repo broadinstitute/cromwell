@@ -320,7 +320,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     def processSuccess(returnCode: Int) = {
       val successfulFuture = for {
         outputs <- Future.fromTry(processOutputs())
-      } yield SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths.mapValues(_.toString))
+      } yield SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths.mapValues(_.toString), Seq.empty)
 
       successfulFuture recover {
         case failed: Throwable =>

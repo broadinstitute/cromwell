@@ -62,7 +62,7 @@ private[ejea] trait CanExpectHashingInitialization extends Eventually { self: En
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
   val successOutputs = Map("a" -> JobOutput(WdlInteger(3)), "b" -> JobOutput(WdlString("bee")))
-  def successResponse = SucceededResponse(helper.jobDescriptorKey, successRc, successOutputs)
+  def successResponse = SucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty)
 }
 private[ejea] object HasJobSuccessResponse {
   val SuccessfulCallCacheHashes = CallCacheHashes(Set(HashResult(HashKey("whatever you want"), HashValue("whatever you need"))))

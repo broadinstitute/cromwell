@@ -9,6 +9,7 @@ import com.google.api.services.genomics.model._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
+import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
 
@@ -23,9 +24,6 @@ object Run {
   ).asJava
 
   private val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GenomicsScopes)
-  private lazy val MaximumPollingInterval = Duration(ConfigFactory.load.getConfig("backend").getConfig("jes").getInt("maximumPollingInterval"), "seconds")
-  private val InitialPollingInterval = 5 seconds
-  private val PollingBackoffFactor = 1.1
   private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown", "preempted")
 
   val NoAddressFieldName = "noAddress"
@@ -114,19 +112,19 @@ case class Run(runId: String, genomicsInterface: Genomics) {
     }
   }
 
-  def getEventList(op: Operation): Seq[EventStartTime] = {
+  def getEventList(op: Operation): Seq[ExecutionEvent] = {
     val metadata = op.getMetadata.asScala.toMap
 
-    val starterEvents: Seq[EventStartTime] = Seq(
+    val starterEvents: Seq[ExecutionEvent] = Seq(
       eventIfExists("createTime", metadata, "waiting for quota"),
       eventIfExists("startTime", metadata, "initializing VM")).flatten
 
     val eventsList = for {
       events <- metadata.get("events").toSeq
       entry <- events.asInstanceOf[JArrayList[GArrayMap[String, String]]].asScala
-    } yield EventStartTime(entry.get("description"), OffsetDateTime.parse(entry.get("startTime")))
+    } yield ExecutionEvent(entry.get("description"), OffsetDateTime.parse(entry.get("startTime")))
 
-    val filteredEventsList: Seq[EventStartTime] = eventsList filter { i => AcceptableEvents.contains(i.name) }
+    val filteredEventsList: Seq[ExecutionEvent] = eventsList filter { i => AcceptableEvents.contains(i.name) }
 
     // A little bit ugly... the endTime of the jes operation can actually be before the final "event" time, due to differences
     // in the reported precision. As a result, we have to make sure it all lines up nicely:
@@ -135,7 +133,7 @@ case class Run(runId: String, genomicsInterface: Genomics) {
     starterEvents ++ filteredEventsList :+ finalEvent
   }
 
-  private def getCromwellPollIntervalEvent(metadata: Map[String, AnyRef], eventsList: Seq[EventStartTime]) = {
+  private def getCromwellPollIntervalEvent(metadata: Map[String, AnyRef], eventsList: Seq[ExecutionEvent]) = {
     {
       val jesReportedEndTime = eventIfExists("endTime", metadata, "cromwell poll interval")
       val finalEventsListTime = if (eventsList.nonEmpty) Some(eventsList.last.offsetDateTime) else None
@@ -144,16 +142,16 @@ case class Run(runId: String, genomicsInterface: Genomics) {
         case (Some(jesEndTime), Some(finalEventTime)) =>
           if (jesEndTime.offsetDateTime isAfter finalEventTime) jesEndTime else jesEndTime.copy(offsetDateTime = finalEventTime)
         case (Some(jesEndTime), None) => jesEndTime
-        case (None, Some(finalEventTime)) => EventStartTime("cromwell poll interval", finalEventTime)
+        case (None, Some(finalEventTime)) => ExecutionEvent("cromwell poll interval", finalEventTime)
         case (None, None) =>
           throw new IllegalArgumentException("Both jesReportedEndTime and finalEventsListTime were None.")
       }
     }
   }
 
-  private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[EventStartTime] = {
+  private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[ExecutionEvent] = {
     metadata.get(name) map {
-      case time => EventStartTime(eventName, OffsetDateTime.parse(time.toString))
+      case time => ExecutionEvent(eventName, OffsetDateTime.parse(time.toString))
     }
   }
 

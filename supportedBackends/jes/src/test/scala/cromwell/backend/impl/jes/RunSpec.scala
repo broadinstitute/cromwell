@@ -9,6 +9,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.{Mockito => MockitoTrait}
+import cromwell.core.ExecutionEvent
 
 import scala.collection.JavaConverters._
 
@@ -40,10 +41,10 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val run = new Run("runId", genomics)
     val list = run.getEventList(op)
     list should contain theSameElementsAs List(
-      EventStartTime("waiting for quota", OffsetDateTime.parse("2015-12-05T00:00:00+00:00")),
-      EventStartTime("initializing VM", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
-      EventStartTime("start", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
-      EventStartTime("cromwell poll interval", OffsetDateTime.parse("2015-12-05T11:00:00+00:00"))
+      ExecutionEvent("waiting for quota", OffsetDateTime.parse("2015-12-05T00:00:00+00:00")),
+      ExecutionEvent("initializing VM", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
+      ExecutionEvent("start", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),
+      ExecutionEvent("cromwell poll interval", OffsetDateTime.parse("2015-12-05T11:00:00+00:00"))
     )
 
   }

@@ -71,8 +71,8 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) =>
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
-    case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, resultsClonedFrom)) =>
-      completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles)))
+    case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)) =>
+      completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents))
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>
       completionPromise.success(FailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))

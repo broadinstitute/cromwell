@@ -231,7 +231,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private def processSuccess(rc: Int): BackendJobExecutionResponse = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) =>
-        val succeededResponse = SucceededResponse(jobDescriptor.key, Some(rc), outputs)
+        val succeededResponse = SucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
         log.debug("{} Storing data into cache for hash {}.", tag, jobHash)
         // If cache fails to store data for any reason it should not stop the workflow/task execution but log the issue.
         cacheActor foreach { _ ! StoreExecutionResult(jobHash, succeededResponse) }
@@ -343,7 +343,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     Try(localizeCachedOutputs(executionDir, succeededResponse.jobOutputs)) match {
       case Success(outputs) =>
         executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
-        SucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs)
+        SucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs, None, Seq.empty)
       case Failure(exception) => FailedNonRetryableResponse(jobDescriptor.key, exception, None)
     }
   }

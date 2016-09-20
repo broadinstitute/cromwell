@@ -1,7 +1,7 @@
 package cromwell.backend.async
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.JobOutputs
+import cromwell.core.{ExecutionEvent, JobOutputs}
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
@@ -12,9 +12,9 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, String], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, String], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
-  override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, resultsClonedFrom)
+  override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)
 }
 
 final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {

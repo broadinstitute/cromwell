@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.time.OffsetDateTime
+
 import akka.actor.{ActorRef, ActorRefFactory, LoggingFSM, Props}
 import akka.routing.RoundRobinPool
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
@@ -19,9 +21,11 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataKey, MetadataValue}
 import wdl4s.TaskOutput
 
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Success, Try}
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
@@ -53,6 +57,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   writeCallCachingModeToMetadata()
 
   startWith(Pending, NoData)
+  private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
 
   // When Pending, the FSM always has NoData
   when(Pending) {
@@ -72,7 +77,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       prepareJob()
     case Event(JobComplete(jobResult), NoData) =>
       val response = jobResult match {
-        case JobResultSuccess(returnCode, jobOutputs) => SucceededResponse(jobDescriptorKey, returnCode, jobOutputs)
+        case JobResultSuccess(returnCode, jobOutputs) => SucceededResponse(jobDescriptorKey, returnCode, jobOutputs, None, Seq.empty)
         case JobResultFailure(returnCode, reason, false) => FailedNonRetryableResponse(jobDescriptorKey, reason, returnCode)
         case JobResultFailure(returnCode, reason, true) => FailedRetryableResponse(jobDescriptorKey, reason, returnCode)
       }
@@ -174,6 +179,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay using data.copy(hashes = Option(Failure(t)))
 
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)))) if effectiveCallCachingMode.writeToCache =>
+      eventList ++= response.executionEvents
       saveCacheResults(hashes, data.withSuccessResponse(response))
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, None)) if effectiveCallCachingMode.writeToCache =>
       log.debug(s"Got job result for {}, awaiting hashes", jobTag)
@@ -202,6 +208,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   onTransition {
     case fromState -> toState =>
       log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+      eventList :+= ExecutionEvent(toState.toString)
   }
 
   whenUnhandled {
@@ -212,12 +219,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def forwardAndStop(response: Any): State = {
     replyTo forward response
+    tellEventMetadata()
     context stop self
     stay()
   }
 
   private def respondAndStop(response: Any): State = {
     replyTo ! response
+    tellEventMetadata()
     context stop self
     stay()
   }
@@ -313,7 +322,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
-      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _, _) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(jobKey: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)
         forwardAndStop(updatedData.response)
@@ -344,6 +353,40 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val updatedData = data.copy(hashes = Option(Success(hashes)))
     stay using updatedData
   }
+
+  /**
+    * Fire and forget events to the metadata service
+    */
+  private def tellEventMetadata(): Unit = {
+    eventList.headOption foreach { firstEvent =>
+      // The final event is only used as the book-end for the final pairing so the name is never actually used...
+      val offset = firstEvent.offsetDateTime.getOffset
+      val now = OffsetDateTime.now.withOffsetSameInstant(offset)
+      val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
+      val tailedEventList = eventList :+ lastEvent
+      val events = tailedEventList.sliding(2).zipWithIndex flatMap {
+        case (Seq(eventCurrent, eventNext), index) =>
+          val eventKey = s"executionEvents[$index]"
+          List(
+            metadataEvent(s"$eventKey:description", eventCurrent.name),
+            metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
+            metadataEvent(s"$eventKey:endTime", eventNext.offsetDateTime)
+          )
+      }
+
+      serviceRegistryActor ! PutMetadataAction(events.toIterable)
+    }
+  }
+
+  private def metadataEvent(key: String, value: Any) = {
+    val metadataValue = MetadataValue(value)
+    MetadataEvent(metadataKey(key), metadataValue)
+  }
+
+  private lazy val metadataJobKey = {
+    MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
+  }
+  private def metadataKey(key: String) = MetadataKey(workflowId, Option(metadataJobKey), key)
 }
 
 object EngineJobExecutionActor {

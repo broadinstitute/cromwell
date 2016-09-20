@@ -31,6 +31,7 @@ import wdl4s.{Call, LocallyQualifiedName, NamespaceWithWorkflow}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Success, Try}
+import cromwell.backend.impl.jes.MockObjects._
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito {
@@ -76,11 +77,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
         override def get(key: String): Try[String] = Try(throw new RuntimeException(s"key '$key' not found"))
       }
 
-      val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(authOptions, jesConfiguration.googleConfig)
+      val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(authOptions, "appName")
       GcsFileSystem(GcsFileSystemProvider(storage)(scala.concurrent.ExecutionContext.global))
     }
 
-    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration, gcsFileSystem)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor,
+      configuration,
+      mockCredentials)(scala.concurrent.ExecutionContext.global)
     JesBackendInitializationData(workflowPaths, null)
   }
 

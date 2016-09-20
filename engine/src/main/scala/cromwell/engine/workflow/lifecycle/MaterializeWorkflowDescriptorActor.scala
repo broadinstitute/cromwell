@@ -14,6 +14,8 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
+import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.{MetadataValue, MetadataKey, MetadataEvent}
 import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -158,9 +160,18 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     (namespaceValidation |@| workflowOptionsValidation) {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
+      pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions)(iOExecutionContext)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, engineFileSystems)
     }
+  }
+
+
+  private def pushWfNameMetadataService(name: String): Unit = {
+    // Workflow name:
+    val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(name))
+
+    serviceRegistryActor ! PutMetadataAction(nameEvent)
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
@@ -203,10 +214,25 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
+      _ = pushWfInputsToMetadataService(coercedInputs)
       declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, engineFileSystems)
       declarationsAndInputs <- checkTypes(declarations ++ coercedInputs)
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
     } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, engineFileSystems, callCachingMode)
+  }
+
+  private def pushWfInputsToMetadataService(workflowInputs: WorkflowCoercedInputs): Unit = {
+    // Inputs
+    val inputEvents = workflowInputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
+      case inputs =>
+        inputs flatMap { case (inputName, wdlValue) =>
+          wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+        }
+    }
+
+    serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
   private def validateBackendAssignments(calls: Seq[Call], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[Call, String]] = {

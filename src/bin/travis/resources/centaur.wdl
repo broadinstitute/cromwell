@@ -11,6 +11,7 @@ task centaur {
         export SBT_OPTS=-Dsbt.ivy.home=/cromwell_root/tmp/.ivy2
         git clone https://github.com/broadinstitute/centaur.git
         cd centaur
+        git checkout "rm_turn_on_CallCacheSpec"
         ./test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root -t ${secret} -elocaldockertest
     >>>
 

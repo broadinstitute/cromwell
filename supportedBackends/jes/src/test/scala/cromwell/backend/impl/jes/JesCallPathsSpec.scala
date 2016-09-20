@@ -1,12 +1,11 @@
 package cromwell.backend.impl.jes
 
 import cromwell.backend.BackendSpec
-import cromwell.core.Tags._
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-
-import cromwell.filesystems.gcs.MockGcsFileSystemBuilder._
+import scala.concurrent.ExecutionContext.Implicits.global
+import cromwell.backend.impl.jes.MockObjects._
 
 class JesCallPathsSpec extends FlatSpec with Matchers with Mockito {
 
@@ -20,7 +19,8 @@ class JesCallPathsSpec extends FlatSpec with Matchers with Mockito {
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration, mockGcsFileSystem)
+    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor,
+      jesConfiguration, mockCredentials)
     callPaths.returnCodeFilename should be("hello-rc.txt")
     callPaths.stderrFilename should be("hello-stderr.log")
     callPaths.stdoutFilename should be("hello-stdout.log")
@@ -32,7 +32,8 @@ class JesCallPathsSpec extends FlatSpec with Matchers with Mockito {
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration, mockGcsFileSystem)
+    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration,
+      mockCredentials)
     callPaths.returnCodePath.toString should
       be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello/hello-rc.txt")
     callPaths.stdoutPath.toString should
@@ -48,7 +49,8 @@ class JesCallPathsSpec extends FlatSpec with Matchers with Mockito {
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration, mockGcsFileSystem)
+    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration,
+      mockCredentials)
     callPaths.callContext.root.toString should
       be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should be("hello-stdout.log")

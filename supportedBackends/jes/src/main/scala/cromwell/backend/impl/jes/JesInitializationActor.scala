@@ -2,9 +2,8 @@ package cromwell.backend.impl.jes
 
 import akka.actor.{ActorRef, Props}
 import com.google.api.services.genomics.Genomics
-import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.backend.impl.jes.JesInitializationActor._
-import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
+import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation, JesCredentials}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -12,7 +11,7 @@ import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, B
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
-import cromwell.filesystems.gcs.{ClientSecrets, GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
+import cromwell.filesystems.gcs.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
@@ -72,23 +71,18 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     */
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
 
-    def buildGenomics: Future[Genomics] = Future {
-      val jesAttributes = jesConfiguration.jesAttributes
-      GenomicsFactory(
-        jesConfiguration.googleConfig, jesAttributes.genomicsAuth.credential(workflowDescriptor.workflowOptions.toGoogleAuthOptions), jesAttributes.endpointUrl)
-    }
+    val genomicsCredential = jesConfiguration.jesAttributes.genomicsCredential(workflowDescriptor.workflowOptions)
+    val gcsCredential = jesConfiguration.jesAttributes.gcsCredential(workflowDescriptor.workflowOptions)
 
-    def buildGcsFileSystem: Future[GcsFileSystem] = Future {
-      val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(
-        workflowDescriptor.workflowOptions.toGoogleAuthOptions, jesConfiguration.googleConfig)
-      GcsFileSystem(GcsFileSystemProvider(storage)(iOExecutionContext))
+    val jesCredentials = JesCredentials(genomicsCredential = genomicsCredential, gcsCredential = gcsCredential)
+    def buildGenomics: Future[Genomics] = Future {
+      GenomicsFactory(jesConfiguration.googleConfig.applicationName, genomicsCredential, jesConfiguration.jesAttributes.endpointUrl)
     }
 
     for {
       // generate single filesystem and genomics instances
-      gcsFileSystem <- buildGcsFileSystem
       genomics <- buildGenomics
-      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, gcsFileSystem)
+      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, jesCredentials)(iOExecutionContext)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
       _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
     } yield Option(JesBackendInitializationData(workflowPaths, genomics))

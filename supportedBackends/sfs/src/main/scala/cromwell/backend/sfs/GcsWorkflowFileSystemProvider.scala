@@ -29,7 +29,7 @@ object GcsWorkflowFileSystemProvider extends WorkflowFileSystemProvider {
       override def get(key: String): Try[String] = workflowOptions.get(key)
     }
 
-    val storage = gcsAuthMode.buildStorage(authOptions, googleConfig)
+    val storage = gcsAuthMode.buildStorage(authOptions, googleConfig.applicationName)
     GcsFileSystem(GcsFileSystemProvider(storage)(params.fileSystemExecutionContext))
   }
 }

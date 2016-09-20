@@ -29,18 +29,6 @@ object JesTestConfig {
        |    {
        |      name = "application-default"
        |      scheme = "application_default"
-       |    },
-       |    {
-       |      name = "user-via-refresh"
-       |      scheme = "refresh_token"
-       |      client-id = "secret_id"
-       |      client-secret = "secret_secret"
-       |    },
-       |    {
-       |      name = "service-account"
-       |      scheme = "service_account"
-       |      service-account-id = "my-service-account"
-       |      pem-file = "/path/to/file.pem"
        |    }
        |  ]
        |}

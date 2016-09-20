@@ -96,8 +96,8 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       val upload = () => Future(path.writeAsJson(content))
 
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
-      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () } recover {
-        case failure => throw new IOException("Failed to upload authentication file", failure)
+      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () } recoverWith {
+        case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
       }
     } getOrElse Future.successful(())
   }

@@ -331,11 +331,12 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
              runtime: String = "",
              workflowOptions: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
-             config: Config = DefaultConfig)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
+             config: Config = DefaultConfig,
+             patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val rootActor = buildCromwellRootActor(config)
     val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) }
+    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
     system.stop(rootActor)
     // And return the outcome:
@@ -349,13 +350,14 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
                              terminalState: WorkflowState = WorkflowSucceeded,
-                             config: Config = DefaultConfig)
+                             config: Config = DefaultConfig,
+                             patienceConfig: PatienceConfig = defaultPatience)
                             (implicit ec: ExecutionContext): WorkflowId = {
     val rootActor = buildCromwellRootActor(config)
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
 
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) }
+    eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
 
     val outputs = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
     val actualOutputNames = outputs.keys mkString ", "
@@ -392,38 +394,19 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
     metadata
   }
 
+  /**
+    * Verifies that a state is correct. // TODO: There must be a better way...?
+    */
   private def verifyWorkflowState(serviceRegistryActor: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
-    // Continuously check the state of the workflow until it is in a terminal state
-    awaitCond(getWorkflowState(workflowId, serviceRegistryActor).isTerminal)
-    // Now that it's complete verify that we ended up in the state we're expecting
+    def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
+      val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
+        case StatusLookupResponse(_, state) => state
+        case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
+      }
+      Await.result(statusResponse, TimeoutDuration)
+    }
+
     getWorkflowState(workflowId, serviceRegistryActor) should equal (expectedState)
-  }
-
-  private def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
-    val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
-      case StatusLookupResponse(_, state) => state
-      case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
-    }
-    Await.result(statusResponse, Duration.Inf)
-  }
-
-  private def getFirstCallLogs(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): (String, String) = {
-    val logsResponse = serviceRegistryActor.ask(GetLogs(workflowId)).collect {
-      case LogsResponse(_, logs) =>
-        def findLog(name: String): String = {
-          val logOption: Option[String] = for {
-            metadataEvent <- logs.find(_.key.key.endsWith(name))
-            metadataValue <- metadataEvent.value
-          } yield metadataValue.value
-          logOption.getOrElse(throw LogNotFoundException(name))
-        }
-
-        val stdout = findLog("stdout")
-        val stderr = findLog("stderr")
-        (stdout, stderr)
-      case f => throw new RuntimeException(s"Unexpected logs response: $f")
-    }
-    Await.result(logsResponse, Duration.Inf)
   }
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {

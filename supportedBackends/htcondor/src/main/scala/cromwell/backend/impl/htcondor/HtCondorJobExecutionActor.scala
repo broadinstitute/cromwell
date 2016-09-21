@@ -319,12 +319,15 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
       log.debug("{} List of input volumes: {}", tag, dockerInputDataVol.mkString(","))
       val dockerCmd = configurationDescriptor.backendConfig.getString("docker.cmd")
+      val defaultWorkingDir = configurationDescriptor.backendConfig.getString("docker.defaultWorkingDir")
+      val defaultOutputDir = configurationDescriptor.backendConfig.getString("docker.defaultOutputDir")
       val dockerVolume = "-v %s:%s"
       val dockerVolumeInputs = s"$dockerVolume:ro"
       // `v.get` is safe below since we filtered the list earlier with only defined elements
       val inputVolumes = dockerInputDataVol.distinct.map(v => dockerVolumeInputs.format(v, v)).mkString(" ")
-      val outputVolume = dockerVolume.format(executionDir.toAbsolutePath.toString, runtimeAttributes.dockerOutputDir.getOrElse(executionDir.toAbsolutePath.toString))
-      val cmd = dockerCmd.format(runtimeAttributes.dockerWorkingDir.getOrElse(executionDir.toAbsolutePath.toString), inputVolumes, outputVolume, runtimeAttributes.dockerImage.get, jobCmd.get)
+      val outputVolume = dockerVolume.format(executionDir.toAbsolutePath.toString, runtimeAttributes.dockerOutputDir.getOrElse(defaultOutputDir))
+      val workingDir = dockerVolume.format(executionDir.toAbsolutePath.toString, runtimeAttributes.dockerWorkingDir.getOrElse(defaultWorkingDir))
+      val cmd = dockerCmd.format(runtimeAttributes.dockerWorkingDir.getOrElse(defaultWorkingDir), workingDir, inputVolumes, outputVolume, runtimeAttributes.dockerImage.get, jobCmd.get)
       log.debug("{} Docker command line to be used for task execution: {}.", tag, cmd)
       cmd
     }

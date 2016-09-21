@@ -79,7 +79,7 @@ trait CacheHitDuplicating {
       (fileKey, destinationPath.toString)
     }
 
-    destinationJobDetritusFiles.toMap ++ Map(JobPaths.CallRootPathKey -> destinationCallRootPath)
+    destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath.toString)
   }
 
   override def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton],

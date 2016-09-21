@@ -39,7 +39,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
                              override val serviceRegistryActor: ActorRef)
   extends BackendWorkflowInitializationActor {
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = Map(
     CpuKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),
     MemoryKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
     DockerKey -> wdlTypePredicate(valueRequired = true, WdlStringType.isCoerceableFrom),

@@ -9,7 +9,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationDa
 import cromwell.core.WorkflowOptions
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
-import wdl4s.{Call, WdlExpression}
+import wdl4s.Call
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -30,7 +30,7 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
                                   override val configurationDescriptor: BackendConfigurationDescriptor,
                                   override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = Map(
     DockerKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
     DockerWorkingDirKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),
     DockerOutputDirKey -> wdlTypePredicate(valueRequired = false, WdlStringType.isCoerceableFrom),

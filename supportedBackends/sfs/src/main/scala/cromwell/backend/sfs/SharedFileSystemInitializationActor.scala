@@ -43,7 +43,7 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
   def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =
     SharedFileSystemValidatedRuntimeAttributesBuilder.default
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = {
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = {
     runtimeAttributesBuilder.validations.map(validation =>
       validation.key -> validation.validateOptionalExpression _
     ).toMap

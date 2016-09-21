@@ -49,14 +49,15 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * declarations will fail evaluation and return `true` from this predicate, even if the type could be determined
     * to be wrong with consideration of task declarations or inputs.
     */
-  protected def wdlTypePredicate(valueRequired: Boolean, predicate: WdlType => Boolean)(wdlExpressionMaybe: Option[WdlExpression]): Boolean = {
+  protected def wdlTypePredicate(valueRequired: Boolean, predicate: WdlType => Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
     wdlExpressionMaybe match {
       case None => !valueRequired
-      case Some(wdlExpression) =>
+      case Some(wdlExpression: WdlExpression) =>
         wdlExpression.evaluate(NoLookup, OnlyPureFunctions) map (_.wdlType) match {
           case Success(wdlType) => predicate(wdlType)
           case Failure(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
+      case Some(wdlValue) => predicate(wdlValue.wdlType)
     }
   }
 
@@ -65,27 +66,30 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * between evaluation failures due to missing call inputs or evaluation failures due to malformed expressions, and will
     * return `true` in both cases.
     */
-  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WdlExpression]): Boolean = {
+  protected def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
     def isInteger(s: String) = s.forall(_.isDigit) && !s.isEmpty
+
+    def validateValue(wdlValue: WdlValue) = wdlValue match {
+      case WdlInteger(_) => true
+      case WdlString(_) => isInteger(wdlValue.valueString)
+      case WdlArray(WdlArrayType(WdlIntegerType), _) => true
+      case WdlArray(WdlArrayType(WdlStringType), elements) => elements forall { x => isInteger(x.valueString) }
+      case WdlBoolean(_) => true
+      case _ => false
+    }
 
     wdlExpressionMaybe match {
       case None => !valueRequired
-      case Some(wdlExpression) =>
+      case Some(wdlExpression: WdlExpression) =>
         wdlExpression.evaluate(NoLookup, OnlyPureFunctions) match {
-          case Success(wdlValue) => wdlValue match {
-            case WdlInteger(_) => true
-            case WdlString(_) => isInteger(wdlValue.valueString)
-            case WdlArray(WdlArrayType(WdlIntegerType), _) => true
-            case WdlArray(WdlArrayType(WdlStringType), elements) => elements forall { x => isInteger(x.valueString) }
-            case WdlBoolean(_) => true
-            case _ => false
-          }
+          case Success(wdlValue) => validateValue(wdlValue)
           case Failure(throwable) => true // If we can't evaluate it, we'll let it pass for now...
         }
+      case Some(wdlValue) => validateValue(wdlValue)
     }
   }
 
-  protected def runtimeAttributeValidators: Map[String, Option[WdlExpression] => Boolean]
+  protected def runtimeAttributeValidators: Map[String, Option[WdlValue] => Boolean]
 
   protected def publishWorkflowRoot(workflowRoot: String) = {
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot), MetadataValue(workflowRoot)))
@@ -131,16 +135,16 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) match {
       case Success(defaultRuntimeAttributes) =>
 
-        def defaultRuntimeAttribute(name: String): Option[WdlExpression] = {
-          defaultRuntimeAttributes.get(name) map { v => WdlExpression.fromString(v.valueString)}
+        def defaultRuntimeAttribute(name: String): Option[WdlValue] = {
+          defaultRuntimeAttributes.get(name)
         }
 
         def badRuntimeAttrsForTask(task: Task) = {
           runtimeAttributeValidators map { case (attributeName, validator) =>
-            val expression = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
-            attributeName -> (expression, validator(expression))
+            val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
+            attributeName -> (value, validator(value))
           } collect {
-            case (name, (expression, false)) => s"Task ${task.name} has an invalid runtime attribute $name = ${expression map { _.valueString} getOrElse "!! NOT FOUND !!"}"
+            case (name, (value, false)) => s"Task ${task.name} has an invalid runtime attribute $name = ${value map { _.valueString} getOrElse "!! NOT FOUND !!"}"
           }
         }
 

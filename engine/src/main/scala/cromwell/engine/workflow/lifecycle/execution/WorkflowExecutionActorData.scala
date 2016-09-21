@@ -69,8 +69,9 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     executionStore.store.values.exists(_ == ExecutionStatus.Failed)
   }
 
-  def addBackendJobExecutionActor(jobKey: JobKey, actor: ActorRef): WorkflowExecutionActorData = {
-    this.copy(backendJobExecutionActors = backendJobExecutionActors + (jobKey -> actor))
+  def addBackendJobExecutionActor(jobKey: JobKey, actor: Option[ActorRef]): WorkflowExecutionActorData = actor match {
+      case Some(actorRef) => this.copy(backendJobExecutionActors = backendJobExecutionActors + (jobKey -> actorRef))
+      case None => this
   }
 
   def removeBackendJobExecutionActor(jobKey: JobKey): WorkflowExecutionActorData = {

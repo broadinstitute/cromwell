@@ -2,13 +2,13 @@ package cromwell.database.sql.tables
 
 case class JobStoreEntry
 (
-  workflowUuid: String,
-  callFqn: String,
-  index: Int,
-  attempt: Int,
+  workflowExecutionUuid: String,
+  callFullyQualifiedName: String,
+  jobIndex: Int,
+  jobAttempt: Int,
   jobSuccessful: Boolean,
   returnCode: Option[Int],
   exceptionMessage: Option[String],
   retryableFailure: Option[Boolean],
-  jobStoreId: Option[Int] = None
+  jobStoreEntryId: Option[Int] = None
 )

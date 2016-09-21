@@ -1,10 +1,10 @@
 package cromwell.database.sql.tables
 
-case class JobStoreResultSimpletonEntry
+case class JobStoreSimpletonEntry
 (
   simpletonKey: String,
   simpletonValue: String,
   wdlType: String,
-  jobStoreId: Int,
+  jobStoreEntryId: Option[Int] = None,
   jobStoreSimpletonEntryId: Option[Int] = None
 )

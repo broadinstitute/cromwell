@@ -29,7 +29,7 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlExpression]) => Boolean] = Map(
+  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = Map(
     FailOnStderrKey -> wdlTypePredicate(valueRequired = false, WdlBooleanType.isCoerceableFrom),
     SparkRuntimeAttributes.AppMainClassKey -> wdlTypePredicate(valueRequired = true, WdlStringType.isCoerceableFrom),
     SparkRuntimeAttributes.NumberOfExecutorsKey -> wdlTypePredicate(valueRequired = false, WdlIntegerType.isCoerceableFrom),

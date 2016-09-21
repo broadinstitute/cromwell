@@ -311,10 +311,10 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param wdlExpressionMaybe The optional expression.
     * @return True if the expression may be evaluated.
     */
-  def validateOptionalExpression(wdlExpressionMaybe: Option[WdlExpression]): Boolean = {
+  def validateOptionalExpression(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
     wdlExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isSuccess
-      case Some(wdlExpression) =>
+      case Some(wdlExpression: WdlExpression) =>
         /*
         TODO: BUG:
 
@@ -340,6 +340,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
           case Failure(throwable) =>
             throw new RuntimeException(s"Expression evaluation failed due to $throwable: $wdlExpression", throwable)
         }
+      case Some(wdlValue) => validateExpression.applyOrElse(wdlValue, (_: Any) => false)
     }
   }
 

@@ -10,39 +10,39 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  override def updateWorkflowState(oldState: String, newState: String)(implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.workflowStoreStateByWorkflowStoreState(oldState).update(newState)
+  override def updateWorkflowState(queryWorkflowState: String, updateWorkflowState: String)
+                                  (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.workflowStateForWorkflowState(queryWorkflowState).update(updateWorkflowState)
     runTransaction(action) map { _ => () }
   }
 
-  override def addWorkflow(entries: Iterable[WorkflowStoreEntry])(implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.workflowStoreAutoInc ++= entries
+  override def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
+                                      (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = dataAccess.workflowStoreEntryIdsAutoInc ++= workflowStoreEntries
     runTransaction(action) map { _ => () }
   }
 
-  override def fetchRunnableWorkflows(limit: Int, fetchState: String, updateState: String)
-                                     (implicit ec: ExecutionContext):
-  Future[Seq[WorkflowStoreEntry]] = {
-
+  override def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
+                                        (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowEntries <- dataAccess.workflowStoreEntriesByState(fetchState, limit).result
-      _ <- DBIO.sequence(workflowEntries map verifyUpdate(updateState))
-    } yield workflowEntries
+      workflowStoreEntries <- dataAccess.workflowStoreEntriesForWorkflowState(queryWorkflowState, limit).result
+      _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState))
+    } yield workflowStoreEntries
     runTransaction(action)
   }
 
-  private def verifyUpdate(updateState: String)
-                          (workflowStoreEntry: WorkflowStoreEntry)
-                          (implicit ec: ExecutionContext): DBIO[Unit] = {
-    val workflowUuid = workflowStoreEntry.workflowUuid
+  private def updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState: String)
+                                                         (workflowStoreEntry: WorkflowStoreEntry)
+                                                         (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val workflowExecutionUuid = workflowStoreEntry.workflowExecutionUuid
     for {
-      updateCount <- dataAccess.workflowStateByUuid(workflowUuid).update(updateState)
-      _ <- assertUpdateCount(s"Update $workflowUuid to $updateState", updateCount, 1)
+      updateCount <- dataAccess.workflowStateForWorkflowExecutionUuid(workflowExecutionUuid).update(updateWorkflowState)
+      _ <- assertUpdateCount(s"Update $workflowExecutionUuid to $updateWorkflowState", updateCount, 1)
     } yield ()
   }
 
-  override def removeWorkflow(id: String)(implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess.workflowStoreEntryByWorkflowUuid(id).delete
+  override def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.workflowStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).delete
     runTransaction(action)
   }
 }

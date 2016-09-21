@@ -1,9 +1,9 @@
 package cromwell.database.sql.tables
 
-case class SummaryStatus
+case class SummaryStatusEntry
 (
   summaryTableName: String,
   summarizedTableName: String,
   maximumId: Long,
-  summaryStatusId: Option[Int] = None
+  summaryStatusEntryId: Option[Int] = None
 )

@@ -1,52 +1,48 @@
 package cromwell.database.slick
 
 import cromwell.database.sql._
-import cromwell.database.sql.tables.{CallCachingHashEntry, CallCachingJobDetritusEntry, CallCachingResultMetaInfoEntry, CallCachingResultSimpletonEntry}
+import cromwell.database.sql.joins.CallCachingJoin
 
 import scala.concurrent.{ExecutionContext, Future}
 import scalaz.NonEmptyList
 
-trait CallCachingSlickDatabase extends CallCachingStore {
+trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: SlickDatabase =>
 
   import dataAccess.driver.api._
 
-  override def addToCache(callCachingResultMetaInfo: CallCachingResultMetaInfoEntry,
-                          hashesToInsert: Int => Iterable[CallCachingHashEntry],
-                          resultToInsert: Int => Iterable[CallCachingResultSimpletonEntry],
-                          jobDetritusToInsert: Int => Iterable[CallCachingJobDetritusEntry])
-                         (implicit ec: ExecutionContext): Future[Unit] = {
+  override def addCallCaching(callCachingJoin: CallCachingJoin)
+                             (implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
-      callCachingResultMetaInfoId <- dataAccess.callCachingResultMetaInfoIdsAutoInc += callCachingResultMetaInfo
-      _ <- dataAccess.callCachingHashEntryIdsAutoInc ++= hashesToInsert(callCachingResultMetaInfoId)
-      _ <- dataAccess.callCachingResultSimpletonAutoInc ++= resultToInsert(callCachingResultMetaInfoId)
-      _ <- dataAccess.callCachingJobDetritusIdAutoInc ++= jobDetritusToInsert(callCachingResultMetaInfoId)
+      callCachingEntryId <- dataAccess.callCachingEntryIdsAutoInc += callCachingJoin.callCachingEntry
+      _ <- dataAccess.callCachingHashEntryIdsAutoInc ++= callCachingJoin.callCachingHashEntries.
+        map(_.copy(callCachingEntryId = Option(callCachingEntryId)))
+      _ <- dataAccess.callCachingSimpletonEntryIdsAutoInc ++= callCachingJoin.callCachingSimpletonEntries.
+        map(_.copy(callCachingEntryId = Option(callCachingEntryId)))
+      _ <- dataAccess.callCachingDetritusEntryIdsAutoInc ++= callCachingJoin.callCachingDetritusEntries.
+        map(_.copy(callCachingEntryId = Option(callCachingEntryId)))
     } yield ()
     runTransaction(action)
   }
 
-  override def metaInfoIdsMatchingHashes(hashKeyHashValues: Seq[(String, String)])
-                                        (implicit ec: ExecutionContext): Future[Seq[Seq[Int]]] = {
-    val nel: NonEmptyList[(String, String)] = NonEmptyList(hashKeyHashValues.head, hashKeyHashValues.tail: _*)
-    metaInfoIdsMatchingHashes(nel).map(Seq.apply(_))
-  }
-
-  def metaInfoIdsMatchingHashes(hashKeyHashValues: NonEmptyList[(String, String)])
+  override def queryCallCachingEntryIds(hashKeyHashValues: NonEmptyList[(String, String)])
                                (implicit ec: ExecutionContext): Future[Seq[Int]] = {
-    val action = dataAccess.callCachingResultMetaInfoIdByHashKeyHashValues(hashKeyHashValues).result
+    val action = dataAccess.callCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
   }
 
-  override def fetchCachedResult(callCachingResultMetaInfoId: Int)(implicit ec: ExecutionContext):
-                                  Future[(Option[CallCachingResultMetaInfoEntry],
-                                         Seq[CallCachingResultSimpletonEntry],
-                                         Seq[CallCachingJobDetritusEntry])] = {
+  override def queryCallCaching(callCachingEntryId: Int)
+                               (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     val action = for {
-      metaInfo <- dataAccess.metaInfoById(callCachingResultMetaInfoId).result.headOption
-      resultSimpletons <- dataAccess.resultSimpletonsForMetaInfoId(callCachingResultMetaInfoId).result
-      jobDetritus <- dataAccess.jobDetritusForMetaInfoId(callCachingResultMetaInfoId).result
-    } yield (metaInfo, resultSimpletons, jobDetritus)
+      callCachingEntryOption <- dataAccess.
+        callCachingEntriesForId(callCachingEntryId).result.headOption
+      callCachingSimpletonEntries <- dataAccess.
+        callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
+      callCachingDetritusEntries <- dataAccess.
+        callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
+    } yield callCachingEntryOption.map(
+      CallCachingJoin(_, Seq.empty, callCachingSimpletonEntries, callCachingDetritusEntries))
 
     runTransaction(action)
   }

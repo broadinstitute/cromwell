@@ -299,10 +299,25 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   private def resolveJobCommand(localizedInputs: CallInputs): Try[String] = {
-    if (runtimeAttributes.dockerImage.isDefined)
+    val command = if (runtimeAttributes.dockerImage.isDefined) {
       modifyCommandForDocker(call.task.instantiateCommand(localizedInputs, callEngineFunction, identity), localizedInputs)
-    else
+    } else {
       call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
+    }
+    command match {
+      case Success(cmd) => tellMetadata(Map("command" -> cmd))
+      case Failure(ex) =>
+        log.error("{} failed to resolve command due to exception:{}", tag, ex)
+    }
+    command
+  }
+
+  /**
+    * Fire and forget data to the metadata service
+    */
+  private def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
   private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {

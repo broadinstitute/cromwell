@@ -107,7 +107,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       log.debug("Cache miss for job {}", jobTag)
       runJob(data)
     case Event(hit @ CacheHit(cacheResultId), data: ResponsePendingData) =>
-      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit (from result ID $cacheResultId)"))
       log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
       fetchCachedResults(data, jobDescriptorKey.call.task.outputs, hit)
     case Event(HashError(t), data: ResponsePendingData) =>
@@ -117,7 +116,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(FetchingCachedOutputsFromDatabase) {
-    case Event(CachedOutputLookupSucceeded(wdlValueSimpletons, jobDetritus, returnCode, cacheHit), data: ResponsePendingData) =>
+    case Event(CachedOutputLookupSucceeded(wdlValueSimpletons, jobDetritus, returnCode, cacheHit, cacheHitDetails), data: ResponsePendingData) =>
+      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
       makeBackendCopyCacheHit(cacheHit, wdlValueSimpletons, jobDetritus, returnCode, data)
     case Event(CachedOutputLookupFailed(metaInfoId, error), data: ResponsePendingData) =>
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)

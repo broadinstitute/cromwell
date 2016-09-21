@@ -19,11 +19,7 @@ final case class ResultSimpleton(simpletonKey: String, simpletonValue: String, w
 
 final case class CacheHitJobFile(fileKey: String, fileValue: String)
 
-final case class CachedResult(returnCode: Option[Int], resultSimpletons: Seq[CallCachingResultSimpletonEntry], jobDetritus: Seq[CallCachingJobDetritusEntry])
-
-final case class CachingPackage(metaInfoEntry: Option[CallCachingResultMetaInfoEntry],
-                                simpletonEntries: Seq[CallCachingResultSimpletonEntry],
-                                detritusEntries: Seq[CallCachingJobDetritusEntry])
+final case class CachedResult(metaInfoEntry: CallCachingResultMetaInfoEntry, resultSimpletons: Seq[CallCachingResultSimpletonEntry], jobDetritus: Seq[CallCachingJobDetritusEntry])
 
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
@@ -101,7 +97,7 @@ class CallCache(database: CallCachingStore) {
                                  callCachingJobDetritusEntries: Seq[CallCachingJobDetritusEntry]):
   Option[CachedResult] = {
     callCachingResultMetaInfoEntryOption map { callCachingResultMetaInfoEntry =>
-      CachedResult(callCachingResultMetaInfoEntry.returnCode, callCachingResultSimpletonEntries, callCachingJobDetritusEntries)
+      CachedResult(callCachingResultMetaInfoEntry, callCachingResultSimpletonEntries, callCachingJobDetritusEntries)
     }
   }
 }

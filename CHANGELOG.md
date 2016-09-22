@@ -21,6 +21,8 @@ parameters as a HTTP POST.
 * Warning: Significant database updates when you switch from version 0.19 to 0.21 of Cromwell.
   Please be refer to MIGRATION.md for more details.
 
+* There are significant architectural changes related related to increases in performance and scaling.
+
 * The biggest changes from 0.19 to 0.21 are related to the application.conf file, which has been restructured significantly.
 The configuration for backends now is all contained within a `backend` stanza, which specifies 1 stanza per name per backend and a default backend, as follows:
 

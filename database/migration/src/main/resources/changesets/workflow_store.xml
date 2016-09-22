@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
+    <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+
+    <changeSet author="chrisl" id="WORKFLOW_STORE">
+        <comment>
+            Temporary storage area for workflows that are still in progress.
+        </comment>
+        <createTable tableName="WORKFLOW_STORE">
+            <column autoIncrement="true" name="WORKFLOW_STORE_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_STORE"/>
+            </column>
+            <column name="WORKFLOW_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_DEFINITION" type="${clob.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_INPUTS" type="${clob.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_OPTIONS" type="${clob.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_STATE" type="varchar(15)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SUBMISSION_TIME" type="DATETIME(6)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet author="kshakir" id="workflow_store_uuid_index">
+        <addUniqueConstraint
+                constraintName="WORKFLOW_STORE_UUID_IDX"
+                tableName="WORKFLOW_STORE"
+                columnNames="WORKFLOW_UUID" />
+    </changeSet>
+
+    <changeSet author="chrisl" id="workflow_store_state_index">
+        <createIndex indexName="WORKFLOW_STORE_STATE_IDX"
+                     tableName="WORKFLOW_STORE" unique="false">
+            <column name="WORKFLOW_STATE"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

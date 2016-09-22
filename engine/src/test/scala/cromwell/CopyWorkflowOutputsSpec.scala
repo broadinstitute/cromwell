@@ -9,7 +9,6 @@ import org.scalatest.prop.Tables.Table
 
 import scala.language.postfixOps
 
-
 class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
   "CopyWorkflowOutputsCall" should {
@@ -28,19 +27,20 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
 
       val workflowId = runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WorkflowOutputsWithFiles,
-        eventFilter = EventFilter.info(pattern = "transitioning from Running to Succeeded.", occurrences = 1),
+        eventFilter = EventFilter.info(
+          pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = "",
-        workflowOptions = s""" { "outputs_path": "$tmpDir" } """,
+        workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
         expectedOutputs = Seq("A.out", "A.out2", "B.outs") map { o => ("wfoutputs." + o) -> CromwellTestkitSpec.AnyValueIsFine } toMap,
         allowOtherOutputs = false
       )
 
       forAll(outputs) { (call, file) =>
-        val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, file))
-        Files.exists(path) shouldBe true
+        val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, "execution", file))
+        path.toFile should exist
       }
-      val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, "call-C", "out"))
-      Files.exists(path) shouldBe false
+      val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, "call-C", "execution", "out"))
+      path.toFile shouldNot exist
     }
 
     "copy scattered workflow outputs" in {
@@ -54,15 +54,16 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
       val outputTuples = for {
         shard <- shards
         output <- outputNames
-      } yield ("call-A", s"shard-$shard/$output")
+      } yield ("call-A", s"shard-$shard/execution/$output")
 
       val outputs = Table(("call", "file"), outputTuples: _*)
 
       val workflowId = runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.WorkflowScatterOutputsWithFileArrays,
-        eventFilter = EventFilter.info(pattern = "transitioning from Running to Succeeded.", occurrences = 1),
+        eventFilter = EventFilter.info(
+          pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = "",
-        workflowOptions = s""" { "outputs_path": "$tmpDir" } """,
+        workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
         expectedOutputs = Map("wfoutputs.A.outs" -> CromwellTestkitSpec.AnyValueIsFine),
         allowOtherOutputs = false
       )

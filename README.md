@@ -1,8 +1,6 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/cromwell/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/cromwell?branch=develop)
-[![Stories in Ready](https://badge.waffle.io/broadinstitute/cromwell.svg?label=ready&title=Ready)](http://waffle.io/broadinstitute/cromwell)
 [![Join the chat at https://gitter.im/broadinstitute/cromwell](https://badges.gitter.im/broadinstitute/cromwell.svg)](https://gitter.im/broadinstitute/cromwell?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![License (3-Clause BSD)](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 Cromwell
 ========
@@ -18,11 +16,13 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Requirements](#requirements)
 * [Building](#building)
 * [Installing](#installing)
+  * [Upgrading from 0.19 to 0.21](#upgrading-from-019-to-021)
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
+  * [Workflow Submission](#workflow-submission)
   * [Database](#database)
   * [SIGINT abort handler](#sigint-abort-handler)
 * [Backends](#backends)
@@ -31,12 +31,22 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
   * [Local Backend](#local-backend)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
+  * [HtCondor Backend](#htcondor-backend)
+    * [Caching configuration](#caching-configuration)
+    * [Docker](#docker)
+    * [CPU, Memory and Disk](#cpu-memory-and-disk)
+  * [Spark Backend](#spark-backend)
+    * [Configuring Spark Project](#configuring-spark-project)
+    * [Configuring Spark Master and Deploy Mode](#configuring-spark-master-and-deploy-mode)
+    * [Spark runtime attributes](#spark-runtime-attributes)
+    * [Spark Environment](#spark-environment)
+    * [Sample Wdl](#sample-wdl)
   * [Google JES Backend](#google-jes-backend)
     * [Configuring Google Project](#configuring-google-project)
     * [Configuring Authentication](#configuring-authentication)
       * [Application Default Credentials](#application-default-credentials)
       * [Service Account](#service-account)
-    * [Data Localization](#data-localization)
+      * [Refresh Token](#refresh-token)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
@@ -44,6 +54,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [continueOnReturnCode](#continueonreturncode)
   * [cpu](#cpu)
   * [disks](#disks)
+    * [Boot Disk](#boot-disk)
   * [zones](#zones)
   * [docker](#docker)
   * [failOnStderr](#failonstderr)
@@ -55,18 +66,17 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
-  * [POST /api/workflows/:version/validate](#post-apiworkflowsversionvalidate)
+  * [POST /api/workflows/:version/batch](#post-apiworkflowsversionbatch)
   * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
+  * [POST /api/workflows/:version/query](#post-apiworkflowsversionquery)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/timing](#get-apiworkflowsversionidtiming)
-  * [GET /api/workflows/:version/:id/outputs/:call](#get-apiworkflowsversionidoutputscall)
-  * [GET /api/workflows/:version/:id/logs/:call](#get-apiworkflowsversionidlogscall)
   * [GET /api/workflows/:version/:id/logs](#get-apiworkflowsversionidlogs)
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
-  * [POST /api/workflows/:version/:id/call-caching](#post-apiworkflowsversionidcall-caching)
-  * [POST /api/workflows/:version/:id/call-caching/:call](#post-apiworkflowsversionidcall-cachingcall)
+  * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
+  * [GET /api/workflows/:version/stats](#get-apiworkflowsversionstats)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -104,6 +114,10 @@ Tests are run via `sbt test`.  Note that the tests do require Docker to be runni
 # Installing
 
 OS X users can install Cromwell with Homebrew: `brew install cromwell`.
+
+## Upgrading from 0.19 to 0.21
+
+See the [migration document](MIGRATION.md) for more details.
 
 # Command Line Usage
 
@@ -173,38 +187,48 @@ $ java -jar cromwell.jar run my_wf.wdl - - my_wf.metadata.json
 ... play-by-play output ...
 $ cat my_wf.metadata.json
 {
+  "workflowName": "w",
   "calls": {
-    "example.my_task": [{
+    "w.x": [{
       "executionStatus": "Done",
-      "stdout": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stdout",
+      "stdout": "/Users/jdoe/projects/cromwell/cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x/stdout",
+      "shardIndex": -1,
       "outputs": {
-        "result": "my example output"
+        "o": "local\nremote"
+      },
+      "runtimeAttributes": {
+        "failOnStderr": "false",
+        "continueOnReturnCode": "0"
+      },
+      "cache": {
+        "allowResultReuse": true
       },
       "inputs": {
+        "remote": "/Users/jdoe/remote.txt",
+        "local": "local.txt"
       },
       "returnCode": 0,
       "backend": "Local",
-      "end": "2015-10-29T03:16:51.732-03:00",
-      "stderr": "/Users/cromwell/cromwell-executions/example/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task/stderr",
-      "start": "2015-10-29T03:16:51.213-03:00"
-      "executionEvents": [{
-        "description": "running docker",
-        "startTime": "2015-10-29T03:16:51.213-03:00",
-        "endTime": "2015-10-29T03:16:51.732-03:00"
-      }],
-      "attempt": 1
+      "end": "2016-07-11T10:27:56.074-04:00",
+      "stderr": "/Users/jdoe/projects/cromwell/cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x/stderr",
+      "callRoot": "cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x",
+      "attempt": 1,
+      "start": "2016-07-11T10:27:55.992-04:00"
     }]
   },
   "outputs": {
-    "example.my_task.result": "my = /root/22b6f829-e2f9-4813-9d20-3328669c786b/call-my_task"
+    "w.x.o": "local\nremote"
   },
-  "id": "22b6f829-e2f9-4813-9d20-3328669c786b",
+  "workflowRoot": "cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084",
+  "id": "a349534f-137b-4809-9425-1893ac272084",
   "inputs": {
+    "w.x.remote": "/Users/jdoe/remote.txt",
+    "w.x.local": "local.txt"
   },
-  "submission": "2015-10-29T03:16:51.125-03:00",
+  "submission": "2016-07-11T10:27:54.907-04:00",
   "status": "Succeeded",
-  "end": "2015-10-29T03:16:51.740-03:00",
-  "start": "2015-10-29T03:16:51.125-03:00"
+  "end": "2016-07-11T10:27:56.108-04:00",
+  "start": "2016-07-11T10:27:54.919-04:00"
 }
 ```
 
@@ -250,6 +274,12 @@ It is recommended that one copies `src/main/resources/application.conf`, modify 
 java -Dconfig.file=/path/to/application.conf cromwell.jar ...
 ```
 
+## Workflow Submission
+
+Cromwell has a configurable cap on the number of workflows running at a time. To set this value provide an integer value to the `system.max-concurrent-workflows` config value.
+
+Cromwell will look for new workflows to start on a regular interval which can be modified by setting the `system.new-workflow-poll-rate` config value, which is the number of seconds between workflow launches. On every poll, Cromwell will take at most `system.max-workflow-launch-count` new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached.
+
 ## Database
 
 Cromwell uses either an in-memory or MySQL database to track the execution of workflows and store outputs of task invocations.
@@ -270,7 +300,7 @@ database {
       db.user = "root"
       db.password = ""
       db.driver = "com.mysql.jdbc.Driver"
-      db.connectionTimeout = 5000 // NOTE: The default 1000ms is often too short for production mysql use
+      db.connectionTimeout = 5000 # NOTE: The default 1000ms is often too short for production mysql use
       driver = "slick.driver.MySQLDriver$"
     }
   }
@@ -286,60 +316,136 @@ database {
 For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option
 
 ```
-backend {
-  abortJobsOnTerminate=true
+system {
+  abort-jobs-on-terminate=true
 }
 ```
 
-Or, via `-Dbackend.abortJobsOnTerminate=true` command line option.
+Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 # Backends
 
-A backend represents a way to run the user's command specified in the `task` section.  Currently three backends are supported:
+A backend represents a way to run the user's command specified in the `task` section.  Cromwell allows for backends conforming to
+the Cromwell backend specification to be plugged into the Cromwell engine.  Additionally, backends are included with the
+Cromwell distribution:
 
-* Local - Run jobs as subprocesses.  Supports launching in Docker containers.
-* Sun GridEngine - Use `qsub` and job monitoring to run scripts.
+* Local / GridEngine / LSF / etc. - Run jobs as subprocesses or via a dispatcher.  Supports launching in Docker containers. Use `bash`, `qsub`, `bsub`, etc. to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
+* HtCondor - Allows to execute jobs using HTCondor.
+* Spark - Adds support for execution of spark jobs.
 
-Backends are specified via the configuration option `backend.backend` which can accept the values: `sge`, `local`, and `jes` (e.g. `java -Dbackend.backend=sge`).
+Backends are specified in the `backend` configuration block under `providers`.  Each backend has a configuration that looks like:
+
+```hocon
+backend {
+  default = "Local"
+  providers {
+    BackendName {
+      actor-factory = "FQN of BackendLifecycleActorFactory instance"
+      config {
+        key = "value"
+        key2 = "value2"
+        ...
+      }
+    }
+  }
+}
+```
+
+The structure within the `config` block will vary from one backend to another; it is the backend implementation's responsibility
+to be able to interpret its configuration.
+
+In the example below two backend types are named within the `providers` section here, so both
+are available.  The default backend is specified by `backend.default` and must match the `name` of one of the
+configured backends:
+
+```hocon
+backend {
+  default = "Local"
+  providers {
+    Local {
+      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
+      config {
+        root: "cromwell-executions"
+        filesystems = {
+          local {
+            localization: [
+              "hard-link", "soft-link", "copy"
+            ]
+          }
+          gcs {
+            # References an auth scheme defined in the 'google' stanza.
+            auth = "application-default"
+          }
+        }
+      }
+    },
+    JES {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      config {
+        project = "my-cromwell-workflows"
+        root = "gs://my-cromwell-workflows-bucket"
+        maximum-polling-interval = 600
+        dockerhub {
+          # account = ""
+          # token = ""
+        }
+        genomics {
+          # A reference to an auth defined in the 'google' stanza at the top.  This auth is used to create
+          # Pipelines and manipulate auth JSONs.
+          auth = "application-default"
+          endpoint-url = "https://genomics.googleapis.com/"
+        }
+        filesystems = {
+          gcs {
+            # A reference to a potentially different auth for manipulating files via engine functions.
+            auth = "user-via-refresh"
+          }
+        }
+      }
+    }
+  ]
+}
+```
 
 ## Backend Filesystems
 
-Each backend will utilize one filesystem to store the directory structure of an executed workflow.  Currently, the backend and the type of filesystem that the backend uses are tightly coupled.  In future versions of Cromwell, they may be more loosely coupled.
+Each backend will utilize filesystems to store the directory structure of an executed workflow.  Currently, the backends and the type of filesystems that the backend use are tightly coupled.  In future versions of Cromwell, they may be more loosely coupled.
 
 The backend/filesystem pairings are as follows:
 
-* [Local Backend](#local-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
-* [SGE Backend](#sun-gridengine-backend) uses the [Shared Local Filesystem](#shared-local-filesystem)
+* [Local Backend](#local-backend) and associated backends primarily use the [Shared Local Filesystem](#shared-local-filesystem).
 * [JES Backend](#google-jes-backend) uses the [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
+
+Note that while Local, SGE, LSF, etc. backends use the local or network filesystem for the directory structure of a workflow, they are able to localize inputs
+from GCS paths if configured to use a GCS filesystem.  See [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem) for more details.
 
 ### Shared Local Filesystem
 
 For the [local](#local-backend) and [Sun GridEngine](#sun-gridengine-backend) backends, the following is required of the underlying filesystem:
 
-* (`local` backend) Subprocesses that Cromwell launches can use child directories that Cromwell creates as their CWD.  The subprocess must have write access to the directory that Cromwell assigns as its current working directory.
-* (`sge` backend) Jobs launched with `qsub` can use directories that Cromwell creates as the working directory of the job, and write files to those directories.
+Cromwell is configured with a root execution directory which is set in the configuration file under `backend.providers.<backend_name>.config.root`.  This is called the `cromwell_root` and it is set to `./cromwell-executions` by default.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
 
-The root directory that Cromwell uses for all workflows (`cromwell-root`) defaults to `./cromwell-executions`.  However, this is can be overwritten with the `-Dbackend.shared-filesystem.root=/your/path` option on the command line, or via [Cromwell's configuration file](#configuring-cromwell)
+When Cromwell runs a workflow, it first creates a directory `<cromwell_root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
-When cromwell runs a workflow, it first creates a directory `<cromwell-root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
+Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
 
-Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  Within this directory are special files written by the backend and they're supposed to be backend specific things though there are commonalities.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
-
-An example of a workflow output directory would look like this:
+An example of a workflow output directory for a three-step WDL file might look like this:
 
 ```
 cromwell-executions/
 └── three_step
-    └── df6363df-d812-4088-acfd-5b00ef3f5dcc
+    └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
         ├── call-cgrep
-        │   ├── cromwell_root
-        │   │   └── cromwell
-        │   │       └── cromwell-executions
-        │   │           └── three_step
-        │   │               └── df6363df-d812-4088-acfd-5b00ef3f5dcc
-        │   │                   └── call-ps
-        │   │                       └── stdout
+        │   ├── Users
+        │   │   └── jdoe
+        │   │       └── projects
+        │   │           └── cromwell
+        │   │               └── cromwell-executions
+        │   │                   └── three_step
+        │   │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
+        │   │                           └── call-ps
+        │   │                               └── stdout
         │   ├── rc
         │   ├── script
         │   ├── stderr
@@ -350,13 +456,15 @@ cromwell-executions/
         │   ├── stderr
         │   └── stdout
         └── call-wc
-            ├── cromwell_root
-            │   └── cromwell
-            │       └── cromwell-executions
-            │           └── three_step
-            │               └── df6363df-d812-4088-acfd-5b00ef3f5dcc
-            │                   └── call-ps
-            │                       └── stdout
+            ├── Users
+            │   └── jdoe
+            │       └── projects
+            │           └── cromwell
+            │               └── cromwell-executions
+            │                   └── three_step
+            │                       └── a59651fc-4d9a-4fed-99ba-f5e2c9d84bb4
+            │                           └── call-ps
+            │                               └── stdout
             ├── rc
             ├── script
             ├── stderr
@@ -407,8 +515,6 @@ workflow three_step {
 }
 ```
 
-This workflow output directory would be the result of running the above WDL file with Cromwell from the directory `/cromwell_root`.
-
 In the above directory structure, you'll notice that the `call-cgrep` and `call-wc` sub-directories both contain a directory structure to point to the `stdout` file from the invocation of `ps`.  In these cases, that `stdout` file is a localized version of the one within `call-ps/stdout`.  By default both of those `stdout` files would be hard-links but they could also be symbolic links or copies of the file, depending on how Cromwell is configured (see below).  The directory structure is nested so deeply to avoid collisions.  For example, if either of these call invocations referenced two files called `stdout`, they'd collide if they were put into the same directory so the full directory structure is maintained.
 
 Any input files to a call need to be localized into the `<call_dir>`.  There are a few localization strategies that Cromwell will try until one works.  Below is the default order specified in `application.conf` but this order can be overridden:
@@ -417,29 +523,28 @@ Any input files to a call need to be localized into the `<call_dir>`.  There are
 * `soft-link` - Create a symbolic link to the file.  This strategy is not applicable for tasks which specify a Docker image and will be ignored.
 * `copy` - Make a copy the file
 
-These options can be overridden with command line options to Java.  For instance, to use the strategies `copy` and `hard-link`, in that order:
+Shared filesystem localization is defined in the `config` section of each backend.  The default stanza for the Local, SGE, and associated backends looks like this:
 
 ```
-java -Dbackend.shared-filesystem.localization.0=copy -Dbackend.shared-filesystem.localization.1=hard-link cromwell.jar ...
+filesystems {
+ local {
+   localization: [
+	 "hard-link", "soft-link", "copy"
+   ]
+ }
+}
 ```
-
-Backends that use the shared filesystem can accept the following values for `File` variables:
-
-* Local file system paths, either relative or absolute.  Relative paths are interpreted as relative to the current working directory of the Cromwell process.
-* [Google Cloud Storage](https://cloud.google.com/storage/) URIs (e.g. `gs://my-bucket/x/y/z.txt`).  Any GCS URI will be downloaded locally
 
 ### Google Cloud Storage Filesystem
 
-The Google Cloud Storage (GCS) Filesystem is only used for when a workflow is run on Google JES.  It uses the same directory structure as the [Shared Local Filesystem](#shared-local-filesystem), however it is rooted at one of the following GCS locations:
-
-* If the `jes_gcs_root` [workflow option](#workflow-options) is set, this is used first.
-* Otherwise, `backend.jes.baseExecutionBucket` in the [configuration file](#configuring-cromwell), which can also be set via `java -Dbackend.jes.baseExecutionBucket="gs://my-bucket/"`, will be used instead.
-
-Google Cloud Storage URIs are the only acceptable values for `File` inputs for workflows using the JES backend.
+On the JES backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the JES backend the `jes_gcs_root` [workflow option](#workflow-options) will take
+precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
+workflows using the JES backend.
 
 ## Local Backend
 
-The local backend will simply launch a subprocess for each task invocation and wait for it to exit.
+The local backend will simply launch a subprocess for each task invocation and wait for it to produce its rc file.
 
 This backend creates three files in the `<call_dir>` (see previous section):
 
@@ -450,6 +555,7 @@ This backend creates three files in the `<call_dir>` (see previous section):
 The `script` file contains:
 
 ```
+#!/bin/sh
 cd <container_call_root>
 <user_command>
 echo $? > rc
@@ -457,22 +563,22 @@ echo $? > rc
 
 `<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/root/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
 
-The subprocess command that the local backend will launch is:
+When running without docker, the subprocess command that the local backend will launch is:
 
 ```
-"/bin/bash" "-c" "cat script | <docker_run> /bin/bash <&0"
+/bin/bash <script>"
 ```
 
-Where `<docker_run>` will be non-empty if this particular task specified a Docker container to run in.  `<docker_run>` looks like this:
+When running with docker, the subprocess command that the local backend will launch is:
 
 ```
-docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
+docker run --rm -v <cwd>:<docker_cwd> -i <docker_image> /bin/bash < <script>
 ```
 
 > **NOTE**: If you are using the local backend with Docker and Docker Machine on Mac OS X, by default Cromwell can only
 > run from in any path under your home directory.
 >
-> The `-v` flag will only work if `<local_workflow_dir>` is within your home directory because VirtualBox with
+> The `-v` flag will only work if `<cwd>` is within your home directory because VirtualBox with
 > Docker Machine only exposes the home directory by default.  Any local path used in `-v` that is not within the user's
 > home directory will silently be interpreted as references to paths on the VirtualBox VM.  This can manifest in
 > Cromwell as tasks failing for odd reasons (like missing RC file)
@@ -481,36 +587,443 @@ docker run -v <local_workflow_dir>:/root/<workflow_uuid> -i <image>
 
 ## Sun GridEngine Backend
 
-The GridEngine backend uses `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
+The GridEngine and similar backends use programs such as `qsub` to launch a job and will poll the filesystem to determine if a job is completed.
+
+The backend is specified via the actor factory `ConfigBackendLifecycleActorFactory`:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+        # ... other configuration
+      }
+    }
+  }
+}
+```
 
 This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
 
-The CWD will contain a `script.sh` file which will contain:
+The CWD will contain a `script.sh` file which will contain the same contents as the Local backend:
 
 ```
-\#!/bin/sh
+#!/bin/sh
+cd <container_call_root>
 <user_command>
 echo $? > rc
 ```
 
-The job is launched using the following command:
+The job is launched with a configurable command such as:
 
+```bash
+qsub \
+    -terse \
+    -V \
+    -b n \
+    -N ${job_name} \
+    -wd ${cwd} \
+    -o ${out} \
+    -e ${err} \
+    -pe smp ${cpu} \
+    ${"-l m_mem_free=" + memory_gb + "gb"} \
+    ${"-q " + sge_queue} \
+    ${"-P " + sge_project} \
+    ${script}
 ```
-qsub -N <job_name> -V -b n -wd <call_dir> -o stdout -e stderr <call_dir>/script.sh
-```
 
-`<job_name>` is the string: `cromwell_<workflow_uuid_short>_<call_name>` (e.g. `cromwell_5103f8db_my_task`).
-
-the `<call_dir>` contains the following special files added by the SGE backend:
-
-* `qsub.stdout`, `qsub.stderr` - The results of the qsub command.
-* `script.sh` - File containing the user's command and some wrapper code.
-* `stdout`, `stderr` - Standard output streams of the actual job.
-* `rc` - Return code of the SGE job, populated when the job has finished.
-
-The SGE backend gets the job ID from parsing the `qsub.stdout` text file.
+The SGE backend gets the job ID from parsing the `submit.stdout` text file.
 
 Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+The command used to submit the job is specified under the configuration key `backend.providers.SGE.config.submit`. It uses the same syntax as a command in WDL, and will be provided the variables:
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `cwd` - The path where the script should be run.
+* `out` - The path to the stdout.
+* `err` - The path to the stderr.
+* `job_name` - A unique name for the job.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        submit = """
+        qsub \
+            -terse \
+            -V \
+            -b n \
+            -N ${job_name} \
+            -wd ${cwd} \
+            -o ${out} \
+            -e ${err} \
+            ${script}
+        """
+      }
+    }
+  }
+}
+```
+
+If the backend supports docker, another optional configuration key `backend.providers.<backend>.config.submit-docker` may be specified. When the WDL contains a docker runtime attribute, this command will be provided the two additional variables:
+
+* `docker` - The docker image name.
+* `docker_cwd` - The path where `cwd` should be mounted within the docker container.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        submit-docker = """
+        qsub \
+            -terse \
+            -V \
+            -b n \
+            -N ${job_name} \
+            -wd ${cwd} \
+            -o ${out} \
+            -e ${err} \
+            -l docker,docker_images="${docker}"
+            -xdv ${cwd}:${docker_cwd}
+            ${script}
+        """
+      }
+    }
+  }
+}
+```
+
+If the backend would like to support additional runtime attributes they may be specified in the configuration key `backend.providers.<backend>.config.runtime-attributes`. It uses the same syntax as specifying runtime attributes in a task in WDL.
+
+There are two special runtime attribute configurations, `cpu`, and `memory_<unit>`.
+
+When the runtime attribute configuration `Int cpu` is specified, it is always validated as a positive integer.
+
+When the runtime attribute configuration `Int memory_<unit>` or `Float memory_<unit>` is specified, it is provided to submit by the runtime attribute in WDL `memory`.
+
+For example, if the backend specifies the configuration for `backend.providers.<backend>.config.runtime-attributes` as:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        runtime-attributes = "Float memory_mb"
+      }
+    }
+  }
+}
+```
+
+And the WDL specifies a task with:
+
+```
+task hello_gigabyte {
+  command { echo "hello world" }
+  runtime { memory: "1 GB" }
+}
+```
+
+Then for this call, the backend will be provided an additional variable `memory_mb` set to `1000.0`.
+
+Other runtime attributes may be defined by specifying them in under the runtime attributes configuration.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        runtime-attributes = """
+        Float memory_mb
+        String sge_project
+        """
+      }
+    }
+  }
+}
+```
+
+These variables will then be passed from the WDL into the submit configuration. If one would like to have a default value, just like in WDL, the configuration may specify that the value have a default. The default must match the defined type or an error will be produced.
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        runtime-attributes = """
+        Float memory_mb = 2.0
+        String sge_project = "default"
+        """
+      }
+    }
+  }
+}
+```
+
+Optional values may also be used by appending `?` to the type:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        runtime-attributes = """
+        Float? memory_mb
+        String? sge_project
+        """
+      }
+    }
+  }
+}
+```
+
+The value will be passed to the submit configuration if provided, and omitted otherwise.
+
+There are also configuration values related to how jobs are rechecked on startup and aborted.
+
+The option is `backend.providers.<backend>.config.run-in-background`. When `true` the backend runs the submit configuration and records the unix process id (PID). To abort the job, the PID is stopped with the unix command `kill`. Upon a cromwell restart, the PID is checked via the unix command `ps` to see if it is still alive, before cromwell goes back to polling for the `rc` file.
+
+When `backend.providers.<backend>.config.run-in-background` is `false`, the default, the backend must specify how read the job identifier from the stdout of the submit, how to kill the job, and how to check if the job is still running during a cromwell restart. These three configuration values are `job-id-regex`, `kill`, and `check-alive`, respectively:
+
+```
+backend {
+  providers {
+    SGE {
+      config {
+        # ... other configuration
+        job-id-regex = "(\\d+)"
+        kill = "qdel ${job_id}"
+        check-alive = "qstat -j ${job_id}"
+        """
+      }
+    }
+  }
+}
+```
+
+The `job-id-regex` should contain one capture group while matching against the whole line or stdout file. The `check-alive` should return zero if the job is still alive.
+
+## HtCondor Backend
+
+Allows to execute jobs using HTCondor which is a specialized workload management system for compute-intensive jobs created by the Center for High Throughput Computing in the Department of Computer Sciences at the University of Wisconsin-Madison (UW-Madison).
+
+This backend creates six files in the `<call_dir>` (see previous section):
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `stdout` - The standard output of the process
+* `stderr` - The standard error of the process
+* `submitfile` - A submit file that HtCondor understands in order to submit a job
+* `submitfile.stdout` - The standard output of the submit file
+* `submitfile.stderr` - The standard error of the submit file
+
+The `script` file contains:
+
+```
+cd <container_call_root>
+<user_command>
+echo $? > rc
+```
+
+The `submitfile` file contains:
+
+```
+executable=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/script
+output=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stdout
+error=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stderr
+log=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/merge_files.log
+queue
+
+```
+
+### Caching configuration
+This implementation also add basic caching support. It relies in a cache provider to store successful job results.
+By default a MongoDB based cache implementation is provided but there is the option of implementing a new provider based on CacheActorFactory and CacheActor interfaces.
+
+From application.conf file:
+```
+cache {
+  provider = "cromwell.backend.impl.htcondor.caching.provider.mongodb.MongoCacheActorFactory"
+  enabled = true
+  forceRewrite = false
+  db {
+    host = "127.0.0.1"
+    port = 27017
+    name = "htcondor"
+    collection = "cache"
+  }
+}
+
+```
+
+* provider: it defines the provider to use based on CacheActorFactory and CacheActor interfaces.
+* enabled: enables or disables cache.
+* forceRewrite: it allows to invalidate the cache entry and store result again.
+* db section: configuration related to MongoDB provider. It may not exist for other implementations.
+
+### Docker
+This backend supports the following optional runtime attributes / workflow options for working with Docker:
+* docker: Docker image to use such as "Ubuntu".
+* dockerWorkingDir: defines the working directory in the container.
+* dockerOutputDir: defiles the output directory in the container when there is the need to define a volume for outputs within the container. By default if this attribute is not set, dockerOutputDir will be the job working directory.
+
+Inputs:
+HtCondor backend analyzes all inputs and do a distinct of the folders in order to mount input folders into the container.
+
+Outputs:
+It will use dockerOutputDir runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no dockerOutputDir defined it will use the current working directory.
+
+### CPU, Memory and Disk
+This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
+* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
+* memory: defines the amount of memory to use. Default value: "512 MB". Type: String. Ex: "4 GB" or "4096 MB"
+* disk: defines the amount of disk to use. Default value: "1024 MB". Type: String. Ex: "1 GB" or "1024 MB"
+
+It they are not set, HtCondor backend will use default values.
+
+## Spark Backend
+
+This backend adds support for execution of spark jobs in a workflow using the existing wdl format. 
+
+It supports the following Spark deploy modes:
+
+*  Client deploy mode using the spark standalone cluster manager
+*  Cluster deploy mode using the spark standalone cluster manager
+*  Client deploy mode using Yarn resource manager
+*  Cluster deploy mode using Yarn resource manager
+
+### Configuring Spark Project
+
+When using Spark backend uncomment the following Spark configuration in the application.conf file
+
+```conf
+Spark {
+       actor-factory = "cromwell.backend.impl.spark.SparkBackendFactory"
+       config {
+         # Root directory where Cromwell writes job results.  This directory must be
+         # visible and writeable by the Cromwell process as well as the jobs that Cromwell
+         # launches.
+         root: "cromwell-executions"
+
+         filesystems {
+           local {
+             localization: [
+               "hard-link", "soft-link", "copy"
+             ]
+           }
+         }
+		master: "local"
+		deployMode: "client"
+        }
+
+      }
+```
+and add backend provider as Spark. 
+
+```
+backend {
+  default = "Spark"
+  providers {
+  ....
+```
+
+### Configuring Spark Master and Deploy Mode
+
+Default configuration is as follows:
+
+```conf
+Spark {
+		......
+		master: "local"
+		deployMode: "client"
+
+      }
+```
+
+However to use Spark in standalone cluster mode change `master: spark://hostname:6066` and `deployMode: cluster` similarly, for yarn change `master: yarn` and `deployMode: cluster` or `deployMode: client` to run in cluster or client mode respectively. 
+
+### Spark runtime attributes
+
+Supported runtime attributes for a Spark Job is as follows:
+	
+* executorCores (default value is 1)
+* executorMemory (default value is "1 GB")
+* appMainClass ( Spark app/job entry point)
+* numberOfExecutors ( Specific to cluster deploy mode)
+
+Sample usage :
+
+```wdl
+task sparkjob_with_yarn_cluster {
+        .....
+        
+        runtime {
+                appMainClass: "${entry_point}"
+                executorMemory: "4G"
+                executorCores: "2"
+        }
+        
+        .....
+	}
+```
+
+### Spark Environment
+
+The Spark backend assumes Spark is already installed, and it constructs the spark submit command with the `SPARK_HOME` environment variable if set. Otherwise backend creates command `spark-submit` without a fully qualified path to `spark-submit`.
+
+Supported File Systems as follows: 
+
+* Local File System
+* Network File System
+* Distributed file system
+
+### Sample Wdl
+Next, create a Wdl, and it's json input like so:
+
+```wdl
+task sparkjob_with_yarn_cluster {
+        File input_jar
+        String input_1
+        String output_base
+        String entry_point
+        Int cores
+        String memory
+
+        command {
+                ${input_jar} ${input_1} ${output_base}
+        }
+
+        runtime {
+                appMainClass: "${entry_point}"
+                executorMemory: "${memory}"
+                executorCores: "${cores}"
+        }
+        output {
+                File out = "${output_base}"
+          }
+	}
+```
+
+and its accompanying json input as:
+
+```json
+{
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.memory": "4G",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.output_base":"/mnt/lustre/hadoop/home/yarn_cluster_output",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.entry_point": "com.org.spark.poc.nfs.SparkVowelLine",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.cores": "12",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.input_1": "/mnt/lustre/hadoop/home/inputfiles/sample.txt",
+	"sparkWithYarnCluster.sparkjob_with_yarn_cluster.input_jar": "/mnt/lustre/hadoop/home/inputjars/spark_hdfs.jar"
+}
+```
 
 ## Google JES Backend
 
@@ -533,43 +1046,67 @@ If your project is `my-project` your bucket is `gs://my-bucket/`, then update yo
 
 ```hocon
 backend {
-  backend = "jes"
-
-  jes {
-    // Google project
-    project = "my-project"
-
-    // Location to store workflow results, must be a gs:// URL
-    baseExecutionBucket = "gs://my-bucket/cromwell-executions"
-
-    // Root URL for the API
-    endpointUrl = "https://genomics.googleapis.com/"
-
-    // Polling for completion backs-off gradually for slower-running jobs.
-    // This is the maximum polling interval (in seconds):
-    maximumPollingInterval = 600
-  }
+  default = "JES"
+  providers {
+    JES {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      config {
+        project = "my-project"
+        root = "gs://my-bucket"
+        .
+        .
+        .
+      }
+    }
+  ]
 }
 ```
 
 ### Configuring Authentication
 
-The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are three authentication schemes:
+The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
+authentication schemes that might be used:
 
 * `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
 * `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
 * `user_account` - Authenticate as a user.
+* `refresh_token` - Authenticate using a refresh token supplied in the workflow options.
 
-#### Application Default Credentials
-
-By default, application default credentials will be used.  The configuration file should look like this to use application default credentials:
+The `auths` block in the `google` stanza defines the authorization schemes within a Cromwell deployment:
 
 ```hocon
 google {
-  applicationName = "cromwell"
-  cromwellAuthenticationScheme = "application_default"
+  application-name = "cromwell"
+  auths = [
+    {
+      name = "application-default"
+      scheme = "application_default"
+    },
+    {
+      name = "user-via-refresh"
+      scheme = "refresh_token"
+      client-id = "secret_id"
+      client-secret = "secret_secret"
+    },
+    {
+      name = "service-account"
+      scheme = "service_account"
+      service-account-id = "my-service-account"
+      pem-file = "/path/to/file.pem"
+    }
+  ]
 }
 ```
+
+These authorization schemes can be referenced by name within other portions of the configuration file.  For example, both
+the `genomics` and `filesystems.gcs` sections within a JES configuration block must reference an auth defined in this block.
+The auth for the `genomics` section governs the interactions with JES itself, while `filesystems.gcs` governs the localization
+of data into and out of GCE VMs.
+
+#### Application Default Credentials
+
+By default, application default credentials will be used.  There is no configuration required for application default
+credentials, only `name` and `scheme` are required.
 
 To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
 
@@ -577,8 +1114,6 @@ To authenticate, run the following commands from your command line (requires [gc
 $ gcloud auth login
 $ gcloud config set project my-project
 ```
-
-This should be all that's necessary to run Cromwell using the JES backend.
 
 #### Service Account
 
@@ -601,68 +1136,36 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 }
 ```
 
-Most importantly, the value of the `client_email` field should go into the `google.serviceAuth.serviceAccountId` field in the configuration (see below).
+Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
+`private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-The `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
-
-```hocon
-google {
-  applicationName = "cromwell"
-  cromwellAuthenticationScheme = "service_account"
-
-  // If cromwellAuthenticationScheme is "service_account"
-  serviceAuth {
-    pemFile = "/path/to/secret/my-key.pem"
-    serviceAccountId = "my-account@my-project.iam.gserviceaccount.com"
-  }
-}
-```
-
-### Data Localization
-
-Data localization can be performed on behalf of an other entity (typically a user).
-
-This allows cromwell to localize file that otherwise wouldn't be accessible using whichever `cromwellAuthenticationScheme` has been defined in the `google` configuration (e.g. if data has restrictive ACLs).
-To enable this feature, two pieces of configuration are needed:
-
-**1 - ClientID/Secret**
-
-An entry must be added in the `google` stanza, indicating a pair of client ID / client Secret that have been used to generate a refresh token for the entity that will be used during localization:
-
-```hocon
-google {
-  cromwellAuthenticationScheme = "service_account"
-
-  serviceAuth {
-    pemFile = "/path/to/secret/cromwell-svc-acct.pem"
-    serviceAccountId = "806222273987-gffklo3qfd1gedvlgr55i84cocjh8efa@developer.gserviceaccount.com"
-  }
-
-  userAuthenticationScheme = "refresh"
-
-  refreshTokenAuth = {
-    client_id = "myclientid.apps.googleusercontent.com"
-    client_secret = "clientsecretpassphrase"
-  }
-}
-```
-
-**2 - Refresh Token**
+#### Refresh Token
 
 A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
 
-The refresh token is passed to JES along with the client ID and Secret pair, which allows JES to localize and delocalize data as the entity represented by the refresh token.
-Note that upon generation of the refresh token, the application must ask for GCS read/write permission using the appropriate scope.
+The refresh token is passed to JES along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
+
 
 ### Docker
 
 It is possible to reference private docker images in DockerHub to be run on JES.
 However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
 
+
 ```
-docker {
-  dockerAccount = "mydockeraccount@mail.com"
-  dockerToken = "mydockertoken"
+backend {
+  default = "JES"
+  providers {
+    JES {
+      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
+      config {
+        dockerhub {
+          account = "mydockeraccount@mail.com"
+          token = "mydockertoken"
+        }
+      }
+    }
+  }
 }
 ```
 
@@ -694,7 +1197,7 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 }
 ```
 
-The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.
+The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
 
 # Runtime Attributes
 
@@ -711,7 +1214,7 @@ task jes_task {
     docker: "ubuntu:latest"
     memory: "4G"
     cpu: "3"
-    zones: "us-central1-c us-central1-a"
+    zones: "us-central1-c us-central1-b"
     disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
@@ -725,12 +1228,12 @@ This table lists the currently available runtime attributes for cromwell:
 | Runtime Attribute    | LOCAL |  JES  |  SGE  |
 | -------------------- |:-----:|:-----:|:-----:|
 | continueOnReturnCode |   x   |   x   |   x   |
-| cpu                  |       |   x   |       |
+| cpu                  |       |   x   |   x   |
 | disks                |       |   x   |       |
 | zones                |       |   x   |       |
 | docker               |   x   |   x   |   x   |
 | failOnStderr         |   x   |   x   |   x   |
-| memory               |       |   x   |       |
+| memory               |       |   x   |   x   |
 | preemptible          |       |   x   |       |
 | bootDiskSizeGb       |       |   x   |       |
 
@@ -751,6 +1254,8 @@ task runtime_test {
   }
 }
 ```
+
+SGE and similar backends may define other configurable runtime attributes beyond the five listed. See [Sun GridEngine](#sun-gridengine-backend) for more information.
 
 ## Specifying Default Values
 
@@ -778,9 +1283,9 @@ And this set of workflow options:
 
 ```json
 {
-  "defaultRuntimeOptions": {
+  "default_runtime_attributes": {
     "docker": "ubuntu:latest",
-    "zones": "us-central1-a us-central1-b"
+    "zones": "us-central1-c us-central1-b"
   }
 }
 ```
@@ -789,14 +1294,14 @@ Then these values for `docker` and `zones` will be used for any task that does n
 ```
 {
     "docker": "ubuntu:latest",
-    "zones": "us-central1-a us-central1-b"
+    "zones": "us-central1-c us-central1-b"
   }
 ```
 And the effective runtime for `task second` is:
 ```
 {
     "docker": "my_docker_image",
-    "zones": "us-central1-a us-central1-b"
+    "zones": "us-central1-c us-central1-b"
   }
 ```
 Note how for task second, the WDL value for `docker` is used instead of the default provided in the workflow options.
@@ -832,6 +1337,8 @@ Defaults to "0".
 ## cpu
 
 Passed to JES: "The minimum number of cores to use."
+
+Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of number of cores.
 
 ```
 runtime {
@@ -891,11 +1398,11 @@ The zones are specified as a space separated list, with no commas.
 
 ```
 runtime {
-  zones: "us-central1-a us-central1-b"
+  zones: "us-central1-c us-central1-b"
 }
 ```
 
-Defaults to "us-central1-a"
+Defaults to "us-central1-b"
 
 ## docker
 
@@ -924,6 +1431,8 @@ Defaults to "false".
 ## memory
 
 Passed to JES: "The minimum amount of RAM to use."
+
+Passed to SGE, etc.: Configurable, but usually a reservation and/or limit of memory.
 
 The memory size is specified as an amount and units of memory, for example "4 G".
 
@@ -968,7 +1477,7 @@ workflow-options {
 }
 ```
 
-The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `workflow_log_dir`.
+The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `final_workflow_log_dir`.
 
 # Workflow Options
 
@@ -989,22 +1498,22 @@ Valid keys and their meanings:
 * Global *(use with any backend)*
     * **write_to_cache** - Accepts values `true` or `false`.  If `false`, the completed calls from this workflow will not be added to the cache.  See the [Call Caching](#call-caching) section for more details.
     * **read_from_cache** - Accepts values `true` or `false`.  If `false`, Cromwell will not search the cache when invoking a call (i.e. every call will be executed unconditionally).  See the [Call Caching](#call-caching) section for more details.
-    * **workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
-    * **outputs_path** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
-    * **call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
-    * **defaultRuntimeOptions** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
-    * **workflowFailureMode** - What happens after a task fails. Choose from:
+    * **final_workflow_log_dir** - Specifies a path where per-workflow logs will be written.  If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.
+    * **final_workflow_outputs_dir** - Specifies a path where final workflow outputs will be written.  If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.
+    * **final_call_logs_dir** - Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.
+    * **default_runtime_attributes** - A JSON object where the keys are [runtime attributes](#runtime-attributes) and the values are defaults that will be used through the workflow invocation.  Individual tasks can choose to override these values.  See the [runtime attributes](#specifying-default-values) section for more information.
+    * **continueOnReturnCode** - Can accept a boolean value or a comma separated list of integers in a string.  Defaults to false.  If false, then only return code of 0 will be acceptable for a task invocation.  If true, then any return code is valid.  If the value is a list of comma-separated integers in a string, this is interpreted as the acceptable return codes for this task.
+    * **workflow_failure_mode** - What happens after a task fails. Choose from:
         * **ContinueWhilePossible** - continues to start and process calls in the workflow, as long as they did not depend on the failing call
         * **NoNewCalls** - no *new* calls are started but existing calls are allowed to finish
         * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
-    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.    
+    * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.
 * JES Backend Only
-    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.baseExecutionBucket` in the [configuration](#configuring-cromwell).
+    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.root` in the [configuration](#configuring-cromwell).
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
-    * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).  See the [Data Localization](#data-localization) section below for more details.
+    * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
     * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
-    * **preemptible** - (JES backend only) Specifies the maximum number of times a call should be executed with a preemptible VM. This option can be overridden by [runtime attributes](#preemptible). By default the value is 0, which means no Preemptible VM will be used.
 
 # Call Caching
 
@@ -1024,13 +1533,10 @@ To enable Call Caching, add the following to your Cromwell [configuration](#conf
 ```
 call-caching {
   enabled = true
-  lookup-docker-hash = false
 }
 ```
 
-When `call-caching.enabled=true`, Cromwell will add completed calls to the cache as well as do a cache lookup before running any call.
-
-When `call-caching.lookup-docker-hash=true`, Cromwell will contact external services like DockerHub or Google Container Registry to resolve Docker floating container identifiers like `ubuntu:latest` into immutable hashes while computing the hash of the call invocation.  If this option is false, then the raw value specified in the WDL file for the Docker image is the value that will be used.
+When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to copy results from previously run jobs (when appropriate).
 
 Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
 
@@ -1180,11 +1686,11 @@ task x { ... }
 task y { ... }
 task z { ... }
 
-workflow sfrazer {
+workflow myworkflow {
   call x
   call y
   call z {
-    input: example="gs://my-bucket/cromwell-executions/sfrazer/example.txt", int=3000
+    input: example="gs://my-bucket/cromwell-executions/myworkflow/example.txt", int=3000
   }
 }
 
@@ -1192,87 +1698,196 @@ workflow sfrazer {
 Content-Disposition: form-data; name="workflowInputs"; filename="jes0.json"
 
 {
-  "sfrazer.x.x": "100"
+  "myworkflow.x.x": "100"
 }
 
 --f3fd038395644de596c460257626edd7
 Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 
 {
-  "jes_gcs_root": "gs://sfrazer-dev/workflows"
+  "jes_gcs_root": "gs://myworkflow-dev/workflows"
 }
 
 --f3fd038395644de596c460257626edd7--
 ```
 
-## POST /api/workflows/:version/validate
+## POST /api/workflows/:version/batch
 
-This endpoint allows WDL to be validated in the context of a running Cromwell server and a given inputs file.
+This endpoint accepts a POST request with a `multipart/form-data`
+encoded body.  The form fields that may be included are:
 
-
-Validation includes checking that the WDL is syntactically correct, that the runtime attributes are correct and (if supplied) that
-the inputs file satisfies the WDL file's input requirements.
-
-* `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.
-* `workflowOptions` - *Optional* JSON file containing the workflow options. The options file is validated structurally
-and can supply default runtime attributes for tasks in the source file.
-
+* `wdlSource` - *Required* Contains the WDL file to submit for
+execution.
+* `workflowInputs` - *Required* JSON file containing the inputs in a
+JSON array. A skeleton file for a single inputs json element can be
+generated from [wdltool](https://github.com/broadinstitute/wdltool)
+using the "inputs" subcommand. The orderded endpoint responses will
+contain one workflow submission response for each input, respectively.
+* `workflowOptions` - *Optional* JSON file containing options for this
+workflow execution.  See the [run](#run) CLI sub-command for some more
+information about this.
 
 cURL:
+
 ```
-$ curl -v "localhost:8000/api/workflows/v1/validate" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
 ```
 
 Request:
+
 ```
-POST /api/workflows/v1/validate HTTP/1.1
+POST /api/workflows/v1/batch HTTP/1.1
 Accept: */*
 Accept-Encoding: gzip, deflate
 Connection: keep-alive
-Content-Length: 463
-Content-Type: application/x-www-form-urlencoded; charset=utf-8
+Content-Length: 750
+Content-Type: multipart/form-data; boundary=64128d499e9e4616adea7d281f695dcb
 Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
-wdlSource=...wdlInputs=...
+--64128d499e9e4616adea7d281f695dcb
+Content-Disposition: form-data; name="wdlSource"
+
+task ps {
+  command {
+    ps
+  }
+  output {
+    File procs = stdout()
+  }
+}
+
+task cgrep {
+  command {
+    grep '${pattern}' ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+task wc {
+  command {
+    cat ${File in_file} | wc -l
+  }
+  output {
+    Int count = read_int(stdout())
+  }
+}
+
+workflow three_step {
+  call ps
+  call cgrep {
+    input: in_file=ps.procs
+  }
+  call wc {
+    input: in_file=ps.procs
+  }
+}
+
+--64128d499e9e4616adea7d281f695dcb
+Content-Disposition: form-data; name="workflowInputs"; filename="inputs_array.json"
+
+[
+    {
+        "three_step.cgrep.pattern": "..."
+    },
+    {
+        "three_step.cgrep.pattern": "..."
+    }
+]
+
+--64128d499e9e4616adea7d281f695dcb--
 ```
 
-Response (successful validation):
+Response:
+
 ```
-HTTP/1.1 200 OK
-Content-Length: 63
+HTTP/1.1 201 Created
+Content-Length: 96
 Content-Type: application/json; charset=UTF-8
-Date: Thu, 21 Jan 2016 16:57:39 GMT
-Server: spray-can/1.3.2
+Date: Tue, 02 Jun 2015 18:06:28 GMT
+Server: spray-can/1.3.3
+
+[
+    {
+        "id": "69d1d92f-3895-4a7b-880a-82535e9a096e",
+        "status": "Submitted"
+    },
+    {
+        "id": "69d1d92f-3895-4a7b-880a-82535e9a096f",
+        "status": "Submitted"
+    }
+]
+```
+
+To specify workflow options as well:
+
+
+cURL:
+
+```
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
+```
+
+HTTPie:
+
+```
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
+```
+
+Request (some parts truncated for brevity):
+
+```
+POST /api/workflows/v1/batch HTTP/1.1
+Accept: */*
+Accept-Encoding: gzip, deflate
+Connection: keep-alive
+Content-Length: 1492
+Content-Type: multipart/form-data; boundary=f3fd038395644de596c460257626edd8
+Host: localhost:8000
+User-Agent: HTTPie/0.9.2
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="wdlSource"
+
+task x { ... }
+task y { ... }
+task z { ... }
+
+workflow myworkflow {
+  call x
+  call y
+  call z {
+    input: example="gs://my-bucket/cromwell-executions/myworkflow/example.txt", int=3000
+  }
+}
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowInputs"; filename="jes0_array.json"
+
+[
+  {
+    "myworkflow.x.x": "100"
+  }, {
+    "myworkflow.x.x": "101"
+  }
+]
+
+--f3fd038395644de596c460257626edd8
+Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 
 {
-    "message": "Validation succeeded.",
-    "status": "success"
+  "jes_gcs_root": "gs://myworkflow-dev/workflows"
 }
-```
 
-Response (failed validation example):
-```
-HTTP/1.1 400 Bad Request
-Content-Length: 159
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 21 Jan 2016 16:56:32 GMT
-Server: spray-can/1.3.2
-
-{
-    "errors": [
-        "Missing required keys in runtime configuration for backend 'JES': docker"
-    ],
-    "message": "RuntimeAttribute is not valid.",
-    "status": "fail"
-}
+--f3fd038395644de596c460257626edd8--
 ```
 
 
@@ -1281,24 +1896,103 @@ Server: spray-can/1.3.2
 This endpoint allows for querying workflows based on the following criteria:
 
 * `name`
+* `id`
 * `status`
-* `start` (start datetime)
-* `end` (end datetime)
+* `start` (start datetime with mandatory offset)
+* `end` (end datetime with mandatory offset)
+* `page` (page of results)
+* `pagesize` (# of results per page)
 
-Names and statuses can be given multiple times to include workflows with any of the specified names or statuses.
+Names, ids, and statuses can be given multiple times to include
+workflows with any of the specified names, ids, or statuses. When
+multiple names are specified, any workflow matching one of the names
+will be returned. The same is true for multiple ids or statuses. When
+different types of criteria are specified, for example names and
+statuses, the results must match both the one of the specified names and
+one of the statuses. Using page and pagesize will enable server side pagination.
+
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
-be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format and `start` cannot be after `end`.
+be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format with *mandatory offset* and `start` cannot be after `end`.
 
 cURL:
 
 ```
-$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+$ curl "http://localhost:8000/api/workflows/v1/query?start=2015-11-01T00%3A00%3A00-04%3A00&end=2015-11-04T00%3A00%3A00-04%3A00&status=Failed&status=Succeeded&page=1&pagesize=10"
 ```
 
 HTTPie:
 
 ```
-$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01&end=2015-11-03&status=Failed&status=Succeeded"
+$ http "http://localhost:8000/api/workflows/v1/query?start=2015-11-01T00%3A00%3A00-04%3A00&end=2015-11-04T00%3A00%3A00-04%3A00&status=Failed&status=Succeeded&page=1&pagesize=10"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 133
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 02 Jun 2015 18:06:56 GMT
+Server: spray-can/1.3.3
+
+{
+  "results": [
+    {
+      "name": "w",
+      "id": "fdfa8482-e870-4528-b639-73514b0469b2",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:52.000-05:00",
+      "start": "2015-11-01T07:38:57.000-05:00"
+    },
+    {
+      "name": "hello",
+      "id": "e69895b1-42ed-40e1-b42d-888532c49a0f",
+      "status": "Succeeded",
+      "end": "2015-11-01T07:45:30.000-05:00",
+      "start": "2015-11-01T07:38:58.000-05:00"
+    },
+    {
+      "name": "crasher",
+      "id": "ed44cce4-d21b-4c42-b76d-9d145e4d3607",
+      "status": "Failed",
+      "end": "2015-11-01T07:45:44.000-05:00",
+      "start": "2015-11-01T07:38:59.000-05:00"
+    }
+  ]
+}
+```
+
+Query data is refreshed from raw data periodically according to the configuration value `services.MetadataService.metadata-summary-refresh-interval`.
+This interval represents the duration between the end of one summary refresh sweep and the beginning of the next sweep.  If not specified the
+refresh interval will default to 2 seconds.  To turn off metadata summary refresh, specify an infinite refresh interval value with "Inf".
+
+```
+services {
+  MetadataService {
+    metadata-summary-refresh-interval = "10 seconds"
+  }
+}
+```
+
+## POST /api/workflows/:version/query
+
+This endpoint allows for querying workflows based on the same criteria
+as [GET /api/workflows/:version/query](#get-apiworkflowsversionquery).
+
+Instead of specifying query parameters in the URL, the parameters
+must be sent via the POST body. The request content type must be
+`application/json`. The json should be a list of objects. Each json
+object should contain a different criterion.
+
+cURL:
+
+```
+$ curl -X POST --header "Content-Type: application/json" -d "[{\"start\": \"2015-11-01T00:00:00-04:00\"}, {\"end\": \"2015-11-04T00:00:00-04:00\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": \"1\"}, {\"pagesize\": \"10\"}]" "http://localhost:8000/api/workflows/v1/query"
+```
+
+HTTPie:
+
+```
+$ echo "[{\"start\": \"2015-11-01T00:00:00-04:00\"}, {\"end\": \"2015-11-04T00:00:00-04:00\"}, {\"status\": \"Failed\"}, {\"status\": \"Succeeded\"}, {\"page\": \"1\"}, {\"pagesize\": \"10\"}]" | http "http://localhost:8000/api/workflows/v1/query"
 ```
 
 Response:
@@ -1402,132 +2096,11 @@ This endpoint is meant to be used in a web browser.  It will show a Gantt Chart 
 
 ![Timing diagram](http://i.imgur.com/EOE2HoL.png)
 
-## GET /api/workflows/:version/:id/outputs/:call
-
-cURL:
-
-```
-$ curl http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
-```
-
-HTTPie:
-
-```
-$ http http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/outputs/three_step.wc
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 241
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 04 Jun 2015 12:15:33 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "e442e52a-9de1-47f0-8b4f-e6e565008cf1",
-    "outputs": {
-        "three_step.wc.count": 8
-    }
-}
-```
-## GET /api/workflows/:version/:id/logs/:call
-
-This will return paths to the standard out and standard error files that were generated during the execution of a particular fully-qualified name for a call.
-
-A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
-
-cURL:
-
-```
-$ curl http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
-```
-
-HTTPie:
-
-```
-$ http http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/logs/three_step.wc
-```
-
-Response:
-```
-HTTP/1.1 200 OK
-Content-Length: 379
-Content-Type: application/json; charset=UTF-8
-Date: Mon, 03 Aug 2015 17:11:28 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "b3e45584-9450-4e73-9523-fc3ccf749848",
-    "logs": {
-        "three_step.wc": [
-            {
-                "stderr": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stderr6126967977036995110.tmp",
-                "stdout": "/home/user/test/b3e45584-9450-4e73-9523-fc3ccf749848/three_step.wc/stdout6128485235785447571.tmp"
-            }
-        ]
-    }
-}
-```
-
-In the case that the call is inside a `scatter` block, the output for this API will contain a list of stdout/stderr files, one for each shard.  Consider this example:
-
-```
-task add_one {
-  Int n
-  command {
-    python -c "print(${n}+1)"
-  }
-  output {
-    Int incremented = read_int(stdout())
-  }
-}
-
-workflow test {
-  Array[Int] list = [1,2,3,4]
-  scatter (x in list) {
-    call add_one {input: n=x}
-  }
-}
-```
-
-Running this workflow then issuing this API call would return:
-
-```
-HTTP/1.1 200 OK
-Content-Length: 1256
-Content-Type: application/json; charset=UTF-8
-Date: Fri, 04 Sep 2015 12:22:45 GMT
-Server: spray-can/1.3.3
-
-{
-    "id": "cbdefb0f-29ae-475b-a42c-90403f8ff9f8",
-    "logs": {
-        "test.add_one": [
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-0/stdout"
-            },
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-1/stdout"
-            },
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-2/stdout"
-            },
-            {
-                "stderr": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stderr",
-                "stdout": "/home/user/test/cbdefb0f-29ae-475b-a42c-90403f8ff9f8/call-add_one/shard-3/stdout"
-            }
-        ]
-    }
-}
-```
-
 ## GET /api/workflows/:version/:id/logs
 
-This returns a similar format as the `/api/workflows/:version/:id/logs/:call` endpoint, except that it includes the logs for ALL calls in a workflow and not just one specific call.
+This will return paths to the standard out and standard error files that were generated during the execution of all calls in a workflow.
+
+A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
 
 cURL:
 
@@ -1583,6 +2156,19 @@ Workflow metadata includes submission, start, and end datetimes, as well as stat
 Call-level metadata includes inputs, outputs, start and end datetime, backend-specific job id,
 return code, stdout and stderr.  Date formats are ISO with milliseconds.
 
+Accepted parameters are:
+
+* `includeKey` Optional repeated string value, specifies what metadata
+  keys to include in the output, matched as a prefix string. Keys that
+  are not specified are filtered out. The call keys `attempt` and
+  `shardIndex` will always be included. May not be used with
+  `excludeKey`.
+
+* `excludeKey` Optional repeated string value, specifies what metadata
+  keys to exclude from the output, matched as a prefix string. Keys that
+  are specified are filtered out. The call keys `attempt` and
+  `shardIndex` will always be included. May not be used with
+  `includeKey`.
 
 cURL:
 
@@ -1603,7 +2189,7 @@ Server spray-can/1.3.3 is not blacklisted
 Server: spray-can/1.3.3
 Date: Thu, 01 Oct 2015 22:18:07 GMT
 Content-Type: application/json; charset=UTF-8
-Content-Length: 8286
+Content-Length: 7286
 {
   "workflowName": "sc_test",
   "calls": {
@@ -1615,8 +2201,6 @@ Content-Length: 8286
         "outputs": {
           "split_files": [
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ab",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ac",
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
           ]
         },
@@ -1698,50 +2282,6 @@ Content-Length: 8286
         "attempt": 1,
         "executionEvents": [],
         "start": "2016-02-04T13:47:56.000-05:00"
-      },
-      {
-        "executionStatus": "Done",
-        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/stdout",
-        "shardIndex": 2,
-        "outputs": {
-          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt"
-        },
-        "runtimeAttributes": {
-           "failOnStderr": "true",
-           "continueOnReturnCode": "0"
-        },
-        "inputs": {
-          "input_file": "f"
-        },
-        "returnCode": 0,
-        "backend": "Local",
-        "end": "2016-02-04T13:47:56.000-05:00",
-        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/stderr",
-        "attempt": 1,
-        "executionEvents": [],
-        "start": "2016-02-04T13:47:56.000-05:00"
-      },
-      {
-        "executionStatus": "Done",
-        "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/stdout",
-        "shardIndex": 3,
-        "outputs": {
-          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
-        },
-        "runtimeAttributes": {
-           "failOnStderr": "true",
-           "continueOnReturnCode": "0"
-        },
-        "inputs": {
-          "input_file": "f"
-        },
-        "returnCode": 0,
-        "backend": "Local",
-        "end": "2016-02-04T13:47:56.000-05:00",
-        "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/stderr",
-        "attempt": 1,
-        "executionEvents": [],
-        "start": "2016-02-04T13:47:56.000-05:00"
       }
     ],
     "sc_test.do_gather": [
@@ -1759,10 +2299,7 @@ Content-Length: 8286
         "inputs": {
           "input_files": [
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt",
-            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
           ]
         },
         "returnCode": 0,
@@ -1779,16 +2316,11 @@ Content-Length: 8286
     "sc_test.do_gather.sum": 12,
     "sc_test.do_prepare.split_files": [
       "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ab",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ac",
       "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
     ],
     "sc_test.do_scatter.count_file": [
       "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-2/output.txt",
-      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-3/output.txt"
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
     ]
   },
   "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
@@ -1799,6 +2331,107 @@ Content-Length: 8286
   "status": "Succeeded",
   "end": "2016-02-04T13:47:57.000-05:00",
   "start": "2016-02-04T13:47:55.000-05:00"
+}
+```
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata?includeKey=inputs&includeKey=outputs"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata?includeKey=inputs&includeKey=outputs"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Server spray-can/1.3.3 is not blacklisted
+Server: spray-can/1.3.3
+Date: Thu, 01 Oct 2015 22:19:07 GMT
+Content-Type: application/json; charset=UTF-8
+Content-Length: 4286
+{
+  "calls": {
+    "sc_test.do_prepare": [
+      {
+        "shardIndex": -1,
+        "outputs": {
+          "split_files": [
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
+          ]
+        },
+        "inputs": {
+          "input_file": "/home/jdoe/cromwell/11.txt"
+        },
+        "attempt": 1
+      }
+    ],
+    "sc_test.do_scatter": [
+      {
+        "shardIndex": 0,
+        "outputs": {},
+        "inputs": {
+          "input_file": "f"
+        },
+        "attempt": 1
+      },
+      {
+        "shardIndex": 0,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "attempt": 2
+      },
+      {
+        "shardIndex": 1,
+        "outputs": {
+          "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+        },
+        "inputs": {
+          "input_file": "f"
+        },
+        "attempt": 1
+      }
+    ],
+    "sc_test.do_gather": [
+      {
+        "shardIndex": -1,
+        "outputs": {
+          "sum": 12
+        }
+        "inputs": {
+          "input_files": [
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+            "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+          ]
+        },
+        "attempt": 1
+      }
+    ]
+  },
+  "outputs": {
+    "sc_test.do_gather.sum": 12,
+    "sc_test.do_prepare.split_files": [
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_aa",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/temp_ad"
+    ],
+    "sc_test.do_scatter.count_file": [
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
+      "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
+    ]
+  },
+  "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
+  "inputs": {
+    "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
+  }
 }
 ```
 
@@ -1840,79 +2473,62 @@ Server: spray-can/1.3.3
 }
 ```
 
-## POST /api/workflows/:version/:id/call-caching
+## GET /api/workflows/:version/backends
 
-This endpoint allows for reconfiguration of call cache result reuse settings for all calls within a workflow.
-
-Accepted parameters are:
-
-* `allow` Mandatory boolean value, specifies whether call cache result reuse is allowed for all calls in the
-   specified workflow.
+This endpoint returns a list of the backends supported by the server as well as the default backend.
 
 cURL:
-
 ```
-$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching?allow=false
+$ curl http://localhost:8000/api/workflows/v1/backends
 ```
 
 HTTPie:
-
 ```
-$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching?allow=false
+$ http http://localhost:8000/api/workflows/v1/backends
 ```
 
 Response:
 ```
 HTTP/1.1 200 OK
-Content-Length: 17
+Content-Length: 379
 Content-Type: application/json; charset=UTF-8
-Date: Thu, 04 Jun 2015 12:15:33 GMT
+Date: Mon, 03 Aug 2015 17:11:28 GMT
 Server: spray-can/1.3.3
 
 {
-    "updateCount": 3
+  "supportedBackends": ["JES", "LSF", "Local", "SGE"],
+  "defaultBackend": "Local"
 }
-
 ```
 
-## POST /api/workflows/:version/:id/call-caching/:call
+## GET /api/workflows/:version/stats
 
-This endpoint allows for reconfiguration of call cache result reuse settings for a single call within a workflow.
-
-Accepted parameters are:
-
-* `allow` Mandatory boolean value, specifies whether call cache result reuse is allowed for the specified call in the
-  specified workflow.
-
-For scattered calls, individual calls within the scatter can be targeted by appending a dot and the zero-based shard index.
-e.g. `scatter_workflow.A.0` would target the zeroth shard of a scattered `A` call.  If a shard index is not supplied for
-a scattered call, all shards are targeted for update.
+This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
 
 cURL:
-
 ```
-$ curl -X POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching/three_step.wc?allow=false
+$ curl http://localhost:8000/api/workflows/v1/stats
 ```
 
 HTTPie:
-
 ```
-$ http POST http://localhost:8000/api/workflows/v1/e442e52a-9de1-47f0-8b4f-e6e565008cf1/call-caching/three_step.wc?allow=false
+$ http http://localhost:8000/api/workflows/v1/stats
 ```
 
 Response:
 ```
-HTTP/1.1 200 OK
-Content-Length: 17
-Content-Type: application/json; charset=UTF-8
-Date: Thu, 04 Jun 2015 12:15:33 GMT
-Server: spray-can/1.3.3
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
 
 {
-    "updateCount": 1
+  "workflows": 3,
+  "jobs": 10
 }
-
 ```
+
+
 
 ## Error handling
 Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:

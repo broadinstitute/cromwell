@@ -1,56 +1,38 @@
 package cromwell
 
-import akka.testkit._
-import cromwell.engine.WorkflowFailed
+import cromwell.core.WorkflowFailed
 import cromwell.util.SampleWdl
 
-class WorkflowFailSlowSpec extends CromwellTestkitSpec {
-  val FailSlowOptions =
-    """
-      |{
-      |  "workflowFailureMode": "ContinueWhilePossible"
-      |}
-    """.stripMargin
 
+// TODO: These tests are (and were) somewhat unsatisfactory. They'd be much better if we use TestFSMRefs and TestProbes to simulate job completions against the WorkflowActor and make sure it only completes the workflow at the appropriate time.
+class WorkflowFailSlowSpec extends CromwellTestkitSpec {
   val FailFastOptions =
     """
       |{
-      |  "workflowFailureMode": "NoNewCalls"
+      |  "workflow_failure_mode": "NoNewCalls"
       |}
     """.stripMargin
 
   "A workflow containing a failing task" should {
-    "complete other tasks but ultimately fail, for ContinueWhilePossible" in {
-      runWdl(
-        sampleWdl = SampleWdl.WorkflowFailSlow,
-        workflowOptions = FailSlowOptions,
-        eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 1),
-        runtime = "",
-        terminalState = WorkflowFailed
-      )
-    }
-  }
-
-  "A workflow containing a failing task" should {
     "not complete any other tasks and ultimately fail, for NoNewCalls" in {
-      runWdl(
+      val outputs = runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailFastOptions,
-        eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 0),
         runtime = "",
         terminalState = WorkflowFailed
       )
+      outputs.size should be(0)
     }
   }
 
   "A workflow containing a failing task" should {
     "behave like NoNewCalls, if no workflowFailureMode is set" in {
-      runWdl(
+      val outputs = runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
-        eventFilter = EventFilter.info(pattern = s"persisting status of E to Done.", occurrences = 0),
         runtime = "",
         terminalState = WorkflowFailed
       )
+      outputs.size should be(0)
     }
   }
 }

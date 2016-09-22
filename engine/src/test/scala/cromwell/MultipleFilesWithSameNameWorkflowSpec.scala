@@ -11,7 +11,7 @@ class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestkitSpec {
     "not clobber one file with the contents of another" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.FileClobber,
-        EventFilter.info(pattern = s"starting calls: two.x, two.y", occurrences = 1),
+        EventFilter.info(pattern = "Starting calls: two.x:NA:1, two.y:NA:1", occurrences = 1),
         expectedOutputs = Map(
           "two.x.out" -> WdlString("first file.txt"),
           "two.y.out" -> WdlString("second file.txt")

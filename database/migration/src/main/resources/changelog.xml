@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <include file="changesets/db_schema.xml" relativeToChangelogFile="true" />
+    <include file="changesets/symbol_iteration_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/wdl_and_inputs.xml" relativeToChangelogFile="true" />
+    <include file="changesets/drop_workflow_uri_and_local_command.xml" relativeToChangelogFile="true" />
+    <include file="changesets/local_job_allow_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/symbol_iteration_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_unique_constraints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/lengthen_wdl_value.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_index_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rename_iteration_to_index.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sge.xml" relativeToChangelogFile="true" />
+    <include file="changesets/change_execution_unique_constraint.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rc.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_options.xml" relativeToChangelogFile="true" />
+    <include file="changesets/jes_id_update.xml" relativeToChangelogFile="true" />
+    <include file="changesets/optional_sge_ids.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_start_end_time_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rename_jes_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_workflow_name.xml" relativeToChangelogFile="true" />
+    <include file="changesets/top_level_output.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_execution_aux_not_null.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_result_caching.xml" relativeToChangelogFile="true" />
+    <include file="changesets/events_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sync_not_null_constraints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/sge_job_execution_unique_key.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_attempt_in_execution.xml" relativeToChangelogFile="true" />
+    <include file="changesets/execution_backend_info.xml" relativeToChangelogFile="true" />
+    <include file="changesets/runtime_attributes_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/failure_table.xml" relativeToChangelogFile="true" />
+    <include file="changesets/metadata_journal.xml" relativeToChangelogFile="true" />
+    <include file="changesets/metadata_typed_values.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_metadata_summary.xml" relativeToChangelogFile="true" />
+    <include file="changesets/metadata_journal_subsecond_timestamp.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_store.xml" relativeToChangelogFile="true" />
+    <include file="changesets/backend_KV_Store.xml" relativeToChangelogFile="true" />
+    <include file="changesets/job_store.xml" relativeToChangelogFile="true" />
+    <include file="changesets/callcaching.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_caching_allow_result_reuse_fix.xml" relativeToChangelogFile="true" />
+    <include file="changesets/job_store_simpletons.xml" relativeToChangelogFile="true" />
+    <include file="changesets/restart_and_recover_migration.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/summary_status_table.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/standardize_column_names.xml" relativeToChangelogFile="true" />
+    <include file="changesets/metadata_migration.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_caching_job_detritus.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/job_store_tinyints.xml" relativeToChangelogFile="true" />
+    <include file="changesets/standardize_column_names_again.xml" relativeToChangelogFile="true" />
+</databaseChangeLog>
+<!--
+
+Dos and Don'ts
+
+-*-
+
+DON'T
+
+    Add a unique _index_ with `<createIndex unique="true" /`>.
+
+DO
+
+    Add a unique _constraint_ with `<addUniqueConstraint constraintName="UC_..." />`.
+
+WHY
+    In slick schemas, `index(unique = false)` always creates an index. Depending on the database type,
+    `index(unique = true)` sometimes creates a unique _constraint_, not actually an index.
+
+    https://github.com/slick/slick/blob/3.1.1/slick/src/main/scala/slick/driver/HsqldbDriver.scala#L126
+
+-*-
+
+DON'T
+
+    Create constraints _without_ a name.
+
+    <addUniqueConstraint tableName="MY_TABLE" columnNames="MY_COLUMN" />
+
+DO
+
+    Create constraints with a name.
+
+    `<addUniqueConstraint constraintName="UC_MY_TABLE_MC" tableName="MY_TABLE" columnNames="MY_COLUMN" />`
+
+WHY
+
+    Creating constraints without a name makes it incredibly database specific later find the constraint if it needs to
+    be updated or deleted.
+
+    http://stackoverflow.com/questions/3618234/liquibase-drop-constraint-without-knowing-its-name
+    http://stackoverflow.com/questions/24872539/liquibase-how-to-drop-unique-constraint-with-no-constraint-name
+
+    NOTE: This also applies to creating a constraint during table creation when applied to a single column. However, all
+    previous change logs have created the constraints _after_ the table creation, especially those constraints that must
+    span multiple columns, so `<constraints unique...` should be avoided for consistency.
+
+    `<constraints unique="true" uniqueConstraintName="UC_MY_TABLE_MSC"/>`
+
+-->

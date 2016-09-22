@@ -16,7 +16,8 @@
     }
 
     function drawChart() {
-        $.getJSON("./metadata", function( data ) {
+        var includeKeys = ["start", "end", "executionStatus", "executionEvents"];
+        $.getJSON("./metadata?includeKey=" + includeKeys.join("&includeKey="), function( data ) {
 
             var container = document.getElementById('chart_div');
             var chart = new google.visualization.Timeline(container);

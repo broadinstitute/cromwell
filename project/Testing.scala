@@ -17,30 +17,40 @@ object Testing {
   lazy val UseCromwellIntegrationTaggedTests = Tests.Argument("-n", CromwellIntegrationTestTag)
   lazy val DontUseCromwellIntegrationTaggedTests = Tests.Argument("-l", CromwellIntegrationTestTag)
 
+  lazy val GcsIntegrationTestTag = "GcsIntegrationTest"
+  lazy val UseGcsIntegrationTaggedTests = Tests.Argument("-n", GcsIntegrationTestTag)
+  lazy val DontUseGcsIntegrationTaggedTests = Tests.Argument("-l", GcsIntegrationTestTag)
+
   lazy val DbmsTestTag = "DbmsTest"
   lazy val UseDbmsTaggedTests = Tests.Argument("-n", DbmsTestTag)
   lazy val DontUseDbmsTaggedTests = Tests.Argument("-l", DbmsTestTag)
+
+  lazy val PostMVPTag = "PostMVP"
+  lazy val DontUsePostMVPTaggedTests = Tests.Argument("-l", PostMVPTag)
+
+  lazy val TestReportArgs = Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
 
   /*
   The arguments that will be added to the default test config, but removed from all other configs.
   `sbt coverage test` adds other arguments added to generate the coverage reports.
   Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
  */
-  lazy val defaultTestArgs = Seq(DontUseDockerTaggedTests, DontUseCromwellIntegrationTaggedTests, DontUseDbmsTaggedTests)
+  lazy val defaultExcludeTests = Seq(DontUseDockerTaggedTests, DontUseCromwellIntegrationTaggedTests,
+    DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests)
 
   val testSettings = List(
     // `test` (or `assembly`) - Run all tests, except docker and integration and DBMS
-    testOptions in Test ++= defaultTestArgs,
+    testOptions in Test ++= Seq(TestReportArgs) ++ defaultExcludeTests,
     // `alltests:test` - Run all tests
-    testOptions in AllTests := (testOptions in Test).value.diff(defaultTestArgs),
+    testOptions in AllTests := (testOptions in Test).value.diff(defaultExcludeTests),
     // `docker:test` - Run only the docker tests.
     testOptions in DockerTest := (testOptions in AllTests).value ++ Seq(UseDockerTaggedTests),
     // `nodocker:test` - Run all tests, except docker
     testOptions in NoDockerTest := (testOptions in AllTests).value ++ Seq(DontUseDockerTaggedTests),
     // `integration:test` - Run only integration tests
-    testOptions in CromwellIntegrationTest := (testOptions in AllTests).value ++ Seq(UseCromwellIntegrationTaggedTests),
+    testOptions in CromwellIntegrationTest := (testOptions in AllTests).value ++ Seq(UseCromwellIntegrationTaggedTests, UseGcsIntegrationTaggedTests),
     // `nointegration:test` - Run all tests, except integration
-    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests),
+    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests),
     // `dbms:test` - Run database management tests.
     testOptions in DbmsTest := (testOptions in AllTests).value ++ Seq(UseDbmsTaggedTests)
   )
@@ -65,4 +75,15 @@ object Testing {
   // Also tried
   //test in (NoTests, assemblyPackageDependency) := {}
   //test in (NoTests, assemblyPackageScala) := {}
+
+  implicit class ProjectTestSettings(val project: Project) extends AnyVal {
+    def withTestSettings: Project = project
+      .configs(AllTests).settings(inConfig(AllTests)(Defaults.testTasks): _*)
+      .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)
+      .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
+      .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
+      .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
+      .configs(DbmsTest).settings(inConfig(DbmsTest)(Defaults.testTasks): _*)
+  }
+
 }

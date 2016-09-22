@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="tjeandet" id="metadata_typed_values">
+        <addColumn
+                tableName="METADATA_JOURNAL">
+            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)" />
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

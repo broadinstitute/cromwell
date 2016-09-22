@@ -12,7 +12,7 @@ class ArrayOfArrayCoercionSpec extends CromwellTestkitSpec {
     "accept an Array[Array[String]] as the value for the input" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayOfArrays,
-        EventFilter.info(pattern = s"starting calls: wf.subtask, wf.subtask", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "wf.subtask.concatenated" -> WdlArray(WdlArrayType(WdlStringType), Seq(
             WdlString("foo\nbar\nbaz"),

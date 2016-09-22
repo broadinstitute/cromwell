@@ -1,18 +1,13 @@
 package cromwell.engine
 
-import akka.testkit.TestActorRef
-import cromwell.{CromwellTestkitSpec, CromwellSpec}
-import cromwell.engine.db.DataAccess._
-import cromwell.engine.workflow.{WorkflowActor, WorkflowManagerActor}
-import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.util.SampleWdl.{TripleSleep, HelloWorld}
+import cromwell.CromwellTestkitSpec
 
 class WorkflowAbortSpec extends CromwellTestkitSpec {
 
   // TODO: When re-enabled, this test also needs to check that child processes have actually been stopped.
   "A WorkflowManagerActor" should {
 
-//    "abort the triple-wait workflow" in {
+    "abort the triple-wait workflow" ignore {
 //      withDataAccess { dataAccess =>
 //        implicit val workflowManagerActor = TestActorRef(WorkflowManagerActor.props(dataAccess, CromwellSpec.BackendInstance), self, "Test the WorkflowManagerActor")
 //
@@ -54,6 +49,6 @@ class WorkflowAbortSpec extends CromwellTestkitSpec {
 //        // Wait for the workflow to complete:
 //        waitForAborted(0)
 //      }
-//    }
+    }
   }
 }

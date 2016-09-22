@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="kshakir" id="standardize_column_names_again">
+
+        <!--
+        NOTE: Column related changes to METADATA_JOURNAL (aka METADATA_ENTRY) are not included at this time.
+        See MetadataEntryComponent for more info.
+        -->
+
+        <!-- Indexes had a variety of ways of labeling the indexed columns -->
+        <dropIndex tableName="JOB_STORE" indexName="JOB_STORE_UUID_IDX"/>
+        <!--
+        <dropIndex tableName="METADATA_JOURNAL" indexName="METADATA_JOB_AND_KEY_IDX"/>
+        <dropIndex tableName="METADATA_JOURNAL" indexName="METADATA_JOB_IDX"/>
+        <dropIndex tableName="METADATA_JOURNAL" indexName="METADATA_WORKFLOW_IDX"/>
+        -->
+        <dropIndex tableName="WORKFLOW_METADATA_SUMMARY" indexName="WORKFLOW_METADATA_NAME_IDX"/>
+        <dropIndex tableName="WORKFLOW_METADATA_SUMMARY" indexName="WORKFLOW_METADATA_STATUS_IDX"/>
+        <dropIndex tableName="WORKFLOW_STORE" indexName="WORKFLOW_STORE_STATE_IDX"/>
+
+        <!-- Unique constraints had same issues as indexes, plus were named uk, idx, or index -->
+        <dropUniqueConstraint tableName="CALL_CACHING_JOB_DETRITUS"
+                              constraintName="UK_CALL_CACHING_JOB_DETRITUS_KEY"/>
+        <dropUniqueConstraint tableName="CALL_CACHING_RESULT_METAINFO"
+                              constraintName="UK_CALL_CACHING_RESULT_METAINFO"/>
+        <dropUniqueConstraint tableName="CALL_CACHING_HASH"
+                              constraintName="UK_CALL_CACHING_HASH"/>
+        <dropUniqueConstraint tableName="CALL_CACHING_RESULT_SIMPLETON"
+                              constraintName="UK_CALL_CACHING_RESULT_SIMPLETON"/>
+        <dropUniqueConstraint tableName="JOB_STORE"
+                              constraintName="JOB_STORE_JOBKEY_IDX"/>
+        <dropUniqueConstraint tableName="BACKEND_KV_STORE"
+                              constraintName="UK_BACKEND_KV_STORE_KEY"/>
+        <dropUniqueConstraint tableName="JOB_STORE_RESULT_SIMPLETON"
+                              constraintName="UK_JOB_STORE_RESULT_SIMPLETON"/>
+        <dropUniqueConstraint tableName="SUMMARY_STATUS"
+                              constraintName="SUMMARY_STATUS_SUMMARY_TABLE_NAME_SUMMARIZED_TABLE_NAME_INDEX"/>
+        <dropUniqueConstraint tableName="WORKFLOW_METADATA_SUMMARY"
+                              constraintName="WORKFLOW_METADATA_UUID_IDX"/>
+        <dropUniqueConstraint tableName="WORKFLOW_STORE"
+                              constraintName="WORKFLOW_STORE_UUID_IDX"/>
+
+        <!-- Foreign keys abbreviated the table name -->
+        <dropForeignKeyConstraint baseTableName="CALL_CACHING_JOB_DETRITUS"
+                                  constraintName="CCJD_RESULT_METAINFO_ID_FK"/>
+        <dropForeignKeyConstraint baseTableName="CALL_CACHING_HASH"
+                                  constraintName="CCH_RESULT_METAINFO_ID_FK"/>
+        <dropForeignKeyConstraint baseTableName="CALL_CACHING_RESULT_SIMPLETON"
+                                  constraintName="CCRS_RESULT_METAINFO_ID_FK"/>
+        <dropForeignKeyConstraint baseTableName="JOB_STORE_RESULT_SIMPLETON"
+                                  constraintName="JSRS_JOB_STORE_FK"/>
+
+        <!-- All tables, like their classes, are now suffixed with _ENTRY -->
+        <renameTable newTableName="CALL_CACHING_DETRITUS_ENTRY" oldTableName="CALL_CACHING_JOB_DETRITUS"/>
+        <renameTable newTableName="CALL_CACHING_ENTRY" oldTableName="CALL_CACHING_RESULT_METAINFO"/>
+        <renameTable newTableName="CALL_CACHING_HASH_ENTRY" oldTableName="CALL_CACHING_HASH"/>
+        <renameTable newTableName="CALL_CACHING_SIMPLETON_ENTRY" oldTableName="CALL_CACHING_RESULT_SIMPLETON"/>
+        <renameTable newTableName="JOB_KEY_VALUE_ENTRY" oldTableName="BACKEND_KV_STORE"/>
+        <renameTable newTableName="JOB_STORE_ENTRY" oldTableName="JOB_STORE"/>
+        <renameTable newTableName="JOB_STORE_SIMPLETON_ENTRY" oldTableName="JOB_STORE_RESULT_SIMPLETON"/>
+        <renameTable newTableName="METADATA_ENTRY" oldTableName="METADATA_JOURNAL"/>
+        <renameTable newTableName="SUMMARY_STATUS_ENTRY" oldTableName="SUMMARY_STATUS"/>
+        <renameTable newTableName="WORKFLOW_METADATA_SUMMARY_ENTRY" oldTableName="WORKFLOW_METADATA_SUMMARY"/>
+        <renameTable newTableName="WORKFLOW_STORE_ENTRY" oldTableName="WORKFLOW_STORE"/>
+
+        <!-- Columns names are not abbreviated, but are shortend, ex: JOB_RETRY_ATTEMPT => JOB_ATTEMPT -->
+        <renameColumn tableName="CALL_CACHING_DETRITUS_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_DETRITUS_ENTRY_ID" oldColumnName="CALL_CACHING_JOB_DETRITUS_ID"/>
+        <renameColumn tableName="CALL_CACHING_DETRITUS_ENTRY" columnDataType="VARCHAR(255)"
+                      newColumnName="DETRITUS_KEY" oldColumnName="JOB_DETRITUS_KEY"/>
+        <renameColumn tableName="CALL_CACHING_DETRITUS_ENTRY" columnDataType="VARCHAR(255)"
+                      newColumnName="DETRITUS_VALUE" oldColumnName="JOB_DETRITUS_VALUE"/>
+        <renameColumn tableName="CALL_CACHING_DETRITUS_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_ENTRY_ID" oldColumnName="RESULT_METAINFO_ID"/>
+        <renameColumn tableName="CALL_CACHING_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_ENTRY_ID" oldColumnName="CALL_CACHING_RESULT_METAINFO_ID"/>
+        <renameColumn tableName="CALL_CACHING_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_INDEX" oldColumnName="JOB_SCATTER_INDEX"/>
+        <renameColumn tableName="CALL_CACHING_ENTRY" columnDataType="VARCHAR(255)"
+                      newColumnName="CALL_FULLY_QUALIFIED_NAME" oldColumnName="CALL_FQN"/>
+        <renameColumn tableName="CALL_CACHING_HASH_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_ENTRY_ID" oldColumnName="RESULT_METAINFO_ID"/>
+        <renameColumn tableName="CALL_CACHING_HASH_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_HASH_ENTRY_ID" oldColumnName="CALL_CACHING_HASH_ID"/>
+        <renameColumn tableName="CALL_CACHING_SIMPLETON_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_ENTRY_ID" oldColumnName="RESULT_METAINFO_ID"/>
+        <renameColumn tableName="CALL_CACHING_SIMPLETON_ENTRY" columnDataType="INT"
+                      newColumnName="CALL_CACHING_SIMPLETON_ENTRY_ID" oldColumnName="CALL_CACHING_RESULT_SIMPLETON_ID"/>
+        <renameColumn tableName="JOB_KEY_VALUE_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_ATTEMPT" oldColumnName="JOB_RETRY_ATTEMPT"/>
+        <renameColumn tableName="JOB_KEY_VALUE_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_INDEX" oldColumnName="JOB_SCATTER_INDEX"/>
+        <renameColumn tableName="JOB_KEY_VALUE_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_KEY_VALUE_ENTRY_ID" oldColumnName="BACKEND_KV_STORE_ID"/>
+        <renameColumn tableName="JOB_KEY_VALUE_ENTRY" columnDataType="VARCHAR(255)"
+                      newColumnName="CALL_FULLY_QUALIFIED_NAME" oldColumnName="CALL_FQN"/>
+        <renameColumn tableName="JOB_STORE_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_ATTEMPT" oldColumnName="JOB_RETRY_ATTEMPT"/>
+        <renameColumn tableName="JOB_STORE_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_INDEX" oldColumnName="JOB_SCATTER_INDEX"/>
+        <renameColumn tableName="JOB_STORE_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_STORE_ENTRY_ID" oldColumnName="JOB_STORE_ID"/>
+        <renameColumn tableName="JOB_STORE_ENTRY" columnDataType="VARCHAR(255)"
+                      newColumnName="CALL_FULLY_QUALIFIED_NAME" oldColumnName="CALL_FQN"/>
+        <renameColumn tableName="JOB_STORE_SIMPLETON_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_STORE_ENTRY_ID" oldColumnName="JOB_STORE_ID"/>
+        <renameColumn tableName="JOB_STORE_SIMPLETON_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_STORE_SIMPLETON_ENTRY_ID" oldColumnName="JOB_STORE_RESULT_SIMPLETON_ID"/>
+        <!--
+        <renameColumn tableName="METADATA_ENTRY" columnDataType="BIGINT"
+                      newColumnName="METADATA_ENTRY_ID" oldColumnName="METADATA_JOURNAL_ID"/>
+        <renameColumn tableName="METADATA_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_ATTEMPT" oldColumnName="JOB_RETRY_ATTEMPT"/>
+        <renameColumn tableName="METADATA_ENTRY" columnDataType="INT"
+                      newColumnName="JOB_INDEX" oldColumnName="JOB_SCATTER_INDEX"/>
+        <renameColumn tableName="METADATA_ENTRY" columnDataType="VARCHAR(255)"
+                      newColumnName="CALL_FULLY_QUALIFIED_NAME" oldColumnName="CALL_FQN"/>
+        -->
+        <renameColumn tableName="SUMMARY_STATUS_ENTRY" columnDataType="INT"
+                      newColumnName="SUMMARY_STATUS_ENTRY_ID" oldColumnName="SUMMARY_STATUS_ID"/>
+        <renameColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" columnDataType="DATETIME(6)"
+                      newColumnName="END_TIMESTAMP" oldColumnName="END_DT"/>
+        <renameColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" columnDataType="DATETIME(6)"
+                      newColumnName="START_TIMESTAMP" oldColumnName="START_DT"/>
+        <renameColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" columnDataType="BIGINT"
+                      newColumnName="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" oldColumnName="WORKFLOW_METADATA_SUMMARY_ID"/>
+        <renameColumn tableName="WORKFLOW_STORE_ENTRY" columnDataType="INT"
+                      newColumnName="WORKFLOW_STORE_ENTRY_ID" oldColumnName="WORKFLOW_STORE_ID"/>
+
+        <!-- Primary keys were sometimes suffixed with _ID -->
+        <dropPrimaryKey tableName="CALL_CACHING_DETRITUS_ENTRY"
+                        constraintName="PK_CALL_CACHING_JOB_DETRITUS_ID"/>
+        <dropPrimaryKey tableName="CALL_CACHING_ENTRY"
+                        constraintName="PK_CALL_CACHING_RESULT_METAINFO"/>
+        <dropPrimaryKey tableName="CALL_CACHING_HASH_ENTRY"
+                        constraintName="PK_CALL_CACHING_HASH"/>
+        <dropPrimaryKey tableName="CALL_CACHING_SIMPLETON_ENTRY"
+                        constraintName="PK_CALL_CACHING_RESULT_SIMPLETON"/>
+        <dropPrimaryKey tableName="JOB_KEY_VALUE_ENTRY"
+                        constraintName="PK_BACKEND_KV_STORE_ID"/>
+        <dropPrimaryKey tableName="JOB_STORE_ENTRY"
+                        constraintName="PK_JOB_STORE"/>
+        <dropPrimaryKey tableName="JOB_STORE_SIMPLETON_ENTRY"
+                        constraintName="PK_JOB_STORE_RESULT_SIMPLETON_ID"/>
+        <!--
+        <dropPrimaryKey tableName="METADATA_ENTRY"
+                        constraintName="PK_METADATA_JOURNAL"/>
+        -->
+        <dropPrimaryKey tableName="SUMMARY_STATUS_ENTRY"
+                        constraintName="PK_SUMMARY_STATUS"/>
+        <dropPrimaryKey tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"
+                        constraintName="PK_WORKFLOW_METADATA_SUMMARY"/>
+        <dropPrimaryKey tableName="WORKFLOW_STORE_ENTRY"
+                        constraintName="PK_WORKFLOW_STORE"/>
+
+        <!-- Primary key names only include the table name -->
+        <addPrimaryKey tableName="CALL_CACHING_DETRITUS_ENTRY" columnNames="CALL_CACHING_DETRITUS_ENTRY_ID"
+                       constraintName="PK_CALL_CACHING_DETRITUS_ENTRY"/>
+        <addPrimaryKey tableName="CALL_CACHING_ENTRY" columnNames="CALL_CACHING_ENTRY_ID"
+                       constraintName="PK_CALL_CACHING_ENTRY"/>
+        <addPrimaryKey tableName="CALL_CACHING_HASH_ENTRY" columnNames="CALL_CACHING_HASH_ENTRY_ID"
+                       constraintName="PK_CALL_CACHING_HASH_ENTRY"/>
+        <addPrimaryKey tableName="CALL_CACHING_SIMPLETON_ENTRY" columnNames="CALL_CACHING_SIMPLETON_ENTRY_ID"
+                       constraintName="PK_CALL_CACHING_SIMPLETON_ENTRY"/>
+        <addPrimaryKey tableName="JOB_KEY_VALUE_ENTRY" columnNames="JOB_KEY_VALUE_ENTRY_ID"
+                       constraintName="PK_JOB_KEY_VALUE_ENTRY"/>
+        <addPrimaryKey tableName="JOB_STORE_ENTRY" columnNames="JOB_STORE_ENTRY_ID"
+                       constraintName="PK_JOB_STORE_ENTRY"/>
+        <addPrimaryKey tableName="JOB_STORE_SIMPLETON_ENTRY" columnNames="JOB_STORE_SIMPLETON_ENTRY_ID"
+                       constraintName="PK_JOB_STORE_SIMPLETON_ENTRY"/>
+        <!--
+        <addPrimaryKey tableName="METADATA_ENTRY" columnNames="METADATA_ENTRY_ID"
+                       constraintName="PK_METADATA_ENTRY"/>
+        -->
+        <addPrimaryKey tableName="SUMMARY_STATUS_ENTRY" columnNames="SUMMARY_STATUS_ENTRY_ID"
+                       constraintName="PK_SUMMARY_STATUS_ENTRY"/>
+        <addPrimaryKey tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" columnNames="WORKFLOW_METADATA_SUMMARY_ENTRY_ID"
+                       constraintName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+        <addPrimaryKey tableName="WORKFLOW_STORE_ENTRY" columnNames="WORKFLOW_STORE_ENTRY_ID"
+                       constraintName="PK_WORKFLOW_STORE_ENTRY"/>
+
+        <!-- Restore auto incrementing -->
+        <addAutoIncrement tableName="CALL_CACHING_DETRITUS_ENTRY" columnName="CALL_CACHING_DETRITUS_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="CALL_CACHING_ENTRY" columnName="CALL_CACHING_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="CALL_CACHING_HASH_ENTRY" columnName="CALL_CACHING_HASH_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="CALL_CACHING_SIMPLETON_ENTRY" columnName="CALL_CACHING_SIMPLETON_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="JOB_KEY_VALUE_ENTRY" columnName="JOB_KEY_VALUE_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="JOB_STORE_ENTRY" columnName="JOB_STORE_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="JOB_STORE_SIMPLETON_ENTRY" columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
+                          columnDataType="INT"/>
+        <!--
+        <addAutoIncrement tableName="METADATA_ENTRY" columnName="METADATA_ENTRY_ID"
+                          columnDataType="BIGINT"/>
+        -->
+        <addAutoIncrement tableName="SUMMARY_STATUS_ENTRY" columnName="SUMMARY_STATUS_ENTRY_ID"
+                          columnDataType="INT"/>
+        <addAutoIncrement tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" columnName="WORKFLOW_METADATA_SUMMARY_ENTRY_ID"
+                          columnDataType="BIGINT"/>
+        <addAutoIncrement tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_STORE_ENTRY_ID"
+                          columnDataType="INT"/>
+
+        <!-- Foreign key names are based on the table name plus the column name -->
+        <addForeignKeyConstraint constraintName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
+                                 referencedTableName="CALL_CACHING_ENTRY" referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                                 baseTableName="CALL_CACHING_DETRITUS_ENTRY" baseColumnNames="CALL_CACHING_ENTRY_ID"/>
+        <addForeignKeyConstraint constraintName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
+                                 referencedTableName="CALL_CACHING_ENTRY" referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                                 baseTableName="CALL_CACHING_HASH_ENTRY" baseColumnNames="CALL_CACHING_ENTRY_ID"/>
+        <addForeignKeyConstraint constraintName="FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID"
+                                 referencedTableName="CALL_CACHING_ENTRY" referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                                 baseTableName="CALL_CACHING_SIMPLETON_ENTRY" baseColumnNames="CALL_CACHING_ENTRY_ID"/>
+        <addForeignKeyConstraint constraintName="FK_JOB_STORE_RESULT_SIMPLETON_JOB_STORE_ENTRY_ID" onDelete="CASCADE"
+                                 referencedTableName="JOB_STORE_ENTRY" referencedColumnNames="JOB_STORE_ENTRY_ID"
+                                 baseTableName="JOB_STORE_SIMPLETON_ENTRY" baseColumnNames="JOB_STORE_ENTRY_ID"/>
+
+        <!-- Unique constraints prefixed with UC_ for debugging. Otherwise the same as indexes. -->
+        <addUniqueConstraint
+                tableName="CALL_CACHING_DETRITUS_ENTRY"
+                constraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"
+                columnNames="CALL_CACHING_ENTRY_ID, DETRITUS_KEY"/>
+        <addUniqueConstraint
+                tableName="CALL_CACHING_ENTRY"
+                constraintName="UC_CALL_CACHING_ENTRY_WEU_CQFN_JI"
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX"/>
+        <addUniqueConstraint
+                tableName="CALL_CACHING_HASH_ENTRY"
+                constraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI"
+                columnNames="CALL_CACHING_ENTRY_ID, HASH_KEY"/>
+        <addUniqueConstraint
+                tableName="CALL_CACHING_SIMPLETON_ENTRY"
+                constraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK"
+                columnNames="CALL_CACHING_ENTRY_ID, SIMPLETON_KEY"/>
+        <addUniqueConstraint
+                tableName="JOB_KEY_VALUE_ENTRY"
+                constraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX, JOB_ATTEMPT, STORE_KEY"/>
+        <addUniqueConstraint
+                tableName="JOB_STORE_ENTRY"
+                constraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX, JOB_ATTEMPT"/>
+        <addUniqueConstraint
+                tableName="JOB_STORE_SIMPLETON_ENTRY"
+                constraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"
+                columnNames="JOB_STORE_ENTRY_ID, SIMPLETON_KEY"/>
+        <addUniqueConstraint
+                tableName="SUMMARY_STATUS_ENTRY"
+                constraintName="UC_SUMMARY_STATUS_ENTRY_STN_STN"
+                columnNames="SUMMARY_TABLE_NAME, SUMMARIZED_TABLE_NAME"/>
+        <addUniqueConstraint
+                tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"
+                constraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU"
+                columnNames="WORKFLOW_EXECUTION_UUID"/>
+        <addUniqueConstraint
+                tableName="WORKFLOW_STORE_ENTRY"
+                constraintName="UC_WORKFLOW_STORE_ENTRY_WEU"
+                columnNames="WORKFLOW_EXECUTION_UUID"/>
+
+        <!-- Indexes named after the table plus abbreviated column names. -->
+
+        <createIndex tableName="JOB_STORE_ENTRY" indexName="IX_JOB_STORE_ENTRY_WEU">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <!--
+        <createIndex tableName="METADATA_ENTRY" indexName="IX_METADATA_ENTRY_WEU">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <createIndex tableName="METADATA_ENTRY" indexName="IX_METADATA_ENTRY_WEU_CFQN_JI_JA">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="CALL_FULLY_QUALIFIED_NAME"/>
+            <column name="JOB_INDEX"/>
+            <column name="JOB_ATTEMPT"/>
+        </createIndex>
+
+        <createIndex tableName="METADATA_ENTRY" indexName="IX_METADATA_ENTRY_WEU_CFQN_JI_JA_MK">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="CALL_FULLY_QUALIFIED_NAME"/>
+            <column name="JOB_INDEX"/>
+            <column name="JOB_ATTEMPT"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+        -->
+
+        <createIndex tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WN">
+            <column name="WORKFLOW_NAME"/>
+        </createIndex>
+
+        <createIndex tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WS">
+            <column name="WORKFLOW_STATUS"/>
+        </createIndex>
+
+        <createIndex tableName="WORKFLOW_STORE_ENTRY" indexName="IX_WORKFLOW_STORE_ENTRY_WS">
+            <column name="WORKFLOW_STATE"/>
+        </createIndex>
+
+        <!-- Update table names within SUMMARY_STATUS_ENTRY -->
+
+        <update tableName="SUMMARY_STATUS_ENTRY">
+            <column name="SUMMARY_TABLE_NAME" value="WORKFLOW_METADATA_SUMMARY_ENTRY" type="VARCHAR(255)"/>
+            <where>SUMMARY_TABLE_NAME = 'WORKFLOW_METADATA_SUMMARY'</where>
+        </update>
+
+        <update tableName="SUMMARY_STATUS_ENTRY">
+            <column name="SUMMARIZED_TABLE_NAME" value="METADATA_ENTRY" type="VARCHAR(255)"/>
+            <where>SUMMARIZED_TABLE_NAME = 'METADATA_JOURNAL'</where>
+        </update>
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -11,7 +11,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
     "use all outputs if none are specified" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ThreeStep,
-        eventFilter = EventFilter.info(pattern = s"starting calls: three_step.cgrep, three_step.wc", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
           "three_step.ps.procs" -> AnyValueIsFine,
@@ -25,7 +25,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
     "Respect the workflow output section" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ThreeStepWithOutputsSection,
-        eventFilter = EventFilter.info(pattern = s"starting calls: three_step.cgrep, three_step.wc", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
           "three_step.cgrep.count" -> AnyValueIsFine,
@@ -38,7 +38,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
     "Not list scatter shards" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.inside_scatter", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
           "scatter0.outside_scatter.out" -> AnyValueIsFine,
@@ -51,22 +51,10 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
     "Not list scatter shards, even for wildcards" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.SimpleScatterWdlWithOutputs,
-        eventFilter = EventFilter.info(pattern = s"starting calls: scatter0.inside_scatter", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
           "scatter0.inside_scatter.out" -> AnyValueIsFine
-        ),
-        allowOtherOutputs = false
-      )
-    }
-
-    "Allow explicitly named inputs in the output section" in {
-      runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.ThreeStepWithInputsInTheOutputsSection,
-        eventFilter = EventFilter.info(pattern = s"starting calls: three_step.cgrep, three_step.wc", occurrences = 1),
-        runtime = "",
-        expectedOutputs = Map(
-          "three_step.cgrep.pattern" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )

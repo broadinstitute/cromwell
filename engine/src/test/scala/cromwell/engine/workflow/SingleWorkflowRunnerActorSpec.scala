@@ -1,21 +1,22 @@
 package cromwell.engine.workflow
 
 import java.nio.file.Path
+import java.time.OffsetDateTime
 
 import akka.actor._
 import akka.pattern.ask
 import akka.testkit.TestKit
 import better.files._
-import cromwell.CromwellTestkitSpec
+import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
-import cromwell.engine.backend.local.LocalBackend
+import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.WorkflowMetadataResponse
-import org.scalatest.prop.{TableFor3, TableDrivenPropertyChecks}
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
 import scala.concurrent.Await
@@ -33,19 +34,41 @@ import scala.util._
  */
 object SingleWorkflowRunnerActorSpec {
 
-  def tempFile() = File.newTemp("metadata.", ".json").path
+  def tempFile() = File.newTemporaryFile("metadata.", ".json")
 
-  def tempDir() = File.newTempDir("metadata.dir.").path
+  def tempDir() = File.newTemporaryDirectory("metadata.dir.")
+
+  implicit class OptionJsValueEnhancer(val jsValue: Option[JsValue]) extends AnyVal {
+    def toOffsetDateTime = OffsetDateTime.parse(jsValue.toStringValue)
+    def toStringValue = jsValue.get.asInstanceOf[JsString].value
+    def toFields = jsValue.get.asJsObject.fields
+  }
+
+  class TestSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
+                                      metadataOutputPath: Option[Path])
+    extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
+    override lazy val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
+  }
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
+  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
+  private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
+  private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+
+
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(classOf[WorkflowManagerActor]))
+    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(),
+      workflowStore,
+      dummyServiceRegistryActor,
+      dummyLogCopyRouter,
+      jobStore,
+      callCacheReadActor)), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
                           outputFile: => Option[Path] = None): ActorRef = {
-    system.actorOf(SingleWorkflowRunnerActor.props(sampleWdl.asWorkflowSources(), outputFile, managerActor))
+    system.actorOf(Props(new TestSingleWorkflowRunnerActor(sampleWdl.asWorkflowSources(), outputFile)))
   }
 
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
@@ -59,12 +82,12 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         waitForInfo("workflow finished with status 'Succeeded'.") {
           singleWorkflowActor()
         }
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }
@@ -72,53 +95,54 @@ class SingleWorkflowRunnerActorNormalSpec extends SingleWorkflowRunnerActorSpec 
 class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActorSpec with TableDrivenPropertyChecks {
   val metadataFile = tempFile()
 
-  override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
+  override protected def afterAll() = {
+    metadataFile.delete(swallowIOExceptions = true)
+    super.afterAll()
+  }
 
   private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Int, Int], workflowInputs: Int, workflowOutputs: Int) = {
-    val testStart = System.currentTimeMillis
-    within(timeoutDuration) {
+    val testStart = OffsetDateTime.now
+    within(TimeoutDuration) {
       singleWorkflowActor(
         sampleWdl = wdlFile,
-        outputFile = Option(metadataFile))
+        outputFile = Option(metadataFile.path))
     }
-    TestKit.shutdownActorSystem(system, timeoutDuration)
+    TestKit.shutdownActorSystem(system, TimeoutDuration)
 
-    val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
-    metadata.id shouldNot be(empty)
-    metadata.status should be("Succeeded")
-    metadata.submission.getMillis should be >= testStart
-    metadata.start shouldNot be(empty)
-    metadata.start.get.getMillis should be >= metadata.submission.getMillis
-    metadata.end shouldNot be(empty)
-    metadata.end.get.getMillis should be >= metadata.start.get.getMillis
-    metadata.inputs.fields should have size workflowInputs
-    metadata.outputs shouldNot be(empty)
-    metadata.outputs.get should have size workflowOutputs
-    metadata.calls shouldNot be(empty)
+    val metadataFileContent = metadataFile.contentAsString
+    val metadata = metadataFileContent.parseJson.asJsObject.fields
+    metadata.get("id") shouldNot be(empty)
+    metadata.get("status").toStringValue should be("Succeeded")
+    metadata.get("submission").toOffsetDateTime should be >= testStart
+    val workflowStart = metadata.get("start").toOffsetDateTime
+    workflowStart should be >= metadata.get("submission").toOffsetDateTime
+    val workflowEnd = metadata.get("end").toOffsetDateTime
+    workflowEnd should be >= metadata.get("start").toOffsetDateTime
+    metadata.get("inputs").toFields should have size workflowInputs
+    metadata.get("outputs").toFields should have size workflowOutputs
+    val calls = metadata.get("calls").toFields
+    calls should not be empty
 
     forAll(expectedCalls) { (callName, numInputs, numOutputs) =>
-      val callSeq = metadata.calls(callName)
+      val callSeq = calls(callName).asInstanceOf[JsArray].elements
       callSeq should have size 1
-      val call = callSeq.head
-      call.inputs should have size numInputs
-      call.inputs foreach { case (name, value) =>
-        value.wdlType.toWdlString should not be "Expression"
-      }
-      call.executionStatus should be("Done")
-      call.backend should be(Option("Local"))
-      call.backendStatus should be(empty)
-      call.outputs shouldNot be(empty)
-      call.outputs.get should have size numOutputs
-      call.start shouldNot be(empty)
-      call.start.get.getMillis should be >= metadata.start.get.getMillis
-      call.end shouldNot be(empty)
-      call.end.get.getMillis should be >= call.start.get.getMillis
-      call.end.get.getMillis should be <= metadata.end.get.getMillis
-      call.jobId should be(empty)
-      call.returnCode should be(Option(0))
-      call.stdout shouldNot be(empty)
-      call.stderr shouldNot be(empty)
-      call.attempt shouldBe 1
+      val call = callSeq.head.asJsObject.fields
+      val inputs = call.get("inputs").toFields
+      inputs should have size numInputs
+      call.get("executionStatus").toStringValue should be("Done")
+      call.get("backend").toStringValue should be("Local")
+      call.get("backendStatus") should be(empty)
+      call.get("outputs").toFields should have size numOutputs
+      val callStart = call.get("start").toOffsetDateTime
+      callStart should be >= workflowStart
+      val callEnd = call.get("end").toOffsetDateTime
+      callEnd should be >= callStart
+      callEnd should be <= workflowEnd
+      call.get("jobId") shouldNot be(empty)
+      call("returnCode").asInstanceOf[JsNumber].value should be (0)
+      call.get("stdout") shouldNot be(empty)
+      call.get("stderr") shouldNot be(empty)
+      call("attempt").asInstanceOf[JsNumber].value should be (1)
     }
   }
 
@@ -145,49 +169,52 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
 class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowRunnerActorSpec {
   val metadataFile = tempFile()
 
-  override protected def afterAll() = metadataFile.delete(ignoreIOExceptions = true)
+  override protected def afterAll() = {
+    metadataFile.delete(swallowIOExceptions = true)
+    super.afterAll()
+  }
 
   "A SingleWorkflowRunnerActor" should {
     "fail to run a workflow and still output metadata" in {
-      val testStart = System.currentTimeMillis
-      within(timeoutDuration) {
-        singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
+      val testStart = OffsetDateTime.now
+      within(TimeoutDuration) {
+        singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile.path))
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
 
-      val metadata = metadataFile.contentAsString.parseJson.convertTo[WorkflowMetadataResponse]
-      metadata.id shouldNot be(empty)
-      metadata.status should be("Failed")
-      metadata.submission.getMillis should be >= testStart
-      metadata.start shouldNot be(empty)
-      metadata.start.get.getMillis should be >= metadata.submission.getMillis
-      metadata.end.get.getMillis should be >= metadata.start.get.getMillis
-      metadata.inputs.fields should have size 0
-      metadata.outputs shouldNot be(empty)
-      metadata.outputs.get should have size 0
-      metadata.calls should have size 1
+      val metadata = metadataFile.contentAsString.parseJson.asJsObject.fields
+      metadata.get("id") shouldNot be(empty)
+      metadata.get("status").toStringValue should be("Failed")
+      val workflowStart = metadata.get("start").toOffsetDateTime
+      workflowStart should be >= metadata.get("submission").toOffsetDateTime
+      val workflowEnd = metadata.get("end").toOffsetDateTime
+      workflowEnd should be >= metadata.get("start").toOffsetDateTime
+      metadata.get("submission").toOffsetDateTime should be >= testStart
+      metadata.get("inputs").toFields should have size 0
+      metadata.get("outputs").toFields should have size 0
+      val calls = metadata.get("calls").toFields
+      calls should not be empty
 
-      val callSeq = metadata.calls("goodbye.goodbye")
+      val callSeq = calls("goodbye.goodbye").asInstanceOf[JsArray].elements
       callSeq should have size 1
-      val call = callSeq.head
-      call.inputs should have size 0
-      call.executionStatus should be("Failed")
-      call.backend should be(Option("Local"))
-      call.backendStatus should be(empty)
-      call.outputs shouldNot be(empty)
-      call.outputs.get should have size 0
-      call.start shouldNot be(empty)
-      call.start.get.getMillis should be >= metadata.start.get.getMillis
-      call.end shouldNot be(empty)
-      call.end.get.getMillis should be >= call.start.get.getMillis
-      call.end.get.getMillis should be <= metadata.end.get.getMillis
-      call.jobId should be(empty)
-      call.returnCode shouldNot be(empty)
-      call.returnCode.get shouldNot be(0)
-      call.stdout shouldNot be(empty)
-      call.stderr shouldNot be(empty)
-      call.attempt shouldBe 1
-      call.failures shouldNot be(empty)
+      val call = callSeq.head.asJsObject.fields
+      val inputs = call.get("inputs").toFields
+      inputs should have size 0
+      call.get("executionStatus").toStringValue should be("Failed")
+      call.get("backend").toStringValue should be("Local")
+      call.get("backendStatus") should be(empty)
+      call.get("outputs") shouldBe empty
+      val callStart = call.get("start").toOffsetDateTime
+      callStart should be >= workflowStart
+      val callEnd = call.get("end").toOffsetDateTime
+      callEnd should be >= callStart
+      callEnd should be <= workflowEnd
+      call.get("jobId") shouldNot be(empty)
+      call("returnCode").asInstanceOf[JsNumber].value shouldNot be (0)
+      call.get("stdout") shouldNot be(empty)
+      call.get("stderr") shouldNot be(empty)
+      call("attempt").asInstanceOf[JsNumber].value should be (1)
+      call("failures").asInstanceOf[JsArray].elements shouldNot be(empty)
     }
   }
 }
@@ -195,22 +222,27 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
 class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerActorSpec {
   val metadataDir = tempDir()
 
-  override protected def afterAll() = metadataDir.delete(ignoreIOExceptions = true)
+  override protected def afterAll() = {
+    metadataDir.delete(swallowIOExceptions = true)
+    super.afterAll()
+  }
 
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow requesting a bad metadata path" in {
-      within(timeoutDuration) {
-        val runner = createRunnerActor(outputFile = Option(metadataDir))
-        waitForErrorWithException(s"$metadataDir: Is a directory") {
+      within(TimeoutDuration) {
+        val runner = createRunnerActor(outputFile = Option(metadataDir.path))
+        waitForErrorWithException(s"Specified metadata path is a directory, should be a file: $metadataDir") {
           val futureResult = runner ? RunWorkflow
           Await.ready(futureResult, Duration.Inf)
           futureResult.value.get match {
             case Success(_) =>
-            case Failure(e) => fail(e)
+            case Failure(e) =>
+              e.printStackTrace()
+              fail(e)
           }
         }
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }
@@ -218,7 +250,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
 class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully terminate the system on an exception" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val runner = createRunnerActor()
         val futureResult = runner ? RunWorkflow
         val ex = new RuntimeException("expected error")
@@ -230,7 +262,7 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
           case Failure(e) => e.getMessage should include("expected error")
         }
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }
@@ -238,15 +270,15 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
 class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorSpec {
   "A SingleWorkflowRunnerActor" should {
     "successfully warn about unexpected output" in {
-      within(timeoutDuration) {
+      within(TimeoutDuration) {
         val runner = createRunnerActor()
         waitForWarning("SingleWorkflowRunnerActor: received unexpected message: expected unexpected") {
-          val futureResult = runner ? RunWorkflow
+          runner ? RunWorkflow
           runner ! "expected unexpected"
         }
-        assert(!system.isTerminated)
+        assert(!system.whenTerminated.isCompleted)
       }
-      TestKit.shutdownActorSystem(system, timeoutDuration)
+      TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
   }
 }

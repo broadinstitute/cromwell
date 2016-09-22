@@ -2,6 +2,7 @@ package cromwell.core
 
 import com.typesafe.config.ConfigFactory
 import spray.json._
+import wdl4s.util.TryUtil
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -41,10 +42,25 @@ import scala.util.{Failure, Success, Try}
  */
 
 object WorkflowOptions {
+
+  sealed abstract class WorkflowOption(val name: String)
+  // Caching
+  case object WriteToCache extends WorkflowOption("write_to_cache")
+  case object ReadFromCache extends WorkflowOption("read_from_cache")
+
+  // Copying
+  case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")
+  case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
+  case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
+
+  // Misc.
+  case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
+  case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
+
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
-  private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala.toSeq
+  private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
-  private lazy val defaultRuntimeOptionKey: String = "defaultRuntimeOptions"
+  private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
@@ -60,7 +76,7 @@ object WorkflowOptions {
     (obj.fields.get("iv"), obj.fields.get("ciphertext")) match {
       case (Some(iv: JsString), Some(ciphertext: JsString)) =>
         Aes256Cbc.decrypt(EncryptedBytes(ciphertext.value, iv.value), SecretKey(WorkflowOptions.EncryptionKey)).map(new String(_, "utf-8"))
-      case _ => Failure(new Throwable(s"JsObject must have 'iv' and 'ciphertext' fields to decrypt: $obj"))
+      case _ => Failure(new RuntimeException(s"JsObject must have 'iv' and 'ciphertext' fields to decrypt: $obj"))
     }
   }
 
@@ -81,7 +97,7 @@ object WorkflowOptions {
     }
 
     encrypted.values collect { case f: Failure[_] => f } match {
-      case s if s.nonEmpty => Failure(new Throwable(s.map(_.exception.getMessage).mkString("\n")))
+      case s if s.nonEmpty => Failure(new RuntimeException(s.map(_.exception.getMessage).mkString("\n")))
       case _ => Success(WorkflowOptions(new JsObject(encrypted map { case (k, v) => k -> v.get })))
     }
   }
@@ -102,7 +118,7 @@ object WorkflowOptions {
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj) map JsString.apply
     case Some(jsObj: JsObject) => Success(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(OptionNotFoundException(s"Field not found: $key"))
   }
 
   private def get(key: String, jsObject: JsObject) = jsObject.fields.get(key) match {
@@ -111,8 +127,10 @@ object WorkflowOptions {
     case Some(jsBool: JsBoolean) => Success(jsBool.value.toString)
     case Some(jsObj: JsObject) if isEncryptedField(jsObj) => decryptField(jsObj)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported value as JsValue: $jsVal"))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(OptionNotFoundException(s"Field not found: $key"))
   }
+
+  val empty = WorkflowOptions.fromMap(Map.empty).get
 }
 
 case class WorkflowOptions(jsObject: JsObject) {
@@ -121,22 +139,22 @@ case class WorkflowOptions(jsObject: JsObject) {
   def toMap = jsObject.fields
 
   def get(key: String): Try[String] = WorkflowOptions.get(key, jsObject)
+  def get(option: WorkflowOption): Try[String] = get(option.name)
 
   def getBoolean(key: String): Try[Boolean] = jsObject.fields.get(key) match {
     case Some(jsBool: JsBoolean) => Success(jsBool.value)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported JsValue as JsBoolean: $jsVal"))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
+    case None => Failure(OptionNotFoundException(s"Field not found: $key"))
   }
 
-  def getDefaultRuntimeOption(key: String): Try[JsValue] = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => WorkflowOptions.getAsJson(key, jsObj)
+  def getDefaultRuntimeOption(key: String): Try[JsValue] = defaultRuntimeOptions map { attributes =>
+    attributes.getOrElse(key, throw OptionNotFoundException(s"Field not found $key"))
+  }
+
+  lazy val defaultRuntimeOptions = jsObject.fields.get(defaultRuntimeOptionKey) match {
+    case Some(jsObj: JsObject) => TryUtil.sequenceMap(jsObj.fields map { case (k, v) => k -> WorkflowOptions.getAsJson(k, jsObj) })
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
-    case None => Failure(new OptionNotFoundException(s"Field not found: $key"))
-  }
-
-  def getDefaultRuntimeOptionKeys: Iterable[String] = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => jsObj.fields.keys
-    case _ => List.empty[String]
+    case None => Failure(OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
   }
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {
@@ -148,13 +166,13 @@ case class WorkflowOptions(jsObject: JsObject) {
   def asPrettyJson: String = jsObject.prettyPrint
 
   /**
-   * Returns a JSON representation of these workflow options where the encrypted values
-   * have been replaced by the string "cleared". This will be called on the workflow
-   * options (and subsequently stored back in the database) once a workflow finishes
-   * and the encrypted values aren't needed anymore. This protects us in case the
-   * database and private key become compromised, the attacker will not be able to
-   * decrypt values for completed workflows.
-   */
+    * Returns a JSON representation of these workflow options where the encrypted values
+    * have been replaced by the string "cleared". This will be called on the workflow
+    * options (and subsequently stored back in the database) once a workflow finishes
+    * and the encrypted values aren't needed anymore. This protects us in case the
+    * database and private key become compromised, the attacker will not be able to
+    * decrypt values for completed workflows.
+    */
   def clearEncryptedValues: String = {
     val revoked = jsObject.fields map {
       case (k, v: JsObject) if isEncryptedField(v) => k -> JsString("cleared")

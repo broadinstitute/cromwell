@@ -1,14 +1,15 @@
 package cromwell
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 import java.util.UUID
 
 import akka.testkit._
+import better.files._
+import cromwell.util.SampleWdl
 import wdl4s.NamespaceWithWorkflow
 import wdl4s.expression.NoFunctions
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
-import cromwell.util.SampleWdl
 
 import scala.language.postfixOps
 
@@ -21,7 +22,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
     "accept an array for the value" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.ArrayIO,
-        EventFilter.info(pattern = s"starting calls: wf.concat, wf.find, wf.serialize", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "wf.count_lines.count" -> WdlInteger(3),
           "wf.count_lines_array.count" -> WdlInteger(3),
@@ -65,10 +66,11 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
         )
       )
       val uuid = UUID.randomUUID()
-      val sampleWdl = SampleWdl.ArrayLiteral(Paths.get("."))
+      val pwd = File(".")
+      val sampleWdl = SampleWdl.ArrayLiteral(pwd.path)
       runWdlAndAssertOutputs(
         sampleWdl,
-        eventFilter = EventFilter.info(pattern = s"starting calls: wf.cat", occurrences = 1),
+        eventFilter = EventFilter.info(pattern = "Starting calls: wf.cat", occurrences = 1),
         expectedOutputs = outputs
       )
       sampleWdl.cleanup()

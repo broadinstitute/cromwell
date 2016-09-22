@@ -17,6 +17,14 @@ parameters as a HTTP POST.
 
 ## 0.21
 
+
+* A new “Stats” endpoint has been added to get information about workflow and job count for a Cromwell running in server mode.
+* Renamed Workflow Options:
+   “workflow_log_dir” -> “final_workflow_log_dir”
+    “call_logs_dir” -> “final_call_logs_dir”
+    “outputs_path” -> “final_workflow_outputs_dir”
+    “defaultRuntimeOptions” -> “default_runtime_attributes”
+* Timing diagrams have been updated to include additional state information about jobs.
 * Add support for Google Private IPs through `noAddress` runtime attribute. If set to true, the VM will NOT be provided with a public IP address.
 *Important*: Your project must be whitelisted in "Google Access for Private IPs Early Access Program". If it's not whitelisted and you set this attribute to true, the task will hang.
   Defaults to `false`.

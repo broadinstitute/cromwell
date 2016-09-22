@@ -1,14 +1,18 @@
 name: cacheWithinWF
+testFormat: workflowsuccess
 
 files {
   wdl: cacheWithinWF/cacheWithinWF.wdl
 }
 
 metadata {
-  "workflowName": cacheWithinWF
-  "cacheWithinWF.four.cache.cacheHitCall": "cacheWithinWF.two"
-  "cacheWithinWF.four.inputs.pi": 3.14159
-  "cacheWithinWF.four.inputs.r2": 3844
-  "cacheWithinWF.four.outputs.area": 12076.27196
-  "cacheWithinWF.four.outputs.piCopy": 3.14159
+  workflowName: cacheWithinWF
+  status: Succeeded
+  "calls.cacheWithinWF.one.Call caching read result": "Cache Miss"
+  "calls.cacheWithinWF.two.Call caching read result": "Cache Miss"
+  "calls.cacheWithinWF.twoAgain.Call caching read result": "Cache Hit: <<UUID>>:cacheWithinWF.two:-1"
+  "calls.cacheWithinWF.twoAgain.inputs.pi": 3.14159
+  "calls.cacheWithinWF.twoAgain.inputs.r2": 3844
+  "calls.cacheWithinWF.twoAgain.outputs.area": 12076.27196
+  "calls.cacheWithinWF.twoAgain.outputs.piCopy": 3.14159
 }

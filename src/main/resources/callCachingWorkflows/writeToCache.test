@@ -4,3 +4,10 @@ files {
   wdl: writeToCache/writeToCache.wdl
   options: writeToCache/writeToCache.options
 }
+
+metadata {
+  workflowName: writeToCache
+  status: Succeeded
+  "calls.writeToCache.grepAgain.Call caching read result": "Cache Miss"
+  "calls.writeToCache.grep.Call caching read result": "Cache Miss"
+}

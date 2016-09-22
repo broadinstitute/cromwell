@@ -1,5 +1,7 @@
 package centaur.test.formulas
 
+import java.util.UUID
+
 import cats.implicits._
 import centaur._
 import centaur.test.Operations._
@@ -25,6 +27,18 @@ object TestFormulas {
 
   def runSuccessfulWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = runWorkflowAndVerifyMetadata(workflow, runSuccessfulWorkflow)
   def runFailingWorkflowAndVerifyMetadata(workflow: Workflow): Test[Unit] = runWorkflowAndVerifyMetadata(workflow, runFailingWorkflow)
+  def runSuccessfulWorkflowAndVerifyCacheMetadata(workflow: Workflow, cacheHit: UUID): Test[Unit] = runWorkflowAndVerifyCacheMetadata(workflow, runSuccessfulWorkflow, cacheHit)
+
+  def runWorkflowAndVerifyCacheMetadata(workflow: Workflow, f: Workflow => Test[SubmittedWorkflow], cacheHitWorkflow: UUID): Test[Unit] = {
+    workflow match {
+      case _: WorkflowWithoutMetadata => throw new Exception("Scala type system: 3, Jeff: 0")
+      case r: WorkflowWithMetadata =>
+        for {
+          w <- f(r)
+          _ <- validateMetadata(w, r.metadata, Option(cacheHitWorkflow))
+        } yield ()
+    }
+  }
 
   def runWorkflowAndVerifyMetadata(workflow: Workflow, f: Workflow => Test[SubmittedWorkflow]): Test[Unit] = {
     // FIXME: This is horrible, but I just wanted to add this and copy/paste was easier than thinking
@@ -38,10 +52,10 @@ object TestFormulas {
     }
   }
 
-  def runSequentialCachingWorkflow(workflow: Workflow, secondWorkflow: Workflow) = {
+  def runSequentialCachingWorkflows(firstAttempt: Workflow, secondAttempt: Workflow) = {
     for {
-      _ <- runWorkflowUntilTerminalStatus(workflow, Succeeded)
-      _ <- runSuccessfulWorkflowAndVerifyMetadata(secondWorkflow)
+      firstWF <- runWorkflowUntilTerminalStatus(firstAttempt, Succeeded)
+      _ <- runSuccessfulWorkflowAndVerifyCacheMetadata(secondAttempt, firstWF.id)
     } yield ()
   }
 
@@ -49,7 +63,7 @@ object TestFormulas {
     for {
       testWf <- runWorkflowUntilTerminalStatus(workflow, Succeeded)
       metadata <- retrieveMetadata(testWf)
-      _ <- validateCachingWasOff(metadata, workflow.name)
+      _ <- validateNoCacheHits(metadata, workflow.name)
     } yield ()
   }
 }

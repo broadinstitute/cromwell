@@ -3,13 +3,13 @@ testFormat: workflowfailure
 backends: [Jes-Refresh]
 
 files {
-  wdl: hello/hello.wdl
-  inputs: hello/hello.inputs
+  wdl: refresh_token_failure/refresh_token_failure.wdl
+  inputs: refresh_token_failure/refresh_token_failure.inputs
   options: refresh_token_failure/refresh_token_failure.options
 }
 
 metadata {
-  workflowName: hello
+  workflowName: refresh_token_failure
   status: Failed
   "failures.0.message":"Missing parameters in workflow options: refresh_token"
 }

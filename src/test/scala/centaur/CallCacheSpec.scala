@@ -14,40 +14,38 @@ object CallCacheSpec {
   val CallCachingWorkflowDir = Paths.get("src/main/resources/callCachingWorkflows")
   val ReadFromCacheTest = CallCachingWorkflowDir.resolve("readFromCache.test")
   val WriteToCacheTest = CallCachingWorkflowDir.resolve("writeToCache.test")
-  val CacheWithinWf = CallCachingWorkflowDir.resolve("cacheWithinWf.test")
-  val CacheBetweenWf = CallCachingWorkflowDir.resolve("cacheBetweenWF.test")
+  val CacheWithinWf = CallCachingWorkflowDir.resolve("cacheWithinWF.test")
+  val CacheBetweenWf = CallCachingWorkflowDir.resolve("cacheBetweenWf.test")
 }
 
 class CallCacheSpec extends FlatSpec with Matchers with ParallelTestExecution {
   import CallCacheSpec._
 
-  "readFromCache" should "not use call caching" ignore {
+  "readFromCacheOff" should "not use call cache reading" in {
     Workflow.fromPath(ReadFromCacheTest) match {
       case Valid(w) => TestFormulas.runCachingTurnedOffWorkflow(w).run.get
       case Invalid(e) => fail(s"Could not read readFromCache test:\n -${e.unwrap.mkString("\n-")}")
     }
   }
 
-  "writeToCache" should "not use call caching" ignore {
+  "writeToCacheOff" should "not use call cache writing" in {
     Workflow.fromPath(WriteToCacheTest) match {
-      case Valid(w) => TestFormulas.runCachingTurnedOffWorkflow(w).run.get
+      case Valid(w) => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(w).run.get
       case Invalid(e) => fail(s"Could not read writeToCache test:\n - ${e.unwrap.mkString("\n- ")}")
     }
   }
 
-  "cacheWithinWf" should "use call caching" ignore {
+  "cacheWithinWf" should "successfully call cache in the same workflow" in {
     Workflow.fromPath(CacheWithinWf) match {
       case Valid(w) => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(w).run.get
       case Invalid(e) => fail(s"Could not read cacheWithinWf test:\n - ${e.unwrap.mkString("\n- ")}")
     }
   }
 
-  "cacheBetweenWf" should "use call caching" ignore {
-    val cacheWithinWf = Workflow.fromPath(CacheWithinWf)
-    val cacheBetweenWf = Workflow.fromPath(CacheBetweenWf)
-    Apply[ErrorOr].map2(cacheWithinWf, cacheBetweenWf)((w, b) => TestFormulas.runSequentialCachingWorkflow(w, b)) match {
-      case Valid(t) => t.run.get
-      case Invalid(e) => fail(s"Could not build workflows for cacheBetwenWf test:\n - ${e.unwrap.mkString("\n- ")}")
+  "cacheBetweenWf" should "successfully call cache between two workflows" in {
+    Workflow.fromPath(CacheBetweenWf) match {
+      case Valid(w) => TestFormulas.runSequentialCachingWorkflows(w, w)
+      case Invalid(e) => fail(s"Could not read cacheWithinWf test:\n - ${e.unwrap.mkString("\n- ")}")
     }
   }
 }

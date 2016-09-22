@@ -4,3 +4,8 @@ files {
   wdl: readFromCache/readFromCache.wdl
   options: readFromCache/readFromCache.options
 }
+
+metadata {
+  workflowName: readFromCache
+  status: Succeeded
+}

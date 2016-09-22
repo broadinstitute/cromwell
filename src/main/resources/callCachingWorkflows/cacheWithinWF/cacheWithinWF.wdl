@@ -1,5 +1,5 @@
 task one {
-  Int radius = 62
+  Int radius
     command {
         echo ${radius*radius}
     }
@@ -22,43 +22,25 @@ task two{
    output {
 		Float area = read_float(stdout())
 		Float piCopy = pi
+		Int rSquaredCopy = r2
    }
    runtime {
       docker: "ubuntu:latest"
    }
-
-}
-
-task three{
-	Int rad
-	   command {
-		 	echo ${rad*rad}
-		}
-		output {
-			Int rSquared = read_int(stdout())
-			Int rCopy = rad
-		}
-		runtime {
-			docker: "ubuntu:latest"
-		}
 }
 
 workflow cacheWithinWF {
    call one {
+    input: radius = 62
    }
    call two {
    	input: r2 = one.rSquared
    }
-   call three {
-    input: rad = one.rCopy
+   call two as twoAgain {
+   	input: r2 = two.rSquaredCopy
    }
-   call two as four {
-   	input: r2 = three.rSquared
-   }
-
    output {
-        two.area
-        four.area
+      two.area
+      twoAgain.area
    }
-
 }

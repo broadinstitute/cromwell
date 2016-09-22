@@ -8,6 +8,7 @@ task hello {
   }
   runtime {
     docker: "ubuntu:latest"
+    cpu: 1
   }
 }
 

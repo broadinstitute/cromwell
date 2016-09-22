@@ -14,17 +14,18 @@ import scala.util.{Failure, Success, Try}
 
 case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
 
-  def diff(actual: WorkflowMetadata, workflowID: UUID): Iterable[String] = {
+  def diff(actual: WorkflowMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {
     // If the test fails in initialization there wouldn't be workflow root metadata, and if that's the expectation
     // then that's ok.
     val workflowRoot = actual.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key: $k" }
-    val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k), actual.value(k), workflowID, workflowRoot) }
+    val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k), actual.value(k),
+                                                                                               workflowID, workflowRoot, cacheHitUUID)}
 
     mismatchErrors ++ missingErrors
   }
 
-  private def diffValues(key: String, expected: JsValue, actual: JsValue, workflowID: UUID, workflowRoot: String): Option[String] = {
+  private def diffValues(key: String, expected: JsValue, actual: JsValue, workflowID: UUID, workflowRoot: String, cacheHitUUID: Option[UUID]): Option[String] = {
     /*
       FIXME/TODO:
 
@@ -35,9 +36,13 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
      */
 
     lazy val substitutedValue = expected.toString.replace("<<UUID>>", workflowID.toString).replace("<<WORKFLOW_ROOT>>", workflowRoot)
+    lazy val cacheSubstitutions = cacheHitUUID match {
+      case Some(uuid) => substitutedValue.replace("<<CACHE_HIT_UUID>>", uuid.toString)
+      case None => substitutedValue
+    }
 
     val isMatch = actual match {
-      case o: JsString => substitutedValue == o.toString
+      case o: JsString => cacheSubstitutions == o.toString
       case o: JsNumber => expected == JsString(o.value.toString)
       case o: JsBoolean => expected == JsString(o.value.toString)
       case o: JsArray => expected == JsString(o.toString)
@@ -45,7 +50,7 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
     }
 
     if (isMatch) None
-    else Option(s"Metadata mismatch for $key - expected: $substitutedValue but got: $actual")
+    else Option(s"Metadata mismatch for $key - expected: $cacheSubstitutions but got: $actual")
   }
 }
 

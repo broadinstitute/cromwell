@@ -1,16 +1,16 @@
-task hello {
+task goodbye {
   String addressee
   command {
-    echo "Hello ${addressee}!"
+    echo "Goodbye ${addressee}!"
   }
   output {
-    String salutation = read_string(stdout())
+    String farewell = read_string(stdout())
   }
 }
 
 workflow local_backend {
-  call hello
+  call goodbye
   output {
-     hello.salutation
+     goodbye.farewell
   }
 }

@@ -1,65 +1,39 @@
-task oneAgain {
-  Int radius = 62
+task getAverage {
+  Int base1 = 9
+  Int base2 = 13
     command {
-        echo ${radius*radius}
+        echo ${(base1*base2)/2}
     }
     output {
-        Int rSquared = read_int(stdout())
-		Int rCopy = radius
+        Float average = read_float(stdout())
     }
     runtime {
        docker: "ubuntu:latest"
     }
 }
 
-task twoAgain{
-   Int r2
-   Float pi = 3.14159
+task heightProduct{
+   Float baseAverage
+   Int height = 7
 
    command {
-   		echo ${r2*pi}
+   		echo ${baseAverage*height}
    }
    output {
-		Float area = read_float(stdout())
-		Float piCopy = pi
+		Float trapezoidalArea = read_float(stdout())
    }
    runtime {
       docker: "ubuntu:latest"
    }
-
-}
-
-task threeAgain {
-	Int rad
-	   command {
-		 	echo ${rad*rad}
-		}
-		output {
-			Int rSquared = read_int(stdout())
-			Int rCopy = rad
-		}
-		runtime {
-			docker: "ubuntu:latest"
-		}
 }
 
 workflow cacheBetweenWF {
-
-   call oneAgain {
+   call getAverage {
    }
-   call twoAgain {
-   	input: r2 = oneAgain.rSquared
+   call heightProduct {
+      input: baseAverage = getAverage.average
    }
-   call threeAgain {
-    input: rad = oneAgain.rCopy
-   }
-   call twoAgain as fourAgain {
-   	input: r2 = threeAgain.rSquared
-   }
-
    output {
-        twoAgain.area
-        fourAgain.area
+        heightProduct.trapezoidalArea
    }
-
 }

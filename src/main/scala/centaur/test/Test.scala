@@ -124,8 +124,7 @@ object Operations {
     }
   }
 
-  def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): Test[Unit] = {
-
+  def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata, cacheHitUUID: Option[UUID] = None): Test[Unit] = {
     @tailrec
     def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[Unit]): Try[Unit] = {
       import scala.concurrent.duration._
@@ -139,7 +138,7 @@ object Operations {
     }
 
     new Test[Unit] {
-      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): Try[Unit] = {
+      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata, cacheHitUUID: Option[UUID] = None): Try[Unit] = {
         def checkDiff(diffs: Iterable[String]): Unit = {
           diffs match {
             case d if d.nonEmpty => throw new Exception(s"Invalid metadata response:\n -${d.mkString("\n -")}\n")
@@ -151,12 +150,12 @@ object Operations {
         // Try to convert the response to a Metadata in our return Try.
         // Currently any error msg will be opaque as it's unlikely to be an issue (can flesh out later)
         val metadata = sendReceiveFutureCompletion(response map { r => WorkflowMetadata.fromMetadataJson(r).toOption.get })
-        metadata.map(expectedMetadata.diff(_, workflow.id)) map checkDiff
+        metadata.map(expectedMetadata.diff(_, workflow.id, cacheHitUUID)) map checkDiff
       }
 
       override def run: Try[Unit] = {
         eventually(OffsetDateTime.now(), CentaurConfig.metadataConsistencyTimeout) {
-          validateMetadata(workflow, expectedMetadata)
+          validateMetadata(workflow, expectedMetadata, cacheHitUUID)
         }
       }
     }
@@ -165,10 +164,10 @@ object Operations {
   /**
     * Verify that none of the calls within the workflow are cached.
     */
-  def validateCachingWasOff(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = {
+  def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = {
     new Test[Unit] {
       override def run: Try[Unit] = {
-        val cacheHits = metadata.value.keySet filter { _.contains("cacheHitCall") }
+        val cacheHits = metadata.value.keySet filter { _.contains("Call caching read result") }
 
         if (cacheHits.isEmpty) Success(())
         else Failure(new Exception(s"Found unexpected cache hits for $workflowName: \n"))

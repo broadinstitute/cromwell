@@ -14,6 +14,6 @@ files {
 metadata {
   workflowName: local_backend
   status: Succeeded
-  "calls.local_backend.hello.executionStatus": Done
-  "calls.local_backend.hello.backend": "Local"
+  "calls.local_backend.goodbye.executionStatus": Done
+  "calls.local_backend.goodbye.backend": "Local"
 }

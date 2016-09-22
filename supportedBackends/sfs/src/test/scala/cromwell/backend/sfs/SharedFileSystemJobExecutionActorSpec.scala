@@ -35,7 +35,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val expectedOutputs: JobOutputs = Map(
       "salutation" -> JobOutput(WdlString("Hello you !"))
     )
-    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs)
+    val expectedResponse = SucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty)
     val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
     val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = runtime)
     val workflow = TestWorkflow(workflowDescriptor, emptyBackendConfig, expectedResponse)
@@ -107,7 +107,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val workflowDescriptor = buildWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions), conf)
       val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
-      val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
+      val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty)
 
       val jobPaths = new JobPaths(workflowDescriptor, conf.backendConfig, jobDescriptor.key)
 
@@ -232,7 +232,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, symbolMaps)
       val backend = createBackend(jobDescriptor, emptyBackendConfig)
       val response =
-        SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))))
+        SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))), None, Seq.empty)
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -253,7 +253,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       "o2" -> JobOutput(WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB))),
       "o3" -> JobOutput(WdlFile(inputFile))
     )
-    val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs)
+    val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty)
 
     executeJobAndAssertOutputs(backend, expectedResponse)
   }

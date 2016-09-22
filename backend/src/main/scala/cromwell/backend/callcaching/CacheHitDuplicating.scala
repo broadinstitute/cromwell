@@ -95,6 +95,6 @@ trait CacheHitDuplicating {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
 
-    SucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles))
+    SucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
   }
 }

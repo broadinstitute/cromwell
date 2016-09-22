@@ -324,7 +324,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
       context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
       goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
-    case Event(SucceededResponse(jobKey, returnCode, callOutputs, _), stateData) =>
+    case Event(SucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
     case Event(FailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
@@ -364,7 +364,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     case Event(FailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
       pushFailedJobMetadata(jobKey, returnCode, reason, retryableFailure = true)
       stay
-    case Event(SucceededResponse(jobKey, returnCode, callOutputs, _), stateData) =>
+    case Event(SucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       stay
   }

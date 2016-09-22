@@ -36,7 +36,7 @@ class MongoCacheActorSpec extends TestKit(ActorSystem("MongoCacheProviderActorSp
   val runtimeConfig = HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), Some("tool-name"), Some("/workingDir"), Some("/outputDir"), true, 1, memorySize, diskSize)
   val jobHash = "88dde49db10f1551299fb9937f313c10"
   val taskStatus = "done"
-  val succeededResponseMock = SucceededResponse(BackendJobDescriptorKey(Call(None, "TestJob", null, null, null, None), None, 0), None, Map("test" -> JobOutput(WdlString("Test"))))
+  val succeededResponseMock = SucceededResponse(BackendJobDescriptorKey(Call(None, "TestJob", null, null, null, None), None, 0), None, Map("test" -> JobOutput(WdlString("Test"))), None, Seq.empty)
   val serSucceededRespMock = KryoSerializedObject(serialize(succeededResponseMock))
   val cachedExecutionResult = MongoCachedExecutionResult(jobHash, serSucceededRespMock)
   val cachedExecutionResultDbObject = JSON.parse(cachedExecutionResult.toJson.toString).asInstanceOf[DBObject]

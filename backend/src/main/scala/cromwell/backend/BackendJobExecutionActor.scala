@@ -4,7 +4,7 @@ import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.core.JobOutputs
+import cromwell.core.{ExecutionEvent, JobOutputs}
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
@@ -22,7 +22,7 @@ object BackendJobExecutionActor {
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
 
   sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse { def jobKey: BackendJobDescriptorKey }
-  case class SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, jobDetritusFiles: Option[Map[String, String]] = None) extends BackendJobExecutionResponse
+  case class SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, jobDetritusFiles: Option[Map[String, String]], executionEvents: Seq[ExecutionEvent]) extends BackendJobExecutionResponse
   case class AbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   case class FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobExecutionResponse
   case class FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobExecutionResponse

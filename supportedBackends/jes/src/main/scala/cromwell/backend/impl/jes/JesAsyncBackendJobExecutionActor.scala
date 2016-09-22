@@ -2,7 +2,6 @@ package cromwell.backend.impl.jes
 
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
-import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
@@ -383,18 +382,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         }
         status match {
           case Success(s: TerminalRunStatus) =>
-            val eventMetadata = getEventMetadataOption(s.eventList) match {
-              case Some(metadata) => metadata
-              case None => Map.empty
-            }
-
-            val otherMetadata = Map(
+            val metadata = Map(
               JesMetadataKeys.MachineType -> s.machineType.getOrElse("unknown"),
               JesMetadataKeys.InstanceName -> s.instanceName.getOrElse("unknown"),
               JesMetadataKeys.Zone -> s.zone.getOrElse("unknown")
             )
 
-            tellMetadata(eventMetadata ++ otherMetadata)
+            tellMetadata(metadata)
             executionResult(s, handle)
           case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
           case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
@@ -440,27 +434,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val metadataKeyValues = runtimeAttributesMetadata ++ fileMetadata ++ otherMetadata
 
     tellMetadata(metadataKeyValues)
-  }
-
-  private def getEventMetadataOption(eventList: Seq[EventStartTime]): Option[Map[String, Any]] = {
-    eventList.headOption map { firstEvent =>
-      // The final event is only used as the book-end for the final pairing so the name is never actually used...
-      val offset = firstEvent.offsetDateTime.getOffset
-      val now = OffsetDateTime.now.withOffsetSameInstant(offset)
-      val lastEvent = EventStartTime("unused_name", now)
-      val tailedEventList = eventList :+ lastEvent
-      val events: TraversableOnce[(String, Any)] = tailedEventList.sliding(2).zipWithIndex flatMap {
-        case (Seq(eventCurrent, eventNext), index) =>
-          val eventKey = s"executionEvents[$index]"
-          List(
-            (s"$eventKey:description", eventCurrent.name),
-            (s"$eventKey:startTime", eventCurrent.offsetDateTime),
-            (s"$eventKey:endTime", eventNext.offsetDateTime)
-          )
-      }
-
-      events.toMap
-    }
   }
 
   /**
@@ -523,9 +496,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, String], executionHandle: ExecutionHandle): ExecutionHandle = {
+  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, String], executionHandle: ExecutionHandle, events: Seq[ExecutionEvent]): ExecutionHandle = {
     outputMappings match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles)
+      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, events)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
         // Return the execution handle in this case to retry the operation
         executionHandle
@@ -581,7 +554,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private[jes] def executionResult(status: RunStatus, handle: JesPendingExecutionHandle)
+  private[jes] def executionResult(status: TerminalRunStatus, handle: JesPendingExecutionHandle)
                                   (implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
     try {
       lazy val stderrLength: Long = File(jesStderrFile).size
@@ -604,8 +577,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
           val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
-        case _: RunStatus.Success =>
-          handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths.mapValues(_.toString), handle).future
+        case success: RunStatus.Success =>
+          handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths.mapValues(_.toString), handle, success.eventList).future
         case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {

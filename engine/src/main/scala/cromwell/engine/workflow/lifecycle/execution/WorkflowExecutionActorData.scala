@@ -43,19 +43,14 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   /** Checks if the workflow is completed by scanning through the executionStore.
     * If complete, this will return Some(finalStatus).  Otherwise, returns None */
   def workflowCompletionStatus: Option[ExecutionStatus] = {
+    // `List`ify the `prerequisiteScopes` to avoid expensive hashing of `Scope`s when assembling the result.
+    def upstream(scope: Scope): List[Scope] = scope.prerequisiteScopes.toList ++ scope.prerequisiteScopes.toList.flatMap(upstream)
+    def upstreamFailed(scope: Scope) = upstream(scope) filter { s =>
+      executionStore.store.map({ case (a, b) => a.scope -> b }).get(s).contains(Failed)
+    }
     // activeJobs is the subset of the executionStore that are either running or will run in the future.
-    val activeJobs = executionStore.store.foldLeft(executionStore.store) { case (acc, (jobKey, jobStatus)) =>
-      jobStatus match {
-        case Done | Preempted | Failed => acc - jobKey
-        case NotStarted =>
-          // For NotStarted jobs: if any upstream jobs are failed, then assume this job will never run
-          def upstream(scope: Scope): Set[Scope] = scope.prerequisiteScopes ++ scope.prerequisiteScopes.flatMap(upstream)
-          val upstreamFailed = upstream(jobKey.scope) filter { s =>
-            executionStore.store.map({ case (a, b) => a.scope -> b }).get(s).contains(Failed)
-          }
-          if (upstreamFailed.nonEmpty) acc - jobKey else acc
-        case _ => acc
-      }
+    val activeJobs = executionStore.store.toList filter {
+      case (jobKey, jobStatus) => (jobStatus == NotStarted && upstreamFailed(jobKey.scope).isEmpty) || jobStatus == Starting || jobStatus == Running
     }
 
     activeJobs match {

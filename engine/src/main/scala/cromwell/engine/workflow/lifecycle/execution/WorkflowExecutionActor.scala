@@ -30,8 +30,6 @@ import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
 import wdl4s.{Scope, _}
 
-import scala.Option
-import scala.Option._
 import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
@@ -147,8 +145,9 @@ object WorkflowExecutionActor {
   }
 
   private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
-    /** Find currently runnable scopes */
-    def runnableScopes: Iterable[JobKey] = executionStore.store.filter(isRunnable).keys
+    // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
+    // assembling the result.
+    def runnableScopes = executionStore.store.toList collect { case entry if isRunnable(entry) => entry._1 }
 
     private def isRunnable(entry: ExecutionStoreEntry) = {
       entry match {
@@ -157,22 +156,19 @@ object WorkflowExecutionActor {
       }
     }
 
-    def findShardEntries(key: CollectorKey): Iterable[ExecutionStoreEntry] = executionStore.store collect {
+    def findShardEntries(key: CollectorKey): List[ExecutionStoreEntry] = executionStore.store.toList collect {
       case (k: BackendJobDescriptorKey, v) if k.scope == key.scope && k.isShard => (k, v)
     }
 
     private def arePrerequisitesDone(key: JobKey): Boolean = {
-      def isDone(e: JobKey): Boolean = executionStore.store exists {
-        case (k, s) => k.scope == e.scope && k.index == e.index && s == ExecutionStatus.Done
-      }
-
-      val upstream = key.scope.prerequisiteScopes.map(s => upstreamEntries(key, s))
+      val upstream = key.scope.prerequisiteScopes.toList.map(s => upstreamEntries(key, s))
       val downstream = key match {
         case collector: CollectorKey => findShardEntries(collector)
         case _ => Nil
       }
+
       val dependencies = upstream.flatten ++ downstream
-      val dependenciesResolved = executionStore.store.filter(dependencies).keys forall isDone
+      val dependenciesResolved = dependencies forall { case (_, s) => s == ExecutionStatus.Done }
 
       /**
         * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
@@ -437,7 +433,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def handleJobSuccessful(jobKey: JobKey, outputs: JobOutputs, data: WorkflowExecutionActorData) = {
-    workflowLogger.info(s"Job ${jobKey.tag} succeeded!")
+    workflowLogger.debug(s"Job ${jobKey.tag} succeeded!")
     val newData = data.jobExecutionSuccess(jobKey, outputs)
 
     newData.workflowCompletionStatus match {
@@ -525,7 +521,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     */
   @tailrec
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
-    val runnableScopes = data.executionStore.runnableScopes.toList
+    val runnableScopes = data.executionStore.runnableScopes
     val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
     if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))

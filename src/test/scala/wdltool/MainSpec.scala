@@ -1,10 +1,9 @@
 package wdltool
 
-import java.nio.file.{Paths, Path}
 import better.files._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import wdltool.SampleWdl.{EmptyWorkflow, EmptyTask, EmptyInvalid, ThreeStep}
-import MainSpec._
+import wdltool.MainSpec._
+import wdltool.SampleWdl.{EmptyInvalid, EmptyTask, EmptyWorkflow, ThreeStep}
 
 class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
@@ -137,48 +136,47 @@ object MainSpec {
     */
   case class WdlAndInputs(sampleWdl: SampleWdl, optionsJson: String = "{}") {
     // Track all the temporary files we create, and delete them after the test.
-    private var tempFiles = Vector.empty[Path]
+    private var tempFiles = Vector.empty[File]
 
-    lazy val wdlPath: Path = {
-      val path = File.newTemp(s"${sampleWdl.name}.", ".wdl").path
+    lazy val wdlFile = {
+      val path = File.newTemporaryFile(s"${sampleWdl.name}.", ".wdl")
       tempFiles :+= path
       path write sampleWdl.wdlSource("")
       path
     }
 
-    lazy val wdl = wdlPath.fullPath
+    lazy val wdl = wdlFile.pathAsString
 
-    lazy val inputsPath = {
-      val path = swapExt(wdlPath, ".wdl", ".inputs")
+    lazy val inputsFile = {
+      val path = swapExt(wdlFile, ".wdl", ".inputs")
       tempFiles :+= path
       path write sampleWdl.wdlJson
       path
     }
 
-    lazy val inputs = inputsPath.fullPath
+    lazy val inputs = inputsFile.pathAsString
 
-    lazy val optionsPath = {
-      val path = swapExt(wdlPath, ".wdl", ".options")
+    lazy val optionsFile = {
+      val path = swapExt(wdlFile, ".wdl", ".options")
       tempFiles :+= path
       path write optionsJson
       path
     }
 
-    lazy val options = optionsPath.fullPath
+    lazy val options = optionsFile.pathAsString
 
-    lazy val metadataPath = {
-      val path = swapExt(wdlPath, ".wdl", ".metadata.json")
+    lazy val metadataFile = {
+      val path = swapExt(wdlFile, ".wdl", ".metadata.json")
       tempFiles :+= path
-      path.toAbsolutePath
+      path
     }
 
-    lazy val metadata = metadataPath.fullPath
+    lazy val metadata = metadataFile.pathAsString
 
-    def deleteTempFiles() = tempFiles.foreach(_.delete(ignoreIOExceptions = true))
+    def deleteTempFiles() = tempFiles.foreach(_.delete(swallowIOExceptions = true))
   }
 
-  def swapExt(filePath: Path, oldExt: String, newExt: String): Path = {
-    Paths.get(filePath.toString.stripSuffix(oldExt) + newExt)
+  def swapExt(filePath: File, oldExt: String, newExt: String): File = {
+    File(filePath.toString.stripSuffix(oldExt) + newExt)
   }
 }
-

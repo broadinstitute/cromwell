@@ -24,6 +24,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.Workf
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
@@ -395,6 +396,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       } else {
         goto(WorkflowExecutionAbortedState)
       }
+    case Event(EngineStatsActor.JobCountQuery, data) =>
+      sender ! EngineStatsActor.JobCount(data.backendJobExecutionActors.size)
+      stay()
     case unhandledMessage =>
       workflowLogger.warn(s"$tag received an unhandled message: ${unhandledMessage.event} in state: $stateName")
       stay

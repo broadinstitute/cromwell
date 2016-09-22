@@ -529,6 +529,26 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/engine/{version}/stats':
+    get:
+      summary: Returns basic statistics from this Cromwell's engine.
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+      tags:
+        - Engine
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/StatsResponse'
+      security:
+        - google_oauth:
+            - openid
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -753,3 +773,15 @@ definitions:
       defaultBackend:
         type: string
         description: The default backend of this server
+  StatsResponse:
+    description: 'Provides engine level statistics for things running inside the system'
+    required:
+      - workflows
+      - jobs
+    properties:
+      workflows:
+        type: integer
+        description: The number of currently running workflows
+      jobs:
+        type: integer
+        description: The number of currently running jobs

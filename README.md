@@ -76,6 +76,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
+  * [GET /api/workflows/:version/stats](#get-apiworkflowsversionstats)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -2499,6 +2500,35 @@ Server: spray-can/1.3.3
   "defaultBackend": "Local"
 }
 ```
+
+## GET /api/workflows/:version/stats
+
+This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
+
+cURL:
+```
+$ curl http://localhost:8000/api/workflows/v1/stats
+```
+
+HTTPie:
+```
+$ http http://localhost:8000/api/workflows/v1/stats
+```
+
+Response:
+```
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
+
+{
+  "workflows": 3,
+  "jobs": 10
+}
+```
+
+
 
 ## Error handling
 Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:

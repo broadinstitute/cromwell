@@ -8,7 +8,8 @@ import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
 import cromwell.core.Dispatcher.IoDispatcher
-import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
+import cromwell.core.path.PathCopier
+import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 
 import scala.concurrent.Future

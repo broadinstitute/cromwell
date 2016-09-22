@@ -1,16 +1,23 @@
 package cromwell.backend.impl.jes
 
+import better.files.File
 import com.typesafe.config.{ConfigValueFactory, ConfigFactory}
 import cromwell.backend.BackendConfigurationDescriptor
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
-class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
 
   behavior of "JesConfigurationSpec"
 
+  val mockFile = File.newTemporaryFile()
+
+  override def afterAll(): Unit = {
+    mockFile.delete(true)
+  }
+
   val globalConfig = ConfigFactory.parseString(
-    """
+    s"""
       |google {
       |
       |  application-name = "cromwell"
@@ -24,13 +31,13 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
       |      name = "user-via-refresh"
       |      scheme = "refresh_token"
       |      client-id = "secret_id"
-      |      client-secret = "secret_secret"
+      |      client-secret = "${mockFile.pathAsString}"
       |    },
       |    {
       |      name = "service-account"
       |      scheme = "service_account"
       |      service-account-id = "my-service-account"
-      |      pem-file = "/path/to/file.pem"
+      |      pem-file = "${mockFile.pathAsString}"
       |    }
       |  ]
       |}

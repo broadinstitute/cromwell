@@ -1,10 +1,15 @@
 package cromwell.backend.sfs
 
 import akka.actor.{ActorRef, Props}
+import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher._
+import cromwell.core.path.DefaultPathBuilderFactory
+import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
+import lenthall.config.ScalaConfig._
+import lenthall.exception.MessageAggregation
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
@@ -16,6 +21,21 @@ import scala.concurrent.Promise
   * See the SharedFileSystemAsyncJobExecutionActor for more info.
   */
 trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActorFactory {
+
+  /**
+    * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
+    */
+  lazy val gcsPathBuilderFactory: Option[GcsPathBuilderFactory] = {
+    configurationDescriptor.backendConfig.getStringOption("filesystems.gcs.auth") map { configAuth =>
+      GoogleConfiguration(configurationDescriptor.globalConfig).auth(configAuth) match {
+        case Valid(auth) => GcsPathBuilderFactory(auth)
+        case Invalid(error) => throw new MessageAggregation {
+          override def exceptionContext: String = "Failed to parse gcs auth configuration"
+          override def errorMessages: Traversable[String] = error.toList
+        }
+      }
+    }
+  }
 
   /**
     * Config values for the backend, and a pointer to the global config.
@@ -44,7 +64,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call],
                                                 serviceRegistryActor: ActorRef) = {
     val params = SharedFileSystemInitializationActorParams(serviceRegistryActor, workflowDescriptor,
-      configurationDescriptor, calls)
+      configurationDescriptor, calls, List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten)
     Option(Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher))
   }
 

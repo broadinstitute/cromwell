@@ -1,16 +1,12 @@
 package cromwell.engine
 
-import java.nio.file.{FileSystem, FileSystems}
-
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
-import cromwell.engine.backend.EnhancedWorkflowOptions._
-import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleConfiguration}
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
+import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
-
-import scala.concurrent.ExecutionContext
 
 object EngineFilesystems {
 
@@ -25,15 +21,9 @@ object EngineFilesystems {
       }
     }
   }
+  private val gcsPathBuilderFactory = googleAuthMode map { GcsPathBuilderFactory(_) }
 
-  def filesystemsForWorkflow(workflowOptions: WorkflowOptions)(implicit ec: ExecutionContext): List[FileSystem] = {
-    def gcsFileSystem: Option[GcsFileSystem] = {
-      googleAuthMode map { mode =>
-        val storage = mode.buildStorage(workflowOptions.toGoogleAuthOptions, googleConf.applicationName)
-        GcsFileSystem(GcsFileSystemProvider(storage))
-      }
-    }
-
-    List(gcsFileSystem, Option(FileSystems.getDefault)).flatten
+  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions): List[PathBuilder] = {
+    List(gcsPathBuilderFactory map { _.withOptions(workflowOptions) }, Option(DefaultPathBuilder)).flatten
   }
 }

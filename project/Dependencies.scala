@@ -74,10 +74,8 @@ object Dependencies {
   )
 
   private val googleCloudDependencies = List(
-    "com.google.gcloud" % "gcloud-java" % "0.0.9",
-    "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
-    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.4",
-    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV),
+    "com.google.cloud" % "google-cloud-nio" % "0.3.0"
   )
 
   private val dbmsDependencies = List(
@@ -95,7 +93,9 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
+  val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
 
   val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
 

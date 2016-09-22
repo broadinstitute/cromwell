@@ -6,23 +6,18 @@ import cats.data._
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import com.typesafe.config.Config
-import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
-import cromwell.core.WorkflowOptions
-import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
+import cromwell.backend.impl.jes.authentication.JesAuths
+import cromwell.core.ErrorOr._
+import cromwell.filesystems.gcs.GoogleConfiguration
 import lenthall.config.ValidatedConfig._
 import net.ceedubs.ficus.Ficus._
-import cromwell.core.ErrorOr._
 import wdl4s.ExceptionWithErrors
 
 case class JesAttributes(project: String,
-                         genomicsAuth: GoogleAuthMode,
-                         gcsFilesystemAuth: GoogleAuthMode,
+                         auths: JesAuths,
                          executionBucket: String,
                          endpointUrl: URL,
-                         maxPollingInterval: Int) {
-  def genomicsCredential(options: WorkflowOptions) = genomicsAuth.credential(options.toGoogleAuthOptions)
-  def gcsCredential(options: WorkflowOptions) = gcsFilesystemAuth.credential(options.toGoogleAuthOptions)
-}
+                         maxPollingInterval: Int)
 
 object JesAttributes {
 
@@ -54,7 +49,7 @@ object JesAttributes {
       (_, _, _, _, _)
     } flatMap { case (p, b, u, genomicsName, gcsName) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, genomicsAuth, gcsAuth, b, u, maxPollingInterval)
+        JesAttributes(p, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval)
       }
     } match {
       case Valid(r) => r

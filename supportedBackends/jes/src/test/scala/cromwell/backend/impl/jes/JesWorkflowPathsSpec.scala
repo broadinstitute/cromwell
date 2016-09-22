@@ -16,11 +16,11 @@ class JesWorkflowPathsSpec extends FlatSpec with Matchers with Mockito {
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource())
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val workflowPaths = JesWorkflowPaths(workflowDescriptor, jesConfiguration, mockCredentials)(scala.concurrent.ExecutionContext.global)
-    workflowPaths.rootPath.toString should be("gs://my-cromwell-workflows-bucket")
-    workflowPaths.workflowRootPath.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}")
-    workflowPaths.gcsAuthFilePath.toString should
+    val workflowPaths = JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+    workflowPaths.rootPath.toUri.toString should be("gs://my-cromwell-workflows-bucket/")
+    workflowPaths.workflowRootPath.toUri.toString should
+      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/")
+    workflowPaths.gcsAuthFilePath.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/${workflowDescriptor.id}_auth.json")
   }
 }

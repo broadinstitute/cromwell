@@ -10,7 +10,8 @@ import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, Su
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
-import cromwell.core.{PathWriter, TailedWriter, TestKitSuite, UntailedWriter, _}
+import cromwell.core.{WorkflowOptions, TestKitSuite}
+import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._

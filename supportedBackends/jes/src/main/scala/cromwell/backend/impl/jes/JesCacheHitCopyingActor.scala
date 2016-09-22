@@ -5,7 +5,7 @@ import java.nio.file.Path
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.callcaching.CacheHitDuplicating
 import cromwell.backend.{BackendCacheHitCopyingActor, BackendJobDescriptor}
-import cromwell.core.PathCopier
+import cromwell.core.path.PathCopier
 import cromwell.core.logging.JobLogging
 
 case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescriptor,

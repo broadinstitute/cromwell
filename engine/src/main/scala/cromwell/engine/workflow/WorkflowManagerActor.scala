@@ -15,6 +15,7 @@ import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSucce
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
 
@@ -178,7 +179,7 @@ class WorkflowManagerActor(config: Config,
      Responses from services
      */
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), data) =>
-      log.error(s"$tag Workflow $workflowId failed (during $inState): ${reasons.mkString("\n")}")
+      log.error(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()
     /*
      Watched transitions
@@ -275,5 +276,11 @@ class WorkflowManagerActor(config: Config,
 
   private def scheduleNextNewWorkflowPoll() = {
     context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher)
+  }
+
+  private def expandFailureReasons(reasons: Seq[Throwable]) = {
+    reasons map { reason =>
+      reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
+    } mkString "\n"
   }
 }

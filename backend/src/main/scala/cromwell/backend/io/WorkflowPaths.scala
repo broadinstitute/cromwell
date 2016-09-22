@@ -1,17 +1,18 @@
 package cromwell.backend.io
 
-import java.nio.file.{FileSystem, FileSystems, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.PathFactory
 import net.ceedubs.ficus.Ficus._
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder, PathFactory}
 
 object WorkflowPaths{
   val DockerRoot = Paths.get("/root")
+  val DefaultPathBuilders = List(DefaultPathBuilder)
 }
 
-class WorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, config: Config, val fileSystems: List[FileSystem] = List(FileSystems.getDefault)) extends PathFactory {
+class WorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, config: Config, val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends PathFactory {
   val executionRoot = Paths.get(config.as[Option[String]]("root").getOrElse("cromwell-executions")).toAbsolutePath
 
   private def workflowPathBuilder(root: Path) = {

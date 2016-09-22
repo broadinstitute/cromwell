@@ -22,7 +22,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
                                       outputStore: OutputStore) extends WdlLookup {
 
-  override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.engineFilesystems)
+  override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
   def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = this.copy(
     executionStore = executionStore.add(Map(jobKey -> Done)),

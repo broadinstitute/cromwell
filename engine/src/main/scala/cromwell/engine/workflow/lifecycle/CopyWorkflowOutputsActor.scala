@@ -5,9 +5,10 @@ import java.nio.file.Path
 import akka.actor.Props
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
 import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
-import cromwell.core._
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
+import cromwell.core._
+import cromwell.core.path.{PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wdl4s.ReportableSymbol
@@ -26,8 +27,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
                                initializationData: AllBackendInitializationData)
   extends EngineWorkflowFinalizationActor with PathFactory {
 
+  override val pathBuilders = workflowDescriptor.pathBuilders
+
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Unit = {
-    val workflowOutputsPath = buildPath(workflowOutputsFilePath, workflowDescriptor.engineFilesystems)
+    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
 
     val reportableOutputs = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.outputs
 

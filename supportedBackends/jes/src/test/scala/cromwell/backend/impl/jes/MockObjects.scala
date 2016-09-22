@@ -1,9 +1,8 @@
 package cromwell.backend.impl.jes
 
-import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential
-import cromwell.backend.impl.jes.authentication.JesCredentials
+import cromwell.backend.impl.jes.authentication.JesAuths
+import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
 object MockObjects {
-  val mockCredential = new MockGoogleCredential.Builder().build()
-  val mockCredentials = JesCredentials(mockCredential, mockCredential)
+  val mockCredentials = JesAuths(GoogleAuthMode.NoAuthMode, GoogleAuthMode.NoAuthMode)
 }

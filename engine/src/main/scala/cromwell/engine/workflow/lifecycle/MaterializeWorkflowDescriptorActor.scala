@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.FileSystem
-
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cats.data.Validated._
 import cats.instances.list._
@@ -14,8 +12,10 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
+import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.path.PathBuilder
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
@@ -167,8 +167,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
-      val engineFileSystems = EngineFilesystems.filesystemsForWorkflow(workflowOptions)(iOExecutionContext)
-      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, engineFileSystems)
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)
+      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, pathBuilders)
     }
   }
 
@@ -185,7 +185,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       namespace: NamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
                                       conf: Config,
-                                      engineFilesystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
+                                      pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val defaultBackendName = conf.as[Option[String]]("backend.default")
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
@@ -195,7 +195,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) map {
       (_, _, _, _)
     } flatMap { case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
-      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, engineFilesystems, callCachingMode)
+      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, pathBuilders, callCachingMode)
     }
   }
 
@@ -205,7 +205,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       backendAssignments: Map[Call, String],
                                       workflowOptions: WorkflowOptions,
                                       failureMode: WorkflowFailureMode,
-                                      engineFileSystems: List[FileSystem],
+                                      pathBuilders: List[PathBuilder],
                                       callCachingMode: CallCachingMode): ErrorOr[EngineWorkflowDescriptor] = {
 
     def checkTypes(inputs: Map[FullyQualifiedName, WdlValue]): ErrorOr[Map[FullyQualifiedName, WdlValue]] = {
@@ -225,10 +225,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
       _ = pushWfInputsToMetadataService(coercedInputs)
-      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, engineFileSystems)
+      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(declarations ++ coercedInputs)
       backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
-    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, engineFileSystems, callCachingMode)
+    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 
   private def pushWfInputsToMetadataService(workflowInputs: WorkflowCoercedInputs): Unit = {
@@ -292,8 +292,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   private def validateDeclarations(namespace: NamespaceWithWorkflow,
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
-                                   engineFileSystems: List[FileSystem]): ErrorOr[WorkflowCoercedInputs] = {
-    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(engineFileSystems)) match {
+                                   pathBuilders: List[PathBuilder]): ErrorOr[WorkflowCoercedInputs] = {
+    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(pathBuilders)) match {
       case Success(d) => d.validNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".invalidNel
     }

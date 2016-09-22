@@ -1,9 +1,10 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystems, Files}
+import java.nio.file.Files
 
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -16,7 +17,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
   val defaultLocalization = ConfigFactory.parseString(""" localization: [copy, hard-link, soft-link] """)
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
   val softLinkLocalization = ConfigFactory.parseString(""" localization: [soft-link] """)
-  val localFS = List(FileSystems.getDefault)
+  val localPathBuilder = List(DefaultPathBuilder)
 
 
   def localizationTest(config: Config,
@@ -35,8 +36,11 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     }
 
     val inputs = Map("input" -> WdlFile(orig.pathAsString))
-    val sharedFS = new SharedFileSystem { override val sharedFileSystemConfig = config }
-    val result = sharedFS.localizeInputs(callDir.path, docker = docker, localFS, inputs)
+    val sharedFS = new SharedFileSystem {
+      override val pathBuilders = localPathBuilder
+      override val sharedFileSystemConfig = config
+    }
+    val result = sharedFS.localizeInputs(callDir.path, docker = docker, inputs)
 
     result.isSuccess shouldBe true
     result.get should contain theSameElementsAs Map("input" -> WdlFile(dest.pathAsString))

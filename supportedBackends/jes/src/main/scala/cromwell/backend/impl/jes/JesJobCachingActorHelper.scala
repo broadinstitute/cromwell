@@ -10,6 +10,7 @@ import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.core.logging.JobLogging
 
 import scala.language.postfixOps
+import scala.util.Try
 
 trait JesJobCachingActorHelper extends JobCachingActorHelper {
   this: Actor with JobLogging =>
@@ -26,7 +27,7 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
 
   def serviceRegistryActor: ActorRef
 
-  def getPath(str: String) = jesCallPaths.gcsFileSystem.getPath(str)
+  def getPath(str: String): Try[Path] = jesCallPaths.getPath(str)
 
   override lazy val configurationDescriptor = jesConfiguration.configurationDescriptor
 
@@ -52,7 +53,7 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   // TODO: Move monitoring paths to JesCallPaths
   lazy val monitoringScript: Option[JesInput] = {
     jobDescriptor.workflowDescriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
-      JesFileInput(s"$MonitoringParamName-in", getPath(path).toString,
+      JesFileInput(s"$MonitoringParamName-in", getPath(path).get.toUri.toString,
         JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
     } toOption
   }

@@ -6,9 +6,12 @@ import akka.actor.ActorRef
 import cromwell.backend.BackendCacheHitCopyingActor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse}
 import cromwell.backend.io.JobPaths
-import cromwell.core.PathCopier
+import cromwell.core.path.PathCopier
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
+
+import scala.language.postfixOps
+import scala.util.Try
 
 /**
   * Mixin implementing common functionality for a BackendCacheHitCopyingActor.
@@ -35,7 +38,7 @@ trait CacheHitDuplicating {
     * @param file the string version of the path
     * @return an absolute path to the file with potential credentials embedded within.
     */
-  protected def getPath(file: String): Path
+  protected def getPath(file: String): Try[Path]
 
   protected def destinationCallRootPath: Path
 
@@ -47,9 +50,10 @@ trait CacheHitDuplicating {
   protected def metadataKeyValues: Map[String, Any]
 
   private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
-    sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).getOrElse(throw new RuntimeException(
-      s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}")
-    )
+    sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).get recover {
+      case failure =>
+        throw new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}", failure)
+    } get
   }
 
   /**
@@ -59,27 +63,27 @@ trait CacheHitDuplicating {
                              sourceCallRootPath: Path): Seq[WdlValueSimpleton] = {
     wdlValueSimpletons map {
       case WdlValueSimpleton(key, wdlFile: WdlFile) =>
-        val sourcePath = getPath(wdlFile.value)
+        val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
         duplicate(sourcePath, destinationPath)
-        WdlValueSimpleton(key, WdlFile(destinationPath.toString))
+        WdlValueSimpleton(key, WdlFile(destinationPath.toUri.toString))
       case wdlValueSimpleton => wdlValueSimpleton
     }
   }
 
-  private def copyDetritus(sourceJobDetritusFiles: Map[String, String]): Map[String, String] = {
+  private def copyDetritus(sourceJobDetritusFiles: Map[String, String]): Map[String, Path] = {
     val sourceKeys = sourceJobDetritusFiles.keySet
     val destinationKeys = destinationJobDetritusPaths.keySet
     val fileKeys = sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
 
     val destinationJobDetritusFiles = fileKeys map { fileKey =>
-      val sourcePath = getPath(sourceJobDetritusFiles(fileKey))
+      val sourcePath = getPath(sourceJobDetritusFiles(fileKey)).get
       val destinationPath = destinationJobDetritusPaths(fileKey)
       duplicate(sourcePath, destinationPath)
-      (fileKey, destinationPath.toString)
+      (fileKey, destinationPath)
     }
 
-    destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath.toString)
+    destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath)
   }
 
   override def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton],

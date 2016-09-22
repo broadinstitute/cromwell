@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileAlreadyExistsException, Path, Paths}
+import java.nio.file.{FileAlreadyExistsException, Path}
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
@@ -15,6 +15,7 @@ import cromwell.backend.validation._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, OutputEvaluator}
 import cromwell.core.JobOutputs
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
@@ -135,11 +136,13 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override lazy val backendInitializationDataOption = params.backendInitializationDataOption
 
-  def toDockerPath(path: WdlValue): WdlValue = {
+  def toUnixPath(docker: Boolean)(path: WdlValue): WdlValue = {
     path match {
-      case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toString)
-      case array: WdlArray => WdlArray(array.wdlType, array.value map toDockerPath)
-      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toDockerPath)
+      case file: WdlFile =>
+        val cleanPath = DefaultPathBuilder.build(path.valueString).get
+        WdlFile(if (docker) jobPaths.toDockerPath(cleanPath).toString else cleanPath.toString)
+      case array: WdlArray => WdlArray(array.wdlType, array.value map toUnixPath(docker))
+      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toUnixPath(docker))
       case wdlValue => wdlValue
     }
   }
@@ -150,8 +153,8 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
   lazy val call = jobDescriptor.key.call
-  lazy val fileSystems = WorkflowPathsBackendInitializationData.fileSystems(backendInitializationDataOption)
-  lazy val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, fileSystems)
+  lazy val pathBuilders = WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
+  lazy val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
   override lazy val workflowId = jobDescriptor.workflowDescriptor.id
   override lazy val jobTag = jobDescriptor.key.tag
 
@@ -165,9 +168,9 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   def instantiatedScript: String = {
-    val pathTransformFunction: WdlValue => WdlValue = if (isDockerRun) toDockerPath else identity
+    val pathTransformFunction: WdlValue => WdlValue = toUnixPath(isDockerRun)
     val tryCommand = sharedFileSystem.localizeInputs(jobPaths.callInputsRoot,
-      isDockerRun, fileSystems, jobDescriptor.inputs) flatMap { localizedInputs =>
+      isDockerRun, jobDescriptor.inputs) flatMap { localizedInputs =>
       call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
     }
     tryCommand.get
@@ -328,7 +331,7 @@ mv $rcTmpPath $rcPath
     def processSuccess(returnCode: Int) = {
       val successfulFuture = for {
         outputs <- Future.fromTry(processOutputs())
-      } yield SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths.mapValues(_.toString), Seq.empty)
+      } yield SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, Seq.empty)
 
       successfulFuture recover {
         case failed: Throwable =>

@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import cromwell.core.JobOutput
+import cromwell.core.{JobOutputs, JobOutput}
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.util.TryUtil
@@ -11,7 +11,7 @@ import scala.util.{Success, Try}
 object OutputEvaluator {
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       wdlFunctions: WdlStandardLibraryFunctions,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)) = {
+                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[JobOutputs] = {
     val inputs = jobDescriptor.inputs
     val evaluatedOutputs = jobDescriptor.call.task.outputs.
       foldLeft(Map.empty[LocallyQualifiedName, Try[JobOutput]])((outputMap, output) => {

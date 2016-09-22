@@ -7,7 +7,7 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.JesInitializationActor._
-import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation, JesCredentials}
+import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -15,7 +15,7 @@ import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, B
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
-import cromwell.filesystems.gcs.{ClientSecrets, GoogleAuthMode}
+import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.Call
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
@@ -58,13 +58,12 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
 
   private[jes] lazy val refreshTokenAuth: Option[JesAuthInformation] = {
     for {
-      clientSecrets <- List(jesConfiguration.jesAttributes.gcsFilesystemAuth) collectFirst { case s: ClientSecrets => s }
+      clientSecrets <- List(jesConfiguration.jesAttributes.auths.gcs) collectFirst { case s: ClientSecrets => s }
       token <- workflowDescriptor.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(clientSecrets, token)
   }
 
   private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
-
 
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, JesRuntimeAttributes.coercionMap)
@@ -75,18 +74,14 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     */
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
 
-    val genomicsCredential = jesConfiguration.jesAttributes.genomicsCredential(workflowDescriptor.workflowOptions)
-    val gcsCredential = jesConfiguration.jesAttributes.gcsCredential(workflowDescriptor.workflowOptions)
-
-    val jesCredentials = JesCredentials(genomicsCredential = genomicsCredential, gcsCredential = gcsCredential)
     def buildGenomics: Future[Genomics] = Future {
-      GenomicsFactory(jesConfiguration.googleConfig.applicationName, genomicsCredential, jesConfiguration.jesAttributes.endpointUrl)
+      jesConfiguration.genomicsFactory.withOptions(workflowDescriptor.workflowOptions)
     }
 
     for {
       // generate single filesystem and genomics instances
       genomics <- buildGenomics
-      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, jesCredentials)(iOExecutionContext)
+      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
       _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
     } yield Option(JesBackendInitializationData(workflowPaths, genomics))

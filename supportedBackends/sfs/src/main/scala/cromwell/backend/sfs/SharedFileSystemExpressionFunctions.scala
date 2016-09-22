@@ -1,11 +1,12 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystem, Path}
+import java.nio.file.Path
 
 import cromwell.backend.io.{JobPaths, WorkflowPathsBackendInitializationData}
 import cromwell.backend.wdl._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.CallContext
+import cromwell.core.path.PathBuilder
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.{WdlFile, WdlValue}
 
@@ -20,23 +21,23 @@ object SharedFileSystemExpressionFunctions {
   def apply(workflowDescriptor: BackendWorkflowDescriptor,
             jobKey: BackendJobDescriptorKey,
             configurationDescriptor: BackendConfigurationDescriptor,
-            fileSystems: List[FileSystem]): SharedFileSystemExpressionFunctions = {
+            pathBuilders: List[PathBuilder]): SharedFileSystemExpressionFunctions = {
     val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,
       jobPaths.stderr.toString
     )
-    new SharedFileSystemExpressionFunctions(fileSystems, callContext)
+    new SharedFileSystemExpressionFunctions(pathBuilders, callContext)
   }
 
-  def apply(jobPaths: JobPaths, fileSystems: List[FileSystem]): SharedFileSystemExpressionFunctions = {
+  def apply(jobPaths: JobPaths, pathBuilders: List[PathBuilder]): SharedFileSystemExpressionFunctions = {
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,
       jobPaths.stderr.toString
     )
-    new SharedFileSystemExpressionFunctions(fileSystems, callContext)
+    new SharedFileSystemExpressionFunctions(pathBuilders, callContext)
   }
 
   def apply(workflowDescriptor: BackendWorkflowDescriptor,
@@ -50,11 +51,11 @@ object SharedFileSystemExpressionFunctions {
       jobPaths.stderr.toString
     )
 
-    new SharedFileSystemExpressionFunctions(WorkflowPathsBackendInitializationData.fileSystems(initializationData), callContext)
+    new SharedFileSystemExpressionFunctions(WorkflowPathsBackendInitializationData.pathBuilders(initializationData), callContext)
   }
 }
 
-class SharedFileSystemExpressionFunctions(override val fileSystems: List[FileSystem],
+class SharedFileSystemExpressionFunctions(override val pathBuilders: List[PathBuilder],
                                           context: CallContext
                                  ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
   import SharedFileSystemExpressionFunctions._
@@ -62,7 +63,7 @@ class SharedFileSystemExpressionFunctions(override val fileSystems: List[FileSys
 
   override def globPath(glob: String) = context.root.toString
   override def glob(path: String, pattern: String): Seq[String] = {
-    File(toPath(path)).glob(s"**/$pattern") map { _.pathAsString } toSeq
+    File(context.root).glob(s"**/$pattern") map { _.pathAsString } toSeq
   }
 
   override val writeDirectory = context.root

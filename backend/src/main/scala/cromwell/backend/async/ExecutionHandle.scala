@@ -1,5 +1,7 @@
 package cromwell.backend.async
 
+import java.nio.file.Path
+
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{ExecutionEvent, JobOutputs}
 
@@ -12,7 +14,7 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, String], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, Path], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)
 }

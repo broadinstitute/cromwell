@@ -2,51 +2,57 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import cromwell.backend.impl.jes.authentication.JesCredentials
+import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.WorkflowOptions
 import cromwell.core.WorkflowOptions.FinalCallLogsDir
-import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleAuthMode}
+import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 
-import scala.concurrent.ExecutionContext
+import scala.language.postfixOps
+import scala.util.Try
 
 object JesWorkflowPaths {
   private val GcsRootOptionKey = "jes_gcs_root"
   private val AuthFilePathOptionKey = "auth_bucket"
 
   def apply(workflowDescriptor: BackendWorkflowDescriptor,
-            jesConfiguration: JesConfiguration,
-            credentials: JesCredentials)(implicit ec: ExecutionContext) = {
-    new JesWorkflowPaths(workflowDescriptor, jesConfiguration, credentials)
+            jesConfiguration: JesConfiguration) = {
+    new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
   }
 }
 
 class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
-                       jesConfiguration: JesConfiguration,
-                       credentials: JesCredentials)(implicit ec: ExecutionContext) {
+                       jesConfiguration: JesConfiguration) {
 
-  private val gcsStorage = GoogleAuthMode.buildStorage(credentials.gcsCredential, jesConfiguration.googleConfig.applicationName)
-  val gcsFileSystemProvider: GcsFileSystemProvider = GcsFileSystemProvider(gcsStorage)(ec)
-  val gcsFileSystem = GcsFileSystem(gcsFileSystemProvider)
+  private val rootString = workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root)
+  private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
-  val rootPath: Path =
-    gcsFileSystem.getPath(workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root))
+  val gcsPathBuilder: GcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
 
-  val workflowRootPath: Path = rootPath.resolve(workflowDescriptor.workflowNamespace.workflow.unqualifiedName)
-    .resolve(workflowDescriptor.id.toString)
+  def getPath(gcsUrl: String): Try[CloudStoragePath] = gcsPathBuilder.build(gcsUrl)
+  def getHash(gcsUrl: CloudStoragePath) = gcsPathBuilder.getHash(gcsUrl)
 
-  val finalCallLogsPath = workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map { gcsFileSystem.getPath(_) }
+  val rootPath: Path = getPath(rootString) recover {
+    case ex => throw new Exception(s"Failed to : $rootString", ex)
+  } get
+
+  val workflowRootPath: Path = rootPath.resolve(workflowDescriptor.workflowNamespace.workflow.unqualifiedName).resolve(s"${workflowDescriptor.id.toString}/")
+
+  val finalCallLogsPath = workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map getPath map { _.get }
 
   val gcsAuthFilePath: Path = {
     /*
      * This is an "exception". The filesystem used here is built from genomicsAuth
      * unlike everywhere else where the filesystem used is built from gcsFileSystemAuth
      */
-    val genomicsStorage = GoogleAuthMode.buildStorage(credentials.genomicsCredential, jesConfiguration.googleConfig.applicationName)
-    val fileSystemWithGenomicsAuth = GcsFileSystem(GcsFileSystemProvider(genomicsStorage)(ec))
-    val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse workflowRootPath.toString
+    val genomicsCredentials = jesConfiguration.jesAuths.genomics
+    val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse workflowRootPath.toUri.toString
+    val authBucket = GcsPathBuilderFactory(genomicsCredentials).withOptions(workflowOptions).build(bucket) recover {
+      case ex => throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
+    } get
 
-    fileSystemWithGenomicsAuth.getPath(bucket).resolve(s"${workflowDescriptor.id}_auth.json")
+    authBucket.resolve(s"${workflowDescriptor.id}_auth.json")
   }
 
-  def toJesCallPaths(jobKey: BackendJobDescriptorKey) = JesCallPaths(jobKey, workflowDescriptor, jesConfiguration, credentials)(ec)
+  def toJesCallPaths(jobKey: BackendJobDescriptorKey) = JesCallPaths(jobKey, workflowDescriptor, jesConfiguration)
 }

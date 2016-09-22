@@ -1,15 +1,16 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystem, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
 import cromwell.backend.io.JobPaths
 import cromwell.core._
+import cromwell.core.path.PathFactory
+import cromwell.util.TryUtil
 import wdl4s.CallInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
-import wdl4s.util.TryUtil
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -134,6 +135,9 @@ trait SharedFileSystem extends PathFactory {
       case array: WdlArray =>
         val mappedArray = array.value map outputMapper(job)
         TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
+      case map: WdlMap =>
+        val mappedMap = map.value mapValues outputMapper(job)
+        TryUtil.sequenceMap(mappedMap) map { WdlMap(map.wdlType, _) }
       case other => Success(other)
     }
   }
@@ -149,7 +153,7 @@ trait SharedFileSystem extends PathFactory {
    *    end up with this implementation and thus use it to satisfy their contract with Backend.
    *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def localizeInputs(inputsRoot: Path, docker: Boolean, filesystems: List[FileSystem], inputs: CallInputs): Try[CallInputs] = {
+  def localizeInputs(inputsRoot: Path, docker: Boolean, inputs: CallInputs): Try[CallInputs] = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Use URI to identify protocol scheme and strip it out
@@ -165,8 +169,9 @@ trait SharedFileSystem extends PathFactory {
       * Transform an original input path to a path in the call directory.
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
+
     def toCallPath(path: String): Try[PairOfFiles] = Try {
-      val src = buildFile(path, filesystems)
+      val src = buildFile(path)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src.path)
       val dest = if (File(inputsRoot).isParentOf(localInputPath)) File(localInputPath)

@@ -17,11 +17,55 @@ parameters as a HTTP POST.
 
 ## 0.21
 
+
+* Warning: Significant database updates when you switch from version 0.19 to 0.21 of Cromwell.
+  There may be a long wait period for the migration to finish for large databases.
+  Please refer to MIGRATION.md for more details.
+
+* There are significant architectural changes related to increases in performance and scaling.
+
+* The biggest user-facing changes from 0.19 to 0.21 are related to the application.conf file, which has been restructured significantly.
+The configuration for backends now is all contained within a `backend` stanza, which specifies 1 stanza per name per backend and a default backend, as follows:
+
+```
+backend {
+    default=Local
+    providers {
+        Local {
+            actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+            config {
+                ... backend specific config ...
+            }
+        }
+        JES {
+            actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+            config {
+                ... backend specific config ...
+            }
+        }
+        SGE {
+            actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+            config {
+                ... backend specific config ...
+            }r
+        }
+    }
+}
+```
+* A new `/stats` endpoint has been added to get workflow and job count for a Cromwell running in server mode.
+
+* Renamed Workflow Options:
+   “workflow_log_dir” -> “final_workflow_log_dir”
+    “call_logs_dir” -> “final_call_logs_dir”
+    “outputs_path” -> “final_workflow_outputs_dir”
+    “defaultRuntimeOptions” -> “default_runtime_attributes”
+
+* Timing diagrams endpoint has been updated to include additional state information about jobs.
+
 * Add support for Google Private IPs through `noAddress` runtime attribute. If set to true, the VM will NOT be provided with a public IP address.
 *Important*: Your project must be whitelisted in "Google Access for Private IPs Early Access Program". If it's not whitelisted and you set this attribute to true, the task will hang.
   Defaults to `false`.
   e.g:
-  
 ```
 task {
     command {

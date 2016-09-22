@@ -16,7 +16,7 @@ trait SummaryStatusSlickDatabase {
       result.headOption
   }
 
-  private[slick] def maximumOrZero(longs: Seq[Long]): Long = (0L +: longs).max
+  private[slick] def previousOrMaximum(previous: Long, longs: Seq[Long]): Long = (previous +: longs).max
 
   private[slick] def upsertSummaryStatusEntryMaximumId(summaryTableName: String, summarizedTableName: String,
                                                        maximumId: Long)(implicit ec: ExecutionContext): DBIO[Unit] = {

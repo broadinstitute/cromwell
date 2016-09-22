@@ -118,13 +118,14 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                                WorkflowMetadataSummaryEntry)
                                             (implicit ec: ExecutionContext): Future[Long] = {
     val action = for {
-      startMetadataEntryIdOption <- getSummaryStatusEntryMaximumId("WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
-      startMetadataEntryId = startMetadataEntryIdOption.getOrElse(0L) + 1L
+      previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
+        "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
+      previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(0L)
       metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual(
-        startMetadataEntryId, metadataKey1, metadataKey2, metadataKey3, metadataKey4).result
+        previousMetadataEntryId + 1L, metadataKey1, metadataKey2, metadataKey3, metadataKey4).result
       metadataByWorkflowUuid = metadataEntries.groupBy(_.workflowExecutionUuid)
       _ <- DBIO.sequence(metadataByWorkflowUuid map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      maximumMetadataEntryId = maximumOrZero(metadataEntries.map(_.metadataEntryId.get))
+      maximumMetadataEntryId = previousOrMaximum(previousMetadataEntryId, metadataEntries.map(_.metadataEntryId.get))
       _ <- upsertSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", maximumMetadataEntryId)
     } yield maximumMetadataEntryId

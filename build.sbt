@@ -1,13 +1,12 @@
 import com.typesafe.sbt.GitPlugin.autoImport._
 import sbt.Keys._
 import sbtassembly.MergeStrategy
-import com.typesafe.sbt.SbtGit.GitCommand
 
 name := "wdltool"
 
 organization := "org.broadinstitute"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
 // Upcoming release, or current if we're on the master branch
 git.baseVersion := "0.5"
@@ -30,7 +29,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.broadinstitute" %% "wdl4s" % "0.4",
+  "org.broadinstitute" %% "wdl4s" % "0.5",
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "2.2.5" % Test
 )

@@ -2,6 +2,7 @@ package cromwell.backend.impl.htcondor
 
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.{FileSystems, Files, Path, Paths}
+import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
 import better.files.File
@@ -13,6 +14,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.core.{JobOutput, JobOutputs, LocallyQualifiedName}
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s._
 import wdl4s.parser.MemoryUnit
@@ -308,6 +310,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       case Success(cmd) => tellMetadata(Map("command" -> cmd))
       case Failure(ex) =>
         log.error("{} failed to resolve command due to exception:{}", tag, ex)
+        tellMetadata(Map(s"${CallMetadataKeys.Failures}[${UUID.randomUUID().toString}]" -> ex.getMessage))
     }
     command
   }

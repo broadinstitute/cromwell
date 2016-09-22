@@ -19,11 +19,12 @@ parameters as a HTTP POST.
 
 
 * Warning: Significant database updates when you switch from version 0.19 to 0.21 of Cromwell.
-  Please be refer to MIGRATION.md for more details.
+  There may be a long wait period for the migration to finish for large databases.
+  Please refer to MIGRATION.md for more details.
 
-* There are significant architectural changes related related to increases in performance and scaling.
+* There are significant architectural changes related to increases in performance and scaling.
 
-* The biggest changes from 0.19 to 0.21 are related to the application.conf file, which has been restructured significantly.
+* The biggest user-facing changes from 0.19 to 0.21 are related to the application.conf file, which has been restructured significantly.
 The configuration for backends now is all contained within a `backend` stanza, which specifies 1 stanza per name per backend and a default backend, as follows:
 
 ```
@@ -31,22 +32,22 @@ backend {
     default=Local
     providers {
         Local {
-            actor-factory: "class path to BackendLifecycleActorFactory implementation"
+            actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
             config {
                 ... backend specific config ...
             }
         }
         JES {
-            actor-factory: "class path to BackendLifecycleActorFactory implementation"
+            actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
             config {
                 ... backend specific config ...
             }
         }
         SGE {
-            actor-factory: "class path to BackendLifecycleActorFactory implementation"
+            actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
             config {
                 ... backend specific config ...
-            }
+            }r
         }
     }
 }

@@ -1,9 +1,9 @@
 package wdltool
 
-import java.io.{File => JFile}
+import java.nio.file.Paths
 
 import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl4s.{WdlNamespace, NamespaceWithWorkflow, AstTools}
+import wdl4s.{AstTools, NamespaceWithWorkflow, WdlNamespace}
 import spray.json._
 
 import scala.util.{Failure, Success, Try}
@@ -68,14 +68,14 @@ object Main extends App {
 
   def parse(args: Seq[String]): Termination = {
     continueIf(args.length == 1) {
-      SuccessfulTermination(AstTools.getAst(new JFile(args.head)).toPrettyString)
+      SuccessfulTermination(AstTools.getAst(Paths.get(args.head)).toPrettyString)
     }
   }
 
   private[this] def continueIf(valid: => Boolean)(block: => Termination): Termination = if (valid) block else BadUsageTermination
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
-    Try(WdlNamespace.load(new JFile(path))) match {
+    Try(WdlNamespace.load(Paths.get(path))) match {
       case Success(namespace) => f(namespace)
       case Failure(t) => UnsuccessfulTermination(t.getMessage)
     }

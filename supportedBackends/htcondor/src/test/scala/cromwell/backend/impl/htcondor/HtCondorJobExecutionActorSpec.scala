@@ -102,7 +102,9 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
         |  root = "local-cromwell-executions"
         |
         |  docker {
-        |    cmd = "docker run -w %s %s %s --rm %s %s"
+        |    cmd = "docker run -w %s %s %s %s --rm %s %s"
+        |    defaultWorkingDir = "/workingDir/"
+        |    defaultOutputDir = "/output/"
         |  }
         |
         |  filesystems {
@@ -280,8 +282,8 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
         """
           |runtime {
           | docker: "ubuntu/latest"
-          | dockerWorkingDir: "/workingDir"
-          | dockerOutputDir: "/outputDir"
+          | dockerWorkingDir: "/workingDir/"
+          | dockerOutputDir: "/outputDir/"
           |}
         """.stripMargin
       val jsonInputFile = createCannedFile("testFile", "some content").pathAsString
@@ -313,9 +315,10 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
       val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
 
-      assert(bashScript.contains("docker run -w /workingDir -v"))
+      assert(bashScript.contains("docker run -w /workingDir/ -v"))
+      assert(bashScript.contains(":/workingDir/"))
       assert(bashScript.contains(":ro"))
-      assert(bashScript.contains("/call-hello/execution:/outputDir --rm ubuntu/latest echo"))
+      assert(bashScript.contains("/call-hello/execution:/outputDir/ --rm ubuntu/latest echo"))
 
       cleanUpJob(jobPaths)
     }
@@ -356,8 +359,8 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       """
         |runtime {
         | docker: "ubuntu/latest"
-        | dockerWorkingDir: "/workingDir"
-        | dockerOutputDir: "/outputDir"
+        | dockerWorkingDir: "/workingDir/"
+        | dockerOutputDir: "/outputDir/"
         |}
       """.stripMargin
 
@@ -396,10 +399,11 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
     val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
 
-    assert(bashScript.contains("docker run -w /workingDir -v"))
+    assert(bashScript.contains("docker run -w /workingDir/ -v"))
+    assert(bashScript.contains(":/workingDir/"))
     assert(bashScript.contains(tempDir1.toAbsolutePath.toString))
     assert(bashScript.contains(tempDir2.toAbsolutePath.toString))
-    assert(bashScript.contains("/call-hello/execution:/outputDir --rm ubuntu/latest echo"))
+    assert(bashScript.contains("/call-hello/execution:/outputDir/ --rm ubuntu/latest echo"))
 
     cleanUpJob(jobPaths)
   }

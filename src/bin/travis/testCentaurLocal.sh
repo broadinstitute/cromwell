@@ -31,6 +31,7 @@ set -e
 
 sbt assembly
 CROMWELL_JAR=$(find "$(pwd)/target/scala-2.11" -name "cromwell-*.jar")
+LOCAL_CONF="$(pwd)/src/bin/travis/resources/local_centaur.conf"
 git clone https://github.com/broadinstitute/centaur.git
 cd centaur
-./test_cromwell.sh -j"${CROMWELL_JAR}"
+./test_cromwell.sh -j"${CROMWELL_JAR}" -c${LOCAL_CONF}

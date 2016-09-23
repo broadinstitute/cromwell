@@ -4,7 +4,6 @@ import java.nio.file.Path
 
 import cats.data.Validated._
 import cats.Apply
-import cats.std.list._
 import centaur.test._
 import centaur.test.formulas.TestFormulas
 import centaur.test.standard.StandardTestFormat.{WorkflowFailureTest, WorkflowSuccessTest}

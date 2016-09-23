@@ -14,6 +14,8 @@ import lenthall.config.ScalaConfig._
 class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendConfigurationDescriptor)
   extends SharedFileSystemBackendLifecycleActorFactory {
 
+  lazy val hashingStrategy = ConfigHashingStrategy(configurationDescriptor.backendConfig)
+
   override def initializationActorClass = classOf[ConfigInitializationActor]
 
   override def asyncJobExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
@@ -32,6 +34,6 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
     initializationData.runtimeAttributesBuilder.definitions.toSet
   }
 
-  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(ConfigBackendFileHashing.getMd5Result(configurationDescriptor)))
+  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(hashingStrategy.getHash))
   override lazy val fileHashingActorCount: Int = 5
 }

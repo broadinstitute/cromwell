@@ -101,6 +101,35 @@ object MaterializeWorkflowDescriptorActor {
       CallCachingOff.successNel
     }
   }
+
+  private[lifecycle] def validateCallCachingHashingStrategy(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingHashingStrategy] = {
+    import scala.collection.JavaConverters._
+
+    def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
+      workflowOptions.getBoolean(option.name) match {
+        case Success(x) => x.successNel
+        case Failure(_: OptionNotFoundException) => true.successNel
+        case Failure(t) => t.getMessage.failureNel
+      }
+    }
+
+    val strategies = conf.getStringList("call-caching.hashing-strategies").asScala.toList
+
+    if (enabled) {
+      val readFromCache = readOptionalOption(ReadFromCache)
+      val writeToCache = readOptionalOption(WriteToCache)
+
+      (readFromCache |@| writeToCache) {
+        case (false, false) => CallCachingOff
+        case (true, false) => CallCachingActivity(ReadCache)
+        case (false, true) => CallCachingActivity(WriteCache)
+        case (true, true) => CallCachingActivity(ReadAndWriteCache)
+      }
+    }
+    else {
+      CallCachingOff.successNel
+    }
+  }
 }
 
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val workflowId: WorkflowId, cromwellBackends: => CromwellBackends) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {

@@ -32,6 +32,6 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
     initializationData.runtimeAttributesBuilder.definitions.toSet
   }
 
-  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(ConfigBackendFileHashing.getMd5Result))
+  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(ConfigBackendFileHashing.getMd5Result(configurationDescriptor)))
   override lazy val fileHashingActorCount: Int = 5
 }

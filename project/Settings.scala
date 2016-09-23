@@ -57,7 +57,7 @@ object Settings {
         from("openjdk:8")
         expose(8000)
         add(artifact, artifactTargetPath)
-        entryPoint("/bin/bash", "-c", "java -jar " + artifactTargetPath + " $CROMWELL_ARGS")
+        entryPoint("/bin/bash", "-c", "java -jar " + artifactTargetPath + " ${CROMWELL_ARGS} ${*}", "--")
       }
     },
     buildOptions in docker := BuildOptions(

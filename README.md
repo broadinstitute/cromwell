@@ -76,7 +76,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
-  * [GET /api/workflows/:version/stats](#get-apiworkflowsversionstats)
+  * [GET /api/engine/:version/stats](#get-apiengineversionstats)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -2501,18 +2501,18 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /api/workflows/:version/stats
+## GET /api/engine/:version/stats
 
 This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
 
 cURL:
 ```
-$ curl http://localhost:8000/api/workflows/v1/stats
+$ curl http://localhost:8000/api/engine/v1/stats
 ```
 
 HTTPie:
 ```
-$ http http://localhost:8000/api/workflows/v1/stats
+$ http http://localhost:8000/api/engine/v1/stats
 ```
 
 Response:

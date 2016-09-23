@@ -2,6 +2,7 @@ package cromwell.backend.impl.htcondor
 
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.{FileSystems, Files, Path, Paths}
+import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
 import better.files.File
@@ -13,6 +14,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.core.{JobOutput, JobOutputs, LocallyQualifiedName}
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s._
 import wdl4s.parser.MemoryUnit
@@ -299,10 +301,26 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   private def resolveJobCommand(localizedInputs: CallInputs): Try[String] = {
-    if (runtimeAttributes.dockerImage.isDefined)
+    val command = if (runtimeAttributes.dockerImage.isDefined) {
       modifyCommandForDocker(call.task.instantiateCommand(localizedInputs, callEngineFunction, identity), localizedInputs)
-    else
+    } else {
       call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
+    }
+    command match {
+      case Success(cmd) => tellMetadata(Map("command" -> cmd))
+      case Failure(ex) =>
+        log.error("{} failed to resolve command due to exception:{}", tag, ex)
+        tellMetadata(Map(s"${CallMetadataKeys.Failures}[${UUID.randomUUID().toString}]" -> ex.getMessage))
+    }
+    command
+  }
+
+  /**
+    * Fire and forget data to the metadata service
+    */
+  private def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
   private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {

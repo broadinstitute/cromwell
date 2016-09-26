@@ -12,37 +12,28 @@ import scala.util.Try
 
 object ConfigHashingStrategy {
   val logger = LoggerFactory.getLogger(getClass)
+  val defaultStrategy = HashPathStrategy(false)
 
-  // TODO clean up this mess
-  def apply(config: Config): ConfigHashingStrategy = {
-    config.getConfigOption("filesystems.local.hashing") map { hashingConfig =>
+  def apply(hashingConfig: Config): ConfigHashingStrategy = {
       val checkSiblingMd5 = hashingConfig.getBooleanOr("check-sibling-md5", default = false)
-      val checkSiblingMd5Message = if (checkSiblingMd5) {
-        "Check for sibling md5 first."
-      } else {
-        "Do not check for sibling md5."
-      }
 
       hashingConfig.getStringOr("strategy", "path") match {
-        case "path" =>
-          logger.info(s"Using path hashing strategy. $checkSiblingMd5Message")
-          HashPathStrategy(checkSiblingMd5)
-        case "file" =>
-          logger.info(s"Using file hashing strategy. $checkSiblingMd5Message")
-          HashFileStrategy(checkSiblingMd5)
+        case "path" => HashPathStrategy(checkSiblingMd5)
+        case "file" => HashFileStrategy(checkSiblingMd5)
         case what =>
-          logger.warn(s"Unrecognized hashing strategy $what. Defaulting to path hashing.")
+          logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
       }
-    } getOrElse {
-      logger.info(s"Using path hashing strategy. Do not check for sibling md5.")
-      HashPathStrategy(false)
-    }
   }
 }
 
-sealed trait ConfigHashingStrategy {
+abstract class ConfigHashingStrategy {
   def checkSiblingMd5: Boolean
+  protected def hash(file: File): Try[String]
+  protected def description: String
+
+  protected lazy val checkSiblingMessage = if (checkSiblingMd5) "Check first for sibling md5 and if not found " else ""
+
   def getHash(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
     val file = File(request.file.valueString)
 
@@ -54,10 +45,13 @@ sealed trait ConfigHashingStrategy {
     } else hash(file)
   }
 
-  protected def hash(file: File): Try[String]
 
   private def precomputedMd5(file: File): Option[File] = {
     file.siblings find { _.name == s"${file.name}.md5" }
+  }
+
+  override def toString = {
+    s"Call caching hashing strategy: $checkSiblingMessage$description."
   }
 }
 
@@ -65,6 +59,8 @@ case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrat
   override def hash(file: File): Try[String] = {
     Try(org.apache.commons.codec.digest.DigestUtils.md5Hex(file.path.toAbsolutePath.toString))
   }
+
+  override val description = "hash file path"
 }
 case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: File): Try[String] = {
@@ -72,4 +68,6 @@ case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrat
       org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
     }
   }
+
+  override val description = "hash file content"
 }

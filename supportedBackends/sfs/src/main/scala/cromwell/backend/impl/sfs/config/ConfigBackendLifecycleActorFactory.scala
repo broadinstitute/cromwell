@@ -14,7 +14,9 @@ import lenthall.config.ScalaConfig._
 class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendConfigurationDescriptor)
   extends SharedFileSystemBackendLifecycleActorFactory {
 
-  lazy val hashingStrategy = ConfigHashingStrategy(configurationDescriptor.backendConfig)
+  lazy val hashingStrategy = {
+    configurationDescriptor.backendConfig.getConfigOption("filesystems.local.hashing") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
+  }
 
   override def initializationActorClass = classOf[ConfigInitializationActor]
 

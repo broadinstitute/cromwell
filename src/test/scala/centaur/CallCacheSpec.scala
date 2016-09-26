@@ -28,20 +28,6 @@ class CallCacheSpec extends FlatSpec with Matchers with ParallelTestExecution {
     }
   }
 
-  "writeToCacheOff" should "not use call cache writing" in {
-    Workflow.fromPath(WriteToCacheTest) match {
-      case Valid(w) => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(w).run.get
-      case Invalid(e) => fail(s"Could not read writeToCache test:\n - ${e.unwrap.mkString("\n- ")}")
-    }
-  }
-
-  "cacheWithinWf" should "successfully call cache in the same workflow" in {
-    Workflow.fromPath(CacheWithinWf) match {
-      case Valid(w) => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(w).run.get
-      case Invalid(e) => fail(s"Could not read cacheWithinWf test:\n - ${e.unwrap.mkString("\n- ")}")
-    }
-  }
-
   "cacheBetweenWf" should "successfully call cache between two workflows" in {
     Workflow.fromPath(CacheBetweenWf) match {
       case Valid(w) => TestFormulas.runSequentialCachingWorkflows(w, w)

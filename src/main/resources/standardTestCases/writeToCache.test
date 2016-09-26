@@ -1,4 +1,5 @@
 name: writeToCache
+testFormat: workflowsuccess
 
 files {
   wdl: writeToCache/writeToCache.wdl

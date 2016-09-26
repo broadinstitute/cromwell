@@ -59,11 +59,6 @@ case class SharedFileSystemAsyncJobExecutionActorParams
   *
   * NOTE: Although some methods return futures due to the (current) contract in BJEA/ABJEA, this actor only executes
   * during the receive, and does not launch new runnables/futures from inside "receive"... except--
-  *
-  * The __one__ exception is that the when `poll` is processing a successful return code. Currently processReturnCode
-  * is calling into a stub for generating fake hashes. This functionality is TBD, but it is likely that we __should__
-  * begin teardown while we return a future with the results, assuming we're still using futures instead of akka-ish
-  * messages.
   */
 trait SharedFileSystemAsyncJobExecutionActor
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with SharedFileSystemJobCachingActorHelper

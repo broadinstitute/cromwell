@@ -54,11 +54,13 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     checkSibling.isInstanceOf[HashPathStrategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file path."
 
     val dontCheckSibling = makeStrategy("path", Option(false))
 
     dontCheckSibling.isInstanceOf[HashPathStrategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file path."
   }
 
   it should "have a path hashing strategy and use md5 sibling file when appropriate" in {
@@ -88,11 +90,13 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     checkSibling.isInstanceOf[HashFileStrategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file content."
 
     val dontCheckSibling = makeStrategy("file", Option(false))
 
     dontCheckSibling.isInstanceOf[HashFileStrategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content."
   }
 
   it should "have a file hashing strategy and use md5 sibling file when appropriate" in {

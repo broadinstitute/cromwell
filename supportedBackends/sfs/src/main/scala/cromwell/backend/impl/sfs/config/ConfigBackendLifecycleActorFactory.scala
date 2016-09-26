@@ -5,6 +5,7 @@ import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, RuntimeAttributeDefinition}
 import lenthall.config.ScalaConfig._
+import org.slf4j.LoggerFactory
 
 /**
   * Builds a backend by reading the job control from the config.
@@ -13,6 +14,11 @@ import lenthall.config.ScalaConfig._
   */
 class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendConfigurationDescriptor)
   extends SharedFileSystemBackendLifecycleActorFactory {
+
+  lazy val logger = LoggerFactory.getLogger(getClass)
+  lazy val hashingStrategy = {
+    configurationDescriptor.backendConfig.getConfigOption("filesystems.local.hashing") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
+  }
 
   override def initializationActorClass = classOf[ConfigInitializationActor]
 
@@ -32,6 +38,10 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
     initializationData.runtimeAttributesBuilder.definitions.toSet
   }
 
-  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(ConfigBackendFileHashing.getMd5Result))
+  override lazy val fileHashingFunction: Option[FileHashingFunction] = {
+    logger.info(hashingStrategy.toString)
+    Option(FileHashingFunction(hashingStrategy.getHash))
+  }
+
   override lazy val fileHashingActorCount: Int = 5
 }

@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.io.WorkflowPaths
+import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -52,4 +53,6 @@ trait BackendLifecycleActorFactory {
   lazy val fileHashingActorCount: Int = 50
 
   def fileHashingActorProps: Props = FileHashingActor.props(fileHashingFunction)
+
+  def jobExecutionTokenType: JobExecutionTokenType = JobExecutionTokenType("Default", None)
 }

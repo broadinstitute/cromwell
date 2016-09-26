@@ -139,10 +139,11 @@ object WorkflowExecutionActor {
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            jobTokenDispenserActor: ActorRef,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
     Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, jobStoreActor,
-      callCacheReadActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
+      callCacheReadActor, jobTokenDispenserActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
   private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
@@ -228,7 +229,6 @@ object WorkflowExecutionActor {
       } toMap
     }
   }
-
 }
 
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
@@ -236,6 +236,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         serviceRegistryActor: ActorRef,
                                         jobStoreActor: ActorRef,
                                         callCacheReadActor: ActorRef,
+                                        jobTokenDispenserActor: ActorRef,
                                         initializationData: AllBackendInitializationData,
                                         restarting: Boolean)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
@@ -586,7 +587,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val ejeaProps = EngineJobExecutionActor.props(
               self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
-              jobStoreActor, callCacheReadActor, backendName, workflowDescriptor.callCachingMode)
+              jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             pushNewJobMetadata(jobKey, backendName)
             ejeaRef ! EngineJobExecutionActor.Execute

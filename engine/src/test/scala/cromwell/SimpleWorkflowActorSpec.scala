@@ -10,6 +10,7 @@ import cromwell.SimpleWorkflowActorSpec._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 import org.scalatest.BeforeAndAfter
@@ -42,7 +43,8 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
-        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)),
+        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
+      jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )

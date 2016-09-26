@@ -15,7 +15,7 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.language.postfixOps
 
-case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   import JesBackendLifecycleActorFactory._
 

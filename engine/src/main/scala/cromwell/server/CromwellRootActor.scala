@@ -8,6 +8,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
@@ -48,9 +49,11 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")
 
+  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
+
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor),
+      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobExecutionTokenDispenserActor),
     "WorkflowManagerActor")
 
   override def receive = {

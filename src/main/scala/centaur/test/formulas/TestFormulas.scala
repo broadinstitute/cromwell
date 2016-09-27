@@ -2,7 +2,8 @@ package centaur.test.formulas
 
 import java.util.UUID
 
-import cats.implicits._
+import cats.syntax.functor._
+import cats.syntax.flatMap._
 import centaur._
 import centaur.test.Operations._
 import centaur.test.Test

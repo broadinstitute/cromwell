@@ -4,7 +4,6 @@ import configs.Result.{Failure, Success}
 import configs.syntax._
 import cats.data.Validated._
 import cats.Apply
-import cats.std.list._
 import com.typesafe.config.Config
 
 case class TestOptions(tags: List[String], ignore: Boolean)

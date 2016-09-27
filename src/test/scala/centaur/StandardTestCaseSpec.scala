@@ -3,10 +3,10 @@ package centaur
 import java.nio.file.Path
 
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.list._
 import cats.syntax.traverse._
-import cats.std.list._
 import centaur.api.CromwellBackendsCompanion
-import centaur.test.Test
+import centaur.test.{ErrorOr, Test}
 import centaur.test.standard.StandardTestCase
 import centaur.test.workflow.Workflow
 
@@ -15,10 +15,12 @@ import org.scalatest._
 
 class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecution {
   def testCases(basePath: Path): List[StandardTestCase] = {
-    // IntelliJ will give some red squiggles in the following block. It lies.
-    basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath } traverse StandardTestCase.fromPath match {
+    val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }
+    val testCases = files.traverse[ErrorOr, StandardTestCase](StandardTestCase.fromPath)
+
+    testCases match {
       case Valid(l) => l
-      case Invalid(e) => throw new IllegalStateException("\n" + e.unwrap.mkString("\n") + "\n")
+      case Invalid(e) => throw new IllegalStateException("\n" + e.toList.mkString("\n") + "\n")
     }
   }
 

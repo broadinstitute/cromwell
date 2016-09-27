@@ -4,7 +4,6 @@ import java.nio.file.Path
 
 import cats.Apply
 import cats.data.Validated._
-import cats.std.list._
 import centaur.test._
 import centaur.test.metadata.WorkflowMetadata
 import com.typesafe.config.{Config, ConfigFactory}

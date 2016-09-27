@@ -5,25 +5,24 @@ import java.util.UUID
 
 import cats.Monad
 import centaur._
+import centaur.api.CromwellClient._
+import centaur.api.CromwellStatusJsonSupport._
+import centaur.api.FailedWorkflowSubmissionJsonSupport._
 import centaur.api.{CromwellStatus, _}
+import centaur.test.metadata.WorkflowMetadata
+import centaur.test.workflow.Workflow
 import spray.client.pipelining._
 import spray.http.{FormData, HttpRequest, HttpResponse}
 import spray.httpx.PipelineException
+import spray.httpx.SprayJsonSupport._
 import spray.httpx.unmarshalling._
 import spray.json._
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
-import spray.httpx.SprayJsonSupport._
-import FailedWorkflowSubmissionJsonSupport._
-import CromwellStatusJsonSupport._
-import centaur.test.metadata.WorkflowMetadata
-import centaur.test.workflow.Workflow
-import CromwellClient._
-import scala.concurrent.blocking
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, blocking}
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success, Try}
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -48,6 +47,9 @@ object Test {
         override def run: Try[A] = Try(x)
       }
     }
+
+    /** Call the default non-stack-safe but correct version of this method. */
+    override def tailRecM[A, B](a: A)(f: (A) => Test[Either[A, B]]): Test[B] = defaultTailRecM(a)(f)
   }
 }
 

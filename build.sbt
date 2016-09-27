@@ -19,7 +19,7 @@ val akkaV = "2.3.14"
 libraryDependencies ++= Seq(
   "com.github.kxbmap" %% "configs" % "0.4.2",
   "com.typesafe" % "config" % "1.3.0",
-  "org.typelevel" %% "cats" % "0.4.1",
+  "org.typelevel" %% "cats" % "0.7.2",
   "com.typesafe.akka" %% "akka-actor" % akkaV,
   "io.spray" %% "spray-can" % sprayV,
   "io.spray" %% "spray-routing" % sprayV,

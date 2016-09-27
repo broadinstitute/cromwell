@@ -23,7 +23,7 @@ val sprayJsonV = "1.3.2"
 libraryDependencies ++= Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
   "io.spray" %% "spray-json" % sprayJsonV,
-  "org.scalaz" %% "scalaz-core" % "7.2.5",
+  "org.typelevel" %% "cats" % "0.7.2",
   "commons-codec" % "commons-codec" % "1.10",
   "commons-io" % "commons-io" % "2.5",
   "org.apache.commons" % "commons-lang3" % "3.4",

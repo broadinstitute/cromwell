@@ -3,6 +3,7 @@ package wdl4s
 import java.nio.file.{Path, Paths}
 
 import better.files._
+import cats.data.NonEmptyList
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode, EnhancedAstSeq}
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.WdlParser
@@ -14,7 +15,6 @@ import wdl4s.values._
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
 
 /**
  * Define WdlNamespace as a sum type w/ two states - one containing a local workflow and one without.
@@ -84,8 +84,8 @@ case class NamespaceWithWorkflow(importedAs: Option[String],
       } yield key -> optionValue.get)
     } else {
       val errors = failures.values.collect { case f: Failure[_] => f.exception.getMessage }
-      // .get because failures is guaranteed to be nonEmpty
-      Failure(new ValidationException("Workflow input processing failed.", errors.toList.toNel.get))
+      // .fromListUnsafe because failures is guaranteed to be nonEmpty
+      Failure(new ValidationException("Workflow input processing failed.", NonEmptyList.fromListUnsafe(errors.toList)))
     }
   }
 

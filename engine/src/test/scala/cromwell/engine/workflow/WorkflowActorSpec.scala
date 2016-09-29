@@ -6,6 +6,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
@@ -157,7 +158,7 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         workflowLogCopyRouter: ActorRef,
                         jobStoreActor: ActorRef,
                         callCacheReadActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor) {
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty)) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = finalizationProbe.ref
 }

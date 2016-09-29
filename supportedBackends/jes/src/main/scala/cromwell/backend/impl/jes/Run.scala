@@ -6,7 +6,6 @@ import java.util.{ArrayList => JArrayList}
 import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
 import cromwell.core.ExecutionEvent
@@ -14,7 +13,6 @@ import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Run {
@@ -97,25 +95,32 @@ object Run {
 case class Run(runId: String, genomicsInterface: Genomics) {
   import Run._
 
-  def status(): RunStatus = {
-    val op = genomicsInterface.operations().get(runId).execute
+  def getOperationCommand = genomicsInterface.operations().get(runId)
+
+  def interpretOperationStatus(op: Operation): RunStatus = {
     if (op.getDone) {
-      val eventList = getEventList(op)
-      val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
-      val machineType = Option(ceInfo.get("machineType"))
-      val instanceName = Option(ceInfo.get("instanceName"))
-      val zone = Option(ceInfo.get("zone"))
+      lazy val eventList = getEventList(op)
+      lazy val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
+      lazy val machineType = Option(ceInfo.get("machineType"))
+      lazy val instanceName = Option(ceInfo.get("instanceName"))
+      lazy val zone = Option(ceInfo.get("zone"))
 
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
         case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, eventList, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running
     } else {
       Initializing
     }
+  }
+
+  // TODO: remove (or shuffle over to test code, perhaps)
+  def status(): RunStatus = {
+    val op = getOperationCommand.execute
+    interpretOperationStatus(op)
   }
 
   def getEventList(op: Operation): Seq[ExecutionEvent] = {

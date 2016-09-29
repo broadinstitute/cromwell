@@ -13,7 +13,8 @@ class RetryableBackendLifecycleActorFactory(name: String, configurationDescripto
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     RetryableBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 

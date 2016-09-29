@@ -27,7 +27,7 @@ object RunStatus {
     override def toString = "Success"
   }
 
-  final case class Failed(errorCode: Int, errorMessage: Option[String], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String])
+  final case class Failed(errorCode: Int, errorMessage: List[String], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String])
     extends TerminalRunStatus {
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"

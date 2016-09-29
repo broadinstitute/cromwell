@@ -13,8 +13,10 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
     Option(SparkInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor, initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
+                                      initializationData: Option[BackendInitializationData],
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     SparkJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 

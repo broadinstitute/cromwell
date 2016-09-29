@@ -5,7 +5,7 @@ import akka.testkit.{EventFilter, TestActorRef, TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.WorkflowId
-import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
+import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.ExecuteWorkflowCommand
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
@@ -64,7 +64,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowExecutionActor = system.actorOf(
         WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor, jobStoreActor,
-          callCacheReadActor.ref, jobTokenDispenserActor, AllBackendInitializationData.empty, restarting = false),
+          callCacheReadActor.ref, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), AllBackendInitializationData.empty, restarting = false),
         "WorkflowExecutionActor")
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
@@ -97,7 +97,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
       val workflowExecutionActor = system.actorOf(
         WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry, jobStore,
-          callCacheReadActor, jobTokenDispenserActor, AllBackendInitializationData.empty, restarting = false),
+          callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), AllBackendInitializationData.empty, restarting = false),
         "WorkflowExecutionActor")
 
       val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"

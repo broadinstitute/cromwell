@@ -39,6 +39,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
                               jobTokenDispenserActor: ActorRef,
+                              backendSingletonActor: Option[ActorRef],
                               backendName: String,
                               callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging {
 
@@ -282,7 +283,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
   def prepareJob() = {
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
-    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, initializationData, serviceRegistryActor)
+    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, initializationData, serviceRegistryActor, backendSingletonActor)
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! JobPreparationActor.Start
     goto(PreparingJob)
@@ -449,6 +450,7 @@ object EngineJobExecutionActor {
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            backendSingletonActor: Option[ActorRef],
             backendName: String,
             callCachingMode: CallCachingMode) = {
     Props(new EngineJobExecutionActor(
@@ -462,6 +464,7 @@ object EngineJobExecutionActor {
       jobStoreActor = jobStoreActor,
       callCacheReadActor = callCacheReadActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
+      backendSingletonActor = backendSingletonActor,
       backendName = backendName: String,
       callCachingMode = callCachingMode)).withDispatcher(EngineDispatcher)
   }

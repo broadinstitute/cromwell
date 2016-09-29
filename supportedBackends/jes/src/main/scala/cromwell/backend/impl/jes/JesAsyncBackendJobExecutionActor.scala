@@ -15,6 +15,7 @@ import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.backend.impl.jes.JesJobExecutionActor.JesOperationIdKey
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
+import cromwell.backend.impl.jes.statuspolling.JesPollingActorClient
 import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendWorkflowDescriptor, PreemptedException}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
@@ -42,12 +43,14 @@ object JesAsyncBackendJobExecutionActor {
             completionPromise: Promise[BackendJobExecutionResponse],
             jesWorkflowInfo: JesConfiguration,
             initializationData: JesBackendInitializationData,
-            serviceRegistryActor: ActorRef): Props = {
+            serviceRegistryActor: ActorRef,
+            jesBackendSingletonActor: ActorRef): Props = {
     Props(new JesAsyncBackendJobExecutionActor(jobDescriptor,
       completionPromise,
       jesWorkflowInfo,
       initializationData,
-      serviceRegistryActor)).withDispatcher(BackendDispatcher)
+      serviceRegistryActor,
+      jesBackendSingletonActor)).withDispatcher(BackendDispatcher)
   }
 
   object WorkflowOptionKeys {
@@ -78,10 +81,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
                                        override val completionPromise: Promise[BackendJobExecutionResponse],
                                        override val jesConfiguration: JesConfiguration,
                                        override val initializationData: JesBackendInitializationData,
-                                       override val serviceRegistryActor: ActorRef)
-  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JesJobCachingActorHelper with JobLogging {
+                                       override val serviceRegistryActor: ActorRef,
+                                       val jesBackendSingletonActor: ActorRef)
+  extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JesJobCachingActorHelper with JobLogging with JesPollingActorClient {
 
   import JesAsyncBackendJobExecutionActor._
+
+  override val pollingActor = jesBackendSingletonActor
 
   override lazy val pollBackOff = SimpleExponentialBackoff(
     initialInterval = 30 seconds, maxInterval = 10 minutes, multiplier = 1.1)
@@ -119,7 +125,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     case KvPutSuccess(_) => // expected after the KvPut for the operation ID
   }
 
-  override def receive: Receive = jesReceiveBehavior orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse jesReceiveBehavior orElse super.receive
 
   private def globOutputPath(glob: String) = callRootPath.resolve(s"glob-${glob.md5Sum}/")
 
@@ -364,50 +370,55 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   /**
     * Update the ExecutionHandle
     */
-  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future {
+  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
       case handle: JesPendingExecutionHandle =>
-        val runId = handle.run.runId
-        jobLogger.debug(s"$tag Polling JES Job $runId")
-        val previousStatus = handle.previousStatus
-        val status = Try(handle.run.status())
-        status foreach { currentStatus =>
-          if (!(handle.previousStatus contains currentStatus)) {
-            // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
-            // just use the state names.
-            val prevStateName = previousStatus map { _.toString } getOrElse "-"
-            jobLogger.info(s"$tag Status change from $prevStateName to $currentStatus")
-            tellMetadata(Map("backendStatus" -> currentStatus))
-          }
-        }
-        status match {
-          case Success(s: TerminalRunStatus) =>
-            val metadata = Map(
-              JesMetadataKeys.MachineType -> s.machineType.getOrElse("unknown"),
-              JesMetadataKeys.InstanceName -> s.instanceName.getOrElse("unknown"),
-              JesMetadataKeys.Zone -> s.zone.getOrElse("unknown")
-            )
-
-            tellMetadata(metadata)
-            executionResult(s, handle)
-          case Success(s) => handle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
-          case Failure(e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
-            jobLogger.error(s"$tag JES Job ID ${handle.run.runId} has not been found, failing call")
-            FailedNonRetryableExecutionHandle(e).future
-          case Failure(e: Exception) =>
-            // Log exceptions and return the original handle to try again.
-            jobLogger.warn(s"Caught exception, retrying", e)
-            handle.future
-          case Failure(e: Error) => Future.failed(e) // JVM-ending calamity.
-          case Failure(throwable) =>
-            // Someone has subclassed Throwable directly?
-            FailedNonRetryableExecutionHandle(throwable).future
-        }
+        jobLogger.debug(s"$tag Polling JES Job ${handle.run.runId}")
+        pollStatus(handle.run) map { status => updateExecutionHandleSuccess(status, handle) } recover updateExecutionHandleFailure(handle) flatten
       case f: FailedNonRetryableExecutionHandle => f.future
       case s: SuccessfulExecutionHandle => s.future
       case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
     }
-  } flatten
+  }
+
+  private def updateExecutionHandleFailure(oldHandle: JesPendingExecutionHandle): PartialFunction[Throwable, Future[ExecutionHandle]] = {
+    case e: GoogleJsonResponseException if e.getStatusCode == 404 =>
+      jobLogger.error(s"$tag JES Job ID ${oldHandle.run.runId} has not been found, failing call")
+      FailedNonRetryableExecutionHandle(e).future
+    case e: Exception =>
+      // Log exceptions and return the original handle to try again.
+      jobLogger.warn(s"Caught exception, retrying", e)
+      oldHandle.future
+    case e: Error => Future.failed(e) // JVM-ending calamity.
+    case throwable =>
+      // Someone has subclassed Throwable directly?
+      FailedNonRetryableExecutionHandle(throwable).future
+  }
+
+  private def updateExecutionHandleSuccess(status: RunStatus, oldHandle: JesPendingExecutionHandle): Future[ExecutionHandle] = {
+    val previousStatus = oldHandle.previousStatus
+    if (!(previousStatus contains status)) {
+      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
+      // just use the state names.
+      val prevStateName = previousStatus map { _.toString } getOrElse "-"
+      jobLogger.info(s"$tag Status change from $prevStateName to $status")
+      tellMetadata(Map("backendStatus" -> status))
+    }
+
+    status match {
+      case s: TerminalRunStatus =>
+        val metadata = Map(
+          JesMetadataKeys.MachineType -> s.machineType.getOrElse("unknown"),
+          JesMetadataKeys.InstanceName -> s.instanceName.getOrElse("unknown"),
+          JesMetadataKeys.Zone -> s.zone.getOrElse("unknown")
+        )
+
+        tellMetadata(metadata)
+        executionResult(s, oldHandle)
+      case s => oldHandle.copy(previousStatus = Option(s)).future // Copy the current handle with updated previous status.
+
+    }
+  }
 
   /**
     * Fire and forget start info to the metadata service
@@ -510,19 +521,19 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     errorMessage.substring(0, errorMessage.indexOf(':')).toInt
   }
 
-  private def preempted(errorCode: Int, errorMessage: Option[String]): Boolean = {
+  private def preempted(errorCode: Int, errorMessage: List[String]): Boolean = {
     def isPreemptionCode(code: Int) = code == 13 || code == 14
 
     try {
-      errorCode == 10 && errorMessage.isDefined && isPreemptionCode(extractErrorCodeFromErrorMessage(errorMessage.get)) && preemptible
+      errorCode == 10 && errorMessage.exists(e => isPreemptionCode(extractErrorCodeFromErrorMessage(e))) && preemptible
     } catch {
       case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
-        jobLogger.warn(s"Unable to parse JES error code from error message: {}, assuming this was not a preempted VM.", errorMessage.get)
+        jobLogger.warn(s"Unable to parse JES error code from error message: {}, assuming this was not a preempted VM.", errorMessage.mkString(", "))
         false
     }
   }
 
-  private def handleFailure(errorCode: Int, errorMessage: Option[String]) = {
+  private def handleFailure(errorCode: Int, errorMessage: List[String]) = {
     import lenthall.numeric.IntegerUtil._
 
     val taskName = s"${workflowDescriptor.id}:${call.unqualifiedName}"
@@ -548,7 +559,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     } else {
       val id = workflowDescriptor.id
       val name = jobDescriptor.call.unqualifiedName
-      val message = errorMessage.getOrElse("null")
+      val message = if (errorMessage.isEmpty) "null" else errorMessage.mkString(", ")
       val exception = new RuntimeException(s"Task $id:$name failed: error code $errorCode. Message: $message")
       FailedNonRetryableExecutionHandle(exception, None).future
     }

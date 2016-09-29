@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystem, Files, Path, Paths}
+import java.nio.file.{FileSystem, Path, Paths}
 
 import com.typesafe.config.Config
 import cromwell.backend.io.JobPaths
@@ -29,51 +29,44 @@ object SharedFileSystem {
     }
   }
 
-  type PathsPair = (Path, Path)
-  type DuplicationStrategy = (Path, Path) => Try[Unit]
+  type FilesPair = (File, File)
+  type DuplicationStrategy = (File, File) => Try[Unit]
 
-  /**
+    /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
-    if (File(executionPath).exists) Success(Unit) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
+  private def localizePathAlreadyLocalized(originalPath: File, executionPath: File): Try[Unit] = {
+    if (executionPath.exists) Success(Unit) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
   }
 
-  private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
-    File(executionPath).parent.createDirectories()
+  private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
+    executionPath.parent.createDirectories()
     val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    Try(File(originalPath).copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true))
+    Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true))
   }
 
-  private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
-    File(executionPath).parent.createDirectories()
-    Try(Files.createLink(executionPath, originalPath))
+  private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
+    executionPath.parent.createDirectories()
+    Try(executionPath.linkTo(originalPath, symbolic = false)) map { _ => executionPath }
   }
 
-  /**
-    * TODO: The 'call' parameter here represents the call statement in WDL that references this path.
-    * We're supposed to not use symbolic links if the call uses Docker.  However, this is currently a
-    * bit incorrect because multiple calls can reference the same path if that path is in a declaration.
-    *
-    * The symbolic link will only fail in the Docker case if a Call uses the file directly and not
-    * indirectly through one of its input expressions
-    */
-
-  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Try[Unit] = {
-      if (File(originalPath).isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
+  private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
+      if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
-        File(executionPath).parent.createDirectories()
-        Try(Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath))
+        executionPath.parent.createDirectories()
+        Try(executionPath.linkTo(originalPath, symbolic = true)) map { _ => executionPath }
       }
   }
 
-  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]) = {
-    strategies.map(_ (source, dest)).find(_.isSuccess) getOrElse {
+  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]) = {
+    import cromwell.util.FileUtil._
+
+    strategies.map(_ (source.followSymlinks, dest)).find(_.isSuccess) getOrElse {
       Failure(new UnsupportedOperationException(s"Could not $description $source -> $dest"))
     }
   }
 
-  def pathPlusSuffix(path: Path, suffix: String) = path.resolveSibling(s"${File(path).name}.$suffix")
+  def pathPlusSuffix(path: File, suffix: String) = path.sibling(s"${path.name}.$suffix")
 }
 
 trait SharedFileSystem extends PathFactory {
@@ -88,7 +81,7 @@ trait SharedFileSystem extends PathFactory {
   lazy val Localizers = createStrategies(LocalizationStrategies, docker = false)
   lazy val DockerLocalizers = createStrategies(LocalizationStrategies, docker = true)
 
-  lazy val CachingStrategies = getConfigStrategies("caching")
+  lazy val CachingStrategies = getConfigStrategies("caching.duplication-strategy")
   lazy val Cachers = createStrategies(CachingStrategies, docker = false)
 
   private def getConfigStrategies(configPath: String): Seq[String] = {
@@ -163,14 +156,14 @@ trait SharedFileSystem extends PathFactory {
       * Transform an original input path to a path in the call directory.
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
-    def toCallPath(path: String): Try[PathsPair] = Try {
-      val src = buildPath(path, filesystems)
+    def toCallPath(path: String): Try[FilesPair] = Try {
+      val src = buildFile(path, filesystems)
       // Strip out potential prefix protocol
-      val localInputPath = stripProtocolScheme(src)
-      val dest = if (File(inputsRoot).isParentOf(localInputPath)) localInputPath
+      val localInputPath = stripProtocolScheme(src.path)
+      val dest = if (File(inputsRoot).isParentOf(localInputPath)) File(localInputPath)
       else {
         // Concatenate call directory with absolute input path
-        Paths.get(inputsRoot.toString, localInputPath.toString)
+        File(Paths.get(inputsRoot.toString, localInputPath.toString))
       }
 
       (src, dest)
@@ -195,7 +188,7 @@ trait SharedFileSystem extends PathFactory {
    * @param wdlValue WdlValue to localize
    * @return localized wdlValue
    */
-  private def localizeWdlValue(toDestPath: (String => Try[PathsPair]), strategies: Stream[DuplicationStrategy])
+  private def localizeWdlValue(toDestPath: (String => Try[FilesPair]), strategies: Stream[DuplicationStrategy])
                               (wdlValue: WdlValue): Try[WdlValue] = {
 
     def adjustArray(t: WdlArrayType, inputArray: Seq[WdlValue]): Try[WdlArray] = {

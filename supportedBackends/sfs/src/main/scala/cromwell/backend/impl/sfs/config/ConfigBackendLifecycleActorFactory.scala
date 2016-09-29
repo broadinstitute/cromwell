@@ -17,7 +17,7 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
 
   lazy val logger = LoggerFactory.getLogger(getClass)
   lazy val hashingStrategy = {
-    configurationDescriptor.backendConfig.getConfigOption("filesystems.local.hashing") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
+    configurationDescriptor.backendConfig.getConfigOption("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
   }
 
   override def initializationActorClass = classOf[ConfigInitializationActor]

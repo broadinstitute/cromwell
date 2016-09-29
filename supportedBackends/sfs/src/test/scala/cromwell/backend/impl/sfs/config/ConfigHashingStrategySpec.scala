@@ -2,6 +2,8 @@ package cromwell.backend.impl.sfs.config
 
 //import java.io.File
 
+import java.util.UUID
+
 import akka.event.LoggingAdapter
 import better.files._
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
@@ -21,6 +23,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   val steak = "Steak"
   val steakHash = DigestUtils.md5Hex(steak)
   val file = File.newTemporaryFile()
+  val symLinksDir = File.newTemporaryDirectory("sym-dir")
   val pathHash = DigestUtils.md5Hex(file.pathAsString)
   val md5File = file.sibling(s"${file.name}.md5")
   // Not the md5 value of "Steak". This is intentional so we can verify which hash is used depending on the strategy
@@ -30,16 +33,24 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     file.write(steak)
   }
 
-  def mockRequest(withSibling: Boolean) = {
-    if (withSibling) md5File.write(md5FileHash)
+  private def randomName(): String = UUID.randomUUID().toString
+
+  def mockRequest(withSibling: Boolean, symlink: Boolean = false) = {
+    if (withSibling && md5File.notExists) md5File.write(md5FileHash)
     val request = mock[SingleFileHashRequest]
-    request.file returns WdlFile(file.pathAsString)
+    val requestFile = if (symlink) {
+      val symLink : File = symLinksDir./(s"symlink-${randomName()}")
+      symLink.symbolicLinkTo(file)
+      symLink
+    } else file
+
+    request.file returns WdlFile(requestFile.pathAsString)
 
     request
   }
 
   def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {
-    val conf = ConfigFactory.parseString(s"""strategy: "$strategy"""")
+    val conf = ConfigFactory.parseString(s"""hashing-strategy: "$strategy"""")
     ConfigHashingStrategy(
       checkSibling map { check => conf.withValue("check-sibling-md5", ConfigValueFactory.fromAnyRef(check)) } getOrElse conf
     )
@@ -76,8 +87,14 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
       md5File.delete(swallowIOExceptions = true)
       val checkSibling = makeStrategy("path", Option(check))
 
-      val request = mockRequest(withMd5)
-      checkSibling.getHash(request, mock[LoggingAdapter]) shouldBe Success(expected)
+      checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
+
+      val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
+      val symlink = File(symLinkRequest.file.valueString)
+
+      symlink.isSymbolicLink shouldBe true
+      DigestUtils.md5Hex(symlink.pathAsString) should not be expected
+      checkSibling.getHash(symLinkRequest, mock[LoggingAdapter]) shouldBe Success(expected)
     }
   }
 
@@ -112,8 +129,13 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
       md5File.delete(swallowIOExceptions = true)
       val checkSibling = makeStrategy("file", Option(check))
 
-      val request = mockRequest(withMd5)
-      checkSibling.getHash(request, mock[LoggingAdapter]) shouldBe Success(expected)
+      checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
+
+      val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
+      val symlink = File(symLinkRequest.file.valueString)
+
+      symlink.isSymbolicLink shouldBe true
+      checkSibling.getHash(symLinkRequest, mock[LoggingAdapter]) shouldBe Success(expected)
     }
   }
 

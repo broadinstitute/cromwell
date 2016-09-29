@@ -2,19 +2,18 @@ package lenthall.config
 
 import java.net.{MalformedURLException, URL}
 
+import cats.data.ValidatedNel
+import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.reflect._
-import scalaz.Scalaz._
-import scalaz._
-
 /**
- * Enhances a Typesafe Config with the Scalaz validation utilities.
+ * Enhances a Typesafe Config with the Cats validation utilities.
  *
- * If used in your project, scalaz must also be added to the build.sbt via:
- *   "org.scalaz" %% "scalaz-core" % "7.1.4"
+ * If used in your project, Cats must also be added to the build.sbt via:
+ *   "org.typelevel" %% "cats" % 0.7.2
  */
 object ValidatedConfig {
   val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
@@ -37,7 +36,7 @@ object ValidatedConfig {
     /**
      * Validates that the value for this key is a well formed URL.
      */
-    def validateURL(key: String): ValidationNel[String, URL] = {
+    def validateURL(key: String): ValidatedNel[String, URL] = {
       if (config.hasPath(key)) {
         key.validateAny[URL, MalformedURLException] { url =>
           new URL(config.getString(url))
@@ -45,28 +44,28 @@ object ValidatedConfig {
       } else keyFailNel(key)
     }
 
-    def validateString(key: String): ValidationNel[String, String] = {
-      if (config.hasPath(key)) config.getString(key).successNel else keyFailNel(key)
+    def validateString(key: String): ValidatedNel[String, String] = {
+      if (config.hasPath(key)) config.getString(key).validNel else keyFailNel(key)
     }
 
-    def validateBoolean(key: String): ValidationNel[String, Boolean] = {
-      if (config.hasPath(key)) config.getBoolean(key).successNel else keyFailNel(key)
+    def validateBoolean(key: String): ValidatedNel[String, Boolean] = {
+      if (config.hasPath(key)) config.getBoolean(key).validNel else keyFailNel(key)
     }
 
-    def validateInt(key: String): ValidationNel[String, Int] = {
-      if (config.hasPath(key)) config.getInt(key).successNel else keyFailNel(key)
+    def validateInt(key: String): ValidatedNel[String, Int] = {
+      if (config.hasPath(key)) config.getInt(key).validNel else keyFailNel(key)
     }
 
-    def validateLong(key: String): ValidationNel[String, Long] = {
-      if (config.hasPath(key)) config.getLong(key).successNel else keyFailNel(key)
+    def validateLong(key: String): ValidatedNel[String, Long] = {
+      if (config.hasPath(key)) config.getLong(key).validNel else keyFailNel(key)
     }
 
-    def validateDouble(key: String): ValidationNel[String, Double] = {
-      if (config.hasPath(key)) config.getDouble(key).successNel else keyFailNel(key)
+    def validateDouble(key: String): ValidatedNel[String, Double] = {
+      if (config.hasPath(key)) config.getDouble(key).validNel else keyFailNel(key)
     }
 
     @inline
-    private def keyFailNel(key: String) = s"Could not find key: $key".failureNel
+    private def keyFailNel[T](key: String) = s"Could not find key: $key".invalidNel[T]
   }
 
   implicit class EnhancedValidation[I <: AnyRef](val value: I) extends AnyVal {
@@ -78,10 +77,10 @@ object ValidatedConfig {
      * @tparam O return type of validationFunction
      * @tparam E Restricts the subtype of Exception that should be caught during validation
      */
-    def validateAny[O, E <: Exception : ClassTag](validationFunction: I => O): ValidationNel[String, O] = try {
-      validationFunction(value).successNel
+    def validateAny[O, E <: Exception : ClassTag](validationFunction: I => O): ValidatedNel[String, O] = try {
+      validationFunction(value).validNel
     } catch {
-      case e if classTag[E].runtimeClass.isInstance(e) => e.getMessage.failureNel
+      case e if classTag[E].runtimeClass.isInstance(e) => e.getMessage.invalidNel
     }
   }
 

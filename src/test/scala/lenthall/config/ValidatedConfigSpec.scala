@@ -2,12 +2,12 @@ package lenthall.config
 
 import java.net.URL
 
+import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import lenthall.config.ValidatedConfig._
 import lenthall.test.logging.TestLogger
 import org.scalatest.{FlatSpec, Matchers}
 
-import scalaz.Scalaz._
 
 class ValidatedConfigSpec extends FlatSpec with Matchers {
   behavior of "ValidatedConfig"
@@ -25,14 +25,14 @@ class ValidatedConfigSpec extends FlatSpec with Matchers {
       |}
     """.stripMargin)
 
-  val missingNel = "Could not find key: missing".failureNel
+  val missingNel = "Could not find key: missing".invalidNel
 
   it should "return the config value as a success nel when present" in {
-    exampleConfig.validateString("stringVal") should be("string".successNel)
-    exampleConfig.validateBoolean("booleanVal") should be(true.successNel)
-    exampleConfig.validateInt("intVal") should be(123.successNel)
-    exampleConfig.validateLong("longVal") should be(123L.successNel)
-    exampleConfig.validateDouble("doubleVal") should be(12.3.successNel)
+    exampleConfig.validateString("stringVal") should be("string".validNel)
+    exampleConfig.validateBoolean("booleanVal") should be(true.validNel)
+    exampleConfig.validateInt("intVal") should be(123.validNel)
+    exampleConfig.validateLong("longVal") should be(123L.validNel)
+    exampleConfig.validateDouble("doubleVal") should be(12.3.validNel)
   }
 
   it should "return a failure nel when missing" in {
@@ -44,8 +44,8 @@ class ValidatedConfigSpec extends FlatSpec with Matchers {
   }
 
   it should "check urls correctly" in {
-    exampleConfig.validateURL("urlVal") should be(new URL("https://example.org").successNel)
-    exampleConfig.validateURL("urlBad") should be("unknown protocol: htts".failureNel)
+    exampleConfig.validateURL("urlVal") should be(new URL("https://example.org").validNel)
+    exampleConfig.validateURL("urlBad") should be("unknown protocol: htts".invalidNel)
     exampleConfig.validateURL("missing") should be(missingNel)
   }
 

@@ -1,15 +1,15 @@
 package lenthall.config
 
-import org.scalatest.{Matchers, FlatSpec}
+import cats.data.NonEmptyList
+import org.scalatest.{FlatSpec, Matchers}
 
-import scalaz.NonEmptyList
 
 class ConfigValidationExceptionSpec extends FlatSpec with Matchers {
 
   behavior of "ConfigValidationException"
 
   it should "Aggregate error messages" in {
-    val validationException = ConfigValidationException("You", NonEmptyList("Error1",  "Error2"))
+    val validationException = ConfigValidationException("You", NonEmptyList.of("Error1",  "Error2"))
     validationException.getMessage shouldBe
       """Invalid You configuration
         |Error1

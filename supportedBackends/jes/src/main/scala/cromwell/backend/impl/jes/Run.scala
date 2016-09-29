@@ -54,9 +54,15 @@ object Run {
              .setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
              .setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
+    // disks cannot have mount points at runtime, so set them null
+    val runtimePipelineResources = {
+      val resources = pipelineInfoBuilder.build(commandLine, runtimeAttributes).resources
+      val disksWithoutMountPoint = resources.getDisks.asScala map { d => d.setMountPoint(null) }
+      resources.setDisks(disksWithoutMountPoint.asJava)
+    }
+
     def runPipeline: String = {
-      val runtimeResources = new PipelineResources().set(NoAddressFieldName, runtimeAttributes.noAddress)
-      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount).setResources(runtimeResources)
+      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount).setResources(runtimePipelineResources)
 
       rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.debug(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")

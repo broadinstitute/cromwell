@@ -57,7 +57,7 @@ object Run {
     // disks cannot have mount points at runtime, so set them null
     val runtimePipelineResources = {
       val resources = pipelineInfoBuilder.build(commandLine, runtimeAttributes).resources
-      val disksWithoutMountPoint = resources.getDisks.asScala map { d => d.setMountPoint(null) }
+      val disksWithoutMountPoint = resources.getDisks.asScala map { _.setMountPoint(null) }
       resources.setDisks(disksWithoutMountPoint.asJava)
     }
 

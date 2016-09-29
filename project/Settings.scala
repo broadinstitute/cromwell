@@ -57,12 +57,13 @@ object Settings {
         from("openjdk:8")
         expose(8000)
         add(artifact, artifactTargetPath)
+        runRaw(s"ln -s $artifactTargetPath /app/cromwell.jar")
         
         // If you use the 'exec' form for an entry point, shell processing is not performed and 
         // environment variable substitution does not occur.  Thus we have to /bin/bash here
         // and pass along any subsequent command line arguments
         // See https://docs.docker.com/engine/reference/builder/#/entrypoint
-        entryPoint("/bin/bash", "-c", "java -jar " + artifactTargetPath + " ${CROMWELL_ARGS} ${*}", "--")
+        entryPoint("/bin/bash", "-c", "java ${JAVA_OPTS} -jar /app/cromwell.jar ${CROMWELL_ARGS} ${*}", "--")
       }
     },
     buildOptions in docker := BuildOptions(

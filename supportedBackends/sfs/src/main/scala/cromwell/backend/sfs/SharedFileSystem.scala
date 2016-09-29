@@ -36,7 +36,7 @@ object SharedFileSystem {
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
   private def localizePathAlreadyLocalized(originalPath: File, executionPath: File): Try[Unit] = {
-    if (executionPath.exists) Success(Unit) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
+    if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
   }
 
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {

@@ -1,7 +1,5 @@
 package cromwell.backend.impl.sfs.config
 
-//import java.io.File
-
 import java.util.UUID
 
 import akka.event.LoggingAdapter

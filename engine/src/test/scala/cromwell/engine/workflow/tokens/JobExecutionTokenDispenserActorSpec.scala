@@ -2,14 +2,15 @@ package cromwell.engine.workflow.tokens
 
 import java.util.UUID
 
-import akka.actor.{ ActorRef, ActorSystem, Kill, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, Kill, PoisonPill}
 import org.scalatest._
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import JobExecutionTokenDispenserActorSpec._
 import cromwell.core.JobExecutionToken
-import cromwell.engine.workflow.tokens.TokenGrabbingActor.StoppingSupervisor
+import cromwell.engine.workflow.tokens.TestTokenGrabbingActor.StoppingSupervisor
+import cromwell.util.AkkaTestUtil
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
@@ -201,23 +202,15 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     dummyActors(5).expectNoMsg(MaxWaitTime)
   }
 
-  val actorDeathMethods: List[(String, ActorRef => Unit)] = List(
-    ("external_stop", (a: ActorRef) => system.stop(a)),
-    ("internal_stop", (a: ActorRef) => a ! TokenGrabbingActor.InternalStop),
-    ("poison_pill", (a: ActorRef) => a ! PoisonPill),
-    ("kill_message", (a: ActorRef) => a ! Kill),
-    ("throw_exception", (a: ActorRef) => a ! TokenGrabbingActor.ThrowException)
-  )
-
-  actorDeathMethods foreach { case (name, stopMethod) =>
+  AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>
     it should s"recover tokens lost to actors which are $name before they hand back their token" in {
-      var currentTokens: Map[TestActorRef[TokenGrabbingActor], JobExecutionToken] = Map.empty
-      var tokenGrabbingActors: Map[Int, TestActorRef[TokenGrabbingActor]] = Map.empty
+      var currentTokens: Map[TestActorRef[TestTokenGrabbingActor], JobExecutionToken] = Map.empty
+      var tokenGrabbingActors: Map[Int, TestActorRef[TestTokenGrabbingActor]] = Map.empty
       val grabberSupervisor = TestActorRef(new StoppingSupervisor())
 
       // Set up by taking all 5 tokens out, and then adding 2 to the queue:
       5 indexedTimes { i =>
-        val newGrabbingActor = TestActorRef[TokenGrabbingActor](TokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_${name}_" + i)
+        val newGrabbingActor = TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_${name}_" + i)
         tokenGrabbingActors += i -> newGrabbingActor
         eventually {
           newGrabbingActor.underlyingActor.token.isDefined should be(true)
@@ -226,7 +219,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
       }
 
       val unassignedActorIndex = 5
-      val newGrabbingActor = TestActorRef(new TokenGrabbingActor(actorRefUnderTest, LimitedTo5Tokens), s"grabber_${name}_" + unassignedActorIndex)
+      val newGrabbingActor = TestActorRef(new TestTokenGrabbingActor(actorRefUnderTest, LimitedTo5Tokens), s"grabber_${name}_" + unassignedActorIndex)
       tokenGrabbingActors += unassignedActorIndex -> newGrabbingActor
       eventually {
         newGrabbingActor.underlyingActor.rejections should be(1)
@@ -245,13 +238,13 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   }
 
   it should "skip over dead actors when assigning tokens to the actor queue" in {
-    var currentTokens: Map[TestActorRef[TokenGrabbingActor], JobExecutionToken] = Map.empty
-    var tokenGrabbingActors: Map[Int, TestActorRef[TokenGrabbingActor]] = Map.empty
+    var currentTokens: Map[TestActorRef[TestTokenGrabbingActor], JobExecutionToken] = Map.empty
+    var tokenGrabbingActors: Map[Int, TestActorRef[TestTokenGrabbingActor]] = Map.empty
     val grabberSupervisor = TestActorRef(new StoppingSupervisor())
 
     // Set up by taking all 5 tokens out, and then adding 2 to the queue:
     5 indexedTimes { i =>
-      val newGrabbingActor = TestActorRef[TokenGrabbingActor](TokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"skip_test_" + i)
+      val newGrabbingActor = TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"skip_test_" + i)
       tokenGrabbingActors += i -> newGrabbingActor
       eventually {
         newGrabbingActor.underlyingActor.token.isDefined should be(true)
@@ -260,7 +253,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     }
     2 indexedTimes { i =>
       val index = i + 5
-      val newGrabbingActor = TestActorRef[TokenGrabbingActor](TokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"skip_test_" + index)
+      val newGrabbingActor = TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"skip_test_" + index)
       tokenGrabbingActors += index -> newGrabbingActor
       eventually {
         newGrabbingActor.underlyingActor.rejections should be(1)

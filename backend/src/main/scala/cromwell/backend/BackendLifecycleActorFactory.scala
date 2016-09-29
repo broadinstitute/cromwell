@@ -20,7 +20,8 @@ trait BackendLifecycleActorFactory {
 
   def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                              initializationData: Option[BackendInitializationData],
-                             serviceRegistryActor: ActorRef): Props
+                             serviceRegistryActor: ActorRef,
+                             backendSingletonActor: Option[ActorRef]): Props
 
   /**
     * Providing this method to generate Props for a cache hit copying actor is optional.
@@ -32,6 +33,8 @@ trait BackendLifecycleActorFactory {
     * Simples!
     */
   def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef) => Props] = None
+
+  def backendSingletonActorProps: Option[Props] = None
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],

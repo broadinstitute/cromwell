@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrat
 import akka.event.Logging
 import akka.routing.RoundRobinPool
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
@@ -48,11 +49,16 @@ import net.ceedubs.ficus.Ficus._
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")
 
+  lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
+    case (name, factory) => name -> (factory.backendSingletonActorProps map context.actorOf)
+  }
+  lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
+
   lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobExecutionTokenDispenserActor),
+      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobExecutionTokenDispenserActor, backendSingletonCollection),
     "WorkflowManagerActor")
 
   override def receive = {

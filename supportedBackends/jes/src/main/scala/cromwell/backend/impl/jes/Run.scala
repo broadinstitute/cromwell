@@ -90,24 +90,19 @@ object Run {
   implicit class RunOperationExtension(val operation: Operation) extends AnyVal {
     def hasStarted = operation.getMetadata.asScala.get("startTime") isDefined
   }
-}
 
-case class Run(runId: String, genomicsInterface: Genomics) {
-  import Run._
-
-  def status(): RunStatus = {
-    val op = genomicsInterface.operations().get(runId).execute
+  def interpretOperationStatus(op: Operation): RunStatus = {
     if (op.getDone) {
-      val eventList = getEventList(op)
-      val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
-      val machineType = Option(ceInfo.get("machineType"))
-      val instanceName = Option(ceInfo.get("instanceName"))
-      val zone = Option(ceInfo.get("zone"))
+      lazy val eventList = getEventList(op)
+      lazy val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
+      lazy val machineType = Option(ceInfo.get("machineType"))
+      lazy val instanceName = Option(ceInfo.get("instanceName"))
+      lazy val zone = Option(ceInfo.get("zone"))
 
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
         case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, eventList, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running
@@ -156,6 +151,11 @@ case class Run(runId: String, genomicsInterface: Genomics) {
   private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[ExecutionEvent] = {
     metadata.get(name) map { time => ExecutionEvent(eventName, OffsetDateTime.parse(time.toString)) }
   }
+}
+
+case class Run(runId: String, genomicsInterface: Genomics) {
+
+  def getOperationCommand = genomicsInterface.operations().get(runId)
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()

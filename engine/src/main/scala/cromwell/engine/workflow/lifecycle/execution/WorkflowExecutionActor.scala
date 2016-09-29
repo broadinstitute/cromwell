@@ -17,7 +17,7 @@ import cromwell.core.OutputStore.OutputEntry
 import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.backend.CromwellBackends
+import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
@@ -140,10 +140,11 @@ object WorkflowExecutionActor {
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
     Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, jobStoreActor,
-      callCacheReadActor, jobTokenDispenserActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
+      callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
   implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
@@ -237,6 +238,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         jobStoreActor: ActorRef,
                                         callCacheReadActor: ActorRef,
                                         jobTokenDispenserActor: ActorRef,
+                                        backendSingletonCollection: BackendSingletonCollection,
                                         initializationData: AllBackendInitializationData,
                                         restarting: Boolean)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
@@ -584,9 +586,10 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
+            val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
             val ejeaProps = EngineJobExecutionActor.props(
               self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
-              jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendName, workflowDescriptor.callCachingMode)
+              jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingleton, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             pushNewJobMetadata(jobKey, backendName)
             ejeaRef ! EngineJobExecutionActor.Execute

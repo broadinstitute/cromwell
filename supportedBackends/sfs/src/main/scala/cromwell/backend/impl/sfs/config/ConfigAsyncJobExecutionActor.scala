@@ -48,12 +48,12 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param taskName The name of the task to retrieve from the precomputed wdl namespace.
     * @param inputs   The customized inputs to this task.
     */
-  def writeTaskScript(script: Path, taskName: String, inputs: CallInputs): Unit = {
+  def writeTaskScript(script: File, taskName: String, inputs: CallInputs): Unit = {
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
     val command = task.instantiateCommand(inputs, NoFunctions).get
     jobLogger.info(s"executing: $command")
-    File(script).write(
+    script.write(
       s"""|#!/bin/bash
           |$command
           |""".stripMargin)

@@ -286,12 +286,12 @@ trait SharedFileSystemAsyncJobExecutionActor
     val argv = checkAliveArgs(job).argv
     val stdout = pathPlusSuffix(jobPaths.stdout, "check")
     val stderr = pathPlusSuffix(jobPaths.stderr, "check")
-    val checkAlive = new ProcessRunner(argv, stdout, stderr)
+    val checkAlive = new ProcessRunner(argv, stdout.path, stderr.path)
     checkAlive.run() == 0
   }
 
   def tryKill(job: SharedFileSystemJob): Unit = {
-    val returnCodeTmp = File(pathPlusSuffix(jobPaths.returnCode, "kill"))
+    val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
     returnCodeTmp.write(s"$SIGTERM\n")
     try {
       returnCodeTmp.moveTo(jobPaths.returnCode)
@@ -303,7 +303,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     val argv = killArgs(job).argv
     val stdout = pathPlusSuffix(jobPaths.stdout, "kill")
     val stderr = pathPlusSuffix(jobPaths.stderr, "kill")
-    val killer = new ProcessRunner(argv, stdout, stderr)
+    val killer = new ProcessRunner(argv, stdout.path, stderr.path)
     killer.run()
   }
 

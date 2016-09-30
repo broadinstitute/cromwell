@@ -3,6 +3,8 @@ package cromwell.core
 import java.io.Writer
 import java.nio.file.{FileSystem, Path}
 
+import better.files.File
+
 import scala.collection.immutable.Queue
 import scala.util.{Success, Failure, Try}
 
@@ -29,6 +31,8 @@ trait PathFactory {
         }
     })
   }
+
+  def buildFile(rawString: String, fileSystems: List[FileSystem]): File = File(buildPath(rawString, fileSystems))
 
   private def hasWrongScheme(rawString: String, fileSystem: FileSystem): Boolean = {
     schemeMatcher.findFirstMatchIn(rawString) match {

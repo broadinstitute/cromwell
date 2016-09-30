@@ -10,11 +10,11 @@ object TestWorkflows {
                           expectedResponse: BackendJobExecutionResponse)
 
   val HelloWorld =
-    """
+    s"""
       |task hello {
       |  String addressee = "you "
       |  command {
-      |    echo "Hello ${addressee}!"
+      |    echo "Hello $${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -45,14 +45,14 @@ object TestWorkflows {
     """.stripMargin
 
   val InputFiles =
-    """
+    s"""
       |task localize {
       |  File inputFileFromJson
       |  File inputFileFromCallInputs
       |  command {
-      |    cat ${inputFileFromJson}
+      |    cat $${inputFileFromJson}
       |    echo ""
-      |    cat ${inputFileFromCallInputs}
+      |    cat $${inputFileFromCallInputs}
       |  }
       |  output {
       |    Array[String] out = read_lines(stdout())
@@ -82,11 +82,11 @@ object TestWorkflows {
     """.stripMargin
 
   val Scatter =
-    """
+    s"""
       |task scattering {
       |  Int intNumber
       |  command {
-      |    echo ${intNumber}
+      |    echo $${intNumber}
       |  }
       |  output {
       |    Int out = read_string(stdout())

@@ -7,7 +7,7 @@ import java.nio.file._
 import java.util
 
 import scala.collection.JavaConverters._
-import scala.language.{implicitConversions, postfixOps}
+import scala.language.postfixOps
 import scala.util.Try
 
 object NioGcsPath {

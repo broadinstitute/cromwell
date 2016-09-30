@@ -12,7 +12,6 @@ import cromwell.backend.validation._
 import cromwell.core._
 import lenthall.exception.MessageAggregation
 import cromwell.core.ErrorOr._
-import mouse.string._
 import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values._

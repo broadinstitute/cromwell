@@ -14,7 +14,6 @@ import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorRef)

@@ -22,7 +22,6 @@ import spray.json._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.language.postfixOps
 import scala.util._
 
 /**
@@ -79,6 +78,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
     val actorRef = createRunnerActor(sampleWdl, managerActor, outputFile)
     val futureResult = actorRef ? RunWorkflow
     Await.ready(futureResult, Duration.Inf)
+    ()
   }
 }
 
@@ -103,7 +103,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     super.afterAll()
   }
 
-  private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Int, Int], workflowInputs: Int, workflowOutputs: Int) = {
+  private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Long, Long], workflowInputs: Long, workflowOutputs: Long) = {
     val testStart = OffsetDateTime.now
     within(TimeoutDuration) {
       singleWorkflowActor(
@@ -153,18 +153,18 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     "successfully run a workflow outputting metadata" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
-        ("three_step.wc", 1, 1),
-        ("three_step.ps", 0, 1),
-        ("three_step.cgrep", 2, 1))
+        ("three_step.wc", 1L, 1L),
+        ("three_step.ps", 0L, 1L),
+        ("three_step.cgrep", 2L, 1L))
 
-      doTheTest(ThreeStep, expectedCalls, 1, 3)
+      doTheTest(ThreeStep, expectedCalls, 1L, 3L)
     }
     "run a workflow outputting metadata with no remaining input expressions" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
-        ("wf.echo", 1, 1),
-        ("wf.echo2", 1, 1))
-      doTheTest(ExpressionsInInputs, expectedCalls, 2, 2)
+        ("wf.echo", 1L, 1L),
+        ("wf.echo2", 1L, 1L))
+      doTheTest(ExpressionsInInputs, expectedCalls, 2L, 2L)
     }
   }
 }

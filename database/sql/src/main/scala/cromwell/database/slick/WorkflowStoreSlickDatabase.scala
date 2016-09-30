@@ -1,9 +1,12 @@
 package cromwell.database.slick
 
+import cats.instances.future._
+import cats.syntax.functor._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   this: SlickDatabase =>
@@ -13,19 +16,19 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   override def updateWorkflowState(queryWorkflowState: String, updateWorkflowState: String)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess.workflowStateForWorkflowState(queryWorkflowState).update(updateWorkflowState)
-    runTransaction(action) map { _ => () }
+    runTransaction(action) void
   }
 
   override def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
                                       (implicit ec: ExecutionContext): Future[Unit] = {
     val action = dataAccess.workflowStoreEntryIdsAutoInc ++= workflowStoreEntries
-    runTransaction(action) map { _ => () }
+    runTransaction(action) void
   }
 
   override def queryWorkflowStoreEntries(limit: Int, queryWorkflowState: String, updateWorkflowState: String)
                                         (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     val action = for {
-      workflowStoreEntries <- dataAccess.workflowStoreEntriesForWorkflowState(queryWorkflowState, limit).result
+      workflowStoreEntries <- dataAccess.workflowStoreEntriesForWorkflowState((queryWorkflowState, limit.toLong)).result
       _ <- DBIO.sequence(workflowStoreEntries map updateWorkflowStateForWorkflowExecutionUuid(updateWorkflowState))
     } yield workflowStoreEntries
     runTransaction(action)

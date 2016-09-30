@@ -6,7 +6,6 @@ import java.util.{ArrayList => JArrayList}
 import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
 import cromwell.core.ExecutionEvent
@@ -14,7 +13,6 @@ import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Run {
@@ -156,13 +154,12 @@ case class Run(runId: String, genomicsInterface: Genomics) {
   }
 
   private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[ExecutionEvent] = {
-    metadata.get(name) map {
-      case time => ExecutionEvent(eventName, OffsetDateTime.parse(time.toString))
-    }
+    metadata.get(name) map { time => ExecutionEvent(eventName, OffsetDateTime.parse(time.toString)) }
   }
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
     genomicsInterface.operations().cancel(runId, cancellationRequest).execute
+    ()
   }
 }

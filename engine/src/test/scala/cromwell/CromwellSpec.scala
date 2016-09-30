@@ -1,7 +1,6 @@
 package cromwell
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.Tag
 
 object CromwellSpec {
   val BackendConfText =

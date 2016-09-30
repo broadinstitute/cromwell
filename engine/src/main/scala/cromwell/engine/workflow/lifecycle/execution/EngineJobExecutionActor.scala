@@ -298,15 +298,20 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       callCacheReadActor,
       factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
     context.actorOf(props, s"ejha_for_$jobDescriptor")
+    ()
   }
 
-  def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]): Unit = context.actorOf(FetchCachedResultsActor.props(cacheHit, self, new CallCache(SingletonServicesStore.databaseInterface)))
-  def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
+  def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]): Unit = {
+    context.actorOf(FetchCachedResultsActor.props(cacheHit, self, new CallCache(SingletonServicesStore.databaseInterface)))
+    ()
+  }
+
+  private def fetchCachedResults(data: ResponsePendingData, taskOutputs: Seq[TaskOutput], cacheHit: CacheHit) = {
     makeFetchCachedResultsActor(cacheHit, taskOutputs)
     goto(FetchingCachedOutputsFromDatabase)
   }
 
-  def makeBackendCopyCacheHit(cacheHit: CacheHit, wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData) = {
+  private def makeBackendCopyCacheHit(cacheHit: CacheHit, wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData) = {
     factory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
         val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor)
@@ -323,7 +328,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
   }
 
-  def runJob(data: ResponsePendingData) = {
+  private def runJob(data: ResponsePendingData) = {
     val backendJobExecutionActor = context.actorOf(data.bjeaProps, buildJobExecutionActorName(data.jobDescriptor))
     val message = if (restarting) RecoverJobCommand else ExecuteJobCommand
     backendJobExecutionActor ! message
@@ -342,6 +347,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   protected def createSaveCacheResultsActor(hashes: CallCacheHashes, success: SucceededResponse): Unit = {
     val callCache = new CallCache(SingletonServicesStore.databaseInterface)
     context.actorOf(CallCacheWriteActor.props(callCache, workflowId, hashes, success), s"CallCacheWriteActor-$tag")
+    ()
   }
 
   private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {

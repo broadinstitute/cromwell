@@ -17,11 +17,11 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
   val Timeout = 5.second.dilated
 
   val HelloWorld =
-    """
+    s"""
       |task hello {
       |  String addressee = "you"
       |  command {
-      |    echo "Hello ${addressee}!"
+      |    echo "Hello $${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string(stdout())

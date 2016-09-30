@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object Main extends App {
@@ -74,7 +73,6 @@ object Main extends App {
     val runner = CromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import PromiseActor.EnhancedActorRef
-    import scala.concurrent.ExecutionContext.Implicits.global
 
     val promise = runner.askNoTimeout(RunWorkflow)
     waitAndExit(promise, CromwellSystem)

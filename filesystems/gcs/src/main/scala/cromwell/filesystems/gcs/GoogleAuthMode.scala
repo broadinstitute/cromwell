@@ -161,7 +161,7 @@ final case class RefreshTokenMode(name: String, clientId: String, clientSecret: 
   /**
     * Throws if the refresh token is not specified.
     */
-  override def assertWorkflowOptions(options: GoogleAuthOptions) = getToken(options)
+  override def assertWorkflowOptions(options: GoogleAuthOptions): Unit = { getToken(options); () }
 
   private def getToken(options: GoogleAuthOptions): String = {
     options.get(RefreshTokenOptionKey).getOrElse(throw new IllegalArgumentException(s"Missing parameters in workflow options: $RefreshTokenOptionKey"))

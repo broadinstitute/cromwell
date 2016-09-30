@@ -5,17 +5,16 @@ import wdl4s.WdlNamespace
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlFile, WdlString}
 
-import scala.language.postfixOps
 
 class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
   "A workflow with an optional parameter that has a prefix inside the tag" should {
     "not include that prefix if no value is specified" in {
-      val wf = """
+      val wf = s"""
          |task find {
          |  String? pattern
          |  File root
          |  command {
-         |    find ${root} ${"-name " + pattern}
+         |    find $${root} $${"-name " + pattern}
          |  }
          |}
          |

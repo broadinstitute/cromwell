@@ -8,7 +8,6 @@ import cats.syntax.validated._
 import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.core.ErrorOr._
 
-import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 object WorkflowQueryKey {

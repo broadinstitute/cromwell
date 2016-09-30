@@ -1,15 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import akka.testkit.TestProbe
-import cromwell.backend.BackendJobDescriptorKey
-import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, FailedRetryableResponse, RecoverJobCommand, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingJobStore, JobRunning, NoData, PreparingJob}
-import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
-import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
-import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
-import EngineJobExecutionActorSpec.EnhancedTestEJEA
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingJobStore, NoData, PreparingJob}
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor
+import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
+import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
+import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
 
 class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
 

@@ -25,11 +25,11 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   import BackendSpec._
 
   val HelloWorld =
-    """
+    s"""
       |task hello {
       |  String addressee = "you"
       |  command {
-      |    echo "Hello ${addressee}!"
+      |    echo "Hello $${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string(stdout())

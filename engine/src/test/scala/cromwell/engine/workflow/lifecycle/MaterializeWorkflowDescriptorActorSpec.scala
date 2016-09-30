@@ -15,7 +15,6 @@ import spray.json._
 import wdl4s.values.{WdlInteger, WdlString}
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
 
@@ -65,9 +64,9 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
             wfDesc.id shouldBe workflowId
             wfDesc.name shouldBe "hello"
             wfDesc.namespace.tasks.size shouldBe 1
-            wfDesc.workflowInputs.head shouldBe ("hello.hello.addressee", WdlString("world"))
-            wfDesc.backendDescriptor.inputs.head shouldBe ("hello.hello.addressee", WdlString("world"))
-            wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Some("true")
+            wfDesc.workflowInputs.head shouldBe (("hello.hello.addressee", WdlString("world")))
+            wfDesc.backendDescriptor.inputs.head shouldBe (("hello.hello.addressee", WdlString("world")))
+            wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
             // Default backend assignment is "Local":
             wfDesc.backendAssignments foreach {

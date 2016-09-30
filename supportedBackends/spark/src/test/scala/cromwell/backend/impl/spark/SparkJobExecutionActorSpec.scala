@@ -144,7 +144,10 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     Mockito.reset(sparkClusterProcess)
   }
 
-  override def afterAll(): Unit = system.terminate()
+  override def afterAll(): Unit = {
+    system.terminate()
+    ()
+  }
 
   "executeTask method in cluster deploy mode " should {
     "return succeed response when the spark cluster process monitor method returns finished status" in {
@@ -435,7 +438,10 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
 
   }
 
-  private def cleanUpJob(jobPaths: JobPaths): Unit = File(jobPaths.workflowRoot).delete(true)
+  private def cleanUpJob(jobPaths: JobPaths): Unit = {
+    File(jobPaths.workflowRoot).delete(true)
+    ()
+  }
 
   private def prepareJob(wdlSource: WdlSource = helloWorldWdl, runtimeString: String = passOnStderr, inputFiles: Option[Map[String, WdlValue]] = None, isCluster: Boolean = false): TestJobDescriptor = {
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = wdlSource, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)

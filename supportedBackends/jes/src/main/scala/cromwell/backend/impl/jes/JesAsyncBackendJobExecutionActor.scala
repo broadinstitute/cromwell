@@ -6,6 +6,8 @@ import java.nio.file.{Path, Paths}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import better.files._
+import cats.instances.future._
+import cats.syntax.functor._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -277,7 +279,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def writeScript(): Future[Unit] = Future(File(jesCallPaths.gcsExecPath).write(fileContent))
+    def writeScript(): Future[Unit] = Future { File(jesCallPaths.gcsExecPath).write(fileContent) } void
 
     implicit val system = context.system
     Retry.withRetry(
@@ -291,7 +293,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, jesAttributes.project)
   }
 
-  private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String] = None): Future[Run] = {
+  private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Future[Run] = {
 
     def createRun() = Future(Run(
       runIdForResumption,
@@ -423,7 +425,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       fileMetadata += JesMetadataKeys.MonitoringLog -> monitoringOutput.get.gcs
     }
 
-    val otherMetadata = Map(
+    val otherMetadata: Map[String, Any] = Map(
       JesMetadataKeys.GoogleProject -> jesAttributes.project,
       JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
       JesMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,

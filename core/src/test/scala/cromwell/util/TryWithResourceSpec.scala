@@ -9,7 +9,7 @@ class TryWithResourceSpec extends FlatSpec with Matchers {
   behavior of "tryWithResource"
 
   it should "catch instantiation errors" in {
-    val triedMyBest = tryWithResource(() => throw InstantiationException) { _ => 5 }
+    val triedMyBest = tryWithResource(() => if (1 == 1) throw InstantiationException else null) { _ => 5 }
     triedMyBest should be(Failure(InstantiationException))
   }
 

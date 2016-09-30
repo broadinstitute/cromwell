@@ -1,10 +1,9 @@
 package cromwell
 
 import akka.testkit._
-import wdl4s.values.{WdlString, WdlFile}
 import cromwell.util.SampleWdl
+import wdl4s.values.WdlString
 
-import scala.language.postfixOps
 
 class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestkitSpec {
   "A workflow with two file inputs that have the same name" should {

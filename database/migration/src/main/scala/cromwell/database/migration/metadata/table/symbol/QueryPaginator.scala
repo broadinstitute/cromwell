@@ -2,7 +2,6 @@ package cromwell.database.migration.metadata.table.symbol
 
 import java.sql.{PreparedStatement, ResultSet}
 
-import liquibase.database.jvm.JdbcConnection
 
 class QueryPaginator(statement: PreparedStatement,
                      batchSize: Int,
@@ -17,5 +16,5 @@ class QueryPaginator(statement: PreparedStatement,
     statement.executeQuery()
   }
 
-  def hasNext(): Boolean = cursor <= count
+  def hasNext: Boolean = cursor <= count
 }

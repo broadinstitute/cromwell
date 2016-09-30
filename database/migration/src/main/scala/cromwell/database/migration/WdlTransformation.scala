@@ -8,7 +8,6 @@ import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
 import wdl4s.types.{WdlPrimitiveType, WdlType}
 
-import scala.language.postfixOps
 import scala.util.Try
 
 private [migration] object WdlTransformation {

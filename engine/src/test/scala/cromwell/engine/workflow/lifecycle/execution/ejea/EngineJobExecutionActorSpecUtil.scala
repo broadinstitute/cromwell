@@ -31,7 +31,7 @@ private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExe
         creation._2 should be(expectedResponse)
       case _ => fail("Expected exactly one cache write actor creation.")
     }
-
+    ()
   }
 }
 
@@ -46,6 +46,7 @@ private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { sel
         ejea.stateName should be(UpdatingJobStore)
         ejea.stateData should be(expectedData)
     }
+    ()
   }
 }
 

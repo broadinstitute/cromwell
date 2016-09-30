@@ -15,7 +15,6 @@ import wdl4s.WdlExpression
 import wdl4s.types.WdlType
 import wdl4s.values.WdlValue
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object SymbolTableMigration {

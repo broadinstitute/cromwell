@@ -3,8 +3,6 @@ package cromwell.backend.impl.jes
 import java.nio.file.{Files, Path}
 
 import com.google.api.client.http.HttpResponseException
-import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.filesystems.gcs._
 
 package object io {

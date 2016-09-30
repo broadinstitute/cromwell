@@ -11,6 +11,8 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 
+import cats.instances.try_._
+import cats.syntax.functor._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.googleapis.media.MediaHttpUploader
 import com.google.api.services.storage.Storage
@@ -47,7 +49,7 @@ object GcsFileSystemProvider {
       if retries > 0 &&
         (ex.getStatusCode == 404 || ex.getStatusCode == 500) =>
       // FIXME remove this sleep
-      Thread.sleep(retryInterval.toMillis.toInt)
+      Thread.sleep(retryInterval.toMillis)
       withRetry(f, retries - 1)
     case Failure(ex) => throw ex
   }
@@ -102,12 +104,13 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
 
   lazy val defaultFileSystem: GcsFileSystem = GcsFileSystem(this)
 
-  private def exists(path: Path) = path match {
+  private def exists(path: Path): Unit = path match {
     case gcsPath: NioGcsPath =>
-      Try(withRetry(client.objects.get(gcsPath.bucket, gcsPath.objectName).execute)) recover {
+      val attempt: Try[Any] = Try(withRetry(client.objects.get(gcsPath.bucket, gcsPath.objectName).execute)) recover {
         case ex: GoogleJsonResponseException
           if ex.getStatusCode == 404 => if (!gcsPath.isDirectory) throw new FileNotFoundException(path.toString)
-      } get
+      }
+      attempt.void.get
     case _ => throw new FileNotFoundException(path.toString)
   }
 
@@ -173,12 +176,13 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
   override def copy(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
       case (s: NioGcsPath, d: NioGcsPath) =>
-        def innerCopy = {
+        def innerCopy(): Unit = {
           val storageObject = client.objects.get(s.bucket, s.objectName).execute
           client.objects.copy(s.bucket, s.objectName, d.bucket, d.objectName, storageObject).execute
+          ()
         }
 
-        withRetry(innerCopy)
+        withRetry(innerCopy())
       case _ => throw new UnsupportedOperationException(s"Can only copy from GCS to GCS: $source or $target is not a GCS path")
     }
   }
@@ -186,7 +190,10 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
   override def delete(path: Path): Unit = {
     path match {
       case gcs: NioGcsPath => try {
-        withRetry(client.objects.delete(gcs.bucket, gcs.objectName).execute())
+        withRetry {
+          client.objects.delete(gcs.bucket, gcs.objectName).execute()
+          ()
+        }
       } catch {
         case ex: GoogleJsonResponseException if ex.getStatusCode == 404 => throw new NoSuchFileException(path.toString)
       }
@@ -204,12 +211,13 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
   override def move(source: Path, target: Path, options: CopyOption*): Unit = {
     (source, target) match {
       case (s: NioGcsPath, d: NioGcsPath) =>
-        def moveInner = {
+        def moveInner(): Unit = {
           val storageObject = client.objects.get(s.bucket, s.objectName).execute
           client.objects.rewrite(s.bucket, s.objectName, d.bucket, d.objectName, storageObject).execute
+          ()
         }
 
-        withRetry(moveInner)
+        withRetry(moveInner())
       case _ => throw new UnsupportedOperationException(s"Can only move from GCS to GCS: $source or $target is not a GCS path")
     }
   }
@@ -219,7 +227,7 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
     case _ => notAGcsPath(path)
   }
 
-  override def checkAccess(path: Path, modes: AccessMode*): Unit = exists(path)
+  override def checkAccess(path: Path, modes: AccessMode*): Unit = { exists(path); () }
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
 
   override def getFileSystem(uri: URI): FileSystem = defaultFileSystem
@@ -239,7 +247,7 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
     // Contains a Seq corresponding to the current page of objects, plus a token for the next page of objects, if any.
     case class ListPageResult(objects: Seq[StorageObject], nextPageToken: Option[String])
 
-    def requestListPage(pageToken: Option[String] = None): ListPageResult = {
+    def requestListPage(pageToken: Option[String]): ListPageResult = {
       val objects = withRetry(listRequest.setPageToken(pageToken.orNull).execute())
       ListPageResult(objects.getItems.asScala, Option(objects.getNextPageToken))
     }

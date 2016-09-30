@@ -16,7 +16,6 @@ import wdl4s.util.TryUtil
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
-import scala.language.postfixOps
 
 object SparkJobExecutionActor {
   val DefaultFileSystems = List(FileSystems.getDefault)
@@ -145,7 +144,9 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   /**
     * Abort a running job.
     */
-  override def abort(): Unit = Future.failed(new UnsupportedOperationException("SparkBackend currently doesn't support aborting jobs."))
+  // -Ywarn-value-discard
+  // override def abort(): Unit = Future.failed(new UnsupportedOperationException("SparkBackend currently doesn't support aborting jobs."))
+  override def abort(): Unit = throw new UnsupportedOperationException("SparkBackend currently doesn't support aborting jobs.")
 
 
   private def createExecutionFolderAndScript(): Unit = {
@@ -178,11 +179,14 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
       cmds.writeScript(sparkCommand, scriptPath, executionDir)
       File(scriptPath).addPermission(PosixFilePermission.OWNER_EXECUTE)
+      ()
 
     } catch {
       case ex: Exception =>
         log.error(ex, "Failed to prepare task: " + ex.getMessage)
-        executionResponse success FailedNonRetryableResponse(jobDescriptor.key, ex, None)
+        // -Ywarn-value-discard
+        // executionResponse success FailedNonRetryableResponse(jobDescriptor.key, ex, None)
+        ()
     }
   }
 

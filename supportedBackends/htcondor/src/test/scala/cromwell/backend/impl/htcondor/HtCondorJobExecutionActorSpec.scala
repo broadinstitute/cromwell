@@ -60,12 +60,12 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     """.stripMargin
 
   private val helloWorldWdlWithFileInput =
-    """
+    s"""
       |task hello {
       |  File inputFile
       |
       |  command {
-      |    echo ${inputFile}
+      |    echo $${inputFile}
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -79,12 +79,12 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     """.stripMargin
 
   private val helloWorldWdlWithFileArrayInput =
-    """
+    s"""
       |task hello {
       |  Array[File] inputFiles
       |
       |  command {
-      |    echo ${sep=' ' inputFiles}
+      |    echo $${sep=' ' inputFiles}
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -408,7 +408,10 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     cleanUpJob(jobPaths)
   }
 
-  private def cleanUpJob(jobPaths: JobPaths): Unit = File(jobPaths.workflowRoot).delete(true)
+  private def cleanUpJob(jobPaths: JobPaths): Unit = {
+    File(jobPaths.workflowRoot).delete(true)
+    ()
+  }
 
   private def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
     val suffix = ".out"

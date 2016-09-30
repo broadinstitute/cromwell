@@ -5,7 +5,6 @@ import java.net.URL
 import cats.data._
 import cats.data.Validated._
 import cats.syntax.cartesian._
-import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.core.WorkflowOptions
@@ -14,8 +13,6 @@ import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
 import cromwell.core.ErrorOr._
 import wdl4s.ExceptionWithErrors
-
-import scala.language.postfixOps
 
 case class JesAttributes(project: String,
                          genomicsAuth: GoogleAuthMode,

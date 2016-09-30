@@ -1,9 +1,11 @@
 package cromwell.server
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Terminated}
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import org.slf4j.LoggerFactory
+
+import scala.concurrent.Future
 
 trait CromwellSystem {
   protected def systemName = "cromwell-system"
@@ -12,7 +14,9 @@ trait CromwellSystem {
   val logger = LoggerFactory.getLogger(getClass.getName)
   implicit final lazy val actorSystem = newActorSystem()
 
-  def shutdownActorSystem(): Unit = actorSystem.terminate()
+  def shutdownActorSystem(): Future[Terminated] = {
+    actorSystem.terminate()
+  }
 
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
 }

@@ -70,7 +70,10 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     case IssuePollRequest(handle) => robustPoll(handle)
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) =>
+      // This should stash the Cancellable someplace so it can be cancelled once polling is complete.
+      // -Ywarn-value-discard
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
+      ()
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)) =>
       completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents))
       context.stop(self)

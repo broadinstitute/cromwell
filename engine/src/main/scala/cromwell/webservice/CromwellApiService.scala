@@ -1,7 +1,7 @@
 package cromwell.webservice
 
 import akka.actor._
-import java.lang.Throwable._
+import java.lang.Throwable
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.backend.BackendConfiguration
@@ -51,7 +51,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   private def failBadRequest(exception: Exception, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
-    complete(statusCode, APIResponse.fail(exception).toJson.prettyPrint)
+    complete((statusCode, APIResponse.fail(exception).toJson.prettyPrint))
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
@@ -155,6 +155,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
                 case JsArray(_) => failBadRequest(new RuntimeException("Nothing was submitted"))
                 case _ => reject
               }
+              ()
         }
       }
     }

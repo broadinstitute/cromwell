@@ -8,7 +8,6 @@ import cromwell.core.PathFactory.EnhancedPath
 
 import scala.sys.process._
 import better.files._
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object SparkCommands {

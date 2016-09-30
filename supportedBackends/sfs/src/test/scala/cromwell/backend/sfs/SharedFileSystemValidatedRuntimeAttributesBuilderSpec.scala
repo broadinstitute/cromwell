@@ -1,6 +1,5 @@
 package cromwell.backend.sfs
 
-import cromwell.backend.BackendSpec._
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation._
@@ -14,11 +13,11 @@ import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Matchers with Mockito {
 
   val HelloWorld =
-    """
+    s"""
       |task hello {
       |  String addressee = "you"
       |  command {
-      |    echo "Hello ${addressee}!"
+      |    echo "Hello $${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -33,7 +32,7 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
     """.stripMargin
 
 
-  val defaultRuntimeAttributes = Map(
+  val defaultRuntimeAttributes: Map[String, Any] = Map(
     DockerKey -> None,
     FailOnStderrKey -> false,
     ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(0)))
@@ -170,6 +169,7 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
     failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
     continueOnReturnCode should be(
       expectedRuntimeAttributes(ContinueOnReturnCodeKey).asInstanceOf[ContinueOnReturnCode])
+    ()
   }
 
   private def assertRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String,
@@ -188,5 +188,6 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       builder.build(addDefaultsToAttributes(runtimeAttributes), logger)
     }
     thrown.getMessage should include(exMsg)
+    ()
   }
 }

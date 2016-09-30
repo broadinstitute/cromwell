@@ -302,7 +302,7 @@ object JobExecutionTokenDispenserActorSpec {
 
   implicit class intWithTimes(n: Int) {
     def times(f: => Unit) = 1 to n foreach { _ => f }
-    def indexedTimes(f: Int => Unit) = 0 until n foreach { i => f(i) }
+    def indexedTimes(f: Int => Any) = 0 until n foreach { i => f(i) }
   }
 
   val TestInfiniteTokenType = JobExecutionTokenType("infinite", maxPoolSize = None)

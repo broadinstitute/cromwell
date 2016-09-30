@@ -12,7 +12,6 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import better.files._
 import com.typesafe.scalalogging.Logger
 import org.slf4j.LoggerFactory
-import spray.httpx.unmarshalling._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -119,7 +118,9 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
 
   override def completeMonitoringProcess(rcPath: Path, status: String, promise: Promise[Unit]) = {
     File(rcPath) write status
-    promise success Unit
+    val unitValue = ()
+    promise success unitValue
+    ()
   }
 
   def pollForJobStatus(subId: String): Future[SparkDriverStateQueryResponse] = {

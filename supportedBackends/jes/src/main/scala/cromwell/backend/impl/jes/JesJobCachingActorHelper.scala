@@ -71,7 +71,7 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
       fileMetadata += JesMetadataKeys.MonitoringLog -> monitoringOutput.get.gcs
     }
 
-    val otherMetadata = Map(
+    val otherMetadata: Map[String, Any] = Map(
       JesMetadataKeys.GoogleProject -> jesAttributes.project,
       JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
       JesMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,

@@ -12,7 +12,7 @@ trait SummaryStatusSlickDatabase {
   private[slick] def getSummaryStatusEntryMaximumId(summaryTableName: String, summarizedTableName: String)
                                                    (implicit ec: ExecutionContext): DBIO[Option[Long]] = {
     dataAccess.
-      maximumIdForSummaryTableNameSummarizedTableName(summaryTableName, summarizedTableName).
+      maximumIdForSummaryTableNameSummarizedTableName((summaryTableName, summarizedTableName)).
       result.headOption
   }
 
@@ -28,7 +28,7 @@ trait SummaryStatusSlickDatabase {
     } else {
       for {
         updateCount <- dataAccess.
-          maximumIdForSummaryTableNameSummarizedTableName(summaryTableName, summarizedTableName).
+          maximumIdForSummaryTableNameSummarizedTableName((summaryTableName, summarizedTableName)).
           update(maximumId)
         _ <- updateCount match {
           case 0 =>

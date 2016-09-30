@@ -7,7 +7,6 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenPool.TokenPoolPop
 
 import scala.collection.immutable.Queue
-import scala.language.postfixOps
 
 class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
 
@@ -61,7 +60,7 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
     actor ! JobExecutionTokenDispensed(token)
   }
 
-  private def unassign(actor: ActorRef, token: JobExecutionToken) = {
+  private def unassign(actor: ActorRef, token: JobExecutionToken): Unit = {
     if (tokenAssignments.contains(actor) && tokenAssignments(actor) == token) {
       tokenAssignments -= actor
 
@@ -76,12 +75,13 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
 
       tokenPools += token.jobExecutionTokenType -> pool
       context.unwatch(actor)
+      ()
     } else {
       log.error("Job execution token returned from incorrect actor: {}", token)
     }
   }
 
-  private def onTerminate(terminee: ActorRef) = {
+  private def onTerminate(terminee: ActorRef): Unit = {
     tokenAssignments.get(terminee) match {
       case Some(token) =>
         log.error("Actor {} stopped without returning its Job Execution Token. Reclaiming it!", terminee)
@@ -94,6 +94,7 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
         }
     }
     context.unwatch(terminee)
+    ()
   }
 }
 

@@ -17,7 +17,6 @@ import org.scalatest.BeforeAndAfter
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
-import scala.language.postfixOps
 
 object SimpleWorkflowActorSpec {
 

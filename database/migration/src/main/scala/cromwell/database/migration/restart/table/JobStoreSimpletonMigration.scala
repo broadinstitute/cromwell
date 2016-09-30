@@ -5,8 +5,6 @@ import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
 import wdl4s.types.WdlType
 
-import scala.language.postfixOps
-
 
 class JobStoreSimpletonMigration extends AbstractRestartMigration {
   override val description = "WORKFLOW_EXECUTION + EXECUTION + SYMBOL + JOB_STORE -> JOB_STORE_RESULT_SIMPLETON"

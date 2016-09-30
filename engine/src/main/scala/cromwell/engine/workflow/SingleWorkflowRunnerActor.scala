@@ -6,6 +6,8 @@ import java.util.UUID
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import better.files._
+import cats.instances.try_._
+import cats.syntax.functor._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{ExecutionStore => _, _}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
@@ -80,7 +82,9 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
   }
 
   private def schedulePollRequest(): Unit = {
+    // -Ywarn-value-discard should stash Cancellable to cancel
     context.system.scheduler.scheduleOnce(backoff.backoffMillis.millis, self, IssuePollRequest)
+    ()
   }
 
   private def requestStatus(): Unit = {
@@ -148,7 +152,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
       data.terminalState foreach { state => log.info(s"$Tag workflow finished with status '$state'.") }
       data.failures foreach { e => log.error(e, e.getMessage) }
 
-      val message = data.terminalState collect { case WorkflowSucceeded => () } getOrElse Status.Failure(data.failures.head)
+      val message: Any = data.terminalState collect { case WorkflowSucceeded => () } getOrElse Status.Failure(data.failures.head)
       data.replyTo foreach  { _ ! message }
       stay()
   }
@@ -192,6 +196,6 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
         log.info(s"$Tag writing metadata to $path")
         path.createIfNotExists(asDirectory = false, createParents = true).write(metadata.prettyPrint)
       }
-    }
+    } void
   }
 }

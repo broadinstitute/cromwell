@@ -15,10 +15,10 @@ import scala.concurrent.ExecutionContext
   */
 class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
 
-  implicit val ec: ExecutionContext = context.dispatcher
+  private implicit val ec: ExecutionContext = context.dispatcher
 
-  var requestQueue: List[RequestTuple] = List.empty
-  var currentRequester: Option[ActorRef] = None
+  private var requestQueue: List[RequestTuple] = List.empty
+  private var currentRequester: Option[ActorRef] = None
 
   override def receive: Receive = {
     case CacheLookupRequest(callCacheHashes) =>
@@ -30,7 +30,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
       log.error("Unexpected message type to CallCacheReadActor: " + other.getClass.getSimpleName)
   }
 
-  private def runRequest(callCacheHashes: CallCacheHashes) = {
+  private def runRequest(callCacheHashes: CallCacheHashes): Unit = {
     val response = cache.fetchMetaInfoIdsMatchingHashes(callCacheHashes) map {
       CacheResultMatchesForHashes(callCacheHashes.hashes, _)
     } recover {
@@ -38,6 +38,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
     }
 
     response.pipeTo(self)
+    ()
   }
 
   private def cycleRequestQueue() = requestQueue match {
@@ -49,7 +50,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
       currentRequester = None
   }
 
-  private def receiveNewRequest(callCacheHashes: CallCacheHashes) = currentRequester match {
+  private def receiveNewRequest(callCacheHashes: CallCacheHashes): Unit = currentRequester match {
     case Some(x) => requestQueue :+= RequestTuple(sender, callCacheHashes)
     case None =>
       currentRequester = Option(sender)

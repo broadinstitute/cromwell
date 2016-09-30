@@ -24,5 +24,6 @@ object PathCopier {
   def copy(sourceFilePath: Path, destinationFilePath: Path): Unit = {
     Option(File(destinationFilePath).parent).foreach(_.createDirectories())
     File(sourceFilePath).copyTo(destinationFilePath, overwrite = true)
+    ()
   }
 }

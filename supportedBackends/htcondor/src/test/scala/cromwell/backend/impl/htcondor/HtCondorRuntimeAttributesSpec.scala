@@ -17,11 +17,11 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
   import BackendSpec._
 
   val HelloWorld =
-    """
+    s"""
       |task hello {
       |  String addressee = "you"
       |  command {
-      |    echo "Hello ${addressee}!"
+      |    echo "Hello $${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -61,7 +61,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "return an instance of itself when tries to validate a valid Docker entry based on input" in {
       val expectedRuntimeAttributes = staticDefaults.copy(dockerImage = Option("you"))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "\${addressee}" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, s"""runtime { docker: "\\$${addressee}" }""").head
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
     }
 
@@ -84,7 +84,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "return an instance of itself when tries to validate a valid docker working directory entry based on input" in {
       val expectedRuntimeAttributes = staticDefaults.copy(dockerWorkingDir = Option("you"))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerWorkingDir: "\${addressee}" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, s"""runtime { dockerWorkingDir: "\\$${addressee}" }""").head
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
     }
 
@@ -107,7 +107,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "return an instance of itself when tries to validate a valid docker output directory entry based on input" in {
       val expectedRuntimeAttributes = staticDefaults.copy(dockerOutputDir = Option("you"))
-      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { dockerOutputDir: "\${addressee}" }""").head
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, s"""runtime { dockerOutputDir: "\\$${addressee}" }""").head
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
     }
 
@@ -245,6 +245,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
+    ()
   }
 
   private def assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
@@ -254,6 +255,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
     }
+    ()
   }
 
   private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String): Seq[Map[String, WdlValue]] = {

@@ -29,6 +29,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   override def beforeAll() = {
     file.write(steak)
+    ()
   }
 
   private def randomName(): String = UUID.randomUUID().toString
@@ -140,5 +141,6 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   override def afterAll() = {
     file.delete(true)
     md5File.delete(true)
+    ()
   }
 }

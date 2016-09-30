@@ -17,7 +17,7 @@ class ProcessRunner(val argv: Seq[Any], val stdoutPath: Path, val stderrPath: Pa
     processBuilder.command(argv.map(_.toString): _*)
     processBuilder.redirectOutput(stdoutPath.toFile)
     processBuilder.redirectError(stderrPath.toFile)
-    val proccess = processBuilder.start()
-    proccess.waitFor()
+    val process = processBuilder.start()
+    process.waitFor()
   }
 }

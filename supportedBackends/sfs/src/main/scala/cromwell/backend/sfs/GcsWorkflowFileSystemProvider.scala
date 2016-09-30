@@ -1,5 +1,6 @@
 package cromwell.backend.sfs
 
+import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.wfs.{WorkflowFileSystemProvider, WorkflowFileSystemProviderParams}
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleConfiguration}
@@ -20,8 +21,8 @@ object GcsWorkflowFileSystemProvider extends WorkflowFileSystemProvider {
     val googleAuthModeValidation = googleConfig.auth(gcsAuthName)
 
     val gcsAuthMode = googleAuthModeValidation match {
-      case scalaz.Success(googleAuthMode) => googleAuthMode
-      case scalaz.Failure(errors) =>
+      case Valid(googleAuthMode) => googleAuthMode
+      case Invalid(errors) =>
         throw new ValidationException("Could not create gcs filesystem from configuration", errors)
     }
 

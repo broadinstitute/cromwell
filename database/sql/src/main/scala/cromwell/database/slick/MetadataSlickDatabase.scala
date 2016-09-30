@@ -2,11 +2,11 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cats.data.NonEmptyList
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz._
 
 trait MetadataSlickDatabase extends MetadataSqlDatabase {
   this: SlickDatabase with SummaryStatusSlickDatabase =>

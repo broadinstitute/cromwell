@@ -1,16 +1,19 @@
 package cromwell.filesystems.gcs
 
+import cats.data.Validated._
+import cats.instances.list._
+import cats.syntax.cartesian._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.Config
 import lenthall.config.ConfigValidationException
 import lenthall.config.ValidatedConfig._
+import cromwell.core.ErrorOr._
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scalaz.Scalaz._
-import scalaz.Validation.FlatMap._
-import scalaz._
 
 
 final case class GoogleConfiguration private (applicationName: String, authsByName: Map[String, GoogleAuthMode]) {
@@ -19,8 +22,8 @@ final case class GoogleConfiguration private (applicationName: String, authsByNa
     authsByName.get(name) match {
       case None =>
         val knownAuthNames = authsByName.keys.mkString(", ")
-        s"`google` configuration stanza does not contain an auth named '$name'.  Known auth names: $knownAuthNames".failureNel
-      case Some(a) => a.successNel
+        s"`google` configuration stanza does not contain an auth named '$name'.  Known auth names: $knownAuthNames".invalidNel
+      case Some(a) => a.validNel
     }
   }
 }
@@ -56,7 +59,7 @@ object GoogleConfiguration {
         cfg => RefreshTokenMode(name, cfg.getString("client-id"), cfg.getString("client-secret"))
       }
 
-      def applicationDefaultAuth(name: String) = ApplicationDefaultMode(name, GoogleScopes).successNel[String]
+      def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name, GoogleScopes).validNel
 
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")
@@ -65,7 +68,7 @@ object GoogleConfiguration {
         case "user_account" => userAccountAuth(authConfig, name)
         case "refresh_token" => refreshTokenAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
-        case wut => s"Unsupported authentication scheme: $wut".failureNel
+        case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }
     }
 
@@ -75,20 +78,20 @@ object GoogleConfiguration {
     def uniqueAuthNames(list: List[GoogleAuthMode]): ErrorOr[Unit] = {
       val duplicateAuthNames = list.groupBy(_.name) collect { case (n, as) if as.size > 1 => n }
       if (duplicateAuthNames.nonEmpty) {
-        ("Duplicate auth names: " + duplicateAuthNames.mkString(", ")).failureNel
+        ("Duplicate auth names: " + duplicateAuthNames.mkString(", ")).invalidNel
       } else {
-        ().successNel
+        ().validNel
       }
     }
 
-    (appName |@| errorOrAuthList) { (_, _) } flatMap { case (name, list) =>
+    (appName |@| errorOrAuthList) map { (_, _) } flatMap { case (name, list) =>
       uniqueAuthNames(list) map { _ =>
         GoogleConfiguration(name, list map { a => a.name -> a } toMap)
       }
     } match {
-      case Success(r) => r
-      case Failure(f) =>
-        val errorMessages = f.list.toList.mkString(", ")
+      case Valid(r) => r
+      case Invalid(f) =>
+        val errorMessages = f.toList.mkString(", ")
         log.error(errorMessages)
         throw new ConfigValidationException("Google", errorMessages)
     }

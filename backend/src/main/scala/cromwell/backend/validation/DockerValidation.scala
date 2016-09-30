@@ -1,9 +1,8 @@
 package cromwell.backend.validation
 
+import cats.syntax.validated._
 import wdl4s.types.WdlStringType
 import wdl4s.values.WdlString
-
-import scalaz.Scalaz._
 
 /**
   * Validates the "docker" runtime attribute as a String, returning it as `String`.
@@ -32,7 +31,7 @@ class DockerValidation extends RuntimeAttributesValidation[String] {
   override def coercion = Seq(WdlStringType)
 
   override protected def validateValue = {
-    case WdlString(value) => value.successNel
+    case WdlString(value) => value.validNel
   }
 
   override protected def failureMessage = missingMessage

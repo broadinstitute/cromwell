@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.SucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.WorkflowId
@@ -12,8 +13,6 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scalaz.Scalaz._
-import scalaz._
 
 final case class MetaInfoId(id: Int)
 
@@ -64,7 +63,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   def fetchMetaInfoIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
-    metaInfoIdsMatchingHashes(callCacheHashes.hashes.toList.toNel.get)
+    metaInfoIdsMatchingHashes(NonEmptyList.fromListUnsafe(callCacheHashes.hashes.toList))
   }
 
   private def metaInfoIdsMatchingHashes(hashKeyValuePairs: NonEmptyList[HashResult])

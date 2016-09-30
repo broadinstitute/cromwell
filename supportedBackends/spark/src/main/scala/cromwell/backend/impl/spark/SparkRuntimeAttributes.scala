@@ -1,16 +1,18 @@
 package cromwell.backend.impl.spark
 
+import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.cartesian._
+import cats.syntax.validated._
 import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
+import cromwell.core.ErrorOr._
 import lenthall.exception.MessageAggregation
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
 import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
-import scalaz.Scalaz._
-import scalaz._
 
 object SparkRuntimeAttributes {
   private val FailOnStderrDefaultValue = false
@@ -46,33 +48,33 @@ object SparkRuntimeAttributes {
 
     val executorCores = validateCpu(withDefaultValues.get(ExecutorCoresKey), noValueFoundFor(ExecutorCoresKey))
     val executorMemory = validateMemory(withDefaultValues.get(ExecutorMemoryKey), noValueFoundFor(ExecutorMemoryKey))
-    val numberOfExecutors = validateNumberOfExecutors(withDefaultValues.get(NumberOfExecutorsKey), None.successNel)
+    val numberOfExecutors = validateNumberOfExecutors(withDefaultValues.get(NumberOfExecutorsKey), None.validNel)
     val appMainCLass = validateAppEntryPoint(withDefaultValues(AppMainClassKey))
 
-    (executorCores |@| executorMemory |@| numberOfExecutors |@| appMainCLass |@| failOnStderr) {
+    (executorCores |@| executorMemory |@| numberOfExecutors |@| appMainCLass |@| failOnStderr) map {
       new SparkRuntimeAttributes(_, _, _, _, _)
     } match {
-      case Success(x) => x
-      case Failure(nel) => throw new RuntimeException with MessageAggregation {
+      case Valid(x) => x
+      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
 
-        override def errorMessages: Traversable[String] = nel.list.toList
+        override def errorMessages: Traversable[String] = nel.toList
       }
     }
   }
 
   private def validateNumberOfExecutors(numOfExecutors: Option[WdlValue], onMissingKey: => ErrorOr[Option[Int]]): ErrorOr[Option[Int]] = {
     numOfExecutors match {
-      case Some(i: WdlInteger) => Option(i.value.intValue()).successNel
+      case Some(i: WdlInteger) => Option(i.value.intValue()).validNel
       case None => onMissingKey
-      case _ => s"Expecting $NumberOfExecutorsKey runtime attribute to be an Integer".failureNel
+      case _ => s"Expecting $NumberOfExecutorsKey runtime attribute to be an Integer".invalidNel
     }
   }
 
   private def validateAppEntryPoint(mainClass: WdlValue): ErrorOr[String] = {
     WdlStringType.coerceRawValue(mainClass) match {
-      case scala.util.Success(WdlString(s)) => s.successNel
-      case _ => s"Could not coerce $AppMainClassKey into a String".failureNel
+      case scala.util.Success(WdlString(s)) => s.validNel
+      case _ => s"Could not coerce $AppMainClassKey into a String".invalidNel
     }
   }
 }

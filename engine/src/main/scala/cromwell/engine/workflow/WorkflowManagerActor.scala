@@ -1,10 +1,10 @@
 package cromwell.engine.workflow
 
-import java.util.UUID
 
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
+import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{WorkflowAborted, WorkflowId}
@@ -19,7 +19,6 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 import scala.language.postfixOps
-import scalaz.NonEmptyList
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -66,7 +65,7 @@ object WorkflowManagerActor {
 
     def withAddition(entries: NonEmptyList[WorkflowIdToActorRef]): WorkflowManagerData = {
       val entryTuples = entries map { e => e.workflowId -> e.workflowActor }
-      this.copy(workflows = workflows ++ entryTuples.list.toList)
+      this.copy(workflows = workflows ++ entryTuples.toList)
     }
 
     def without(id: WorkflowId): WorkflowManagerData = this.copy(workflows = workflows - id)
@@ -144,7 +143,7 @@ class WorkflowManagerActor(config: Config,
       stay()
     case Event(WorkflowStoreActor.NewWorkflowsToStart(newWorkflows), stateData) =>
       val newSubmissions = newWorkflows map submitWorkflow
-      log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.size)
+      log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.toList.size)
       scheduleNextNewWorkflowPoll()
       stay() using stateData.withAddition(newSubmissions)
     case Event(SubscribeToWorkflowCommand(id), data) =>

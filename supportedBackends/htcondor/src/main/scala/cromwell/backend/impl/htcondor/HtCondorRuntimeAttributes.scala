@@ -1,17 +1,20 @@
 package cromwell.backend.impl.htcondor
 
+
+import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.cartesian._
+import cats.syntax.validated._
 import cromwell.backend.MemorySize
 import cromwell.backend.validation.ContinueOnReturnCode
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
+import cromwell.core.ErrorOr._
 import lenthall.exception.MessageAggregation
 import wdl4s.types.{WdlIntegerType, WdlStringType, WdlBooleanType, WdlType}
 import wdl4s.values.{WdlString, WdlBoolean, WdlInteger, WdlValue}
 
-import scalaz.Scalaz._
-import scalaz._
 
 object HtCondorRuntimeAttributes {
   private val FailOnStderrDefaultValue = false
@@ -48,39 +51,39 @@ object HtCondorRuntimeAttributes {
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
 
-    val docker = validateDocker(withDefaultValues.get(DockerKey), None.successNel)
-    val dockerWorkingDir = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.successNel)
-    val dockerOutputDir = validateDockerOutputDir(withDefaultValues.get(DockerOutputDirKey), None.successNel)
+    val docker = validateDocker(withDefaultValues.get(DockerKey), None.validNel)
+    val dockerWorkingDir = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.validNel)
+    val dockerOutputDir = validateDockerOutputDir(withDefaultValues.get(DockerOutputDirKey), None.validNel)
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
     val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
     val cpu = validateCpu(withDefaultValues.get(CpuKey), noValueFoundFor(CpuKey))
     val memory = validateMemory(withDefaultValues.get(MemoryKey), noValueFoundFor(MemoryKey))
     val disk = validateDisk(withDefaultValues.get(DiskKey), noValueFoundFor(DiskKey))
 
-    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| dockerOutputDir |@| failOnStderr |@| cpu |@| memory |@| disk) {
+    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| dockerOutputDir |@| failOnStderr |@| cpu |@| memory |@| disk) map {
       new HtCondorRuntimeAttributes(_, _, _, _, _, _, _, _)
     } match {
-      case Success(x) => x
-      case Failure(nel) => throw new RuntimeException with MessageAggregation {
+      case Valid(x) => x
+      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
-        override def errorMessages: Traversable[String] = nel.list.toList
+        override def errorMessages: Traversable[String] = nel.toList
       }
     }
   }
 
   private def validateDockerWorkingDir(dockerWorkingDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     dockerWorkingDir match {
-      case Some(WdlString(s)) => Some(s).successNel
+      case Some(WdlString(s)) => Some(s).validNel
       case None => onMissingKey
-      case _ => s"Expecting $DockerWorkingDirKey runtime attribute to be a String".failureNel
+      case _ => s"Expecting $DockerWorkingDirKey runtime attribute to be a String".invalidNel
     }
   }
 
   private def validateDockerOutputDir(dockerOutputDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     dockerOutputDir match {
-      case Some(WdlString(s)) => Some(s).successNel
+      case Some(WdlString(s)) => Some(s).validNel
       case None => onMissingKey
-      case _ => s"Expecting $DockerOutputDirKey runtime attribute to be a String".failureNel
+      case _ => s"Expecting $DockerOutputDirKey runtime attribute to be a String".invalidNel
     }
   }
 
@@ -90,7 +93,7 @@ object HtCondorRuntimeAttributes {
     value match {
       case Some(i: WdlInteger) => parseMemoryInteger(i)
       case Some(s: WdlString) => parseMemoryString(s)
-      case Some(_) => String.format(diskWrongFormatMsg, "Not supported WDL type value").failureNel
+      case Some(_) => String.format(diskWrongFormatMsg, "Not supported WDL type value").invalidNel
       case None => onMissingKey
     }
   }

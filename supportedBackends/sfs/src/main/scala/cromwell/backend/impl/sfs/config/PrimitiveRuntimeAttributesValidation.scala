@@ -1,10 +1,9 @@
 package cromwell.backend.impl.sfs.config
 
+import cats.syntax.validated._
 import cromwell.backend.validation.RuntimeAttributesValidation
 import wdl4s.types._
 import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlString}
-
-import scalaz.Scalaz._
 
 /**
   * Validates one of the wdl primitive types: Boolean, Float, Integer, or String. WdlFile is not supported.
@@ -23,7 +22,7 @@ class BooleanRuntimeAttributesValidation(override val key: String) extends
   override val wdlType = WdlBooleanType
 
   override protected def validateValue = {
-    case WdlBoolean(value) => value.successNel
+    case WdlBoolean(value) => value.validNel
   }
 }
 
@@ -31,7 +30,7 @@ class FloatRuntimeAttributesValidation(override val key: String) extends Primiti
   override val wdlType = WdlFloatType
 
   override protected def validateValue = {
-    case WdlFloat(value) => value.successNel
+    case WdlFloat(value) => value.validNel
   }
 }
 
@@ -39,7 +38,7 @@ class IntRuntimeAttributesValidation(override val key: String) extends Primitive
   override val wdlType = WdlIntegerType
 
   override protected def validateValue = {
-    case WdlInteger(value) => value.toInt.successNel
+    case WdlInteger(value) => value.toInt.validNel
   }
 }
 
@@ -47,6 +46,6 @@ class StringRuntimeAttributesValidation(override val key: String) extends Primit
   override val wdlType = WdlStringType
 
   override protected def validateValue = {
-    case WdlString(value) => value.successNel
+    case WdlString(value) => value.validNel
   }
 }

@@ -2,14 +2,17 @@ package cromwell.backend.impl.jes.io
 
 import java.nio.file.{Path, Paths}
 
+import cats.data.Validated._
+import cats.syntax.cartesian._
+import cats.syntax.validated._
 import com.google.api.services.genomics.model.Disk
-import cromwell.core.ErrorOr
+import cromwell.core.ErrorOr._
+import mouse.string._
 import wdl4s.ExceptionWithErrors
 import wdl4s.values._
 
 import scala.util.Try
-import scalaz.Scalaz._
-import scalaz._
+
 
 object JesAttachedDisk {
   val Identifier = "[a-zA-Z0-9-_]+"
@@ -19,21 +22,21 @@ object JesAttachedDisk {
   val MountedDiskPattern = s"""($Directory)\\s+($Integer)\\s+($Identifier)""".r
 
   def parse(s: String): Try[JesAttachedDisk] = {
-    val validation = s match {
+    val validation: ErrorOr[JesAttachedDisk] = s match {
       case WorkingDiskPattern(sizeGb, diskType) =>
-        (validateLong(sizeGb) |@| validateDiskType(diskType)) { (s, dt) =>
+        (validateLong(sizeGb) |@| validateDiskType(diskType)) map { (s, dt) =>
           JesWorkingDisk(dt, s.toInt)
         }
       case MountedDiskPattern(mountPoint, sizeGb, diskType) =>
-        (validateLong(sizeGb) |@| validateDiskType(diskType)) { (s, dt) =>
+        (validateLong(sizeGb) |@| validateDiskType(diskType)) map { (s, dt) =>
           JesEmptyMountedDisk(dt, s.toInt, Paths.get(mountPoint))
         }
-      case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'".failureNel
+      case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'".invalidNel
     }
 
     Try(validation match {
-      case Success(localDisk) => localDisk
-      case Failure(nels) =>
+      case Valid(localDisk) => localDisk
+      case Invalid(nels) =>
         throw new UnsupportedOperationException with ExceptionWithErrors {
           val message = ""
           val errors = nels
@@ -43,18 +46,18 @@ object JesAttachedDisk {
 
   private def validateDiskType(diskTypeName: String): ErrorOr[DiskType] = {
     DiskType.values().find(_.diskTypeName == diskTypeName) match {
-      case Some(diskType) => diskType.successNel[String]
+      case Some(diskType) => diskType.validNel
       case None =>
         val diskTypeNames = DiskType.values.map(_.diskTypeName).mkString(", ")
-        s"Disk TYPE $diskTypeName should be one of $diskTypeNames".failureNel
+        s"Disk TYPE $diskTypeName should be one of $diskTypeNames".invalidNel
     }
   }
 
   private def validateLong(value: String): ErrorOr[Long] = {
     try {
-      value.toLong.successNel
+      value.toLong.validNel
     } catch {
-      case _: IllegalArgumentException => s"$value not convertible to a Long".failureNel[Long]
+      case _: IllegalArgumentException => s"$value not convertible to a Long".invalidNel
     }
   }
 }

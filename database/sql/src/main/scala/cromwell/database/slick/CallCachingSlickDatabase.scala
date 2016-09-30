@@ -1,10 +1,10 @@
 package cromwell.database.slick
 
+import cats.data.NonEmptyList
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz.NonEmptyList
 
 trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: SlickDatabase =>

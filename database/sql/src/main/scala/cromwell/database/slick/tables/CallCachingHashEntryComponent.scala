@@ -1,7 +1,7 @@
 package cromwell.database.slick.tables
 
+import cats.data.NonEmptyList
 import cromwell.database.sql.tables.CallCachingHashEntry
-import scalaz._
 
 trait CallCachingHashEntryComponent {
 
@@ -61,7 +61,7 @@ trait CallCachingHashEntryComponent {
   Rep[Boolean] = {
     hashKeyHashValues.
       map(existsCallCachingEntryIdHashKeyHashValue(callCachingEntryId)).
-      list.toList.reduce(_ && _)
+      toList.reduce(_ && _)
   }
 
   /**

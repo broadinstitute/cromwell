@@ -39,7 +39,7 @@ class ConfigBackendLifecycleActorFactory(val configurationDescriptor: BackendCon
   }
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = {
-    logger.info(hashingStrategy.toString)
+    logger.debug(hashingStrategy.toString)
     Option(FileHashingFunction(hashingStrategy.getHash))
   }
 

@@ -57,14 +57,15 @@ abstract class ConfigHashingStrategy {
   }
 }
 
-case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+final case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override def hash(file: File): Try[String] = {
     Try(DigestUtils.md5Hex(file.path.toAbsolutePath.toString))
   }
 
   override val description = "hash file path"
 }
-case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+
+final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: File): Try[String] = {
     tryWithResource(() => file.newInputStream) { DigestUtils.md5Hex }
   }

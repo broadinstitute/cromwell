@@ -33,7 +33,7 @@ object FileUtil {
     }
   }
 
-  implicit class EnhancedBetterFile(val file: better.files.File) extends AnyVal {
+  implicit class EnvenBetterFile(val file: better.files.File) extends AnyVal {
     def followSymlinks = FileUtil.followSymlinks(file)
   }
 }

@@ -3,19 +3,20 @@ package cromwell.filesystems.gcs
 import java.net.URI
 import java.nio.file.Path
 
+import akka.actor.ActorSystem
 import com.google.cloud.RetryParams
 import com.google.cloud.storage.StorageOptions
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.common.base.Preconditions._
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.{PathBuilder, RetryableFileSystemProviderProxy}
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
 import scala.util.Try
 
 object GcsPathBuilder {
 
-  private def checkValid(uri: URI) = {
+  def checkValid(uri: URI) = {
     checkNotNull(uri.getScheme, s"%s does not have a gcs scheme", uri)
     checkArgument(
       uri.getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME),
@@ -31,14 +32,14 @@ object GcsPathBuilder {
   }
 }
 
-case class GcsPathBuilder(authMode: GoogleAuthMode,
+class GcsPathBuilder(authMode: GoogleAuthMode,
                      retryParams: RetryParams,
                      cloudStorageConfiguration: CloudStorageConfiguration,
-                     options: WorkflowOptions) extends PathBuilder {
+                     options: WorkflowOptions)(implicit actorSystem: ActorSystem) extends PathBuilder {
 
   authMode.validate(options)
 
-  private val storageOptions = StorageOptions.builder()
+  protected val storageOptions = StorageOptions.builder()
     .authCredentials(authMode.authCredentials(options))
     .retryParams(retryParams)
     .build()
@@ -47,7 +48,7 @@ case class GcsPathBuilder(authMode: GoogleAuthMode,
     storageOptions.service().get(path.bucket(), path.toRealPath().toString).crc32c()
   }
 
-  def build(string: String): Try[CloudStoragePath] = {
+  def build(string: String): Try[Path] = {
     Try {
       val uri = URI.create(string)
       GcsPathBuilder.checkValid(uri)
@@ -58,3 +59,17 @@ case class GcsPathBuilder(authMode: GoogleAuthMode,
 
   override def name: String = "Gcs"
 }
+
+class RetryableGcsPathBuilder(authMode: GoogleAuthMode,
+                              retryParams: RetryParams,
+                              cloudStorageConfiguration: CloudStorageConfiguration,
+                              options: WorkflowOptions)(implicit actorSystem: ActorSystem)
+  extends GcsPathBuilder(authMode, retryParams, cloudStorageConfiguration, options) {
+
+  override def build(string: String): Try[Path] = Try {
+    val uri = URI.create(string)
+    GcsPathBuilder.checkValid(uri)
+    val gcsFileSystem = CloudStorageFileSystem.forBucket(uri.getHost, cloudStorageConfiguration, storageOptions)
+    new RetryableFileSystemProviderProxy(gcsFileSystem.provider()).getPath(uri)
+  }
+                     }

@@ -167,7 +167,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)
+      val pathBuilders = EngineFilesystems(context.system).pathBuildersForWorkflow(workflowOptions)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, pathBuilders)
     }
   }

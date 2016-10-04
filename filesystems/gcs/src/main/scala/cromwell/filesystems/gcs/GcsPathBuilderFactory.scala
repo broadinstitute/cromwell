@@ -1,5 +1,6 @@
 package cromwell.filesystems.gcs
 
+import akka.actor.ActorSystem
 import com.google.api.client.googleapis.media.MediaHttpUploader
 import com.google.cloud.RetryParams
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
@@ -29,7 +30,18 @@ object GcsPathBuilderFactory {
 case class GcsPathBuilderFactory(authMode: GoogleAuthMode,
                                  retryParams: RetryParams = GcsPathBuilderFactory.DefaultRetryParams,
                                  cloudStorageConfiguration: CloudStorageConfiguration = GcsPathBuilderFactory.DefaultCloudStorageConfiguration)
+
   extends PathBuilderFactory {
 
-  def withOptions(options: WorkflowOptions) = GcsPathBuilder(authMode, retryParams, cloudStorageConfiguration, options)
+  def withOptions(options: WorkflowOptions) = new GcsPathBuilder(authMode, retryParams, cloudStorageConfiguration, options)
+}
+
+case class RetryableGcsPathBuilderFactory(authMode: GoogleAuthMode,
+                                 retryParams: RetryParams = GcsPathBuilderFactory.DefaultRetryParams,
+                                 cloudStorageConfiguration: CloudStorageConfiguration = GcsPathBuilderFactory.DefaultCloudStorageConfiguration)
+                                         (implicit actorSystem: ActorSystem)
+
+  extends PathBuilderFactory {
+
+  def withOptions(options: WorkflowOptions) = new RetryableGcsPathBuilder(authMode, retryParams, cloudStorageConfiguration, options)
 }

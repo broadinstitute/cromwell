@@ -1,14 +1,15 @@
 package cromwell.engine
 
+import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
+import cromwell.filesystems.gcs.{GoogleConfiguration, RetryableGcsPathBuilderFactory}
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
 
-object EngineFilesystems {
+case class EngineFilesystems(actorSystem: ActorSystem) {
 
   private val config = ConfigFactory.load
   private val googleConf: GoogleConfiguration = GoogleConfiguration(config)
@@ -21,7 +22,8 @@ object EngineFilesystems {
       }
     }
   }
-  private val gcsPathBuilderFactory = googleAuthMode map { GcsPathBuilderFactory(_) }
+
+  private val gcsPathBuilderFactory = googleAuthMode map { RetryableGcsPathBuilderFactory(_) }
 
   def pathBuildersForWorkflow(workflowOptions: WorkflowOptions): List[PathBuilder] = {
     List(gcsPathBuilderFactory map { _.withOptions(workflowOptions) }, Option(DefaultPathBuilder)).flatten

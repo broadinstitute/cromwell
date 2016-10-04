@@ -29,7 +29,7 @@ class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
 
   val gcsPathBuilder: GcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
 
-  def getPath(gcsUrl: String): Try[CloudStoragePath] = gcsPathBuilder.build(gcsUrl)
+  def getPath(gcsUrl: String): Try[Path] = gcsPathBuilder.build(gcsUrl)
   def getHash(gcsUrl: CloudStoragePath) = gcsPathBuilder.getHash(gcsUrl)
 
   val rootPath: Path = getPath(rootString) recover {

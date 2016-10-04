@@ -16,7 +16,8 @@ import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException, RuntimeAttributeDefinition}
 import cromwell.core.logging.LoggerWrapper
 import cromwell.core.{WorkflowId, WorkflowOptions, _}
-import cromwell.filesystems.gcs.MockGcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
@@ -34,6 +35,8 @@ import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito {
+
+  val mockPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
 
   import JesTestConfig._
 
@@ -64,14 +67,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val TestableCallContext = CallContext(MockGcsPathBuilder.mockPathBuilder.build("gs://root").get, "out", "err")
+  val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
 
   val TestableJesExpressionFunctions = {
-    new JesExpressionFunctions(List(MockGcsPathBuilder.mockPathBuilder), TestableCallContext)
+    new JesExpressionFunctions(List(mockPathBuilder), TestableCallContext)
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
-    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
     JesBackendInitializationData(workflowPaths, null)
   }
 
@@ -390,14 +393,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   it should "generate correct JesOutputs" in {
     val inputs = Map(
-      "in" -> WdlFile("gs://a/b/c.txt")
+      "in" -> WdlFile("gs://blah/b/c.txt")
     )
     val jesBackend = makeJesActorRef(SampleWdl.FilePassingWorkflow, "a", inputs).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val workflowId = jesBackend.workflowId
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(JesFileInput("in-0", "gs://a/b/c.txt", Paths.get("a/b/c.txt"), workingDisk))
+    jesInputs should contain(JesFileInput("in-0", "gs://blah/b/c.txt", Paths.get("blah/b/c.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(JesFileOutput("out",
@@ -410,7 +413,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     class TestJesExpressionFunctions extends JesExpressionFunctions(
-      List(MockGcsPathBuilder.mockPathBuilder), TestableCallContext) {
+      List(mockPathBuilder), TestableCallContext) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))
       }

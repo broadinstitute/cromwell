@@ -6,7 +6,7 @@ import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher._
-import cromwell.core.path.DefaultPathBuilderFactory
+import cromwell.core.path.{PathBuilderFactory, DefaultPathBuilderFactory}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.config.ScalaConfig._
 import lenthall.exception.MessageAggregation
@@ -37,6 +37,8 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
     }
   }
 
+  lazy val pathBuilderFactories: List[PathBuilderFactory] = List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
+
   /**
     * Config values for the backend, and a pointer to the global config.
     *
@@ -64,7 +66,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call],
                                                 serviceRegistryActor: ActorRef) = {
     val params = SharedFileSystemInitializationActorParams(serviceRegistryActor, workflowDescriptor,
-      configurationDescriptor, calls, List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten)
+      configurationDescriptor, calls, pathBuilderFactories)
     Option(Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher))
   }
 

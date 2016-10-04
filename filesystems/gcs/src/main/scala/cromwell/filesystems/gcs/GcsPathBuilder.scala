@@ -35,7 +35,7 @@ object GcsPathBuilder {
 class GcsPathBuilder(authMode: GoogleAuthMode,
                      retryParams: RetryParams,
                      cloudStorageConfiguration: CloudStorageConfiguration,
-                     options: WorkflowOptions)(implicit actorSystem: ActorSystem) extends PathBuilder {
+                     options: WorkflowOptions) extends PathBuilder {
 
   authMode.validate(options)
 
@@ -66,10 +66,10 @@ class RetryableGcsPathBuilder(authMode: GoogleAuthMode,
                               options: WorkflowOptions)(implicit actorSystem: ActorSystem)
   extends GcsPathBuilder(authMode, retryParams, cloudStorageConfiguration, options) {
 
-  override def build(string: String): Try[Path] = Try {
+  override def build(string: String): Try[CloudStoragePath] = Try {
     val uri = URI.create(string)
     GcsPathBuilder.checkValid(uri)
     val gcsFileSystem = CloudStorageFileSystem.forBucket(uri.getHost, cloudStorageConfiguration, storageOptions)
-    new RetryableFileSystemProviderProxy(gcsFileSystem.provider()).getPath(uri)
+    new RetryableFileSystemProviderProxy(gcsFileSystem.provider()).getPath(uri).asInstanceOf[CloudStoragePath]
   }
-                     }
+}

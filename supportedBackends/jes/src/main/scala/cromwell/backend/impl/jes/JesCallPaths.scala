@@ -2,6 +2,7 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
+import akka.actor.ActorSystem
 import cromwell.backend.io.JobPaths
 import cromwell.backend.io.JobPaths._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
@@ -10,7 +11,7 @@ import cromwell.services.metadata.CallMetadataKeys
 
 object JesCallPaths {
   def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
-            jesConfiguration: JesConfiguration): JesCallPaths = {
+            jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem): JesCallPaths = {
     new JesCallPaths(jobKey, workflowDescriptor, jesConfiguration)
   }
 
@@ -19,8 +20,8 @@ object JesCallPaths {
 }
 
 class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
-                   jesConfiguration: JesConfiguration) extends
-  JesWorkflowPaths(workflowDescriptor, jesConfiguration) {
+                   jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) extends
+  JesWorkflowPaths(workflowDescriptor, jesConfiguration)(actorSystem) {
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")

@@ -8,7 +8,7 @@ import scala.language.postfixOps
 
 object RetryParams {
   val Default = RetryParams(
-    timeout = 1 second,
+    timeout = Duration.Inf,
     maxRetries = Option(3),
     backoff = SimpleExponentialBackoff(1 seconds, 3 seconds, 1.5D),
     isTransient = throwableToFalse,

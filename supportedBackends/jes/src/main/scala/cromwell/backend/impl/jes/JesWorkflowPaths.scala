@@ -2,11 +2,12 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
+import akka.actor.ActorSystem
 import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.WorkflowOptions.FinalCallLogsDir
-import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
+import cromwell.filesystems.gcs.{RetryableGcsPathBuilder, GcsPathBuilder, GcsPathBuilderFactory}
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -16,20 +17,20 @@ object JesWorkflowPaths {
   private val AuthFilePathOptionKey = "auth_bucket"
 
   def apply(workflowDescriptor: BackendWorkflowDescriptor,
-            jesConfiguration: JesConfiguration) = {
+            jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) = {
     new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
   }
 }
 
 class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
-                       jesConfiguration: JesConfiguration) {
+                       jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) {
 
   private val rootString = workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root)
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
-  val gcsPathBuilder: GcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
+  val gcsPathBuilder: RetryableGcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
 
-  def getPath(gcsUrl: String): Try[Path] = gcsPathBuilder.build(gcsUrl)
+  def getPath(gcsUrl: String): Try[CloudStoragePath] = gcsPathBuilder.build(gcsUrl)
   def getHash(gcsUrl: CloudStoragePath) = gcsPathBuilder.getHash(gcsUrl)
 
   val rootPath: Path = getPath(rootString) recover {

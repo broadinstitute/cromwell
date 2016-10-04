@@ -26,6 +26,6 @@ case class EngineFilesystems(actorSystem: ActorSystem) {
   private val gcsPathBuilderFactory = googleAuthMode map { RetryableGcsPathBuilderFactory(_) }
 
   def pathBuildersForWorkflow(workflowOptions: WorkflowOptions): List[PathBuilder] = {
-    List(gcsPathBuilderFactory map { _.withOptions(workflowOptions) }, Option(DefaultPathBuilder)).flatten
+    List(gcsPathBuilderFactory map { _.withOptions(workflowOptions)(actorSystem) }, Option(DefaultPathBuilder)).flatten
   }
 }

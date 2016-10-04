@@ -51,7 +51,7 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
     ).toMap
   }
 
-  val pathBuilders = params.pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions) }
+  val pathBuilders = params.pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
   val ioDispatcher = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   val workflowPaths = WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor,

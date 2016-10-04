@@ -79,9 +79,8 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     }
 
     for {
-      // generate single filesystem and genomics instances
       genomics <- buildGenomics
-      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
       _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
     } yield Option(JesBackendInitializationData(workflowPaths, genomics))

@@ -6,6 +6,9 @@ import akka.event.LoggingAdapter
 import better.files._
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
+import cromwell.backend.io.WorkflowPaths
+import cromwell.backend.sfs.SharedFileSystemBackendInitializationData
+import cromwell.core.path.DefaultPathBuilder
 import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -43,7 +46,14 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
       symLink
     } else file
 
+    val workflowPaths = mock[WorkflowPaths]
+    workflowPaths.pathBuilders returns List(DefaultPathBuilder)
+
+    val initData = mock[SharedFileSystemBackendInitializationData]
+    initData.workflowPaths returns workflowPaths
+
     request.file returns WdlFile(requestFile.pathAsString)
+    request.initializationData returns Option(initData)
 
     request
   }

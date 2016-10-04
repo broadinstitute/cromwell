@@ -6,8 +6,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object RetryParams {
-  val Default = RetryParams(
+object CustomRetryParams {
+  val Default = CustomRetryParams(
     timeout = Duration.Inf,
     maxRetries = Option(3),
     backoff = SimpleExponentialBackoff(1 seconds, 3 seconds, 1.5D),
@@ -18,8 +18,8 @@ object RetryParams {
   def throwableToFalse(t: Throwable) = false
 }
 
-case class RetryParams(timeout: Duration,
-                       maxRetries: Option[Int],
-                       backoff: SimpleExponentialBackoff,
-                       isTransient: Throwable => Boolean,
-                       isFatal: Throwable => Boolean)
+case class CustomRetryParams(timeout: Duration,
+                             maxRetries: Option[Int],
+                             backoff: SimpleExponentialBackoff,
+                             isTransient: Throwable => Boolean,
+                             isFatal: Throwable => Boolean)

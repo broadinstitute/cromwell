@@ -25,10 +25,13 @@ object Merging {
           MergeStrategy.filterDistinctLines
         case ("spring.schemas" :: Nil) | ("spring.handlers" :: Nil) =>
           MergeStrategy.filterDistinctLines
+        case "io.netty.versions.properties" :: Nil =>
+          MergeStrategy.first
         case _ => MergeStrategy.deduplicate
       }
     case "asm-license.txt" | "overview.html" | "cobertura.properties" =>
       MergeStrategy.discard
+
     case _ => MergeStrategy.deduplicate
   }
 }

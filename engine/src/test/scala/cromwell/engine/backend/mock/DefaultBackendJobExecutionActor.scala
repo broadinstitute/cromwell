@@ -22,7 +22,7 @@ case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJo
   override def abort(): Unit = ()
 }
 
-class DefaultBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+class DefaultBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],

@@ -8,6 +8,7 @@ import cromwell.core.WorkflowId
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.ExecuteWorkflowCommand
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl
@@ -49,6 +50,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
       val metadataWatcherProps = Props(MetadataWatchActor(metadataSuccessPromise, requiredMetadataMatchers: _*))
       val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load(), overrides = Map(MetadataService.MetadataServiceName -> metadataWatcherProps)))
       val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
+      val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
         lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -62,7 +64,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
 
       val workflowExecutionActor = system.actorOf(
         WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistryActor, jobStoreActor,
-          callCacheReadActor.ref, AllBackendInitializationData.empty, restarting = false),
+          callCacheReadActor.ref, jobTokenDispenserActor, AllBackendInitializationData.empty, restarting = false),
         "WorkflowExecutionActor")
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
@@ -82,6 +84,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
       val serviceRegistry = mockServiceRegistryActor
       val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
       val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+      val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
 
       val MockBackendConfigEntry = BackendConfigurationEntry(
         name = "Mock",
@@ -94,7 +97,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
       val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
       val workflowExecutionActor = system.actorOf(
         WorkflowExecutionActor.props(workflowId, engineWorkflowDescriptor, serviceRegistry, jobStore,
-          callCacheReadActor, AllBackendInitializationData.empty, restarting = false),
+          callCacheReadActor, jobTokenDispenserActor, AllBackendInitializationData.empty, restarting = false),
         "WorkflowExecutionActor")
 
       val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"

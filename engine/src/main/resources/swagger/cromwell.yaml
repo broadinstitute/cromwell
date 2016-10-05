@@ -64,7 +64,27 @@ paths:
           type: file
           in: formData
         - name: workflowInputs
-          description: WDL Inputs JSON
+          description: WDL Inputs JSON, 1
+          required: false
+          type: file
+          in: formData
+        - name: workflowInputs_2
+          description: WDL Inputs JSON, 2
+          required: false
+          type: file
+          in: formData
+        - name: workflowInputs_3
+          description: WDL Inputs JSON, 3
+          required: false
+          type: file
+          in: formData
+        - name: workflowInputs_4
+          description: WDL Inputs JSON, 4
+          required: false
+          type: file
+          in: formData
+        - name: workflowInputs_5
+          description: WDL Inputs JSON, 5
           required: false
           type: file
           in: formData

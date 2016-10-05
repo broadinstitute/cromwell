@@ -1,6 +1,7 @@
 package cromwell.webservice
 
 import akka.actor._
+import java.lang.Throwable._
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.backend.BackendConfiguration
@@ -24,6 +25,23 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManagerActor: ActorRef
   val workflowStoreActor: ActorRef
   val serviceRegistryActor: ActorRef
+
+  def toMap(someInput: Option[String]): Map[String, JsValue] = {
+    import spray.json._
+    someInput match {
+      case Some(inputs: String) => inputs.parseJson match {
+        case JsObject(inputMap) => inputMap
+        case _ =>
+          throw new RuntimeException(s"Submitted inputs couldn't be processed, please check for syntactical errors")
+      }
+      case None => Map.empty
+    }
+  }
+
+  def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {
+    val convertToMap = allInputs.map(x => toMap(x))
+    JsObject(convertToMap reduce (_ ++ _))
+  }
 
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
 
@@ -109,9 +127,14 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def submitRoute =
     path("workflows" / Segment) { version =>
       post {
-        formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
+        formFields("wdlSource", "workflowInputs".?, "workflowInputs_2".?, "workflowInputs_3".?,
+          "workflowInputs_4".?, "workflowInputs_5".?, "workflowOptions".?) {
+          (wdlSource, workflowInputs, workflowInputs_2, workflowInputs_3, workflowInputs_4, workflowInputs_5, workflowOptions) =>
           requestContext =>
-            val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
+            //The order of addition allows for the expected override of colliding keys.
+            val wfInputs = mergeMaps(Seq(workflowInputs, workflowInputs_2, workflowInputs_3, workflowInputs_4, workflowInputs_5)).toString
+
+            val workflowSourceFiles = WorkflowSourceFiles(wdlSource, wfInputs, workflowOptions.getOrElse("{}"))
             perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
         }
       }

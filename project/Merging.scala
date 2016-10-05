@@ -27,6 +27,8 @@ object Merging {
           MergeStrategy.filterDistinctLines
         case "io.netty.versions.properties" :: Nil =>
           MergeStrategy.first
+        case "maven" :: "com.google.guava" :: xs =>
+          MergeStrategy.first
         case _ => MergeStrategy.deduplicate
       }
     case "asm-license.txt" | "overview.html" | "cobertura.properties" =>

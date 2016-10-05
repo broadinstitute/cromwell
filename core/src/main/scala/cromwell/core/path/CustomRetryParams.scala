@@ -1,6 +1,6 @@
 package cromwell.core.path
 
-import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration._
@@ -20,6 +20,6 @@ object CustomRetryParams {
 
 case class CustomRetryParams(timeout: Duration,
                              maxRetries: Option[Int],
-                             backoff: SimpleExponentialBackoff,
+                             backoff: Backoff,
                              isTransient: Throwable => Boolean,
                              isFatal: Throwable => Boolean)

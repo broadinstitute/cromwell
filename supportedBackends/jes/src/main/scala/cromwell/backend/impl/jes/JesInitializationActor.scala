@@ -14,7 +14,6 @@ import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions
-import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.Call
@@ -89,12 +88,10 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
       val path = workflowPath.gcsAuthFilePath
-      val upload = () => Future(path.writeAsJson(content))
-
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
-      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system).void.recoverWith {
+      Future(path.writeAsJson(content)).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
-      }
+      } map { _ => () }
     } getOrElse Future.successful(())
   }
 

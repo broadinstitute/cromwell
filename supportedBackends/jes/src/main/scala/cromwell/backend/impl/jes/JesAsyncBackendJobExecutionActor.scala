@@ -283,14 +283,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def writeScript(): Future[Unit] = Future { File(jesCallPaths.gcsExecPath).write(fileContent) } void
-
-    implicit val system = context.system
-    Retry.withRetry(
-      writeScript,
-      isTransient = isTransientJesException,
-      isFatal = isFatalJesException
-    )
+    Future(File(jesCallPaths.gcsExecPath).write(fileContent)) void
   }
 
   private def googleProject(descriptor: BackendWorkflowDescriptor): String = {

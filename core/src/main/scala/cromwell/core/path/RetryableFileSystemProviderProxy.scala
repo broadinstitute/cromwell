@@ -14,12 +14,12 @@ import cromwell.core.retry.Retry
 import scala.concurrent.{Await, Future}
 
 class RetryableFileSystemProviderProxy[T <: FileSystemProvider](delegate: T, retryParams: CustomRetryParams = CustomRetryParams.Default)(implicit actorSystem: ActorSystem) extends FileSystemProvider {
-  implicit val iOExecutionContext = actorSystem.dispatchers.lookup("akka.dispatchers.io-dispatcher")
+  private val iOExecutionContext = actorSystem.dispatchers.lookup("akka.dispatchers.io-dispatcher")
 
   // the nio interface is synchronous so we need to wait for the result
   private def withRetry[U](f: () => U): U = Await.result(
     Retry.withRetry(
-      () => Future(f()),
+      () => Future(f())(iOExecutionContext),
       retryParams.maxRetries,
       retryParams.backoff,
       retryParams.isTransient,
@@ -32,6 +32,7 @@ class RetryableFileSystemProviderProxy[T <: FileSystemProvider](delegate: T, ret
   override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = delegate.newFileSystem(uri, env)
   override def getScheme: String = delegate.getScheme
   override def getFileSystem(uri: URI): FileSystem = delegate.getFileSystem(uri)
+  override def getFileStore(path: Path): FileStore = delegate.getFileStore(path)
 
   /* retried operations */
   override def move(source: Path, target: Path, options: CopyOption*): Unit = withRetry { () => delegate.move(source, target, options: _*) }
@@ -47,5 +48,4 @@ class RetryableFileSystemProviderProxy[T <: FileSystemProvider](delegate: T, ret
   override def readAttributes(path: Path, attributes: String, options: LinkOption*): util.Map[String, AnyRef] = withRetry { () => delegate.readAttributes(path, attributes, options: _*) }
   override def isSameFile(path: Path, path2: Path): Boolean = withRetry { () => delegate.isSameFile(path, path2) }
   override def getFileAttributeView[V <: FileAttributeView](path: Path, `type`: Class[V], options: LinkOption*): V = withRetry { () => delegate.getFileAttributeView(path, `type`, options: _*) }
-  override def getFileStore(path: Path): FileStore = withRetry { () => delegate.getFileStore(path) }
 }

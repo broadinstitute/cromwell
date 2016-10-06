@@ -8,6 +8,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.nio.file.{DirectoryStream, Path, StandardOpenOption}
 import java.util.concurrent.TimeoutException
 
+import cromwell.core.path.proxy.RetryableFileSystemProviderProxy
 import cromwell.core.retry.Backoff
 import cromwell.core.{CromwellFatalException, TestKitSuite}
 import org.mockito.Matchers._

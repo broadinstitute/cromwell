@@ -23,7 +23,9 @@ import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Preemp
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
+import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata._
 import wdl4s.AstTools._
@@ -170,7 +172,10 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     */
   private def relativeLocalizationPath(file: WdlFile): WdlFile = {
     getPath(file.value) match {
-      case Success(path: CloudStoragePath) => WdlFile(path.toUri.getHost + path.toUri.getPath, file.isGlob)
+      case Success(path) => {
+        val value: WdlSource = path.toUri.getHost + path.toUri.getPath
+        WdlFile(value, file.isGlob)
+      }
       case _ => file
     }
   }
@@ -595,7 +600,11 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     wdlValue match {
       case wdlFile: WdlFile =>
         getPath(wdlFile.valueString) match {
-          case Success(gcsPath: CloudStoragePath) => WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
+          case Success(proxy: PathProxy) =>
+            proxy.underlying match {
+              case gcsPath: CloudStoragePath => WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
+              case _ => wdlValue
+            }
           case _ => wdlValue
         }
       case wdlArray: WdlArray => wdlArray map gcsPathToLocal

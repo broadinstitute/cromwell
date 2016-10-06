@@ -10,7 +10,7 @@ private[jes] object JesBackendFileHashing {
   def getCrc32c(singleFileHashRequest: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
     def usingJesInitData(jesInitData: JesBackendInitializationData) = for {
       path <- jesInitData.workflowPaths.getPath(singleFileHashRequest.file.valueString)
-      crc32c <- Try(jesInitData.workflowPaths.getHash(path))
+      crc32c <- jesInitData.workflowPaths.getHash(path)
     } yield crc32c
 
     singleFileHashRequest.initializationData match {

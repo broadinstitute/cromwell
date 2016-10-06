@@ -1,4 +1,4 @@
-package cromwell.core.path
+package cromwell.core.path.proxy
 
 import java.net.URI
 import java.nio.channels.SeekableByteChannel
@@ -9,6 +9,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.util
 
 import akka.actor.ActorSystem
+import cromwell.core.path.CustomRetryParams
 import cromwell.core.retry.Retry
 
 import scala.concurrent.{Await, Future}
@@ -28,8 +29,13 @@ class RetryableFileSystemProviderProxy[T <: FileSystemProvider](delegate: T, ret
     retryParams.timeout
   )
 
-  override def getPath(uri: URI): Path = delegate.getPath(uri)
-  override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = delegate.newFileSystem(uri, env)
+  override def getPath(uri: URI): Path = {
+    val path = delegate.getPath(uri)
+    new PathProxy(path, new FileSystemProxy(path.getFileSystem, this))
+  }
+  override def newFileSystem(uri: URI, env: util.Map[String, _]): FileSystem = {
+    new FileSystemProxy(delegate.newFileSystem(uri, env), this)
+  }
   override def getScheme: String = delegate.getScheme
   override def getFileSystem(uri: URI): FileSystem = delegate.getFileSystem(uri)
   override def getFileStore(path: Path): FileStore = delegate.getFileStore(path)

@@ -74,7 +74,7 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
     path match {
       case gcsPath: CloudStoragePath => Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
       case proxy: PathProxy =>
-        val gcsPath = proxy.unbox[CloudStoragePath].get
+        val gcsPath = proxy.unbox(classOf[CloudStoragePath]).get
         Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
       case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
     }

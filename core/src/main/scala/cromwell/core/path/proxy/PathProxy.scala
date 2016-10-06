@@ -2,17 +2,15 @@ package cromwell.core.path.proxy
 
 import java.io.File
 import java.net.URI
-import java.nio.file.WatchEvent.{Modifier, Kind}
+import java.nio.file.WatchEvent.{Kind, Modifier}
 import java.nio.file._
 import java.util
 
-import scala.util.{Failure, Success}
+import scala.util.Try
 
 class PathProxy(delegate: Path, injectedFileSystem: FileSystem) extends Path {
-  def unbox[T] = delegate match {
-    case valid: T => Success(valid)
-    case _ =>
-      Failure(new ClassCastException(s"${delegate.toUri.toString}: ${delegate.getClass.getSimpleName} is not ${classOf[T].getSimpleName}"))
+  def unbox[T](clazz: Class[T]): Try[T] = Try {
+    clazz.cast(delegate)
   }
 
   override def getFileSystem: FileSystem = injectedFileSystem

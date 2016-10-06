@@ -30,7 +30,8 @@ class DefaultBackendLifecycleActorFactory(name: String, configurationDescriptor:
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     DefaultBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 

@@ -50,7 +50,8 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationDataOption: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef) = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]) = {
     def propsCreator(completionPromise: Promise[BackendJobExecutionResponse]): Props = {
       val params = SharedFileSystemAsyncJobExecutionActorParams(serviceRegistryActor, jobDescriptor,
         configurationDescriptor, completionPromise, initializationDataOption)

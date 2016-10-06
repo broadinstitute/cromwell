@@ -10,6 +10,7 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching.{CallCachingActivity, CallCachingMode, CallCachingOff}
 import cromwell.core.{ExecutionStore, JobExecutionToken, OutputStore, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CallCacheHashes}
@@ -81,7 +82,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
     override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                         initializationData: Option[BackendInitializationData],
-                                        serviceRegistryActor: ActorRef): Props = bjeaProps
+                                        serviceRegistryActor: ActorRef,
+                                        backendSingletonActor: Option[ActorRef]): Props = bjeaProps
 
     override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef) => Props] = Option((_, _, _) => callCacheHitCopyingProbe.props)
 
@@ -142,7 +144,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              callCacheReadActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
                              backendName: String,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendName, callCachingMode) {
+                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
   override def makeFetchCachedResultsActor(cacheHit: CacheHit, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheHit, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))

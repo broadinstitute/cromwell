@@ -6,6 +6,7 @@ import java.time.OffsetDateTime
 import akka.actor._
 import akka.pattern.ask
 import akka.testkit.TestKit
+import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
@@ -77,6 +78,8 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
                           outputFile: => Option[Path] = None): Unit = {
+    implicit val timeout = Timeout(TimeoutDuration)
+
     val actorRef = createRunnerActor(sampleWdl, managerActor, outputFile)
     val futureResult = actorRef ? RunWorkflow
     Await.ready(futureResult, Duration.Inf)
@@ -111,9 +114,9 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       singleWorkflowActor(
         sampleWdl = wdlFile,
         outputFile = Option(metadataFile.path))
+        TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
-    TestKit.shutdownActorSystem(system, TimeoutDuration)
-
+    println(metadataFile.pathAsString)
     val metadataFileContent = metadataFile.contentAsString
     val metadata = metadataFileContent.parseJson.asJsObject.fields
     metadata.get("id") shouldNot be(empty)

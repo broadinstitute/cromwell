@@ -17,7 +17,7 @@ class RetryableFileSystemProviderProxy[T <: FileSystemProvider](delegate: T, ret
   private val iOExecutionContext = actorSystem.dispatchers.lookup("akka.dispatchers.io-dispatcher")
 
   // the nio interface is synchronous so we need to wait for the result
-  private def withRetry[U](f: () => U): U = Await.result(
+  def withRetry[U](f: () => U): U = Await.result(
     Retry.withRetry(
       () => Future(f())(iOExecutionContext),
       retryParams.maxRetries,

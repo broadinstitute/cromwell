@@ -9,10 +9,10 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.cloud.RetryParams
 import com.google.cloud.storage.StorageOptions
-import com.google.cloud.storage.contrib.nio.{CloudStorageFileSystemProvider, CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
+import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.common.base.Preconditions._
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.proxy.RetryableFileSystemProviderProxy
+import cromwell.core.path.proxy.{PathProxy, RetryableFileSystemProviderProxy}
 import cromwell.core.path.{CustomRetryParams, PathBuilder}
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
@@ -73,6 +73,9 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
   def getHash(path: Path): Try[String] = {
     path match {
       case gcsPath: CloudStoragePath => Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
+      case proxy: PathProxy =>
+        val gcsPath = proxy.unbox[CloudStoragePath].get
+        Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
       case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
     }
   }
@@ -85,7 +88,6 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
     Try {
       val uri = URI.create(string)
       GcsPathBuilder.checkValid(uri)
-      val p = provider
       provider.getPath(uri)
     }
   }

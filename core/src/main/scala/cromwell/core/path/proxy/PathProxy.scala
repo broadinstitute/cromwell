@@ -6,8 +6,14 @@ import java.nio.file.WatchEvent.{Modifier, Kind}
 import java.nio.file._
 import java.util
 
+import scala.util.{Failure, Success}
+
 class PathProxy(delegate: Path, injectedFileSystem: FileSystem) extends Path {
-  val underlying = delegate
+  def unbox[T] = delegate match {
+    case valid: T => Success(valid)
+    case _ =>
+      Failure(new ClassCastException(s"${delegate.toUri.toString}: ${delegate.getClass.getSimpleName} is not ${classOf[T].getSimpleName}"))
+  }
 
   override def getFileSystem: FileSystem = injectedFileSystem
 

@@ -600,11 +600,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     wdlValue match {
       case wdlFile: WdlFile =>
         getPath(wdlFile.valueString) match {
+          case Success(gcsPath: CloudStoragePath) =>
+            WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
           case Success(proxy: PathProxy) =>
-            proxy.underlying match {
-              case gcsPath: CloudStoragePath => WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
-              case _ => wdlValue
-            }
+            proxy.unbox[CloudStoragePath] map { gcsPath =>
+              WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
+            } getOrElse wdlValue
           case _ => wdlValue
         }
       case wdlArray: WdlArray => wdlArray map gcsPathToLocal

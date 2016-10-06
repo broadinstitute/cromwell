@@ -32,7 +32,7 @@ trait JesPollingActorClient { this: Actor with ActorLogging =>
     case JesPollFailed(e, responseHeaders) =>
       // TODO: Explode? Retry? Fail?
       pollingActorClientPromise foreach { p =>
-        log.debug("JES poll failed! Sad.")
+        log.info("JES poll failed! Sad.")
         p.complete(Failure(new IOException(s"Google request failed: ${e.toPrettyString}")))
       }
       pollingActorClientPromise = None

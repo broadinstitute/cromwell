@@ -528,7 +528,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       errorCode == 10 && errorMessage.exists(e => isPreemptionCode(extractErrorCodeFromErrorMessage(e))) && preemptible
     } catch {
       case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
-        jobLogger.warn(s"Unable to parse JES error code from error message: {}, assuming this was not a preempted VM.", errorMessage.mkString(", "))
+        jobLogger.warn(s"Unable to parse JES error code from error messages: [{}], assuming this was not a preempted VM.", errorMessage.mkString(", "))
         false
     }
   }

@@ -50,9 +50,6 @@ object SharedFileSystem {
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
-    // link.linkTo(target) returns target,
-    // however we want to return the link, not the target, so map the result back to executionPath
-
     // -Ywarn-value-discard
     // Try(executionPath.linkTo(originalPath, symbolic = false)) map { _ => executionPath }
     Try { executionPath.linkTo(originalPath, symbolic = false) } void
@@ -63,7 +60,6 @@ object SharedFileSystem {
       else {
         executionPath.parent.createDirectories()
         // -Ywarn-value-discard
-        // Try(executionPath.linkTo(originalPath, symbolic = true)) map { _ => executionPath }
         Try { executionPath.linkTo(originalPath, symbolic = true) } void
       }
   }

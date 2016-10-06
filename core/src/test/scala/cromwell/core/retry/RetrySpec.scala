@@ -7,7 +7,6 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 class RetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matchers with ScalaFutures {
   class TransientException extends Exception
@@ -33,9 +32,6 @@ class RetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matche
                        work: MockWork,
                        isTransient: Throwable => Boolean = Retry.throwableToFalse,
                        isFatal: Throwable => Boolean = Retry.throwableToFalse): Future[Int] = {
-    implicit val ec = system.dispatcher
-
-    val backoff = SimpleExponentialBackoff(1.millis, 2.millis, 1)
 
     withRetry(
       f = work.doIt,

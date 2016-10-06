@@ -1,6 +1,5 @@
 package cromwell.services.metadata.impl
 
-import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
@@ -13,7 +12,6 @@ import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSumm
 import lenthall.config.ScalaConfig._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object MetadataServiceActor {
@@ -37,8 +35,8 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
 
   summaryActor foreach { _ => self ! RefreshSummary }
 
-  private def scheduleSummary = {
-    MetadataSummaryRefreshInterval map { context.system.scheduler.scheduleOnce(_, self, RefreshSummary)(context.dispatcher, self) }
+  private def scheduleSummary(): Unit = {
+    MetadataSummaryRefreshInterval foreach { context.system.scheduler.scheduleOnce(_, self, RefreshSummary)(context.dispatcher, self) }
   }
 
   private def buildSummaryActor: Option[ActorRef] = {
@@ -76,9 +74,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }
-    case MetadataSummarySuccess => scheduleSummary
+    case MetadataSummarySuccess => scheduleSummary()
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")
-      scheduleSummary
+      scheduleSummary()
   }
 }

@@ -3,6 +3,8 @@ package cromwell.backend.impl.jes
 import java.io.IOException
 
 import akka.actor.{ActorRef, Props}
+import cats.instances.future._
+import cats.syntax.functor._
 import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation, JesCredentials}
@@ -15,9 +17,9 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
+import wdl4s.Call
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
-import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -96,7 +98,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       val upload = () => Future(path.writeAsJson(content))
 
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
-      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system) map { _ => () } recoverWith {
+      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
       }
     } getOrElse Future.successful(())

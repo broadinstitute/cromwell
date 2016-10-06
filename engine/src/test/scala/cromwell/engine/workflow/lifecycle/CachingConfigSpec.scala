@@ -4,7 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowOptions
 import cromwell.core.callcaching.CallCachingMode
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{Assertion, FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
@@ -51,13 +51,13 @@ class CachingConfigSpec extends FlatSpec with Matchers {
     val writeCacheOffCombinations = allCombinations -- writeCacheOnCombinations
     val readCacheOffCombinations = allCombinations -- readCacheOnCombinations
 
-    validateCallCachingMode("write cache on options", writeCacheOnCombinations) { mode => mode.writeToCache should be(true) }
-    validateCallCachingMode("read cache on options", readCacheOnCombinations) { mode => mode.readFromCache should be(true) }
-    validateCallCachingMode("write cache off options", writeCacheOffCombinations) { mode => mode.writeToCache should be(false) }
-    validateCallCachingMode("read cache off options", readCacheOffCombinations) { mode => mode.readFromCache should be(false) }
+    validateCallCachingMode("write cache on options", writeCacheOnCombinations) { _.writeToCache should be(true) }
+    validateCallCachingMode("read cache on options", readCacheOnCombinations) { _.readFromCache should be(true) }
+    validateCallCachingMode("write cache off options", writeCacheOffCombinations) { _.writeToCache should be(false) }
+    validateCallCachingMode("read cache off options", readCacheOffCombinations) { _.readFromCache should be(false) }
 
 
-  private def validateCallCachingMode(testName: String, combinations: Set[(Config, Try[WorkflowOptions])])(verificationFunction: CallCachingMode => Unit) = {
+  private def validateCallCachingMode(testName: String, combinations: Set[(Config, Try[WorkflowOptions])])(verificationFunction: CallCachingMode => Assertion) = {
     it should s"correctly identify $testName" in {
       combinations foreach {
         case (config, Success(wfOptions)) =>

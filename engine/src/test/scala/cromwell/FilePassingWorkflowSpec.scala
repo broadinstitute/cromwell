@@ -1,12 +1,10 @@
 package cromwell
 
 import akka.testkit._
-import wdl4s.values.{WdlFile, WdlString}
 import cromwell.util.SampleWdl
+import wdl4s.values.{WdlFile, WdlString}
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class FilePassingWorkflowSpec extends CromwellTestkitSpec {
   "A workflow that passes files between tasks" should {

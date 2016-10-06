@@ -5,7 +5,6 @@ import wdl4s.types.{WdlArrayType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlString}
 import cromwell.util.SampleWdl
 
-import scala.language.postfixOps
 
 class ArrayOfArrayCoercionSpec extends CromwellTestkitSpec {
   "A workflow that has an Array[Array[File]] input " should {

@@ -30,11 +30,13 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
     with ActorLogging
     with PathFactory {
 
-  def copyAndClean(src: Path, dest: Path): Unit = {
+  def copyAndClean(src: Path, dest: Path) = {
     File(dest).parent.createDirectories()
 
     File(src).copyTo(dest, overwrite = true)
-    if (WorkflowLogger.isTemporary) File(src).delete()
+    if (WorkflowLogger.isTemporary) {
+      File(src).delete()
+    }
   }
 
   override def receive = {

@@ -83,7 +83,7 @@ object JobStoreWriterData {
 
 case class JobStoreWriterData(currentOperation: List[(ActorRef, JobStoreWriterCommand)], nextOperation: List[(ActorRef, JobStoreWriterCommand)]) {
   def isEmpty = nextOperation.isEmpty && currentOperation.isEmpty
-  def withNewOperation(sender: ActorRef, command: JobStoreWriterCommand) = this.copy(nextOperation = this.nextOperation :+ (sender, command))
+  def withNewOperation(sender: ActorRef, command: JobStoreWriterCommand) = this.copy(nextOperation = this.nextOperation :+ ((sender, command)))
   def rolledOver = JobStoreWriterData(this.nextOperation, List.empty)
 }
 

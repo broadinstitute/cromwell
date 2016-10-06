@@ -16,7 +16,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.MetadataSummarySuccess
 import cromwell.util.SampleWdl.DeclarationsWorkflow._
-import cromwell.util.SampleWdl.{ExpressionsInInputs, DeclarationsWorkflow, ThreeStep, HelloWorld}
+import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.concurrent.{PatienceConfiguration, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -80,6 +80,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     import akka.pattern.ask
     val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
     putResult.futureValue(PatienceConfiguration.Timeout(timeout.duration)) shouldBe a[MetadataPutAcknowledgement]
+    ()
   }
 
   def forceSummary(): Unit = {
@@ -242,7 +243,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   behavior of "REST API submission endpoint"
   it should "return 201 for a successful workflow submission " in {
-    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
+    Post(s"/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
         assertResult(
@@ -274,7 +275,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   it should "return 200 for a successful workflow submission " in {
     val inputs = HelloWorld.rawInputs.toJson
 
-    Post("/workflows/$version/batch",
+    Post(s"/workflows/$version/batch",
       FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> s"[$inputs, $inputs]"))) ~>
       submitBatchRoute ~>
       check {

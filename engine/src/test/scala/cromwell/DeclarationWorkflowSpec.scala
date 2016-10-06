@@ -5,7 +5,6 @@ import wdl4s.{NamespaceWithWorkflow, WorkflowInput}
 import cromwell.util.SampleWdl
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.language.postfixOps
 
 class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
   "A workflow with declarations in it" should {

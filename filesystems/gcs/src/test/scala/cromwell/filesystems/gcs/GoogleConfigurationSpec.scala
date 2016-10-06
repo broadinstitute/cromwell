@@ -4,7 +4,6 @@ import com.typesafe.config.{ConfigException, ConfigFactory}
 import lenthall.config.ConfigValidationException
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.postfixOps
 
 class GoogleConfigurationSpec extends FlatSpec with Matchers {
 

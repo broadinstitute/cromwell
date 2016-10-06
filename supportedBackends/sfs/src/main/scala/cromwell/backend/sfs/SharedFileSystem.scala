@@ -2,6 +2,8 @@ package cromwell.backend.sfs
 
 import java.nio.file.{FileSystem, Path, Paths}
 
+import cats.instances.try_._
+import cats.syntax.functor._
 import com.typesafe.config.Config
 import cromwell.backend.io.JobPaths
 import cromwell.core._
@@ -42,21 +44,26 @@ object SharedFileSystem {
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
     val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true))
+    Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
     // link.linkTo(target) returns target,
     // however we want to return the link, not the target, so map the result back to executionPath
-    Try(executionPath.linkTo(originalPath, symbolic = false)) map { _ => executionPath }
+
+    // -Ywarn-value-discard
+    // Try(executionPath.linkTo(originalPath, symbolic = false)) map { _ => executionPath }
+    Try { executionPath.linkTo(originalPath, symbolic = false) } void
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
         executionPath.parent.createDirectories()
-        Try(executionPath.linkTo(originalPath, symbolic = true)) map { _ => executionPath }
+        // -Ywarn-value-discard
+        // Try(executionPath.linkTo(originalPath, symbolic = true)) map { _ => executionPath }
+        Try { executionPath.linkTo(originalPath, symbolic = true) } void
       }
   }
 

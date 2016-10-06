@@ -305,6 +305,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     val stderr = pathPlusSuffix(jobPaths.stderr, "kill")
     val killer = new ProcessRunner(argv, stdout.path, stderr.path)
     killer.run()
+    ()
   }
 
   def processReturnCode()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {

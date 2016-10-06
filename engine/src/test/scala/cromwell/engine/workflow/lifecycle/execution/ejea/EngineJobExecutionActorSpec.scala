@@ -29,8 +29,8 @@ trait EngineJobExecutionActorSpec extends CromwellTestkitSpec
 
 
   // The default values for these are "null". The helper is created in "before", the ejea is up to the test cases
-  var helper: PerTestHelper = _
-  var ejea: TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = _
+  private[ejea] var helper: PerTestHelper = _
+  private[ejea] var ejea: TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = _
   implicit def stateUnderTest: EngineJobExecutionActorState
 
   before {

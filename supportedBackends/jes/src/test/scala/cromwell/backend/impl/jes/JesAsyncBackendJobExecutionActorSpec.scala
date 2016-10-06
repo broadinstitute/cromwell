@@ -10,16 +10,15 @@ import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
+import cromwell.backend.impl.jes.MockObjects._
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException, RuntimeAttributeDefinition}
-import cromwell.core._
 import cromwell.core.logging.LoggerWrapper
+import cromwell.core.{WorkflowId, WorkflowOptions, _}
 import cromwell.filesystems.gcs._
 import cromwell.util.SampleWdl
 import org.scalatest._
-import cromwell.core.{WorkflowId, WorkflowOptions}
-import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
@@ -31,7 +30,6 @@ import wdl4s.{Call, LocallyQualifiedName, NamespaceWithWorkflow}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Success, Try}
-import cromwell.backend.impl.jes.MockObjects._
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito {
@@ -41,11 +39,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   implicit val Timeout = 5.seconds.dilated
 
   val YoSup =
-    """
+    s"""
       |task sup {
       |  String addressee
       |  command {
-      |    echo "yo sup ${addressee}!"
+      |    echo "yo sup $${addressee}!"
       |  }
       |  output {
       |    String salutation = read_string(stdout())
@@ -72,15 +70,6 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
-    def gcsFileSystem = {
-      val authOptions = new GoogleAuthOptions {
-        override def get(key: String): Try[String] = Try(throw new RuntimeException(s"key '$key' not found"))
-      }
-
-      val storage = jesConfiguration.jesAttributes.gcsFilesystemAuth.buildStorage(authOptions, "appName")
-      GcsFileSystem(GcsFileSystemProvider(storage)(scala.concurrent.ExecutionContext.global))
-    }
-
     val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor,
       configuration,
       mockCredentials)(scala.concurrent.ExecutionContext.global)

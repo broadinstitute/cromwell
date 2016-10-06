@@ -2,7 +2,6 @@ package cromwell.core
 
 import cromwell.core.ExecutionStatus._
 
-import scala.language.postfixOps
 
 object ExecutionStore {
   def empty = ExecutionStore(Map.empty)

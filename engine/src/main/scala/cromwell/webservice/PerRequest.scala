@@ -63,7 +63,7 @@ trait PerRequest extends Actor {
     OneForOneStrategy() {
       case e =>
         system.log.error(e, "error processing request: " + r.request.uri)
-        r.complete(InternalServerError, e.getMessage)
+        r.complete((InternalServerError, e.getMessage))
         Stop
     }
 }
@@ -85,13 +85,13 @@ object PerRequest {
   case class RequestCompleteWithHeaders[T](response: T, headers: HttpHeader*)(implicit val marshaller: ToResponseMarshaller[T]) extends PerRequestMessage
 
   /** allows for pattern matching with extraction of marshaller */
-  private object RequestComplete_ {
-    def unapply[T](requestComplete: RequestComplete[T]) = Some((requestComplete.response, requestComplete.marshaller))
+  object RequestComplete_ {
+    def unapply[T](requestComplete: RequestComplete[T]) = Option((requestComplete.response, requestComplete.marshaller))
   }
 
   /** allows for pattern matching with extraction of marshaller */
-  private object RequestCompleteWithHeaders_ {
-    def unapply[T](requestComplete: RequestCompleteWithHeaders[T]) = Some((requestComplete.response, requestComplete.headers, requestComplete.marshaller))
+  object RequestCompleteWithHeaders_ {
+    def unapply[T](requestComplete: RequestCompleteWithHeaders[T]) = Option((requestComplete.response, requestComplete.headers, requestComplete.marshaller))
   }
 
   case class WithProps(r: RequestContext, props: Props, message: AnyRef, timeout: Duration, name: String) extends PerRequest {
@@ -108,8 +108,9 @@ trait PerRequestCreator {
   def perRequest(r: RequestContext,
                  props: Props, message: AnyRef,
                  timeout: Duration = 1 minutes,
-                 name: String = PerRequestCreator.endpointActorName) = {
+                 name: String = PerRequestCreator.endpointActorName): Unit = {
     actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)).withDispatcher(ApiDispatcher), name)
+    ()
   }
 }
 

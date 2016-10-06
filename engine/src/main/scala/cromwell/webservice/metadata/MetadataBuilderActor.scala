@@ -215,36 +215,37 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
 
   when(WaitingForMetadataService) {
     case Event(MetadataLookupResponse(query, metadata), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, processMetadataResponse(query, metadata))
+      context.parent ! RequestComplete((StatusCodes.OK, processMetadataResponse(query, metadata)))
       allDone
     case Event(StatusLookupResponse(w, status), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, processStatusResponse(w, status))
+      context.parent ! RequestComplete((StatusCodes.OK, processStatusResponse(w, status)))
       allDone
     case Event(failure: ServiceRegistryFailure, _) =>
       val response = APIResponse.fail(new RuntimeException("Can't find metadata service"))
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
+      context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
       allDone
     case Event(WorkflowQuerySuccess(uri: Uri, response, metadata), _) =>
+      import WorkflowJsonSupport._
       context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
       allDone
     case Event(failure: WorkflowQueryFailure, _) =>
-      context.parent ! RequestComplete(StatusCodes.BadRequest, APIResponse.fail(failure.reason))
+      context.parent ! RequestComplete((StatusCodes.BadRequest, APIResponse.fail(failure.reason)))
       allDone
     case Event(WorkflowOutputsResponse(id, events), _) =>
       // Add in an empty output event if there aren't already any output events.
       val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
       val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
-      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false))
+      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false)))
       allDone
     case Event(LogsResponse(w, l), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false))
+      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false)))
       allDone
     case Event(failure: MetadataServiceFailure, _) =>
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(failure.reason))
+      context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(failure.reason)))
       allDone
     case Event(unexpectedMessage, stateData) =>
       val response = APIResponse.fail(new RuntimeException(s"MetadataBuilderActor $tag(WaitingForMetadataService, $stateData) got an unexpected message: $unexpectedMessage"))
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
+      context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
       context stop self
       stay()
   }

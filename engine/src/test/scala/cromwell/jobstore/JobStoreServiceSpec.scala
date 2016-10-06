@@ -1,6 +1,5 @@
 package cromwell.jobstore
 
-import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
@@ -25,7 +24,6 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
 
   "JobStoreService" should {
     "work" in {
-      val config = ConfigFactory.parseString("{}")
       lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 

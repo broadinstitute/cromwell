@@ -4,7 +4,6 @@ import spray.json._
 import wdl4s.values.WdlValue
 import wdl4s.{ExceptionWithErrors, FullyQualifiedName}
 
-import scala.language.postfixOps
 
 case class WorkflowStatusResponse(id: String, status: String)
 

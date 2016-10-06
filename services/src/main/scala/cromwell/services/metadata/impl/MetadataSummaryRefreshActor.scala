@@ -1,6 +1,5 @@
 package cromwell.services.metadata.impl
 
-import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory

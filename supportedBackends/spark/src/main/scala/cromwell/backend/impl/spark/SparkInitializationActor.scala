@@ -1,14 +1,14 @@
 package cromwell.backend.impl.spark
 
 import akka.actor.{ActorRef, Props}
+import cromwell.backend.impl.spark.SparkInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.impl.spark.SparkInitializationActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
+import wdl4s.Call
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
-import wdl4s.{Call, WdlExpression}
 
 import scala.concurrent.Future
 import scala.util.Try

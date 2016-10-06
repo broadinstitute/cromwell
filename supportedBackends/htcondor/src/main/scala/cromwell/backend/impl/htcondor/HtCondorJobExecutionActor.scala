@@ -1,18 +1,16 @@
 package cromwell.backend.impl.htcondor
 
+import java.nio.file.FileSystems
 import java.nio.file.attribute.PosixFilePermission
-import java.nio.file.{FileSystems, Files, Path, Paths}
 import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
-import better.files.File
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.impl.htcondor.caching.localization.CachedResultLocalization
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
-import cromwell.core.{JobOutput, JobOutputs, LocallyQualifiedName}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
@@ -20,12 +18,11 @@ import wdl4s._
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
-import wdl4s.values.{WdlArray, WdlFile, WdlSingleFile, WdlValue}
+import wdl4s.values.WdlArray
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
-import scala.language.postfixOps
 
 object HtCondorJobExecutionActor {
   val HtCondorJobIdKey = "htCondor_job_id"
@@ -110,12 +107,15 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     case JobExecutionResponse(resp) =>
       log.debug("{}: Completing job [{}] with response: [{}]", tag, jobDescriptor.key, resp)
       executionResponse trySuccess resp
+      ()
     case TrackTaskStatus(id) =>
       // Avoid the redundant status check if the response is already completed (e.g. in case of abort)
       if (!executionResponse.isCompleted) trackTask(id)
 
     // Messages received from Caching actor
-    case ExecutionResultFound(succeededResponse) => executionResponse trySuccess localizeCachedResponse(succeededResponse)
+    case ExecutionResultFound(succeededResponse) =>
+      executionResponse trySuccess localizeCachedResponse(succeededResponse)
+      ()
     case ExecutionResultNotFound => prepareAndExecute()
     case ExecutionResultStored(hash) => log.debug("{} Cache entry was stored for Job with hash {}.", tag, hash)
     case ExecutionResultAlreadyExist => log.warning("{} Cache entry for hash {} already exist.", tag, jobHash)
@@ -127,9 +127,13 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     case KvKeyLookupFailed(_) =>
       log.debug("{} Job id not found. Falling back to execute.", tag)
       execute
+      // -Ywarn-value-discard
+      ()
     case KvFailure(_, e) =>
       log.error("{} Failure attempting to look up HtCondor job id. Exception message: {}. Falling back to execute.", tag, e.getMessage)
       execute
+      // -Ywarn-value-discard
+      ()
   }
 
   /**
@@ -223,6 +227,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         import scala.concurrent.duration._
         // Job is still running in HtCondor. Check back again after `pollingInterval` seconds
         context.system.scheduler.scheduleOnce(pollingInterval.seconds, self, TrackTaskStatus(jobIdentifier))
+        ()
       case Success(Some(rc)) if runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
       case Success(Some(rc)) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc)))
@@ -254,7 +259,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         log.error(ex.getCause, errMsg)
         throw new IllegalStateException(errMsg, ex.getCause)
     }
-    val str = Seq(cmd,
+    val str = Seq[Any](cmd,
       runtimeAttributes.failOnStderr,
       runtimeAttributes.dockerImage.getOrElse(""),
       runtimeAttributes.dockerWorkingDir.getOrElse(""),
@@ -292,6 +297,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         )
 
       cmds.generateSubmitFile(submitFilePath, attributes) // This writes the condor submit file
+      ()
 
     } catch {
       case ex: Exception =>
@@ -352,11 +358,11 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   private def prepareAndExecute(): Unit = {
-    Try {
+    try {
       createExecutionFolderAndScript()
       executeTask()
-    } recover {
-      case exception => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, exception, None))
+    } catch {
+      case e: Exception => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, e, None))
     }
   }
 

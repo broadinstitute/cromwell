@@ -6,7 +6,6 @@ import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.postfixOps
 import scala.util.Try
 
 class CromwellCommandLineSpec extends FlatSpec with Matchers {

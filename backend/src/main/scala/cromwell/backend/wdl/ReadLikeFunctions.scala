@@ -6,7 +6,6 @@ import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
 import wdl4s.values._
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions =>

@@ -9,7 +9,6 @@ import cromwell.core.WorkflowId
 import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.core.ErrorOr._
 
-import scala.language.postfixOps
 
 case class WorkflowQueryParameters private(statuses: Set[String],
                                            names: Set[String],

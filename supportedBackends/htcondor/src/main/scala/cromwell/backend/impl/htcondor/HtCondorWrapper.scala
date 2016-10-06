@@ -8,7 +8,6 @@ import cromwell.backend.impl.htcondor
 import cromwell.core.PathFactory.{EnhancedPath, FlushingAndClosingWriter}
 import cromwell.core.{TailedWriter, UntailedWriter}
 
-import scala.language.postfixOps
 import scala.sys.process._
 
 object JobStatus {
@@ -62,6 +61,7 @@ class HtCondorCommands extends StrictLogging {
           |$instantiatedCommand
           |echo $$? > rc
           |""".stripMargin)
+    ()
   }
 
   def generateSubmitFile(path: Path, attributes: Map[String, Any]): String = {
@@ -84,7 +84,7 @@ class HtCondorProcess extends StrictLogging {
   private val stdout = new StringBuilder
   private val stderr = new StringBuilder
 
-  def processLogger: ProcessLogger = ProcessLogger(stdout append _, stderr append _)
+  def processLogger: ProcessLogger = ProcessLogger(s => { stdout append s; () }, s => { stderr append s; () })
   def processStdout: String = stdout.toString().trim
   def processStderr: String = stderr.toString().trim
   def commandList(command: String): Seq[String] = Seq("/bin/bash",command)

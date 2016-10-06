@@ -22,7 +22,6 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.webservice.EngineStatsActor
 
-import scala.language.postfixOps
 import scala.util.Random
 
 object WorkflowActor {

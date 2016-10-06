@@ -4,20 +4,17 @@ import java.util.concurrent.TimeoutException
 
 import akka.actor.Props
 import akka.util.Timeout
-import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.services.ServiceRegistryActor
-import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
-import lenthall.spray.SprayCanHttpService._
-import spray.http.HttpHeaders.`Content-Type`
-import spray.http.MediaTypes._
-import spray.http.{ContentType, MediaTypes, _}
-import lenthall.spray.WrappedRoute._
-import lenthall.config.ScalaConfig._
+import com.typesafe.config.Config
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
+import lenthall.config.ScalaConfig._
+import lenthall.spray.SprayCanHttpService._
+import lenthall.spray.WrappedRoute._
+import spray.http.{ContentType, MediaTypes, _}
 import spray.json._
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)

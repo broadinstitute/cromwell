@@ -18,7 +18,6 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
-import scala.language.postfixOps
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -106,13 +105,13 @@ class WorkflowManagerActor(config: Config,
 
   private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
 
-  override def preStart() {
+  override def preStart(): Unit = {
     addShutdownHook()
     // Starts the workflow polling cycle
     self ! RetrieveNewWorkflows
   }
 
-  private def addShutdownHook(): Unit = {
+  private def addShutdownHook() = {
     // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
     val abortJobsOnTerminate =
       config.getConfig("system").getBooleanOr("abort-jobs-on-terminate", default = false)
@@ -121,7 +120,7 @@ class WorkflowManagerActor(config: Config,
       sys.addShutdownHook {
         logger.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
         self ! AbortAllWorkflowsCommand
-        Await.ready(donePromise.future, Duration.Inf)
+        Await.result(donePromise.future, Duration.Inf)
       }
     }
   }
@@ -242,6 +241,7 @@ class WorkflowManagerActor(config: Config,
     case _ -> Done =>
       logger.info(s"$tag All workflows finished. Stopping self.")
       donePromise.trySuccess(())
+      ()
     case fromState -> toState =>
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
@@ -271,7 +271,7 @@ class WorkflowManagerActor(config: Config,
     WorkflowIdToActorRef(workflowId, wfActor)
   }
 
-  private def scheduleNextNewWorkflowPoll(): Unit = {
+  private def scheduleNextNewWorkflowPoll() = {
     context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher)
   }
 }

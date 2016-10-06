@@ -53,7 +53,7 @@ object MemoryValidation {
     if (value <= 0)
       wrongAmountFormat.format(value).invalidNel
     else
-      MemorySize(value, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
+      MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
   }
 }
 

@@ -23,8 +23,8 @@ class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBui
 
   "RestartWorkflowSpec" should {
     "restart a call in Running state" taggedAs PostMVP ignore {
-      val id = WorkflowId.randomId()
-      val descriptor = createMaterializedEngineWorkflowDescriptor(id, sources)
+//      val id = WorkflowId.randomId()
+//      val descriptor = createMaterializedEngineWorkflowDescriptor(id, sources)
 //      val a = ExecutionDatabaseKey("w.a", Option(-1), 1)
 //      val b = ExecutionDatabaseKey("w.b", Option(-1), 1)
 //

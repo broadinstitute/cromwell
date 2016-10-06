@@ -104,7 +104,7 @@ class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlData
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {
-      DBIO.successful(Unit)
+      DBIO.successful(())
     } else {
       DBIO.failed(new RuntimeException(s"$description expected update count $expected, got $updates"))
     }

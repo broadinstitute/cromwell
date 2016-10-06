@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{BackendSpec, MemorySize, RuntimeAttributeDefinition}
+import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
@@ -190,11 +190,11 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], expectedRuntimeAttributes: JesRuntimeAttributes, workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
     val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(JesBackendLifecycleActorFactory.staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-
       assert(JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
+    ()
   }
 
   private def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String, workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
@@ -205,6 +205,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
     }
+    ()
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get

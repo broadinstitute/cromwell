@@ -19,6 +19,7 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
       unsatisfiedMatchers = unsatisfiedMatchers.filterNot { m => m.matches(events) }
       if (unsatisfiedMatchers.isEmpty) {
         promise.trySuccess(())
+        ()
       }
     case PutMetadataAction(_) => // Superfluous message. Ignore
     case _ => throw new Exception("Invalid message to MetadataWatchActor")

@@ -66,7 +66,6 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
   "WorkflowActor" should {
 
     "run Finalization actor if Initialization fails" in {
-      val workflowId = WorkflowId.randomId()
       val actor = createWorkflowActor(InitializingWorkflowState)
       deathwatch watch actor
       actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Materialization Failed")))

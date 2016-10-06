@@ -13,7 +13,6 @@ import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
 
-import scala.language.postfixOps
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
@@ -43,34 +42,34 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
   val conf = ConfigFactory.load()
 
   def callNotFound(callFqn: String, id: WorkflowId) = {
-    RequestComplete(StatusCodes.NotFound, APIResponse.error(
-      new RuntimeException(s"Call $callFqn not found for workflow '$id'.")))
+    RequestComplete((StatusCodes.NotFound, APIResponse.error(
+      new RuntimeException(s"Call $callFqn not found for workflow '$id'."))))
   }
 
   private def error(t: Throwable)(f: Throwable => RequestComplete[_]): Unit = context.parent ! f(t)
 
   override def receive = {
     case ApiHandlerEngineStats => requestHandlerActor ! WorkflowManagerActor.EngineStatsCommand
-    case stats: EngineStatsActor.EngineStats => context.parent ! RequestComplete(StatusCodes.OK, stats)
+    case stats: EngineStatsActor.EngineStats => context.parent ! RequestComplete((StatusCodes.OK, stats))
     case ApiHandlerWorkflowAbort(id, manager) => requestHandlerActor ! WorkflowStoreActor.AbortWorkflow(id, manager)
     case WorkflowStoreActor.WorkflowAborted(id) =>
-      context.parent ! RequestComplete(StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
+      context.parent ! RequestComplete((StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
     case WorkflowStoreActor.WorkflowAbortFailed(_, e) =>
       error(e) {
-        case _: IllegalStateException => RequestComplete(StatusCodes.Forbidden, APIResponse.error(e))
-        case _: WorkflowNotFoundException => RequestComplete(StatusCodes.NotFound, APIResponse.error(e))
-        case _ => RequestComplete(StatusCodes.InternalServerError, APIResponse.error(e))
+        case _: IllegalStateException => RequestComplete((StatusCodes.Forbidden, APIResponse.error(e)))
+        case _: WorkflowNotFoundException => RequestComplete((StatusCodes.NotFound, APIResponse.error(e)))
+        case _ => RequestComplete((StatusCodes.InternalServerError, APIResponse.error(e)))
       }
 
     case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowStoreActor.SubmitWorkflow(source)
 
     case WorkflowStoreActor.WorkflowSubmittedToStore(id) =>
-      context.parent ! RequestComplete(StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString))
+      context.parent ! RequestComplete((StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString)))
 
     case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor ! WorkflowStoreActor.BatchSubmitWorkflows(sources)
 
     case WorkflowStoreActor.WorkflowsBatchSubmittedToStore(ids) =>
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
-      context.parent ! RequestComplete(StatusCodes.OK, responses.toList)
+      context.parent ! RequestComplete((StatusCodes.OK, responses.toList))
   }
 }

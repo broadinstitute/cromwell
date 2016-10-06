@@ -38,7 +38,8 @@ object MetadataDatabaseAccess {
 
   def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None)
 
-  private implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
+  // If visibility is made `private`, there's a bogus warning about this being unused.
+  implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
     def toSummary: WorkflowMetadataSummaryEntry = {
       val base = baseSummary(metadatum.workflowExecutionUuid)
       metadatum.metadataKey match {

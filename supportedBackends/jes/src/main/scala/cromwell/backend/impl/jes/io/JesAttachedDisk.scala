@@ -7,7 +7,6 @@ import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.google.api.services.genomics.model.Disk
 import cromwell.core.ErrorOr._
-import mouse.string._
 import wdl4s.ExceptionWithErrors
 import wdl4s.values._
 

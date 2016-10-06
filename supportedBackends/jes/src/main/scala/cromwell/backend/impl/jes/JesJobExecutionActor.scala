@@ -12,7 +12,6 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{Future, Promise}
-import scala.language.postfixOps
 
 object JesJobExecutionActor {
   val logger = LoggerFactory.getLogger("JesBackend")

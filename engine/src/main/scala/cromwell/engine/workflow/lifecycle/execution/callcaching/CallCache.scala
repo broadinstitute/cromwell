@@ -12,7 +12,6 @@ import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry,
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 
 final case class MetaInfoId(id: Int)
 

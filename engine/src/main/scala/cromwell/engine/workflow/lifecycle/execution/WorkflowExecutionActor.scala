@@ -145,7 +145,7 @@ object WorkflowExecutionActor {
       callCacheReadActor, jobTokenDispenserActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
-  private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
+  implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
     // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
     // assembling the result.
     def runnableScopes = executionStore.store.toList collect { case entry if isRunnable(entry) => entry._1 }
@@ -208,7 +208,7 @@ object WorkflowExecutionActor {
     }
   }
 
-  private implicit class EnhancedOutputStore(val outputStore: OutputStore) extends AnyVal {
+  implicit class EnhancedOutputStore(val outputStore: OutputStore) extends AnyVal {
     /**
       * Try to generate output for a collector call, by collecting outputs for all of its shards.
       * It's fail-fast on shard output retrieval

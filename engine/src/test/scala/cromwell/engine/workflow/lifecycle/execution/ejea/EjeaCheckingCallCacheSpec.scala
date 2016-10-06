@@ -46,5 +46,6 @@ class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventua
   private def createCheckingCallCacheEjea(restarting: Boolean = false): Unit = {
     ejea = helper.buildEJEA(restarting = restarting, callCachingMode = CallCachingActivity(ReadCache))
     ejea.setStateInline(state = CheckingCallCache, data = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None))
+    ()
   }
 }

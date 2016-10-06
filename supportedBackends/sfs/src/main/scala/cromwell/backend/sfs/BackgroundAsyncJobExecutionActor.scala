@@ -46,6 +46,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
           |  &
           |echo $$!
           |""".stripMargin)
+    ()
   }
 
   override def getJob(exitValue: Int, stdout: Path, stderr: Path) = {
@@ -80,5 +81,6 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
           |
           |kill_children ${job.jobId}
           |""".stripMargin)
+    ()
   }
 }

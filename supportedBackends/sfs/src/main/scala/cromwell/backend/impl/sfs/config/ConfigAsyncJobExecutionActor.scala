@@ -57,6 +57,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       s"""|#!/bin/bash
           |$command
           |""".stripMargin)
+    ()
   }
 
   /**

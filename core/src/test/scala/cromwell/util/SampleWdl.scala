@@ -24,6 +24,7 @@ trait SampleWdl extends TestFileUtil {
     createFile("f1", base, "line1\nline2\n")
     createFile("f2", base, "line3\nline4\n")
     createFile("f3", base, "line5\n")
+    ()
   }
 
   def cleanupFileArray(base: Path) = {
@@ -61,11 +62,11 @@ object SampleWdl {
 
   object HelloWorld extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """
+      s"""
         |task hello {
         |  String addressee
         |  command {
-        |    echo "Hello ${addressee}!"
+        |    echo "Hello $${addressee}!"
         |  }
         |  output {
         |    String salutation = read_string(stdout())
@@ -86,11 +87,11 @@ object SampleWdl {
 
   object HelloWorldWithoutWorkflow extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """
+      s"""
         |task hello {
         |  String addressee
         |  command {
-        |    echo "Hello ${addressee}!"
+        |    echo "Hello $${addressee}!"
         |  }
         |  output {
         |    String salutation = read_string(stdout())
@@ -127,7 +128,7 @@ object SampleWdl {
 
   object EmptyString extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """
+      s"""
         |task hello {
         |  command {
         |    echo "Hello!"
@@ -141,7 +142,7 @@ object SampleWdl {
         |task goodbye {
         |  String emptyInputString
         |  command {
-        |    echo "${emptyInputString}"
+        |    echo "$${emptyInputString}"
         |  }
         |  output {
         |    String empty = read_string(stdout())
@@ -174,11 +175,11 @@ object SampleWdl {
 
   object CoercionNotDefined extends SampleWdl {
     override def wdlSource(runtime: String = "") = {
-      """
+      s"""
         |task summary {
         |  String bfile
         |  command {
-        |    ~/plink --bfile ${bfile} --missing --hardy --out foo --allow-no-sex
+        |    ~/plink --bfile $${bfile} --missing --hardy --out foo --allow-no-sex
         |  }
         |  output {
         |    File hwe = "foo.hwe"
@@ -208,7 +209,7 @@ object SampleWdl {
     private val outputSectionPlaceholder = "OUTPUTSECTIONPLACEHOLDER"
     def sourceString(outputsSection: String = "") = {
       val withPlaceholders =
-        """
+        s"""
         |task ps {
         |  command {
         |    ps
@@ -224,7 +225,7 @@ object SampleWdl {
         |  File in_file
         |
         |  command {
-        |    grep '${pattern}' ${in_file} | wc -l
+        |    grep '$${pattern}' $${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -235,7 +236,7 @@ object SampleWdl {
         |task wc {
         |  File in_file
         |  command {
-        |    cat ${in_file} | wc -l
+        |    cat $${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -385,12 +386,12 @@ object SampleWdl {
 
   object DeclarationsWorkflow extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-      """
+      s"""
         |task cat {
         |  File file
         |  String? flags
         |  command {
-        |    cat ${flags} ${file}
+        |    cat $${flags} $${file}
         |  }
         |  output {
         |    File procs = stdout()
@@ -402,7 +403,7 @@ object SampleWdl {
         |  String pattern
         |  File in_file
         |  command {
-        |    grep '${pattern}' ${in_file} | wc -l
+        |    grep '$${pattern}' $${in_file} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -439,11 +440,11 @@ object SampleWdl {
 
   trait ZeroOrMorePostfixQuantifier extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-      """
+      s"""
         |task hello {
         |  Array[String] person
         |  command {
-        |    echo "hello ${sep = "," person}"
+        |    echo "hello $${sep = "," person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -470,11 +471,11 @@ object SampleWdl {
 
   trait OneOrMorePostfixQuantifier extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-      """
+      s"""
         |task hello {
         |  Array[String]+ person
         |  command {
-        |    echo "hello ${sep = "," person}"
+        |    echo "hello $${sep = "," person}"
         |  }
         |  output {
         |    String greeting = read_string(stdout())
@@ -518,11 +519,11 @@ object SampleWdl {
 
   object ArrayIO extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """task concat_files {
+      s"""task concat_files {
         |  String? flags
         |  Array[File]+ files
         |  command {
-        |    cat ${default = "-s" flags} ${sep = " " files}
+        |    cat $${default = "-s" flags} $${sep = " " files}
         |  }
         |  output {
         |    File concatenated = stdout()
@@ -534,7 +535,7 @@ object SampleWdl {
         |  String pattern
         |  File root
         |  command {
-        |    find ${root} ${"-name " + pattern}
+        |    find $${root} $${"-name " + pattern}
         |  }
         |  output {
         |    Array[String] results = read_lines(stdout())
@@ -545,7 +546,7 @@ object SampleWdl {
         |task count_lines {
         |  Array[File]+ files
         |  command {
-        |    cat ${sep = ' ' files} | wc -l
+        |    cat $${sep = ' ' files} | wc -l
         |  }
         |  output {
         |    Int count = read_int(stdout())
@@ -556,7 +557,7 @@ object SampleWdl {
         |task serialize {
         |  Array[String] strs
         |  command {
-        |    cat ${write_lines(strs)}
+        |    cat $${write_lines(strs)}
         |  }
         |  output {
         |    String contents = read_string(stdout())
@@ -599,11 +600,11 @@ object SampleWdl {
     def cleanup() = cleanupFileArray(catRootDir)
 
     override def wdlSource(runtime: String = "") =
-      """
+      s"""
         |task cat {
         |  Array[File]+ files
         |  command {
-        |    cat -s ${sep = ' ' files}
+        |    cat -s $${sep = ' ' files}
         |  }
         |  output {
         |    Array[String] lines = read_lines(stdout())
@@ -624,11 +625,11 @@ object SampleWdl {
     def cleanup() = cleanupFileArray(catRootDir)
 
     override def wdlSource(runtime: String = "") =
-      """
+      s"""
         |task write_map {
         |  Map[File, String] file_to_name
         |  command {
-        |    cat ${write_map(file_to_name)}
+        |    cat $${write_map(file_to_name)}
         |  }
         |  output {
         |    String contents = read_string(stdout())
@@ -639,7 +640,7 @@ object SampleWdl {
         |  command <<<
         |    python <<CODE
         |    map = {'x': 500, 'y': 600, 'z': 700}
-        |    print("\n".join(["{}\t{}".format(k,v) for k,v in map.items()]))
+        |    print("\\n".join(["{}\\t{}".format(k,v) for k,v in map.items()]))
         |    CODE
         |  >>>
         |  output {
@@ -658,7 +659,7 @@ object SampleWdl {
   }
 
   class ScatterWdl extends SampleWdl {
-    val tasks = """task A {
+    val tasks = s"""task A {
       |  command {
       |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
       |  }
@@ -671,7 +672,7 @@ object SampleWdl {
       |task B {
       |  String B_in
       |  command {
-      |    python -c "print(len('${B_in}'))"
+      |    python -c "print(len('$${B_in}'))"
       |  }
       |  RUNTIME
       |  output {
@@ -682,7 +683,7 @@ object SampleWdl {
       |task C {
       |  Int C_in
       |  command {
-      |    python -c "print(${C_in}*100)"
+      |    python -c "print($${C_in}*100)"
       |  }
       |  RUNTIME
       |  output {
@@ -693,7 +694,7 @@ object SampleWdl {
       |task D {
       |  Array[Int] D_in
       |  command {
-      |    python -c "print(${sep = '+' D_in})"
+      |    python -c "print($${sep = '+' D_in})"
       |  }
       |  RUNTIME
       |  output {
@@ -752,9 +753,9 @@ object SampleWdl {
 
   object SimpleScatterWdl extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """task echo_int {
+      s"""task echo_int {
         |  Int int
-        |  command {echo ${int}}
+        |  command {echo $${int}}
         |  output {Int out = read_int(stdout())}
         |  RUNTIME_PLACEHOLDER
         |}
@@ -775,9 +776,9 @@ object SampleWdl {
 
   object SimpleScatterWdlWithOutputs extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """task echo_int {
+      s"""task echo_int {
         |  Int int
-        |  command {echo ${int}}
+        |  command {echo $${int}}
         |  output {Int out = read_int(stdout())}
         |}
         |
@@ -800,7 +801,7 @@ object SampleWdl {
 
   case class PrepareScatterGatherWdl(salt: String = UUID.randomUUID().toString) extends SampleWdl {
     override def wdlSource(runtime: String = "") = {
-      """
+      s"""
         |#
         |# Goal here is to split up the input file into files of 1 line each (in the prepare) then in parallel call wc -w on each newly created file and count the words into another file then in the gather, sum the results of each parallel call to come up with
         |# the word-count for the fil
@@ -809,7 +810,7 @@ object SampleWdl {
         |task do_prepare {
         |    File input_file
         |    command {
-        |        split -l 1 ${input_file} temp_ && ls -1 temp_?? > files.list
+        |        split -l 1 $${input_file} temp_ && ls -1 temp_?? > files.list
         |    }
         |    output {
         |        Array[File] split_files = read_lines("files.list")
@@ -821,8 +822,8 @@ object SampleWdl {
         |    String salt
         |    File input_file
         |    command {
-        |        # ${salt}
-        |        wc -w ${input_file} > output.txt
+        |        # $${salt}
+        |        wc -w $${input_file} > output.txt
         |    }
         |    output {
         |        File count_file = "output.txt"
@@ -833,7 +834,7 @@ object SampleWdl {
         |task do_gather {
         |    Array[File] input_files
         |    command <<<
-        |        cat ${sep = ' ' input_files} | awk '{s+=$1} END {print s}'
+        |        cat $${sep = ' ' input_files} | awk '{s+=$$1} END {print s}'
         |    >>>
         |    output {
         |        Int sum = read_int(stdout())
@@ -867,9 +868,9 @@ object SampleWdl {
 
   object FileClobber extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """task read_line {
+      s"""task read_line {
         |  File in
-        |  command { cat ${in} }
+        |  command { cat $${in} }
         |  output { String out = read_string(stdout()) }
         |}
         |
@@ -892,18 +893,18 @@ object SampleWdl {
 
   object FilePassingWorkflow extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-      """task a {
+      s"""task a {
         |  File in
         |  String out_name = "out"
         |
         |  command {
-        |    cat ${in} > ${out_name}
+        |    cat $${in} > $${out_name}
         |  }
         |  RUNTIME
         |  output {
         |    File out = "out"
-        |    File out_interpolation = "${out_name}"
-        |    String contents = read_string("${out_name}")
+        |    File out_interpolation = "$${out_name}"
+        |    String contents = read_string("$${out_name}")
         |  }
         |}
         |
@@ -932,21 +933,21 @@ object SampleWdl {
     */
   case class CallCachingWorkflow(salt: String) extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-      """task a {
+      s"""task a {
         |  File in
         |  String out_name = "out"
         |  String salt
         |
         |  command {
-        |    # ${salt}
+        |    # $${salt}
         |    echo "Something"
-        |    cat ${in} > ${out_name}
+        |    cat $${in} > $${out_name}
         |  }
         |  RUNTIME
         |  output {
         |    File out = "out"
-        |    File out_interpolation = "${out_name}"
-        |    String contents = read_string("${out_name}")
+        |    File out_interpolation = "$${out_name}"
+        |    String contents = read_string("$${out_name}")
         |    Array[String] stdoutContent = read_lines(stdout())
         |  }
         |}
@@ -984,13 +985,13 @@ object SampleWdl {
       """.stripMargin.trim
 
     override def wdlSource(runtime: String): WdlSource =
-      """
+      s"""
         |task a {
         |  Array[String] array
         |  Map[String, String] map
         |
         |  command {
-        |    echo ${sep = ' ' array} > concat
+        |    echo $${sep = ' ' array} > concat
         |  }
         |  output {
         |    String x = read_string("concat")
@@ -1020,10 +1021,10 @@ object SampleWdl {
 
   object ArrayOfArrays extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """task subtask {
+      s"""task subtask {
         |  Array[File] a
         |  command {
-        |    cat ${sep = " " a}
+        |    cat $${sep = " " a}
         |  }
         |  output {
         |    String concatenated = read_string(stdout())
@@ -1060,17 +1061,17 @@ object SampleWdl {
 
   object CallCachingHashingWdl extends SampleWdl {
     override def wdlSource(runtime: String): WdlSource =
-      """task t {
+      s"""task t {
         |  Int a
         |  Float b
         |  String c
         |  File d
         |
         |  command {
-        |    echo "${a}" > a
-        |    echo "${b}" > b
-        |    echo "${c}" > c
-        |    cat ${d} > d
+        |    echo "$${a}" > a
+        |    echo "$${b}" > b
+        |    echo "$${c}" > c
+        |    cat $${d} > d
         |  }
         |  output {
         |    Int w = read_int("a") + 2
@@ -1098,10 +1099,10 @@ object SampleWdl {
 
   object ExpressionsInInputs extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """task echo {
+      s"""task echo {
         |  String inString
         |  command {
-        |    echo ${inString}
+        |    echo $${inString}
         |  }
         |
         |  output {
@@ -1128,11 +1129,11 @@ object SampleWdl {
 
   object WorkflowFailSlow extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      """
+      s"""
 task shouldCompleteFast {
         |    Int a
         |    command {
-        |        echo "The number was: ${a}"
+        |        echo "The number was: $${a}"
         |    }
         |    output {
         |        Int echo = a
@@ -1142,7 +1143,7 @@ task shouldCompleteFast {
         |task shouldCompleteSlow {
         |    Int a
         |    command {
-        |        echo "The number was: ${a}"
+        |        echo "The number was: $${a}"
         |        # More than 1 so this should finish second
         |        sleep 2
         |    }
@@ -1154,7 +1155,7 @@ task shouldCompleteFast {
         |task failMeSlowly {
         |    Int a
         |    command {
-        |        echo "The number was: ${a}"
+        |        echo "The number was: $${a}"
         |        # Less than 2 so this should finish first
         |        sleep 1
         |        ./NOOOOOO
@@ -1168,7 +1169,7 @@ task shouldCompleteFast {
         |    Int a
         |    Int b
         |    command {
-        |        echo "You can't fight in here - this is the war room ${a + b}"
+        |        echo "You can't fight in here - this is the war room $${a + b}"
         |    }
         |    output {
         |        Int echo = a

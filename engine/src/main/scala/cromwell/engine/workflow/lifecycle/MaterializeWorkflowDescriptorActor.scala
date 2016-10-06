@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle
 import java.nio.file.FileSystem
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
-import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.cartesian._

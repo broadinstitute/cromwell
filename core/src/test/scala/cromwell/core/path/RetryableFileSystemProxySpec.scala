@@ -5,7 +5,7 @@ import java.nio.channels.SeekableByteChannel
 import java.nio.file.DirectoryStream.Filter
 import java.nio.file.attribute.{BasicFileAttributes, FileAttributeView}
 import java.nio.file.spi.FileSystemProvider
-import java.nio.file.{DirectoryStream, Path, StandardOpenOption}
+import java.nio.file.{DirectoryStream, OpenOption, Path, StandardOpenOption}
 import java.util.concurrent.TimeoutException
 
 import cromwell.core.path.proxy.RetryableFileSystemProviderProxy
@@ -93,19 +93,19 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
       }
     }
 
-    when(provider.move(any(), any())).thenAnswer(answerUnit)
-    when(provider.checkAccess(any())).thenAnswer(answerUnit)
-    when(provider.createDirectory(any())).thenAnswer(answerUnit)
-    when(provider.newByteChannel(any(), any())).thenAnswer(answerSeekableByteChannel)
-    when(provider.isHidden(any())).thenAnswer(answerBoolean)
-    when(provider.copy(any(), any())).thenAnswer(answerUnit)
-    when(provider.delete(any())).thenAnswer(answerUnit)
-    when(provider.newDirectoryStream(any(), any())).thenAnswer(answerDirectoryStream)
-    when(provider.setAttribute(any(), any(), any())).thenAnswer(answerUnit)
-    when(provider.readAttributes(any(), any[String])).thenAnswer(answerMap)
-    when(provider.readAttributes(any(), any[Class[BasicFileAttributes]])).thenAnswer(answerBasicFileAttributes)
-    when(provider.isSameFile(any(), any())).thenAnswer(answerBoolean)
-    when(provider.getFileAttributeView(any(), any[Class[FileAttributeView]])).thenAnswer(answerFileAttributeView)
+    when(provider.move(any[Path], any[Path])).thenAnswer(answerUnit)
+    when(provider.checkAccess(any[Path])).thenAnswer(answerUnit)
+    when(provider.createDirectory(any[Path])).thenAnswer(answerUnit)
+    when(provider.newByteChannel(any[Path], any[java.util.Set[OpenOption]])).thenAnswer(answerSeekableByteChannel)
+    when(provider.isHidden(any[Path])).thenAnswer(answerBoolean)
+    when(provider.copy(any[Path], any[Path])).thenAnswer(answerUnit)
+    when(provider.delete(any[Path])).thenAnswer(answerUnit)
+    when(provider.newDirectoryStream(any[Path], any[Filter[Path]]())).thenAnswer(answerDirectoryStream)
+    when(provider.setAttribute(any[Path], any[String], any[Object])).thenAnswer(answerUnit)
+    when(provider.readAttributes(any[Path], any[String])).thenAnswer(answerMap)
+    when(provider.readAttributes(any[Path], any[Class[BasicFileAttributes]])).thenAnswer(answerBasicFileAttributes)
+    when(provider.isSameFile(any[Path], any[Path])).thenAnswer(answerBoolean)
+    when(provider.getFileAttributeView(any[Path], any[Class[FileAttributeView]])).thenAnswer(answerFileAttributeView)
 
     provider
   }
@@ -156,19 +156,19 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
     retryableFs.isSameFile(pathMock, pathMock)
     retryableFs.getFileAttributeView(pathMock, classOf[FileAttributeView])
 
-    verify(mockFs, times(3)).move(any(), any())
-    verify(mockFs, times(3)).checkAccess(any())
-    verify(mockFs, times(3)).createDirectory(any())
-    verify(mockFs, times(3)).newByteChannel(any(), any())
-    verify(mockFs, times(3)).isHidden(any())
-    verify(mockFs, times(3)).copy(any(), any())
-    verify(mockFs, times(3)).delete(any())
-    verify(mockFs, times(3)).newDirectoryStream(any(), any())
-    verify(mockFs, times(3)).setAttribute(any(), any(), any())
-    verify(mockFs, times(3)).readAttributes(any(), any[String])
-    verify(mockFs, times(3)).readAttributes(any(), any[Class[BasicFileAttributes]])
-    verify(mockFs, times(3)).isSameFile(any(), any())
-    verify(mockFs, times(3)).getFileAttributeView(any(), any[Class[FileAttributeView]])
+    verify(mockFs, times(3)).move(any[Path], any[Path])
+    verify(mockFs, times(3)).checkAccess(any[Path])
+    verify(mockFs, times(3)).createDirectory(any[Path])
+    verify(mockFs, times(3)).newByteChannel(any[Path], any[java.util.Set[OpenOption]])
+    verify(mockFs, times(3)).isHidden(any[Path])
+    verify(mockFs, times(3)).copy(any[Path], any[Path])
+    verify(mockFs, times(3)).delete(any[Path])
+    verify(mockFs, times(3)).newDirectoryStream(any[Path], any[Filter[Path]]())
+    verify(mockFs, times(3)).setAttribute(any[Path], any[String], any[Object])
+    verify(mockFs, times(3)).readAttributes(any[Path], any[String])
+    verify(mockFs, times(3)).readAttributes(any[Path], any[Class[BasicFileAttributes]])
+    verify(mockFs, times(3)).isSameFile(any[Path], any[Path])
+    verify(mockFs, times(3)).getFileAttributeView(any[Path], any[Class[FileAttributeView]])
   }
 
   it should "retry on failure and fail if over retry max" in {
@@ -189,20 +189,20 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
     (the [CromwellFatalException] thrownBy retryableFs.readAttributes(pathMock, "")).getCause shouldBe a[IllegalArgumentException]
     (the [CromwellFatalException] thrownBy retryableFs.isSameFile(pathMock, pathMock)).getCause shouldBe a[IllegalArgumentException]
     (the [CromwellFatalException] thrownBy retryableFs.getFileAttributeView(pathMock, classOf[FileAttributeView])).getCause shouldBe a[IllegalArgumentException]
-    
-    verify(mockFs, times(3)).move(any(), any())
-    verify(mockFs, times(3)).checkAccess(any())
-    verify(mockFs, times(3)).createDirectory(any())
-    verify(mockFs, times(3)).newByteChannel(any(), any())
-    verify(mockFs, times(3)).isHidden(any())
-    verify(mockFs, times(3)).copy(any(), any())
-    verify(mockFs, times(3)).delete(any())
-    verify(mockFs, times(3)).newDirectoryStream(any(), any())
-    verify(mockFs, times(3)).setAttribute(any(), any(), any())
-    verify(mockFs, times(3)).readAttributes(any(), any[String])
-    verify(mockFs, times(3)).readAttributes(any(), any[Class[BasicFileAttributes]])
-    verify(mockFs, times(3)).isSameFile(any(), any())
-    verify(mockFs, times(3)).getFileAttributeView(any(), any[Class[FileAttributeView]])
+
+    verify(mockFs, times(3)).move(any[Path], any[Path])
+    verify(mockFs, times(3)).checkAccess(any[Path])
+    verify(mockFs, times(3)).createDirectory(any[Path])
+    verify(mockFs, times(3)).newByteChannel(any[Path], any[java.util.Set[OpenOption]])
+    verify(mockFs, times(3)).isHidden(any[Path])
+    verify(mockFs, times(3)).copy(any[Path], any[Path])
+    verify(mockFs, times(3)).delete(any[Path])
+    verify(mockFs, times(3)).newDirectoryStream(any[Path], any[Filter[Path]]())
+    verify(mockFs, times(3)).setAttribute(any[Path], any[String], any[Object])
+    verify(mockFs, times(3)).readAttributes(any[Path], any[String])
+    verify(mockFs, times(3)).readAttributes(any[Path], any[Class[BasicFileAttributes]])
+    verify(mockFs, times(3)).isSameFile(any[Path], any[Path])
+    verify(mockFs, times(3)).getFileAttributeView(any[Path], any[Class[FileAttributeView]])
   }
 
   it should "ignore transient exceptions" in {
@@ -225,19 +225,19 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
     retryableFs.isSameFile(pathMock, pathMock)
     retryableFs.getFileAttributeView(pathMock, classOf[FileAttributeView])
 
-    verify(mockFs, times(3)).move(any(), any())
-    verify(mockFs, times(3)).checkAccess(any())
-    verify(mockFs, times(3)).createDirectory(any())
-    verify(mockFs, times(3)).newByteChannel(any(), any())
-    verify(mockFs, times(3)).isHidden(any())
-    verify(mockFs, times(3)).copy(any(), any())
-    verify(mockFs, times(3)).delete(any())
-    verify(mockFs, times(3)).newDirectoryStream(any(), any())
-    verify(mockFs, times(3)).setAttribute(any(), any(), any())
-    verify(mockFs, times(3)).readAttributes(any(), any[String])
-    verify(mockFs, times(3)).readAttributes(any(), any[Class[BasicFileAttributes]])
-    verify(mockFs, times(3)).isSameFile(any(), any())
-    verify(mockFs, times(3)).getFileAttributeView(any(), any[Class[FileAttributeView]])
+    verify(mockFs, times(3)).move(any[Path], any[Path])
+    verify(mockFs, times(3)).checkAccess(any[Path])
+    verify(mockFs, times(3)).createDirectory(any[Path])
+    verify(mockFs, times(3)).newByteChannel(any[Path], any[java.util.Set[OpenOption]])
+    verify(mockFs, times(3)).isHidden(any[Path])
+    verify(mockFs, times(3)).copy(any[Path], any[Path])
+    verify(mockFs, times(3)).delete(any[Path])
+    verify(mockFs, times(3)).newDirectoryStream(any[Path], any[Filter[Path]]())
+    verify(mockFs, times(3)).setAttribute(any[Path], any[String], any[Object])
+    verify(mockFs, times(3)).readAttributes(any[Path], any[String])
+    verify(mockFs, times(3)).readAttributes(any[Path], any[Class[BasicFileAttributes]])
+    verify(mockFs, times(3)).isSameFile(any[Path], any[Path])
+    verify(mockFs, times(3)).getFileAttributeView(any[Path], any[Class[FileAttributeView]])
   }
 
   it should "fail imediately on fatal exceptions" in {
@@ -260,19 +260,19 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
     (the [CromwellFatalException] thrownBy retryableFs.isSameFile(pathMock, pathMock)).getCause shouldBe a[FileNotFoundException]
     (the [CromwellFatalException] thrownBy retryableFs.getFileAttributeView(pathMock, classOf[FileAttributeView])).getCause shouldBe a[FileNotFoundException]
 
-    verify(mockFs, times(1)).move(any(), any())
-    verify(mockFs, times(1)).checkAccess(any())
-    verify(mockFs, times(1)).createDirectory(any())
-    verify(mockFs, times(1)).newByteChannel(any(), any())
-    verify(mockFs, times(1)).isHidden(any())
-    verify(mockFs, times(1)).copy(any(), any())
-    verify(mockFs, times(1)).delete(any())
-    verify(mockFs, times(1)).newDirectoryStream(any(), any())
-    verify(mockFs, times(1)).setAttribute(any(), any(), any())
-    verify(mockFs, times(1)).readAttributes(any(), any[String])
-    verify(mockFs, times(1)).readAttributes(any(), any[Class[BasicFileAttributes]])
-    verify(mockFs, times(1)).isSameFile(any(), any())
-    verify(mockFs, times(1)).getFileAttributeView(any(), any[Class[FileAttributeView]])
+    verify(mockFs, times(1)).move(any[Path], any[Path])
+    verify(mockFs, times(1)).checkAccess(any[Path])
+    verify(mockFs, times(1)).createDirectory(any[Path])
+    verify(mockFs, times(1)).newByteChannel(any[Path], any[java.util.Set[OpenOption]])
+    verify(mockFs, times(1)).isHidden(any[Path])
+    verify(mockFs, times(1)).copy(any[Path], any[Path])
+    verify(mockFs, times(1)).delete(any[Path])
+    verify(mockFs, times(1)).newDirectoryStream(any[Path], any[Filter[Path]]())
+    verify(mockFs, times(1)).setAttribute(any[Path], any[String], any[Object])
+    verify(mockFs, times(1)).readAttributes(any[Path], any[String])
+    verify(mockFs, times(1)).readAttributes(any[Path], any[Class[BasicFileAttributes]])
+    verify(mockFs, times(1)).isSameFile(any[Path], any[Path])
+    verify(mockFs, times(1)).getFileAttributeView(any[Path], any[Class[FileAttributeView]])
   }
 
 }

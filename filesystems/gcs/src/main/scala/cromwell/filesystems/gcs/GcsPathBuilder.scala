@@ -47,8 +47,6 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
                      retryParams: RetryParams,
                      cloudStorageConfiguration: CloudStorageConfiguration,
                      options: WorkflowOptions) extends PathBuilder {
-  import GcsPathBuilder._
-
   authMode.validate(options)
 
   protected val storageOptions = StorageOptions.builder()
@@ -68,7 +66,7 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
    * com.google.cloud.storage.Storage has some batching capabilities but not for copying.
    * In order to support batch copy, we need a com.google.api.services.storage.Storage.
    */
-  private lazy val apiStorage = new com.google.api.services.storage.Storage(HttpTransport, JsonFactory, authMode.credential(options))
+  //private lazy val apiStorage = new com.google.api.services.storage.Storage(HttpTransport, JsonFactory, authMode.credential(options))
 
   def getHash(path: Path): Try[String] = {
     path match {

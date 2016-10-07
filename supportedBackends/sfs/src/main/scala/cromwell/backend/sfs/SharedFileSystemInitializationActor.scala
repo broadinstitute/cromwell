@@ -7,7 +7,7 @@ import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.path.PathBuilderFactory
-import cromwell.core.{Dispatcher, WorkflowOptions}
+import cromwell.core.WorkflowOptions
 import wdl4s.Call
 import wdl4s.values.WdlValue
 
@@ -52,10 +52,8 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
   }
 
   val pathBuilders = params.pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
-  val ioDispatcher = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
-  val workflowPaths = WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor,
-    pathBuilders, ioDispatcher)
+  val workflowPaths = WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {

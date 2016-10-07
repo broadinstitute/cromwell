@@ -14,7 +14,6 @@ import wdl4s.parser.MemoryUnit
 import wdl4s.util.TryUtil
 
 import scala.concurrent.{Future, Promise}
-import scala.language.postfixOps
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
 

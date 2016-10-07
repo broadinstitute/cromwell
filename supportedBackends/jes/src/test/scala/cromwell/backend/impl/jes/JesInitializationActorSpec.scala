@@ -10,7 +10,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWor
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.filesystems.gcs.auth.{GoogleAuthMode, SimpleClientSecrets, RefreshTokenMode}
+import cromwell.filesystems.gcs.auth.{SimpleClientSecrets, RefreshTokenMode}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito

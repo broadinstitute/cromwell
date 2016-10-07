@@ -25,7 +25,6 @@ import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata._
 import wdl4s.AstTools._
@@ -452,8 +451,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
-
-  private def customLookupFunction(alreadyGeneratedOutputs: Map[String, WdlValue])(toBeLookedUp: String): WdlValue = alreadyGeneratedOutputs.getOrElse(toBeLookedUp, lookup(toBeLookedUp))
 
   /**
     * Attempts to find the JES file output corresponding to the WdlValue

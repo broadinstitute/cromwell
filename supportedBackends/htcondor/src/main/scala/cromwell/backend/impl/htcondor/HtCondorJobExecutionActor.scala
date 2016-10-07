@@ -22,7 +22,6 @@ import wdl4s.values.WdlArray
 
 import cromwell.core.path.JavaWriterImplicits._
 import scala.concurrent.{Future, Promise}
-import scala.language.postfixOps
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
 

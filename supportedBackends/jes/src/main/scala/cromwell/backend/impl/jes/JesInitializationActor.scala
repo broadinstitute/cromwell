@@ -12,7 +12,6 @@ import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
@@ -61,8 +60,6 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       token <- workflowDescriptor.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(clientSecrets, token)
   }
-
-  private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
 
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, JesRuntimeAttributes.coercionMap)

@@ -21,7 +21,7 @@ trait PathWriter {
     *
     * @param string Line to add to the logs.
     */
-  def writeWithNewline(string: String) {
+  def writeWithNewline(string: String): Unit = {
     writer.write(string)
     writer.write("\n")
   }
@@ -49,7 +49,7 @@ case class TailedWriter(path: Path, tailedSize: Int) extends PathWriter {
     *
     * @param string Line to add to the logs.
     */
-  override def writeWithNewline(string: String) {
+  override def writeWithNewline(string: String): Unit = {
     tailedLines :+= string
     while (tailedLines.size > tailedSize) {
       tailedLines = tailedLines.takeRight(tailedSize)

@@ -12,7 +12,7 @@ case class AggregatedException(exceptions: Seq[Throwable], prefixError: String =
 }
 
 object TryUtil {
-  private def stringifyFailure[T](failure: Try[T]): String = {
+  private def stringifyFailure(failure: Try[Any]): String = {
     val stringWriter = new StringWriter()
     val writer = new PrintWriter(stringWriter)
     failure recover { case e => e.printStackTrace(writer) }

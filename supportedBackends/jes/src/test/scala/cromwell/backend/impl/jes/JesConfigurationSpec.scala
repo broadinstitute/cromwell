@@ -14,6 +14,8 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
 
   override def afterAll(): Unit = {
     mockFile.delete(true)
+
+    ()
   }
 
   val globalConfig = ConfigFactory.parseString(

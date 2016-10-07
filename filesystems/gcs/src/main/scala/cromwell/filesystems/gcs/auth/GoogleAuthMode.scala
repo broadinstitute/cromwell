@@ -148,7 +148,6 @@ final case class RefreshTokenMode(name: String,
                                   clientSecret: String,
                                   scopes: java.util.List[String]) extends GoogleAuthMode with ClientSecrets {
   import GoogleAuthMode._
-
   override def requiresAuthFile = true
 
   private def extractRefreshToken(options: WorkflowOptions): String = {
@@ -157,7 +156,11 @@ final case class RefreshTokenMode(name: String,
     }
   }
 
-  override def validate(options: WorkflowOptions) = extractRefreshToken(options)
+  override def validate(options: WorkflowOptions) = {
+    extractRefreshToken(options)
+
+    ()
+  }
 
   override def authCredentials(options: WorkflowOptions): AuthCredentials = {
     val refreshToken = extractRefreshToken(options)

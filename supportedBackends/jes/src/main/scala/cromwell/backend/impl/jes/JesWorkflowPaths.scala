@@ -3,11 +3,10 @@ package cromwell.backend.impl.jes
 import java.nio.file.Path
 
 import akka.actor.ActorSystem
-import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.WorkflowOptions.FinalCallLogsDir
-import cromwell.filesystems.gcs.{RetryableGcsPathBuilder, GcsPathBuilder, GcsPathBuilderFactory}
+import cromwell.filesystems.gcs.{RetryableGcsPathBuilder, GcsPathBuilderFactory}
 
 import scala.language.postfixOps
 import scala.util.Try

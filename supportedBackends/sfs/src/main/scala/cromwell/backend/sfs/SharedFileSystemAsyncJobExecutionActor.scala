@@ -231,7 +231,9 @@ trait SharedFileSystemAsyncJobExecutionActor
     * @return A process runner that will relatively quickly submit the script asynchronously.
     */
   def makeProcessRunner(): ProcessRunner = {
-    new ProcessRunner(processArgs.argv, jobPaths.stdout, jobPaths.stderr)
+    val stdout = pathPlusSuffix(jobPaths.stdout, "submit")
+    val stderr = pathPlusSuffix(jobPaths.stderr, "submit")
+    new ProcessRunner(processArgs.argv, stdout.path, stderr.path)
   }
 
   /**

@@ -2,7 +2,7 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, OptionT}
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
@@ -134,11 +134,11 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
   }
 
   override def getWorkflowStatus(workflowExecutionUuid: String)
-                                (implicit ec: ExecutionContext): Future[Option[String]] = {
+                                (implicit ec: ExecutionContext): OptionT[Future, String] = {
     val action = dataAccess.workflowStatusesForWorkflowExecutionUuid(workflowExecutionUuid).result.headOption
     // The workflow might not exist, so `headOption`.  But even if the workflow does exist, the status might be None.
     // So flatten the Option[Option[String]] to Option[String].
-    runTransaction(action).map(_.flatten)
+    OptionT(runTransaction(action).map(_.flatten))
   }
 
   override def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],

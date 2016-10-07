@@ -1,5 +1,6 @@
 package cromwell.database.slick
 
+import cats.data.OptionT
 import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.database.sql.JobStoreSqlDatabase
@@ -28,8 +29,7 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
   }
 
   override def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
-                              jobScatterAttempt: Int)(implicit ec: ExecutionContext):
-  Future[Option[JobStoreJoin]] = {
+                              jobScatterAttempt: Int)(implicit ec: ExecutionContext): OptionT[Future, JobStoreJoin] = {
 
     val action = for {
       jobStoreEntryOption <- dataAccess.
@@ -41,7 +41,7 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
       }
     } yield jobStoreEntryOption.map(JobStoreJoin(_, jobStoreSimpletonEntries))
 
-    runTransaction(action)
+    OptionT(runTransaction(action))
   }
 
   override def removeJobStores(workflowExecutionUuids: Seq[String])

@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.Semigroup
 import cats.data.NonEmptyList
+import cats.instances.future._
 import cats.syntax.semigroup._
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.database.sql.SqlConverters._
@@ -13,6 +14,7 @@ import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryR
 import cromwell.services.metadata._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 object MetadataDatabaseAccess {
 
@@ -153,7 +155,7 @@ trait MetadataDatabaseAccess {
 
   def getWorkflowStatus(id: WorkflowId)
                        (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
-    databaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.fromString }
+    databaseInterface.getWorkflowStatus(id.toString) map WorkflowState.fromString value
   }
 
   def workflowExistsWithId(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {

@@ -5,14 +5,14 @@ import java.nio.file.{FileSystem, FileSystems, Path, Paths}
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.PathFactory
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 
 object WorkflowPaths{
   val DockerRoot = Paths.get("/root")
 }
 
 class WorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor, config: Config, val fileSystems: List[FileSystem] = List(FileSystems.getDefault)) extends PathFactory {
-  val executionRoot = Paths.get(config.getStringOr("root", "cromwell-executions")).toAbsolutePath
+  val executionRoot = Paths.get(config.as[Option[String]]("root").getOrElse("cromwell-executions")).toAbsolutePath
 
   private def workflowPathBuilder(root: Path) = {
     root.resolve(workflowDescriptor.workflowNamespace.workflow.unqualifiedName)

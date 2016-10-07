@@ -1,12 +1,13 @@
 package cromwell.backend.sfs
 
 import akka.actor.{Actor, ActorRef}
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.io.JobPaths
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 
 trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
   this: Actor with JobLogging =>
@@ -37,7 +38,7 @@ trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
 
   lazy val sharedFileSystem = new SharedFileSystem {
     override lazy val sharedFileSystemConfig = {
-      configurationDescriptor.backendConfig.getConfigOr("filesystems.local")
+      configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local").getOrElse(ConfigFactory.empty())
     }
   }
 }

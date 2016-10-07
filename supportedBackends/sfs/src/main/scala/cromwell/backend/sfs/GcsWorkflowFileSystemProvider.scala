@@ -4,14 +4,14 @@ import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.wfs.{WorkflowFileSystemProvider, WorkflowFileSystemProviderParams}
 import cromwell.filesystems.gcs.GoogleAuthMode.GoogleAuthOptions
 import cromwell.filesystems.gcs.{GcsFileSystem, GcsFileSystemProvider, GoogleConfiguration}
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import wdl4s.ValidationException
 
 import scala.util.Try
 
 object GcsWorkflowFileSystemProvider extends WorkflowFileSystemProvider {
   override def fileSystemOption(params: WorkflowFileSystemProviderParams): Option[GcsFileSystem] = {
-    params.fileSystemConfig.getStringOption("gcs.auth") map gcsFileSystem(params)
+    params.fileSystemConfig.as[Option[String]]("gcs.auth") map gcsFileSystem(params)
   }
 
   private def gcsFileSystem(params: WorkflowFileSystemProviderParams)(gcsAuthName: String): GcsFileSystem = {

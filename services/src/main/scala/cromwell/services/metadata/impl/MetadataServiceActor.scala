@@ -9,15 +9,14 @@ import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction, RefreshSummary, ValidateWorkflowIdAndExecute}
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
-import lenthall.config.ScalaConfig._
-
+import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Failure, Success, Try}
 
 object MetadataServiceActor {
 
   val MetadataSummaryRefreshInterval: Option[FiniteDuration] = {
-    val duration = Duration(ConfigFactory.load().getStringOr("services.MetadataService.metadata-summary-refresh-interval", "2 seconds"))
+    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.metadata-summary-refresh-interval").getOrElse("2 seconds"))
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 

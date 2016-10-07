@@ -9,8 +9,8 @@ import com.typesafe.config.Config
 import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
 import cromwell.core.WorkflowOptions
 import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
-import lenthall.config.ScalaConfig._
 import lenthall.config.ValidatedConfig._
+import net.ceedubs.ficus.Ficus._
 import cromwell.core.ErrorOr._
 import wdl4s.ExceptionWithErrors
 
@@ -46,7 +46,7 @@ object JesAttributes {
     val project: ValidatedNel[String, String] = backendConfig.validateString("project")
     val executionBucket: ValidatedNel[String, String] = backendConfig.validateString("root")
     val endpointUrl: ErrorOr[URL] = backendConfig.validateURL("genomics.endpoint-url")
-    val maxPollingInterval: Int = backendConfig.getIntOption("maximum-polling-interval").getOrElse(600)
+    val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val genomicsAuthName: ErrorOr[String] = backendConfig.validateString("genomics.auth")
     val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
 

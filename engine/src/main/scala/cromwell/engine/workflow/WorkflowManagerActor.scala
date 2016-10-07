@@ -14,8 +14,7 @@ import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStore
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.EngineStatsActor
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
-
+import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -94,9 +93,9 @@ class WorkflowManagerActor(config: Config,
            jobTokenDispenserActor: ActorRef) = this(
     ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor)
 
-  private val maxWorkflowsRunning = config.getConfig("system").getIntOr("max-concurrent-workflows", default=DefaultMaxWorkflowsToRun)
-  private val maxWorkflowsToLaunch = config.getConfig("system").getIntOr("max-workflow-launch-count", default=DefaultMaxWorkflowsToLaunch)
-  private val newWorkflowPollRate = config.getConfig("system").getIntOr("new-workflow-poll-rate", default=DefaultNewWorkflowPollRate).seconds
+  private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
+  private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
+  private val newWorkflowPollRate = config.getConfig("system").as[Option[Int]]("new-workflow-poll-rate").getOrElse(DefaultNewWorkflowPollRate).seconds
 
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
@@ -114,7 +113,7 @@ class WorkflowManagerActor(config: Config,
   private def addShutdownHook() = {
     // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
     val abortJobsOnTerminate =
-      config.getConfig("system").getBooleanOr("abort-jobs-on-terminate", default = false)
+      config.getConfig("system").as[Option[Boolean]]("abort-jobs-on-terminate").getOrElse(false)
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {

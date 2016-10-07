@@ -6,7 +6,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 import com.typesafe.config.Config
 import cromwell.database.slick.tables.DataAccessComponent
 import cromwell.database.sql.SqlDatabase
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 import slick.backend.DatabaseConfig
 import slick.driver.JdbcProfile
@@ -38,7 +38,7 @@ object SlickDatabase {
     // generate unique schema instances that don't conflict.
     //
     // Otherwise, create one DataAccess and hold on to the reference.
-    if (slickDatabase.databaseConfig.getBooleanOr("slick.createSchema", default = true)) {
+    if (slickDatabase.databaseConfig.as[Option[Boolean]]("slick.createSchema").getOrElse(true)) {
       import slickDatabase.dataAccess.driver.api._
       Await.result(slickDatabase.database.run(slickDatabase.dataAccess.schema.create), Duration.Inf)
     }
@@ -89,9 +89,9 @@ class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlData
     * Reuses the error reporter from the database's executionContext.
     */
   private val actionThreadPool: ExecutorService = {
-    val dbNumThreads = databaseConfig.getIntOr("db.numThreads", 20)
-    val dbMaximumPoolSize = databaseConfig.getIntOr("db.maxConnections", dbNumThreads * 5)
-    val actionThreadPoolSize = databaseConfig.getIntOr("actionThreadPoolSize", dbNumThreads) min dbMaximumPoolSize
+    val dbNumThreads = databaseConfig.as[Option[Int]]("db.numThreads").getOrElse(20)
+    val dbMaximumPoolSize = databaseConfig.as[Option[Int]]("db.maxConnections").getOrElse(dbNumThreads * 5)
+    val actionThreadPoolSize = databaseConfig.as[Option[Int]]("actionThreadPoolSize").getOrElse(dbNumThreads) min dbMaximumPoolSize
     Executors.newFixedThreadPool(actionThreadPoolSize)
   }
 

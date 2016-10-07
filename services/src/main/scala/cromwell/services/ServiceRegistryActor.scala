@@ -3,8 +3,7 @@ package cromwell.services
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
-import lenthall.config.ScalaConfig._
-
+import net.ceedubs.ficus.Ficus._
 import scala.collection.JavaConverters._
 
 object ServiceRegistryActor {
@@ -31,9 +30,8 @@ object ServiceRegistryActor {
   }
 
   private def serviceProps(serviceName: String, globalConfig: Config, serviceStanza: Config): Props = {
-    val serviceConfigStanza = serviceStanza.getConfigOr("config", ConfigFactory.parseString(""))
-    val className = serviceStanza.getStringOr(
-      "class",
+    val serviceConfigStanza = serviceStanza.as[Option[Config]]("config").getOrElse(ConfigFactory.parseString(""))
+    val className = serviceStanza.as[Option[String]]("class").getOrElse(
       throw new IllegalArgumentException(s"Invalid configuration for service $serviceName: missing 'class' definition")
     )
 

@@ -8,9 +8,9 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -71,9 +71,9 @@ object WorkflowLogger {
 
   val workflowLogConfiguration: Option[WorkflowLogConfiguration] = {
     for {
-      workflowConfig <- conf.getConfigOption("workflow-options")
-      dir <- workflowConfig.getStringOption("workflow-log-dir") if !dir.isEmpty
-      temporary <- workflowConfig.getBooleanOption("workflow-log-temporary") orElse Option(true)
+      workflowConfig <- conf.as[Option[Config]]("workflow-options")
+      dir <- workflowConfig.as[Option[String]]("workflow-log-dir") if !dir.isEmpty
+      temporary <- workflowConfig.as[Option[Boolean]]("workflow-log-temporary") orElse Option(true)
     } yield WorkflowLogConfiguration(Paths.get(dir).toAbsolutePath, temporary)
   }
 

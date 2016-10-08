@@ -1,5 +1,6 @@
 package cromwell.core
 
+import java.io.IOException
 import java.nio.file.Path
 
 import better.files._
@@ -23,7 +24,12 @@ object PathCopier {
     */
   def copy(sourceFilePath: Path, destinationFilePath: Path): Unit = {
     Option(File(destinationFilePath).parent).foreach(_.createDirectories())
-    File(sourceFilePath).copyTo(destinationFilePath, overwrite = true)
-    ()
+    try {
+      File(sourceFilePath).copyTo(destinationFilePath, overwrite = true)
+      ()
+    } catch {
+      case ex: Exception =>
+        throw new IOException(s"Failed to copy ${sourceFilePath.toUri.toString} to ${destinationFilePath.toUri.toString}", ex)
+    }
   }
 }

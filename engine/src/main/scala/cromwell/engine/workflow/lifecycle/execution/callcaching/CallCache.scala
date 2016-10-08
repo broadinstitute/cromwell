@@ -77,4 +77,8 @@ class CallCache(database: CallCachingSqlDatabase) {
   def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     database.queryCallCaching(metaInfoId.id)
   }
+
+  def invalidate(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext) = {
+    database.invalidateCall(metaInfoId.id)
+  }
 }

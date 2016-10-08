@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import cats.data.NonEmptyList
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, RuntimeAttributeDefinition}
@@ -47,7 +48,7 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
 
         deathWatch watch ejha
 
-        if (activity.readFromCache) replyTo.expectMsg(CacheHit(MetaInfoId(1)))
+        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(MetaInfoId(1))))
         if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
           case CallCacheHashes(hashes) => hashes.size should be(4)
           case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
@@ -86,7 +87,7 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
           }
         }
 
-        if (activity.readFromCache) replyTo.expectMsg(CacheHit(MetaInfoId(1)))
+        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(MetaInfoId(1))))
         if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
           case CallCacheHashes(hashes) => hashes.size should be(6)
           case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")

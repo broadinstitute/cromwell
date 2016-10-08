@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cats.data.NonEmptyList
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingCallCache, FetchingCachedOutputsFromDatabase, ResponsePendingData, RunningJob}
 import EngineJobExecutionActorSpec.EnhancedTestEJEA
 import cromwell.core.callcaching.{CallCachingActivity, CallCachingOff, ReadCache}
@@ -14,10 +15,10 @@ class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventua
   "An EJEA in CheckingCallCache mode" should {
     "Try to fetch the call cache outputs if it gets a CacheHit" in {
       createCheckingCallCacheEjea()
-      ejea ! CacheHit(MetaInfoId(75))
+      ejea ! CacheHit(NonEmptyList.of(MetaInfoId(75)))
       eventually { helper.fetchCachedResultsActorCreations.hasExactlyOne should be(true) }
       helper.fetchCachedResultsActorCreations checkIt {
-        case (CacheHit(metainfoId), _) => metainfoId should be(MetaInfoId(75))
+        case (metainfoId, _) => metainfoId should be(MetaInfoId(75))
         case _ => fail("Incorrect creation of the fetchCachedResultsActor")
       }
       ejea.stateName should be(FetchingCachedOutputsFromDatabase)

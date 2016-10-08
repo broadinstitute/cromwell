@@ -13,4 +13,7 @@ trait CallCachingSqlDatabase {
 
   def queryCallCaching(callCachingResultMetainfoId: Int)
                       (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
+
+  def invalidateCall(callCachingResultMetainfoId: Int)
+                    (implicit ec: ExecutionContext): Future[Unit]
 }

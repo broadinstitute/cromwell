@@ -19,13 +19,13 @@ resolvers ++= Seq(
 Add the following to `libraryDependencies`:
 
 ```
-"org.broadinstitute" %% "wdl4s" % "0.5",
+"org.broadinstitute" %% "wdl4s" % "0.6",
 ```
 
 Or add a snapshot release in the format `<version>-<git-hash7>-SNAPSHOT`:
 
 ```
-"org.broadinstitute" %% "wdl4s" % "0.5-ace1357-SNAPSHOT",
+"org.broadinstitute" %% "wdl4s" % "0.6-ace1357-SNAPSHOT",
 ```
 
 
@@ -35,13 +35,13 @@ To use in your Maven project add the following dependency
 <dependency>
     <groupId>org.broadinstitute</groupId>
     <artifactId>wdl4s_2.11</artifactId>
-    <version>0.5</version>
+    <version>0.6</version>
 </dependency>
 ```
 
 ## Scaladoc
 
-* [0.5](http://broadinstitute.github.io/wdl4s/0.5)
+* [0.6](http://broadinstitute.github.io/wdl4s/0.6)
 
 ## Usage
 
@@ -55,9 +55,9 @@ $ sbt "run-main wdl4s.examples.ex1"
 
 The main entry point into the parser is the `WdlNamespace` object.  A [WDL](https://github.com/broadinstitute/wdl) file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
-the [WdlNamespace](http://broadinstitute.github.io/wdl4s/0.5/#wdl4s.WdlNamespace$) object has a few `load()` functions for turning WDL source into `WdlNamespace` objects.
+the [WdlNamespace](http://broadinstitute.github.io/wdl4s/0.6/#wdl4s.WdlNamespace$) object has a few `load()` functions for turning WDL source into `WdlNamespace` objects.
 
-If the workflow being loaded contains a `workflow` definition, then the `load()` function will return a [NamespaceWithWorkflow](http://broadinstitute.github.io/wdl4s/0.5/#wdl4s.NamespaceWithWorkflow) and otherwise it will return a [NamespaceWithoutWorkflow](http://broadinstitute.github.io/wdl4s/0.5/#wdl4s.NamespaceWithoutWorkflow).
+If the workflow being loaded contains a `workflow` definition, then the `load()` function will return a [NamespaceWithWorkflow](http://broadinstitute.github.io/wdl4s/0.6/#wdl4s.NamespaceWithWorkflow) and otherwise it will return a [NamespaceWithoutWorkflow](http://broadinstitute.github.io/wdl4s/0.6/#wdl4s.NamespaceWithoutWorkflow).
 
 Example `src/main/scala/wdl4s/examples/ex1.scala`
 

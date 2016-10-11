@@ -31,5 +31,6 @@ object CallCacheInvalidateActor {
   }
 }
 
-case object CallCacheInvalidatedSuccess
-case class CallCacheInvalidatedFailure(t: Throwable)
+sealed trait CallCacheInvalidatedResponse
+case object CallCacheInvalidatedSuccess extends CallCacheInvalidatedResponse
+case class CallCacheInvalidatedFailure(t: Throwable) extends CallCacheInvalidatedResponse

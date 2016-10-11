@@ -190,18 +190,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(InvalidatingCacheEntry) {
-    case Event(CallCacheInvalidatedSuccess, data: ResponsePendingData) =>
-      data.popCacheHitId match {
-        case (Some(nextId), newData) =>
-          log.info("Trying to use another cache hit for job: {}", jobDescriptorKey)
-          fetchCachedResults(jobDescriptorKey.call.task.outputs, nextId) using newData
-        case (None, newData) =>
-          log.info("Could not find another cache hit, falling back to running job: {}", jobDescriptorKey)
-          runJob(newData)
-      }
-    case Event(CallCacheInvalidatedFailure(failure), data: ResponsePendingData) =>
-      log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
-      runJob(data)
+    case Event(response: CallCacheInvalidatedResponse, data: ResponsePendingData) =>
+      handleCacheInvalidatedResponse(response, data)
+
+    // Hashes arrive:
+    case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
+      addHashesAndStay(data, hashes)
+
+    // Hash error occurs:
+    case Event(HashError(t), data: ResponsePendingData) =>
+      disableCacheWrite(t)
+      // Can't write hashes for this job, but continue to wait for the copy response.
+      stay using data.copy(hashes = Option(Failure(t)))
   }
 
   when(RunningJob) {
@@ -353,6 +353,22 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     backendJobExecutionActor ! message
     replyTo ! JobRunning(data.jobDescriptor, Option(backendJobExecutionActor))
     goto(RunningJob) using data
+  }
+
+  private def handleCacheInvalidatedResponse(response: CallCacheInvalidatedResponse, data: ResponsePendingData) = {
+    response match {
+      case CallCacheInvalidatedFailure(failure) => log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
+      case _ =>
+    }
+
+    data.popCacheHitId match {
+      case (Some(nextId), newData) =>
+        log.info("Trying to use another cache hit for job: {}", jobDescriptorKey)
+        fetchCachedResults(jobDescriptorKey.call.task.outputs, nextId) using newData
+      case (None, newData) =>
+        log.info("Could not find another cache hit, falling back to running job: {}", jobDescriptorKey)
+        runJob(newData)
+    }
   }
 
   private def buildJobExecutionActorName(jobDescriptor: BackendJobDescriptor) = {

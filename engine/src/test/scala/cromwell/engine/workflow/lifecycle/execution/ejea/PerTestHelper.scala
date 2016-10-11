@@ -65,6 +65,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   var fetchCachedResultsActorCreations: ExpectOne[(MetaInfoId, Seq[TaskOutput])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
   var callCacheWriteActorCreations: ExpectOne[(CallCacheHashes, SucceededResponse)] = NothingYet
+  var invalidateCacheActorCreations: ExpectOne[MetaInfoId] = NothingYet
 
   val deathwatch = TestProbe()
   val bjeaProbe = TestProbe()
@@ -149,6 +150,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   override def makeFetchCachedResultsActor(cacheId: MetaInfoId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))
   override def createSaveCacheResultsActor(hashes: CallCacheHashes, success: SucceededResponse) = helper.callCacheWriteActorCreations = helper.callCacheWriteActorCreations.foundOne((hashes, success))
-
+  override def invalidateCacheHit(cacheId: MetaInfoId): Unit = {
+    helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId)
+  }
   override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref
 }

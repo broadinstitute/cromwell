@@ -8,7 +8,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.callcaching.MetaInfoId
 import org.scalatest.concurrent.Eventually
 
-class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventually {
+class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventually with CanExpectFetchCachedResults {
 
   override implicit val stateUnderTest = CheckingCallCache
 
@@ -16,11 +16,7 @@ class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventua
     "Try to fetch the call cache outputs if it gets a CacheHit" in {
       createCheckingCallCacheEjea()
       ejea ! CacheHit(NonEmptyList.of(MetaInfoId(75)))
-      eventually { helper.fetchCachedResultsActorCreations.hasExactlyOne should be(true) }
-      helper.fetchCachedResultsActorCreations checkIt {
-        case (metainfoId, _) => metainfoId should be(MetaInfoId(75))
-        case _ => fail("Incorrect creation of the fetchCachedResultsActor")
-      }
+      expectFetchCachedResultsActor(MetaInfoId(75))
       ejea.stateName should be(FetchingCachedOutputsFromDatabase)
     }
 

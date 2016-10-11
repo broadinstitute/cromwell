@@ -1,6 +1,7 @@
 package lenthall.spray
 
 import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
 import spray.http.StatusCodes
 import spray.routing.HttpService
 
@@ -77,15 +78,13 @@ trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
    */
   def swaggerUiConfig: Config
 
-  import lenthall.config.ScalaConfig._
-
   override def swaggerUiVersion = swaggerUiConfig.getString("uiVersion")
 
-  abstract override def swaggerUiBaseUrl = swaggerUiConfig.getStringOr("baseUrl", super.swaggerUiBaseUrl)
+  abstract override def swaggerUiBaseUrl = swaggerUiConfig.as[Option[String]]("baseUrl").getOrElse(super.swaggerUiBaseUrl)
 
-  abstract override def swaggerUiPath = swaggerUiConfig.getStringOr("uiPath", super.swaggerUiPath)
+  abstract override def swaggerUiPath = swaggerUiConfig.as[Option[String]]("uiPath").getOrElse(super.swaggerUiPath)
 
-  abstract override def swaggerUiDocsPath = swaggerUiConfig.getStringOr("docsPath", super.swaggerUiDocsPath)
+  abstract override def swaggerUiDocsPath = swaggerUiConfig.as[Option[String]]("docsPath").getOrElse(super.swaggerUiDocsPath)
 }
 
 /**

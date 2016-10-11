@@ -21,9 +21,12 @@ val sprayV = "1.3.3"
 
 val akkaV = "2.4.10"
 
+resolvers += Resolver.jcenterRepo
+
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.0",
   "org.slf4j" % "slf4j-api" % "1.7.21",
+  "com.iheart" %% "ficus" % "1.3.0",
   //---------- Provided libraries -------------------//
   "org.typelevel" %% "cats" % "0.7.2" % Provided,
   "ch.qos.logback" % "logback-classic" % "1.1.7" % Provided,

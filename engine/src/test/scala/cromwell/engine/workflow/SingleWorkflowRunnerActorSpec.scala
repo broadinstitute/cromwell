@@ -10,6 +10,7 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowSourceFiles
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
@@ -65,7 +66,8 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
       dummyLogCopyRouter,
       jobStore,
       callCacheReadActor,
-      jobTokenDispenserActor)), "WorkflowManagerActor")
+      jobTokenDispenserActor,
+      BackendSingletonCollection(Map.empty))), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

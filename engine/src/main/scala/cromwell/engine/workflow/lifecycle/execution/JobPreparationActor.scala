@@ -14,10 +14,11 @@ import wdl4s.values.WdlValue
 import scala.util.{Failure, Success, Try}
 
 final case class JobPreparationActor(executionData: WorkflowExecutionActorData,
-                               jobKey: BackendJobDescriptorKey,
-                               factory: BackendLifecycleActorFactory,
-                               initializationData: Option[BackendInitializationData],
-                               serviceRegistryActor: ActorRef)
+                                     jobKey: BackendJobDescriptorKey,
+                                     factory: BackendLifecycleActorFactory,
+                                     initializationData: Option[BackendInitializationData],
+                                     serviceRegistryActor: ActorRef,
+                                     backendSingletonActor: Option[ActorRef])
   extends Actor with WdlLookup with WorkflowLogging {
 
   override lazy val workflowDescriptor: EngineWorkflowDescriptor = executionData.workflowDescriptor
@@ -92,7 +93,7 @@ final case class JobPreparationActor(executionData: WorkflowExecutionActorData,
       evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation)
       attributesWithDefault = curriedAddDefaultsToAttributes(evaluatedRuntimeAttributes)
       jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, attributesWithDefault, inputEvaluation)
-    } yield BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor))) match {
+    } yield BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor, backendSingletonActor))) match {
       case Success(s) => s
       case Failure(f) => BackendJobPreparationFailed(jobKey, f)
     }
@@ -111,9 +112,10 @@ object JobPreparationActor {
             jobKey: BackendJobDescriptorKey,
             factory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData],
-            serviceRegistryActor: ActorRef) = {
+            serviceRegistryActor: ActorRef,
+            backendSingletonActor: Option[ActorRef]) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor))
+    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor, backendSingletonActor))
   }
 }

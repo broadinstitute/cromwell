@@ -19,8 +19,9 @@ object JesJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor,
             jesWorkflowInfo: JesConfiguration,
             initializationData: JesBackendInitializationData,
-            serviceRegistryActor: ActorRef): Props = {
-    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor))
+            serviceRegistryActor: ActorRef,
+            jesBackendSingletonActor: Option[ActorRef]): Props = {
+    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor, jesBackendSingletonActor))
   }
 
   val JesOperationIdKey = "__jes_operation_id"
@@ -29,8 +30,11 @@ object JesJobExecutionActor {
 case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                                 jesConfiguration: JesConfiguration,
                                 initializationData: JesBackendInitializationData,
-                                serviceRegistryActor: ActorRef)
+                                serviceRegistryActor: ActorRef,
+                                jesBackendSingletonActorOption: Option[ActorRef])
   extends BackendJobExecutionActor {
+
+  val jesBackendSingletonActor = jesBackendSingletonActorOption.getOrElse(throw new RuntimeException("JES Backend actor cannot exist without the JES backend singleton actor"))
 
   private def jesReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -63,7 +67,8 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       completionPromise,
       jesConfiguration,
       initializationData,
-      serviceRegistryActor)
+      serviceRegistryActor,
+      jesBackendSingletonActor)
     val executorRef = context.actorOf(executionProps, "JesAsyncBackendJobExecutionActor")
     executor = Option(executorRef)
     ()

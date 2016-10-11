@@ -12,6 +12,7 @@ import sbtdocker.DockerPlugin.autoImport._
 object Settings {
 
   val commonResolvers = List(
+    Resolver.jcenterRepo,
     "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
     "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
   )

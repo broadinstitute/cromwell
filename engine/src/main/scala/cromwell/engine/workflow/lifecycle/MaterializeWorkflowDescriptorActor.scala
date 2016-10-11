@@ -21,8 +21,8 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
 import cromwell.core.ErrorOr._
+import net.ceedubs.ficus.Ficus._
 import spray.json.{JsObject, _}
 import wdl4s._
 import wdl4s.expression.NoFunctions
@@ -89,7 +89,7 @@ object MaterializeWorkflowDescriptorActor {
       }
     }
 
-    val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
+    val enabled = conf.as[Option[Boolean]]("call-caching.enabled").getOrElse(false)
     if (enabled) {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
@@ -184,7 +184,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       workflowOptions: WorkflowOptions,
                                       conf: Config,
                                       engineFilesystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
-    val defaultBackendName = conf.getStringOption("backend.default")
+    val defaultBackendName = conf.as[Option[String]]("backend.default")
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(namespace.workflow.calls, workflowOptions, defaultBackendName)
@@ -332,7 +332,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   private def validateWorkflowFailureMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[WorkflowFailureMode] = {
     val modeString: Try[String] = workflowOptions.get(WorkflowOptions.WorkflowFailureMode) match {
       case Success(x) => Success(x)
-      case Failure(_: OptionNotFoundException) => Success(conf.getStringOption("workflow-options.workflow-failure-mode") getOrElse DefaultWorkflowFailureMode)
+      case Failure(_: OptionNotFoundException) => Success(conf.as[Option[String]]("workflow-options.workflow-failure-mode") getOrElse DefaultWorkflowFailureMode)
       case Failure(t) => Failure(t)
     }
 

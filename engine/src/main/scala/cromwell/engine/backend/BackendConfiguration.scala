@@ -2,8 +2,7 @@ package cromwell.engine.backend
 
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
-import lenthall.config.ScalaConfig._
-
+import net.ceedubs.ficus.Ficus._
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -29,7 +28,7 @@ object BackendConfiguration {
     BackendConfigurationEntry(
       backendName,
       entry.getString("actor-factory"),
-      entry.getConfigOr("config")
+      entry.as[Option[Config]]("config").getOrElse(ConfigFactory.empty("empty"))
     )
   }
 

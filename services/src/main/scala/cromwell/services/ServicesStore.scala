@@ -4,7 +4,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
 trait ServicesStore {
@@ -15,7 +15,7 @@ object ServicesStore {
 
   implicit class EnhancedSqlDatabase[A <: SqlDatabase](val sqlDatabase: A) extends AnyVal {
     def initialized: A = {
-      if (sqlDatabase.databaseConfig.getBooleanOr("liquibase.updateSchema", default = true)) {
+      if (sqlDatabase.databaseConfig.as[Option[Boolean]]("liquibase.updateSchema").getOrElse(true)) {
         sqlDatabase withConnection LiquibaseUtils.updateSchema
       }
       sqlDatabase

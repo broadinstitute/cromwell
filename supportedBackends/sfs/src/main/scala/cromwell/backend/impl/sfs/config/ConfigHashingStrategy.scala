@@ -6,7 +6,7 @@ import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.util.TryWithResource._
 import cromwell.util.FileUtil._
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import org.apache.commons.codec.digest.DigestUtils
 import org.slf4j.LoggerFactory
 
@@ -17,9 +17,9 @@ object ConfigHashingStrategy {
   val defaultStrategy = HashFileStrategy(false)
 
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
-      val checkSiblingMd5 = hashingConfig.getBooleanOr("check-sibling-md5", default = false)
+      val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)
 
-      hashingConfig.getStringOr("hashing-strategy", "file") match {
+      hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
         case "path" => HashPathStrategy(checkSiblingMd5)
         case "file" => HashFileStrategy(checkSiblingMd5)
         case what =>

@@ -27,6 +27,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
+import net.ceedubs.ficus.Ficus._
 import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
@@ -241,7 +242,6 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
 
   import WorkflowExecutionActor._
-  import lenthall.config.ScalaConfig._
 
   override def supervisorStrategy = AllForOneStrategy() {
     case ex: ActorInitializationException =>
@@ -256,7 +256,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   implicit val ec = context.dispatcher
 
-  val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {
+  val MaxRetries = ConfigFactory.load().as[Option[Int]]("system.max-retries") match {
     case Some(value) => value
     case None =>
       workflowLogger.warn(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of '$DefaultMaxRetriesFallbackValue'.")

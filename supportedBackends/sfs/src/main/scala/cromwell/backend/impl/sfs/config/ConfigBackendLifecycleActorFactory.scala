@@ -1,11 +1,12 @@
 package cromwell.backend.impl.sfs.config
 
+import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, RuntimeAttributeDefinition}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
 /**
@@ -18,13 +19,13 @@ class ConfigBackendLifecycleActorFactory(name: String, val configurationDescript
 
   lazy val logger = LoggerFactory.getLogger(getClass)
   lazy val hashingStrategy = {
-    configurationDescriptor.backendConfig.getConfigOption("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
+    configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
   }
 
   override def initializationActorClass = classOf[ConfigInitializationActor]
 
   override def asyncJobExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
-    val runInBackground = configurationDescriptor.backendConfig.getBooleanOr(RunInBackgroundConfig, default = false)
+    val runInBackground = configurationDescriptor.backendConfig.as[Option[Boolean]](RunInBackgroundConfig).getOrElse(false)
     if (runInBackground)
       classOf[BackgroundConfigAsyncJobExecutionActor]
     else
@@ -47,7 +48,7 @@ class ConfigBackendLifecycleActorFactory(name: String, val configurationDescript
   override lazy val fileHashingActorCount: Int = 5
 
   override val jobExecutionTokenType: JobExecutionTokenType = {
-    val concurrentJobLimit = configurationDescriptor.backendConfig.getIntOption("concurrent-job-limit")
+    val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
     JobExecutionTokenType(name, concurrentJobLimit)
   }
 }

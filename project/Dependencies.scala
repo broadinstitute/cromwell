@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.19-98b3f3a-SNAPSHOT"
+  lazy val lenthallV = "0.19-882a763-SNAPSHOT"
   lazy val wdl4sV = "0.6-2964173-SNAPSHOT"
   lazy val sprayV = "1.3.3"
   /*
@@ -24,6 +24,7 @@ object Dependencies {
     "org.broadinstitute" %% "lenthall" % lenthallV,
     "org.typelevel" %% "cats" % catsV,
     "com.github.benhutchison" %% "mouse" % "0.5",
+    "com.iheart" %% "ficus" % "1.3.0",
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.specs2" %% "specs2" % "3.7" % Test
   )

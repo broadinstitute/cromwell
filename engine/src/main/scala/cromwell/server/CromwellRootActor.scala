@@ -12,8 +12,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
-
+import net.ceedubs.ficus.Ficus._
 /**
   * An actor which serves as the lord protector for the rest of Cromwell, allowing us to have more fine grain
   * control on top level supervision, etc.
@@ -31,7 +30,7 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
   private val config = ConfigFactory.load()
 
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
-  lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").getIntOr("number-of-workflow-log-copy-workers", default=DefaultNumberOfWorkflowLogCopyWorkers)
+  lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
       .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)

@@ -7,9 +7,9 @@ import akka.util.Timeout
 import com.typesafe.config.Config
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
-import lenthall.config.ScalaConfig._
 import lenthall.spray.SprayCanHttpService._
 import lenthall.spray.WrappedRoute._
+import net.ceedubs.ficus.Ficus._
 import spray.http.{ContentType, MediaTypes, _}
 import spray.json._
 
@@ -56,7 +56,7 @@ class CromwellServerActor(config: Config) extends CromwellRootActor with Cromwel
   override def actorRefFactory = context
   override def receive = handleTimeouts orElse runRoute(possibleRoutes)
 
-  val possibleRoutes = workflowRoutes.wrapped("api", config.getBooleanOr("api.routeUnwrapped")) ~ swaggerUiResourceRoute
+  val possibleRoutes = workflowRoutes.wrapped("api", config.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)) ~ swaggerUiResourceRoute
   val timeoutError = APIResponse.error(new TimeoutException("The server was not able to produce a timely response to your request.")).toJson.prettyPrint
 
   def handleTimeouts: Receive = {

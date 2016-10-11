@@ -19,8 +19,9 @@ import com.google.api.services.storage.Storage
 import com.google.api.services.storage.model.StorageObject
 import com.google.cloud.hadoop.gcsio.{GoogleCloudStorageReadChannel, GoogleCloudStorageWriteChannel, ObjectWriteConditions}
 import com.google.cloud.hadoop.util.{ApiErrorExtractor, AsyncWriteChannelOptions, ClientRequestHelper}
-import com.typesafe.config.ConfigFactory
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import com.typesafe.config.{Config, ConfigFactory, ConfigMemorySize}
+import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -52,6 +53,11 @@ object GcsFileSystemProvider {
       Thread.sleep(retryInterval.toMillis)
       withRetry(f, retries - 1)
     case Failure(ex) => throw ex
+  }
+
+  // TODO refactor as part of Ficus and submit a PR
+  implicit val configMemorySizeValueReader: ValueReader[ConfigMemorySize] = new ValueReader[ConfigMemorySize] {
+    override def read(config: Config, path: String): ConfigMemorySize = config.getMemorySize(path)
   }
 }
 
@@ -140,8 +146,10 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
   - com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel.setUploadBufferSize
   - com.google.api.client.googleapis.media.MediaHttpUploader.setContentAndHeadersOnCurrentRequest
    */
-  private[this] lazy val uploadBufferBytes = config.getBytesOr("google.upload-buffer-bytes",
-    MediaHttpUploader.MINIMUM_CHUNK_SIZE).toInt
+  private[this] lazy val uploadBufferBytes = {
+    val configBytes = config.as[Option[ConfigMemorySize]]("google.upload-buffer-bytes").map(_.toBytes.toInt)
+    configBytes.getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
+  }
 
   /**
     * Overrides the default implementation to provide a writable channel (which newByteChannel doesn't).
@@ -234,7 +242,7 @@ class GcsFileSystemProvider private[gcs](storageClient: Try[Storage], val execut
 
   override def isHidden(path: Path): Boolean = throw new NotImplementedError()
 
-  private[this] lazy val maxResults = config.getIntOr("google.list-max-results", 1000).toLong
+  private[this] lazy val maxResults = config.as[Option[Int]]("google.list-max-results").getOrElse(1000).toLong
 
   private def list(gcsDir: NioGcsPath) = {
     val listRequest = client.objects().list(gcsDir.bucket).setMaxResults(maxResults)

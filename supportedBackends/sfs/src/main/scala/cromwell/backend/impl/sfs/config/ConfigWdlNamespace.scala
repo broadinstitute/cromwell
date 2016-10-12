@@ -24,6 +24,10 @@ class ConfigWdlNamespace(backendConfig: Config) {
   private val submitDockerSourceOption = submitDockerCommandOption.map(makeWdlSource(
     SubmitDockerTask, _, submitRuntimeAttributes + submitDockerRuntimeAttributes + configRuntimeAttributes))
 
+  private val submitArrayCommandOption = backendConfig.getStringOption(SubmitArrayConfig)
+  private val submitArraySourceOption = submitArrayCommandOption.map(makeWdlSource(
+    SubmitArrayTask, _, submitArrayRuntimeAttributes + configRuntimeAttributes))
+
   private val killCommandOption = backendConfig.getStringOption(KillConfig)
   private val killSourceOption = killCommandOption.map(makeWdlSource(KillTask, _, jobIdRuntimeAttributes))
 
@@ -32,12 +36,12 @@ class ConfigWdlNamespace(backendConfig: Config) {
     CheckAliveTask, _, jobIdRuntimeAttributes))
 
   private val wdlSource =
-    s"""
-       |${submitSourceOption getOrElse ""}
-       |${submitDockerSourceOption getOrElse ""}
-       |${killSourceOption getOrElse ""}
-       |${checkAliveSourceOption getOrElse ""}
-       |""".stripMargin.trim
+    s"""|${submitSourceOption getOrElse ""}
+        |${submitDockerSourceOption getOrElse ""}
+        |${submitArraySourceOption getOrElse ""}
+        |${killSourceOption getOrElse ""}
+        |${checkAliveSourceOption getOrElse ""}
+        |""".stripMargin.trim
 
   /**
     * The wdl namespace containing the submit, kill, and check alive tasks.
@@ -62,14 +66,13 @@ class ConfigWdlNamespace(backendConfig: Config) {
 
 object ConfigWdlNamespace {
   private def makeWdlSource(taskName: String, command: String, declarations: String): WdlSource = {
-    s"""
-       |task $taskName {
-       |$declarations
-       |command {
-       |$command
-       |}
-       |}
-       |""".stripMargin
+    s"""|task $taskName {
+        |$declarations
+        |command {
+        |$command
+        |}
+        |}
+        |""".stripMargin
   }
 
   private def makeTask(taskName: String, command: String, declarations: String): Task = {
@@ -82,28 +85,33 @@ object ConfigWdlNamespace {
     * Extra inputs that will be filled in for both submit and submit-docker.
     */
   private val submitRuntimeAttributes =
-    s"""
-       |String $JobIdInput
-       |String $JobNameInput
-       |String $CwdInput
-       |String $StdoutInput
-       |String $StderrInput
-       |String $ScriptInput
-       |""".stripMargin
+  s"""|String $JobNameInput
+      |String $CwdInput
+      |String $StdoutInput
+      |String $StderrInput
+      |String $ScriptInput
+      |""".stripMargin
 
   /**
     * Extra inputs only filled in for submit-docker.
     */
   private val submitDockerRuntimeAttributes =
-    s"""
-       |String $DockerCwdInput
-       |""".stripMargin
+  s"""|String $DockerCwdInput
+      |""".stripMargin
+
+  /**
+    * Extra inputs only filled in for submit-array.
+    */
+  private val submitArrayRuntimeAttributes =
+  s"""|String $JobNameInput
+      |String $ScriptInput
+      |Int $ArrayCountInput
+      |""".stripMargin
 
   /**
     * Inputs for the kill and check alive commands.
     */
   private val jobIdRuntimeAttributes =
-    s"""
-       |String $JobIdInput
-       |""".stripMargin
+  s"""|String $JobIdInput
+      |""".stripMargin
 }

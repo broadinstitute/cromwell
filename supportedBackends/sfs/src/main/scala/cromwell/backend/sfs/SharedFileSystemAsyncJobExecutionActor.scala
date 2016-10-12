@@ -64,6 +64,13 @@ trait SharedFileSystemAsyncJobExecutionActor
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with SharedFileSystemJobCachingActorHelper
     with JobLogging {
 
+  case class SharedFileSystemBatchSubmittingExecutionHandle(jobDescriptor: BackendJobDescriptor)
+    extends ExecutionHandle {
+    override val isDone = false
+    override val result = NonRetryableExecution(new IllegalStateException(
+      "SharedFileSystemBatchSubmittingExecutionHandle cannot yield a result"))
+  }
+
   case class SharedFileSystemPendingExecutionHandle(jobDescriptor: BackendJobDescriptor,
                                                     run: SharedFileSystemJob) extends ExecutionHandle {
     override val isDone = false
@@ -71,7 +78,12 @@ trait SharedFileSystemAsyncJobExecutionActor
       "SharedFileSystemPendingExecutionHandle cannot yield a result"))
   }
 
-  context.become(sharedReceive(None) orElse super.receive)
+  var jobOption: Option[SharedFileSystemJob] = None
+  var batchSubmissionFailureOption: Option[Exception] = None
+  var abortingJob: Boolean = false
+  var batchSubmissionAborted: Boolean = false
+
+  override def receive: Receive = sharedFileSystemReceiveBehavior orElse super.receive
 
   val SIGTERM = 143
   val SIGINT = 130
@@ -153,9 +165,16 @@ trait SharedFileSystemAsyncJobExecutionActor
   lazy val isDockerRun = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined
 
-  def sharedReceive(jobOption: Option[SharedFileSystemJob]): Receive = LoggingReceive {
+  def sharedFileSystemReceiveBehavior: Receive = LoggingReceive {
     case AbortJobCommand =>
-      jobOption foreach tryKill
+      abortingJob = true // Will be killed on next poll
+      // TODO: Tell batch submitter (from initialization actor, same way we get it to tell it to batch submit) to abort
+    case BatchSubmissionAborted =>
+      batchSubmissionAborted = true
+    case BatchSubmissionSuccess(jobId: SharedFileSystemJob) =>
+      jobOption = Option(jobId)
+    case BatchSubmissionFailure(failure) =>
+      batchSubmissionFailureOption = Option(failure)
     case KvPutSuccess(_) => // expected after the KvPut in tellKvJobId
   }
 
@@ -210,7 +229,7 @@ trait SharedFileSystemAsyncJobExecutionActor
         s"Check the stderr file for possible errors: ${runner.stderrPath}"))
     } else {
       val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
-      context.become(sharedReceive(Option(runningJob)) orElse super.receive)
+      jobOption = Option(runningJob)
       tellKvJobId(runningJob)
       jobLogger.info(s"job id: ${runningJob.jobId}")
       tellMetadata(Map("jobId" -> runningJob.jobId))
@@ -265,7 +284,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   def recoverScript(job: SharedFileSystemJob): ExecutionHandle = {
-    context.become(sharedReceive(Option(job)) orElse super.receive)
+    jobOption = Option(job)
     // To avoid race conditions, check for the rc file after checking if the job is alive.
     if (isAlive(job) || File(jobPaths.returnCode).exists) {
       // If we're done, we'll get to the rc during the next poll.
@@ -350,9 +369,33 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = {
     previous match {
+      case handle: SharedFileSystemBatchSubmittingExecutionHandle =>
+        Future successful {
+          /*
+          NOTE: Because the backends use of scala futures operate outside the contract of the akka actors, the polling
+          will happen... anytime...
+
+          The vars holding the jobOption or the batchSubmitErrorOption will either be None, or later Some().
+           */
+          if (batchSubmissionAborted) {
+            AbortedExecutionHandle
+          } else if (jobOption.isDefined) {
+            // Switch the handle if we now have the job id over to a pending execution handle.
+            SharedFileSystemPendingExecutionHandle(jobDescriptor, jobOption.get)
+          } else if (batchSubmissionFailureOption.isDefined) {
+            // Switch the handle if we now have a job submit failure over to a failed execution handle.
+            FailedNonRetryableExecutionHandle(batchSubmissionFailureOption.get, None)
+          } else {
+            // Otherwise, keep polling with our existing handle
+            handle
+          }
+        }
       case handle: SharedFileSystemPendingExecutionHandle =>
         val runId = handle.run
         jobLogger.debug(s"Polling Job $runId")
+        if (abortingJob) {
+          tryKill(runId)
+        }
         File(jobPaths.returnCode).exists match {
           case true =>
             processReturnCode()

@@ -11,11 +11,14 @@ object ConfigConstants {
    */
   val SubmitConfig = "submit"
   val SubmitDockerConfig = "submit-docker"
+  val SubmitArrayConfig = "submit-array"
   val KillConfig = "kill"
   val CheckAliveConfig = "check-alive"
   val RuntimeAttributesConfig = "runtime-attributes"
   val JobIdRegexConfig = "job-id-regex"
   val RunInBackgroundConfig = "run-in-background"
+  val ArrayTaskVariableConfig = "array-task-variable"
+  val ArrayJobIdRegexConfig = "array-job-id-regex"
 
   /*
   Runtime attributes that may be specified within the RuntimeAttributesConfig.
@@ -33,6 +36,7 @@ object ConfigConstants {
   val RuntimeAttributesTask = "runtime_attributes"
   val SubmitTask = "submit"
   val SubmitDockerTask = "submit_docker"
+  val SubmitArrayTask = "submit_array"
   val KillTask = "kill"
   val CheckAliveTask = "check_alive"
 
@@ -43,6 +47,7 @@ object ConfigConstants {
   val JobNameInput = "job_name"
   val CwdInput = "cwd"
   val DockerCwdInput = "docker_cwd"
+  val ArrayCountInput = "array_count"
   val StdoutInput = "out"
   val StderrInput = "err"
   val ScriptInput = "script"

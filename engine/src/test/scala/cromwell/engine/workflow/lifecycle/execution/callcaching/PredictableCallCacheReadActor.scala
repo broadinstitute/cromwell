@@ -10,7 +10,7 @@ import scala.util.{Failure, Success, Try}
 /**
   * Has a set of responses which it will respond with. If it gets a request for anything that it's not expecting to respond to will generate a failure.
   */
-class PredictableCallCacheReadActor(responses: Map[String, Set[MetaInfoId]]) extends Actor with ActorLogging {
+class PredictableCallCacheReadActor(responses: Map[String, Set[CallCachingEntryId]]) extends Actor with ActorLogging {
 
   var responsesRemaining = responses
 
@@ -25,7 +25,7 @@ class PredictableCallCacheReadActor(responses: Map[String, Set[MetaInfoId]]) ext
       }
   }
 
-  private def respond(sndr: ActorRef, hashes: Set[HashResult], result: Try[Set[MetaInfoId]]) = result match {
+  private def respond(sndr: ActorRef, hashes: Set[HashResult], result: Try[Set[CallCachingEntryId]]) = result match {
     case Success(cacheMatches) => sndr ! CacheResultMatchesForHashes(hashes, cacheMatches)
     case Failure(t) => sndr ! CacheResultLookupFailure(t)
   }
@@ -35,7 +35,7 @@ class PredictableCallCacheReadActor(responses: Map[String, Set[MetaInfoId]]) ext
     case None => Failure(new Exception(s"Error looking up response $name!"))
   }
 
-  private def resultLookupFolder(current: Try[Set[MetaInfoId]], next: HashResult): Try[Set[MetaInfoId]] = current flatMap { c =>
+  private def resultLookupFolder(current: Try[Set[CallCachingEntryId]], next: HashResult): Try[Set[CallCachingEntryId]] = current flatMap { c =>
     val lookedUp = toTry(next.hashKey.key, responses.get(next.hashKey.key))
     lookedUp map { l => c.intersect(l) }
   }

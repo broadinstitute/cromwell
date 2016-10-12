@@ -13,7 +13,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 
 import scala.concurrent.{ExecutionContext, Future}
 
-final case class MetaInfoId(id: Int)
+final case class CallCachingEntryId(id: Int)
 
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
@@ -34,7 +34,7 @@ class CallCache(database: CallCachingSqlDatabase) {
     addToCache(metaInfo, hashes, result, jobDetritus)
   }
 
-  private def addToCache(metaInfo: CallCachingEntry, hashes: Set[HashResult],
+  private def addToCache(callCachingEntry: CallCachingEntry, hashes: Set[HashResult],
                          result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, String])
                         (implicit ec: ExecutionContext): Future[Unit] = {
 
@@ -56,25 +56,29 @@ class CallCache(database: CallCachingSqlDatabase) {
     }
 
     val callCachingJoin =
-      CallCachingJoin(metaInfo, hashesToInsert.toSeq, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
+      CallCachingJoin(callCachingEntry, hashesToInsert.toSeq, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
 
     database.addCallCaching(callCachingJoin)
   }
 
-  def fetchMetaInfoIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
-    metaInfoIdsMatchingHashes(NonEmptyList.fromListUnsafe(callCacheHashes.hashes.toList))
+  def callCachingEntryIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[CallCachingEntryId]] = {
+    callCachingEntryIdsMatchingHashes(NonEmptyList.fromListUnsafe(callCacheHashes.hashes.toList))
   }
 
-  private def metaInfoIdsMatchingHashes(hashKeyValuePairs: NonEmptyList[HashResult])
-                                       (implicit ec: ExecutionContext): Future[Set[MetaInfoId]] = {
+  private def callCachingEntryIdsMatchingHashes(hashKeyValuePairs: NonEmptyList[HashResult])
+                                       (implicit ec: ExecutionContext): Future[Set[CallCachingEntryId]] = {
     val result = database.queryCallCachingEntryIds(hashKeyValuePairs map {
       case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
     })
 
-    result.map(_.toSet.map(MetaInfoId))
+    result.map(_.toSet.map(CallCachingEntryId))
   }
 
-  def fetchCachedResult(metaInfoId: MetaInfoId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
-    database.queryCallCaching(metaInfoId.id)
+  def fetchCachedResult(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+    database.queryCallCaching(callCachingEntryId.id)
+  }
+
+  def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
+    database.invalidateCall(callCachingEntryId.id)
   }
 }

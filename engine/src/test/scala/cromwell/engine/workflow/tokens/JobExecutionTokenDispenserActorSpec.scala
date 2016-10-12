@@ -2,15 +2,15 @@ package cromwell.engine.workflow.tokens
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorSystem, Kill, PoisonPill}
-import org.scalatest._
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
-import JobExecutionTokenDispenserActorSpec._
-import cromwell.core.JobExecutionToken
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActorSpec._
 import cromwell.engine.workflow.tokens.TestTokenGrabbingActor.StoppingSupervisor
 import cromwell.util.AkkaTestUtil
+import org.scalatest._
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._

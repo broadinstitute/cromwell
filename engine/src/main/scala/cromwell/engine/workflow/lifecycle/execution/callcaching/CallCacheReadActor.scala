@@ -31,7 +31,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
   }
 
   private def runRequest(callCacheHashes: CallCacheHashes): Unit = {
-    val response = cache.fetchMetaInfoIdsMatchingHashes(callCacheHashes) map {
+    val response = cache.callCachingEntryIdsMatchingHashes(callCacheHashes) map {
       CacheResultMatchesForHashes(callCacheHashes.hashes, _)
     } recover {
       case t => CacheResultLookupFailure(t)
@@ -66,6 +66,6 @@ object CallCacheReadActor {
   case class CacheLookupRequest(callCacheHashes: CallCacheHashes)
 
   sealed trait CallCacheReadActorResponse
-  case class CacheResultMatchesForHashes(hashResults: Set[HashResult], cacheResultIds: Set[MetaInfoId]) extends CallCacheReadActorResponse
+  case class CacheResultMatchesForHashes(hashResults: Set[HashResult], cacheResultIds: Set[CallCachingEntryId]) extends CallCacheReadActorResponse
   case class CacheResultLookupFailure(reason: Throwable) extends CallCacheReadActorResponse
 }

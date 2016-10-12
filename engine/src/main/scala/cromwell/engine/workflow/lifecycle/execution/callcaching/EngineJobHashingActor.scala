@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
+import cats.data.NonEmptyList
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
@@ -123,7 +124,8 @@ case class EngineJobHashingActor(receiver: ActorRef,
   }
 
   private def respondWithHitOrMissThenTransition(newData: EJHAData) = {
-    val hitOrMissResponse: EJHAResponse = newData.cacheHit map CacheHit getOrElse CacheMiss
+    import cats.data.NonEmptyList
+    val hitOrMissResponse: EJHAResponse = newData.cacheHits map { _.toList } flatMap NonEmptyList.fromList map CacheHit.apply getOrElse CacheMiss
 
     receiver ! hitOrMissResponse
     if (!activity.writeToCache) {
@@ -199,7 +201,7 @@ object EngineJobHashingActor {
   case object GeneratingAllHashes extends EJHAState
 
   sealed trait EJHAResponse
-  case class CacheHit(cacheResultId: MetaInfoId) extends EJHAResponse
+  case class CacheHit(cacheResultIds: NonEmptyList[CallCachingEntryId]) extends EJHAResponse
   case object CacheMiss extends EJHAResponse
   case class HashError(t: Throwable) extends EJHAResponse {
     override def toString = s"HashError(${t.getMessage})"
@@ -223,7 +225,7 @@ object EngineJobHashingActor {
   * @param hashesKnown The set of all hashes calculated so far (including initial hashes)
   * @param remainingHashesNeeded The set of hashes which are still needed for writing to the database
   */
-private[callcaching] case class EJHAData(possibleCacheResults: Option[Set[MetaInfoId]],
+private[callcaching] case class EJHAData(possibleCacheResults: Option[Set[CallCachingEntryId]],
                                          remainingCacheChecks: Set[HashKey],
                                          hashesKnown: Set[HashResult],
                                          remainingHashesNeeded: Set[HashKey]) {
@@ -249,7 +251,8 @@ private[callcaching] case class EJHAData(possibleCacheResults: Option[Set[MetaIn
   def allHashesKnown = remainingHashesNeeded.isEmpty
   def allCacheResultsIntersected = remainingCacheChecks.isEmpty
   def cacheHit = if (allCacheResultsIntersected) possibleCacheResults flatMap { _.headOption } else None
-  def isDefinitelyCacheHit = cacheHit.isDefined
+  def cacheHits = if (allCacheResultsIntersected) possibleCacheResults else None
+  def isDefinitelyCacheHit = cacheHits.isDefined
   def isDefinitelyCacheMiss = possibleCacheResults.exists(_.isEmpty)
   def isDefinitelyCacheHitOrMiss = isDefinitelyCacheHit || isDefinitelyCacheMiss
 }

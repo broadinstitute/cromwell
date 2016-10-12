@@ -29,7 +29,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.broadinstitute" %% "wdl4s" % "0.5",
+  "org.broadinstitute" %% "wdl4s" % "0.6",
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "2.2.5" % Test
 )

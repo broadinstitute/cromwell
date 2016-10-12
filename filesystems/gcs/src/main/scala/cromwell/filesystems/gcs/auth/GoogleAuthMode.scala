@@ -38,7 +38,7 @@ object GoogleAuthMode {
   }
 
   case object NoAuthMode extends GoogleAuthMode {
-    override def name = "Mo_auth"
+    override def name = "no_auth"
 
     override def authCredentials(options: WorkflowOptions): AuthCredentials = AuthCredentials.noAuth()
     override def credential(options: WorkflowOptions): Credential = new MockGoogleCredential.Builder().build()

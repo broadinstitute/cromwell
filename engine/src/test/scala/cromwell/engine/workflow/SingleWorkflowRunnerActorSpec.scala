@@ -116,7 +116,6 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
         outputFile = Option(metadataFile.path))
         TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
-    println(metadataFile.pathAsString)
     val metadataFileContent = metadataFile.contentAsString
     val metadata = metadataFileContent.parseJson.asJsObject.fields
     metadata.get("id") shouldNot be(empty)

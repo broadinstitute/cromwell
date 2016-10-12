@@ -240,7 +240,7 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
     verify(mockFs, times(3)).getFileAttributeView(any[Path], any[Class[FileAttributeView]])
   }
 
-  it should "fail imediately on fatal exceptions" in {
+  it should "fail immediately on fatal exceptions" in {
     def isFatal(t: Throwable) = t.isInstanceOf[FileNotFoundException]
     val retryParams = testRetryParams.copy(maxRetries = Option(5), isFatal = isFatal)
     val mockFs = mockFileSystem(throws = Option(ThrowParams(new FileNotFoundException(), nbTimes = 3)))

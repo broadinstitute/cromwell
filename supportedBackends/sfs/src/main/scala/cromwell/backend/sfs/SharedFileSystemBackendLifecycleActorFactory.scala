@@ -8,8 +8,8 @@ import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher._
 import cromwell.core.path.{PathBuilderFactory, DefaultPathBuilderFactory}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
-import lenthall.config.ScalaConfig._
 import lenthall.exception.MessageAggregation
+import net.ceedubs.ficus.Ficus._
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
@@ -26,7 +26,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
     * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
     */
   lazy val gcsPathBuilderFactory: Option[GcsPathBuilderFactory] = {
-    configurationDescriptor.backendConfig.getStringOption("filesystems.gcs.auth") map { configAuth =>
+    configurationDescriptor.backendConfig.as[Option[String]]("filesystems.gcs.auth") map { configAuth =>
       GoogleConfiguration(configurationDescriptor.globalConfig).auth(configAuth) match {
         case Valid(auth) => GcsPathBuilderFactory(auth)
         case Invalid(error) => throw new MessageAggregation {

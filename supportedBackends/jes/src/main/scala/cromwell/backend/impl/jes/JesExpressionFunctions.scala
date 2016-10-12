@@ -21,7 +21,7 @@ class JesExpressionFunctions(override val pathBuilders: List[PathBuilder], conte
   override def globPath(glob: String): String = context.root.resolve(globDirectory(glob)).toString
 
   override def glob(path: String, pattern: String): Seq[String] = {
-    /* Globing is not implemented in the gcs-nio implementation yet (specifically PathMatcher) at this time (09/2016)
+    /* Globbing is not implemented in the gcs-nio implementation yet (specifically PathMatcher) at this time (09/2016)
      * which is fine here since all files in the globing directory have already be matched against the glob pattern by JES.
      *
      * Also, better.file.File can't be used here because it calls toAbsolutePath on the path in File.apply, which adds a leading "/" in the path.

@@ -59,7 +59,6 @@ object SharedFileSystem {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
         executionPath.parent.createDirectories()
-        // -Ywarn-value-discard
         Try { executionPath.linkTo(originalPath, symbolic = true) } void
       }
   }

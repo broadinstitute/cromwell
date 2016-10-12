@@ -66,8 +66,6 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
    * com.google.cloud.storage.Storage has some batching capabilities but not for copying.
    * In order to support batch copy, we need a com.google.api.services.storage.Storage.
    */
-  //private lazy val apiStorage = new com.google.api.services.storage.Storage(HttpTransport, JsonFactory, authMode.credential(options))
-
   def getHash(path: Path): Try[String] = {
     path match {
       case gcsPath: CloudStoragePath => Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
@@ -76,10 +74,6 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
         Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
       case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
     }
-  }
-
-  def batchCopy(pairs: Seq[(Path, Path)]) = {
-    // TODO: implement with apiStorage
   }
 
   def build(string: String): Try[Path] = {

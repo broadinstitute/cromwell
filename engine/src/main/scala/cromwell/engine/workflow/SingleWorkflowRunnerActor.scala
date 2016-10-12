@@ -73,13 +73,13 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if jsObject.state == WorkflowFailed =>
       val updatedData = data.copy(terminalState = Option(WorkflowFailed)).addFailure(s"Workflow ${data.id.get} transitioned to state Failed")
       // If there's an output path specified then request metadata, otherwise issue a reply to the original sender.
-      if (metadataOutputPath.isDefined) requestMetadata else issueReply(updatedData)
+      if (metadataOutputPath.isDefined) requestMetadata(updatedData) else issueReply(updatedData)
   }
 
   when (RequestingOutputs) {
     case Event(RequestComplete((StatusCodes.OK, outputs: JsObject)), _) =>
       outputOutputs(outputs)
-      if (metadataOutputPath.isDefined) requestMetadata else issueReply(stateData)
+      if (metadataOutputPath.isDefined) requestMetadata(stateData) else issueReply(stateData)
   }
 
   when (RequestingMetadata) {
@@ -106,10 +106,10 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
       stay()
   }
 
-  private def requestMetadata: State = {
+  private def requestMetadata(data: RunnerData): State = {
     val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${stateData.id.get}")
     metadataBuilder ! GetSingleWorkflowMetadataAction(stateData.id.get, None, None)
-    goto (RequestingMetadata)
+    goto (RequestingMetadata) using data
   }
 
   private def schedulePollRequest(): Unit = {

@@ -8,12 +8,12 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{CustomRetryParams, PathBuilderFactory}
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 
 object GcsPathBuilderFactory {
 
   private[this] lazy val UploadBufferBytes = {
-    ConfigFactory.load().getBytesOr("google.upload-buffer-bytes", MediaHttpUploader.MINIMUM_CHUNK_SIZE).toInt
+    ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
   }
 
   val DefaultRetryParams = RetryParams.defaultInstance()

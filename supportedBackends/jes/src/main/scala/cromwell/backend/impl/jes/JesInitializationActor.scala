@@ -20,6 +20,7 @@ import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
+import scala.language.postfixOps
 import scala.util.Try
 
 object JesInitializationActor {
@@ -88,7 +89,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
       Future(path.writeAsJson(content)).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
-      } map { _ => () }
+      } void
     } getOrElse Future.successful(())
   }
 

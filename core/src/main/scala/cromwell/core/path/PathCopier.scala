@@ -5,7 +5,6 @@ import java.nio.file.Path
 
 import better.files._
 
-import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 object PathCopier {

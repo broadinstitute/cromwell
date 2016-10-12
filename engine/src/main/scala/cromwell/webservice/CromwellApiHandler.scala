@@ -21,8 +21,8 @@ object CromwellApiHandler {
 
   sealed trait ApiHandlerMessage
 
-  final case class ApiHandlerWorkflowSubmit(source: WorkflowSourceFiles) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowSubmitBatch(sources: NonEmptyList[WorkflowSourceFiles]) extends ApiHandlerMessage
+  final case class ApiHandlerWorkflowSubmit(source: WorkflowSourceFilesCollection) extends ApiHandlerMessage
+  final case class ApiHandlerWorkflowSubmitBatch(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStatus(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowOutputs(id: WorkflowId) extends ApiHandlerMessage
@@ -66,7 +66,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
     case WorkflowStoreActor.WorkflowSubmittedToStore(id) =>
       context.parent ! RequestComplete((StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString)))
 
-    case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor ! WorkflowStoreActor.BatchSubmitWorkflows(sources)
+    case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor !
+      WorkflowStoreActor.BatchSubmitWorkflows(sources.map(x => WorkflowSourceFilesWithoutImports(x.wdlSource,x.inputsJson,x.workflowOptionsJson)))
+
 
     case WorkflowStoreActor.WorkflowsBatchSubmittedToStore(ids) =>
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }

@@ -4,7 +4,7 @@ import com.google.api.client.util.ExponentialBackOff
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-sealed trait Backoff {
+trait Backoff {
   /** Next interval in millis */
   def backoffMillis: Long
   /** Get the next instance of backoff. This should be called after every call to backoffMillis */

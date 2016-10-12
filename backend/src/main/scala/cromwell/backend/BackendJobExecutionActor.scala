@@ -1,10 +1,13 @@
 package cromwell.backend
 
+import java.nio.file.Path
+
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.core.{ExecutionEvent, JobOutputs}
+import cromwell.backend.wdl.OutputEvaluator
+import cromwell.core.{CallOutputs, ExecutionEvent, JobKey}
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
@@ -21,12 +24,12 @@ object BackendJobExecutionActor {
   // Responses
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
 
-  sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse { def jobKey: BackendJobDescriptorKey }
-  case class SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, jobDetritusFiles: Option[Map[String, String]], executionEvents: Seq[ExecutionEvent]) extends BackendJobExecutionResponse
+  sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse { def jobKey: JobKey }
+  case class JobSucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: CallOutputs, jobDetritusFiles: Option[Map[String, Path]], executionEvents: Seq[ExecutionEvent]) extends BackendJobExecutionResponse
   case class AbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {  def throwable: Throwable; def returnCode: Option[Int] }
-  case class FailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
-  case class FailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
+  case class JobFailedNonRetryableResponse(jobKey: JobKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
+  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
 }
 
 /**
@@ -45,7 +48,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
 
   // We need this for receive because we can't do `onFailure = ExecutionFailure` directly - because BackendJobDescriptor =/= BackendJobDescriptorKey
   private def executionFailed = (t: Throwable) =>
-    FailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+    JobFailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
 
   /**
     * Execute a new job.

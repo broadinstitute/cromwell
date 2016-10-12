@@ -6,25 +6,26 @@ import akka.actor.Props
 import better.files._
 import cats.instances.future._
 import cats.syntax.functor._
-import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
+import cromwell.backend.{BackendWorkflowDescriptor, BackendWorkflowFinalizationActor, JobExecutionMap}
+import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.IoDispatcher
-import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
-import wdl4s.Call
+import cromwell.core.path.PathCopier
+import wdl4s.TaskCall
 
 import scala.concurrent.Future
 import scala.language.postfixOps
 
 object JesFinalizationActor {
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
-            executionStore: ExecutionStore, outputStore: OutputStore, initializationData: Option[JesBackendInitializationData]) = {
-    Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData))
+  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], jesConfiguration: JesConfiguration,
+            jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs, initializationData: Option[JesBackendInitializationData]) = {
+    Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, jobExecutionMap, workflowOutputs, initializationData))
   }
 }
 
 class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDescriptor,
-                            override val calls: Seq[Call],
-                            jesConfiguration: JesConfiguration, executionStore: ExecutionStore,
-                            outputStore: OutputStore,
+                            override val calls: Set[TaskCall],
+                            jesConfiguration: JesConfiguration, jobExecutionMap: JobExecutionMap,
+                            workflowOutputs: CallOutputs,
                             initializationData: Option[JesBackendInitializationData]) extends BackendWorkflowFinalizationActor {
 
   override val configurationDescriptor = jesConfiguration.configurationDescriptor
@@ -68,19 +69,19 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
   }
 
   private lazy val logPaths: Seq[Path] = {
-    val allCallPaths = executionStore.store.toSeq collect {
-      case (backendJobDescriptorKey: BackendJobDescriptorKey, _) =>
-        initializationData map { _.workflowPaths.toJesCallPaths(backendJobDescriptorKey) }
+    val allCallPaths = jobExecutionMap flatMap {
+      case (backendJobDescriptor, keys) =>
+        keys map { JesWorkflowPaths(backendJobDescriptor, jesConfiguration)(context.system).toJobPaths(_) }
     }
 
-    allCallPaths.flatten flatMap { callPaths =>
-      Seq(callPaths.stdoutPath, callPaths.stderrPath, callPaths.jesLogPath)
+    allCallPaths.toSeq flatMap { callPaths =>
+      Seq(callPaths.stdout, callPaths.stderr, callPaths.jesLogPath)
     }
   }
 
   private def copyLogs(callLogsDirPath: Path, logPaths: Seq[Path]): Unit = {
     workflowPaths match {
-      case Some(paths) => logPaths.foreach(PathCopier.copy(paths.rootPath, _, callLogsDirPath))
+      case Some(paths) => logPaths.foreach(PathCopier.copy(paths.executionRoot, _, callLogsDirPath))
       case None =>
     }
   }

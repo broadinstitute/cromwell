@@ -9,7 +9,7 @@ package object mock {
 
   // This is used by stubbed backends that are to be used in tests to prepare dummy outputs for job
   def taskOutputToJobOutput(taskOutput: TaskOutput) =
-    taskOutput.name -> JobOutput(sampleValue(taskOutput.wdlType))
+    taskOutput.unqualifiedName -> JobOutput(sampleValue(taskOutput.wdlType))
 
   private def sampleValue(wdlType: WdlType): WdlValue = wdlType match {
     case WdlIntegerType => WdlInteger(3)

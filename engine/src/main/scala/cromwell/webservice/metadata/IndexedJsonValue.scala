@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.{Monoid, Semigroup}
 import cats.instances.map._
+import cromwell.services.metadata.CallMetadataKeys
 import spray.json._
 
 
@@ -30,20 +31,33 @@ object IndexedJsonValue {
 
 /** Customized version of Json data structure, to account for timestamped values and lazy array creation */
 sealed trait TimestampedJsValue {
-  def toJson: JsValue
+  def toJson(expandedValues: Map[String, JsValue]): JsValue
   def timestamp: OffsetDateTime
 }
 
 private case class TimestampedJsList(v: Map[Int, TimestampedJsValue], timestamp: OffsetDateTime) extends TimestampedJsValue {
-  override val toJson = JsArray(v.values.toVector map { _.toJson })
+  override def toJson(expandedValues: Map[String, JsValue]) = JsArray(v.values.toVector map { _.toJson(expandedValues) })
 }
 
 private case class TimestampedJsObject(v: Map[String, TimestampedJsValue], timestamp: OffsetDateTime) extends TimestampedJsValue {
-  override val toJson = JsObject(v mapValues { _.toJson })
+  override def toJson(expandedValues: Map[String, JsValue]) = {
+    val mappedValues = v map {
+      case (key, subWorkflowId: TimestampedJsPrimitive) if key == CallMetadataKeys.SubWorkflowId =>
+        val subId = subWorkflowId.v.asInstanceOf[JsString]
+        expandedValues.get(subId.value) map { subMetadata =>
+           CallMetadataKeys.SubWorkflowMetadata -> subMetadata
+        } getOrElse {
+          key -> subWorkflowId.v
+        }
+      case (key, value) => key -> value.toJson(expandedValues)
+    }
+    
+    JsObject(mappedValues)
+  }
 }
 
 private class TimestampedJsPrimitive(val v: JsValue, val timestamp: OffsetDateTime) extends TimestampedJsValue {
-  override val toJson = v
+  override def toJson(expandedValues: Map[String, JsValue]) = v
 }
 
 private case class TimestampedEmptyJson(override val timestamp: OffsetDateTime) extends TimestampedJsPrimitive(JsObject(Map.empty[String, JsValue]), timestamp)

@@ -6,8 +6,8 @@ import Version._
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
-import sbtrelease.ReleasePlugin
 import sbtdocker.DockerPlugin.autoImport._
+import sbtrelease.ReleasePlugin
 
 object Settings {
 
@@ -48,7 +48,13 @@ object Settings {
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
     "-Ywarn-unused",
-    "-Ywarn-unused-import"
+    "-Ywarn-unused-import",
+    "-Xfatal-warnings"
+  )
+
+  val docSettings = List(
+    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
+    "-no-link-warnings"
   )
 
   lazy val assemblySettings = Seq(
@@ -58,14 +64,17 @@ object Settings {
     logLevel in assembly := Level.Info,
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
-  
+
   lazy val dockerSettings = Seq(
     imageNames in docker := Seq(
-        ImageName(
-          namespace = Option("broadinstitute"),
-          repository = name.value,
-          tag = Some(s"${version.value}")
-        )
+      ImageName(
+        namespace = Option("broadinstitute"),
+        repository = name.value,
+        tag = Option(cromwellVersion)),
+      ImageName(
+        namespace = Option("broadinstitute"),
+        repository = name.value,
+        tag = Option(version.value))
     ),
     dockerfile in docker := {
       // The assembly task generates a fat JAR file
@@ -77,7 +86,7 @@ object Settings {
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/cromwell.jar")
-        
+
         // If you use the 'exec' form for an entry point, shell processing is not performed and 
         // environment variable substitution does not occur.  Thus we have to /bin/bash here
         // and pass along any subsequent command line arguments
@@ -89,8 +98,7 @@ object Settings {
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
-    )
-  
+  )
 
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
@@ -98,6 +106,7 @@ object Settings {
     scalaVersion := "2.11.8",
     resolvers ++= commonResolvers,
     scalacOptions ++= compilerSettings,
+    scalacOptions in (Compile, doc) ++= docSettings,
     parallelExecution := false
   )
 

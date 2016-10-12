@@ -2,10 +2,10 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import cromwell.CromwellTestkitSpec.AnyValueIsFine
+import cromwell.CromwellTestKitSpec.AnyValueIsFine
 
 
-class WorkflowOutputsSpec extends CromwellTestkitSpec {
+class WorkflowOutputsSpec extends CromwellTestKitSpec {
   "Workflow outputs" should {
     "use all outputs if none are specified" in {
       runWdlAndAssertOutputs(
@@ -13,9 +13,9 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "three_step.ps.procs" -> AnyValueIsFine,
-          "three_step.cgrep.count" -> AnyValueIsFine,
-          "three_step.wc.count" -> AnyValueIsFine
+          "three_step_ps_procs" -> AnyValueIsFine,
+          "three_step_cgrep_count" -> AnyValueIsFine,
+          "three_step_wc_count" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )
@@ -27,8 +27,8 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "three_step.cgrep.count" -> AnyValueIsFine,
-          "three_step.wc.count" -> AnyValueIsFine
+          "three_step_cgrep_count" -> AnyValueIsFine,
+          "three_step_wc_count" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )
@@ -40,8 +40,8 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "scatter0.outside_scatter.out" -> AnyValueIsFine,
-          "scatter0.inside_scatter.out" -> AnyValueIsFine
+          "scatter0_outside_scatter_out" -> AnyValueIsFine,
+          "scatter0_inside_scatter_out" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )
@@ -53,7 +53,7 @@ class WorkflowOutputsSpec extends CromwellTestkitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "scatter0.inside_scatter.out" -> AnyValueIsFine
+          "scatter0_inside_scatter_out" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )

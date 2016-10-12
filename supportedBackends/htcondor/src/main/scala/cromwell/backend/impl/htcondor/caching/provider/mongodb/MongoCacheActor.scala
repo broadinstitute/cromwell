@@ -4,7 +4,7 @@ import com.mongodb.DBObject
 import com.mongodb.casbah.MongoCollection
 import com.mongodb.casbah.commons.{MongoDBObject, TypeImports}
 import com.mongodb.util.JSON
-import cromwell.backend.BackendJobExecutionActor.SucceededResponse
+import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.impl.htcondor.caching.CacheActor
 import cromwell.backend.impl.htcondor.caching.exception.{CachedResultAlreadyExistException, CachedResultNotFoundException}
 import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
@@ -55,7 +55,7 @@ class MongoCacheActor(collection: MongoCollection,
 
   private def deserializeSucceededResponse(mongoDbObject: TypeImports.DBObject): CachedExecutionResult = {
     val cachedResult = JsonParser(mongoDbObject.toString).convertTo[MongoCachedExecutionResult]
-    val succeededResponse = deserialize(cachedResult.succeededResponse.byteArray, classOf[SucceededResponse])
+    val succeededResponse = deserialize(cachedResult.succeededResponse.byteArray, classOf[JobSucceededResponse])
     CachedExecutionResult(cachedResult.hash, succeededResponse)
   }
 

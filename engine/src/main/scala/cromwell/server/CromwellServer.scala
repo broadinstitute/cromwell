@@ -53,6 +53,9 @@ object CromwellServer {
 class CromwellServerActor(config: Config) extends CromwellRootActor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
 
+  override val serverMode = true
+  override val abortJobsOnTerminate = false
+
   override def actorRefFactory = context
   override def receive = handleTimeouts orElse runRoute(possibleRoutes)
 

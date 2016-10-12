@@ -4,10 +4,11 @@ import akka.actor.ActorRef
 import better.files._
 import cromwell.backend.io.{WorkflowPaths, WorkflowPathsBackendInitializationData}
 import cromwell.backend.validation.RuntimeAttributesDefault
-import cromwell.backend.wfs.{DefaultWorkflowFileSystemProvider, WorkflowFileSystemProvider}
+import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.{Dispatcher, WorkflowOptions}
-import wdl4s.Call
+import cromwell.core.WorkflowOptions
+import cromwell.core.path.PathBuilderFactory
+import wdl4s.TaskCall
 import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
@@ -18,7 +19,8 @@ case class SharedFileSystemInitializationActorParams
   serviceRegistryActor: ActorRef,
   workflowDescriptor: BackendWorkflowDescriptor,
   configurationDescriptor: BackendConfigurationDescriptor,
-  calls: Seq[Call]
+  calls: Set[TaskCall],
+  pathBuilderFactories: List[PathBuilderFactory]
 )
 
 class SharedFileSystemBackendInitializationData
@@ -37,7 +39,7 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
 
   override lazy val workflowDescriptor: BackendWorkflowDescriptor = params.workflowDescriptor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = params.configurationDescriptor
-  override lazy val calls: Seq[Call] = params.calls
+  override lazy val calls: Set[TaskCall] = params.calls
   override lazy val serviceRegistryActor: ActorRef = params.serviceRegistryActor
 
   def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =
@@ -49,11 +51,9 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
     ).toMap
   }
 
-  val providers = Seq(GcsWorkflowFileSystemProvider, DefaultWorkflowFileSystemProvider)
-  val ioDispatcher = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
+  val pathBuilders = params.pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
 
-  val workflowPaths = WorkflowFileSystemProvider.workflowPaths(configurationDescriptor, workflowDescriptor,
-    providers, ioDispatcher)
+  val workflowPaths = WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {

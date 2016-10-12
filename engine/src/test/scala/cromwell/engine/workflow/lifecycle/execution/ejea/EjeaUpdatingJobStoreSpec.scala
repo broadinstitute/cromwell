@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import EngineJobExecutionActorSpec._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
@@ -33,7 +33,7 @@ class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSu
       val exception = new Exception("I loved Ophelia: forty thousand brothers\\ Could not, with all their quantity of love,\\ Make up my sum. What wilt thou do for her?")
       ejea ! JobStoreWriteFailure(exception)
       helper.replyToProbe.expectMsgPF(awaitTimeout) {
-        case FailedNonRetryableResponse(jobDescriptorKey, reason, None) =>
+        case JobFailedNonRetryableResponse(jobDescriptorKey, reason, None) =>
           jobDescriptorKey should be(helper.jobDescriptorKey)
           reason.getCause should be(exception)
       }

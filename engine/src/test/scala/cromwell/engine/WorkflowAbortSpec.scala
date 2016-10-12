@@ -1,8 +1,8 @@
 package cromwell.engine
 
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 
-class WorkflowAbortSpec extends CromwellTestkitSpec {
+class WorkflowAbortSpec extends CromwellTestKitSpec {
 
   // TODO: When re-enabled, this test also needs to check that child processes have actually been stopped.
   "A WorkflowManagerActor" should {

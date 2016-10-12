@@ -23,7 +23,7 @@ trait CachedResultLocalization {
     WdlSingleFile(slPath.toString)
   }
 
-  def localizeCachedOutputs(executionPath: Path, outputs: JobOutputs): JobOutputs = {
+  def localizeCachedOutputs(executionPath: Path, outputs: CallOutputs): CallOutputs = {
     outputs map { case (lqn, jobOutput) =>
       jobOutput.wdlValue.wdlType match {
         case WdlFileType => (lqn -> JobOutput(localizeCachedFile(executionPath, jobOutput.wdlValue)))

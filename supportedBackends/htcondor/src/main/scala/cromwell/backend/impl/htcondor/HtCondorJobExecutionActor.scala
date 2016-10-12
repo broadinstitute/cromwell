@@ -1,20 +1,22 @@
 package cromwell.backend.impl.htcondor
 
-import java.nio.file.FileSystems
 import java.nio.file.attribute.PosixFilePermission
 import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.impl.htcondor.caching.localization.CachedResultLocalization
-import cromwell.backend.io.JobPaths
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.backend.wdl.Command
+import cromwell.core.path.JavaWriterImplicits._
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
-import wdl4s._
+import wdl4s.EvaluatedTaskInputs
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
@@ -27,7 +29,7 @@ import scala.util.{Failure, Success, Try}
 object HtCondorJobExecutionActor {
   val HtCondorJobIdKey = "htCondor_job_id"
 
-  val fileSystems = List(FileSystems.getDefault)
+  val pathBuilders = List(DefaultPathBuilder)
 
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, serviceRegistryActor: ActorRef, cacheActorProps: Option[Props]): Props =
     Props(new HtCondorJobExecutionActor(jobDescriptor, configurationDescriptor, serviceRegistryActor, cacheActorProps))
@@ -41,9 +43,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   import HtCondorJobExecutionActor._
   import better.files._
-  import cromwell.core.PathFactory._
 
   private val tag = s"CondorJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
+  override val pathBuilders: List[PathBuilder] = HtCondorJobExecutionActor.pathBuilders
 
   implicit val executionContext = context.dispatcher
 
@@ -53,7 +55,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
 
   // Files
   private val executionDir = jobPaths.callExecutionRoot
@@ -72,9 +74,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private lazy val stderrWriter = extProcess.tailedWriter(100, submitFileStderr)
 
   private val call = jobDescriptor.key.call
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, fileSystems)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
 
-  private val lookup = jobDescriptor.inputs.apply _
+  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
 
   private val runtimeAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
@@ -202,18 +204,18 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
             condorJobId = Option(overallJobIdentifier)
             self ! TrackTaskStatus(overallJobIdentifier)
 
-          case _ => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+          case _ => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
             new IllegalStateException("Failed to retrieve job(id) and cluster id"), Option(condorReturnCode)))
         }
 
       case 0 =>
         log.error(s"Unexpected! Received return code for condor submission as 0, although stderr file is non-empty: {}", File(submitFileStderr).lines)
-        self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+        self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed. HtCondor returned zero status code but non empty stderr file: $condorReturnCode"),
           Option(condorReturnCode)))
 
       case nonZeroExitCode: Int =>
-        self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+        self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed. HtCondor returned non zero status code: $condorReturnCode"), Option(condorReturnCode)))
     }
   }
@@ -229,16 +231,16 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         context.system.scheduler.scheduleOnce(pollingInterval.seconds, self, TrackTaskStatus(jobIdentifier))
         ()
       case Success(Some(rc)) if runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
-      case Success(Some(rc)) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+      case Success(Some(rc)) => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc)))
-      case Failure(error) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, error, None))
+      case Failure(error) => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key, error, None))
     }
   }
 
   private def processSuccess(rc: Int): BackendJobExecutionResponse = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) =>
-        val succeededResponse = SucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
+        val succeededResponse = JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
         log.debug("{} Storing data into cache for hash {}.", tag, jobHash)
         // If cache fails to store data for any reason it should not stop the workflow/task execution but log the issue.
         cacheActor foreach { _ ! StoreExecutionResult(jobHash, succeededResponse) }
@@ -247,12 +249,12 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         val message = Option(e.getMessage) map {
           ": " + _
         } getOrElse ""
-        FailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
+        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
     }
   }
 
   private def calculateHash: String = {
-    val cmd = call.task.instantiateCommand(jobDescriptor.inputs, callEngineFunction, identity) match {
+    val cmd = Command.instantiate(jobDescriptor, callEngineFunction) match {
       case Success(command) => command
       case Failure(ex) =>
         val errMsg = s"$tag Cannot instantiate job command for caching purposes due to ${ex.getMessage}."
@@ -276,7 +278,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined, fileSystems, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined)(jobDescriptor.inputDeclarations) flatMap {
         localizedInputs => resolveJobCommand(localizedInputs)
       }
 
@@ -296,7 +298,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
           HtCondorRuntimeKeys.Disk -> runtimeAttributes.disk.to(MemoryUnit.KB).amount.toLong
         )
 
-      cmds.generateSubmitFile(submitFilePath, attributes) // This writes the condor submit file
+      cmds.generateSubmitFile(submitFilePath, attributes, runtimeAttributes.nativeSpecs) // This writes the condor submit file
       ()
 
     } catch {
@@ -306,7 +308,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     }
   }
 
-  private def resolveJobCommand(localizedInputs: CallInputs): Try[String] = {
+  private def resolveJobCommand(localizedInputs: EvaluatedTaskInputs): Try[String] = {
     val command = if (runtimeAttributes.dockerImage.isDefined) {
       modifyCommandForDocker(call.task.instantiateCommand(localizedInputs, callEngineFunction, identity), localizedInputs)
     } else {
@@ -329,7 +331,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {
+  private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: EvaluatedTaskInputs): Try[String] = {
     Try {
       val dockerInputDataVol = localizedInputs.values.collect {
         case file if file.wdlType == WdlFileType =>
@@ -362,16 +364,16 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       createExecutionFolderAndScript()
       executeTask()
     } catch {
-      case e: Exception => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, e, None))
+      case e: Exception => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key, e, None))
     }
   }
 
-  private def localizeCachedResponse(succeededResponse: SucceededResponse): BackendJobExecutionResponse = {
+  private def localizeCachedResponse(succeededResponse: JobSucceededResponse): BackendJobExecutionResponse = {
     Try(localizeCachedOutputs(executionDir, succeededResponse.jobOutputs)) match {
       case Success(outputs) =>
         executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
-        SucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs, None, Seq.empty)
-      case Failure(exception) => FailedNonRetryableResponse(jobDescriptor.key, exception, None)
+        JobSucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs, None, Seq.empty)
+      case Failure(exception) => JobFailedNonRetryableResponse(jobDescriptor.key, exception, None)
     }
   }
 }

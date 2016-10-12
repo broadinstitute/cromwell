@@ -1,7 +1,9 @@
 package cromwell.backend.async
 
+import java.nio.file.Path
+
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.{ExecutionEvent, JobOutputs}
+import cromwell.core.{ExecutionEvent, CallOutputs}
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
@@ -12,7 +14,7 @@ trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, String], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int, jobDetritusFiles: Map[String, Path], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)
 }

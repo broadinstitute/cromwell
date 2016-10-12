@@ -1,22 +1,24 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystem, Path, Paths}
+import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.core._
-import wdl4s.CallInputs
+import cromwell.core.path.PathFactory
+import cromwell.util.TryUtil
+import wdl4s.EvaluatedTaskInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
-import wdl4s.util.TryUtil
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object SharedFileSystem {
+object SharedFileSystem extends StrictLogging {
   import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
@@ -42,29 +44,36 @@ object SharedFileSystem {
   }
 
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
-    executionPath.parent.createDirectories()
-    val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void
+    val action = Try {
+      executionPath.parent.createDirectories()
+      val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
+      originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
+    }.void
+    logOnFailure(action, "copy")
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
-    executionPath.parent.createDirectories()
-    // link.linkTo(target) returns target,
-    // however we want to return the link, not the target, so map the result back to executionPath
-
-    // -Ywarn-value-discard
-    // Try(executionPath.linkTo(originalPath, symbolic = false)) map { _ => executionPath }
-    Try { executionPath.linkTo(originalPath, symbolic = false) } void
+    val action = Try {
+      executionPath.parent.createDirectories()
+      executionPath.linkTo(originalPath, symbolic = false)
+    }.void
+    logOnFailure(action, "hard link")
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
-        executionPath.parent.createDirectories()
-        // -Ywarn-value-discard
-        // Try(executionPath.linkTo(originalPath, symbolic = true)) map { _ => executionPath }
-        Try { executionPath.linkTo(originalPath, symbolic = true) } void
+        val action = Try {
+          executionPath.parent.createDirectories()
+          executionPath.linkTo(originalPath, symbolic = true)
+        }.void
+        logOnFailure(action, "symbolic link")
       }
+  }
+
+  private def logOnFailure(action: Try[Unit], actionLabel: String): Try[Unit] = {
+    if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}")
+    action
   }
 
   private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]) = {
@@ -134,6 +143,9 @@ trait SharedFileSystem extends PathFactory {
       case array: WdlArray =>
         val mappedArray = array.value map outputMapper(job)
         TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
+      case map: WdlMap =>
+        val mappedMap = map.value mapValues outputMapper(job)
+        TryUtil.sequenceMap(mappedMap) map { WdlMap(map.wdlType, _) }
       case other => Success(other)
     }
   }
@@ -145,11 +157,8 @@ trait SharedFileSystem extends PathFactory {
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
-   * NOTE: This ends up being a backdoor implementation of Backend.adjustInputPaths as both LocalBackend and SgeBackend
-   *    end up with this implementation and thus use it to satisfy their contract with Backend.
-   *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def localizeInputs(inputsRoot: Path, docker: Boolean, filesystems: List[FileSystem], inputs: CallInputs): Try[CallInputs] = {
+  def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: EvaluatedTaskInputs): Try[EvaluatedTaskInputs] = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Use URI to identify protocol scheme and strip it out
@@ -161,12 +170,13 @@ trait SharedFileSystem extends PathFactory {
       host map { h => Paths.get(h, uriPath) } getOrElse Paths.get(uriPath)
     }
 
-    /**
+    /*
       * Transform an original input path to a path in the call directory.
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */
+
     def toCallPath(path: String): Try[PairOfFiles] = Try {
-      val src = buildFile(path, filesystems)
+      val src = buildFile(path)
       // Strip out potential prefix protocol
       val localInputPath = stripProtocolScheme(src.path)
       val dest = if (File(inputsRoot).isParentOf(localInputPath)) File(localInputPath)
@@ -181,7 +191,7 @@ trait SharedFileSystem extends PathFactory {
     // Optional function to adjust the path to "docker path" if the call runs in docker
     val localizeFunction = localizeWdlValue(toCallPath, strategies.toStream) _
     val localizedValues = inputs.toSeq map {
-      case (name, value) => localizeFunction(value) map { name -> _ }
+      case (declaration, value) => localizeFunction(value) map { declaration -> _ }
     }
 
     TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recover {

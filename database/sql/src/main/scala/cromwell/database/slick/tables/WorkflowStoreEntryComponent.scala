@@ -1,6 +1,6 @@
 package cromwell.database.slick.tables
 
-import java.sql.{Clob, Timestamp}
+import java.sql.{Blob, Clob, Timestamp}
 
 import cromwell.database.sql.tables.WorkflowStoreEntry
 
@@ -25,8 +25,10 @@ trait WorkflowStoreEntryComponent {
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
+    def importsZipFile = column[Option[Blob]]("IMPORTS_ZIP")
+
     override def * = (workflowExecutionUuid, workflowDefinition, workflowInputs, workflowOptions, workflowState,
-      submissionTime, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+      submissionTime, importsZipFile, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 

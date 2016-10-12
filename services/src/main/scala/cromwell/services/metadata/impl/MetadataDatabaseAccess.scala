@@ -107,19 +107,19 @@ trait MetadataDatabaseAccess {
     val uuid = query.workflowId.id.toString
 
     val futureMetadata: Future[Seq[MetadataEntry]] = query match {
-      case MetadataQuery(_, None, None, None, None) => databaseInterface.queryMetadataEntries(uuid)
-      case MetadataQuery(_, None, Some(key), None, None) => databaseInterface.queryMetadataEntries(uuid, key)
-      case MetadataQuery(_, Some(jobKey), None, None, None) =>
+      case MetadataQuery(_, None, None, None, None, _) => databaseInterface.queryMetadataEntries(uuid)
+      case MetadataQuery(_, None, Some(key), None, None, _) => databaseInterface.queryMetadataEntries(uuid, key)
+      case MetadataQuery(_, Some(jobKey), None, None, None, _) =>
         databaseInterface.queryMetadataEntries(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt)
-      case MetadataQuery(_, Some(jobKey), Some(key), None, None) =>
+      case MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
         databaseInterface.queryMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
-      case MetadataQuery(_, None, None, Some(includeKeys), None) =>
+      case MetadataQuery(_, None, None, Some(includeKeys), None, _) =>
         databaseInterface.
           queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), requireEmptyJobKey = false)
-      case MetadataQuery(_, None, None, None, Some(excludeKeys)) =>
+      case MetadataQuery(_, None, None, None, Some(excludeKeys), _) =>
         databaseInterface.
           queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), requireEmptyJobKey = false)
-      case MetadataQuery(_, None, None, Some(includeKeys), Some(excludeKeys)) => Future.failed(
+      case MetadataQuery(_, None, None, Some(includeKeys), Some(excludeKeys), _) => Future.failed(
         new IllegalArgumentException(
           s"Include/Exclude keys may not be mixed: include = $includeKeys, exclude = $excludeKeys"))
       case invalidQuery => Future.failed(new IllegalArgumentException(

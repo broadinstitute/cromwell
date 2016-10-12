@@ -1,6 +1,8 @@
 package cromwell.filesystems.gcs
 
+import better.files.File
 import com.typesafe.config.{ConfigException, ConfigFactory}
+import cromwell.filesystems.gcs.auth.{ApplicationDefaultMode, RefreshTokenMode, ServiceAccountMode, UserMode}
 import lenthall.config.ConfigValidationException
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -10,8 +12,10 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   behavior of "GoogleConfiguration"
 
   it should "parse all manner of well-formed auths" in {
+    val mockFile = File.newTemporaryFile()
+
     val righteousGoogleConfig =
-      """
+      s"""
         |google {
         |  application-name = "cromwell"
         |
@@ -30,14 +34,14 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |      name = "name-user"
         |      scheme = "user_account"
         |      user = "me"
-        |      secrets-file = "/very/secret/file.txt"
+        |      secrets-file = "${mockFile.pathAsString}"
         |      data-store-dir = "/where/the/data/at"
         |    },
         |    {
         |      name = "name-service"
         |      scheme = "service_account"
         |      service-account-id = "my-google-account"
-        |      pem-file = "/yonder/file.pem"
+        |      pem-file = "${mockFile.pathAsString}"
         |    }
         |  ]
         |}
@@ -61,13 +65,15 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     val user = (auths collectFirst { case a: UserMode => a }).get
     user.name shouldBe "name-user"
-    user.secretsFile shouldBe "/very/secret/file.txt"
+    user.secretsPath shouldBe mockFile.pathAsString
     user.datastoreDir shouldBe "/where/the/data/at"
 
     val service = (auths collectFirst { case a: ServiceAccountMode => a }).get
     service.name shouldBe "name-service"
     service.accountId shouldBe "my-google-account"
-    service.pemPath shouldBe "/yonder/file.pem"
+    service.pemPath shouldBe mockFile.pathAsString
+
+    mockFile.delete(true)
   }
 
 

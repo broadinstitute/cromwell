@@ -5,7 +5,7 @@ import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.TestKitSuite
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.Call
+import wdl4s.TaskCall
 
 import scala.concurrent.duration._
 
@@ -29,12 +29,12 @@ class HtCondorInitializationActorSpec extends TestKitSuite("HtCondorInitializati
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
 
-  private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
+  private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
     system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf, emptyActor))
   }
 
@@ -43,7 +43,7 @@ class HtCondorInitializationActorSpec extends TestKitSuite("HtCondorInitializati
       within(Timeout) {
         EventFilter.warning(message = s"Key/s [proc] is/are not supported by HtCondorBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
           val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { proc: 1 }""")
-          val backend = getHtCondorBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
+          val backend = getHtCondorBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
             emptyBackendConfig)
           backend ! Initialize
         }

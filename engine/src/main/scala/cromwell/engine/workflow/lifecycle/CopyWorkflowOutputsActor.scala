@@ -5,33 +5,33 @@ import java.nio.file.Path
 import akka.actor.Props
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
 import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
-import cromwell.core._
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
+import cromwell.core._
+import cromwell.core.path.{PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import wdl4s.ReportableSymbol
-import wdl4s.values.WdlSingleFile
+import wdl4s.values.{WdlArray, WdlMap, WdlSingleFile, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object CopyWorkflowOutputsActor {
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
             initializationData: AllBackendInitializationData) = Props(
-    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, outputStore, initializationData)
+    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, workflowOutputs, initializationData)
   ).withDispatcher(IoDispatcher)
 }
 
-class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, outputStore: OutputStore,
+class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
                                initializationData: AllBackendInitializationData)
   extends EngineWorkflowFinalizationActor with PathFactory {
 
+  override val pathBuilders = workflowDescriptor.pathBuilders
+
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Unit = {
-    val workflowOutputsPath = buildPath(workflowOutputsFilePath, workflowDescriptor.engineFilesystems)
+    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
 
-    val reportableOutputs = workflowDescriptor.backendDescriptor.workflowNamespace.workflow.outputs
-
-    val outputFilePaths = getOutputFilePaths(reportableOutputs)
+    val outputFilePaths = getOutputFilePaths
 
     outputFilePaths foreach {
       case (workflowRootPath, srcPath) =>
@@ -40,23 +40,23 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
     }
   }
 
-  private def getOutputFilePaths(reportableOutputs: Seq[ReportableSymbol]): Seq[(Path, Path)] = {
+  private def findFiles(values: Seq[WdlValue]): Seq[WdlSingleFile] = {
+    values flatMap {
+      case file: WdlSingleFile => Seq(file)
+      case array: WdlArray => findFiles(array.value)
+      case map: WdlMap => findFiles(map.value.values.toSeq)
+      case _ => Seq.empty
+    }
+  }
+  
+  private def getOutputFilePaths: Seq[(Path, Path)] = {
     for {
-      reportableOutput <- reportableOutputs
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
-      (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq).toSeq
+      backend <- workflowDescriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config).toSeq
-      call <- calls
-      // NOTE: Without .toSeq, outputs in arrays only yield the last output
-      (outputCallKey, outputEntries) <- outputStore.store.toSeq
-      // Only get paths for the original scatter call, not the indexed entries
-      if outputCallKey.call == call && outputCallKey.index.isEmpty
-      outputEntry <- outputEntries
-      if reportableOutput.fullyQualifiedName == s"${call.fullyQualifiedName}.${outputEntry.name}"
-      wdlValue <- outputEntry.wdlValue.toSeq
-      collected = wdlValue collectAsSeq { case f: WdlSingleFile => f }
-      wdlFile <- collected
+      outputFiles = findFiles(workflowOutputs.values.map(_.wdlValue).toSeq)
+      wdlFile <- outputFiles
       wdlPath = rootPath.getFileSystem.getPath(wdlFile.value)
     } yield (rootPath, wdlPath)
   }

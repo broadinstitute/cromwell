@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.19"
-  lazy val wdl4sV = "0.6"
+  lazy val wdl4sV = "0.7"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -12,22 +12,37 @@ object Dependencies {
   - http://doc.akka.io/docs/akka/2.4/scala/http/common/json-support.html#akka-http-spray-json
    */
   lazy val sprayJsonV = "1.3.2"
-  lazy val akkaV = "2.4.9"
+  lazy val akkaV = "2.4.12"
   lazy val slickV = "3.1.1"
-  lazy val googleClientApiV = "1.20.0"
+  lazy val googleClientApiV = "1.22.0"
+  lazy val googleGenomicsServicesApiV = "1.20.0"
   lazy val betterFilesV = "2.16.0"
   lazy val catsV = "0.7.2"
 
   // Internal collections of dependencies
 
+  private val catsDependencies = List(
+    "org.typelevel" %% "cats" % "0.7.2",
+    "com.github.benhutchison" %% "mouse" % "0.5"
+  ) map (_
+    /*
+    Exclude test framework cats-laws and its transitive dependency scalacheck.
+    If sbt detects scalacheck, it tries to run it.
+    Explicitly excluding the two problematic artifacts instead of including the three (or four?).
+    https://github.com/typelevel/cats/tree/v0.7.2#getting-started
+    Re "_2.11", see also: https://github.com/sbt/sbt/issues/1518
+     */
+    exclude("org.typelevel", "cats-laws_2.11")
+    exclude("org.typelevel", "cats-kernel-laws_2.11")
+    )
+
   private val baseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.typelevel" %% "cats" % catsV,
-    "com.github.benhutchison" %% "mouse" % "0.5",
     "com.iheart" %% "ficus" % "1.3.0",
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
-    "org.specs2" %% "specs2" % "3.7" % Test
-  )
+    "org.pegdown" % "pegdown" % "1.6.0" % Test,
+    "org.specs2" %% "specs2-mock" % "3.8.5" % Test
+  ) ++ catsDependencies
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
@@ -65,10 +80,10 @@ object Dependencies {
   )
 
   private val googleCloudDependencies = List(
-    "com.google.gcloud" % "gcloud-java" % "0.0.9",
-    "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
-    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.4",
-    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleGenomicsServicesApiV),
+    "com.google.cloud" % "google-cloud-nio" % "0.3.0"
+      exclude("com.google.api.grpc", "grpc-google-common-protos")
+      exclude("com.google.cloud.datastore", "datastore-v1-protos")
   )
 
   private val dbmsDependencies = List(
@@ -86,14 +101,11 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
+  val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
 
   val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
-
-  val databaseMigrationDependencies = List(
-    "org.broadinstitute" %% "wdl4s" % wdl4sV, // Used in migration scripts
-    "com.github.pathikrit" %% "better-files" % betterFilesV % Test
-  ) ++ baseDependencies ++ liquibaseDependencies ++ dbmsDependencies
 
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
@@ -108,6 +120,10 @@ object Dependencies {
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
 
+  val databaseMigrationDependencies = List(
+    "com.github.pathikrit" %% "better-files" % betterFilesV % Test
+  ) ++ liquibaseDependencies ++ dbmsDependencies
+
   val htCondorBackendDependencies = List(
     "com.twitter" %% "chill" % "0.8.0",
     "org.mongodb" %% "casbah" % "3.0.0"
@@ -118,12 +134,9 @@ object Dependencies {
   ) ++ sprayServerDependencies
 
   val engineDependencies = List(
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
     "org.webjars" % "swagger-ui" % "2.1.1",
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
-    "org.typelevel" %% "cats" % catsV,
-    "com.github.pathikrit" %% "better-files" % betterFilesV,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies

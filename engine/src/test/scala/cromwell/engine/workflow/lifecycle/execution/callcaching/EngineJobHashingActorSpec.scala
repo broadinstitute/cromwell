@@ -1,23 +1,23 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestProbe}
 import cats.data.NonEmptyList
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
+import cromwell.backend._
 import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
-import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
-  with ImplicitSender with WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterAll {
+class EngineJobHashingActorSpec extends CromwellTestKitSpec
+  with ImplicitSender with WordSpecLike with Matchers with MockitoSugar {
 
   import EngineJobHashingActorSpec._
 
@@ -162,13 +162,9 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
       }
     }
   }
-
-  override def afterAll() = {
-    TestKit.shutdownActorSystem(system)
-  }
 }
 
-object EngineJobHashingActorSpec extends MockitoSugar {
+object EngineJobHashingActorSpec extends BackendSpec {
   import org.mockito.Mockito._
 
   def createEngineJobHashingActor
@@ -198,12 +194,12 @@ object EngineJobHashingActorSpec extends MockitoSugar {
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
     val task = mock[Task]
-    val call = mock[Call]
+    val call = mock[TaskCall]
     when(task.commandTemplateString).thenReturn("Do the stuff... now!!")
     when(task.outputs).thenReturn(List.empty)
     when(call.task).thenReturn(task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs))
     jobDescriptor
   }
 

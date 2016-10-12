@@ -1,9 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core._
+import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingJobStore, NoData, PreparingJob}
-import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
@@ -17,12 +17,12 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
       createCheckingJobStoreEjea()
       ejea.setState(CheckingJobStore)
       val returnCode: Option[Int] = Option(0)
-      val jobOutputs: JobOutputs = Map.empty
+      val jobOutputs: CallOutputs = Map.empty
 
       ejea ! JobComplete(JobResultSuccess(returnCode, jobOutputs))
 
       helper.replyToProbe.expectMsgPF(awaitTimeout) {
-        case response: SucceededResponse =>
+        case response: JobSucceededResponse =>
           response.returnCode shouldBe returnCode
           response.jobOutputs shouldBe jobOutputs
       }
@@ -40,11 +40,11 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
         ejea ! JobComplete(JobResultFailure(returnCode, reason, retryable))
 
         helper.replyToProbe.expectMsgPF(awaitTimeout) {
-          case response: FailedNonRetryableResponse =>
+          case response: JobFailedNonRetryableResponse =>
             false should be(retryable)
             response.returnCode shouldBe returnCode
             response.throwable shouldBe reason
-          case response: FailedRetryableResponse =>
+          case response: JobFailedRetryableResponse =>
             true should be(retryable)
             response.returnCode shouldBe returnCode
             response.throwable shouldBe reason
@@ -59,7 +59,7 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
       ejea.setState(CheckingJobStore)
       ejea ! JobNotComplete
 
-      helper.jobPreparationProbe.expectMsg(awaitTimeout, "expecting RecoverJobCommand", JobPreparationActor.Start)
+      helper.jobPreparationProbe.expectMsg(awaitTimeout, "expecting RecoverJobCommand", CallPreparationActor.Start)
       ejea.stateName should be(PreparingJob)
 
       ejea.stop()

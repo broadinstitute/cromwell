@@ -3,7 +3,7 @@ package cromwell.backend
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.core.logging.{JobLogging, WorkflowLogging}
-import wdl4s.Call
+import wdl4s.TaskCall
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -55,7 +55,7 @@ trait BackendLifecycleActor extends Actor {
 trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowLogging {
 
   //For Logging and boilerplate
-  override lazy final val workflowId = workflowDescriptor.id
+  override lazy final val workflowIdForLogging = workflowDescriptor.id
 
   /**
     * The workflow descriptor for the workflow in which this Backend is being used
@@ -65,7 +65,7 @@ trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowL
   /**
     * The subset of calls which this backend will be expected to run
     */
-  protected def calls: Seq[Call]
+  protected def calls: Set[TaskCall]
 }
 
 trait BackendJobLifecycleActor extends BackendLifecycleActor with JobLogging {

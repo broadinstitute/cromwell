@@ -1,22 +1,24 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileSystems, Files}
+import java.nio.file.Files
 
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.path.DefaultPathBuilder
+import cromwell.backend.BackendSpec
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.values.WdlFile
 
-class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks {
+class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
 
   behavior of "SharedFileSystem"
 
   val defaultLocalization = ConfigFactory.parseString(""" localization: [copy, hard-link, soft-link] """)
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
   val softLinkLocalization = ConfigFactory.parseString(""" localization: [soft-link] """)
-  val localFS = List(FileSystems.getDefault)
+  val localPathBuilder = List(DefaultPathBuilder)
 
 
   def localizationTest(config: Config,
@@ -34,12 +36,16 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
       dest.touch()
     }
 
-    val inputs = Map("input" -> WdlFile(orig.pathAsString))
-    val sharedFS = new SharedFileSystem { override val sharedFileSystemConfig = config }
-    val result = sharedFS.localizeInputs(callDir.path, docker = docker, localFS, inputs)
+    val inputs = fqnMapToDeclarationMap(Map("input" -> WdlFile(orig.pathAsString)))
+    val sharedFS = new SharedFileSystem {
+      override val pathBuilders = localPathBuilder
+      override val sharedFileSystemConfig = config
+    }
+    val localizedinputs = Map(inputs.head._1 -> WdlFile(dest.pathAsString))
+    val result = sharedFS.localizeInputs(callDir.path, docker = docker)(inputs)
 
     result.isSuccess shouldBe true
-    result.get should contain theSameElementsAs Map("input" -> WdlFile(dest.pathAsString))
+    result.get should contain theSameElementsAs localizedinputs
 
     dest.exists shouldBe true
     countLinks(dest) should be(linkNb)

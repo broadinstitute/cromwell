@@ -4,13 +4,13 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
-import cromwell.backend.wdl.OnlyPureFunctions
+import wdl4s.expression.PureStandardLibraryFunctions
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
-import wdl4s.{Call, NoLookup, Task, WdlExpression}
+import wdl4s._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -36,7 +36,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   val serviceRegistryActor: ActorRef
 
-  def calls: Seq[Call]
+  def calls: Set[TaskCall]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow
@@ -53,7 +53,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     wdlExpressionMaybe match {
       case None => !valueRequired
       case Some(wdlExpression: WdlExpression) =>
-        wdlExpression.evaluate(NoLookup, OnlyPureFunctions) map (_.wdlType) match {
+        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) map (_.wdlType) match {
           case Success(wdlType) => predicate(wdlType)
           case Failure(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
@@ -81,7 +81,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     wdlExpressionMaybe match {
       case None => !valueRequired
       case Some(wdlExpression: WdlExpression) =>
-        wdlExpression.evaluate(NoLookup, OnlyPureFunctions) match {
+        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) match {
           case Success(wdlValue) => validateValue(wdlValue)
           case Failure(throwable) => true // If we can't evaluate it, we'll let it pass for now...
         }
@@ -91,6 +91,9 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
 
   protected def runtimeAttributeValidators: Map[String, Option[WdlValue] => Boolean]
 
+  // FIXME: If a workflow executes jobs using multiple backends,
+  // each backend will try to write its own workflow root and override any previous one.
+  // They should be structured differently or at least be prefixed by the backend name
   protected def publishWorkflowRoot(workflowRoot: String) = {
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot), MetadataValue(workflowRoot)))
   }

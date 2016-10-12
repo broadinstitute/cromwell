@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.io.WorkflowPaths
+import cromwell.backend.wdl.OnlyPureFunctions
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
@@ -16,7 +17,7 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 trait BackendLifecycleActorFactory {
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        calls: Seq[Call],
-                                       serviceRegistryActor: ActorRef): Option[Props]
+                                       serviceRegistryActor: ActorRef): Option[Props] = None
 
   def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                              initializationData: Option[BackendInitializationData],
@@ -44,7 +45,7 @@ trait BackendLifecycleActorFactory {
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                   jobKey: BackendJobDescriptorKey,
-                                  initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions
+                                  initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = OnlyPureFunctions
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
     new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot

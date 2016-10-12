@@ -7,15 +7,15 @@ import wdl4s.values.{WdlArray, WdlFile, WdlFloat, WdlInteger, WdlString, WdlValu
 import scala.util.{Failure, Success, Try}
 
 case object OnlyPureFunctions extends WdlStandardLibraryFunctions with PureFunctions {
-  override def readFile(path: String): String = throw new NotImplementedError("readFile not available in PureNoFunctions.")
-  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = throw new NotImplementedError("read_json not available in PureNoFunctions.")
-  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("write_json not available in PureNoFunctions.")
-  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = throw new NotImplementedError("size not available in PureNoFunctions.")
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("write_tsv not available in PureNoFunctions.")
-  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("stdout not available in PureNoFunctions.")
-  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError("glob not available in PureNoFunctions.")
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError("writeTempFile not available in PureNoFunctions.")
-  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("stderr not available in PureNoFunctions.")
+  override def readFile(path: String): String = throw new NotImplementedError("readFile not available in OnlyPureFunctions.")
+  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = throw new NotImplementedError("read_json not available in OnlyPureFunctions.")
+  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("write_json not available in OnlyPureFunctions.")
+  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = throw new NotImplementedError("size not available in OnlyPureFunctions.")
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("write_tsv not available in OnlyPureFunctions.")
+  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("stdout not available in OnlyPureFunctions.")
+  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError("glob not available in OnlyPureFunctions.")
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError("writeTempFile not available in OnlyPureFunctions.")
+  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError("stderr not available in OnlyPureFunctions.")
 }
 
 trait PureFunctions { this: WdlStandardLibraryFunctions =>

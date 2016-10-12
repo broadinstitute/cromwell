@@ -40,7 +40,7 @@ trait EngineJobExecutionActorSpec extends CromwellTestkitSpec
     List(
       ("FetchCachedResultsActor", helper.fetchCachedResultsActorCreations),
       ("JobHashingActor", helper.jobHashingInitializations),
-      ("JobHashingActor", helper.invalidateCacheActorCreations),
+      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations),
       ("CallCacheWriteActor", helper.callCacheWriteActorCreations)) foreach {
       case (name, GotTooMany(list)) => fail(s"Too many $name creations (${list.size})")
       case _ => // Fine.

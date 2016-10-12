@@ -201,7 +201,7 @@ object EngineJobHashingActor {
   case object GeneratingAllHashes extends EJHAState
 
   sealed trait EJHAResponse
-  case class CacheHit(cacheResultIds: NonEmptyList[MetaInfoId]) extends EJHAResponse
+  case class CacheHit(cacheResultIds: NonEmptyList[CallCachingEntryId]) extends EJHAResponse
   case object CacheMiss extends EJHAResponse
   case class HashError(t: Throwable) extends EJHAResponse {
     override def toString = s"HashError(${t.getMessage})"
@@ -225,7 +225,7 @@ object EngineJobHashingActor {
   * @param hashesKnown The set of all hashes calculated so far (including initial hashes)
   * @param remainingHashesNeeded The set of hashes which are still needed for writing to the database
   */
-private[callcaching] case class EJHAData(possibleCacheResults: Option[Set[MetaInfoId]],
+private[callcaching] case class EJHAData(possibleCacheResults: Option[Set[CallCachingEntryId]],
                                          remainingCacheChecks: Set[HashKey],
                                          hashesKnown: Set[HashResult],
                                          remainingHashesNeeded: Set[HashKey]) {

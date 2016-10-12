@@ -51,7 +51,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
                                (implicit ec: ExecutionContext): Future[Unit] = {
     import cats.syntax.functor._
     import cats.instances.future._
-    val action = dataAccess.allowResultReuseForCallCachingEntry(callCachingEntryId).update(false)
+    val action = dataAccess.allowResultReuseForCallCachingEntryId(callCachingEntryId).update(false)
     runTransaction(action) void
   }
 }

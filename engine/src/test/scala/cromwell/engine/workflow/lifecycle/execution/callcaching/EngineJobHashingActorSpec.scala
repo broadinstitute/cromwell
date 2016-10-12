@@ -36,11 +36,11 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
       }
 
       s"Respect the CallCachingMode and report back $expectation for the ${activity.readWriteMode} activity" in {
-        val singleMetaInfoIdSet = Set(MetaInfoId(1))
+        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
         val replyTo = TestProbe()
         val deathWatch = TestProbe()
 
-        val cacheLookupResponses: Map[String, Set[MetaInfoId]] = if (activity.readFromCache) standardCacheLookupResponses(singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet) else Map.empty
+        val cacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet) else Map.empty
         val ejha = createEngineJobHashingActor(
           replyTo = replyTo.ref,
           activity = activity,
@@ -48,7 +48,7 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
 
         deathWatch watch ejha
 
-        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(MetaInfoId(1))))
+        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(CallCachingEntryId(1))))
         if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
           case CallCacheHashes(hashes) => hashes.size should be(4)
           case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
@@ -58,13 +58,13 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
       }
 
       s"Wait for requests to the FileHashingActor for the ${activity.readWriteMode} activity" in {
-        val singleMetaInfoIdSet = Set(MetaInfoId(1))
+        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
         val replyTo = TestProbe()
         val fileHashingActor = TestProbe()
         val deathWatch = TestProbe()
 
-        val initialCacheLookupResponses: Map[String, Set[MetaInfoId]] = if (activity.readFromCache) standardCacheLookupResponses(singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet) else Map.empty
-        val fileCacheLookupResponses = Map("input: File inputFile1" -> singleMetaInfoIdSet, "input: File inputFile2" -> singleMetaInfoIdSet)
+        val initialCacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet) else Map.empty
+        val fileCacheLookupResponses = Map("input: File inputFile1" -> singleCallCachingEntryIdSet, "input: File inputFile2" -> singleCallCachingEntryIdSet)
 
         val jobDescriptor = templateJobDescriptor(inputs = Map(
             "inputFile1" -> WdlFile("path"),
@@ -87,7 +87,7 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
           }
         }
 
-        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(MetaInfoId(1))))
+        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(CallCachingEntryId(1))))
         if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
           case CallCacheHashes(hashes) => hashes.size should be(6)
           case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
@@ -97,13 +97,13 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
       }
 
       s"Cache miss for bad FileHashingActor results but still return hashes in the ${activity.readWriteMode} activity" in {
-        val singleMetaInfoIdSet = Set(MetaInfoId(1))
+        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
         val replyTo = TestProbe()
         val fileHashingActor = TestProbe()
         val deathWatch = TestProbe()
 
-        val initialCacheLookupResponses: Map[String, Set[MetaInfoId]] = if (activity.readFromCache) standardCacheLookupResponses(singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet, singleMetaInfoIdSet) else Map.empty
-        val fileCacheLookupResponses = Map("input: File inputFile1" -> Set(MetaInfoId(2)), "input: File inputFile2" -> singleMetaInfoIdSet)
+        val initialCacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet) else Map.empty
+        val fileCacheLookupResponses = Map("input: File inputFile1" -> Set(CallCachingEntryId(2)), "input: File inputFile2" -> singleCallCachingEntryIdSet)
 
         val jobDescriptor = templateJobDescriptor(inputs = Map(
           "inputFile1" -> WdlFile("path"),
@@ -140,11 +140,11 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
       }
 
       s"Detect call cache misses for the ${activity.readWriteMode} activity" in {
-        val singleMetaInfoIdSet = Set(MetaInfoId(1))
+        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
         val replyTo = TestProbe()
         val deathWatch = TestProbe()
 
-        val cacheLookupResponses: Map[String, Set[MetaInfoId]] = if (activity.readFromCache) standardCacheLookupResponses(singleMetaInfoIdSet, singleMetaInfoIdSet, Set(MetaInfoId(2)), singleMetaInfoIdSet) else Map.empty
+        val cacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, Set(CallCachingEntryId(2)), singleCallCachingEntryIdSet) else Map.empty
         val ejha = createEngineJobHashingActor(
           replyTo = replyTo.ref,
           activity = activity,
@@ -178,7 +178,7 @@ object EngineJobHashingActorSpec extends MockitoSugar {
     jobDescriptor: BackendJobDescriptor = templateJobDescriptor(),
     initializationData: Option[BackendInitializationData] = None,
     fileHashingActor: Option[ActorRef] = None,
-    cacheLookupResponses: Map[String, Set[MetaInfoId]] = Map.empty,
+    cacheLookupResponses: Map[String, Set[CallCachingEntryId]] = Map.empty,
     runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] = Set.empty,
     backendName: String = "whatever"
   )(implicit system: ActorSystem) = {
@@ -207,10 +207,10 @@ object EngineJobHashingActorSpec extends MockitoSugar {
     jobDescriptor
   }
 
-  def standardCacheLookupResponses(commandTemplate: Set[MetaInfoId],
-                                   inputCount: Set[MetaInfoId],
-                                   backendName: Set[MetaInfoId],
-                                   outputCount: Set[MetaInfoId]) = Map(
+  def standardCacheLookupResponses(commandTemplate: Set[CallCachingEntryId],
+                                   inputCount: Set[CallCachingEntryId],
+                                   backendName: Set[CallCachingEntryId],
+                                   outputCount: Set[CallCachingEntryId]) = Map(
     "command template" -> commandTemplate,
     "input count" -> inputCount,
     "backend name" -> backendName,

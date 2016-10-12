@@ -9,17 +9,17 @@ import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
 object FetchCachedResultsActor {
-  def props(metaInfoId: MetaInfoId, replyTo: ActorRef, callCache: CallCache): Props =
-    Props(new FetchCachedResultsActor(metaInfoId, replyTo, callCache))
+  def props(callCachingEntryId: CallCachingEntryId, replyTo: ActorRef, callCache: CallCache): Props =
+    Props(new FetchCachedResultsActor(callCachingEntryId, replyTo, callCache))
 
   sealed trait CachedResultResponse
-  case class CachedOutputLookupFailed(metaInfoId: MetaInfoId, failure: Throwable) extends CachedResultResponse
+  case class CachedOutputLookupFailed(callCachingEntryId: CallCachingEntryId, failure: Throwable) extends CachedResultResponse
   case class CachedOutputLookupSucceeded(simpletons: Seq[WdlValueSimpleton], callOutputFiles: Map[String,String],
-                                         returnCode: Option[Int], cacheHit: MetaInfoId, cacheHitDetails: String) extends CachedResultResponse
+                                         returnCode: Option[Int], cacheHit: CallCachingEntryId, cacheHitDetails: String) extends CachedResultResponse
 }
 
 
-class FetchCachedResultsActor(cacheResultId: MetaInfoId, replyTo: ActorRef, callCache: CallCache)
+class FetchCachedResultsActor(cacheResultId: CallCachingEntryId, replyTo: ActorRef, callCache: CallCache)
   extends Actor with ActorLogging {
 
   {

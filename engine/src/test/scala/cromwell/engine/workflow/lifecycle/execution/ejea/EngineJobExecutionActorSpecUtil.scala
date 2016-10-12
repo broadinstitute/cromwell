@@ -5,7 +5,7 @@ import cromwell.core.JobOutput
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
-import cromwell.engine.workflow.lifecycle.execution.callcaching.MetaInfoId
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
@@ -62,17 +62,17 @@ private[ejea] trait CanExpectHashingInitialization extends Eventually { self: En
 }
 
 private[ejea] trait CanExpectFetchCachedResults extends Eventually { self: EngineJobExecutionActorSpec =>
-  def expectFetchCachedResultsActor(expectedMetainfoId: MetaInfoId): Unit = {
+  def expectFetchCachedResultsActor(expectedCallCachingEntryId: CallCachingEntryId): Unit = {
     eventually { helper.fetchCachedResultsActorCreations.hasExactlyOne should be(true) }
     helper.fetchCachedResultsActorCreations.checkIt {
-      case (metainfoId, _) => metainfoId should be(expectedMetainfoId)
+      case (callCachingEntryId, _) => callCachingEntryId should be(expectedCallCachingEntryId)
       case _ => fail("Incorrect creation of the fetchCachedResultsActor")
     }
   }
 }
 
 private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: EngineJobExecutionActorSpec =>
-  def expectInvalidateCallCacheActor(expectedCacheId: MetaInfoId): Unit = {
+  def expectInvalidateCallCacheActor(expectedCacheId: CallCachingEntryId): Unit = {
     eventually { helper.invalidateCacheActorCreations.hasExactlyOne should be(true) }
     helper.invalidateCacheActorCreations.checkIt { cacheId =>
       cacheId shouldBe expectedCacheId

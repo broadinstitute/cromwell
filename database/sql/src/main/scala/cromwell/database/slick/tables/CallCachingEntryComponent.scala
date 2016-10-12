@@ -41,7 +41,7 @@ trait CallCachingEntryComponent {
     } yield callCachingEntry
   )
 
-  val allowResultReuseForCallCachingEntry = Compiled(
+  val allowResultReuseForCallCachingEntryId = Compiled(
     (callCachingEntryId: Rep[Int]) => for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.callCachingEntryId === callCachingEntryId

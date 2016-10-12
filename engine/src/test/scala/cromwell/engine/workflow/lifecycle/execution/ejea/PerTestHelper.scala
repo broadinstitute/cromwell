@@ -10,7 +10,7 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching.{CallCachingActivity, CallCachingMode, CallCachingOff}
 import cromwell.core.{ExecutionStore, JobExecutionToken, OutputStore, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.MetaInfoId
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
@@ -62,10 +62,10 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null)
   val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputs = Map.empty)
 
-  var fetchCachedResultsActorCreations: ExpectOne[(MetaInfoId, Seq[TaskOutput])] = NothingYet
+  var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[TaskOutput])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
   var callCacheWriteActorCreations: ExpectOne[(CallCacheHashes, SucceededResponse)] = NothingYet
-  var invalidateCacheActorCreations: ExpectOne[MetaInfoId] = NothingYet
+  var invalidateCacheActorCreations: ExpectOne[CallCachingEntryId] = NothingYet
 
   val deathwatch = TestProbe()
   val bjeaProbe = TestProbe()
@@ -147,10 +147,10 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              backendName: String,
                              callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
-  override def makeFetchCachedResultsActor(cacheId: MetaInfoId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
+  override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))
   override def createSaveCacheResultsActor(hashes: CallCacheHashes, success: SucceededResponse) = helper.callCacheWriteActorCreations = helper.callCacheWriteActorCreations.foundOne((hashes, success))
-  override def invalidateCacheHit(cacheId: MetaInfoId): Unit = {
+  override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = {
     helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId)
   }
   override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref

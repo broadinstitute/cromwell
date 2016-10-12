@@ -5,7 +5,7 @@ import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{Che
 import EngineJobExecutionActorSpec.EnhancedTestEJEA
 import cromwell.core.callcaching.{CallCachingActivity, CallCachingOff, ReadCache}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.MetaInfoId
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import org.scalatest.concurrent.Eventually
 
 class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventually with CanExpectFetchCachedResults {
@@ -15,8 +15,8 @@ class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventua
   "An EJEA in CheckingCallCache mode" should {
     "Try to fetch the call cache outputs if it gets a CacheHit" in {
       createCheckingCallCacheEjea()
-      ejea ! CacheHit(NonEmptyList.of(MetaInfoId(75)))
-      expectFetchCachedResultsActor(MetaInfoId(75))
+      ejea ! CacheHit(NonEmptyList.of(CallCachingEntryId(75)))
+      expectFetchCachedResultsActor(CallCachingEntryId(75))
       ejea.stateName should be(FetchingCachedOutputsFromDatabase)
     }
 

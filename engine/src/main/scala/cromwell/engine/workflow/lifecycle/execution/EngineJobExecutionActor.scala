@@ -131,7 +131,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       log.debug("Cache miss for job {}", jobTag)
       runJob(data)
     case Event(hit: CacheHit, data: ResponsePendingData) =>
-      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head) using data.withCacheHit(hit).popCacheHitId._2
+      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data)
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       disableCallCaching(t)
@@ -143,7 +143,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
       log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
       makeBackendCopyCacheHit(wdlValueSimpletons, jobDetritus, returnCode, data)
-    case Event(CachedOutputLookupFailed(metaInfoId, error), data: ResponsePendingData) =>
+    case Event(CachedOutputLookupFailed(callCachingEntryId, error), data: ResponsePendingData) =>
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
       runJob(data)
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
@@ -164,7 +164,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(response: SucceededResponse, data: ResponsePendingData) => // bad hashes or cache write off
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(response: BackendJobExecutionResponse, data @ ResponsePendingData(_, _, _, Some(cacheHit))) =>
-      // This matches all response types other than `SucceededResponse`.
       response match {
         case f: BackendJobFailedResponse =>
           invalidateCacheHit(cacheHit.cacheResultIds.head)
@@ -320,14 +319,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     ()
   }
 
-  def makeFetchCachedResultsActor(metaInfoId: MetaInfoId, taskOutputs: Seq[TaskOutput]): Unit = {
-    context.actorOf(FetchCachedResultsActor.props(metaInfoId, self, new CallCache(SingletonServicesStore.databaseInterface)))
+  def makeFetchCachedResultsActor(callCachingEntryId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]): Unit = {
+    context.actorOf(FetchCachedResultsActor.props(callCachingEntryId, self, new CallCache(SingletonServicesStore.databaseInterface)))
     ()
   }
 
-  private def fetchCachedResults(taskOutputs: Seq[TaskOutput], metaInfoId: MetaInfoId) = {
-    makeFetchCachedResultsActor(metaInfoId, taskOutputs)
-    goto(FetchingCachedOutputsFromDatabase)
+  private def fetchCachedResults(taskOutputs: Seq[TaskOutput], callCachingEntryId: CallCachingEntryId, data: ResponsePendingData) = {
+    makeFetchCachedResultsActor(callCachingEntryId, taskOutputs)
+    goto(FetchingCachedOutputsFromDatabase) using data
   }
 
   private def makeBackendCopyCacheHit(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData) = {
@@ -362,10 +361,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
 
     data.popCacheHitId match {
-      case (Some(nextId), newData) =>
+      case newData @ ResponsePendingData(_, _, _, Some(cacheHit)) =>
         log.info("Trying to use another cache hit for job: {}", jobDescriptorKey)
-        fetchCachedResults(jobDescriptorKey.call.task.outputs, nextId) using newData
-      case (None, newData) =>
+        fetchCachedResults(jobDescriptorKey.call.task.outputs, cacheHit.cacheResultIds.head, newData)
+      case newData =>
         log.info("Could not find another cache hit, falling back to running job: {}", jobDescriptorKey)
         runJob(newData)
     }
@@ -385,7 +384,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     ()
   }
 
-  protected def invalidateCacheHit(cacheId: MetaInfoId): Unit = {
+  protected def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = {
     val callCache = new CallCache(SingletonServicesStore.databaseInterface)
     context.actorOf(CallCacheInvalidateActor.props(callCache, cacheId), s"CallCacheInvalidateActor${cacheId.id}-$tag")
     ()
@@ -534,10 +533,11 @@ object EngineJobExecutionActor {
       case failure => NotSucceededResponseData(failure, hashes)
     }
 
-    def withCacheHit(cacheHit: CacheHit) = this.copy(cacheHit = Option(cacheHit))
-    def popCacheHitId: (Option[MetaInfoId], ResponsePendingData) = cacheHit match {
-      case Some(hit) => (Option(hit.cacheResultIds.head), this.copy(cacheHit = NonEmptyList.fromList(hit.cacheResultIds.tail) map CacheHit.apply))
-      case None => (None, this)
+    def withCacheHit(cacheHit: Option[CacheHit]) = this.copy(cacheHit = cacheHit)
+
+    def popCacheHitId: ResponsePendingData = cacheHit match {
+      case Some(hit) => this.copy(cacheHit = NonEmptyList.fromList(hit.cacheResultIds.tail) map CacheHit.apply)
+      case None => this
     }
   }
 

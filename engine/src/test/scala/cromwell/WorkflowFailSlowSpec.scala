@@ -5,7 +5,7 @@ import cromwell.util.SampleWdl
 
 
 // TODO: These tests are (and were) somewhat unsatisfactory. They'd be much better if we use TestFSMRefs and TestProbes to simulate job completions against the WorkflowActor and make sure it only completes the workflow at the appropriate time.
-class WorkflowFailSlowSpec extends CromwellTestkitSpec {
+class WorkflowFailSlowSpec extends CromwellTestKitSpec {
   val FailFastOptions =
     """
       |{

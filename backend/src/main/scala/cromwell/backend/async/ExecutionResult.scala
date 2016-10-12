@@ -1,7 +1,9 @@
 package cromwell.backend.async
 
+import java.nio.file.Path
+
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.{ExecutionEvent, JobOutputs}
+import cromwell.core.{ExecutionEvent, CallOutputs}
 
 /**
  * ADT representing the result of an execution of a BackendCall.
@@ -11,9 +13,9 @@ sealed trait ExecutionResult
 /**
  * A successful execution with resolved outputs.
  */
-final case class SuccessfulExecution(outputs: JobOutputs,
+final case class SuccessfulExecution(outputs: CallOutputs,
                                      returnCode: Int,
-                                     jobDetritusFiles: Map[String, String],
+                                     jobDetritusFiles: Map[String, Path],
                                      executionEvents: Seq[ExecutionEvent],
                                      resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
 

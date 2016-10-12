@@ -1,42 +1,38 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.{FileSystem, Path}
+import java.nio.file.{Files, Path}
 
-import better.files._
-import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions, WriteFunctions}
-import cromwell.backend.impl.jes.JesImplicits.PathString
+import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
-import cromwell.filesystems.gcs.GcsFileSystem
-import wdl4s.expression.WdlStandardLibraryFunctions
+import cromwell.core.path.PathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder
+import wdl4s.expression.{PureStandardLibraryFunctionsLike, WdlStandardLibraryFunctions}
 import wdl4s.values._
 
-import scala.language.postfixOps
+import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class JesExpressionFunctions(override val fileSystems: List[FileSystem],
-                             context: CallContext
-                             ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
-  import JesExpressionFunctions.EnhancedPath
+class JesExpressionFunctions(override val pathBuilders: List[PathBuilder], context: CallContext)
+  extends WdlStandardLibraryFunctions with PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions {
 
-  private def globDirectory(glob: String): String = s"glob-${glob.md5Sum}/"
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
+  private[jes] def globDirectory(glob: String): String = globName(glob) + "/"
+  private[jes] def globName(glob: String) = s"glob-${glob.md5Sum}"
 
   override def globPath(glob: String): String = context.root.resolve(globDirectory(glob)).toString
 
   override def glob(path: String, pattern: String): Seq[String] = {
-    File(path.toAbsolutePath(fileSystems).asDirectory).
-      glob("**/*") map { _.pathAsString } filterNot { _.toString == path } toSeq
+    val name = globName(pattern)
+    val listFile = context.root.resolve(s"$name.list").toRealPath()
+    Files.readAllLines(listFile).asScala map { fileName => context.root.resolve(s"$name/$fileName").toUri.toString }
   }
 
-  override def preMapping(str: String): String = if (!GcsFileSystem.isAbsoluteGcsPath(str)) context.root.resolve(str).toString else str
+  override def preMapping(str: String): String = if (!GcsPathBuilder.isValidGcsUrl(str)) {
+    context.root.resolve(str.stripPrefix("/")).toUri.toString
+  } else str
 
   override def stdout(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stdout))
   override def stderr(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stderr))
 
   override val writeDirectory: Path = context.root
-}
-
-object JesExpressionFunctions {
-  implicit class EnhancedPath(val path: Path) extends AnyVal {
-    def asDirectory = path.toString.toDirectory(path.getFileSystem)
-  }
 }

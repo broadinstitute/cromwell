@@ -2,12 +2,12 @@ package cromwell.backend.impl.spark
 
 import java.nio.file.Path
 
+import better.files._
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.core.{TailedWriter, UntailedWriter}
-import cromwell.core.PathFactory.EnhancedPath
+import cromwell.core.path.PathImplicits._
+import cromwell.core.path.{TailedWriter, UntailedWriter}
 
 import scala.sys.process._
-import better.files._
 import scala.util.{Failure, Success, Try}
 
 object SparkCommands {
@@ -29,12 +29,17 @@ class SparkCommands extends StrictLogging {
     * as some extra shell code for monitoring jobs
     */
   def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path) = {
-    File(filePath).write(
-      s"""#!/bin/sh
-          |cd $containerRoot
-          |$instantiatedCommand
-          |echo $$? > rc
-          |""".stripMargin)
+
+    val scriptBody =
+      s"""
+
+#!/bin/sh
+cd $containerRoot
+$instantiatedCommand
+echo $$? > rc
+
+       """.trim + "\n"
+    File(filePath).write(scriptBody)
   }
 
   def sparkSubmitCommand(attributes: Map[String, Any]): String = {

@@ -6,7 +6,7 @@ import better.files._
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
-import cromwell.core.WorkflowSourceFiles
+import cromwell.core.{WorkflowSourceFilesWithoutImports, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip}
 import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
 import cromwell.core.ErrorOr._
@@ -17,7 +17,7 @@ sealed abstract class CromwellCommandLine
 case object UsageAndExit extends CromwellCommandLine
 case object RunServer extends CromwellCommandLine
 final case class RunSingle(wdlPath: Path,
-                           sourceFiles: WorkflowSourceFiles,
+                           sourceFiles: WorkflowSourceFilesCollection,
                            inputsPath: Option[Path],
                            optionsPath: Option[Path],
                            metadataPath: Option[Path]) extends CromwellCommandLine
@@ -26,7 +26,7 @@ object CromwellCommandLine {
   def apply(args: Seq[String]): CromwellCommandLine = {
     args.headOption match {
       case Some("server") if args.size == 1 => RunServer
-      case Some("run") if args.size >= 2 && args.size <= 5 => RunSingle(args.tail)
+      case Some("run") if args.size >= 2 && args.size <= 6 => RunSingle(args.tail)
       case _ => UsageAndExit
     }
   }
@@ -38,15 +38,19 @@ object RunSingle {
     val inputsPath = argPath(args, 1, Option(".inputs"), checkDefaultExists = false)
     val optionsPath = argPath(args, 2, Option(".options"), checkDefaultExists = true)
     val metadataPath = argPath(args, 3, None)
+    val importPath = argPath(args, 4, None)
 
     val wdl = readContent("WDL file", wdlPath)
     val inputsJson = readJson("Inputs", inputsPath)
     val optionsJson = readJson("Workflow Options", optionsPath)
 
-    val sourceFiles = (wdl |@| inputsJson |@| optionsJson) map { WorkflowSourceFiles.apply }
+    val sourceFileCollection = importPath match {
+      case Some(p) => (wdl |@| inputsJson |@| optionsJson) map { (w, i, o) => WorkflowSourceFilesWithDependenciesZip.apply(w, i, o, Files.readAllBytes(p)) }
+      case None => (wdl |@| inputsJson |@| optionsJson) map WorkflowSourceFilesWithoutImports.apply
+    }
 
     val runSingle = for {
-      sources <- sourceFiles
+      sources <- sourceFileCollection
       _ <- writeableMetadataPath(metadataPath)
     } yield RunSingle(wdlPath, sources, inputsPath, optionsPath, metadataPath)
 

@@ -6,12 +6,12 @@ import java.nio.file.Path
 import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
-import cromwell.core.{PathWriter, TailedWriter, TestKitSuite, UntailedWriter, _}
-import org.mockito.Matchers._
+import cromwell.core.{TestKitSuite, WorkflowOptions}
+import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -50,7 +50,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -68,7 +68,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       | RUNTIME
       |}
       |
-      |workflow helloClusterMode {
+      |workflow wf_helloClusterMode {
       |   call helloClusterMode
       |}
     """.stripMargin
@@ -171,7 +171,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkClusterProcess.startMonitoringSparkClusterJob(any[Path], any[String])).thenReturn(Future.successful(Finished))
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
         verify(sparkClusterProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(sparkClusterProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(sparkClusterProcess, times(1)).untailedWriter(any[Path])
@@ -201,8 +201,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkClusterProcess.startMonitoringSparkClusterJob(any[Path], any[String])).thenReturn(Future.successful(Failed(new Throwable("failed to monitor"))))
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains("failed to monitor"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains("failed to monitor"))
         verify(sparkClusterProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(sparkClusterProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(sparkClusterProcess, times(1)).untailedWriter(any[Path])
@@ -232,8 +232,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkClusterProcess.startMonitoringSparkClusterJob(any[Path], any[String])).thenReturn(Future.failed(new IllegalStateException("failed to start monitoring process")))
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains("failed to start monitoring process"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains("failed to start monitoring process"))
         verify(sparkClusterProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(sparkClusterProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(sparkClusterProcess, times(1)).untailedWriter(any[Path])
@@ -263,8 +263,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkClusterProcess.processStderr).thenReturn(sampleSubmissionResponse)
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed although return code is zero but stderr is not empty"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed although return code is zero but stderr is not empty"))
         verify(sparkClusterProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(sparkClusterProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(sparkClusterProcess, times(1)).untailedWriter(any[Path])
@@ -292,8 +292,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkClusterProcess.processStderr).thenReturn(stderrResult)
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed. Spark returned non zero status code:"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed. Spark returned non zero status code:"))
       }
       cleanUpJob(jobPaths)
     }
@@ -318,8 +318,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkClusterProcess.processStderr).thenReturn(stderrResult)
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains(s"submit job process exitValue method failed"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains(s"submit job process exitValue method failed"))
       }
       cleanUpJob(jobPaths)
     }
@@ -347,7 +347,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       }).underlyingActor
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
         verify(sparkProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(sparkProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(sparkProcess, times(1)).untailedWriter(any[Path])
@@ -376,8 +376,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkProcess.processStderr).thenReturn(stderrResult)
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed. Spark returned non zero status code:"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed. Spark returned non zero status code:"))
       }
 
       cleanUpJob(jobPaths)
@@ -402,8 +402,8 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed although return code is zero but stderr is not empty"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains(s"Execution process failed although return code is zero but stderr is not empty"))
       }
 
       cleanUpJob(jobPaths)
@@ -427,7 +427,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       when(sparkProcess.untailedWriter(any[Path])).thenReturn(stubUntailed)
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
         verify(sparkProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(sparkProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(sparkProcess, times(1)).untailedWriter(any[Path])
@@ -438,7 +438,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
 
   }
 
-  private def cleanUpJob(jobPaths: JobPaths): Unit = {
+  private def cleanUpJob(jobPaths: JobPathsWithDocker): Unit = {
     File(jobPaths.workflowRoot).delete(true)
     ()
   }
@@ -447,7 +447,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = wdlSource, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = if (isCluster) BackendConfigurationDescriptor(backendClusterConfig, ConfigFactory.load) else BackendConfigurationDescriptor(backendClientConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), WorkflowOptions.empty, Set.empty)
-    val jobPaths = if (isCluster) new JobPaths(backendWorkflowDescriptor, backendClusterConfig, jobDesc.key) else new JobPaths(backendWorkflowDescriptor, backendClientConfig, jobDesc.key)
+    val jobPaths = if (isCluster) new JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendClusterConfig) else new JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendClientConfig)
     val executionDir = jobPaths.callExecutionRoot
     val stdout = File(executionDir.toString, "stdout")
     stdout.createIfNotExists(asDirectory = false, createParents = true)
@@ -456,7 +456,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     TestJobDescriptor(jobDesc, jobPaths, backendConfigurationDescriptor)
   }
 
-  private case class TestJobDescriptor(jobDescriptor: BackendJobDescriptor, jobPaths: JobPaths, backendConfigurationDescriptor: BackendConfigurationDescriptor)
+  private case class TestJobDescriptor(jobDescriptor: BackendJobDescriptor, jobPaths: JobPathsWithDocker, backendConfigurationDescriptor: BackendConfigurationDescriptor)
 
   trait MockWriter extends Writer {
     var closed = false

@@ -9,7 +9,7 @@ trait JobLogging extends ActorLogging { this: Actor =>
   def workflowId: WorkflowId
   def jobTag: String
 
-  lazy val jobLogger: Logger = new JobLogger(self.path.name, workflowId, jobTag, Option(log))
+  lazy val jobLogger = new JobLogger(self.path.name, workflowId, jobTag, Option(log))
 }
 
 /**

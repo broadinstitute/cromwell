@@ -9,8 +9,8 @@ import scala.util.{Failure, Try}
 private[jes] object JesBackendFileHashing {
   def getCrc32c(singleFileHashRequest: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
     def usingJesInitData(jesInitData: JesBackendInitializationData) = for {
-      path <- Try(jesInitData.workflowPaths.gcsFileSystem.getPath(singleFileHashRequest.file.valueString))
-      crc32c <- Try(jesInitData.workflowPaths.gcsFileSystemProvider.crc32cHash(path))
+      path <- jesInitData.workflowPaths.getPath(singleFileHashRequest.file.valueString)
+      crc32c <- jesInitData.workflowPaths.getHash(path)
     } yield crc32c
 
     singleFileHashRequest.initializationData match {

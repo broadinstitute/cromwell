@@ -3,8 +3,8 @@ import sbt.Keys._
 import sbt._
 
 object Version {
-  // Upcoming release, or current if we're on the master branch
-  val cromwellVersion = "0.22"
+  // Upcoming release, or current if we're on a master / hotfix branch
+  val cromwellVersion = "23"
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
@@ -39,6 +39,7 @@ object Version {
     // The project isSnapshot string passed in via command line settings, if desired.
     val isSnapshot = sys.props.get("project.isSnapshot").forall(_.toBoolean)
 
-    if (isSnapshot) s"$version-SNAPSHOT" else version
+    // For now, obfuscate SNAPSHOTs from sbt's developers: https://github.com/sbt/sbt/issues/2687#issuecomment-236586241
+    if (isSnapshot) s"$version-SNAP" else version
   }
 }

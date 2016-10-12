@@ -2,7 +2,7 @@ package cromwell.backend.impl.htcondor.caching.localization
 
 import java.nio.file.Files
 
-import cromwell.core.{JobOutput, JobOutputs}
+import cromwell.core.{JobOutput, CallOutputs}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.values.{WdlArray, WdlSingleFile, WdlString}
@@ -33,7 +33,7 @@ class CachedResultLocalizationSpec extends WordSpecLike with Matchers with Befor
     }
 
     "localize cached job outputs which are WDL files using symbolic link" in {
-      val outputs: JobOutputs = Map("File1" -> JobOutput(WdlSingleFile(defaultCachedFile.toAbsolutePath.toString)))
+      val outputs: CallOutputs = Map("File1" -> JobOutput(WdlSingleFile(defaultCachedFile.toAbsolutePath.toString)))
       val newJobOutputs = cachedResults.localizeCachedOutputs(newTmpDir, outputs)
       newJobOutputs foreach { case (lqn, jobOutput) =>
         assert(jobOutput.wdlValue.valueString == newTmpFile.toString)

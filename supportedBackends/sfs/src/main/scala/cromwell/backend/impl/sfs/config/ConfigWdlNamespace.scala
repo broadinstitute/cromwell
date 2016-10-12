@@ -44,7 +44,7 @@ class ConfigWdlNamespace(backendConfig: Config) {
     */
   val wdlNamespace = {
     try {
-      WdlNamespace.load(wdlSource)
+      WdlNamespace.loadUsingSource(wdlSource, None, None)
     } catch {
       case exception: Exception =>
         throw new RuntimeException(s"Error parsing generated wdl:\n$wdlSource".stripMargin, exception)
@@ -74,7 +74,7 @@ object ConfigWdlNamespace {
 
   private def makeTask(taskName: String, command: String, declarations: String): Task = {
     val wdlSource = makeWdlSource(taskName, command, declarations)
-    val wdlNamespace = WdlNamespace.load(wdlSource)
+    val wdlNamespace = WdlNamespace.loadUsingSource(wdlSource, None, None)
     wdlNamespace.findTask(taskName).getOrElse(throw new RuntimeException(s"Couldn't find task $taskName"))
   }
 

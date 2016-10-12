@@ -36,7 +36,7 @@ case object MetadataBoolean extends MetadataType { override val typeName = "bool
 
 object MetadataValue {
   def apply(value: Any) = {
-    value match {
+    Option(value).getOrElse("") match {
       case WdlInteger(i) => new MetadataValue(i.toString, MetadataInt)
       case WdlFloat(f) => new MetadataValue(f.toString, MetadataNumber)
       case WdlBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
@@ -75,16 +75,17 @@ object MetadataQueryJobKey {
 
 case class MetadataQuery(workflowId: WorkflowId, jobKey: Option[MetadataQueryJobKey], key: Option[String],
                          includeKeysOption: Option[NonEmptyList[String]],
-                         excludeKeysOption: Option[NonEmptyList[String]])
+                         excludeKeysOption: Option[NonEmptyList[String]],
+                         expandSubWorkflows: Boolean)
 
 object MetadataQuery {
-  def forWorkflow(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None)
+  def forWorkflow(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
   def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey) = {
-    MetadataQuery(workflowId, Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None, None, None)
+    MetadataQuery(workflowId, Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None, None, None, expandSubWorkflows = false)
   }
 
   def forKey(key: MetadataKey) = {
-    MetadataQuery(key.workflowId, key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key), None, None)
+    MetadataQuery(key.workflowId, key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key), None, None, expandSubWorkflows = false)
   }
 }

@@ -74,10 +74,8 @@ object Main extends App {
 
     import PromiseActor.EnhancedActorRef
 
-    val promise = runner.askNoTimeout(RunWorkflow)
-    waitAndExit(promise, CromwellSystem)
+    waitAndExit(runner.askNoTimeout(RunWorkflow), CromwellSystem)
   }
-
 
   private def waitAndExit(futureResult: Future[Any], workflowManagerSystem: CromwellSystem): Unit = {
     Await.ready(futureResult, Duration.Inf)
@@ -100,17 +98,21 @@ object Main extends App {
         |java -jar cromwell.jar <action> <parameters>
         |
         |Actions:
-        |run <WDL file> [<JSON inputs file> [<JSON workflow options>
-        |  [<OUTPUT workflow metadata>]]]
+        |run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
+        |  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
         |
         |  Given a WDL file and JSON file containing the value of the
         |  workflow inputs, this will run the workflow locally and
         |  print out the outputs in JSON format.  The workflow
         |  options file specifies some runtime configuration for the
         |  workflow (see README for details).  The workflow metadata
-        |  output is an optional file path to output the metadata.
+        |  output is an optional file path to output the metadata. The
+        |  directory of WDL files is optional. However, it is required
+        |  if the primary workflow imports workflows that are outside
+        |  of the root directory of the Cromwell project.
+        |
         |  Use a single dash ("-") to skip optional files. Ex:
-        |    run noinputs.wdl - - metadata.json
+        |    run noinputs.wdl - - metadata.json -
         |
         |server
         |

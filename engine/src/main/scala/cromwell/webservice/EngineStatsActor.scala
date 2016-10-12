@@ -19,9 +19,10 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
   private var jobCounts = Map.empty[ActorRef, Int]
 
   /*
-    It's possible that WorkflowActors might disappear behind us and never manage to write us back.
-    Instead of waiting longingly, watching a mailbox which might never receive some love instead wait
-    a specified period of time and assume anything which was going to reply already has
+   * FIXME 
+   * Because of sub workflows there is currently no reliable way to know if we received responses from all running WEAs. 
+   * For now, we always wait for the timeout duration before responding to give a chance to all WEAs to respond (even nested ones).
+   * This could be improved by having WEAs wait for their sub WEAs before sending back the response.
   */
   val scheduledMsg = context.system.scheduler.scheduleOnce(timeout, self, ShutItDown)
 
@@ -31,7 +32,6 @@ final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: Actor
   override def receive = {
     case JobCount(count) =>
       jobCounts += (sender -> count)
-      if (jobCounts.size == workflowActors.size) reportStats()
     case ShutItDown =>
       reportStats()
     case wompWomp => log.error("Unexpected message to EngineStatsActor: {}", wompWomp)
@@ -59,5 +59,5 @@ object EngineStatsActor {
 
   final case class EngineStats(workflows: Int, jobs: Int)
 
-  val MaxTimeToWait = 30 seconds
+  val MaxTimeToWait = 3 seconds
 }

@@ -3,7 +3,7 @@ package cromwell.backend.sfs
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestActorRef
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
-import cromwell.backend.io.WorkflowPaths
+import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 
@@ -34,7 +34,7 @@ object TestLocalAsyncJobExecutionActor {
   def createBackendRef(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor)
                       (implicit system: ActorSystem): TestActorRef[SharedFileSystemJobExecutionActor] = {
     val emptyActor = system.actorOf(Props.empty)
-    val workflowPaths = new WorkflowPaths(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
+    val workflowPaths = new WorkflowPathsWithDocker(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
     val initializationData = new SharedFileSystemBackendInitializationData(workflowPaths,
       SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional))
 

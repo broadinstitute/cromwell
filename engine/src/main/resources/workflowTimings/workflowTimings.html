@@ -1,40 +1,33 @@
 <html>
 <head>
 
-<script type="text/javascript" src="https://www.google.com/jsapi?autoload={'modules':[{'name':'visualization',
+    <script type="text/javascript" src="https://www.google.com/jsapi?autoload={'modules':[{'name':'visualization',
        'version':'1','packages':['timeline']}]}"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-<script type="text/javascript">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script type="text/javascript">
 
-    google.setOnLoadCallback(drawChart);
-    function addDataTableRow(dataTable, callName, callPartName, startDate, endDate) {
-        if (startDate <= endDate) {
-            dataTable.addRow([callName, callPartName, startDate, endDate]);
-        } else {
-            console.error("Unable to add '" + callName + "'s entry: '" + callPartName + "' because start-time '" + startDate + "'' is greater than end-time '" + endDate + "'");
+        var parentWorkflowNames = [];
+        var expandedParentWorkflows = [];
+        var chartView;
+        
+        google.setOnLoadCallback(drawChart);
+        
+        function addDataTableRow(dataTable, callName, callPartName, startDate, endDate, ancestry) {
+            if (startDate <= endDate) {
+                newRow = dataTable.addRow([callName, callPartName, startDate, endDate]);
+                dataTable.setRowProperty(newRow, "ancestry", ancestry);
+            } else {
+                console.error("Unable to add '" + callName + "'s entry: '" + callPartName + "' because start-time '" + startDate + "'' is greater than end-time '" + endDate + "'");
+            }
         }
-    }
 
-    function drawChart() {
-        var includeKeys = ["start", "end", "executionStatus", "executionEvents"];
-        $.getJSON("./metadata?includeKey=" + includeKeys.join("&includeKey="), function( data ) {
-
-            var container = document.getElementById('chart_div');
-            var chart = new google.visualization.Timeline(container);
-
-            var dataTable = new google.visualization.DataTable();
-            dataTable.addColumn({ type: 'string', id: 'Position' });
-            dataTable.addColumn({ type: 'string', id: 'Name' });
-            dataTable.addColumn({ type: 'date', id: 'Start' });
-            dataTable.addColumn({ type: 'date', id: 'End' });
-
-            var executionCallsCount = 0;
+        function parseMetadata(data, dataTable, ancestry) {
             var workflowName = data.workflowName;
             var workflowEnd = null;
             if (data.hasOwnProperty("end")) {
                 workflowEnd = new Date(data.end);
             }
-
+            var executionCallsCount = 0;
             var callsList = data.calls;
             var sortable = [];
             for (var key in callsList) {
@@ -56,14 +49,21 @@
                     var callStatus = callList[callIndex].executionStatus;
 
                     // add the index of the shard if there is one
-                    var thisCallName = (index == -1 ? callName : callName + "." + index);
+                    var callLqn = (index == -1 ? callName : callName + "." + index);
 
                     // add the retry number, unless this was a successfuly first attempt (for brevity)
-                    thisCallName = ( callStatus == "Done" && attempt == 1 ? thisCallName : thisCallName + ".retry-" + attempt)
+                    callLqn = ( callStatus == "Done" && attempt == 1 ? callLqn : callLqn + ".retry-" + attempt);
 
                     // Remove the workflow name
-                    thisCallName = thisCallName.replace(new RegExp("^" + workflowName + "\\."), "");
+                    callLqn = callLqn.replace(new RegExp("^" + workflowName + "\\."), "");
 
+                    var callFqn;
+                    if (ancestry.length == 0) {
+                        callFqn = callLqn;
+                    } else {
+                        callFqn = ancestry.join("/") + "/" + callLqn;
+                    }
+                    
                     var executionEvents = callList[callIndex].executionEvents;
 
                     var firstEventStart = null;
@@ -85,7 +85,7 @@
                                 finalEventEnd = endDate
                             }
                             // NB: See the column definitions above.
-                            addDataTableRow(dataTable, thisCallName, description, startDate, endDate);
+                            addDataTableRow(dataTable, callFqn, description, startDate, endDate, ancestry);
                         }
 
                         if (callList[callIndex].hasOwnProperty("start")) {
@@ -102,42 +102,126 @@
                         }
 
                         if (firstEventStart == null || finalEventEnd == null) {
-                            addDataTableRow(dataTable, thisCallName, callList[callIndex].executionStatus, callStart, callEnd);
+                            addDataTableRow(dataTable, callFqn, callList[callIndex].executionStatus, callStart, callEnd, ancestry);
                         } else {
-                            if (callStart < firstEventStart) addDataTableRow(dataTable, thisCallName, "cromwell starting overhead", callStart, firstEventStart);
-                            if (callEnd > finalEventEnd) addDataTableRow(dataTable, thisCallName, "cromwell final overhead", finalEventEnd, callEnd);
+                            if (callStart < firstEventStart) addDataTableRow(dataTable, callFqn, "cromwell starting overhead", callStart, firstEventStart, ancestry);
+                            if (callEnd > finalEventEnd) addDataTableRow(dataTable, callFqn, "cromwell final overhead", finalEventEnd, callEnd, ancestry);
                         }
-                    } else if (callList[callIndex].executionStatus == "Running") {
+                    } else if (callList[callIndex].executionStatus == "Running" || callList[callIndex].executionStatus == "QueuedInCromwell" || callList[callIndex].executionStatus == "Starting") {
+                        var status = callList[callIndex].executionStatus
                         executionCallsCount++;
                         var endDate = workflowEnd;
                         if(endDate == null) {
-                            addDataTableRow(dataTable, thisCallName, "Running", new Date(callList[callIndex].start), new Date(Date.now()));
+                            addDataTableRow(dataTable, callFqn, status, new Date(callList[callIndex].start), new Date(Date.now()), ancestry);
                         }
                         else {
-                            addDataTableRow(dataTable, thisCallName, "Still running when workflow ended", new Date(callList[callIndex].start), endDate);
+                            addDataTableRow(dataTable, callFqn, "Still ".concat(status).concat(" when workflow ended"), new Date(callList[callIndex].start), endDate, ancestry);
                         }
+                    }
+
+                    if (callList[callIndex].hasOwnProperty("subWorkflowMetadata")) {
+                        var clone = ancestry.slice(0);
+                        clone.push(callLqn);
+                        parentWorkflowNames.push(callFqn);
+                        executionCallsCount += parseMetadata(callList[callIndex].subWorkflowMetadata, dataTable, clone);
                     }
                 }
             }
+            
+            return executionCallsCount;
+        }
 
-            var options = {
-                colors: ['#33178f', '#c5bc12', '#5e8229', '#9a03f8', '#9e4653', '#4ef2ca', '#2dd801', '#3f7b49', '#763097', '#bc8b28', '#cb716f', '#adce53', '#c3768d', '#fdf92a'],
-                height: executionCallsCount * 18 + 60,
-                timeline: {
-                    avoidOverlappingGridLines: false,
-                    showBarLabels: false,
-                    rowLabelStyle: { fontName: 'Helvetica', fontSize: 10, color: '#603913' },
-                    // Although bar labels are unshown, they still affect the height of each row. So make it small.
-                    barLabelStyle: { fontName: 'Helvetica', fontSize: 5, color: '#603913' },
+        function drawChart() {
+            var includeKeys = ["start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata"];
+            $.getJSON("./metadata?expandSubWorkflows=true&includeKey=" + includeKeys.join("&includeKey="), function(data) {
+                var dataTable = new google.visualization.DataTable();
+                dataTable.addColumn({ type: 'string', id: 'Position' });
+                dataTable.addColumn({ type: 'string', id: 'Name' });
+                dataTable.addColumn({ type: 'date', id: 'Start' });
+                dataTable.addColumn({ type: 'date', id: 'End' });
+
+                var executionCallsCount =  parseMetadata(data, dataTable, []);
+
+                var options = {
+                    colors: ['#33178f', '#c5bc12', '#5e8229', '#9a03f8', '#9e4653', '#4ef2ca', '#2dd801', '#3f7b49', '#763097', '#bc8b28', '#cb716f', '#adce53', '#c3768d', '#fdf92a'],
+                    height: executionCallsCount * 18 + 60,
+                    timeline: {
+                        avoidOverlappingGridLines: false,
+                        showBarLabels: false,
+                        rowLabelStyle: { fontName: 'Helvetica', fontSize: 10, color: '#603913' },
+                        // Although bar labels are unshown, they still affect the height of each row. So make it small.
+                        barLabelStyle: { fontName: 'Helvetica', fontSize: 5, color: '#603913' },
+                    },
+                    tooltip: {isHtml: true}
+                };
+                
+                var container = document.getElementById('chart_div');
+                var chart = new google.visualization.Timeline(container);
+                chartView = hideAllSubWorkflows(dataTable);
+                
+                chart.draw(chartView, options);
+                
+                google.visualization.events.addListener(chart, 'select', selectHandler);
+
+                function selectHandler(e) {
+                    var selectedItem = chart.getSelection()[0];
+                    if (selectedItem) {
+                        chartView = toggleSubWorkflowRows(dataTable, selectedItem.row);
+                        chart.draw(chartView, options);
+                        // For some reason the tooltip gets stuck and doesn't disappear by itself, so remove it explicitly from the DOM
+                        $( ".google-visualization-tooltip" ).remove();
+                    }
                 }
+            });
+        }
+
+        function toggleSubWorkflowRows(dt, selectedRow) {
+            function filterFunction(cell, row, column, table) {
+                var ancestry = table.getRowProperty(row, "ancestry");
+                // Display the row if it's not a sub workflow or if its parent is in the list of workflows to expand.
+                return (ancestry.length == 0 || (expandedParentWorkflows.indexOf(ancestry[ancestry.length - 1]) != -1));
+            }
+    
+            var filter = {
+                test: filterFunction,
+                // Not used because all filtering is done in filterFunction but it's mandatory to have something else than the filter
+                column: 0
             };
-            chart.draw(dataTable, options);
-        });
-    }
-</script>
+            
+            var parentWorkflow;
+            if (selectedRow) parentWorkflow = chartView.getValue(selectedRow, 0);
+
+            var indexOfParentWorkflow = expandedParentWorkflows.indexOf(parentWorkflow);
+
+            if (indexOfParentWorkflow != -1) {
+                // Remove the parent workflow from the list if it's in it
+                expandedParentWorkflows.splice(indexOfParentWorkflow, 1);
+            } else if (parentWorkflow && parentWorkflowNames.indexOf(parentWorkflow) != -1) {
+                // Add it if it's not
+                expandedParentWorkflows.push(parentWorkflow);
+            }
+            
+            var rowsToDisplay = dt.getFilteredRows([filter]);
+            var view = new google.visualization.DataView(dt);
+            view.setRows(rowsToDisplay);
+            return view;
+        }
+        
+        function hideAllSubWorkflows(dt) {
+            var view = new google.visualization.DataView(dt);
+            function filterFunction(cell, row, column, table) {
+                return table.getRowProperty(row, "ancestry").length != 0;
+            }
+
+            view.hideRows(dt.getFilteredRows([{column: 0, test: filterFunction}]));
+            return view;
+        }
+        
+        
+    </script>
+    <title id="title"></title>
 </head>
 <body>
-<title id="title"></title>
 <div id="chart_div"></div>
 </body>
 </html>

@@ -65,7 +65,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
 
     import cromwell.core.simpleton.WdlValueSimpleton._
 
-    val inputSimpletons = jobDescriptor.inputs.simplify
+    val inputSimpletons = jobDescriptor.fullyQualifiedInputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
       case WdlValueSimpleton(_, f: WdlFile) => true
       case _ => false
@@ -107,7 +107,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
     }
 
     val outputExpressionHashResults = jobDescriptor.call.task.outputs map { output =>
-      HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.name}"), output.requiredExpression.valueString.md5HashValue)
+      HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.unqualifiedName}"), output.requiredExpression.valueString.md5HashValue)
     }
 
     // Build these all together for the final set of initial hashes:

@@ -12,8 +12,8 @@ import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
 import cromwell.core.ErrorOr._
 import lenthall.exception.MessageAggregation
-import wdl4s.types.{WdlIntegerType, WdlStringType, WdlBooleanType, WdlType}
-import wdl4s.values.{WdlString, WdlBoolean, WdlInteger, WdlValue}
+import wdl4s.types._
+import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 
 object HtCondorRuntimeAttributes {
@@ -26,6 +26,7 @@ object HtCondorRuntimeAttributes {
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DockerOutputDirKey = "dockerOutputDir"
   val DiskKey = "disk"
+  val NativeSpecsKey = "nativeSpecs"
 
   val staticDefaults = Map(
     FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
@@ -43,7 +44,8 @@ object HtCondorRuntimeAttributes {
     DockerOutputDirKey -> Set(WdlStringType),
     CpuKey -> Set(WdlIntegerType),
     MemoryKey -> Set(WdlStringType),
-    DiskKey -> Set(WdlStringType)
+    DiskKey -> Set(WdlStringType),
+    NativeSpecsKey -> Set(WdlArrayType(WdlStringType))
   )
 
   def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): HtCondorRuntimeAttributes = {
@@ -59,9 +61,10 @@ object HtCondorRuntimeAttributes {
     val cpu = validateCpu(withDefaultValues.get(CpuKey), noValueFoundFor(CpuKey))
     val memory = validateMemory(withDefaultValues.get(MemoryKey), noValueFoundFor(MemoryKey))
     val disk = validateDisk(withDefaultValues.get(DiskKey), noValueFoundFor(DiskKey))
+    val nativeSpecs = validateNativeSpecs(withDefaultValues.get(NativeSpecsKey), None.validNel)
 
-    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| dockerOutputDir |@| failOnStderr |@| cpu |@| memory |@| disk) map {
-      new HtCondorRuntimeAttributes(_, _, _, _, _, _, _, _)
+    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| dockerOutputDir |@| failOnStderr |@| cpu |@| memory |@| disk |@| nativeSpecs) map {
+      new HtCondorRuntimeAttributes(_, _, _, _, _, _, _, _, _)
     } match {
       case Valid(x) => x
       case Invalid(nel) => throw new RuntimeException with MessageAggregation {
@@ -97,6 +100,17 @@ object HtCondorRuntimeAttributes {
       case None => onMissingKey
     }
   }
+
+  private def validateNativeSpecs(value: Option[WdlValue], onMissingKey: => ErrorOr[Option[Array[String]]]): ErrorOr[Option[Array[String]]] = {
+    val nativeSpecsWrongFormatMsg = s"Expecting $NativeSpecsKey runtime attribute to be an Array of Strings. Exception: %s"
+    value match {
+      case Some(ns: WdlArray) if ns.wdlType.memberType.equals(WdlStringType) =>
+        val nsa = ns.value.map { value => value.valueString }.toArray
+        Option(nsa).validNel
+      case Some(_) => String.format(nativeSpecsWrongFormatMsg, "Not supported WDL type value").invalidNel
+      case None => onMissingKey
+    }
+  }
 }
 
 case class HtCondorRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
@@ -106,4 +120,5 @@ case class HtCondorRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                      failOnStderr: Boolean,
                                      cpu: Int,
                                      memory: MemorySize,
-                                     disk: MemorySize)
+                                     disk: MemorySize,
+                                     nativeSpecs: Option[Array[String]])

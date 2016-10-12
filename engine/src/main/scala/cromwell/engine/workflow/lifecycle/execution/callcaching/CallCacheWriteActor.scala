@@ -2,14 +2,14 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.backend.BackendJobExecutionActor
-import cromwell.backend.BackendJobExecutionActor.SucceededResponse
+import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-case class CallCacheWriteActor(callCache: CallCache, workflowId: WorkflowId, callCacheHashes: CallCacheHashes, succeededResponse: BackendJobExecutionActor.SucceededResponse) extends Actor with ActorLogging {
+case class CallCacheWriteActor(callCache: CallCache, workflowId: WorkflowId, callCacheHashes: CallCacheHashes, succeededResponse: BackendJobExecutionActor.JobSucceededResponse) extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -30,7 +30,7 @@ case class CallCacheWriteActor(callCache: CallCache, workflowId: WorkflowId, cal
 }
 
 object CallCacheWriteActor {
-  def props(callCache: CallCache, workflowId: WorkflowId, callCacheHashes: CallCacheHashes, succeededResponse: SucceededResponse): Props =
+  def props(callCache: CallCache, workflowId: WorkflowId, callCacheHashes: CallCacheHashes, succeededResponse: JobSucceededResponse): Props =
     Props(CallCacheWriteActor(callCache, workflowId, callCacheHashes, succeededResponse))
 }
 

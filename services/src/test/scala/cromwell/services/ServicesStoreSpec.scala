@@ -160,6 +160,7 @@ object ServicesStoreSpec {
       s"""
          |db.url = "jdbc:hsqldb:mem:$${uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
          |db.driver = "org.hsqldb.jdbcDriver"
+         |db.connectionTimeout = 3000
          |driver = "slick.driver.HsqldbDriver$$"
          |liquibase.updateSchema = false
          |""".stripMargin)

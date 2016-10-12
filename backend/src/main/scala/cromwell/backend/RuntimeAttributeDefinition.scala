@@ -20,8 +20,8 @@ object RuntimeAttributeDefinition {
 
   def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
                                 wdlFunctions: WdlStandardLibraryFunctions,
-                                evaluatedInputs: Map[LocallyQualifiedName, WdlValue]): Try[Map[String, WdlValue]] = {
-    val tryInputs = evaluatedInputs map { case (x, y) => x -> Success(y) }
+                                evaluatedInputs: Map[Declaration, WdlValue]): Try[Map[String, WdlValue]] = {
+    val tryInputs = evaluatedInputs map { case (x, y) => x.unqualifiedName -> Success(y) }
     val mapBasedLookup = buildMapBasedLookup(tryInputs) _
     val mapOfTries = unevaluated.attrs mapValues {
       expr => expr.evaluate(mapBasedLookup, wdlFunctions)

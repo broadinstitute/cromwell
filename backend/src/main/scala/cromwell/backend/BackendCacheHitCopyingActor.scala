@@ -3,7 +3,7 @@ package cromwell.backend
 import akka.actor.{Actor, ActorLogging}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, FailedNonRetryableResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse, JobFailedNonRetryableResponse}
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.core.simpleton.WdlValueSimpleton
 
@@ -29,6 +29,6 @@ trait BackendCacheHitCopyingActor extends Actor with ActorLogging with BackendJo
   def abort(): Unit = log.warning("{}: Abort not supported during cache hit copying", jobTag)
 
   private def cachingFailed(t: Throwable) = {
-    FailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+    JobFailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
   }
 }

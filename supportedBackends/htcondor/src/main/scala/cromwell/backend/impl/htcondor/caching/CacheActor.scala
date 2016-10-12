@@ -1,7 +1,7 @@
 package cromwell.backend.impl.htcondor.caching
 
 import akka.actor.{Actor, ActorLogging}
-import cromwell.backend.BackendJobExecutionActor.SucceededResponse
+import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.impl.htcondor.caching.exception.{CachedResultAlreadyExistException, CachedResultNotFoundException}
 import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
@@ -10,10 +10,10 @@ object CacheActor {
 
   trait CacheActorCommand
   case class ReadExecutionResult(hash: String) extends CacheActorCommand
-  case class StoreExecutionResult(hash: String, succeededResponse: SucceededResponse) extends CacheActorCommand
+  case class StoreExecutionResult(hash: String, succeededResponse: JobSucceededResponse) extends CacheActorCommand
 
   trait CacheActorResponse
-  case class ExecutionResultFound(succeededResponse: SucceededResponse) extends CacheActorResponse
+  case class ExecutionResultFound(succeededResponse: JobSucceededResponse) extends CacheActorResponse
   case object ExecutionResultNotFound extends CacheActorResponse
   case class ExecutionResultStored(hash: String) extends CacheActorResponse
   case object ExecutionResultAlreadyExist extends CacheActorResponse

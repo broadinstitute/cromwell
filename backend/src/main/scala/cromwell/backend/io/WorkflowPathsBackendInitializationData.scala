@@ -1,8 +1,7 @@
 package cromwell.backend.io
 
-import java.nio.file.FileSystem
-
 import cromwell.backend.BackendInitializationData
+import cromwell.core.path.PathBuilder
 
 /**
   * Extension of backend initialization data that also provides a `WorkflowPaths`, and by proxy its `List[FileSystem]`.
@@ -39,7 +38,7 @@ object WorkflowPathsBackendInitializationData {
     BackendInitializationData.as[WorkflowPathsBackendInitializationData](initializationDataOption).workflowPaths
   }
 
-  def fileSystems(initializationDataOption: Option[BackendInitializationData]): List[FileSystem] = {
-    workflowPaths(initializationDataOption).fileSystems
+  def pathBuilders(initializationDataOption: Option[BackendInitializationData]): List[PathBuilder] = {
+    workflowPaths(initializationDataOption).pathBuilders
   }
 }

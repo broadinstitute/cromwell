@@ -33,4 +33,5 @@ object CallCacheInvalidateActor {
 
 sealed trait CallCacheInvalidatedResponse
 case object CallCacheInvalidatedSuccess extends CallCacheInvalidatedResponse
+case object CallCacheInvalidationUnnecessary extends CallCacheInvalidatedResponse
 case class CallCacheInvalidatedFailure(t: Throwable) extends CallCacheInvalidatedResponse

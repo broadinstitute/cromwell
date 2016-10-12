@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.callcaching.JobCachingActorHelper
-import cromwell.backend.io.JobPaths
+import cromwell.backend.io.{JobPathsWithDocker, WorkflowPathsBackendInitializationData}
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
 import net.ceedubs.ficus.Ficus._
@@ -17,7 +17,7 @@ trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
   def serviceRegistryActor: ActorRef
 
   lazy val jobPaths =
-    new JobPaths(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+    new JobPathsWithDocker(jobDescriptor.key, jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
 
   lazy val initializationData = BackendInitializationData.
     as[SharedFileSystemBackendInitializationData](backendInitializationDataOption)
@@ -37,6 +37,7 @@ trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
   }
 
   lazy val sharedFileSystem = new SharedFileSystem {
+    override val pathBuilders = WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
     override lazy val sharedFileSystemConfig = {
       configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local").getOrElse(ConfigFactory.empty())
     }

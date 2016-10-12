@@ -4,13 +4,15 @@ import akka.event.LoggingAdapter
 import better.files.File
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
+import cromwell.backend.sfs.SharedFileSystemBackendInitializationData
+import cromwell.core.path.PathFactory
 import cromwell.util.TryWithResource._
 import cromwell.util.FileUtil._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.codec.digest.DigestUtils
 import org.slf4j.LoggerFactory
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 object ConfigHashingStrategy {
   val logger = LoggerFactory.getLogger(getClass)
@@ -37,14 +39,22 @@ abstract class ConfigHashingStrategy {
   protected lazy val checkSiblingMessage = if (checkSiblingMd5) "Check first for sibling md5 and if not found " else ""
 
   def getHash(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
-    val file = File(request.file.valueString).followSymlinks
+    def usingSFSInitData(initData: SharedFileSystemBackendInitializationData) = {
+      val pathBuilders = initData.workflowPaths.pathBuilders
+      val file = PathFactory.buildFile(request.file.valueString, pathBuilders).followSymlinks
 
-    if (checkSiblingMd5) {
-      precomputedMd5(file) match {
-        case Some(md5) => Try(md5.contentAsString)
-        case None => hash(file)
-      }
-    } else hash(file)
+      if (checkSiblingMd5) {
+        precomputedMd5(file) match {
+          case Some(md5) => Try(md5.contentAsString)
+          case None => hash(file)
+        }
+      } else hash(file)
+    }
+
+    request.initializationData match {
+      case Some(initData: SharedFileSystemBackendInitializationData) => usingSFSInitData(initData)
+      case _ => Failure(new IllegalArgumentException("Need SharedFileSystemBackendInitializationData to calculate hash."))
+    }
   }
 
   private def precomputedMd5(file: File): Option[File] = {

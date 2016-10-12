@@ -4,7 +4,7 @@ import java.nio.file.{Files, Path}
 import java.util.UUID
 
 import better.files._
-import cromwell.core.WorkflowSourceFiles
+import cromwell.core.{WorkflowSourceFilesWithoutImports}
 import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
@@ -15,7 +15,7 @@ import scala.language.postfixOps
 trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
   def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}") =
-    WorkflowSourceFiles(wdlSource(runtime), wdlJson, workflowOptions)
+    WorkflowSourceFilesWithoutImports(wdlSource(runtime), wdlJson, workflowOptions)
   val rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")
@@ -74,14 +74,14 @@ object SampleWdl {
         |  RUNTIME
         |}
         |
-        |workflow hello {
+        |workflow wf_hello {
         |  call hello
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    val Addressee = "hello.hello.addressee"
+    val Addressee = "wf_hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")
-    val OutputKey = "hello.hello.salutation"
+    val OutputKey = "wf_hello.hello.salutation"
     val OutputValue = "Hello world!"
   }
 
@@ -117,7 +117,7 @@ object SampleWdl {
         |  }
         |}
         |
-        |workflow goodbye {
+        |workflow wf_goodbye {
         |  call goodbye
         |}
       """.stripMargin
@@ -147,9 +147,10 @@ object SampleWdl {
         |  output {
         |    String empty = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
-        |workflow hello {
+        |workflow wf_hello {
         |  call hello
         |  call goodbye {input: emptyInputString=hello.empty }
         |  output {
@@ -509,7 +510,7 @@ object SampleWdl {
         |  RUNTIME
         |}
         |
-        |workflow whereami {
+        |workflow wf_whereami {
         |  call whereami
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
@@ -661,7 +662,7 @@ object SampleWdl {
   class ScatterWdl extends SampleWdl {
     val tasks = s"""task A {
       |  command {
-      |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
+      |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nruchi"
       |  }
       |  RUNTIME
       |  output {

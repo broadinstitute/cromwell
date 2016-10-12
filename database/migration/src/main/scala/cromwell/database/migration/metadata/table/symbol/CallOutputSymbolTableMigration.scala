@@ -6,7 +6,6 @@ import wdl4s.values._
 
 class CallOutputSymbolTableMigration extends SymbolTableMigration {
   override def processSymbol(statement: PreparedStatement,
-                             rowIndex: Int,
                              workflowUuid: String,
                              symbolName: String,
                              symbolScope: String,

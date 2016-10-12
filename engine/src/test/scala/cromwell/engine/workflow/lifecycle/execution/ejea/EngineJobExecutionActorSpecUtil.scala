@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core.JobOutput
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
@@ -23,7 +23,7 @@ private[ejea] trait CanValidateJobStoreKey { self: EngineJobExecutionActorSpec =
 }
 
 private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExecutionActorSpec =>
-  def expectCacheWrite(expectedResponse: SucceededResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
+  def expectCacheWrite(expectedResponse: JobSucceededResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
     eventually { ejea.stateName should be(UpdatingCallCache) }
     ejea.stateData should be(SucceededResponseData(expectedResponse, Some(Success(expectedCallCacheHashes))))
     helper.callCacheWriteActorCreations match {
@@ -83,7 +83,7 @@ private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: Engine
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
   val successOutputs = Map("a" -> JobOutput(WdlInteger(3)), "b" -> JobOutput(WdlString("bee")))
-  def successResponse = SucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty)
+  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty)
 }
 private[ejea] object HasJobSuccessResponse {
   val SuccessfulCallCacheHashes = CallCacheHashes(Set(HashResult(HashKey("whatever you want"), HashValue("whatever you need"))))
@@ -93,7 +93,7 @@ private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =
   val failedRc = Option(12)
   val failureReason = new Exception("The sixth sheik's sheep is sick!")
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
-  def failureRetryableResponse = FailedRetryableResponse(helper.jobDescriptorKey, failureReason, failedRc)
-  def failureNonRetryableResponse = FailedNonRetryableResponse(helper.jobDescriptorKey, failureReason, Option(12))
+  def failureRetryableResponse = JobFailedRetryableResponse(helper.jobDescriptorKey, failureReason, failedRc)
+  def failureNonRetryableResponse = JobFailedNonRetryableResponse(helper.jobDescriptorKey, failureReason, Option(12))
   def abortedResponse = AbortedResponse(helper.jobDescriptorKey)
 }

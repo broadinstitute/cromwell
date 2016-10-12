@@ -7,13 +7,11 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.Config
+import cromwell.filesystems.gcs.auth._
 import lenthall.config.ConfigValidationException
 import lenthall.config.ValidatedConfig._
 import cromwell.core.ErrorOr._
 import org.slf4j.LoggerFactory
-
-import scala.collection.JavaConverters._
-
 
 final case class GoogleConfiguration private (applicationName: String, authsByName: Map[String, GoogleAuthMode]) {
 
@@ -28,15 +26,15 @@ final case class GoogleConfiguration private (applicationName: String, authsByNa
 }
 
 object GoogleConfiguration {
-
+  import scala.collection.JavaConverters._
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
-  private val GoogleScopes = List(
+  val GoogleScopes = List(
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
     StorageScopes.DEVSTORAGE_READ_WRITE,
     "https://www.googleapis.com/auth/genomics",
     "https://www.googleapis.com/auth/compute"
-  )
+  ).asJava
 
   def apply(config: Config): GoogleConfiguration = {
 
@@ -55,10 +53,10 @@ object GoogleConfiguration {
       }
 
       def refreshTokenAuth(authConfig: Config, name: String) = authConfig validateAny {
-        cfg => RefreshTokenMode(name, cfg.getString("client-id"), cfg.getString("client-secret"))
+        cfg => RefreshTokenMode(name, cfg.getString("client-id"), cfg.getString("client-secret"), GoogleScopes)
       }
 
-      def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name, GoogleScopes).validNel
+      def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
 
       val name = authConfig.getString("name")
       val scheme = authConfig.getString("scheme")

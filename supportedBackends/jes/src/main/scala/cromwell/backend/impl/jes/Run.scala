@@ -21,7 +21,6 @@ object Run {
     "https://www.googleapis.com/auth/compute"
   ).asJava
 
-  private val JesServiceAccount = new ServiceAccount().setEmail("default").setScopes(GenomicsScopes)
   private val AcceptableEvents = Set("start", "pulling-image", "localizing-files", "running-docker", "delocalizing-files", "ok", "fail", "start-shutdown", "preempted")
 
   val NoAddressFieldName = "noAddress"
@@ -36,6 +35,7 @@ object Run {
             logFileName: String,
             jesParameters: Seq[JesParameter],
             projectId: String,
+            computeServiceAccount: String,
             preemptible: Boolean,
             genomicsInterface: Genomics): Run = {
     val logger = new JobLogger("JesRun", jobDescriptor.workflowDescriptor.id, jobDescriptor.key.tag, None, Set(slf4jLogger))
@@ -48,7 +48,7 @@ object Run {
              .setProjectId(projectId)
              .setDocker(pipelineInfo.docker)
              .setResources(pipelineInfo.resources)
-             .setName(workflow.workflowNamespace.workflow.unqualifiedName)
+             .setName(workflow.workflow.unqualifiedName)
              .setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
              .setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
@@ -60,7 +60,8 @@ object Run {
     }
 
     def runPipeline: String = {
-      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount).setResources(runtimePipelineResources)
+      val svcAccount = new ServiceAccount().setEmail(computeServiceAccount).setScopes(GenomicsScopes)
+      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
 
       rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.debug(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")

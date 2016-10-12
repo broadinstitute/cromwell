@@ -6,30 +6,29 @@ import cats.data._
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import com.typesafe.config.Config
-import cromwell.backend.impl.jes.JesImplicits.GoogleAuthWorkflowOptions
-import cromwell.core.WorkflowOptions
-import cromwell.filesystems.gcs.{GoogleAuthMode, GoogleConfiguration}
+import cromwell.backend.impl.jes.authentication.JesAuths
+import cromwell.core.ErrorOr._
+import cromwell.filesystems.gcs.GoogleConfiguration
 import lenthall.config.ValidatedConfig._
 import net.ceedubs.ficus.Ficus._
-import cromwell.core.ErrorOr._
 import wdl4s.ExceptionWithErrors
 
 case class JesAttributes(project: String,
-                         genomicsAuth: GoogleAuthMode,
-                         gcsFilesystemAuth: GoogleAuthMode,
+                         computeServiceAccount: String,
+                         auths: JesAuths,
                          executionBucket: String,
                          endpointUrl: URL,
-                         maxPollingInterval: Int) {
-  def genomicsCredential(options: WorkflowOptions) = genomicsAuth.credential(options.toGoogleAuthOptions)
-  def gcsCredential(options: WorkflowOptions) = gcsFilesystemAuth.credential(options.toGoogleAuthOptions)
-}
+                         maxPollingInterval: Int,
+                         qps: Int)
 
 object JesAttributes {
+  val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
     "project",
     "root",
     "maximum-polling-interval",
+    "compute-service-account",
     "dockerhub",
     "genomics",
     "filesystems",
@@ -47,14 +46,17 @@ object JesAttributes {
     val executionBucket: ValidatedNel[String, String] = backendConfig.validateString("root")
     val endpointUrl: ErrorOr[URL] = backendConfig.validateURL("genomics.endpoint-url")
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
+    val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = backendConfig.validateString("genomics.auth")
     val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
+
+    val qps = backendConfig.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(GenomicsApiDefaultQps) / 100
 
     (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName) map {
       (_, _, _, _, _)
     } flatMap { case (p, b, u, genomicsName, gcsName) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, genomicsAuth, gcsAuth, b, u, maxPollingInterval)
+        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps)
       }
     } match {
       case Valid(r) => r

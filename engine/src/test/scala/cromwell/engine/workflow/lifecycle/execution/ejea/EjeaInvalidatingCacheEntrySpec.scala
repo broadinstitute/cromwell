@@ -22,20 +22,6 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec with Ca
     val cacheHitWithTwoIds = CacheHit(NonEmptyList.of(metaInfo32, metaInfo31))
     val cacheHitWithSingleId = CacheHit(NonEmptyList.of(metaInfo31))
 
-    RestartOrExecuteCommandTuples foreach { case RestartOrExecuteCommandTuple(operationName, restarting, expectedMessage) =>
-      List(invalidateSuccess, invalidateFailure) foreach { invalidateActorResponse =>
-        s"$operationName a job if cache invalidation succeeds and there are no other cache hits to try when invalidate response is $invalidateActorResponse" in {
-          ejea = ejeaInvalidatingCacheEntryState(Option(cacheHitWithSingleId), restarting = restarting)
-          // Send the response from the invalidate actor
-          ejea ! invalidateActorResponse
-
-          helper.bjeaProbe.expectMsg(awaitTimeout, expectedMessage)
-          eventually { ejea.stateName should be(RunningJob) }
-          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper. bjeaProps, None, None))
-        }
-      }
-    }
-
     List(invalidateSuccess, invalidateFailure) foreach { invalidateActorResponse =>
       s"try the next available hit when response is $invalidateActorResponse" in {
         ejea = ejeaInvalidatingCacheEntryState(Option(cacheHitWithTwoIds), restarting = false)
@@ -46,6 +32,18 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec with Ca
         expectFetchCachedResultsActor(cacheHitWithSingleId.cacheResultIds.head)
         eventually { ejea.stateName should be(FetchingCachedOutputsFromDatabase) }
         ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, Option(cacheHitWithSingleId)))
+      }
+
+      RestartOrExecuteCommandTuples foreach { case RestartOrExecuteCommandTuple(operationName, restarting, expectedMessage) =>
+        s"$operationName a job if cache invalidation succeeds and there are no other cache hits to try when invalidate response is $invalidateActorResponse" in {
+          ejea = ejeaInvalidatingCacheEntryState(Option(cacheHitWithSingleId), restarting = restarting)
+          // Send the response from the invalidate actor
+          ejea ! invalidateActorResponse
+
+          helper.bjeaProbe.expectMsg(awaitTimeout, expectedMessage)
+          eventually { ejea.stateName should be(RunningJob) }
+          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper. bjeaProps, None, None))
+        }
       }
     }
   }

@@ -9,7 +9,7 @@ organization := "org.broadinstitute"
 scalaVersion := "2.11.8"
 
 // Upcoming release, or current if we're on the master branch
-git.baseVersion := "0.6"
+git.baseVersion := "0.7"
 
 // Shorten the git commit hash
 git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) }

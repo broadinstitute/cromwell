@@ -43,6 +43,12 @@ lazy val sfsBackend = (project in backendRoot / "sfs")
   .dependsOn(gcsFileSystem)
   .dependsOn(backend % "test->test")
 
+lazy val awsBackend = (project in backendRoot / "aws")
+  .settings(awsBackendSettings:_*)
+  .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(backend % "test->test")
+
 lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .settings(htCondorBackendSettings:_*)
   .withTestSettings
@@ -92,10 +98,12 @@ lazy val root = (project in file("."))
   .aggregate(htCondorBackend)
   .aggregate(sparkBackend)
   .aggregate(jesBackend)
+  .aggregate(awsBackend)
   .aggregate(engine)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
+  .dependsOn(awsBackend)
   .dependsOn(htCondorBackend)
   .dependsOn(sparkBackend)
   // Dependencies for tests

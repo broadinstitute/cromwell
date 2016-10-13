@@ -113,6 +113,10 @@ object Dependencies {
     "org.mongodb" %% "casbah" % "3.0.0"
   )
 
+  val awsBackendDependencies = List(
+    "com.amazonaws" % "aws-java-sdk" % "1.11.41"
+  )
+
   val sparkBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV
   ) ++ sprayServerDependencies

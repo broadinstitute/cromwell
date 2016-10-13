@@ -1,22 +1,44 @@
 # Cromwell Change Log
 
-## 0.20
+## 0.22
 
-* The default per-upload bytes size for GCS is now the minumum 256K
-instead of 64M. There is also an undocumented config key
-`google.upload-buffer-bytes` that allows adjusting this internal value.
+* Improved retries for Call Caching and general bug fixes.
+* Now there are configurable caching strategies for the SharedFileSystem backends (i.e. Local). This new "caching"
+  stanza will be nested inside of: backend.{your_SFS_backend}.config.filesystems.local stanza.
+  See below for detailed descriptions of each configurable key.
 
-* Updated Docker Hub hash retriever to parse json with [custom media
-types](https://github.com/docker/distribution/blob/05b0ab0/docs/spec/manifest-v2-1.md).
+```
+caching {
+    duplication-strategy: [
+    "hard-link", "soft-link", "copy"
+    ]
 
-* Added a `/batch` submit endpoint that accepts a single wdl with
-multiple input files.
+     # Possible values: file, path
+     # "file" will compute an md5 hash of the file content.
+     # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
+     # in order to allow for the original file path to be hashed.
+     hashing-strategy: "file"
 
-* The `/query` endpoint now supports querying by `id`, and submitting
-parameters as a HTTP POST.
+     # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
+     # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.
+     check-sibling-md5: false
+}
+```
+* Mulitple Input JSON files can now be submitted in server mode through the existing submission endpoint: /api/workflows/:version.
+    This endpoint accepts a POST request with a multipart/form-data encoded body. You can now include multiple keys for workflow inputs.
+
+        The keys below can contain optional JSON file(s) of the workflow inputs. A skeleton file can be generated from wdltool using the "inputs" subcommand.
+        NOTE: Each prcoceeding workflowInput file will override any JSON key conflicts.
+
+        workflowInputs
+        workflowInputs_2
+        workflowInputs_3
+        workflowInputs_4
+        workflowInputs_5
+
+* Batched status polling of Google Jes for running jobs.
 
 ## 0.21
-
 
 * Warning: Significant database updates when you switch from version 0.19 to 0.21 of Cromwell.
   There may be a long wait period for the migration to finish for large databases.
@@ -71,7 +93,7 @@ task {
     command {
         echo "I'm private !"
     }
-    
+
     runtime {
         docker: "ubuntu:latest"
         noAddress: true
@@ -94,7 +116,7 @@ passed absolute paths for input `File`s.
 * Override the default database configuration by setting the keys
 `database.driver`, `database.db.driver`, `database.db.url`, etc.
 * Override the default database configuration by setting the keys
-`database.driver`, `database.db.driver`, `database.db.url`, etc. 
+`database.driver`, `database.db.driver`, `database.db.url`, etc.
 
 For example:
 ```
@@ -110,4 +132,19 @@ database {
   }
 }
 ```
+
+## 0.20
+
+* The default per-upload bytes size for GCS is now the minumum 256K
+instead of 64M. There is also an undocumented config key
+`google.upload-buffer-bytes` that allows adjusting this internal value.
+
+* Updated Docker Hub hash retriever to parse json with [custom media
+types](https://github.com/docker/distribution/blob/05b0ab0/docs/spec/manifest-v2-1.md).
+
+* Added a `/batch` submit endpoint that accepts a single wdl with
+multiple input files.
+
+* The `/query` endpoint now supports querying by `id`, and submitting
+parameters as a HTTP POST.
 

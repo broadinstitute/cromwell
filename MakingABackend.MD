@@ -4,13 +4,13 @@
 
 - These notes were added while making a new AWS backend for Amazon AWS.
 
-## Part 1: The skeleton:
+## Part 1 (October 13 2016): The skeleton:
 
 To start with, I just need to create a bunch of boilerplate which will eventually be filled in with all of the lovely AWS details!
 
 ### Defining the awsBackend project:
 
-- Added entries to project/Settings.scala, project/Dependencies.scala and build.sbt
+- Added entries to `project/Settings.scala`, `project/Dependencies.scala` and `build.sbt`
 - This was mainly just a copy/paste from existing backend projects. I made a few typos renaming everything and linking the dependencies properly though!
 - E.g. In my first commit I forgot to update the libraryDependencies name for my AWS backend project:
 ```
@@ -113,7 +113,85 @@ scala.NotImplementedError: an implementation is missing
 ```
 - OK, so now I just need to implement `execute(): Future[JobExecutionResult]` and Cromwell can interface with AWS. How hard can it be!
 
-## Part 2: Using Amazon to sleep 20 seconds
+## Part 2 (October 13 2016): Using Amazon to sleep 20 seconds
 
-To be continued...
+### Starting point
+- This was a learning experience after using the Google pipelines service to submit jobs! 
+- To get myself started, I've manually created an ECS cluster which I've called `ecs-t2micro-cluster` via the ECS web console.
+
+### Trial and Error
+
+- I see in the aws sdk docs that there's an AmazonECSAsyncClient class. That sounds promising! Luckily I already added the dependency on AWS SDK in Part 1 so I guess I can just write something basic in my AwsJobExecutionActor class and see what happens:
+
+- I ended up having to add some credentials options to the configuration file. The new `reference.conf` now looks like:
+```
+    #AWS {
+    #  actor-factory = "cromwell.backend.impl.aws.AwsBackendActorFactory"
+    #  config {
+    #    ## These two settings are required to authenticate with the ECS service:
+    #    accessKeyId = "..."
+    #    secretKey = "..."
+    #  }
+    #}
+``` 
+
+- After a little bit of experimentation with the ECS API, I was able to come up with a backend that works but is very limited... It is entirely synchronous in the `execute` method. That's certainly not a final answer but it works OK for running a single task. And we can now run that single `sleep` command successfully on the Amazon EC2 Container Service!
+  - The synchronous `execute` method:
+```
+class AwsJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
+                           override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
+
+  val awsAccessKeyId = configurationDescriptor.backendConfig.as[String]("accessKeyId")
+  val awsSecretKey = configurationDescriptor.backendConfig.as[String]("secretKey")
+
+  val clusterName = "ecs-t2micro-cluster"
+
+  val credentials = new AWSCredentials {
+    override def getAWSAccessKeyId: String = awsAccessKeyId
+    override def getAWSSecretKey: String = awsSecretKey
+  }
+  val ecsAsyncClient = new AmazonECSAsyncClient(credentials)
+
+  override def execute: Future[BackendJobExecutionResponse] = {
+
+    val commandOverride = new ContainerOverride().withName("simple-app").withCommand(jobDescriptor.call.instantiateCommandLine(Map.empty, OnlyPureFunctions, identity).get)
+
+    val runRequest: RunTaskRequest = new RunTaskRequest()
+      .withCluster(clusterName)
+      .withCount(1)
+      .withTaskDefinition("ubuntuTask:1")
+      .withOverrides(new TaskOverride().withContainerOverrides(commandOverride))
+
+    val submitResultHandler = new AwsSdkAsyncHandler[RunTaskRequest, RunTaskResult]()
+    val _ = ecsAsyncClient.runTaskAsync(runRequest, submitResultHandler)
+
+    submitResultHandler.future map {
+      case AwsSdkAsyncResult(_, result) =>
+        log.info("AWS submission completed:\n{}", result.toString)
+        val taskArn= result.getTasks.asScala.head.getTaskArn
+        val taskDescription = waitUntilDone(taskArn)
+
+        log.info("AWS task completed!\n{}", taskDescription.toString)
+        SucceededResponse(jobDescriptor.key, Option(0), Map.empty, None, Seq.empty)
+    }
+  }
+
+  private def waitUntilDone(taskArn: String): Task = {
+    val describeTasksRequest = new DescribeTasksRequest().withCluster(clusterName).withTasks(List(taskArn).asJava)
+
+    val resultHandler = new AwsSdkAsyncHandler[DescribeTasksRequest, DescribeTasksResult]()
+    val _ = ecsAsyncClient.describeTasksAsync(describeTasksRequest, resultHandler)
+
+    val desribedTasks = Await.result(resultHandler.future, Duration.Inf)
+    val taskDescription = desribedTasks.result.getTasks.asScala.head
+    if (taskDescription.getLastStatus == DesiredStatus.STOPPED.toString) {
+      taskDescription
+    } else {
+      Thread.sleep(200)
+      waitUntilDone(taskArn)
+    }
+  }
+}
+```
+
 

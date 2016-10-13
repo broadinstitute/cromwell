@@ -2,7 +2,7 @@ package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.Config
 import cromwell.backend.impl.sfs.config.ConfigConstants._
-import lenthall.config.ScalaConfig._
+import net.ceedubs.ficus.Ficus._
 import wdl4s._
 
 /**
@@ -14,20 +14,20 @@ class ConfigWdlNamespace(backendConfig: Config) {
 
   import ConfigWdlNamespace._
 
-  private val configRuntimeAttributes = backendConfig.getStringOr(RuntimeAttributesConfig)
+  private val configRuntimeAttributes = backendConfig.as[Option[String]](RuntimeAttributesConfig).getOrElse("")
 
-  private val submitCommandOption = backendConfig.getStringOption(SubmitConfig)
+  private val submitCommandOption = backendConfig.as[Option[String]](SubmitConfig)
   private val submitSourceOption = submitCommandOption.map(makeWdlSource(
     SubmitTask, _, submitRuntimeAttributes + configRuntimeAttributes))
 
-  private val submitDockerCommandOption = backendConfig.getStringOption(SubmitDockerConfig)
+  private val submitDockerCommandOption = backendConfig.as[Option[String]](SubmitDockerConfig)
   private val submitDockerSourceOption = submitDockerCommandOption.map(makeWdlSource(
     SubmitDockerTask, _, submitRuntimeAttributes + submitDockerRuntimeAttributes + configRuntimeAttributes))
 
-  private val killCommandOption = backendConfig.getStringOption(KillConfig)
+  private val killCommandOption = backendConfig.as[Option[String]](KillConfig)
   private val killSourceOption = killCommandOption.map(makeWdlSource(KillTask, _, jobIdRuntimeAttributes))
 
-  private val checkAliveCommandOption = backendConfig.getStringOption(CheckAliveConfig)
+  private val checkAliveCommandOption = backendConfig.as[Option[String]](CheckAliveConfig)
   private val checkAliveSourceOption = checkAliveCommandOption.map(makeWdlSource(
     CheckAliveTask, _, jobIdRuntimeAttributes))
 

@@ -5,6 +5,7 @@ import cromwell.core.JobOutput
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
@@ -31,7 +32,7 @@ private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExe
         creation._2 should be(expectedResponse)
       case _ => fail("Expected exactly one cache write actor creation.")
     }
-
+    ()
   }
 }
 
@@ -46,6 +47,7 @@ private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { sel
         ejea.stateName should be(UpdatingJobStore)
         ejea.stateData should be(expectedData)
     }
+    ()
   }
 }
 
@@ -55,6 +57,25 @@ private[ejea] trait CanExpectHashingInitialization extends Eventually { self: En
     helper.jobHashingInitializations.checkIt { initialization =>
       initialization._1 should be(helper.backendJobDescriptor)
       initialization._2 should be(mode)
+    }
+  }
+}
+
+private[ejea] trait CanExpectFetchCachedResults extends Eventually { self: EngineJobExecutionActorSpec =>
+  def expectFetchCachedResultsActor(expectedCallCachingEntryId: CallCachingEntryId): Unit = {
+    eventually { helper.fetchCachedResultsActorCreations.hasExactlyOne should be(true) }
+    helper.fetchCachedResultsActorCreations.checkIt {
+      case (callCachingEntryId, _) => callCachingEntryId should be(expectedCallCachingEntryId)
+      case _ => fail("Incorrect creation of the fetchCachedResultsActor")
+    }
+  }
+}
+
+private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: EngineJobExecutionActorSpec =>
+  def expectInvalidateCallCacheActor(expectedCacheId: CallCachingEntryId): Unit = {
+    eventually { helper.invalidateCacheActorCreations.hasExactlyOne should be(true) }
+    helper.invalidateCacheActorCreations.checkIt { cacheId =>
+      cacheId shouldBe expectedCacheId
     }
   }
 }

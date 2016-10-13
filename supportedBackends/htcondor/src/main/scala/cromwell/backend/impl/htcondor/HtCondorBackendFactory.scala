@@ -13,7 +13,7 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.util.{Failure, Success, Try}
 
-case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationDescriptor)
+case class HtCondorBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
@@ -24,7 +24,8 @@ case class HtCondorBackendFactory(configurationDescriptor: BackendConfigurationD
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     HtCondorJobExecutionActor.props(jobDescriptor, configurationDescriptor, serviceRegistryActor, resolveCacheProviderProps(jobDescriptor.workflowDescriptor.workflowOptions))
   }
 

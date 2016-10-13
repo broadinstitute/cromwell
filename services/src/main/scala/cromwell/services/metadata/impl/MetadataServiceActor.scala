@@ -1,6 +1,5 @@
 package cromwell.services.metadata.impl
 
-import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
@@ -10,16 +9,14 @@ import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction, RefreshSummary, ValidateWorkflowIdAndExecute}
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
-import lenthall.config.ScalaConfig._
-
+import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object MetadataServiceActor {
 
   val MetadataSummaryRefreshInterval: Option[FiniteDuration] = {
-    val duration = Duration(ConfigFactory.load().getStringOr("services.MetadataService.metadata-summary-refresh-interval", "2 seconds"))
+    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.metadata-summary-refresh-interval").getOrElse("2 seconds"))
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 
@@ -37,8 +34,8 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
 
   summaryActor foreach { _ => self ! RefreshSummary }
 
-  private def scheduleSummary = {
-    MetadataSummaryRefreshInterval map { context.system.scheduler.scheduleOnce(_, self, RefreshSummary)(context.dispatcher, self) }
+  private def scheduleSummary(): Unit = {
+    MetadataSummaryRefreshInterval foreach { context.system.scheduler.scheduleOnce(_, self, RefreshSummary)(context.dispatcher, self) }
   }
 
   private def buildSummaryActor: Option[ActorRef] = {
@@ -76,9 +73,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }
-    case MetadataSummarySuccess => scheduleSummary
+    case MetadataSummarySuccess => scheduleSummary()
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")
-      scheduleSummary
+      scheduleSummary()
   }
 }

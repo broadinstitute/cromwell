@@ -1,10 +1,10 @@
 package cromwell.database.slick
 
+import cats.data.NonEmptyList
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz.NonEmptyList
 
 trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: SlickDatabase =>
@@ -45,5 +45,13 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
       CallCachingJoin(_, Seq.empty, callCachingSimpletonEntries, callCachingDetritusEntries))
 
     runTransaction(action)
+  }
+
+  override def invalidateCall(callCachingEntryId: Int)
+                               (implicit ec: ExecutionContext): Future[Unit] = {
+    import cats.syntax.functor._
+    import cats.instances.future._
+    val action = dataAccess.allowResultReuseForCallCachingEntryId(callCachingEntryId).update(false)
+    runTransaction(action) void
   }
 }

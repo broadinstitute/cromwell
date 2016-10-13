@@ -2,11 +2,10 @@ package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
+import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import org.slf4j.LoggerFactory
 import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlValue}
-
-import scalaz.NonEmptyList
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 

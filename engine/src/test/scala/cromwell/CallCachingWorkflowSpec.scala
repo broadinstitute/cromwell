@@ -5,15 +5,11 @@ import java.util.UUID
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
-import cromwell.core.Tags.DockerTest
-import cromwell.core.Tags._
-import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.core.Tags.{DockerTest, _}
 import cromwell.util.SampleWdl
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
-import scala.language.postfixOps
 
 class CallCachingWorkflowSpec extends CromwellTestkitSpec {
   def cacheHitMessageForCall(name: String) = s"Call Caching: Cache hit. Using UUID\\(.{8}\\):$name\\.*"
@@ -146,11 +142,11 @@ class CallCachingWorkflowSpec extends CromwellTestkitSpec {
         FIXME: This test had been constructing a custom WorkflowManagerActor. I don't believe this is still necessary
         but this test is being ignored so I'm not sure
        */
-      val workflowId = runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.CallCachingWorkflow(UUID.randomUUID().toString),
-        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 1),
-        expectedOutputs = expectedOutputs,
-        config = CallCachingWorkflowSpec.callCachingConfig)
+//      val workflowId = runWdlAndAssertOutputs(
+//        sampleWdl = SampleWdl.CallCachingWorkflow(UUID.randomUUID().toString),
+//        eventFilter = EventFilter.info(pattern = cacheHitMessageForCall("a"), occurrences = 1),
+//        expectedOutputs = expectedOutputs,
+//        config = CallCachingWorkflowSpec.callCachingConfig)
 
 //      val status = messageAndWait[WorkflowManagerStatusSuccess](WorkflowStatus(workflowId)).state
 //      status shouldEqual WorkflowSucceeded

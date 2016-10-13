@@ -35,12 +35,14 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers with BeforeAn
     key.callFqn shouldBe "call.fqn"
     key.index shouldBe None
     result shouldBe successResult
+    ()
   }
 
   private def assertDb(totalWritesCalled: Int, jobCompletionsRecorded: Int, workflowCompletionsRecorded: Int): Unit = {
     database.totalWritesCalled shouldBe totalWritesCalled
     database.jobCompletionsRecorded shouldBe jobCompletionsRecorded
     database.workflowCompletionsRecorded shouldBe workflowCompletionsRecorded
+    ()
   }
 
   private def assertReceived(expectedJobStoreWriteAcks: Int): Unit = {
@@ -51,6 +53,7 @@ class JobStoreWriterSpec extends CromwellTestkitSpec with Matchers with BeforeAn
       case message => fail(s"Unexpected response message: $message")
     }
     jobStoreWriter.underlyingActor.stateName shouldBe Pending
+    ()
   }
 
   "JobStoreWriter" should {

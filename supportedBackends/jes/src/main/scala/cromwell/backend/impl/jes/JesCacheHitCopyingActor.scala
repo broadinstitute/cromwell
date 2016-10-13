@@ -13,7 +13,7 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
                                    initializationData: JesBackendInitializationData,
                                    serviceRegistryActor: ActorRef)
   extends BackendCacheHitCopyingActor with CacheHitDuplicating with JesJobCachingActorHelper with JobLogging {
-  override protected def duplicate(source: Path, destination: Path) = PathCopier.copy(source, destination)
+  override protected def duplicate(source: Path, destination: Path) = PathCopier.copy(source, destination).get
 
   override protected def destinationCallRootPath = jesCallPaths.callRootPath
 

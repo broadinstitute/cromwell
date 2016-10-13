@@ -1,6 +1,8 @@
 package cromwell.webservice
 
 import akka.actor._
+import java.lang.Throwable
+import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
@@ -13,8 +15,6 @@ import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing._
 
-import scalaz.NonEmptyList
-
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromwell"
 
@@ -26,6 +26,23 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowStoreActor: ActorRef
   val serviceRegistryActor: ActorRef
 
+  def toMap(someInput: Option[String]): Map[String, JsValue] = {
+    import spray.json._
+    someInput match {
+      case Some(inputs: String) => inputs.parseJson match {
+        case JsObject(inputMap) => inputMap
+        case _ =>
+          throw new RuntimeException(s"Submitted inputs couldn't be processed, please check for syntactical errors")
+      }
+      case None => Map.empty
+    }
+  }
+
+  def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {
+    val convertToMap = allInputs.map(x => toMap(x))
+    JsObject(convertToMap reduce (_ ++ _))
+  }
+
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
 
   def handleMetadataRequest(message: AnyRef): Route = {
@@ -34,7 +51,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   private def failBadRequest(exception: Exception, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
-    complete(statusCode, APIResponse.fail(exception).toJson.prettyPrint)
+    complete((statusCode, APIResponse.fail(exception).toJson.prettyPrint))
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
@@ -110,9 +127,14 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def submitRoute =
     path("workflows" / Segment) { version =>
       post {
-        formFields("wdlSource", "workflowInputs".?, "workflowOptions".?) { (wdlSource, workflowInputs, workflowOptions) =>
+        formFields("wdlSource", "workflowInputs".?, "workflowInputs_2".?, "workflowInputs_3".?,
+          "workflowInputs_4".?, "workflowInputs_5".?, "workflowOptions".?) {
+          (wdlSource, workflowInputs, workflowInputs_2, workflowInputs_3, workflowInputs_4, workflowInputs_5, workflowOptions) =>
           requestContext =>
-            val workflowSourceFiles = WorkflowSourceFiles(wdlSource, workflowInputs.getOrElse("{}"), workflowOptions.getOrElse("{}"))
+            //The order of addition allows for the expected override of colliding keys.
+            val wfInputs = mergeMaps(Seq(workflowInputs, workflowInputs_2, workflowInputs_3, workflowInputs_4, workflowInputs_5)).toString
+
+            val workflowSourceFiles = WorkflowSourceFiles(wdlSource, wfInputs, workflowOptions.getOrElse("{}"))
             perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
         }
       }
@@ -127,12 +149,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
               import spray.json._
               workflowInputs.parseJson match {
                 case JsArray(Seq(x, xs@_*)) =>
-                  val nelInputses = NonEmptyList.nels(x, xs: _*)
+                  val nelInputses = NonEmptyList.of(x, xs: _*)
                   val sources = nelInputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
                   perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
                 case JsArray(_) => failBadRequest(new RuntimeException("Nothing was submitted"))
                 case _ => reject
               }
+              ()
         }
       }
     }
@@ -158,10 +181,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def metadataRoute =
     path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
       parameterMultiMap { parameters =>
-        // import scalaz_ & Scalaz._ add too many slow implicits, on top of the spray and json implicits
-        import scalaz.syntax.std.list._
-        val includeKeysOption = parameters.getOrElse("includeKey", List.empty).toNel
-        val excludeKeysOption = parameters.getOrElse("excludeKey", List.empty).toNel
+        val includeKeysOption = NonEmptyList.fromList(parameters.getOrElse("includeKey", List.empty))
+        val excludeKeysOption = NonEmptyList.fromList(parameters.getOrElse("excludeKey", List.empty))
         (includeKeysOption, excludeKeysOption) match {
           case (Some(_), Some(_)) =>
             failBadRequest(new IllegalArgumentException("includeKey and excludeKey may not be specified together"))

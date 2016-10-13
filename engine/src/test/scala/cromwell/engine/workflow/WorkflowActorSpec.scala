@@ -6,6 +6,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{ExecutionStore, OutputStore, WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
@@ -52,7 +53,8 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
         serviceRegistryActor = mockServiceRegistryActor,
         workflowLogCopyRouter = TestProbe().ref,
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
-        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
+        jobTokenDispenserActor = TestProbe().ref
       ),
       supervisor = supervisorProbe.ref)
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
@@ -65,7 +67,6 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
   "WorkflowActor" should {
 
     "run Finalization actor if Initialization fails" in {
-      val workflowId = WorkflowId.randomId()
       val actor = createWorkflowActor(InitializingWorkflowState)
       deathwatch watch actor
       actor ! WorkflowInitializationFailedResponse(Seq(new Exception("Materialization Failed")))
@@ -155,7 +156,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         serviceRegistryActor: ActorRef,
                         workflowLogCopyRouter: ActorRef,
                         jobStoreActor: ActorRef,
-                        callCacheReadActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor) {
+                        callCacheReadActor: ActorRef,
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty)) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = finalizationProbe.ref
 }

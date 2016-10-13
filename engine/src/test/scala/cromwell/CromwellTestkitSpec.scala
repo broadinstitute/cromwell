@@ -3,7 +3,7 @@ package cromwell
 import java.nio.file.Paths
 import java.util.UUID
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -36,7 +36,7 @@ import wdl4s.types._
 import wdl4s.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.matching.Regex
 
@@ -48,7 +48,8 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     throw new NotImplementedError("this is not implemented")
   }
 
@@ -127,7 +128,8 @@ object CromwellTestkitSpec {
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
       */
-    override def shutdownActorSystem() = {}
+    // -Ywarn-value-discard
+    override def shutdownActorSystem(): Future[Terminated] = { Future.successful(null) }
 
     def shutdownTestActorSystem() = super.shutdownActorSystem()
   }
@@ -276,7 +278,7 @@ object CromwellTestkitSpec {
 abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
   with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with Eventually {
 
-  override protected def afterAll() = { twms.shutdownTestActorSystem() }
+  override protected def afterAll() = { twms.shutdownTestActorSystem(); () }
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
   implicit val ec = system.dispatcher
@@ -407,6 +409,7 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
     }
 
     getWorkflowState(workflowId, serviceRegistryActor) should equal (expectedState)
+    ()
   }
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {

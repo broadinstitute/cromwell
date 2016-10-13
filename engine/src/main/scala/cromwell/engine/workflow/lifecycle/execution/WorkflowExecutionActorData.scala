@@ -8,7 +8,6 @@ import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import wdl4s.Scope
 
-import scala.language.postfixOps
 
 object WorkflowExecutionDiff {
   def empty = WorkflowExecutionDiff(Map.empty)

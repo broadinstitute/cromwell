@@ -3,12 +3,11 @@ package cromwell.services.metadata
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, DeadLetterSuppression}
+import cats.data.NonEmptyList
 import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import wdl4s.values._
 
-import scala.language.postfixOps
-import scalaz.NonEmptyList
 
 object MetadataService {
 

@@ -8,7 +8,6 @@ import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
 
-import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestkitSpec {

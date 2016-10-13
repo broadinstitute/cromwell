@@ -11,6 +11,7 @@ import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.engine._
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -22,7 +23,6 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.webservice.EngineStatsActor
 
-import scala.language.postfixOps
 import scala.util.Random
 
 object WorkflowActor {
@@ -140,9 +140,11 @@ object WorkflowActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
-            callCacheReadActor: ActorRef): Props = {
+            callCacheReadActor: ActorRef,
+            jobTokenDispenserActor: ActorRef,
+            backendSingletonCollection: BackendSingletonCollection): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, callCacheReadActor)).withDispatcher(EngineDispatcher)
+      jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -156,7 +158,9 @@ class WorkflowActor(val workflowId: WorkflowId,
                     serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
                     jobStoreActor: ActorRef,
-                    callCacheReadActor: ActorRef)
+                    callCacheReadActor: ActorRef,
+                    jobTokenDispenserActor: ActorRef,
+                    backendSingletonCollection: BackendSingletonCollection)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with PathFactory {
 
   implicit val ec = context.dispatcher
@@ -204,6 +208,8 @@ class WorkflowActor(val workflowId: WorkflowId,
         serviceRegistryActor,
         jobStoreActor,
         callCacheReadActor,
+        jobTokenDispenserActor,
+        backendSingletonCollection,
         initializationData,
         restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
 

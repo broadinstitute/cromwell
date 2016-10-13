@@ -3,6 +3,9 @@ package cromwell.webservice.metadata
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.webservice.metadata.IndexedJsonValue._
+import cats.instances.list._
+import cats.syntax.foldable._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
@@ -10,7 +13,6 @@ import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
-import cromwell.webservice.metadata.IndexedJsonValue._
 import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, MetadataBuilderActorState, WaitingForMetadataService}
 import cromwell.webservice.{APIResponse, WorkflowJsonSupport}
 import org.slf4j.LoggerFactory
@@ -21,8 +23,7 @@ import spray.json._
 import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.std.list._
-import scalaz.syntax.foldable._
+
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -133,8 +134,8 @@ object MetadataBuilderActor {
   /** Sort events by timestamp, transform them into TimestampedJsValues, and merge them together. */
   private def eventsToIndexedJson(events: Seq[MetadataEvent]): TimestampedJsValue = {
     // The `List` has a `Foldable` instance defined in scope, and because the `List`'s elements have a `Monoid` instance
-    // defined in scope, `suml` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
-    events.toList map { e => keyValueToIndexedJson(e.key.key, e.value, e.offsetDateTime) } suml
+    // defined in scope, `combineAll` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
+    events.toList map { e => keyValueToIndexedJson(e.key.key, e.value, e.offsetDateTime) } combineAll
   }
 
   private def eventsToAttemptMetadata(attempt: Int, events: Seq[MetadataEvent]) = {
@@ -214,36 +215,37 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
 
   when(WaitingForMetadataService) {
     case Event(MetadataLookupResponse(query, metadata), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, processMetadataResponse(query, metadata))
+      context.parent ! RequestComplete((StatusCodes.OK, processMetadataResponse(query, metadata)))
       allDone
     case Event(StatusLookupResponse(w, status), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, processStatusResponse(w, status))
+      context.parent ! RequestComplete((StatusCodes.OK, processStatusResponse(w, status)))
       allDone
     case Event(failure: ServiceRegistryFailure, _) =>
       val response = APIResponse.fail(new RuntimeException("Can't find metadata service"))
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
+      context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
       allDone
     case Event(WorkflowQuerySuccess(uri: Uri, response, metadata), _) =>
+      import WorkflowJsonSupport._
       context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
       allDone
     case Event(failure: WorkflowQueryFailure, _) =>
-      context.parent ! RequestComplete(StatusCodes.BadRequest, APIResponse.fail(failure.reason))
+      context.parent ! RequestComplete((StatusCodes.BadRequest, APIResponse.fail(failure.reason)))
       allDone
     case Event(WorkflowOutputsResponse(id, events), _) =>
       // Add in an empty output event if there aren't already any output events.
       val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
       val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
-      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false))
+      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false)))
       allDone
     case Event(LogsResponse(w, l), _) =>
-      context.parent ! RequestComplete(StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false))
+      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false)))
       allDone
     case Event(failure: MetadataServiceFailure, _) =>
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, APIResponse.error(failure.reason))
+      context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(failure.reason)))
       allDone
     case Event(unexpectedMessage, stateData) =>
       val response = APIResponse.fail(new RuntimeException(s"MetadataBuilderActor $tag(WaitingForMetadataService, $stateData) got an unexpected message: $unexpectedMessage"))
-      context.parent ! RequestComplete(StatusCodes.InternalServerError, response)
+      context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
       context stop self
       stay()
   }

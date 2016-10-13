@@ -5,9 +5,8 @@ import java.util.UUID
 
 import akka.testkit._
 import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import MetadataService._
-import cromwell.services._
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -52,12 +51,12 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     val workflowA = WorkflowId.randomId()
 
     val workflowACalls = List(
-      Option(new MetadataJobKey("callB", Some(1), 3)),
-      Option(new MetadataJobKey("callB", None, 1)),
-      Option(new MetadataJobKey("callB", Some(1), 2)),
-      Option(new MetadataJobKey("callA", None, 1)),
-      Option(new MetadataJobKey("callB", Some(1), 1)),
-      Option(new MetadataJobKey("callB", Some(0), 1)),
+      Option(MetadataJobKey("callB", Some(1), 3)),
+      Option(MetadataJobKey("callB", None, 1)),
+      Option(MetadataJobKey("callB", Some(1), 2)),
+      Option(MetadataJobKey("callA", None, 1)),
+      Option(MetadataJobKey("callB", Some(1), 1)),
+      Option(MetadataJobKey("callB", Some(0), 1)),
       None
     )
     val workflowAEvents = workflowACalls map { makeEvent(workflowA, _) }

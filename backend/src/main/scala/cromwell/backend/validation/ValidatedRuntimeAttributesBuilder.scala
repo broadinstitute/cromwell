@@ -1,13 +1,12 @@
 package cromwell.backend.validation
 
+import cats.data.Validated._
+import cats.instances.list._
 import cromwell.backend.RuntimeAttributeDefinition
-import cromwell.core._
 import lenthall.exception.MessageAggregation
+import cromwell.core.ErrorOr._
 import org.slf4j.Logger
-import wdl4s.types.WdlType
 import wdl4s.values.WdlValue
-
-import scalaz.{Failure, Success}
 
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
 
@@ -54,32 +53,26 @@ trait ValidatedRuntimeAttributesBuilder {
 
     val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(attrs)
     runtimeAttributesErrorOr match {
-      case Success(runtimeAttributes) => runtimeAttributes
-      case Failure(nel) => throw new RuntimeException with MessageAggregation {
+      case Valid(runtimeAttributes) => runtimeAttributes
+      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
 
-        override def errorMessages: Traversable[String] = nel.list.toList
+        override def errorMessages: Traversable[String] = nel.toList
       }
     }
   }
 
   private def validate(values: Map[String, WdlValue]): ErrorOr[ValidatedRuntimeAttributes] = {
-    val validationsForValues: Seq[RuntimeAttributesValidation[_]] = validations ++ unsupportedExtraValidations
-    val errorsOrValuesMap: Seq[(String, ErrorOr[Any])] =
-      validationsForValues.map(validation => validation.key -> validation.validate(values))
+    val validationsForValues = validations ++ unsupportedExtraValidations
+    val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
+      validationsForValues.map(validation => validation.key -> validation.validate(values)).toList
 
-    import scalaz.Scalaz._
-
-    val emptyResult: ErrorOr[List[(String, Any)]] = List.empty[(String, Any)].success
-    val validationResult = errorsOrValuesMap.foldLeft(emptyResult) { (agg, errorOrValue) =>
-      agg +++ {
-        errorOrValue match {
-          case (key, Success(value)) => List(key -> value).success
-          case (key, Failure(nel)) => nel.failure
-        }
-      }
+    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map {
+      case (key, errorOrAny) => errorOrAny map { any => (key, any) }
     }
 
-    validationResult.map(result => ValidatedRuntimeAttributes(result.toMap))
+    import cats.syntax.traverse._
+    val errorOrListOfKeysToAnys: ErrorOr[List[(String, Any)]] = listOfErrorOrKeysToAnys.sequence[ErrorOr, (String, Any)]
+    errorOrListOfKeysToAnys map { listOfKeysToAnys => ValidatedRuntimeAttributes(listOfKeysToAnys.toMap) }
   }
 }

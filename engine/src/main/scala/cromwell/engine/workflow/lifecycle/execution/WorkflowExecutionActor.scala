@@ -4,8 +4,9 @@ import java.time.OffsetDateTime
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor._
+import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedRetryableResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -16,16 +17,17 @@ import cromwell.core.OutputStore.OutputEntry
 import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
+import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
+import net.ceedubs.ficus.Ficus._
 import wdl4s.types.WdlArrayType
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlValue}
@@ -34,8 +36,6 @@ import wdl4s.{Scope, _}
 import scala.annotation.tailrec
 import scala.language.postfixOps
 import scala.util.{Failure, Random, Success, Try}
-import scalaz.NonEmptyList
-import scalaz.Scalaz._
 
 object WorkflowExecutionActor {
 
@@ -130,7 +130,7 @@ object WorkflowExecutionActor {
   }
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
-    override val throwables = exceptions.list.toList
+    override val throwables = exceptions.toList
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
@@ -139,13 +139,15 @@ object WorkflowExecutionActor {
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            jobTokenDispenserActor: ActorRef,
+            backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
     Props(WorkflowExecutionActor(workflowId, workflowDescriptor, serviceRegistryActor, jobStoreActor,
-      callCacheReadActor, initializationData, restarting)).withDispatcher(EngineDispatcher)
+      callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
-  private implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
+  implicit class EnhancedExecutionStore(val executionStore: ExecutionStore) extends AnyVal {
     // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
     // assembling the result.
     def runnableScopes = executionStore.store.toList collect { case entry if isRunnable(entry) => entry._1 }
@@ -208,7 +210,7 @@ object WorkflowExecutionActor {
     }
   }
 
-  private implicit class EnhancedOutputStore(val outputStore: OutputStore) extends AnyVal {
+  implicit class EnhancedOutputStore(val outputStore: OutputStore) extends AnyVal {
     /**
       * Try to generate output for a collector call, by collecting outputs for all of its shards.
       * It's fail-fast on shard output retrieval
@@ -228,7 +230,6 @@ object WorkflowExecutionActor {
       } toMap
     }
   }
-
 }
 
 final case class WorkflowExecutionActor(workflowId: WorkflowId,
@@ -236,12 +237,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         serviceRegistryActor: ActorRef,
                                         jobStoreActor: ActorRef,
                                         callCacheReadActor: ActorRef,
+                                        jobTokenDispenserActor: ActorRef,
+                                        backendSingletonCollection: BackendSingletonCollection,
                                         initializationData: AllBackendInitializationData,
                                         restarting: Boolean)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
 
   import WorkflowExecutionActor._
-  import lenthall.config.ScalaConfig._
 
   override def supervisorStrategy = AllForOneStrategy() {
     case ex: ActorInitializationException =>
@@ -256,7 +258,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
 
   implicit val ec = context.dispatcher
 
-  val MaxRetries = ConfigFactory.load().getIntOption("system.max-retries") match {
+  val MaxRetries = ConfigFactory.load().as[Option[Int]]("system.max-retries") match {
     case Some(value) => value
     case None =>
       workflowLogger.warn(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of '$DefaultMaxRetriesFallbackValue'.")
@@ -584,15 +586,16 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
         factories.get(backendName) match {
           case Some(factory) =>
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
+            val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
             val ejeaProps = EngineJobExecutionActor.props(
               self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
-              jobStoreActor, callCacheReadActor, backendName, workflowDescriptor.callCachingMode)
+              jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingleton, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             pushNewJobMetadata(jobKey, backendName)
             ejeaRef ! EngineJobExecutionActor.Execute
             Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
           case None =>
-            throw WorkflowExecutionException(new Exception(s"Could not get BackendLifecycleActor for backend $backendName").wrapNel)
+            throw WorkflowExecutionException(NonEmptyList.of(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
         }
     }
   }

@@ -2,7 +2,6 @@ package cromwell.engine.backend
 
 import cromwell.backend.BackendLifecycleActorFactory
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 /**

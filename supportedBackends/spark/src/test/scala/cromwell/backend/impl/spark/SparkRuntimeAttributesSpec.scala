@@ -1,15 +1,15 @@
 package cromwell.backend.impl.spark
 
-import cromwell.backend.{MemorySize, BackendWorkflowDescriptor}
 import cromwell.backend.validation.RuntimeAttributesKeys._
+import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
-import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
+import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
 import wdl4s.WdlExpression._
 import wdl4s.expression.NoFunctions
 import wdl4s.util.TryUtil
-import wdl4s.{Call, WdlExpression, _}
 import wdl4s.values.WdlValue
+import wdl4s.{Call, WdlExpression, _}
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -33,7 +33,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val staticDefaults = SparkRuntimeAttributes(1, MemorySize.parse("1 GB").get, None, "com.test.spark" , false)
+  val staticDefaults = SparkRuntimeAttributes(1, MemorySize.parse("1 GB").get, None, "com.test.spark" , failOnStderr = false)
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
@@ -88,7 +88,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       inputs: Map[String, WdlValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
-    new BackendWorkflowDescriptor(
+    BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark"))),
       inputs,
@@ -118,6 +118,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
+    ()
   }
 
   private def assertSparkRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
@@ -127,5 +128,6 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
     }
+    ()
   }
 }

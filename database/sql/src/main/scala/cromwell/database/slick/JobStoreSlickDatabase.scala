@@ -1,9 +1,12 @@
 package cromwell.database.slick
 
+import cats.instances.future._
+import cats.syntax.functor._
 import cromwell.database.sql.JobStoreSqlDatabase
 import cromwell.database.sql.joins.JobStoreJoin
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
   this: SlickDatabase =>
@@ -21,7 +24,7 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
   override def addJobStores(jobStoreJoins: Seq[JobStoreJoin])
                            (implicit ec: ExecutionContext): Future[Unit] = {
     val action = DBIO.sequence(jobStoreJoins map addJobStore)
-    runTransaction(action) map { _ => () }
+    runTransaction(action) void
   }
 
   override def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
@@ -30,7 +33,7 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
 
     val action = for {
       jobStoreEntryOption <- dataAccess.
-        jobStoreEntriesForJobKey(workflowExecutionUuid, callFqn, jobScatterIndex, jobScatterAttempt).result.headOption
+        jobStoreEntriesForJobKey((workflowExecutionUuid, callFqn, jobScatterIndex, jobScatterAttempt)).result.headOption
       jobStoreSimpletonEntries <- jobStoreEntryOption match {
         case Some(jobStoreEntry) =>
           dataAccess.jobStoreSimpletonEntriesForJobStoreEntryId(jobStoreEntry.jobStoreEntryId.get).result

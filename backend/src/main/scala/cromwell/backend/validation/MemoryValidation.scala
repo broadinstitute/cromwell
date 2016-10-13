@@ -1,12 +1,11 @@
 package cromwell.backend.validation
 
+import cats.syntax.validated._
 import cromwell.backend.MemorySize
-import cromwell.core._
+import cromwell.core.ErrorOr._
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlInteger, WdlString}
-
-import scalaz.Scalaz._
 
 /**
   * Validates the "memory" runtime attribute as an Integer or String with format '8 GB', returning the value as a
@@ -39,11 +38,11 @@ object MemoryValidation {
   private[validation] def validateMemoryString(value: String): ErrorOr[MemorySize] = {
     MemorySize.parse(value) match {
       case scala.util.Success(memorySize: MemorySize) if memorySize.amount > 0 =>
-        memorySize.to(MemoryUnit.GB).successNel
+        memorySize.to(MemoryUnit.GB).validNel
       case scala.util.Success(memorySize: MemorySize) =>
-        wrongAmountFormat.format(memorySize.amount).failureNel
+        wrongAmountFormat.format(memorySize.amount).invalidNel
       case scala.util.Failure(throwable) =>
-        missingFormat.format(throwable.getMessage).failureNel
+        missingFormat.format(throwable.getMessage).invalidNel
     }
   }
 
@@ -52,9 +51,9 @@ object MemoryValidation {
 
   private[validation] def validateMemoryInteger(value: Int): ErrorOr[MemorySize] = {
     if (value <= 0)
-      wrongAmountFormat.format(value).failureNel
+      wrongAmountFormat.format(value).invalidNel
     else
-      MemorySize(value, MemoryUnit.Bytes).to(MemoryUnit.GB).successNel
+      MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
   }
 }
 

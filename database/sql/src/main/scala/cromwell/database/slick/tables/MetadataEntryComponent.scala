@@ -2,9 +2,8 @@ package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
+import cats.data.NonEmptyList
 import cromwell.database.sql.tables.MetadataEntry
-
-import scalaz._
 
 trait MetadataEntryComponent {
 
@@ -146,7 +145,7 @@ trait MetadataEntryComponent {
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
                                                      metadataKeys: NonEmptyList[String]): Rep[Boolean] = {
-    metadataKeys.list.toList.map(metadataEntry.metadataKey like _).reduce(_ || _)
+    metadataKeys.toList.map(metadataEntry.metadataKey like _).reduce(_ || _)
   }
 
   private[this] def metadataEntryHasEmptyJobKey(metadataEntry: MetadataEntries,

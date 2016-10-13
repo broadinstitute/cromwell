@@ -2,13 +2,13 @@ package cromwell.core
 
 import java.net.URL
 
+import cats.data.ValidatedNel
+import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigException, ConfigValue}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.reflect.{ClassTag, classTag}
-import scalaz.Scalaz._
-import scalaz._
 
 object ConfigUtil {
 
@@ -30,21 +30,21 @@ object ConfigUtil {
     /**
      * Validates that the value for this key is a well formed URL.
      */
-    def validateURL(key: String): ValidationNel[String, URL] = key.validateAny { url =>
+    def validateURL(key: String): ValidatedNel[String, URL] = key.validateAny { url =>
       new URL(config.getString(url))
     }
 
-    def validateString(key: String): ValidationNel[String, String] = try {
-      config.getString(key).successNel
+    def validateString(key: String): ValidatedNel[String, String] = try {
+      config.getString(key).validNel
     } catch {
-      case e: ConfigException.Missing => s"Could not find key: $key".failureNel
+      case e: ConfigException.Missing => s"Could not find key: $key".invalidNel
     }
 
-    def validateConfig(key: String): ValidationNel[String, Config] = try {
-      config.getConfig(key).successNel
+    def validateConfig(key: String): ValidatedNel[String, Config] = try {
+      config.getConfig(key).validNel
     } catch {
-      case e: ConfigException.Missing => "Could not find key: $key".failureNel
-      case e: ConfigException.WrongType => s"key $key cannot be parsed to a Config".failureNel
+      case e: ConfigException.Missing => s"Could not find key: $key".invalidNel
+      case e: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
     }
 
   }
@@ -58,10 +58,10 @@ object ConfigUtil {
      * @tparam O return type of validationFunction
      * @tparam E Restricts the subtype of Exception that should be caught during validation
      */
-    def validateAny[O, E <: Exception: ClassTag](validationFunction: I => O): ValidationNel[String, O] = try {
-      validationFunction(value).successNel
+    def validateAny[O, E <: Exception: ClassTag](validationFunction: I => O): ValidatedNel[String, O] = try {
+      validationFunction(value).validNel
     } catch {
-      case e if classTag[E].runtimeClass.isInstance(e) => e.getMessage.failureNel
+      case e if classTag[E].runtimeClass.isInstance(e) => e.getMessage.invalidNel
     }
   }
 

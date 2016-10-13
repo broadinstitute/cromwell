@@ -1,7 +1,6 @@
 package cromwell
 
 import java.nio.file.Files
-import java.util.UUID
 
 import akka.testkit._
 import better.files._
@@ -11,7 +10,6 @@ import wdl4s.expression.NoFunctions
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
-import scala.language.postfixOps
 
 class ArrayWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
@@ -65,7 +63,6 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
           )
         )
       )
-      val uuid = UUID.randomUUID()
       val pwd = File(".")
       val sampleWdl = SampleWdl.ArrayLiteral(pwd.path)
       runWdlAndAssertOutputs(

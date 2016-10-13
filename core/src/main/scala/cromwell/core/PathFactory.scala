@@ -3,6 +3,8 @@ package cromwell.core
 import java.io.Writer
 import java.nio.file.{FileSystem, Path}
 
+import better.files.File
+
 import scala.collection.immutable.Queue
 import scala.util.{Success, Failure, Try}
 
@@ -29,6 +31,8 @@ trait PathFactory {
         }
     })
   }
+
+  def buildFile(rawString: String, fileSystems: List[FileSystem]): File = File(buildPath(rawString, fileSystems))
 
   private def hasWrongScheme(rawString: String, fileSystem: FileSystem): Boolean = {
     schemeMatcher.findFirstMatchIn(rawString) match {
@@ -76,7 +80,7 @@ trait PathWriter {
     *
     * @param string Line to add to the logs.
     */
-  def writeWithNewline(string: String) {
+  def writeWithNewline(string: String): Unit = {
     writer.write(string)
     writer.write("\n")
   }
@@ -104,7 +108,7 @@ case class TailedWriter(path: Path, tailedSize: Int) extends PathWriter {
     *
     * @param string Line to add to the logs.
     */
-  override def writeWithNewline(string: String) {
+  override def writeWithNewline(string: String): Unit = {
     tailedLines :+= string
     while (tailedLines.size > tailedSize) {
       tailedLines = tailedLines.takeRight(tailedSize)

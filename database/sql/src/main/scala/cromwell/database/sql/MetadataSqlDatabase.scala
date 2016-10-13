@@ -2,10 +2,10 @@ package cromwell.database.sql
 
 import java.sql.Timestamp
 
+import cats.data.NonEmptyList
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz.NonEmptyList
 
 trait MetadataSqlDatabase {
   this: SqlDatabase =>

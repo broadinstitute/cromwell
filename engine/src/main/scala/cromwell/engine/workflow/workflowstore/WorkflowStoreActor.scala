@@ -3,19 +3,18 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
+import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSourceFiles}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, PutMetadataAction}
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
-import scalaz.NonEmptyList
 
 case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorRef)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
@@ -70,7 +69,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
   private def startNewWork(command: WorkflowStoreActorCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
       case cmd @ SubmitWorkflow(sourceFiles) =>
-        store.add(NonEmptyList(sourceFiles)) map { ids =>
+        store.add(NonEmptyList.of(sourceFiles)) map { ids =>
           val id = ids.head
           registerSubmissionWithMetadataService(id, sourceFiles)
           sndr ! WorkflowSubmittedToStore(id)
@@ -78,15 +77,15 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
         }
       case cmd @ BatchSubmitWorkflows(sources) =>
         store.add(sources) map { ids =>
-          val assignedSources = ids.zip(sources)
+          val assignedSources = ids.toList.zip(sources.toList)
           assignedSources foreach { case (id, sourceFiles) => registerSubmissionWithMetadataService(id, sourceFiles) }
           sndr ! WorkflowsBatchSubmittedToStore(ids)
-          log.info("Workflows {} submitted.", ids.list.toList.mkString(", "))
+          log.info("Workflows {} submitted.", ids.toList.mkString(", "))
         }
       case cmd @ FetchRunnableWorkflows(n) =>
         newWorkflowMessage(n) map { nwm =>
           nwm match {
-            case NewWorkflowsToStart(workflows) => log.info("{} new workflows fetched", workflows.size)
+            case NewWorkflowsToStart(workflows) => log.info("{} new workflows fetched", workflows.toList.size)
             case NoNewWorkflowsToStart => log.debug("No workflows fetched")
             case _ => log.error("Unexpected response from newWorkflowMessage({}): {}", n, nwm)
           }
@@ -145,7 +144,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     } yield restartableWorkflows ++ submittedWorkflows
 
     runnableWorkflows map {
-      case x :: xs => NewWorkflowsToStart(NonEmptyList.nels(x, xs: _*))
+      case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     }
   }

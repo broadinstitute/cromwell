@@ -52,7 +52,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     val exception = intercept[IllegalArgumentException with ExceptionWithErrors] {
       JesAttributes(googleConfig, nakedConfig)
     }
-    val errorsList = exception.errors.list.toList
+    val errorsList = exception.errors.toList
     errorsList should contain("Could not find key: project")
     errorsList should contain("Could not find key: root")
     errorsList should contain("Could not find key: genomics.auth")

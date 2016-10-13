@@ -2,11 +2,11 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cats.data.NonEmptyList
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz._
 
 trait MetadataSlickDatabase extends MetadataSqlDatabase {
   this: SlickDatabase with SummaryStatusSlickDatabase =>
@@ -34,7 +34,7 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                     metadataKey: String)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action =
-      dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey(workflowExecutionUuid, metadataKey).result
+      dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result
     runTransaction(action)
   }
 
@@ -44,7 +44,7 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                     jobAttempt: Int)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.
-      metadataEntriesForJobKey(workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt).result
+      metadataEntriesForJobKey((workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt)).result
     runTransaction(action)
   }
 
@@ -54,8 +54,8 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                     jobIndex: Option[Int],
                                     jobAttempt: Int)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
-    val action = dataAccess.metadataEntriesForJobKeyAndMetadataKey(
-      workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt).result
+    val action = dataAccess.metadataEntriesForJobKeyAndMetadataKey((
+      workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt)).result
     runTransaction(action)
   }
 
@@ -121,8 +121,8 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
       previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
       previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(0L)
-      metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual(
-        previousMetadataEntryId + 1L, metadataKey1, metadataKey2, metadataKey3, metadataKey4).result
+      metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual((
+        previousMetadataEntryId + 1L, metadataKey1, metadataKey2, metadataKey3, metadataKey4)).result
       metadataByWorkflowUuid = metadataEntries.groupBy(_.workflowExecutionUuid)
       _ <- DBIO.sequence(metadataByWorkflowUuid map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       maximumMetadataEntryId = previousOrMaximum(previousMetadataEntryId, metadataEntries.map(_.metadataEntryId.get))

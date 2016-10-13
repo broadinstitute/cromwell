@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.18"
-  lazy val wdl4sV = "0.5"
+  lazy val lenthallV = "0.19"
+  lazy val wdl4sV = "0.6"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -16,13 +16,15 @@ object Dependencies {
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.20.0"
   lazy val betterFilesV = "2.16.0"
-  lazy val scalazCoreV = "7.2.5"
+  lazy val catsV = "0.7.2"
 
   // Internal collections of dependencies
 
   private val baseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.scalaz" %% "scalaz-core" % scalazCoreV,
+    "org.typelevel" %% "cats" % catsV,
+    "com.github.benhutchison" %% "mouse" % "0.5",
+    "com.iheart" %% "ficus" % "1.3.0",
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.specs2" %% "specs2" % "3.7" % Test
   )
@@ -120,7 +122,7 @@ object Dependencies {
     "org.webjars" % "swagger-ui" % "2.1.1",
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
-    "org.scalaz" %% "scalaz-core" % scalazCoreV,
+    "org.typelevel" %% "cats" % catsV,
     "com.github.pathikrit" %% "better-files" % betterFilesV,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test

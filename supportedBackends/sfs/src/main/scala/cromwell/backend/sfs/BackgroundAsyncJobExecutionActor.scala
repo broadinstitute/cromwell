@@ -13,10 +13,10 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     val stdout = pathPlusSuffix(jobPaths.stdout, "background")
     val stderr = pathPlusSuffix(jobPaths.stderr, "background")
     val argv = Seq("/bin/bash", backgroundScript)
-    new ProcessRunner(argv, stdout, stderr)
+    new ProcessRunner(argv, stdout.path, stderr.path)
   }
 
-  private def writeBackgroundScript(backgroundScript: Path, backgroundCommand: String): Unit = {
+  private def writeBackgroundScript(backgroundScript: File, backgroundCommand: String): Unit = {
     /*
     Run the `backgroundCommand` in the background. Redirect the stdout and stderr to the appropriate files. While not
     necessary, mark the job as not receiving any stdin by pointing it at /dev/null.
@@ -35,7 +35,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
        &    | send the entire compound command, including the || to the background
        $!   | a variable containing the previous background command's process id (PID)
      */
-    File(backgroundScript).write(
+    backgroundScript.write(
       s"""|#!/bin/bash
           |$backgroundCommand \\
           |  > ${jobPaths.stdout} \\
@@ -46,6 +46,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
           |  &
           |echo $$!
           |""".stripMargin)
+    ()
   }
 
   override def getJob(exitValue: Int, stdout: Path, stderr: Path) = {
@@ -63,11 +64,11 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     SharedFileSystemCommand("/bin/bash", killScript)
   }
 
-  private def writeKillScript(killScript: Path, job: SharedFileSystemJob): Unit = {
+  private def writeKillScript(killScript: File, job: SharedFileSystemJob): Unit = {
     /*
     Use pgrep to find the children of a process, and recursively kill the children before killing the parent.
      */
-    File(killScript).write(
+    killScript.write(
       s"""|#!/bin/bash
           |kill_children() {
           |  local pid=$$1
@@ -80,5 +81,6 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
           |
           |kill_children ${job.jobId}
           |""".stripMargin)
+    ()
   }
 }

@@ -1,25 +1,23 @@
 package cromwell.engine.workflow
 
-import java.util.UUID
 
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
+import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{WorkflowAborted, WorkflowId}
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.EngineStatsActor
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
-
+import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
-import scala.language.postfixOps
-import scalaz.NonEmptyList
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -44,9 +42,11 @@ object WorkflowManagerActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
-            callCacheReadActor: ActorRef): Props = {
+            callCacheReadActor: ActorRef,
+            jobTokenDispenserActor: ActorRef,
+            backendSingletonCollection: BackendSingletonCollection): Props = {
     Props(new WorkflowManagerActor(
-      workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+      workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)
     ).withDispatcher(EngineDispatcher)
   }
 
@@ -66,7 +66,7 @@ object WorkflowManagerActor {
 
     def withAddition(entries: NonEmptyList[WorkflowIdToActorRef]): WorkflowManagerData = {
       val entryTuples = entries map { e => e.workflowId -> e.workflowActor }
-      this.copy(workflows = workflows ++ entryTuples.list.toList)
+      this.copy(workflows = workflows ++ entryTuples.toList)
     }
 
     def without(id: WorkflowId): WorkflowManagerData = this.copy(workflows = workflows - id)
@@ -83,19 +83,23 @@ class WorkflowManagerActor(config: Config,
                            val serviceRegistryActor: ActorRef,
                            val workflowLogCopyRouter: ActorRef,
                            val jobStoreActor: ActorRef,
-                           val callCacheReadActor: ActorRef)
+                           val callCacheReadActor: ActorRef,
+                           val jobTokenDispenserActor: ActorRef,
+                           val backendSingletonCollection: BackendSingletonCollection)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
 
   def this(workflowStore: ActorRef,
            serviceRegistryActor: ActorRef,
            workflowLogCopyRouter: ActorRef,
            jobStoreActor: ActorRef,
-           callCacheReadActor: ActorRef) = this(
-    ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+           callCacheReadActor: ActorRef,
+           jobTokenDispenserActor: ActorRef,
+           backendSingletonCollection: BackendSingletonCollection) = this(
+    ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)
 
-  private val maxWorkflowsRunning = config.getConfig("system").getIntOr("max-concurrent-workflows", default=DefaultMaxWorkflowsToRun)
-  private val maxWorkflowsToLaunch = config.getConfig("system").getIntOr("max-workflow-launch-count", default=DefaultMaxWorkflowsToLaunch)
-  private val newWorkflowPollRate = config.getConfig("system").getIntOr("new-workflow-poll-rate", default=DefaultNewWorkflowPollRate).seconds
+  private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
+  private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
+  private val newWorkflowPollRate = config.getConfig("system").as[Option[Int]]("new-workflow-poll-rate").getOrElse(DefaultNewWorkflowPollRate).seconds
 
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
@@ -104,22 +108,22 @@ class WorkflowManagerActor(config: Config,
 
   private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
 
-  override def preStart() {
+  override def preStart(): Unit = {
     addShutdownHook()
     // Starts the workflow polling cycle
     self ! RetrieveNewWorkflows
   }
 
-  private def addShutdownHook(): Unit = {
-    // Only abort jobs on SIGINT if the config explicitly sets backend.abortJobsOnTerminate = true.
+  private def addShutdownHook() = {
+    // Only abort jobs on SIGINT if the config explicitly sets system.abortJobsOnTerminate = true.
     val abortJobsOnTerminate =
-      config.getConfig("system").getBooleanOr("abort-jobs-on-terminate", default = false)
+      config.getConfig("system").as[Option[Boolean]]("abort-jobs-on-terminate").getOrElse(false)
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {
         logger.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
         self ! AbortAllWorkflowsCommand
-        Await.ready(donePromise.future, Duration.Inf)
+        Await.result(donePromise.future, Duration.Inf)
       }
     }
   }
@@ -144,7 +148,7 @@ class WorkflowManagerActor(config: Config,
       stay()
     case Event(WorkflowStoreActor.NewWorkflowsToStart(newWorkflows), stateData) =>
       val newSubmissions = newWorkflows map submitWorkflow
-      log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.size)
+      log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.toList.size)
       scheduleNextNewWorkflowPoll()
       stay() using stateData.withAddition(newSubmissions)
     case Event(SubscribeToWorkflowCommand(id), data) =>
@@ -240,6 +244,7 @@ class WorkflowManagerActor(config: Config,
     case _ -> Done =>
       logger.info(s"$tag All workflows finished. Stopping self.")
       donePromise.trySuccess(())
+      ()
     case fromState -> toState =>
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
@@ -260,7 +265,7 @@ class WorkflowManagerActor(config: Config,
     }
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, callCacheReadActor)
+      workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)
@@ -269,8 +274,7 @@ class WorkflowManagerActor(config: Config,
     WorkflowIdToActorRef(workflowId, wfActor)
   }
 
-  private def scheduleNextNewWorkflowPoll(): Unit = {
+  private def scheduleNextNewWorkflowPoll() = {
     context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher)
   }
 }
-

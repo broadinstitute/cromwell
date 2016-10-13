@@ -1,18 +1,16 @@
 package cromwell.engine.backend
 
-import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendLifecycleActorFactory}
-import lenthall.config.ScalaConfig._
-
+import net.ceedubs.ficus.Ficus._
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
   def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
     Class.forName(lifecycleActorFactoryClass)
-         .getConstructor(classOf[BackendConfigurationDescriptor])
-         .newInstance(asBackendConfigurationDescriptor)
+         .getConstructor(classOf[String], classOf[BackendConfigurationDescriptor])
+         .newInstance(name, asBackendConfigurationDescriptor)
          .asInstanceOf[BackendLifecycleActorFactory]
   }
 
@@ -30,7 +28,7 @@ object BackendConfiguration {
     BackendConfigurationEntry(
       backendName,
       entry.getString("actor-factory"),
-      entry.getConfigOr("config")
+      entry.as[Option[Config]]("config").getOrElse(ConfigFactory.empty("empty"))
     )
   }
 

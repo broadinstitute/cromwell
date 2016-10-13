@@ -1,12 +1,16 @@
 package cromwell.backend.validation
 
+import cats.data.Validated.{Invalid, Valid}
+import cats.instances.list._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
+import cromwell.core.ErrorOr._
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 import scala.util.Try
-import scalaz.Scalaz._
 
 /**
   * Validates the "continueOnReturnCode" runtime attribute a Boolean, a String 'true' or 'false', or an Array[Int],
@@ -41,14 +45,14 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
   override def coercion = ContinueOnReturnCode.validWdlTypes
 
   override def validateValue = {
-    case WdlBoolean(value) => ContinueOnReturnCodeFlag(value).successNel
-    case WdlString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).successNel
-    case WdlInteger(value) => ContinueOnReturnCodeSet(Set(value)).successNel
+    case WdlBoolean(value) => ContinueOnReturnCodeFlag(value).validNel
+    case WdlString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).validNel
+    case WdlInteger(value) => ContinueOnReturnCodeSet(Set(value)).validNel
     case WdlArray(wdlType, seq) =>
       val errorOrInts: ErrorOr[List[Int]] = (seq.toList map validateInt).sequence[ErrorOr, Int]
       errorOrInts match {
-        case scalaz.Success(ints) => ContinueOnReturnCodeSet(ints.toSet).successNel
-        case scalaz.Failure(_) => failureWithMessage
+        case Valid(ints) => ContinueOnReturnCodeSet(ints.toSet).validNel
+        case Invalid(_) => failureWithMessage
       }
   }
 
@@ -56,8 +60,8 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
     case _: WdlBoolean => true
     case WdlString(value) if Try(value.toBoolean).isSuccess => true
     case _: WdlInteger => true
-    case WdlArray(WdlArrayType(WdlStringType), elements) => elements.forall(validateInt(_).isSuccess)
-    case WdlArray(WdlArrayType(WdlIntegerType), elements) => elements.forall(validateInt(_).isSuccess)
+    case WdlArray(WdlArrayType(WdlStringType), elements) => elements.forall(validateInt(_).isValid)
+    case WdlArray(WdlArrayType(WdlIntegerType), elements) => elements.forall(validateInt(_).isValid)
   }
 
   override protected def failureMessage = missingMessage

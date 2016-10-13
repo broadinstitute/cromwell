@@ -2,6 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
 
+import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
@@ -9,7 +10,6 @@ import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz.NonEmptyList
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
@@ -42,7 +42,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     val returnValue = asStoreEntries map { workflowStore => WorkflowId.fromString(workflowStore.workflowExecutionUuid) }
 
     // The results from the Future aren't useful, so on completion map it into the precalculated return value instead. Magic!
-    sqlDatabase.addWorkflowStoreEntries(asStoreEntries.list.toList) map { _ => returnValue }
+    sqlDatabase.addWorkflowStoreEntries(asStoreEntries.toList) map { _ => returnValue }
   }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {

@@ -15,6 +15,7 @@ import cromwell.server.{CromwellServerActor, CromwellSystem}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.MetadataSummarySuccess
+import cromwell.util.SampleWdl.DeclarationsWorkflow._
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.concurrent.{PatienceConfiguration, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
@@ -79,6 +80,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
     import akka.pattern.ask
     val putResult = serviceRegistryActor.ask(PutMetadataAction(events))(timeout)
     putResult.futureValue(PatienceConfiguration.Timeout(timeout.duration)) shouldBe a[MetadataPutAcknowledgement]
+    ()
   }
 
   def forceSummary(): Unit = {
@@ -241,7 +243,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   behavior of "REST API submission endpoint"
   it should "return 201 for a successful workflow submission " in {
-    Post("/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
+    Post(s"/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
       submitRoute ~>
       check {
         assertResult(
@@ -256,12 +258,24 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+  it should "succesfully merge and override multiple input files" in {
+
+    val input1 = Map("wf.a1" -> "hello", "wf.a2" -> "world").toJson.toString
+    val input2 = Map.empty.toJson.toString
+    val overrideInput1 = Map("wf.a2" -> "universe").toJson.toString
+    val allInputs = mergeMaps(Seq(Option(input1), Option(input2), Option(overrideInput1)))
+
+    check {
+      allInputs.fields.keys should contain allOf("wf.a1", "wf.a2")
+      allInputs.fields("wf.a2") should be(JsString("universe"))
+    }
+  }
 
   behavior of "REST API batch submission endpoint"
   it should "return 200 for a successful workflow submission " in {
     val inputs = HelloWorld.rawInputs.toJson
 
-    Post("/workflows/$version/batch",
+    Post(s"/workflows/$version/batch",
       FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> s"[$inputs, $inputs]"))) ~>
       submitBatchRoute ~>
       check {

@@ -21,8 +21,6 @@ import cromwell.backend.impl.spark.SparkClusterProcess.{Failed, _}
 import org.scalatest.concurrent.ScalaFutures
 import spray.http._
 import SparkClusterJsonProtocol._
-import spray.httpx.unmarshalling._
-import spray.httpx.SprayJsonSupport._
 
 class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   with WordSpecLike

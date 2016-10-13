@@ -10,7 +10,6 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object WorkflowFinalizationActor {

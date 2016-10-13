@@ -1,11 +1,11 @@
 package cromwell.backend.validation
 
-import cromwell.core.WorkflowOptions
-import org.scalatest.{Matchers, FlatSpec}
-import spray.json._
 import cromwell.backend.validation.RuntimeAttributesDefault._
+import cromwell.core.WorkflowOptions
+import org.scalatest.{FlatSpec, Matchers}
+import spray.json._
 import wdl4s.types._
-import wdl4s.values.{WdlArray, WdlInteger, WdlBoolean, WdlString}
+import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
@@ -103,8 +103,8 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
     )
   }
 
-  "noValueFoundFor" should "provide a failureNel for missing values" in {
-    import scalaz.Scalaz._
-    noValueFoundFor("myKey") shouldBe "Can't find an attribute value for key myKey".failureNel
+  "noValueFoundFor" should "provide an invalidNel for missing values" in {
+    import cats.syntax.validated._
+    noValueFoundFor("myKey") shouldBe "Can't find an attribute value for key myKey".invalidNel
   }
 }

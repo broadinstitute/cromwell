@@ -6,7 +6,6 @@ import java.util.{ArrayList => JArrayList}
 import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
 import cromwell.core.ExecutionEvent
@@ -14,7 +13,6 @@ import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object Run {
@@ -54,9 +52,15 @@ object Run {
              .setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
              .setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 
+    // disks cannot have mount points at runtime, so set them null
+    val runtimePipelineResources = {
+      val resources = pipelineInfoBuilder.build(commandLine, runtimeAttributes).resources
+      val disksWithoutMountPoint = resources.getDisks.asScala map { _.setMountPoint(null) }
+      resources.setDisks(disksWithoutMountPoint.asJava)
+    }
+
     def runPipeline: String = {
-      val runtimeResources = new PipelineResources().set(NoAddressFieldName, runtimeAttributes.noAddress)
-      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount).setResources(runtimeResources)
+      val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(JesServiceAccount).setResources(runtimePipelineResources)
 
       rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.debug(s"Inputs:\n${stringifyMap(rpargs.getInputs.asScala.toMap)}")
@@ -86,24 +90,19 @@ object Run {
   implicit class RunOperationExtension(val operation: Operation) extends AnyVal {
     def hasStarted = operation.getMetadata.asScala.get("startTime") isDefined
   }
-}
 
-case class Run(runId: String, genomicsInterface: Genomics) {
-  import Run._
-
-  def status(): RunStatus = {
-    val op = genomicsInterface.operations().get(runId).execute
+  def interpretOperationStatus(op: Operation): RunStatus = {
     if (op.getDone) {
-      val eventList = getEventList(op)
-      val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
-      val machineType = Option(ceInfo.get("machineType"))
-      val instanceName = Option(ceInfo.get("instanceName"))
-      val zone = Option(ceInfo.get("zone"))
+      lazy val eventList = getEventList(op)
+      lazy val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
+      lazy val machineType = Option(ceInfo.get("machineType"))
+      lazy val instanceName = Option(ceInfo.get("instanceName"))
+      lazy val zone = Option(ceInfo.get("zone"))
 
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
         case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, eventList, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running
@@ -150,13 +149,17 @@ case class Run(runId: String, genomicsInterface: Genomics) {
   }
 
   private def eventIfExists(name: String, metadata: Map[String, AnyRef], eventName: String): Option[ExecutionEvent] = {
-    metadata.get(name) map {
-      case time => ExecutionEvent(eventName, OffsetDateTime.parse(time.toString))
-    }
+    metadata.get(name) map { time => ExecutionEvent(eventName, OffsetDateTime.parse(time.toString)) }
   }
+}
+
+case class Run(runId: String, genomicsInterface: Genomics) {
+
+  def getOperationCommand = genomicsInterface.operations().get(runId)
 
   def abort(): Unit = {
     val cancellationRequest: CancelOperationRequest = new CancelOperationRequest()
     genomicsInterface.operations().cancel(runId, cancellationRequest).execute
+    ()
   }
 }

@@ -5,14 +5,15 @@ import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrat
 import akka.event.Logging
 import akka.routing.RoundRobinPool
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
-
+import net.ceedubs.ficus.Ficus._
 /**
   * An actor which serves as the lord protector for the rest of Cromwell, allowing us to have more fine grain
   * control on top level supervision, etc.
@@ -30,7 +31,7 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
   private val config = ConfigFactory.load()
 
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
-  lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").getIntOr("number-of-workflow-log-copy-workers", default=DefaultNumberOfWorkflowLogCopyWorkers)
+  lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
       .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
@@ -48,9 +49,16 @@ import lenthall.config.ScalaConfig.EnhancedScalaConfig
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")
 
+  lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
+    case (name, factory) => name -> (factory.backendSingletonActorProps map context.actorOf)
+  }
+  lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
+
+  lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
+
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor),
+      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobExecutionTokenDispenserActor, backendSingletonCollection),
     "WorkflowManagerActor")
 
   override def receive = {

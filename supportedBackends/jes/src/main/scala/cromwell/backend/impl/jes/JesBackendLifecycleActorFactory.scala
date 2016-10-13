@@ -13,9 +13,8 @@ import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
 
-import scala.language.postfixOps
 
-case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   import JesBackendLifecycleActorFactory._
 
@@ -29,10 +28,11 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
     // invocation, so the `get` here is safe.
-    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor).withDispatcher(BackendDispatcher)
+    JesJobExecutionActor.props(jobDescriptor, jesConfiguration, initializationData.toJes.get, serviceRegistryActor, backendSingletonActor).withDispatcher(BackendDispatcher)
   }
 
   override def cacheHitCopyingActorProps = Option(cacheHitCopyingActorInner _)
@@ -71,6 +71,8 @@ case class JesBackendLifecycleActorFactory(configurationDescriptor: BackendConfi
                                     initializationData: Option[BackendInitializationData]): Path = {
     initializationData.toJes.get.workflowPaths.rootPath
   }
+
+  override def backendSingletonActorProps = Option(JesBackendSingletonActor.props())
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(JesBackendFileHashing.getCrc32c))
 }

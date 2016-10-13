@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.io.WorkflowPaths
+import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.{ExecutionStore, OutputStore}
 import wdl4s.Call
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -19,7 +20,8 @@ trait BackendLifecycleActorFactory {
 
   def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                              initializationData: Option[BackendInitializationData],
-                             serviceRegistryActor: ActorRef): Props
+                             serviceRegistryActor: ActorRef,
+                             backendSingletonActor: Option[ActorRef]): Props
 
   /**
     * Providing this method to generate Props for a cache hit copying actor is optional.
@@ -31,6 +33,8 @@ trait BackendLifecycleActorFactory {
     * Simples!
     */
   def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef) => Props] = None
+
+  def backendSingletonActorProps: Option[Props] = None
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Seq[Call],
@@ -52,4 +56,6 @@ trait BackendLifecycleActorFactory {
   lazy val fileHashingActorCount: Int = 50
 
   def fileHashingActorProps: Props = FileHashingActor.props(fileHashingFunction)
+
+  def jobExecutionTokenType: JobExecutionTokenType = JobExecutionTokenType("Default", None)
 }

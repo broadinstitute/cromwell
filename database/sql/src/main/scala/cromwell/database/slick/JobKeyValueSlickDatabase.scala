@@ -19,12 +19,12 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
     } else {
       for {
         updateCount <- dataAccess.
-          storeValuesForJobKeyAndStoreKey(
+          storeValuesForJobKeyAndStoreKey((
             jobKeyValueEntry.workflowExecutionUuid,
             jobKeyValueEntry.callFullyQualifiedName,
             jobKeyValueEntry.jobIndex,
             jobKeyValueEntry.jobAttempt,
-            jobKeyValueEntry.storeKey).
+            jobKeyValueEntry.storeKey)).
           update(jobKeyValueEntry.storeValue)
         _ <- updateCount match {
           case 0 => dataAccess.jobKeyValueEntryIdsAutoInc += jobKeyValueEntry
@@ -39,7 +39,7 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
                                jobRetryAttempt: Int, storeKey: String)
                               (implicit ec: ExecutionContext): Future[Option[String]] = {
     val action = dataAccess.
-      storeValuesForJobKeyAndStoreKey(workflowExecutionUuid, callFqn, jobScatterIndex, jobRetryAttempt, storeKey).
+      storeValuesForJobKeyAndStoreKey((workflowExecutionUuid, callFqn, jobScatterIndex, jobRetryAttempt, storeKey)).
       result.headOption
     runTransaction(action)
   }

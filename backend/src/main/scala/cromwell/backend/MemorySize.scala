@@ -1,10 +1,16 @@
 package cromwell.backend
 
-import wdl4s.parser.MemoryUnit
+
+import cats.data.Validated._
+import cats.syntax.cartesian._
+import cats.syntax.validated._
+import cromwell.core.ErrorOr._
+import mouse.string._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
+import wdl4s.parser.MemoryUnit
+
 
 object MemorySize {
   val memoryPattern = """(\d+(?:\.\d+)?)\s*(\w+)""".r
@@ -12,18 +18,18 @@ object MemorySize {
   def parse(unparsed: String): Try[MemorySize] = {
     unparsed match {
       case memoryPattern(amountString, unitString) =>
-        val amount = amountString.parseDouble leftMap {
+        val amount: ErrorOr[Double] = amountString.parseDouble leftMap {
           _.getMessage
-        } toValidationNel
-        val unit = MemoryUnit.values find {
+        } toValidatedNel
+        val unit: ErrorOr[MemoryUnit] = MemoryUnit.values find {
           _.suffixes.contains(unitString)
         } match {
-          case Some(s) => s.successNel[String]
-          case None => s"$unitString is an invalid memory unit".failureNel
+          case Some(s) => s.validNel
+          case None => s"$unitString is an invalid memory unit".invalidNel
         }
-        (amount |@| unit) { (a, u) => new MemorySize(a, u) } match {
-          case scalaz.Success(memorySize) => Success(memorySize)
-          case scalaz.Failure(nel) => Failure(new UnsupportedOperationException(nel.list.toList.mkString("\n")))
+        (amount |@| unit) map { (a, u) => new MemorySize(a, u) } match {
+          case Valid(memorySize) => Success(memorySize)
+          case Invalid(nel) => Failure(new UnsupportedOperationException(nel.toList.mkString("\n")))
         }
       case _ => Failure(new UnsupportedOperationException(s"$unparsed should be of the form 'X Unit' where X is a number, e.g. 8 GB"))
     }

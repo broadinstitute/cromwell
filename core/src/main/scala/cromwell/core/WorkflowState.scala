@@ -1,11 +1,12 @@
 package cromwell.core
 
-import scalaz.Semigroup
+import cats.Semigroup
+
 
 sealed trait WorkflowState {
   def isTerminal: Boolean
   protected def ordinal: Int
-  def append(that: WorkflowState): WorkflowState = if (this.ordinal > that.ordinal) this else that
+  def combine(that: WorkflowState): WorkflowState = if (this.ordinal > that.ordinal) this else that
 }
 
 object WorkflowState {
@@ -15,7 +16,7 @@ object WorkflowState {
     throw new NoSuchElementException(s"No such WorkflowState: $str"))
 
   implicit val WorkflowStateSemigroup = new Semigroup[WorkflowState] {
-    override def append(f1: WorkflowState, f2: => WorkflowState): WorkflowState = f1.append(f2)
+    override def combine(f1: WorkflowState, f2: WorkflowState): WorkflowState = f1.combine(f2)
   }
 
   implicit val WorkflowStateOrdering = Ordering.by { self: WorkflowState => self.ordinal }

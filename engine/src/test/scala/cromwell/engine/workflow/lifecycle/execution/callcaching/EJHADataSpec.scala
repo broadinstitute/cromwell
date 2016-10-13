@@ -59,14 +59,14 @@ class EJHADataSpec extends FlatSpec with Matchers {
 
     // To save you time I'll just tell you: the intersection of all these sets is Set(5)
     val cacheLookupResults: List[CacheResultMatchesForHashes] = List(
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey1)), Set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) map MetaInfoId),
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey2)), Set(1, 2, 3, 4, 5, 6) map MetaInfoId),
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey3)), Set(1, 2, 3, 5, 7, 8, 9, 10) map MetaInfoId),
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey4)), Set(4, 5, 6, 7, 8, 9, 10) map MetaInfoId),
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey5)), Set(1, 2, 5, 6, 7, 10) map MetaInfoId))
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey1)), Set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) map CallCachingEntryId),
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey2)), Set(1, 2, 3, 4, 5, 6) map CallCachingEntryId),
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey3)), Set(1, 2, 3, 5, 7, 8, 9, 10) map CallCachingEntryId),
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey4)), Set(4, 5, 6, 7, 8, 9, 10) map CallCachingEntryId),
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey5)), Set(1, 2, 5, 6, 7, 10) map CallCachingEntryId))
     val newData = cacheLookupResults.foldLeft(data)( (d, c) => d.intersectCacheResults(c) )
     newData.possibleCacheResults match{
-      case Some(set) => set should be(Set(MetaInfoId(5)))
+      case Some(set) => set should be(Set(CallCachingEntryId(5)))
       case None => fail("There should be a cache result set")
     }
     newData.allCacheResultsIntersected should be(true)
@@ -79,9 +79,9 @@ class EJHADataSpec extends FlatSpec with Matchers {
 
     // To save you time I'll just tell you: the intersection of all these sets is empty Set()
     val cacheLookupResults: List[CacheResultMatchesForHashes] = List(
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey1)), Set(1, 2, 3, 4, 5, 6) map MetaInfoId),
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey2)), Set(1, 2, 3, 7, 8, 9) map MetaInfoId),
-      CacheResultMatchesForHashes(Set(makeHashResult(hashKey3)), Set(5, 7, 8, 9, 10) map MetaInfoId))
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey1)), Set(1, 2, 3, 4, 5, 6) map CallCachingEntryId),
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey2)), Set(1, 2, 3, 7, 8, 9) map CallCachingEntryId),
+      CacheResultMatchesForHashes(Set(makeHashResult(hashKey3)), Set(5, 7, 8, 9, 10) map CallCachingEntryId))
     val newData = cacheLookupResults.foldLeft(data)( (d, c) => d.intersectCacheResults(c) )
     newData.possibleCacheResults match{
       case Some(set) => set should be(Set.empty)

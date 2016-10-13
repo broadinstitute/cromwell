@@ -39,7 +39,6 @@ object RuntimeAttributeDefinition {
   def addDefaultsToAttributes(runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition], workflowOptions: WorkflowOptions)
                              (specifiedAttributes: Map[LocallyQualifiedName, WdlValue]): Map[LocallyQualifiedName, WdlValue] = {
     import WdlValueJsonFormatter._
-    import spray.json._   // IGNORE INTELLIJ - this *is* required (unless it isn't any more, who will ever know...!)
 
     def isUnspecifiedAttribute(name: String) = !specifiedAttributes.contains(name)
 

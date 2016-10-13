@@ -89,7 +89,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.error(formatted, t))
   }
 
-  override def error(pattern: String, arguments: AnyRef*) {
+  override def error(pattern: String, arguments: AnyRef*): Unit = {
     lazy val formatted: String = format(pattern)
 
     varargsAkkaLog(pattern, arguments)
@@ -110,7 +110,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.error(formatted, arg1, arg2: Any))
   }
 
-  def error(t: Throwable, pattern: String, arguments: Any*) {
+  def error(t: Throwable, pattern: String, arguments: Any*): Unit = {
     lazy val formatted: String = format(pattern)
 
     akkaLogger.foreach(_.error(t, formatted, arguments))
@@ -131,7 +131,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.debug(formatted, t))
   }
 
-  override def debug(pattern: String, arguments: AnyRef*) {
+  override def debug(pattern: String, arguments: AnyRef*): Unit = {
     lazy val formatted: String = format(pattern)
 
     varargsAkkaLog(pattern, arguments)
@@ -160,7 +160,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.trace(format(msg), t))
   }
 
-  override def trace(pattern: String, arguments: AnyRef*) {
+  override def trace(pattern: String, arguments: AnyRef*): Unit = {
     slf4jLoggers.foreach(_.trace(format(pattern), arguments:_*))
   }
 
@@ -186,7 +186,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
     slf4jLoggers.foreach(_.info(formatted, t))
   }
 
-  override def info(pattern: String, arguments: AnyRef*) {
+  override def info(pattern: String, arguments: AnyRef*): Unit = {
     lazy val formatted: String = format(pattern)
 
     varargsAkkaLog(pattern, arguments)

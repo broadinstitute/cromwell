@@ -38,8 +38,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
 
     val mockedCredentials = new MockGoogleCredential.Builder().build()
     val genomics = new Genomics(mockedCredentials.getTransport, mockedCredentials.getJsonFactory, mockedCredentials)
-    val run = new Run("runId", genomics)
-    val list = run.getEventList(op)
+    val list = Run.getEventList(op)
     list should contain theSameElementsAs List(
       ExecutionEvent("waiting for quota", OffsetDateTime.parse("2015-12-05T00:00:00+00:00")),
       ExecutionEvent("initializing VM", OffsetDateTime.parse("2015-12-05T00:00:01+00:00")),

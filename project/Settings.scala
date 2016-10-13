@@ -12,6 +12,7 @@ import sbtdocker.DockerPlugin.autoImport._
 object Settings {
 
   val commonResolvers = List(
+    Resolver.jcenterRepo,
     "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
     "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
   )
@@ -23,13 +24,31 @@ object Settings {
 
     https://github.com/sbt/sbt-assembly/issues/69
     https://github.com/scala/pickling/issues/10
+
+    Other fancy flags from
+
+    http://blog.threatstack.com/useful-scalac-options-for-better-scala-development-part-1
+
+    and
+
+    https://tpolecat.github.io/2014/04/11/scalac-flags.html
+
   */
   val compilerSettings = List(
-    "-deprecation",
-    "-unchecked",
+    "-Xlint",
     "-feature",
-    "-Xmax-classfile-name",
-    "200"
+    "-Xmax-classfile-name", "200",
+    "-target:jvm-1.8",
+    "-encoding", "UTF-8",
+    "-unchecked",
+    "-deprecation",
+    "-Xfuture",
+    "-Yno-adapted-args",
+    "-Ywarn-dead-code",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-value-discard",
+    "-Ywarn-unused",
+    "-Ywarn-unused-import"
   )
 
   lazy val assemblySettings = Seq(
@@ -57,7 +76,13 @@ object Settings {
         from("openjdk:8")
         expose(8000)
         add(artifact, artifactTargetPath)
-        entryPoint("java", "-jar", artifactTargetPath)
+        runRaw(s"ln -s $artifactTargetPath /app/cromwell.jar")
+        
+        // If you use the 'exec' form for an entry point, shell processing is not performed and 
+        // environment variable substitution does not occur.  Thus we have to /bin/bash here
+        // and pass along any subsequent command line arguments
+        // See https://docs.docker.com/engine/reference/builder/#/entrypoint
+        entryPoint("/bin/bash", "-c", "java ${JAVA_OPTS} -jar /app/cromwell.jar ${CROMWELL_ARGS} ${*}", "--")
       }
     },
     buildOptions in docker := BuildOptions(

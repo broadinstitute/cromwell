@@ -3,10 +3,15 @@ package cromwell.engine.workflow.lifecycle
 import java.nio.file.FileSystem
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import cats.data.Validated._
+import cats.instances.list._
+import cats.syntax.cartesian._
+import cats.syntax.traverse._
+import cats.syntax.validated._
+import cromwell.core._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core.callcaching._
@@ -15,8 +20,9 @@ import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataValue, MetadataKey, MetadataEvent}
-import lenthall.config.ScalaConfig.EnhancedScalaConfig
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.core.ErrorOr._
+import net.ceedubs.ficus.Ficus._
 import spray.json.{JsObject, _}
 import wdl4s._
 import wdl4s.expression.NoFunctions
@@ -24,8 +30,6 @@ import wdl4s.values.{WdlString, WdlValue}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
-import scalaz.Validation.FlatMap._
 
 object MaterializeWorkflowDescriptorActor {
 
@@ -79,18 +83,18 @@ object MaterializeWorkflowDescriptorActor {
 
     def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
       workflowOptions.getBoolean(option.name) match {
-        case Success(x) => x.successNel
-        case Failure(_: OptionNotFoundException) => true.successNel
-        case Failure(t) => t.getMessage.failureNel
+        case Success(x) => x.validNel
+        case Failure(_: OptionNotFoundException) => true.validNel
+        case Failure(t) => t.getMessage.invalidNel
       }
     }
 
-    val enabled = conf.getBooleanOption("call-caching.enabled").getOrElse(false)
+    val enabled = conf.as[Option[Boolean]]("call-caching.enabled").getOrElse(false)
     if (enabled) {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
-      (readFromCache |@| writeToCache) {
+      (readFromCache |@| writeToCache) map {
         case (false, false) => CallCachingOff
         case (true, false) => CallCachingActivity(ReadCache)
         case (false, true) => CallCachingActivity(WriteCache)
@@ -98,7 +102,7 @@ object MaterializeWorkflowDescriptorActor {
       }
     }
     else {
-      CallCachingOff.successNel
+      CallCachingOff.validNel
     }
   }
 }
@@ -116,10 +120,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   when(ReadyToMaterializeState) {
     case Event(MaterializeWorkflowDescriptorCommand(workflowSourceFiles, conf), _) =>
       buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf) match {
-        case scalaz.Success(descriptor) =>
+        case Valid(descriptor) =>
           sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
           goto(MaterializationSuccessfulState)
-        case scalaz.Failure(error) =>
+        case Invalid(error) =>
           sender() ! MaterializeWorkflowDescriptorFailureResponse(
             new IllegalArgumentException with ExceptionWithErrors {
               val message = s"Workflow input processing failed."
@@ -157,7 +161,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation = validateNamespace(sourceFiles.wdlSource)
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
-    (namespaceValidation |@| workflowOptionsValidation) {
+    (namespaceValidation |@| workflowOptionsValidation) map {
       (_, _)
     } flatMap { case (namespace, workflowOptions) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
@@ -180,12 +184,13 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       workflowOptions: WorkflowOptions,
                                       conf: Config,
                                       engineFilesystems: List[FileSystem]): ErrorOr[EngineWorkflowDescriptor] = {
-    val defaultBackendName = conf.getStringOption("backend.default")
+    val defaultBackendName = conf.as[Option[String]]("backend.default")
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(namespace.workflow.calls, workflowOptions, defaultBackendName)
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
-    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) {
+
+    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) map {
       (_, _, _, _)
     } flatMap { case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
       buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, engineFilesystems, callCachingMode)
@@ -203,13 +208,16 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
     def checkTypes(inputs: Map[FullyQualifiedName, WdlValue]): ErrorOr[Map[FullyQualifiedName, WdlValue]] = {
       val allDeclarations = namespace.workflow.scopedDeclarations ++ namespace.workflow.calls.flatMap(_.scopedDeclarations)
-      inputs.map({ case (k, v) =>
+      val list: List[ErrorOr[(FullyQualifiedName, WdlValue)]] = inputs.map({ case (k, v) =>
         allDeclarations.find(_.fullyQualifiedName == k) match {
           case Some(decl) if decl.wdlType.coerceRawValue(v).isFailure =>
-            s"Invalid right-side type of '$k'.  Expecting ${decl.wdlType.toWdlString}, got ${v.wdlType.toWdlString}".failureNel
-          case _ => (k, v).successNel[String]
+            s"Invalid right-side type of '$k'.  Expecting ${decl.wdlType.toWdlString}, got ${v.wdlType.toWdlString}".invalidNel
+          case _ => (k, v).validNel[String]
         }
-      }).toList.sequence[ErrorOr, (FullyQualifiedName, WdlValue)].map(_.toMap)
+      }).toList
+
+      val validatedInputs: ErrorOr[List[(FullyQualifiedName, WdlValue)]] = list.sequence[ErrorOr, (FullyQualifiedName, WdlValue)]
+      validatedInputs.map(_.toMap)
     }
 
     for {
@@ -256,8 +264,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
       case Success(backendMap) =>
         val backendMapAsString = backendMap.map({case (k, v) => s"${k.fullyQualifiedName} -> $v"}).mkString(", ")
         workflowLogger.info(s"Call-to-Backend assignments: $backendMapAsString")
-        backendMap.successNel
-      case Failure(t) => t.getMessage.failureNel
+        backendMap.validNel
+      case Failure(t) => t.getMessage.invalidNel
     }
   }
 
@@ -284,53 +292,53 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                    coercedInputs: WorkflowCoercedInputs,
                                    engineFileSystems: List[FileSystem]): ErrorOr[WorkflowCoercedInputs] = {
     namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(engineFileSystems)) match {
-      case Success(d) => d.successNel
-      case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".failureNel
+      case Success(d) => d.validNel
+      case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".invalidNel
     }
   }
 
   private def validateNamespace(source: WdlSource): ErrorOr[NamespaceWithWorkflow] = {
     try {
-      NamespaceWithWorkflow.load(source).successNel
+      NamespaceWithWorkflow.load(source).validNel
     } catch {
-      case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".failureNel
+      case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
     }
   }
 
   private def validateRawInputs(json: WdlJson): ErrorOr[Map[String, JsValue]] = {
     Try(json.parseJson) match {
-      case Success(JsObject(inputs)) => inputs.successNel
-      case Failure(reason: Throwable) => s"Workflow contains invalid inputs JSON: ${reason.getMessage}".failureNel
-      case _ => s"Workflow inputs JSON cannot be parsed to JsObject: $json".failureNel
+      case Success(JsObject(inputs)) => inputs.validNel
+      case Failure(reason: Throwable) => s"Workflow contains invalid inputs JSON: ${reason.getMessage}".invalidNel
+      case _ => s"Workflow inputs JSON cannot be parsed to JsObject: $json".invalidNel
     }
   }
 
   private def validateCoercedInputs(rawInputs: Map[String, JsValue],
                                     namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
     namespace.coerceRawInputs(rawInputs) match {
-      case Success(r) => r.successNel
-      case Failure(e: ExceptionWithErrors) => scalaz.Failure(e.errors)
-      case Failure(e) => e.getMessage.failureNel
+      case Success(r) => r.validNel
+      case Failure(e: ExceptionWithErrors) => Invalid(e.errors)
+      case Failure(e) => e.getMessage.invalidNel
     }
   }
 
   private def validateWorkflowOptions(workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
     WorkflowOptions.fromJsonString(workflowOptions) match {
-      case Success(opts) => opts.successNel
-      case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".failureNel
+      case Success(opts) => opts.validNel
+      case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".invalidNel
     }
   }
 
   private def validateWorkflowFailureMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[WorkflowFailureMode] = {
     val modeString: Try[String] = workflowOptions.get(WorkflowOptions.WorkflowFailureMode) match {
       case Success(x) => Success(x)
-      case Failure(_: OptionNotFoundException) => Success(conf.getStringOption("workflow-options.workflow-failure-mode") getOrElse DefaultWorkflowFailureMode)
+      case Failure(_: OptionNotFoundException) => Success(conf.as[Option[String]]("workflow-options.workflow-failure-mode") getOrElse DefaultWorkflowFailureMode)
       case Failure(t) => Failure(t)
     }
 
     modeString flatMap WorkflowFailureMode.tryParse match {
-        case Success(mode) => mode.successNel
-        case Failure(t) => t.getMessage.failureNel
+        case Success(mode) => mode.validNel
+        case Failure(t) => t.getMessage.invalidNel
     }
   }
 }

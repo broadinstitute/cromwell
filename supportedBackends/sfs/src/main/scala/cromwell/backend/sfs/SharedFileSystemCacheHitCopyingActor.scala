@@ -19,5 +19,9 @@ class SharedFileSystemCacheHitCopyingActor(override val jobDescriptor: BackendJo
 
   override protected def getPath(file: String) = Paths.get(file)
 
-  override protected def duplicate(source: Path, destination: Path) = sharedFileSystem.cacheCopy(source, destination)
+  override protected def duplicate(source: Path, destination: Path) = {
+    // -Ywarn-value-discard
+    sharedFileSystem.cacheCopy(source, destination)
+    ()
+  }
 }

@@ -4,7 +4,6 @@ import akka.testkit._
 import wdl4s.values.WdlString
 import cromwell.util.SampleWdl
 
-import scala.language.postfixOps
 
 class PostfixQuantifierWorkflowSpec extends CromwellTestkitSpec {
   "A task which contains a parameter with a zero-or-more postfix quantifier" should {

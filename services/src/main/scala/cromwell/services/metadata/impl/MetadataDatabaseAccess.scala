@@ -2,6 +2,9 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
+import cats.Semigroup
+import cats.data.NonEmptyList
+import cats.syntax.semigroup._
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
@@ -10,14 +13,12 @@ import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryR
 import cromwell.services.metadata._
 
 import scala.concurrent.{ExecutionContext, Future}
-import scalaz.Scalaz._
-import scalaz.{NonEmptyList, Semigroup}
 
 object MetadataDatabaseAccess {
 
   private lazy val WorkflowMetadataSummarySemigroup = new Semigroup[WorkflowMetadataSummaryEntry] {
-    override def append(summary1: WorkflowMetadataSummaryEntry,
-                        summary2: => WorkflowMetadataSummaryEntry): WorkflowMetadataSummaryEntry = {
+    override def combine(summary1: WorkflowMetadataSummaryEntry,
+                         summary2: WorkflowMetadataSummaryEntry): WorkflowMetadataSummaryEntry = {
       // Resolve the status if both `this` and `that` have defined statuses.  This will evaluate to `None`
       // if one or both of the statuses is not defined.
       val resolvedStatus = for {
@@ -37,7 +38,8 @@ object MetadataDatabaseAccess {
 
   def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None)
 
-  private implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
+  // If visibility is made `private`, there's a bogus warning about this being unused.
+  implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
     def toSummary: WorkflowMetadataSummaryEntry = {
       val base = baseSummary(metadatum.workflowExecutionUuid)
       metadatum.metadataKey match {
@@ -131,7 +133,7 @@ trait MetadataDatabaseAccess {
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
     databaseInterface.queryMetadataEntriesLikeMetadataKeys(
-      uuid, s"${WorkflowMetadataKeys.Outputs}:%".wrapNel, requireEmptyJobKey = true).
+      uuid, NonEmptyList.of(s"${WorkflowMetadataKeys.Outputs}:%"), requireEmptyJobKey = true).
       map(metadataToMetadataEvents(id))
   }
 
@@ -139,7 +141,7 @@ trait MetadataDatabaseAccess {
                (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     import cromwell.services.metadata.CallMetadataKeys._
 
-    val keys = NonEmptyList(Stdout, Stderr, BackendLogsPrefix + ":%")
+    val keys = NonEmptyList.of(Stdout, Stderr, BackendLogsPrefix + ":%")
     databaseInterface.queryMetadataEntriesLikeMetadataKeys(id.id.toString, keys, requireEmptyJobKey = false) map
       metadataToMetadataEvents(id)
   }

@@ -3,12 +3,15 @@ package cromwell
 import java.nio.file.{Files, Path, Paths}
 
 import better.files._
-import cromwell.core.{ErrorOr, WorkflowSourceFiles}
+import cats.data.Validated._
+import cats.syntax.cartesian._
+import cats.syntax.validated._
+import cromwell.core.WorkflowSourceFiles
 import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
+import cromwell.core.ErrorOr._
 
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
 
 sealed abstract class CromwellCommandLine
 case object UsageAndExit extends CromwellCommandLine
@@ -40,44 +43,43 @@ object RunSingle {
     val inputsJson = readJson("Inputs", inputsPath)
     val optionsJson = readJson("Workflow Options", optionsPath)
 
-    val sourceFiles = (wdl |@| inputsJson |@| optionsJson) { WorkflowSourceFiles.apply }
+    val sourceFiles = (wdl |@| inputsJson |@| optionsJson) map { WorkflowSourceFiles.apply }
 
-    import scalaz.Validation.FlatMap._
     val runSingle = for {
       sources <- sourceFiles
       _ <- writeableMetadataPath(metadataPath)
     } yield RunSingle(wdlPath, sources, inputsPath, optionsPath, metadataPath)
 
     runSingle match {
-      case scalaz.Success(r) => r
-      case scalaz.Failure(nel) => throw new RuntimeException with MessageAggregation {
+      case Valid(r) => r
+      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "ERROR: Unable to run Cromwell:"
-        override def errorMessages: Traversable[String] = nel.list.toList
+        override def errorMessages: Traversable[String] = nel.toList
       }
     }
   }
 
   private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
     path match {
-      case Some(p) if !metadataPathIsWriteable(p) => s"Unable to write to metadata directory: $p".failureNel
-      case otherwise => ().successNel
+      case Some(p) if !metadataPathIsWriteable(p) => s"Unable to write to metadata directory: $p".invalidNel
+      case otherwise => ().validNel
     }
   }
 
   /** Read the path to a string. */
   private def readContent(inputDescription: String, path: Path): ErrorOr[String] = {
     if (!Files.exists(path)) {
-      s"$inputDescription does not exist: $path".failureNel
+      s"$inputDescription does not exist: $path".invalidNel
     } else if (!Files.isReadable(path)) {
-      s"$inputDescription is not readable: $path".failureNel
-    } else File(path).contentAsString.successNel
+      s"$inputDescription is not readable: $path".invalidNel
+    } else File(path).contentAsString.validNel
   }
 
   /** Read the path to a string, unless the path is None, in which case returns "{}". */
   private def readJson(inputDescription: String, pathOption: Option[Path]): ErrorOr[String] = {
     pathOption match {
       case Some(path) => readContent(inputDescription, path)
-      case None => "{}".successNel
+      case None => "{}".validNel
     }
   }
 

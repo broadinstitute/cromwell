@@ -5,7 +5,7 @@ import cromwell.backend._
 import wdl4s.Call
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 
-class RetryableBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
+class RetryableBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 calls: Seq[Call],
@@ -13,7 +13,8 @@ class RetryableBackendLifecycleActorFactory(configurationDescriptor: BackendConf
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef): Props = {
+                                      serviceRegistryActor: ActorRef,
+                                      backendSingletonActor: Option[ActorRef]): Props = {
     RetryableBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
   }
 

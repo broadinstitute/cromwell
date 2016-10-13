@@ -4,12 +4,15 @@ import java.nio.file.Path
 
 import akka.actor.Props
 import better.files._
+import cats.instances.future._
+import cats.syntax.functor._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor, BackendWorkflowFinalizationActor}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.{ExecutionStore, OutputStore, PathCopier}
 import wdl4s.Call
 
 import scala.concurrent.Future
+import scala.language.postfixOps
 
 object JesFinalizationActor {
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
@@ -40,7 +43,7 @@ class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDesc
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths)) => Future(File(paths.gcsAuthFilePath).delete(false)) map { _ => () }
+      case (true, Some(paths)) => Future { File(paths.gcsAuthFilePath).delete(false) } void
       case _ => Future.successful(())
     }
   }

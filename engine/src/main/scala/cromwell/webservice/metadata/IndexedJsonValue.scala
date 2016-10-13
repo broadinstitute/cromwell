@@ -2,35 +2,34 @@ package cromwell.webservice.metadata
 
 import java.time.OffsetDateTime
 
+import cats.{Monoid, Semigroup}
+import cats.instances.map._
 import spray.json._
 
-import scalaz.{Monoid, Semigroup}
-// This is useful, do not remove
-import scalaz.Scalaz._
 
-private object IndexedJsonValue {
+object IndexedJsonValue {
   private implicit val dateTimeOrdering: Ordering[OffsetDateTime] = scala.Ordering.fromLessThan(_ isBefore _)
   private val timestampedJsValueOrdering: Ordering[TimestampedJsValue] = scala.Ordering.by(_.timestamp)
 
-   implicit val TimestampedJsonMonoid: Monoid[TimestampedJsValue] = new Monoid[TimestampedJsValue] {
-     def append(f1: TimestampedJsValue, f2: => TimestampedJsValue): TimestampedJsValue = {
-       (f1, f2) match {
-         case (o1: TimestampedJsObject, o2: TimestampedJsObject) =>
-           val sg = implicitly[Semigroup[Map[String, TimestampedJsValue]]]
-           TimestampedJsObject(sg.append(o1.v, o2.v), dateTimeOrdering.max(o1.timestamp, o2.timestamp))
-         case (o1: TimestampedJsList, o2: TimestampedJsList) =>
-           val sg = implicitly[Semigroup[Map[Int, TimestampedJsValue]]]
-           TimestampedJsList(sg.append(o1.v, o2.v), dateTimeOrdering.max(o1.timestamp, o2.timestamp))
-         case (o1, o2) => timestampedJsValueOrdering.max(o1, o2)
-       }
-     }
+  implicit val TimestampedJsonMonoid: Monoid[TimestampedJsValue] = new Monoid[TimestampedJsValue] {
+    def combine(f1: TimestampedJsValue, f2: TimestampedJsValue): TimestampedJsValue = {
+      (f1, f2) match {
+        case (o1: TimestampedJsObject, o2: TimestampedJsObject) =>
+          val sg = implicitly[Semigroup[Map[String, TimestampedJsValue]]]
+          TimestampedJsObject(sg.combine(o1.v, o2.v), dateTimeOrdering.max(o1.timestamp, o2.timestamp))
+        case (o1: TimestampedJsList, o2: TimestampedJsList) =>
+          val sg = implicitly[Semigroup[Map[Int, TimestampedJsValue]]]
+          TimestampedJsList(sg.combine(o1.v, o2.v), dateTimeOrdering.max(o1.timestamp, o2.timestamp))
+        case (o1, o2) => timestampedJsValueOrdering.max(o1, o2)
+      }
+    }
 
-     override def zero: TimestampedJsValue = TimestampedJsObject(Map.empty, OffsetDateTime.now)
-   }
+    override def empty: TimestampedJsValue = TimestampedJsObject(Map.empty, OffsetDateTime.now)
+  }
 }
 
 /** Customized version of Json data structure, to account for timestamped values and lazy array creation */
-private sealed trait TimestampedJsValue {
+sealed trait TimestampedJsValue {
   def toJson: JsValue
   def timestamp: OffsetDateTime
 }

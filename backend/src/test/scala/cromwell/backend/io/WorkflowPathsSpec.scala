@@ -13,6 +13,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec with Moc
   val backendConfig = mock[Config]
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
+    when(backendConfig.hasPath(any[String])).thenReturn(true)
     when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
     val workflowPaths = new WorkflowPaths(wd, backendConfig)

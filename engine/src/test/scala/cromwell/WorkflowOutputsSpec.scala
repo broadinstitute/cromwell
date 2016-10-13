@@ -4,7 +4,6 @@ import akka.testkit._
 import cromwell.util.SampleWdl
 import cromwell.CromwellTestkitSpec.AnyValueIsFine
 
-import scala.language.postfixOps
 
 class WorkflowOutputsSpec extends CromwellTestkitSpec {
   "Workflow outputs" should {

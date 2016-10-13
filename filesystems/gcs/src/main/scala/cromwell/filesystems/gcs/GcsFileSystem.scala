@@ -6,7 +6,6 @@ import java.nio.file.attribute.UserPrincipalLookupService
 import java.nio.file.spi.FileSystemProvider
 import java.util.{Collections, Set => JSet}
 
-import scala.language.postfixOps
 
 case class NotAGcsPathException(path: String) extends IllegalArgumentException(s"$path is not a valid GCS path.")
 

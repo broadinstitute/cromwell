@@ -10,8 +10,10 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestkitSpec._
 import cromwell.core.WorkflowSourceFiles
+import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
@@ -21,7 +23,6 @@ import spray.json._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.language.postfixOps
 import scala.util._
 
 /**
@@ -55,6 +56,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
 
 
   def workflowManagerActor(): ActorRef = {
@@ -63,7 +65,9 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
       dummyServiceRegistryActor,
       dummyLogCopyRouter,
       jobStore,
-      callCacheReadActor)), "WorkflowManagerActor")
+      callCacheReadActor,
+      jobTokenDispenserActor,
+      BackendSingletonCollection(Map.empty))), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
@@ -76,6 +80,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
     val actorRef = createRunnerActor(sampleWdl, managerActor, outputFile)
     val futureResult = actorRef ? RunWorkflow
     Await.ready(futureResult, Duration.Inf)
+    ()
   }
 }
 
@@ -100,7 +105,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     super.afterAll()
   }
 
-  private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Int, Int], workflowInputs: Int, workflowOutputs: Int) = {
+  private def doTheTest(wdlFile: SampleWdl, expectedCalls: TableFor3[String, Long, Long], workflowInputs: Long, workflowOutputs: Long) = {
     val testStart = OffsetDateTime.now
     within(TimeoutDuration) {
       singleWorkflowActor(
@@ -150,18 +155,18 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     "successfully run a workflow outputting metadata" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
-        ("three_step.wc", 1, 1),
-        ("three_step.ps", 0, 1),
-        ("three_step.cgrep", 2, 1))
+        ("three_step.wc", 1L, 1L),
+        ("three_step.ps", 0L, 1L),
+        ("three_step.cgrep", 2L, 1L))
 
-      doTheTest(ThreeStep, expectedCalls, 1, 3)
+      doTheTest(ThreeStep, expectedCalls, 1L, 3L)
     }
     "run a workflow outputting metadata with no remaining input expressions" in {
       val expectedCalls = Table(
         ("callName", "numInputs", "numOutputs"),
-        ("wf.echo", 1, 1),
-        ("wf.echo2", 1, 1))
-      doTheTest(ExpressionsInInputs, expectedCalls, 2, 2)
+        ("wf.echo", 1L, 1L),
+        ("wf.echo2", 1L, 1L))
+      doTheTest(ExpressionsInInputs, expectedCalls, 2L, 2L)
     }
   }
 }

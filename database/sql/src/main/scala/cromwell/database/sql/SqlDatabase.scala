@@ -30,7 +30,7 @@ object SqlDatabase {
     */
   def withUniqueSchema(config: Config, urlKey: String): Config = {
     val urlValue = config.getString(urlKey)
-    if (urlValue.contains("${uniqueSchema}")) {
+    if (urlValue.contains(s"$${uniqueSchema}")) {
       // Config wasn't updating with a simple withValue/withFallback.
       // So instead, do a bit of extra work to insert the generated schema name in the url.
       val schema = UUID.randomUUID().toString

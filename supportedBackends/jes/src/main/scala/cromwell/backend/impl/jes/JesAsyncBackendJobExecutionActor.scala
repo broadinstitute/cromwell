@@ -588,7 +588,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           FailedNonRetryableExecutionHandle(new RuntimeException(
             s"execution failed: could not parse return code as integer: ${returnCodeContents.get}")).future
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
-          val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCode.getOrElse("(none)")}"
+          val badReturnCodeMessage = s"Call ${jobDescriptor.key}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
         case success: RunStatus.Success =>
           handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths.mapValues(_.toString), handle, success.eventList).future

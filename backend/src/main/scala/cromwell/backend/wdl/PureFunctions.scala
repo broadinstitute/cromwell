@@ -1,7 +1,7 @@
 package cromwell.backend.wdl
 
 import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType, WdlType}
 import wdl4s.values.{WdlArray, WdlFile, WdlFloat, WdlInteger, WdlString, WdlValue}
 
 import scala.util.{Failure, Success, Try}
@@ -20,10 +20,39 @@ case object OnlyPureFunctions extends WdlStandardLibraryFunctions with PureFunct
 
 trait PureFunctions { this: WdlStandardLibraryFunctions =>
 
+  def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    def extractExactlyOneArg: Try[WdlValue] = params.size match {
+      case 1 => params.head
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function transpose: $n. Ensure transpose(x: Array[Array[X]]) takes exactly 1 parameters."))
+    }
+
+    case class ExpandedTwoDimensionalArray(innerType: WdlType, value: Seq[Seq[WdlValue]])
+    def validateAndExpand(value: WdlValue): Try[ExpandedTwoDimensionalArray] = value match {
+      case WdlArray(WdlArrayType(WdlArrayType(innerType)), array: Seq[WdlValue]) => expandWdlArray(array) map { ExpandedTwoDimensionalArray(innerType, _) }
+      case array @ WdlArray(WdlArrayType(nonArrayType), _) => Failure(new IllegalArgumentException(s"Array must be two-dimensional to be transposed but given array of $nonArrayType"))
+      case otherValue => Failure(new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got ${otherValue.typeName}"))
+    }
+
+    def expandWdlArray(outerArray: Seq[WdlValue]): Try[Seq[Seq[WdlValue]]] = Try {
+      outerArray map {
+        case array: WdlArray => array.value
+        case otherValue => throw new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got WdlArray[${otherValue.typeName}]")
+      }
+    }
+
+    def transpose(expandedTwoDimensionalArray: ExpandedTwoDimensionalArray): Try[WdlArray] = Try {
+      val innerType = expandedTwoDimensionalArray.innerType
+      val array = expandedTwoDimensionalArray.value
+      WdlArray(WdlArrayType(WdlArrayType(innerType)), array.transpose map { WdlArray(WdlArrayType(innerType), _) })
+    }
+
+    extractExactlyOneArg.flatMap(validateAndExpand).flatMap(transpose)
+  }
+
   def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     def extractAndValidateArguments = params.size match {
       case 1 => validateArguments(params.head)
-      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function seq: $n. Ensure seq(x: WdlInteger) takes exactly 1 parameters."))
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function range: $n. Ensure range(x: WdlInteger) takes exactly 1 parameters."))
     }
 
     def validateArguments(value: Try[WdlValue]) = value match {

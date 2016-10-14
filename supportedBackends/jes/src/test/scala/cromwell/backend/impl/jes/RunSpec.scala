@@ -3,13 +3,11 @@ package cromwell.backend.impl.jes
 import java.time.OffsetDateTime
 import java.util
 
-import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential
 import com.google.api.client.util.ArrayMap
-import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
+import cromwell.core.ExecutionEvent
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.{Mockito => MockitoTrait}
-import cromwell.core.ExecutionEvent
 
 import scala.collection.JavaConverters._
 
@@ -36,8 +34,6 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
 
     op.setMetadata(metadata.asJava)
 
-    val mockedCredentials = new MockGoogleCredential.Builder().build()
-    val genomics = new Genomics(mockedCredentials.getTransport, mockedCredentials.getJsonFactory, mockedCredentials)
     val list = Run.getEventList(op)
     list should contain theSameElementsAs List(
       ExecutionEvent("waiting for quota", OffsetDateTime.parse("2015-12-05T00:00:00+00:00")),

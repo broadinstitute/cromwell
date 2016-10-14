@@ -55,12 +55,15 @@ class HtCondorCommands extends StrictLogging {
     */
   def writeScript(instantiatedCommand: String, filePath: Path, containerRoot: Path): Unit = {
     logger.debug(s"Writing bash script for execution. Command: $instantiatedCommand.")
-    File(filePath).write(
-      s"""#!/bin/sh
-          |cd $containerRoot
-          |$instantiatedCommand
-          |echo $$? > rc
-          |""".stripMargin)
+    val scriptBody = s"""
+
+#!/bin/sh
+cd $containerRoot
+$instantiatedCommand
+echo $$? > rc
+
+""".trim + "\n"
+    File(filePath).write(scriptBody)
     ()
   }
 

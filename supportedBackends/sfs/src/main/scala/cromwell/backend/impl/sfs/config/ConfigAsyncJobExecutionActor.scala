@@ -53,10 +53,14 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
     val command = task.instantiateCommand(inputs, NoFunctions).get
     jobLogger.info(s"executing: $command")
-    script.write(
-      s"""|#!/bin/bash
-          |$command
-          |""".stripMargin)
+    val scriptBody =
+      s"""
+
+#!/bin/bash
+$command
+
+""".trim + "\n"
+    script.write(scriptBody)
     ()
   }
 

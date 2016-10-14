@@ -48,7 +48,8 @@ object Settings {
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
     "-Ywarn-unused",
-    "-Ywarn-unused-import"
+    "-Ywarn-unused-import",
+    "-Xfatal-warnings"
   )
 
   lazy val assemblySettings = Seq(

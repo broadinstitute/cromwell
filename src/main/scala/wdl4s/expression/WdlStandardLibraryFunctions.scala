@@ -18,6 +18,8 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile]
   def size(params: Seq[Try[WdlValue]]): Try[WdlFloat]
   def sub(params: Seq[Try[WdlValue]]): Try[WdlString]
+  def range(params: Seq[Try[WdlValue]]): Try[WdlArray]
+  def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray]
 
   def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
   def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter(params).map(s => WdlString(s.trim))
@@ -68,7 +70,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
       globVal = singleArgument.valueString
       files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }
-    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles toSeq)
+    } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles)
   }
 
   /**
@@ -124,6 +126,11 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
   def size(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFloatType)
   def sub(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
+  def range(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlIntegerType))
+  def transpose(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(t @ WdlArrayType(WdlArrayType(wdlType))) :: Nil => Success(t)
+    case _ => Failure(new Exception(s"Unexpected transpose target: $params"))
+  }
 }
 
 case object NoFunctions extends WdlStandardLibraryFunctions {
@@ -137,4 +144,6 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError())
   override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
+  override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+  override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
 }

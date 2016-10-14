@@ -313,7 +313,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   def processReturnCode()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     val returnCodeTry = Try(File(jobPaths.returnCode).contentAsString.stripLineEnd.toInt)
 
-    lazy val badReturnCodeMessage = s"Call ${call.fullyQualifiedName}: return code was ${returnCodeTry.getOrElse("(none)")}"
+    lazy val badReturnCodeMessage = s"Call ${jobDescriptor.key}: return code was ${returnCodeTry.getOrElse("(none)")}"
 
     lazy val badReturnCodeResponse = Future.successful(
       FailedNonRetryableExecutionHandle(new Exception(badReturnCodeMessage), returnCodeTry.toOption))

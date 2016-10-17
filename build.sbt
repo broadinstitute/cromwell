@@ -49,6 +49,12 @@ lazy val awsBackend = (project in backendRoot / "aws")
   .dependsOn(backend)
   .dependsOn(backend % "test->test")
 
+lazy val tesBackend = (project in backendRoot / "tes")
+  .settings(tesBackendSettings:_*)
+  .withTestSettings
+  .dependsOn(backend)
+  .dependsOn(backend % "test->test")
+
 lazy val htCondorBackend = (project in backendRoot / "htcondor")
   .settings(htCondorBackendSettings:_*)
   .withTestSettings
@@ -99,11 +105,13 @@ lazy val root = (project in file("."))
   .aggregate(sparkBackend)
   .aggregate(jesBackend)
   .aggregate(awsBackend)
+  .aggregate(tesBackend)
   .aggregate(engine)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
   .dependsOn(awsBackend)
+  .dependsOn(tesBackend)
   .dependsOn(htCondorBackend)
   .dependsOn(sparkBackend)
   // Dependencies for tests

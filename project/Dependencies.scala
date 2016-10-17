@@ -117,6 +117,10 @@ object Dependencies {
     "com.amazonaws" % "aws-java-sdk" % "1.11.41"
   )
 
+  val tesBackendDependencies = List(
+    "org.scalaj" %% "scalaj-http" % "2.3.0"
+  )
+
   val sparkBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV
   ) ++ sprayServerDependencies

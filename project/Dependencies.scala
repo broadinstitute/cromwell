@@ -118,8 +118,8 @@ object Dependencies {
   )
 
   val tesBackendDependencies = List(
-    "org.scalaj" %% "scalaj-http" % "2.3.0"
-  )
+    "io.spray" %% "spray-client" % sprayV
+  ) ++ sprayServerDependencies
 
   val sparkBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV

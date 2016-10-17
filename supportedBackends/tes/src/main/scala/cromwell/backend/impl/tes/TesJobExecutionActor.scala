@@ -27,13 +27,12 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     * Submit a job.
     */
   override def execute: Future[BackendJobExecutionResponse] = {
-    val response = Try(Await.result(Pipeline[TesGetResponse].apply(Post(tesEndpoint, tesTaskDesc)), 5.seconds))
+    val response = Try(Await.result(Pipeline[TesPostResponse].apply(Post(tesEndpoint, tesTaskDesc)), 5.seconds))
 
     response match {
-      case Success =>
+      case Success(r) =>
         log.info("{} {} submitted to TES. Waiting for the job to complete.", tag, jobDescriptor.call.fullyQualifiedName)
-        val jobId: String = response.value.get // FIXME: remove the .get
-        log.debug(s"{} Output of submit process : {}", tag, response.body)
+        val jobId: String = r.value.get // FIXME: remove the .get
         if (jobId.nonEmpty) {
           log.info("{} {} mapped to Tes JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, jobId)
           waitUntilDone(jobId)
@@ -43,9 +42,9 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
             new IllegalStateException("Failed to retrieve jobId"), Option(1)))
         }
 
-      case Failure =>
+      case Failure(e) =>
         Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
-          new IllegalStateException(s"Execution process failed. Tes returned an error."), Option(1)))
+          new IllegalStateException(s"Execution process failed. Tes returned an error: ${e.getMessage}"), Option(1)))
     }
   }
 
@@ -53,8 +52,8 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     val response = Try(Await.result(Pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/$jobId")), 5.seconds))
     
     response match {
-      case Success =>
-        val statusString = response.state
+      case Success(r) =>
+        val statusString = r.state
         if (statusString.contains("Complete")) {
           log.info(s"Job {} is Complete", jobId)
         } else {
@@ -63,8 +62,8 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
           waitUntilDone(jobId)
         }
 
-      case Failure =>
-        val msg = "Could not retreive status from the queue."
+      case Failure(e) =>
+        val msg = s"Could not retreive status from the queue: ${e.getMessage}"
         throw new IllegalStateException(msg)
     }
   }

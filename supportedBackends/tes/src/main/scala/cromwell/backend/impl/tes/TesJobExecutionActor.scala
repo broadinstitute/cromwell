@@ -48,7 +48,7 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   }
 
   private def waitUntilDone(jobId: String): Unit = {
-    val response: HttpResponse[String] = Http(tesEndpoint.concat(jobId)).method("GET").asString
+    val response: HttpResponse[String] = Http(s"$tesEndpoint/$jobId").method("GET").asString
 
     response match {
       case r if r.isSuccess =>

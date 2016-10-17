@@ -5,9 +5,9 @@ import spray.json._
 case class TesPostResponse(value: String)
 
 case class TesGetResponse(jobId: String, 
-                          task: Map[String, String],
+                          task: Map[String, JsValue],
                           state: String, 
-                          logs: Map[String, String])
+                          logs: Map[String, JsValue])
 
 object TesResponseJsonFormatter extends DefaultJsonProtocol {
   implicit val tesPostResponseFormat = jsonFormat1(TesPostResponse)

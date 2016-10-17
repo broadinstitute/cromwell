@@ -92,7 +92,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   override val pollingActor = jesBackendSingletonActor
 
   override lazy val pollBackOff = SimpleExponentialBackoff(
-    initialInterval = 30 seconds, maxInterval = 10 minutes, multiplier = 1.1)
+    initialInterval = 30 seconds, maxInterval = jesAttributes.maxPollingInterval seconds, multiplier = 1.1)
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)

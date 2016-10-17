@@ -4,9 +4,11 @@ import akka.actor.Props
 
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, FailedNonRetryableResponse}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.backend.impl.tes.util._
 import net.ceedubs.ficus.Ficus._
 import scalaj.http._
-
+import spray.json._
+import TesResponseJsonFormatter._
 import scala.concurrent.{Future}
 
 class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
@@ -21,14 +23,15 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   /**
     * Submit a job.
     */
-  override def execute(): Future[BackendJobExecutionResponse] = {
+  override def execute: Future[BackendJobExecutionResponse] = {
     val response: HttpResponse[String] = Http(tesEndpoint).postData(tesTaskDesc).method("POST").asString
     val responseCode = response.code
     log.debug("{} Return code of POST request to TES: {}", tag, responseCode)
     response match {
       case r if r.isSuccess =>
         log.info("{} {} submitted to TES. Waiting for the job to complete.", tag, jobDescriptor.call.fullyQualifiedName)
-        val jobId = Json.parse[Map[String,String]](response.body).getOrElse("jobId", None)
+        val jobId: String = response.body.parseJson.convertTo[TesPostResponse].value
+        //val jobId = Json.parse[Map[String,String]](response.body).getOrElse("jobId", None)
         log.debug(s"{} Output of submit process : {}", tag, response.body)
         if (jobId.nonEmpty) {
           log.info("{} {} mapped to Tes JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, jobId)
@@ -49,8 +52,9 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
     response match {
       case r if r.isSuccess =>
-        val responseMap = Json.parse[Map[String,String]](response.body)
-        val statusString = responseMap("state")
+        val responseMap = response.body.parseJson.convertTo[TesGetResponse]
+        //val responseMap = Json.parse[Map[String,String]](response.body)
+        val statusString = responseMap.state
         if (statusString == "Complete") {
           log.info(s"Job {} is Complete", jobId)
         } else {

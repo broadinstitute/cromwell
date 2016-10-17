@@ -1,5 +1,9 @@
 # Cromwell Change Log
 
+## 23
+
+* Included the WDL matrix `transpose` function for `Array[Array[X]]` types.
+
 ## 0.22
 
 * Improved retries for Call Caching and general bug fixes.

@@ -244,14 +244,19 @@ trait SharedFileSystemAsyncJobExecutionActor
     val rcPath = if (isDockerRun) jobPaths.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
     val rcTmpPath = s"$rcPath.tmp"
 
-    File(jobPaths.script).write(
-      s"""#!/bin/sh
-          |(
-          | cd $cwd
-          | $instantiatedCommand
-          |)
-          |echo $$? > $rcTmpPath
-          |mv $rcTmpPath $rcPath""".stripMargin)
+    val scriptBody = s"""
+
+#!/bin/sh
+(
+ cd $cwd
+ $instantiatedCommand
+)
+echo $$? > $rcTmpPath
+mv $rcTmpPath $rcPath
+
+""".trim + "\n"
+
+    File(jobPaths.script).write(scriptBody)
   }
 
   /**

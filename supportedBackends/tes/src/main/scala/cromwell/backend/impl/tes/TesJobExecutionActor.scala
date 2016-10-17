@@ -4,12 +4,15 @@ import akka.actor.Props
 
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, FailedNonRetryableResponse}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import cromwell.backend.impl.tes.util._
 import net.ceedubs.ficus.Ficus._
-import scalaj.http._
 import spray.json._
+import cromwell.backend.impl.tes.util._
 import TesResponseJsonFormatter._
-import scala.concurrent.{Future}
+import TesClient._
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
+import scala.util.{Success, Failure, Try}
 
 class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                            override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
@@ -24,13 +27,12 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     * Submit a job.
     */
   override def execute: Future[BackendJobExecutionResponse] = {
-    val response: HttpResponse[String] = Http(tesEndpoint).postData(tesTaskDesc).method("POST").asString
-    val responseCode = response.code
-    log.debug("{} Return code of POST request to TES: {}", tag, responseCode)
+    val response = Try(Await.result(Pipeline[TesGetResponse].apply(Post(tesEndpoint, tesTaskDesc)), 5.seconds))
+
     response match {
-      case r if r.isSuccess =>
+      case Success =>
         log.info("{} {} submitted to TES. Waiting for the job to complete.", tag, jobDescriptor.call.fullyQualifiedName)
-        val jobId: String = r.body.parseJson.convertTo[TesPostResponse].value.get // FIXME: remove the .get
+        val jobId: String = response.value.get // FIXME: remove the .get
         log.debug(s"{} Output of submit process : {}", tag, response.body)
         if (jobId.nonEmpty) {
           log.info("{} {} mapped to Tes JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, jobId)
@@ -40,20 +42,19 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
           Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
             new IllegalStateException("Failed to retrieve jobId"), Option(1)))
         }
-      case r if r.isError =>
+
+      case Failure =>
         Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
-          new IllegalStateException(s"Execution process failed. Tes returned an error: $responseCode"), Option(1)))
+          new IllegalStateException(s"Execution process failed. Tes returned an error."), Option(1)))
     }
   }
 
   private def waitUntilDone(jobId: String): Unit = {
-    val response: HttpResponse[String] = Http(s"$tesEndpoint/$jobId").method("GET").asString
-
+    val response = Try(Await.result(Pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/$jobId")), 5.seconds))
+    
     response match {
-      case r if r.isSuccess =>
-        val responseMap = response.body.parseJson.convertTo[TesGetResponse]
-        //val responseMap = Json.parse[Map[String,String]](response.body)
-        val statusString = responseMap.state
+      case Success =>
+        val statusString = response.state
         if (statusString.contains("Complete")) {
           log.info(s"Job {} is Complete", jobId)
         } else {
@@ -62,8 +63,8 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
           waitUntilDone(jobId)
         }
 
-      case r if r.isError =>
-        val msg = "Could not retreive status from the queue: " + response.body.toString
+      case Failure =>
+        val msg = "Could not retreive status from the queue."
         throw new IllegalStateException(msg)
     }
   }

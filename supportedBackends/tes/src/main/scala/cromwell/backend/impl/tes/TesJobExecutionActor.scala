@@ -30,8 +30,7 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     response match {
       case r if r.isSuccess =>
         log.info("{} {} submitted to TES. Waiting for the job to complete.", tag, jobDescriptor.call.fullyQualifiedName)
-        val jobId: String = response.body.parseJson.convertTo[TesPostResponse].value
-        //val jobId = Json.parse[Map[String,String]](response.body).getOrElse("jobId", None)
+        val jobId: String = r.body.parseJson.convertTo[TesPostResponse].value.get // FIXME: remove the .get
         log.debug(s"{} Output of submit process : {}", tag, response.body)
         if (jobId.nonEmpty) {
           log.info("{} {} mapped to Tes JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, jobId)
@@ -55,7 +54,7 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         val responseMap = response.body.parseJson.convertTo[TesGetResponse]
         //val responseMap = Json.parse[Map[String,String]](response.body)
         val statusString = responseMap.state
-        if (statusString == "Complete") {
+        if (statusString.contains("Complete")) {
           log.info(s"Job {} is Complete", jobId)
         } else {
           log.info(s"Still waiting for completion. Last known status: {}", statusString)

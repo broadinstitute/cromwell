@@ -28,7 +28,15 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-api" % "1.7.21",
   "com.iheart" %% "ficus" % "1.3.0",
   //---------- Provided libraries -------------------//
-  "org.typelevel" %% "cats" % "0.7.2" % Provided,
+  /*
+  Exclude test framework cats-laws and its transitive dependency scalacheck.
+  If sbt detects scalacheck, it tries to run it.
+  Explicitly excluding the two problematic artifacts instead of including the three (or four?).
+  https://github.com/typelevel/cats/tree/v0.7.2#getting-started
+   */
+  "org.typelevel" %% "cats" % "0.7.2" % Provided
+    exclude("org.typelevel", "cats-laws_2.11")
+    exclude("org.typelevel", "cats-kernel-laws_2.11"),
   "ch.qos.logback" % "logback-classic" % "1.1.7" % Provided,
   "org.webjars" % "swagger-ui" % "2.2.2" % Provided,
   "io.spray" %% "spray-routing" % sprayV % Provided,

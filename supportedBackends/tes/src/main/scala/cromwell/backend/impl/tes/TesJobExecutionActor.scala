@@ -13,9 +13,9 @@ import scala.util.{Success, Failure, Try}
 
 class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                            override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
-
+  import TesJobExecutionActor._
+  
   val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
-  val tesTaskDesc = configurationDescriptor.backendConfig.as[String]("taskDesc")
   val pollInterval = configurationDescriptor.backendConfig.as[Long]("poll-interval")
 
   private val tag = s"TesJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
@@ -24,7 +24,7 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
     * Submit a job.
     */
   override def execute: Future[BackendJobExecutionResponse] = {
-    val response = Try(Await.result(Pipeline[TesPostResponse].apply(Post(tesEndpoint, tesTaskDesc)), 5.seconds))
+    val response = Try(Await.result(Pipeline[TesPostResponse].apply(Post(tesEndpoint, TaskDesc)), 5.seconds))
 
     response match {
       case Success(r) =>
@@ -70,7 +70,7 @@ object TesJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor,
             configurationDescriptor: BackendConfigurationDescriptor): Props = Props(new TesJobExecutionActor(jobDescriptor, configurationDescriptor))
 
-  val foo = TesTask(
+  val TaskDesc = TesTask(
     Some("TestMD5"),
     Some("MyProject"),
     Some("My Desc"),

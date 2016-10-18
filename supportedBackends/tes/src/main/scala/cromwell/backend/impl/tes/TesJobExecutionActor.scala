@@ -1,86 +1,38 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.Props
-
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, FailedNonRetryableResponse}
+import akka.actor.{ActorRef, Props}
+import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import net.ceedubs.ficus.Ficus._
-import cromwell.backend.impl.tes.util._
-import TesHttpClient._
-import TesResponseJsonFormatter._
-import scala.concurrent.duration._
-import spray.client.pipelining._
-import spray.httpx.SprayJsonSupport._
-import scala.concurrent.{Await, Future}
-import scala.util.{Success, Failure, Try}
+import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
+import scala.concurrent.{Future, Promise}
 
-class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                           override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
-  import TesJobExecutionActor._
+final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
+                           override val configurationDescriptor: BackendConfigurationDescriptor)
+  extends BackendJobExecutionActor {
 
-  val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
-  val pollInterval = configurationDescriptor.backendConfig.as[Long]("poll-interval")
+  private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
+  private var executor: Option[ActorRef] = None
 
-  private val tag = s"TesJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
- 
-  /**
-    * Submit a job.
-    */
   override def execute: Future[BackendJobExecutionResponse] = {
-    val response = Try(Await.result(Pipeline[TesPostResponse].apply(Post(tesEndpoint, TaskDesc)), 5.seconds))
-
-    response match {
-      case Success(r) =>
-        log.info("{} {} submitted to TES. Waiting for the job to complete.", tag, jobDescriptor.call.fullyQualifiedName)
-        val jobId: String = r.value.get // FIXME: remove the .get
-        if (jobId.nonEmpty) {
-          log.info("{} {} mapped to Tes JobID: {}", tag, jobDescriptor.call.fullyQualifiedName, jobId)
-          waitUntilDone(jobId)
-          Future.successful(SucceededResponse(jobDescriptor.key, Option(0), Map.empty, None, Seq.empty))
-        } else {
-          Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
-            new IllegalStateException("Failed to retrieve jobId"), Option(1)))
-        }
-
-      case Failure(e) =>
-        Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
-          new IllegalStateException(s"Execution process failed. Tes returned an error: ${e.getMessage}"), Option(1)))
-    }
+    for {
+      _ <- launchExecutor
+      _ = executor foreach { _ ! Execute }
+      c <- completionPromise.future
+    } yield c
   }
 
-  private def waitUntilDone(jobId: String): Unit = {
-    val response = Try(Await.result(Pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/$jobId")), 5.seconds))
-    
-    response match {
-      case Success(r) =>
-        val statusString = r.state
-        if (statusString.contains("Complete")) {
-          log.info(s"Job {} is Complete", jobId)
-        } else {
-          log.info(s"Still waiting for completion. Last known status: {}", statusString)
-          Thread.sleep(pollInterval)
-          waitUntilDone(jobId)
-        }
-
-      case Failure(e) =>
-        val msg = s"Could not retreive status from the queue: ${e.getMessage}"
-        throw new IllegalStateException(msg)
+  private def launchExecutor: Future[Unit] = {
+    Future {
+      val executionProps = TesAsyncBackendJobExecutionActor.props(jobDescriptor, completionPromise, configurationDescriptor)
+      val executorRef = context.actorOf(executionProps, "TesAsyncBackendJobExecutionActor") // FIXME: this name isn't unique?
+      executor = Option(executorRef)
+      ()
     }
   }
 }
 
 object TesJobExecutionActor {
-  def props(jobDescriptor: BackendJobDescriptor,
-            configurationDescriptor: BackendConfigurationDescriptor): Props = Props(new TesJobExecutionActor(jobDescriptor, configurationDescriptor))
-
-  val TaskDesc = TesTask(
-    Some("TestMD5"),
-    Some("MyProject"),
-    Some("My Desc"),
-    None,
-    Some(Seq(TaskParameter(None, None, None, Some("/tmp/test_out"), None, None))),
-    Some(Resources(None, None, None, Some(Seq(Volume(Some("test_file"), Some(1), None, Some("/tmp")))), None)),
-    None,
-    Some(Seq(DockerExecutor(Some("ubuntu"), Some(Seq("echo", "foo")), None, Some("/tmp/test_out"), None)))
-  )
+  def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props = {
+    Props(new TesJobExecutionActor(jobDescriptor, configurationDescriptor))
+  }
 }

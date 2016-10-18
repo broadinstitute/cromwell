@@ -1,13 +1,14 @@
 package cromwell.backend.impl.tes.util
 
 import akka.actor.ActorSystem
-import spray.http._
-import spray.httpx.unmarshalling._
 import spray.client.pipelining._
-import scala.concurrent.{Future}
-import scala.concurrent.ExecutionContext.Implicits.global
+import spray.http.HttpRequest
+import spray.httpx.unmarshalling._
 
-object TesClient {
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
+object TesHttpClient {
 
   implicit val system = ActorSystem("tes-http-client")
 

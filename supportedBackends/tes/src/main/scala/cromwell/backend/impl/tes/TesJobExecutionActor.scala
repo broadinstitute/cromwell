@@ -6,15 +6,18 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, S
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import net.ceedubs.ficus.Ficus._
 import cromwell.backend.impl.tes.util._
-import TesClient._
+import TesHttpClient._
+import TesResponseJsonFormatter._
 import scala.concurrent.duration._
+import spray.client.pipelining._
+import spray.httpx.SprayJsonSupport._
 import scala.concurrent.{Await, Future}
 import scala.util.{Success, Failure, Try}
 
 class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                            override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   import TesJobExecutionActor._
-  
+
   val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
   val pollInterval = configurationDescriptor.backendConfig.as[Long]("poll-interval")
 

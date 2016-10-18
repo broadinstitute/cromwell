@@ -34,7 +34,3 @@ sealed trait ReadWriteMode {
 case object ReadCache extends ReadWriteMode { override val w = false }
 case object WriteCache extends ReadWriteMode { override val r = false }
 case object ReadAndWriteCache extends ReadWriteMode
-
-sealed trait DockerHashingType
-case object HashDockerName extends DockerHashingType
-case object HashDockerNameAndLookupDockerHash extends DockerHashingType

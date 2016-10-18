@@ -69,4 +69,15 @@ class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 object TesJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor,
             configurationDescriptor: BackendConfigurationDescriptor): Props = Props(new TesJobExecutionActor(jobDescriptor, configurationDescriptor))
+
+  val foo = TesTask(
+    Some("TestMD5"),
+    Some("MyProject"),
+    Some("My Desc"),
+    None,
+    Some(Seq(TaskParameter(None, None, None, Some("/tmp/test_out"), None, None))),
+    Some(Resources(None, None, None, Some(Seq(Volume(Some("test_file"), Some(1), None, Some("/tmp")))), None)),
+    None,
+    Some(Seq(DockerExecutor(Some("ubuntu"), Some(Seq("echo", "foo")), None, Some("/tmp/test_out"), None)))
+  )
 }

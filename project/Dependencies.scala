@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.19"
-  lazy val wdl4sV = "0.7-a990675-SNAPSHOT"
+  lazy val wdl4sV = "0.7-90945ea-SNAPSHOT"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -22,11 +22,20 @@ object Dependencies {
 
   private val baseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "org.typelevel" %% "cats" % catsV,
+    /*
+    Exclude test framework cats-laws and its transitive dependency scalacheck.
+    If sbt detects scalacheck, it tries to run it.
+    Explicitly excluding the two problematic artifacts instead of including the three (or four?).
+    https://github.com/typelevel/cats/tree/v0.7.2#getting-started
+     */
+    "org.typelevel" %% "cats" % "0.7.2"
+      exclude("org.typelevel", "cats-laws_2.11")
+      exclude("org.typelevel", "cats-kernel-laws_2.11"),
     "com.github.benhutchison" %% "mouse" % "0.5",
     "com.iheart" %% "ficus" % "1.3.0",
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
-    "org.specs2" %% "specs2" % "3.7" % Test
+    "org.pegdown" % "pegdown" % "1.6.0" % Test,
+    "org.specs2" %% "specs2-mock" % "3.8.5" % Test
   )
 
   private val slf4jBindingDependencies = List(
@@ -90,11 +99,6 @@ object Dependencies {
 
   val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
 
-  val databaseMigrationDependencies = List(
-    "org.broadinstitute" %% "wdl4s" % wdl4sV, // Used in migration scripts
-    "com.github.pathikrit" %% "better-files" % betterFilesV % Test
-  ) ++ baseDependencies ++ liquibaseDependencies ++ dbmsDependencies
-
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
     "org.broadinstitute" %% "wdl4s" % wdl4sV,
@@ -107,6 +111,10 @@ object Dependencies {
   ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
+
+  val databaseMigrationDependencies = List(
+    "com.github.pathikrit" %% "better-files" % betterFilesV % Test
+  ) ++ liquibaseDependencies ++ dbmsDependencies
 
   val htCondorBackendDependencies = List(
     "com.twitter" %% "chill" % "0.8.0",
@@ -122,11 +130,9 @@ object Dependencies {
   ) ++ sprayServerDependencies
 
   val engineDependencies = List(
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
     "org.webjars" % "swagger-ui" % "2.1.1",
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
-    "org.typelevel" %% "cats" % catsV,
     "com.github.pathikrit" %% "better-files" % betterFilesV,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test

@@ -10,23 +10,25 @@ object Testing {
   lazy val DbmsTest = config("dbms") extend Test
 
   lazy val DockerTestTag = "DockerTest"
-  lazy val UseDockerTaggedTests = Tests.Argument("-n", DockerTestTag)
-  lazy val DontUseDockerTaggedTests = Tests.Argument("-l", DockerTestTag)
+  lazy val UseDockerTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", DockerTestTag)
+  lazy val DontUseDockerTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", DockerTestTag)
 
   lazy val CromwellIntegrationTestTag = "CromwellIntegrationTest"
-  lazy val UseCromwellIntegrationTaggedTests = Tests.Argument("-n", CromwellIntegrationTestTag)
-  lazy val DontUseCromwellIntegrationTaggedTests = Tests.Argument("-l", CromwellIntegrationTestTag)
+  lazy val UseCromwellIntegrationTaggedTests =
+    Tests.Argument(TestFrameworks.ScalaTest, "-n", CromwellIntegrationTestTag)
+  lazy val DontUseCromwellIntegrationTaggedTests =
+    Tests.Argument(TestFrameworks.ScalaTest, "-l", CromwellIntegrationTestTag)
 
   lazy val GcsIntegrationTestTag = "GcsIntegrationTest"
-  lazy val UseGcsIntegrationTaggedTests = Tests.Argument("-n", GcsIntegrationTestTag)
-  lazy val DontUseGcsIntegrationTaggedTests = Tests.Argument("-l", GcsIntegrationTestTag)
+  lazy val UseGcsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", GcsIntegrationTestTag)
+  lazy val DontUseGcsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", GcsIntegrationTestTag)
 
   lazy val DbmsTestTag = "DbmsTest"
-  lazy val UseDbmsTaggedTests = Tests.Argument("-n", DbmsTestTag)
-  lazy val DontUseDbmsTaggedTests = Tests.Argument("-l", DbmsTestTag)
+  lazy val UseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", DbmsTestTag)
+  lazy val DontUseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", DbmsTestTag)
 
   lazy val PostMVPTag = "PostMVP"
-  lazy val DontUsePostMVPTaggedTests = Tests.Argument("-l", PostMVPTag)
+  lazy val DontUsePostMVPTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", PostMVPTag)
 
   lazy val TestReportArgs = Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
 

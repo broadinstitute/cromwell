@@ -6,8 +6,8 @@ import Version._
 import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
-import sbtrelease.ReleasePlugin
 import sbtdocker.DockerPlugin.autoImport._
+import sbtrelease.ReleasePlugin
 
 object Settings {
 
@@ -59,14 +59,14 @@ object Settings {
     logLevel in assembly := Level.Info,
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
-  
+
   lazy val dockerSettings = Seq(
     imageNames in docker := Seq(
-        ImageName(
-          namespace = Option("broadinstitute"),
-          repository = name.value,
-          tag = Some(s"${version.value}")
-        )
+      ImageName(
+        namespace = Option("broadinstitute"),
+        repository = name.value,
+        tag = Some(s"${version.value}")
+      )
     ),
     dockerfile in docker := {
       // The assembly task generates a fat JAR file
@@ -78,7 +78,7 @@ object Settings {
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/cromwell.jar")
-        
+
         // If you use the 'exec' form for an entry point, shell processing is not performed and 
         // environment variable substitution does not occur.  Thus we have to /bin/bash here
         // and pass along any subsequent command line arguments
@@ -90,8 +90,7 @@ object Settings {
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
-    )
-  
+  )
 
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(

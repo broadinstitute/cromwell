@@ -9,6 +9,7 @@ import cromwell.backend.impl.tes.util._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
+import cromwell.core.WorkflowId
 import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.http.HttpRequest
@@ -19,7 +20,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 
-final case class TesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
+final case class TesAsyncBackendJobExecutionActor(override val workflowId: WorkflowId,
+                                                  override val jobDescriptor: BackendJobDescriptor,
                                                   override val completionPromise: Promise[BackendJobExecutionResponse],
                                                   configurationDescriptor: BackendConfigurationDescriptor)
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
@@ -29,7 +31,6 @@ final case class TesAsyncBackendJobExecutionActor(override val jobDescriptor: Ba
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
   override lazy val jobTag = jobDescriptor.key.tag
-  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
   override lazy val pollBackOff = SimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 10 seconds, multiplier = 1.1)
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 20 seconds, multiplier = 1.1)
   override lazy val retryable = false
@@ -39,7 +40,7 @@ final case class TesAsyncBackendJobExecutionActor(override val jobDescriptor: Ba
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
       case handle: TesPendingExecutionHandle =>
-        jobLogger.info(s"Polling TES Job ${handle.job.jobId}")
+        jobLogger.debug(s"Polling TES Job ${handle.job.jobId}")
         updateExecutionHandle(handle)
       case f: FailedNonRetryableExecutionHandle => f.future
       case s: SuccessfulExecutionHandle => s.future
@@ -52,10 +53,7 @@ final case class TesAsyncBackendJobExecutionActor(override val jobDescriptor: Ba
       if (response.state contains "Complete") {
         jobLogger.info(s"Job ${oldHandle.job.jobId} is complete")
         SuccessfulExecutionHandle(Map.empty, 0, Map.empty, Seq.empty, None) // FIXME: blah
-      } else {
-        jobLogger.info(s"Status is ${response.state}")
-        oldHandle
-      }
+      } else oldHandle
     }
 
     pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${oldHandle.job.jobId}")) map successulResponse recover failedTesResponse
@@ -84,10 +82,11 @@ object TesAsyncBackendJobExecutionActor {
     case e => FailedNonRetryableExecutionHandle(e)
   }
 
-  def props(jobDescriptor: BackendJobDescriptor,
+  def props(workflowId: WorkflowId,
+            jobDescriptor: BackendJobDescriptor,
             completionPromise: Promise[BackendJobExecutionResponse],
             configurationDescriptor: BackendConfigurationDescriptor): Props = {
-    Props(TesAsyncBackendJobExecutionActor(jobDescriptor, completionPromise, configurationDescriptor))
+    Props(TesAsyncBackendJobExecutionActor(workflowId, jobDescriptor, completionPromise, configurationDescriptor))
   }
 
   final case class TesPendingExecutionHandle(jobDescriptor: BackendJobDescriptor, job: TesJob) extends ExecutionHandle {

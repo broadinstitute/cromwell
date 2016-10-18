@@ -9,7 +9,6 @@ import scala.concurrent.{Future, Promise}
 final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                            override val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendJobExecutionActor {
-
   private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
   private var executor: Option[ActorRef] = None
 
@@ -23,8 +22,8 @@ final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDesc
 
   private def launchExecutor: Future[Unit] = {
     Future {
-      val executionProps = TesAsyncBackendJobExecutionActor.props(jobDescriptor, completionPromise, configurationDescriptor)
-      val executorRef = context.actorOf(executionProps, "TesAsyncBackendJobExecutionActor") // FIXME: this name isn't unique?
+      val executionProps = TesAsyncBackendJobExecutionActor.props(workflowId, jobDescriptor, completionPromise, configurationDescriptor)
+      val executorRef = context.actorOf(executionProps, s"TesAsyncBackendJobExecutionActor-$workflowId")
       executor = Option(executorRef)
       ()
     }

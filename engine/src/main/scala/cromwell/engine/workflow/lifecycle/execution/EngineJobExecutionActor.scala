@@ -165,10 +165,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(response: BackendJobExecutionResponse, data @ ResponsePendingData(_, _, _, Some(cacheHit))) =>
       response match {
-        case f: BackendJobFailedResponse =>
-          invalidateCacheHit(cacheHit.cacheResultIds.head)
-          log.error(f.throwable, "Failed copying cache results for job {}, invalidating cache entry.", jobDescriptorKey)
-          goto(InvalidatingCacheEntry)
+        case f: BackendJobFailedResponse => invalidateCacheHitAndTransition(cacheHit.cacheResultIds.head, data, f.throwable)
         case _ => runJob(data)
       }
 
@@ -382,6 +379,20 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val callCache = new CallCache(SingletonServicesStore.databaseInterface)
     context.actorOf(CallCacheWriteActor.props(callCache, workflowId, hashes, success), s"CallCacheWriteActor-$tag")
     ()
+  }
+
+  private def invalidateCacheHitAndTransition(cacheId: CallCachingEntryId, data: ResponsePendingData, reason: Throwable) = {
+    val invalidationRequired = effectiveCallCachingMode match {
+      case CallCachingOff => throw new RuntimeException("Should not be calling invalidateCacheHit if call caching is off!") // Very unexpected. Fail out of this bad-state EJEA.
+      case activity: CallCachingActivity => activity.options.invalidateBadCacheResults
+    }
+    if (invalidationRequired) {
+      log.error(reason, "Failed copying cache results for job {}, invalidating cache entry.", jobDescriptorKey)
+      invalidateCacheHit(cacheId)
+      goto(InvalidatingCacheEntry)
+    } else {
+      handleCacheInvalidatedResponse(CallCacheInvalidationUnnecessary, data)
+    }
   }
 
   protected def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = {

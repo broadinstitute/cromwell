@@ -90,15 +90,17 @@ object MaterializeWorkflowDescriptorActor {
     }
 
     val enabled = conf.as[Option[Boolean]]("call-caching.enabled").getOrElse(false)
+    val invalidateBadCacheResults = conf.as[Option[Boolean]]("call-caching.invalidate-bad-cache-results").getOrElse(true)
+    val callCachingOptions = CallCachingOptions(invalidateBadCacheResults)
     if (enabled) {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
       (readFromCache |@| writeToCache) map {
         case (false, false) => CallCachingOff
-        case (true, false) => CallCachingActivity(ReadCache)
-        case (false, true) => CallCachingActivity(WriteCache)
-        case (true, true) => CallCachingActivity(ReadAndWriteCache)
+        case (true, false) => CallCachingActivity(ReadCache, callCachingOptions)
+        case (false, true) => CallCachingActivity(WriteCache, callCachingOptions)
+        case (true, true) => CallCachingActivity(ReadAndWriteCache, callCachingOptions)
       }
     }
     else {

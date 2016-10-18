@@ -5,21 +5,18 @@ import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, FailedNonRetryableResponse}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import net.ceedubs.ficus.Ficus._
-import spray.json._
 import cromwell.backend.impl.tes.util._
-import TesResponseJsonFormatter._
 import TesClient._
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.util.{Success, Failure, Try}
 
 class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                            override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
 
-  private val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
-  private val tesTaskDesc = configurationDescriptor.backendConfig.as[String]("taskDesc")
-  private val pollInterval = configurationDescriptor.backendConfig.as[Long]("poll-interval")
+  val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
+  val tesTaskDesc = configurationDescriptor.backendConfig.as[String]("taskDesc")
+  val pollInterval = configurationDescriptor.backendConfig.as[Long]("poll-interval")
 
   private val tag = s"TesJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
  

@@ -1,6 +1,7 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.SupervisorStrategy.{Decider, Stop}
+import akka.actor.{ActorRef, OneForOneStrategy, Props}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -62,13 +63,15 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   private var executor: Option[ActorRef] = None
 
+  private[jes] def jabjeaProps = JesAsyncBackendJobExecutionActor.props(jobDescriptor,
+    completionPromise,
+    jesConfiguration,
+    initializationData,
+    serviceRegistryActor,
+    jesBackendSingletonActor)
+
   private def launchExecutor: Future[Unit] = Future {
-    val executionProps = JesAsyncBackendJobExecutionActor.props(jobDescriptor,
-      completionPromise,
-      jesConfiguration,
-      initializationData,
-      serviceRegistryActor,
-      jesBackendSingletonActor)
+    val executionProps = jabjeaProps
     val executorRef = context.actorOf(executionProps, "JesAsyncBackendJobExecutionActor")
     executor = Option(executorRef)
     ()
@@ -95,4 +98,12 @@ case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   override def abort(): Unit = {}
+
+  // Supervision strategy: if the JABJEA throws an exception, stop the actor and fail the job.
+  def jobFailingDecider: Decider = {
+    case e: Exception =>
+      completionPromise.tryFailure(new RuntimeException("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.", e))
+      Stop
+  }
+  override val supervisorStrategy = OneForOneStrategy()(jobFailingDecider)
 }

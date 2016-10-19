@@ -1533,10 +1533,12 @@ To enable Call Caching, add the following to your Cromwell [configuration](#conf
 ```
 call-caching {
   enabled = true
+  invalidate-bad-cache-results = true
 }
 ```
 
 When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to copy results from previously run jobs (when appropriate).
+When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invalidate any cache results which fail to copy during a cache-hit. This is usually desired but might be unwanted if a cache might fail to copy for external reasons, such as a difference in user authentication.
 
 Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
 

@@ -150,8 +150,6 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))
   override def createSaveCacheResultsActor(hashes: CallCacheHashes, success: SucceededResponse) = helper.callCacheWriteActorCreations = helper.callCacheWriteActorCreations.foundOne((hashes, success))
-  override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = {
-    helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId)
-  }
+  override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = { helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId) }
   override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref
 }

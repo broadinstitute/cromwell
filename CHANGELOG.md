@@ -3,6 +3,7 @@
 ## 23
 
 * Included the WDL matrix `transpose` function for `Array[Array[X]]` types.
+* Added an option `call-caching.invalidate-bad-cache-results` (default: `true`). If true, Cromwell will invalidate cached results which have failed to copy as part of a cache hit.
 
 ## 0.22
 

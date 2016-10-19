@@ -107,14 +107,15 @@
                             if (callStart < firstEventStart) addDataTableRow(dataTable, thisCallName, "cromwell starting overhead", callStart, firstEventStart);
                             if (callEnd > finalEventEnd) addDataTableRow(dataTable, thisCallName, "cromwell final overhead", finalEventEnd, callEnd);
                         }
-                    } else if (callList[callIndex].executionStatus == "Running") {
+                    } else if (callList[callIndex].executionStatus == "Running" || callList[callIndex].executionStatus == "QueuedInCromwell" || callList[callIndex].executionStatus == "Starting") {
+                        var status = callList[callIndex].executionStatus
                         executionCallsCount++;
                         var endDate = workflowEnd;
                         if(endDate == null) {
-                            addDataTableRow(dataTable, thisCallName, "Running", new Date(callList[callIndex].start), new Date(Date.now()));
+                            addDataTableRow(dataTable, thisCallName, status, new Date(callList[callIndex].start), new Date(Date.now()));
                         }
                         else {
-                            addDataTableRow(dataTable, thisCallName, "Still running when workflow ended", new Date(callList[callIndex].start), endDate);
+                            addDataTableRow(dataTable, thisCallName, "Still ".concat(status).concat(" when workflow ended"), new Date(callList[callIndex].start), endDate);
                         }
                     }
                 }
@@ -135,9 +136,9 @@
         });
     }
 </script>
+<title id="title"></title>
 </head>
 <body>
-<title id="title"></title>
 <div id="chart_div"></div>
 </body>
 </html>

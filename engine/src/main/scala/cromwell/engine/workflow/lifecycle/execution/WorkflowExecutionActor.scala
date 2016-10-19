@@ -18,7 +18,7 @@ import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.JobRunning
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{JobRunning, JobStarting}
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
@@ -318,7 +318,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionInProgressState) {
+    case Event(JobStarting(jobKey), stateData) =>
+      // The EJEA is telling us that the job is now Starting. Update the metadata and our execution store.
+      val statusChange = MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Starting))
+      serviceRegistryActor ! PutMetadataAction(statusChange)
+      stay() using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
     case Event(JobRunning(jobDescriptor, backendJobExecutionActor), stateData) =>
+      // The EJEA is telling us that the job is now Running. Update the metadata and our execution store.
       pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
         .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
@@ -544,8 +550,14 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     }
 
     TryUtil.sequence(executionDiffs) match {
-      case Success(diffs) if diffs.exists(_.containsNewEntry) => startRunnableScopes(data.mergeExecutionDiffs(diffs))
-      case Success(diffs) => data.mergeExecutionDiffs(diffs)
+      case Success(diffs) =>
+        // Update the metadata for the jobs we just sent to EJEAs (they'll start off queued up waiting for tokens):
+        pushQueuedJobMetadata(diffs)
+        if (diffs.exists(_.containsNewEntry)) {
+          startRunnableScopes(data.mergeExecutionDiffs(diffs))
+        } else {
+          data.mergeExecutionDiffs(diffs)
+        }
       case Failure(e) => data
     }
   }
@@ -557,6 +569,14 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     )
 
     serviceRegistryActor ! PutMetadataAction(startEvents)
+  }
+
+  private def pushQueuedJobMetadata(diffs: Seq[WorkflowExecutionDiff]) = {
+    val startingEvents = for {
+      diff <- diffs
+      (jobKey, executionState) <- diff.executionStore if jobKey.isInstanceOf[BackendJobDescriptorKey] && executionState == ExecutionStatus.QueuedInCromwell
+    } yield MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.QueuedInCromwell))
+    serviceRegistryActor ! PutMetadataAction(startingEvents)
   }
 
   private def pushRunningJobMetadata(jobDescriptor: BackendJobDescriptor) = {
@@ -593,7 +613,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             pushNewJobMetadata(jobKey, backendName)
             ejeaRef ! EngineJobExecutionActor.Execute
-            Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
+            Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.QueuedInCromwell)))
           case None =>
             throw WorkflowExecutionException(NonEmptyList.of(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
         }

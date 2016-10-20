@@ -49,7 +49,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     }
     // activeJobs is the subset of the executionStore that are either running or will run in the future.
     val activeJobs = executionStore.store.toList filter {
-      case (jobKey, jobStatus) => (jobStatus == NotStarted && upstreamFailed(jobKey.scope).isEmpty) || jobStatus == Starting || jobStatus == Running
+      case (jobKey, jobStatus) => (jobStatus == NotStarted && upstreamFailed(jobKey.scope).isEmpty) || jobStatus == QueuedInCromwell || jobStatus == Starting || jobStatus == Running
     }
 
     activeJobs match {

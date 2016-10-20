@@ -4,6 +4,7 @@
 
 * Included the WDL matrix `transpose` function for `Array[Array[X]]` types.
 * Added an option `call-caching.invalidate-bad-cache-results` (default: `true`). If true, Cromwell will invalidate cached results which have failed to copy as part of a cache hit.
+* Timing diagrams and metadata now receive more fine grained workflow states between submission and Running.
 
 ## 0.22
 

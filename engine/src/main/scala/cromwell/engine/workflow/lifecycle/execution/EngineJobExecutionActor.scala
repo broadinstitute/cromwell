@@ -78,6 +78,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(RequestingExecutionToken) {
     case Event(JobExecutionTokenDispensed(jobExecutionToken), NoData) =>
       executionToken = Option(jobExecutionToken)
+      replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
         val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowId)
         jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.task.outputs)
@@ -496,6 +497,7 @@ object EngineJobExecutionActor {
   case object Execute extends EngineJobExecutionActorCommand
 
   final case class JobRunning(jobDescriptor: BackendJobDescriptor, backendJobExecutionActor: Option[ActorRef])
+  final case class JobStarting(jobKey: JobKey)
 
   def props(replyTo: ActorRef,
             jobDescriptorKey: BackendJobDescriptorKey,

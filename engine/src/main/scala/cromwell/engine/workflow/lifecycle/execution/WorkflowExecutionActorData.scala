@@ -45,7 +45,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     // `List`ify the `prerequisiteScopes` to avoid expensive hashing of `Scope`s when assembling the result.
     def upstream(scope: Scope): List[Scope] = scope.prerequisiteScopes.toList ++ scope.prerequisiteScopes.toList.flatMap(upstream)
     def upstreamFailed(scope: Scope) = upstream(scope) filter { s =>
-      executionStore.store.contains({ case (key: JobKey, status: ExecutionStatus) => status == Failed && key.scope == s })
+      executionStore.store.exists({ case (key, status) => status == Failed && key.scope == s })
     }
     // activeJobs is the subset of the executionStore that are either running or will run in the future.
     val activeJobs = executionStore.store.toList filter {

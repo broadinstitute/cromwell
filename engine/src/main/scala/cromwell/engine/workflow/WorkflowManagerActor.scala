@@ -1,6 +1,5 @@
 package cromwell.engine.workflow
 
-
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -16,8 +15,8 @@ import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSucce
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -104,8 +103,6 @@ class WorkflowManagerActor(config: Config,
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 
-  private val donePromise = Promise[Unit]()
-
   private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
 
   override def preStart(): Unit = {
@@ -115,15 +112,18 @@ class WorkflowManagerActor(config: Config,
   }
 
   private def addShutdownHook() = {
-    // Only abort jobs on SIGINT if the config explicitly sets system.abortJobsOnTerminate = true.
+    // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
     val abortJobsOnTerminate =
       config.getConfig("system").as[Option[Boolean]]("abort-jobs-on-terminate").getOrElse(false)
 
     if (abortJobsOnTerminate) {
       sys.addShutdownHook {
-        logger.info(s"$tag: Received shutdown signal. Aborting all running workflows...")
+        logger.info(s"$tag: Received shutdown signal.")
         self ! AbortAllWorkflowsCommand
-        Await.result(donePromise.future, Duration.Inf)
+        while (stateData != null && stateData.workflows.nonEmpty) {
+          log.info(s"Waiting for ${stateData.workflows.size} workflows to abort...")
+          Thread.sleep(1000)
+        }
       }
     }
   }
@@ -242,8 +242,7 @@ class WorkflowManagerActor(config: Config,
 
   onTransition {
     case _ -> Done =>
-      logger.info(s"$tag All workflows finished. Stopping self.")
-      donePromise.trySuccess(())
+      logger.info(s"$tag All workflows finished")
       ()
     case fromState -> toState =>
       logger.debug(s"$tag transitioning from $fromState to $toState")

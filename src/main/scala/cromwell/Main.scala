@@ -74,10 +74,8 @@ object Main extends App {
 
     import PromiseActor.EnhancedActorRef
 
-    val promise = runner.askNoTimeout(RunWorkflow)
-    waitAndExit(promise, CromwellSystem)
+    waitAndExit(runner.askNoTimeout(RunWorkflow), CromwellSystem)
   }
-
 
   private def waitAndExit(futureResult: Future[Any], workflowManagerSystem: CromwellSystem): Unit = {
     Await.ready(futureResult, Duration.Inf)

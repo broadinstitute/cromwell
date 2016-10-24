@@ -9,6 +9,7 @@ import cromwell.backend.impl.tes.util._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
+import cromwell.backend.impl.tes.util.TesTaskCompanion.{DockerExecutor, Resources, TaskParameter, Volume}
 import cromwell.core.WorkflowId
 import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
@@ -71,7 +72,8 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
     }
 
     // FIXME: Only executing now, no recover
-    pipeline[TesPostResponse].apply(Post(tesEndpoint, TaskDesc)) map successfulResponse recover failedTesResponse
+    val task = TesTaskCompanion.from(jobDescriptor)
+    pipeline[TesPostResponse].apply(Post(tesEndpoint, task)) map successfulResponse recover failedTesResponse
   }
 
   override protected implicit def ec: ExecutionContext = context.dispatcher

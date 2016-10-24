@@ -138,7 +138,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
   }
 
   private def issueFailureReply(replyTo: ActorRef, e: Throwable): State = {
-    replyTo ! e
+    replyTo ! Status.Failure(e)
     context.stop(self)
     stay()
   }

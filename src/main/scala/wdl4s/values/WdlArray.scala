@@ -1,7 +1,7 @@
 package wdl4s.values
 
 import wdl4s.TsvSerializable
-import wdl4s.types.{WdlStringType, WdlArrayType, WdlObjectType, WdlPrimitiveType}
+import wdl4s.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType, WdlStringType}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}

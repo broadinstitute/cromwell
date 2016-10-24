@@ -80,6 +80,18 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           elements <- TryUtil.sequence(evaluatedElements)
           subtype <- WdlType.homogeneousTypeFromValues(elements)
         } yield WdlArray(WdlArrayType(subtype), elements)
+      case a: Ast if a.isTupleLiteral =>
+        val unevaluatedElements = a.getAttribute("values").astListAsVector
+        if (unevaluatedElements.size == 1) {
+          evaluate(unevaluatedElements.head)
+        } else if (unevaluatedElements.size == 2) {
+          for {
+            left <- evaluate(unevaluatedElements.head)
+            right <- evaluate(unevaluatedElements(1))
+          } yield WdlPair(left, right)
+        } else {
+          Failure(new WdlExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
+        }
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = evaluate(kv.asInstanceOf[Ast].getAttribute("key"))
@@ -103,7 +115,7 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
                   case Some(v:WdlValue) => Success(v)
                   case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
                 }
-              case a: WdlArray if a.wdlType == WdlArrayType(WdlObjectType) =>
+              case array: WdlArray if array.wdlType == WdlArrayType(WdlObjectType) =>
                 /**
                  * This case is for slicing an Array[Object], used mainly for scatter-gather.
                  * For example, if 'call foo' was in a scatter block, foo's outputs (e.g. Int x)
@@ -111,7 +123,12 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
                  * then 'foo' would evaluate to an Array[Objects] and foo.x would result in an
                  * Array[Int]
                  */
-                Success(a map {_.asInstanceOf[WdlObject].value.get(rhs.sourceString).get})
+                Success(array map {_.asInstanceOf[WdlObject].value.get(rhs.sourceString).get})
+              case p: WdlPair =>
+                val identifier = rhs.getSourceString
+                if (identifier.equals("left")) Success(p.left)
+                else if (identifier.equals("right")) Success(p.right)
+                else Failure(new WdlExpressionException("A pair only has the members: 'left' and 'right'"))
               case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
               case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
             }

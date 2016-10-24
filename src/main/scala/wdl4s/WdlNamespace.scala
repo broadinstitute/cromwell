@@ -192,12 +192,12 @@ object WdlNamespace {
       imp <- imports if imp.namespaceName.isEmpty
       source = importResolver(imp.uri)
       ast = AstTools.getAst(source, imp.uri)
-      scopeAst <- ast.getAttribute("body").astListAsVector().collect({ case a: Ast => a })
+      scopeAst <- ast.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
     } yield ast -> source
 
     val topLevelScopeAsts = for {
       namespaceAst <- nonNamespacedImports.map(_._1) :+ ast
-      scopeAst <- namespaceAst.getAttribute("body").astListAsVector().collect({ case a: Ast => a })
+      scopeAst <- namespaceAst.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
     } yield scopeAst
 
     /**

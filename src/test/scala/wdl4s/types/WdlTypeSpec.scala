@@ -67,7 +67,9 @@ class WdlTypeSpec extends FlatSpec with Matchers {
     ("Boolean", WdlBooleanType),
     ("Float", WdlFloatType),
     ("Array[Int]", WdlArrayType(WdlIntegerType)),
-    ("Array[Array[String]]", WdlArrayType(WdlArrayType(WdlStringType)))
+    ("Array[Array[String]]", WdlArrayType(WdlArrayType(WdlStringType))),
+    ("Pair[Int, String]", WdlPairType(WdlIntegerType, WdlStringType)),
+    ("Pair[Array[Int], String]", WdlPairType(WdlArrayType(WdlIntegerType), WdlStringType))
   )
 
   forAll(wdlValueRawStrings) { (wdlSource, wdlType) =>

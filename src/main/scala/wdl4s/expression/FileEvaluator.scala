@@ -121,10 +121,22 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
           case _ => Success(Seq.empty[WdlFile])
         }
       case a: Ast if a.isArrayLiteral =>
-        val values = a.getAttribute("values").astListAsVector().map(evaluateRecursive)
+        val values = a.getAttribute("values").astListAsVector.map(evaluateRecursive)
         TryUtil.sequence(values) match {
           case Success(v) => Success(v.flatten)
           case f => f.map(_.flatten)
+        }
+      case a: Ast if a.isTupleLiteral =>
+        val unevaluatedElements = a.getAttribute("values").astListAsVector
+        if (unevaluatedElements.size == 1) {
+          evaluateRecursive(unevaluatedElements.head)
+        } else if (unevaluatedElements.size == 2) {
+          for {
+            left <- evaluateRecursive(unevaluatedElements.head)
+            right <- evaluateRecursive(unevaluatedElements(1))
+          } yield left ++ right
+        } else {
+          Failure(new WdlExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
         }
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>

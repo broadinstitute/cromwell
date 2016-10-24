@@ -51,6 +51,7 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
         elements <- TryUtil.sequence(evaluatedElements)
         subtype <- WdlType.homogeneousTypeFromTypes(elements)
       } yield WdlArrayType(subtype)
+    case a: Ast if a.isTupleLiteral => tupleAstToWdlType(a)
     case a: Ast if a.isMapLiteral =>
       val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
         val key = evaluate(kv.asInstanceOf[Ast].getAttribute("key"))
@@ -78,6 +79,11 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
                 case Some(taskOutput) => evaluate(taskOutput.requiredExpression.ast)
                 case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
               }
+            case WdlPairType(leftType, rightType) =>
+              rhs.sourceString match {
+                case "left" => Success(leftType)
+                case "right" => Success(rightType)
+              }
             case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
             case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
           }
@@ -95,6 +101,21 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
       val name = a.getAttribute("name").sourceString
       val params = a.params map evaluate
       functions.getFunction(name)(params)
+  }
+
+  def tupleAstToWdlType(a: Ast): Try[WdlType] = {
+    val unevaluatedElements = a.getAttribute("values").astListAsVector
+    // Tuple 1 is equivalent to the value inside it. Enables nesting parens, e.g. (1 + 2) + 3
+    if (unevaluatedElements.size == 1) {
+      evaluate(unevaluatedElements.head)
+    } else if (unevaluatedElements.size == 2) {
+      for {
+        left <- evaluate(unevaluatedElements.head)
+        right <- evaluate(unevaluatedElements(1))
+      } yield WdlPairType(left, right)
+    } else {
+      Failure(new WdlExpressionException(s"WDL does not currently support tuples with n > 2: ${a.toPrettyString}"))
+    }
   }
 }
 

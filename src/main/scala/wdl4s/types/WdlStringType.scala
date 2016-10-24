@@ -1,9 +1,9 @@
 package wdl4s.types
 
-import wdl4s.values.{WdlFile, WdlFloat, WdlInteger, WdlString}
+import wdl4s.values.{WdlFile, WdlFloat, WdlInteger, WdlPrimitive, WdlString}
 import spray.json.JsString
 
-import scala.util.{Try, Success}
+import scala.util.{Success, Try}
 
 case object WdlStringType extends WdlPrimitiveType {
   val toWdlString: String = "String"
@@ -13,6 +13,7 @@ case object WdlStringType extends WdlPrimitiveType {
     case s: JsString => WdlString(s.value)
     case s: WdlString => s
     case f: WdlFile => WdlString(f.value)
+    case p: WdlPrimitive => WdlString(p.toWdlString)
   }
 
   private def comparisonOperator(rhs: WdlType, symbol: String): Try[WdlType] = rhs match {

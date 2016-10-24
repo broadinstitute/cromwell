@@ -31,6 +31,7 @@ object WdlExpression {
     def functionName: String = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     def isMemberAccess: Boolean = ast.getName == "MemberAccess"
     def isArrayLiteral: Boolean = ast.getName == "ArrayLiteral"
+    def isTupleLiteral: Boolean = ast.getName == "TupleLiteral"
     def isMapLiteral: Boolean = ast.getName == "MapLiteral"
     def isObjectLiteral: Boolean = ast.getName == "ObjectLiteral"
     def isArrayOrMapLookup: Boolean = ast.getName == "ArrayOrMapLookup"
@@ -129,6 +130,9 @@ object WdlExpression {
       case a: Ast if a.isArrayLiteral =>
         val evaluatedElements = a.getAttribute("values").astListAsVector map {x => toString(x, highlighter)}
         s"[${evaluatedElements.mkString(",")}]"
+      case a: Ast if a.isTupleLiteral =>
+        val evaluatedElements = a.getAttribute("values").astListAsVector map { x => toString(x, highlighter)}
+        s"(${evaluatedElements.mkString(", ")})"
       case a: Ast if a.isMapLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)

@@ -10,7 +10,7 @@ import scala.util.{Success, Failure, Try}
 
 case class AggregatedException(exceptions: Seq[Throwable], prefixError: String = "") extends Exception {
   override def getMessage: String = {
-    prefixError + exceptions.map(_.getMessage).mkString("\n")
+    prefixError + ": " + exceptions.map(x => x.getClass.getSimpleName + ": " +  x.getMessage).mkString("\n")
   }
 }
 

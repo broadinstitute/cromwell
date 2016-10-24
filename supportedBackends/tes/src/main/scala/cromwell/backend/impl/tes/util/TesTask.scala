@@ -2,7 +2,7 @@ package cromwell.backend.impl.tes.util
 
 import TesTaskCompanion._
 import cromwell.backend.BackendJobDescriptor
-//import cromwell.backend.wdl.OnlyPureFunctions
+import cromwell.backend.wdl.OnlyPureFunctions
 
 final case class TesTask(name: Option[String],
                          projectId: Option[String],
@@ -21,10 +21,10 @@ object TesTaskCompanion {
 
   def from(jobDescriptor: BackendJobDescriptor): TesTask = {
     // FIXME: this doesn't work - but Seq("echo", "foo") below should be commandLine instead
-    //val commandLine = jobDescriptor.call.instantiateCommandLine(Map.empty, OnlyPureFunctions, identity).get
+    val commandLine = jobDescriptor.call.instantiateCommandLine(Map.empty, OnlyPureFunctions, identity).get
 
     val docker = jobDescriptor.runtimeAttributes("docker").valueString
-    val dockerExecutor = DockerExecutor(Option(docker), Option(Seq("echo", "foo")), None, Option("/tmp/test_out"), None)
+    val dockerExecutor = DockerExecutor(Option(docker), Option(Seq(commandLine)), None, Option("/tmp/test_out"), None)
 
     TesTask(Option("TestMD5"),
       Option("My Project"),

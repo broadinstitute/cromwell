@@ -16,6 +16,6 @@ task default_runtime_attributes {
     }
 }
 
-workflow default_runtime_attributes {
+workflow wf_default_runtime_attributes {
     call default_runtime_attributes
 }

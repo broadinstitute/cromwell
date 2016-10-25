@@ -4,6 +4,7 @@
 ##
 
 task composeEngineFunctions {
+
   command {
     echo "Hello, I am a small test string"
     echo 2 >&2

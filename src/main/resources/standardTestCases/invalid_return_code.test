@@ -7,5 +7,5 @@ files {
 
 metadata {
     "calls.invalid_return_code_wf.invalid_return_code.returnCode": 0
-    "calls.invalid_return_code_wf.invalid_return_code.failures.0.message": "Call invalid_return_code_wf.invalid_return_code:-1:1: return code was 0"
+    "calls.invalid_return_code_wf.invalid_return_code.failures.0.message": "Call invalid_return_code_wf.invalid_return_code:NA:1: return code was 0"
 }

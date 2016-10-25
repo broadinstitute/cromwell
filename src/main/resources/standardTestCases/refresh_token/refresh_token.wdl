@@ -12,7 +12,7 @@ task hello {
   }
 }
 
-workflow hello {
+workflow refresh_token {
   call hello
   output {
      hello.salutation

@@ -23,7 +23,7 @@ task goodbye {
   }
 }
 
-workflow hello {
+workflow wf_hello {
   call hello
   call goodbye {input: emptyInputString=hello.empty }
   output {

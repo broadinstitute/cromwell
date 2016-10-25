@@ -11,7 +11,7 @@ task hello {
   }
 }
 
-workflow hello {
+workflow wf_hello {
   call hello
   output {
      hello.salutation

@@ -9,7 +9,7 @@ files {
 }
 
 metadata {
-  workflowName: hello
+  workflowName: refresh_token
   status: Succeeded
-  "calls.hello.hello.backend": "Jes-Refresh"
+  "calls.refresh_token.hello.backend": "Jes-Refresh"
 }

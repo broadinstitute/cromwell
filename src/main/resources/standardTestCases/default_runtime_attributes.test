@@ -7,8 +7,8 @@ files {
 }
 
 metadata {
-  workflowName: default_runtime_attributes
+  workflowName: wf_default_runtime_attributes
   status: Succeeded
-  "calls.default_runtime_attributes.default_runtime_attributes.executionStatus": Done
-  "outputs.default_runtime_attributes.default_runtime_attributes.ohno": "OH NO!"
+  "calls.wf_default_runtime_attributes.default_runtime_attributes.executionStatus": Done
+  "outputs.wf_default_runtime_attributes.default_runtime_attributes.ohno": "OH NO!"
 }

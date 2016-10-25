@@ -26,6 +26,6 @@ task centaur {
         failOnStderr: false
     }
 }
-workflow centaur {
+workflow centaur_workflow {
     call centaur
 }

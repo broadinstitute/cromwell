@@ -60,14 +60,14 @@ class ThreeStepImportSpec extends FlatSpec with Matchers {
     }
   }
 
-  val namespace = NamespaceWithWorkflow.load(workflowWdl, resolver _)
+  val namespace = WdlNamespaceWithWorkflow.load(workflowWdl, resolver _)
 
   "WDL file with imports" should "Have 3 tasks" in {
     namespace.tasks.size shouldEqual 3
   }
 
-  it should "Have 3 imported WdlBindings" in {
-    namespace.namespaces.size shouldEqual 3
+  it should "Have 0 imported WdlNamespaces" in {
+    namespace.namespaces.size shouldEqual 0
   }
   it should "Have tasks with the names 'ps', 'cgrep' and 'wc'" in {
     namespace.tasks map {_.name} shouldEqual Seq("ps", "cgrep", "wc")

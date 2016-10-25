@@ -59,18 +59,18 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     }
 
     /*
-     TODO/FIXME: If 'definitions' is really a function of `namespace` then `WdlNamespace should have a func which
+     TODO/FIXME: If 'body' is really a function of `namespace` then `WdlNamespace` should have a func which
      does the first part, and `NamespaceWithWorkflow` override it, call super and then adds on the second part
     */
 
-    val namespaceDefinitions = namespace.ast.getAttribute("definitions").asInstanceOf[AstList].asScala.toVector
+    val namespaceDefinitions = namespace.ast.getAttribute("body").asInstanceOf[AstList].asScala.toVector
 
     val taskDefinitions = namespaceDefinitions collect { case a: Ast if a.getName == "Task" =>
       formatTask(namespace.findTask(a.getAttribute("name").sourceString).getOrElse(throw new UnsupportedOperationException("Shouldn't happen")))
     }
 
     val workflowDefinitions = namespace match {
-      case n: NamespaceWithWorkflow => namespaceDefinitions collect {case a: Ast if a.getName == "Workflow" => formatWorkflow(n.workflow)}
+      case n: WdlNamespaceWithWorkflow => namespaceDefinitions collect {case a: Ast if a.getName == "Workflow" => formatWorkflow(n.workflow)}
       case _ => Vector.empty[AstNode]
     }
     val definitions = taskDefinitions ++ workflowDefinitions
@@ -79,7 +79,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatImport(imp: Import): String = {
-    val namespace = imp.namespace.map{ns => s" as $ns"}.getOrElse("")
+    val namespace = imp.namespaceTerminal.map(ns => s" as ${ns.sourceString}").getOrElse("")
     s"${highlighter.keyword("import")} '${imp.uri}'$namespace"
   }
 
@@ -144,12 +144,12 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatOutput(output: TaskOutput, level:Int): String = {
-    indent(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.name)} = ${output.requiredExpression.toString(highlighter)}", level)
+    indent(s"${highlighter.wdlType(output.wdlType)} ${highlighter.variable(output.unqualifiedName)} = ${output.requiredExpression.toString(highlighter)}", level)
   }
 
   private def formatWorkflow(workflow: Workflow): String = {
     val declarations = workflow.declarations.map(formatDeclaration(_, 1))
-    val children = workflow.children.map(formatScope(_, 1))
+    val children = workflow.children.collect({case c if !workflow.declarations.contains(c) => formatScope(c, 1) })
     val outputs = formatWorkflowOutputs(workflow.workflowOutputDecls, 1)
     val sections = (declarations ++ children ++ Seq(outputs)).filter(_.nonEmpty)
     s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.unqualifiedName)} {
@@ -179,7 +179,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
 
   private def formatDeclaration(decl: Declaration, level: Int): String = {
     val expression = decl.expression.map(e => s" = ${e.toWdlString}").getOrElse("")
-    indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.variable(decl.name)}$expression", level)
+    indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.variable(decl.unqualifiedName)}$expression", level)
   }
 
   private def formatScope(scope: Scope, level: Int): String = scope match {
@@ -202,7 +202,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatScatter(scatter: Scatter, level: Int): String = {
-    val children = scatter.children.map(formatScope(_, 1))
+    val children = scatter.children.collect({case c if !c.isInstanceOf[Declaration] => formatScope(c, 1) })
     indent(
       s"""${highlighter.keyword("scatter")} (${scatter.item} in ${scatter.collection.toString(highlighter)}) {
        |${children.mkString("\n")}

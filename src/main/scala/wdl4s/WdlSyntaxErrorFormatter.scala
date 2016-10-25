@@ -23,7 +23,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
     val expectedTokens = expected.asScala.map(_.string).mkString(", ")
     s"""ERROR: Unexpected symbol (line ${actual.getLine}, col ${actual.getColumn}) when parsing '$method'.
         |
-        |Expected $expectedTokens, got ${actual.toPrettyString}.
+        |Expected $expectedTokens, got ${actual.getSourceString}.
         |
         |${pointToSource(actual)}
         |
@@ -124,7 +124,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
 
   def workflowAndNamespaceHaveSameName(workflowAst: Ast, namespace: Terminal): String = {
     val workflowName = workflowAst.getAttribute("name").asInstanceOf[Terminal]
-    s"""ERROR: Task and namespace have the same name:
+    s"""ERROR: Workflow and namespace have the same name:
      |
      |Task defined here (line ${workflowName.getLine}, col ${workflowName.getColumn}):
      |
@@ -133,6 +133,19 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      |Import statement defined here (line ${namespace.getLine}, col ${namespace.getColumn}):
      |
      |${pointToSource(namespace)}
+     """.stripMargin
+  }
+
+  def twoSiblingScopesHaveTheSameName(firstScopeType: String, firstScopeName: Terminal, secondScopeType: String, secondScopeName: Terminal): String = {
+    s"""ERROR: Sibling nodes have conflicting names:
+       |
+       |$firstScopeType defined here (line ${firstScopeName.getLine}, col ${firstScopeName.getColumn}):
+       |
+       |${pointToSource(firstScopeName)}
+       |
+       |$secondScopeType statement defined here (line ${secondScopeName.getLine}, col ${secondScopeName.getColumn}):
+       |
+       |${pointToSource(secondScopeName)}
      """.stripMargin
   }
 
@@ -274,16 +287,12 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def variableDeclaredMultipleTimes(first: Terminal, second: Terminal) = {
-    s"""ERROR: Variable '${first.getSourceString}' is declared more than once.
+  def memoryRuntimeAttributeInvalid(expressionStart: Terminal) = {
+    s"""ERROR: 'memory' runtime attribute should have the format "size unit" (e.g. "8 GB").
         |
-        |First occurrence (line ${first.getLine}, col ${first.getColumn}):
+        |Expression starts here (line ${expressionStart.getLine}, col ${expressionStart.getColumn}):
         |
-        |${pointToSource(first)}
-        |
-        |Second occurrence (line ${second.getLine}, col ${second.getColumn}):
-        |
-        |${pointToSource(second)}
+        |${pointToSource(expressionStart)}
      """.stripMargin
   }
 }

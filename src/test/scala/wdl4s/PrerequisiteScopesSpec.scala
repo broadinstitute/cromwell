@@ -4,12 +4,10 @@ import wdl4s.SampleWdl.ScatterWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class PrerequisiteScopesSpec extends FlatSpec with Matchers {
-  val namespace = NamespaceWithWorkflow.load((new ScatterWdl).wdlSource())
+  val namespace = WdlNamespaceWithWorkflow.load((new ScatterWdl).wdlSource())
   val workflow = namespace.workflow
-  val allCalls = workflow.collectAllCalls
-  val allScatters = workflow.collectAllScatters
-
-  def scopesByName(name: String) = workflow.callByName(name).get.prerequisiteScopes
+  val allCalls = workflow.calls
+  val allScatters = workflow.scatters
 
   "ScatterWdl" should "have five calls" in {
     allCalls.size shouldEqual 5
@@ -20,39 +18,43 @@ class PrerequisiteScopesSpec extends FlatSpec with Matchers {
   }
 
   it should "have the scatter block with one prereq" in {
-    allScatters.head.prerequisiteScopes.size shouldEqual 1
+    allScatters.head.upstream.size shouldEqual 1
   }
 
   it should "have the scatter block with A as a prereq" in {
-    val z = allScatters.head.prerequisiteScopes.head.fullyQualifiedName shouldEqual "w.A"
+    allScatters.head.upstream.head.fullyQualifiedName shouldEqual "w.A"
   }
 
   it should "have A not depend on anything" in {
-    scopesByName("A") shouldBe empty
+    workflow.calls.find(_.unqualifiedName == "A").get.upstream shouldBe empty
   }
 
-  it should "have B depend on the scatter" in {
-    val scopes = scopesByName("B")
-    scopes.size shouldEqual 1
-    scopes.head.unqualifiedName shouldBe "$scatter_0"
+  it should "have B.upstream == scatter" in {
+    val callB = namespace.workflow.calls.find(_.unqualifiedName == "B").get
+    callB.upstream shouldEqual Set(
+      namespace.resolve("w.$scatter_0").get
+    )
   }
 
-  it should "have C depend on the scatter and B" in {
-    val scopes = scopesByName("C")
-    scopes.size shouldEqual 2
-    scopes find { _.unqualifiedName == "$scatter_0" } shouldBe defined
-    scopes find { _.unqualifiedName == "B"} shouldBe defined
+  it should "have C.upstream == scatter, B" in {
+    val callC = namespace.workflow.calls.find(_.unqualifiedName == "C").get
+    callC.upstream shouldEqual Set(
+      namespace.resolve("w.$scatter_0").get,
+      namespace.resolve("w.B").get
+    )
   }
 
-  it should "have D depend on B" in {
-    val scopes = scopesByName("D")
-    scopes.size shouldEqual 1
-    scopes.head.unqualifiedName shouldBe "B"
+  it should "have D.upstream == B" in {
+    val callD = namespace.workflow.calls.find(_.unqualifiedName == "D").get
+    callD.upstream shouldEqual Set(
+      namespace.resolve("w.B").get
+    )
   }
 
-  it should "have E depend on the scatter" in {
-    val scopes = scopesByName("E")
-    scopes.size shouldEqual 1
-    scopes.head.unqualifiedName shouldBe "$scatter_0"
+  it should "have E.upstream == scatter, A" in {
+    val callE = namespace.workflow.calls.find(_.unqualifiedName == "E").get
+    callE.upstream shouldEqual Set(
+      namespace.resolve("w.$scatter_0").get
+    )
   }
 }

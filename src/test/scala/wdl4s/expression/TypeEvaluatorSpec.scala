@@ -2,7 +2,7 @@ package wdl4s.expression
 
 import wdl4s.types._
 import wdl4s.values._
-import wdl4s.{SampleWdl, NamespaceWithWorkflow, WdlExpression}
+import wdl4s.{SampleWdl, WdlNamespaceWithWorkflow, WdlExpression}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -10,7 +10,7 @@ import scala.util.{Failure, Success, Try}
 
 class TypeEvaluatorSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
-  val namespace = NamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource())
+  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource())
 
   def noLookup(String: String): WdlType = fail("No identifiers should be looked up in this test")
 

@@ -2,9 +2,12 @@ package wdl4s
 
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.prop.TableDrivenPropertyChecks._
+import org.scalatest.prop.Tables.Table
+import wdl4s.util.StringUtil
 
 class SyntaxErrorSpec extends FlatSpec with Matchers {
-  val psTaskWdl = """
+  private val psTaskWdl = """
       |task ps {
       |  command {
       |    ps
@@ -14,7 +17,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       |  }
       |}""".stripMargin
 
-  val cgrepTaskWdl = """
+  private val cgrepTaskWdl = """
      |task cgrep {
      |  String pattern
      |  File in_file
@@ -26,7 +29,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
      |  }
      |}""".stripMargin
 
-  def resolver(importUri: String): WdlSource = {
+  private def resolver(importUri: String): WdlSource = {
     importUri match {
       case "ps" => psTaskWdl
       case "cgrep" => cgrepTaskWdl
@@ -34,127 +37,171 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     }
   }
 
-  private def expectError(wdl: String) = {
-    try {
-      val namespace = WdlNamespace.load(wdl, resolver _)
-      fail("Exception expected")
-    } catch {
-      case x: SyntaxError => // expected
-    }
+  private def normalizeErrorMessage(msg: String) = StringUtil.stripAll(msg, " \t\n\r", " \t\n\r").replaceAll("[ \t]+\n", "\n")
+
+  trait ErrorWdl {
+    def testString: String
+    def wdl: WdlSource
+    def errors: String
   }
 
-  "WDL syntax checker" should "detect error when call references bad input" in {
-    expectError("""
-      |task ps {
-      |  command {
-      |    ps
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |}
-      |task cgrep {
-      |  String pattern
-      |  File in_file
-      |  command {
-      |    grep '${pattern}' ${in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |}
-      |workflow three_step {
-      |  call ps
-      |  call cgrep {
-      |    input: BADin_file=ps.procs
-      |  }
-      |}""".stripMargin)
-  }
-
-  it should "detect error when call references bad task" in {
-    expectError("""
-      |task ps {
-      |  command {
-      |    ps
-      |  }
-      |  output {
-      |    File procs = stdout()
-      |  }
-      |}
-      |task cgrep {
-      |  String pattern
-      |  File in_file
-      |  command {
-      |    grep '${pattern}' ${in_file} | wc -l
-      |  }
-      |  output {
-      |    Int count = read_int(stdout())
-      |  }
-      |}
-      |workflow three_step {
-      |  call ps
-      |  call cgrepBAD {
-      |    input: in_file=ps.procs
-      |  }
-      |}""".stripMargin)
-  }
-  it should "detect error when more than one workflow is defined" in {
-    expectError("""
-        |task ps {
-        |  command {
-        |    ps
-        |  }
-        |  output {
-        |    File procs = stdout()
+  case object CallReferencesBadInput extends ErrorWdl {
+    val testString = "detect when call input section references an input that doesn't exist on the corresponding task"
+    val wdl =
+      """import "ps"
+        |import "cgrep"
+        |
+        |workflow three_step {
+        |  call ps
+        |  call cgrep {
+        |    input: BADin_file=ps.procs
         |  }
         |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Call references an input on task 'cgrep' that doesn't exist (line 7, col 12)
+        |
+        |    input: BADin_file=ps.procs
+        |           ^
+        |
+        |Task defined here (line 2, col 6):
+        |
         |task cgrep {
-        |  File in_file
-        |  String pattern
-        |  command {
-        |    grep '${pattern}' ${in_file} | wc -l
-        |  }
-        |  output {
-        |    Int count = read_int(stdout())
+        |     ^
+      """.stripMargin
+  }
+
+  case object CallReferencesBadTask extends ErrorWdl {
+    val testString = "detect when call references a task that doesn't exist"
+    val wdl =
+      """import "ps"
+        |import "cgrep"
+        |
+        |workflow three_step {
+        |  call ps
+        |  call cgrepBAD {
+        |    input: in_file=ps.procs
         |  }
         |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Call references a task (cgrepBAD) that doesn't exist (line 6, col 8)
+        |
+        |  call cgrepBAD {
+        |       ^
+      """.stripMargin
+  }
+
+  case object MultipleWorkflows extends ErrorWdl {
+    val testString = "detect when multiple workflows are defined"
+    val wdl =
+      """import "ps"
+        |import "cgrep"
+        |
         |workflow three_step {
         |  call ps
         |  call cgrep {
         |    input: in_file=ps.procs
         |  }
         |}
-        |workflow BAD {}""".stripMargin)
+        |workflow BAD {}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Only one workflow definition allowed, found 2 workflows:
+        |
+        |Prior workflow definition (line 4 col 10):
+        |
+        |workflow three_step {
+        |         ^
+        |
+        |Prior workflow definition (line 10 col 10):
+        |
+        |workflow BAD {}
+        |         ^
+      """.stripMargin
   }
-  it should "detect error when namespace and task have the same name" in {
-    expectError("""
-        |import "ps" as ps
+
+  case object TaskAndNamespaceNameCollision extends ErrorWdl {
+    val testString = "detect when a task and a namespace have the same name"
+    val wdl =
+      """import "ps" as ps
         |task ps {command {ps}}
         |workflow three_step {
         |  call ps
         |}
-        |""".stripMargin)
-  }
-  it should "detect error when namespace and workflow have the same name" in {
-    expectError("""
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |Task defined here (line 2, col 6):
+        |
+        |task ps {command {ps}}
+        |     ^
+        |
+        |Namespace statement defined here (line 1, col 16):
+        |
         |import "ps" as ps
+        |               ^
+      """.stripMargin
+  }
+
+  case object WorkflowAndNamespaceNameCollision extends ErrorWdl {
+    val testString = "detect when a namespacex and a workflow have the same name"
+    val wdl =
+      """import "ps" as ps
         |workflow ps {
-        |  call ps
+        |  call ps.ps
         |}
-        |""".stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |Namespace defined here (line 1, col 16):
+        |
+        |import "ps" as ps
+        |               ^
+        |
+        |Workflow statement defined here (line 2, col 10):
+        |
+        |workflow ps {
+        |         ^
+      """.stripMargin
   }
-  it should "detect error when two tasks have the same name" in {
-    expectError("""
-        |import "ps"
+
+  case object TwoTasksHaveTheSameName extends ErrorWdl {
+    val testString = "detect when two tasks have the same name"
+    val wdl =
+      """import "ps"
         |task ps {command {ps}}
         |workflow three_step {
         |  call ps
         |}
-        |""".stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |Task defined here (line 2, col 6):
+        |
+        |task ps {
+        |     ^
+        |
+        |Task statement defined here (line 2, col 6):
+        |
+        |task ps {command {ps}}
+        |     ^
+      """.stripMargin
   }
-  it should "detect error a MemberAccess references a non-existent input on a task" in {
-    expectError("""
-        |import "ps"
+
+  case object BadMemberAccessInCallInputSection extends ErrorWdl {
+    val testString = "detect when the RHS of a member access is invalid"
+    val wdl =
+      """import "ps"
         |import "cgrep"
         |workflow three_step {
         |  call ps
@@ -162,11 +209,20 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |    input: pattern=ps.BAD
         |  }
         |}
-        |""".stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Expression reference input on task that doesn't exist (line 6, col 23):
+        |
+        |    input: pattern=ps.BAD
+        |                      ^
+      """.stripMargin
   }
-  it should "detect error a MemberAccess references a non-existent left-hand side" in {
-    expectError("""
-        |import "ps"
+
+  case object BadMemberAccessInCallInputSection2 extends ErrorWdl {
+    val testString = "detect when the LHS of a member access is invalid"
+    val wdl =
+      """import "ps"
         |import "cgrep"
         |workflow three_step {
         |  call ps
@@ -174,21 +230,60 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |    input: pattern=psBAD.procs
         |  }
         |}
-        |""".stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Expression will not evaluate (line 6, col 26):
+        |
+        |    input: pattern=psBAD.procs
+        |                         ^
+      """.stripMargin
   }
-  it should "detect unexpected EOF" in {
-    expectError("workflow")
+
+  case object UnexpectedEof extends ErrorWdl {
+    val testString = "detect when there was an unexpected EOF"
+    val wdl = "workflow"
+
+    val errors =
+      """ERROR: No more tokens.  Expecting identifier
+        |
+        |workflow
+        |^
+      """.stripMargin
   }
-  it should "detect unexpected symbol" in {
-    expectError("workflow foo workflow")
+
+  case object UnexpectedSymbol extends ErrorWdl {
+    val testString = "detect an unexpected symbol"
+    val wdl = "workflow foo workflow"
+
+    val errors =
+      """ERROR: Unexpected symbol (line 1, col 14) when parsing 'workflow'.
+        |
+        |Expected lbrace, got workflow.
+        |
+        |workflow foo workflow
+        |             ^
+        |
+        |$workflow = :workflow :identifier :lbrace $_gen11 :rbrace -> Workflow( name=$1, body=$3 )
+      """.stripMargin
   }
-  it should "detect extraneous symbols" in {
-    expectError("workflow foo {}}")
+
+  case object ExtraneousSymbol extends ErrorWdl {
+    val testString = "detect when there are extraneous symbols in the source code"
+    val wdl = "workflow foo {}}"
+
+    val errors =
+      """ERROR: Finished parsing without consuming all tokens.
+        |
+        |workflow foo {}}
+        |               ^
+      """.stripMargin
   }
-  it should "detect when two call definitions have the same name" in {
-    expectError(
-      """
-        |task x {
+
+  case object MultipleCallStatementsHaveTheSameName extends ErrorWdl {
+    val testString = "detect when a workflow has two calls with the same name"
+    val wdl =
+      """task x {
         |  command { ps }
         |}
         |
@@ -196,12 +291,28 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |  call x
         |  call x
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Two or more calls have the same name:
+        |
+        |Call statement here (line 6, column 8):
+        |
+        |  call x
+        |       ^
+        |
+        |Call statement here (line 7, column 8):
+        |
+        |  call x
+        |       ^
+        |
+      """.stripMargin
   }
-  it should "detect when there are more than one 'input' sections in a call" in {
-    expectError(
-      """
-        |task x {
+
+  case object MultipleCallInputSections extends ErrorWdl {
+    val testString = "detect when a call has multiple input sections"
+    val wdl =
+      """task x {
         |  String a
         |  String b
         |  command {  ./script ${a} ${b} }
@@ -213,23 +324,37 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |    input: b = "b"
         |  }
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Call has multiple 'input' sections defined:
+        |
+        |    input: b = "b"
+        |           ^
+        |
+        |Instead of multiple 'input' sections, use commas to separate the values.
+      """.stripMargin
   }
-  it should "detect when there are two workflows defined in a WDL file" in {
-    expectError(
-      """workflow w {}
-        |workflow x {}
-      """.stripMargin)
-  }
-  it should "detect when a Map does not have two parameterized types" in {
-    expectError(
+
+  case object MapParameterizedTypes extends ErrorWdl {
+    val testString = "detect when missing a type parameter on Map instantiation"
+    val wdl =
       """workflow w {
         |  Map[Int] i
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Map type should have two parameterized types (line 2, col 3):
+        |
+        |  Map[Int] i
+        |  ^
+      """.stripMargin
   }
-  it should "detect when task output section declares an output with incompatible types" in {
-    expectError(
+
+  case object TypeMismatch1 extends ErrorWdl {
+    val testString = "detect when a call output has a type mismatch (1)"
+    val wdl =
       """task a {
         |  command { ./script }
         |  output {
@@ -240,10 +365,19 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: x is declared as a String but the expression evaluates to a Array[String]:
+        |
+        |    Array[String] x = "bad value"
+        |                  ^
+      """.stripMargin
   }
-  it should "detect when task output section declares an output with incompatible types 2" in {
-    expectError(
+
+  case object TypeMismatch2 extends ErrorWdl {
+    val testString = "detect when a call output has a type mismatch (2)"
+    val wdl =
       """task a {
         |  command { ./script }
         |  output {
@@ -254,10 +388,19 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Value for x is not coerceable into a Int:
+        |
+        |    Int x = "bad value"
+        |        ^
+      """.stripMargin
   }
-  it should "detect when a meta or parameter_meta value is not a string" in {
-    expectError(
+
+  case object MetaSectionStringValues extends ErrorWdl {
+    val testString = "detect when meta section contains a non-string value"
+    val wdl =
       """task a {
         |  command { ./script }
         |  meta {
@@ -268,10 +411,19 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Value for this attribute is expected to be a string:
+        |
+        |    foo: 1+1
+        |    ^
+      """.stripMargin
   }
-  it should "detect when a two command sections are specified" in {
-    expectError(
+
+  case object MultipleCommandSections extends ErrorWdl {
+    val testString = "detect when a task specifies two command sections"
+    val wdl =
       """task a {
         |  command { ./script }
         |  command { ps }
@@ -280,10 +432,19 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Expecting to find at most one 'command' section in the task:
+        |
+        |task a {
+        |     ^
+      """.stripMargin
   }
-  it should "detect when expressions within a command block don't reference actual variables" in {
-    expectError(
+
+  case object CommandExpressionVariableReferenceIntegrity extends ErrorWdl {
+    val testString = s"detect when expressions in command section reference only inputs of the task"
+    val wdl =
       """task a {
         |  Int x
         |  command { ./script ${x+y} }
@@ -292,10 +453,24 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Variable does not reference any declaration in the task (line 3, col 26):
+        |
+        |  command { ./script ${x+y} }
+        |                         ^
+        |
+        |Task defined here (line 1, col 6):
+        |
+        |task a {
+        |     ^
+      """.stripMargin
   }
-  it should "detect when a task declaration references a variable that doesn't exist" in {
-    expectError(
+
+  case object DeclarationVariableReferenceIntegrity extends ErrorWdl {
+    val testString = "detect when a task declaration references a variable that wasn't declared (1)"
+    val wdl =
       """task a {
         |  Int x
         |  Int y = x + z
@@ -305,33 +480,78 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow w {
         |  call a {input: x=5}
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Variable does not reference any declaration in the task (line 3, col 15):
+        |
+        |  Int y = x + z
+        |              ^
+        |
+        |Declaration starts here (line 3, col 7):
+        |
+        |  Int y = x + z
+        |      ^
+      """.stripMargin
   }
-  it should "detect when there's more than one command in a task" in {
-    expectError(
+
+  case object DeclarationVariableReferenceIntegrity2 extends ErrorWdl {
+    val testString = "detect when a task declaration references a variable that wasn't declared (2)"
+    val wdl =
       """task a {
         |  Int x
+        |  Int y = x + z
+        |  Int z
         |  command { ./script ${x} }
-        |  command { ps }
         |}
         |
         |workflow w {
         |  call a {input: x=5}
         |}
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Variable does not reference any declaration in the task (line 3, col 15):
+        |
+        |  Int y = x + z
+        |              ^
+        |
+        |Declaration starts here (line 3, col 7):
+        |
+        |  Int y = x + z
+        |      ^
+      """.stripMargin
   }
-  it should "detect duplicate variable declarations (1)" in {
-    expectError(
+
+  case object MultipleVariableDeclarationsInScope extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (1)"
+    val wdl =
       """task inputOops {
         |  Int a = 5
         |  Int a = 10
         |  command { echo ${a} }
         |}
         |workflow a { call inputOops }
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |Declaration defined here (line 2, col 3):
+        |
+        |  Int a = 5
+        |  ^
+        |
+        |Declaration statement defined here (line 3, col 3):
+        |
+        |  Int a = 10
+        |  ^
+      """.stripMargin
   }
-  it should "detect duplicate variable declarations (2)" in {
-    expectError(
+
+  case object MultipleVariableDeclarationsInScope2 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (2)"
+    val wdl =
       """task outputOops {
         |  command { echo 5 }
         |  output {
@@ -340,10 +560,26 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |  }
         |}
         |workflow b { call outputOops }
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |TaskOutput defined here (line 4, col 5):
+        |
+        |    Int b = 5
+        |    ^
+        |
+        |TaskOutput statement defined here (line 5, col 5):
+        |
+        |    Int b = 10
+        |    ^
+      """.stripMargin
   }
-  it should "detect duplicate variable declarations (3)" in {
-    expectError(
+
+  case object MultipleVariableDeclarationsInScope3 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (3)"
+    val wdl =
       """task inputOutputOops {
         |  Int c = 5
         |  command { echo 5 }
@@ -352,7 +588,61 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |  }
         |}
         |workflow c { call inputOutputOops }
-      """.stripMargin)
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |Declaration defined here (line 2, col 3):
+        |
+        |  Int c = 5
+        |  ^
+        |
+        |TaskOutput statement defined here (line 5, col 5):
+        |
+        |    Int c = 10
+        |    ^
+      """.stripMargin
+  }
+
+  val syntaxErrorWdlTable = Table(
+    ("errorWdl"),
+    (CallReferencesBadInput),
+    (CallReferencesBadTask),
+    (MultipleWorkflows),
+    (TaskAndNamespaceNameCollision),
+    (WorkflowAndNamespaceNameCollision),
+    (TwoTasksHaveTheSameName),
+    (BadMemberAccessInCallInputSection),
+    (BadMemberAccessInCallInputSection2),
+    (UnexpectedEof),
+    (UnexpectedSymbol),
+    (ExtraneousSymbol),
+    (MultipleCallStatementsHaveTheSameName),
+    (MultipleCallInputSections),
+    (MapParameterizedTypes),
+    (TypeMismatch1),
+    (TypeMismatch2),
+    (MetaSectionStringValues),
+    (MultipleCommandSections),
+    (CommandExpressionVariableReferenceIntegrity),
+    (DeclarationVariableReferenceIntegrity),
+    (DeclarationVariableReferenceIntegrity2),
+    (MultipleVariableDeclarationsInScope),
+    (MultipleVariableDeclarationsInScope2),
+    (MultipleVariableDeclarationsInScope3)
+  )
+
+  forAll(syntaxErrorWdlTable) { (errorWdl) =>
+    it should errorWdl.testString in {
+      try {
+        WdlNamespace.load(errorWdl.wdl, resolver _)
+        fail("Expecting a SyntaxError")
+      } catch {
+        case e: SyntaxError =>
+          normalizeErrorMessage(e.getMessage) shouldEqual normalizeErrorMessage(errorWdl.errors)
+      }
+    }
   }
 }
 

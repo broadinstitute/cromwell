@@ -1,0 +1,21 @@
+{
+  "ns1": "",
+  "ns1.ps": "ns1",
+  "ns1.ps.procs": "ns1.ps",
+  "ns2": "",
+  "ns2.cgrep": "ns2",
+  "ns2.cgrep.count": "ns2.cgrep",
+  "ns2.cgrep.in_file": "ns2.cgrep",
+  "ns2.cgrep.pattern": "ns2.cgrep",
+  "ns3": "",
+  "ns3.wc": "ns3",
+  "ns3.wc.count": "ns3.wc",
+  "ns3.wc.in_file": "ns3.wc",
+  "three_step": "",
+  "three_step.a1": "three_step",
+  "three_step.a2": "three_step",
+  "three_step.a2.in_file": "three_step.a2",
+  "three_step.a2.pattern": "three_step.a2",
+  "three_step.wc": "three_step",
+  "three_step.wc.in_file": "three_step.wc"
+}

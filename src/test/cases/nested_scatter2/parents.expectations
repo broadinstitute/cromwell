@@ -1,0 +1,16 @@
+{
+  "inner": "",
+  "inner.i": "inner",
+  "inner.out": "inner",
+  "outer": "",
+  "outer.matrix": "outer",
+  "outer.tsv": "outer",
+  "w": "",
+  "w.$scatter_0": "w",
+  "w.$scatter_1": "w.$scatter_0",
+  "w.array": "w",
+  "w.inner": "w.$scatter_1",
+  "w.inner.i": "w.inner",
+  "w.outer": "w",
+  "w.outer.matrix": "w.outer"
+}

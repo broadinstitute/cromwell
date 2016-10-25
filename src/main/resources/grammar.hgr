@@ -254,8 +254,8 @@ grammar {
   }
   parser {
     # Document: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#document
-    $document = list($import) list($workflow_or_task) -> Document(imports=$0, definitions=$1)
-    $workflow_or_task = $workflow | $task
+    $document = list($import) list($workflow_or_task_or_decl) -> Namespace(imports=$0, body=$1)
+    $workflow_or_task_or_decl = $workflow | $task | $declaration
 
     # Import Statements: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#import-statements
     $import = :import :string optional($import_namespace) -> Import(uri=$1, namespace=$2)
@@ -269,7 +269,7 @@ grammar {
     $cmd_param = :cmd_param_start list($cmd_param_kv) $e :cmd_param_end -> CommandParameter(attributes=$1, expr=$2)
     $cmd_param_kv = :cmd_attr_hint :identifier :equal $e -> CommandParameterAttr(key=$1, value=$3)
     $outputs = :output :lbrace list($output_kv) :rbrace -> Outputs(attributes=$2)
-    $output_kv = $type_e :identifier :equal $e -> Output(type=$0, var=$1, expression=$3)
+    $output_kv = $type_e :identifier :equal $e -> Output(type=$0, name=$1, expression=$3)
     $runtime = :runtime $map -> Runtime(map=$1)
     $parameter_meta = :parameter_meta $map -> ParameterMeta(map=$1)
     $meta = :meta $map -> Meta(map=$1)

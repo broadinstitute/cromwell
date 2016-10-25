@@ -2,8 +2,6 @@ package wdl4s
 
 import java.nio.file.{Files, Path}
 
-import wdl4s.values.WdlValue
-
 import scala.language.postfixOps
 
 // FIXME: Figure out if anything can be removed from cromwell completely or pulled from here
@@ -140,18 +138,18 @@ object SampleWdl {
         |
         |workflow w {
         |  call A
-        |  scatter (item in A.A_out) {
+        |  scatter (item in A.A_out) { # scatter 0
         |    call B {input: B_in = item}
         |    call C {input: C_in = B.B_out}
         |    call E
-        |    scatter (itemB in B.B_out) {
-        |     call E as G
+        |    scatter (itemB in B.B_out) { # scatter 1
+        |      call E as G
         |    }
-        |    scatter (itemB in B.B_out) {
-        |     call E as H
+        |    scatter (itemB in B.B_out) { # scatter 2
+        |      call E as H
         |    }
         |  }
-        |  scatter (item in A.A_out) {
+        |  scatter (item in A.A_out) { # scatter 3
         |    call E as F
         |  }
         |  call D {input: D_in = B.B_out}
@@ -257,5 +255,73 @@ object SampleWdl {
       """.stripMargin
 
     override lazy val rawInputs = Map.empty[String, String]
+  }
+
+  object TaskDeclarationsWdl extends SampleWdl {
+    override def wdlSource(runtime: String = "") =
+      """
+      |task t {
+      |   String s
+      |   command {
+      |     echo ${s}
+      |   }
+      |   output {
+      |     String o = s
+      |     Array[Int] outputArray = [0, 1, 2]
+      |   }
+      |}
+      |
+      |task u {
+      |   String a
+      |   String b
+      |   String c
+      |   Int d
+      |   String e = "e"
+      |   String f
+      |   String? g
+      |   String? h
+      |   String i
+      |   File j
+      |   Array[File] k
+      |
+      |   command {
+      |     echo ${a}
+      |     echo ${b}
+      |     echo ${c}
+      |     echo ${d}
+      |     echo ${e}
+      |     echo ${f}
+      |     echo ${g}
+      |     echo ${h}
+      |     echo ${i}
+      |   }
+      |}
+      |
+      |workflow wf {
+      | String workflowDeclarationFromInput
+      | String workflowDeclaration = "b"
+      | Array[File] files = ["a", "b", "c"]
+      | 
+      | call t as t2 {input: s = "hey" }
+      | 
+      | scatter (i in t2.outputArray) {
+      |   call t {input: s = "c"}
+      |   call u as v {input: a = workflowDeclarationFromInput,
+      |                       b = workflowDeclaration,
+      |                       c = t.o,
+      |                       d = i,
+      |                       i = "${workflowDeclaration}",
+      |                       k = files }
+      | }
+      |}
+    """.
+        stripMargin
+
+    override lazy val rawInputs = Map(
+      "wf.workflowDeclarationFromInput" -> "a",
+      "wf.v.f" -> "f",
+      "wf.v.g" -> "g",
+      "wf.v.j" -> "j"
+    )
   }
 }

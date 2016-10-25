@@ -1,6 +1,6 @@
 package wdl4s.examples
 
-import wdl4s.{Call, NamespaceWithWorkflow}
+import wdl4s.{Call, WdlNamespaceWithWorkflow}
 
 object ex5 {
   def main(args: Array[String]) {
@@ -20,11 +20,11 @@ object ex5 {
       | call b {input: s=a.procs}
       |}""".stripMargin
 
-    val ns = NamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl)
 
     Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach {
-      case Some(c: Call) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.prerequisiteScopes}")
-      case _ => throw new RuntimeException("Should never get here")
+      case Some(c: Call) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.upstream}")
+      case _ =>
     }
   }
 }

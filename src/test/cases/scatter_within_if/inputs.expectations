@@ -1,0 +1,5 @@
+{
+  "w.A.i": "String",
+  "w.B.i": "String",
+  "w.arr": "Array[String]"
+}

@@ -1,5 +1,5 @@
 package wdl4s.examples
-import wdl4s.NamespaceWithWorkflow
+import wdl4s.WdlNamespaceWithWorkflow
 
 object ex1 {
   def main(args: Array[String]) {
@@ -11,7 +11,7 @@ object ex1 {
     | call a
     |}""".stripMargin
 
-    val ns = NamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl)
 
     println(s"Workflow: ${ns.workflow.unqualifiedName}")
     ns.workflow.calls foreach {call =>

@@ -74,8 +74,8 @@ object RuntimeAttributeSpec {
     """.stripMargin
 
   class RuntimeAttributeSpec extends FlatSpec with Matchers with EitherValues {
-    val NamespaceWithRuntime = NamespaceWithWorkflow.load(WorkflowWithRuntime)
-    val NamespaceWithoutRuntime = NamespaceWithWorkflow.load(WorkflowWithoutRuntime)
+    val NamespaceWithRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithRuntime)
+    val NamespaceWithoutRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithoutRuntime)
 
     "WDL file with runtime attributes" should "have attribute maps" in {
       NamespaceWithRuntime.tasks.forall(_.runtimeAttributes.attrs.nonEmpty) should be(true)
@@ -85,5 +85,4 @@ object RuntimeAttributeSpec {
       NamespaceWithoutRuntime.tasks.forall(_.runtimeAttributes.attrs.isEmpty) should be(true)
     }
   }
-
 }

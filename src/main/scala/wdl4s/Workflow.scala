@@ -9,85 +9,11 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 object Workflow {
-
-  def apply(ast: Ast,
-            namespaces: Seq[WdlNamespace],
-            tasks: Seq[Task],
-            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
-    ast.getName match {
-      case AstNodeName.Workflow =>
-        generateWorkflowScopes(ast, namespaces, tasks, wdlSyntaxErrorFormatter)
-      case nonWorkflowAst =>
-        throw new UnsupportedOperationException(s"Ast is not a 'Workflow Ast' but a '$nonWorkflowAst Ast'")
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
+    if (ast.getName != AstNodeName.Workflow) {
+      throw new UnsupportedOperationException(s"Expecting Workflow AST, got a ${ast.getName} AST")
     }
-  }
-
-  private def generateWorkflowScopes(workflowAst: Ast,
-                                     namespaces: Seq[WdlNamespace],
-                                     tasks: Seq[Task],
-                                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
-
-    /**
-     * Incremented indexes per type of class. Currently only used by Scatter.
-     * Indexes are incremented just before use + recursion (prefix, vs. infix or postfix),
-     * thus "start" at zero, but default to -1.
-     */
-    val scopeIndexes: mutable.Map[Class[_ <: Scope], Int] = mutable.HashMap.empty.withDefaultValue(-1)
-
-    /**
-     * Retrieve the list of children ASTs from the AST body.
-     * Return empty seq if body is null or is not a list.
-     */
-    def getChildrenList(ast: Ast): Seq[Ast] = {
-      val body = Option(ast.getAttribute("body")).filter(_.isInstanceOf[AstList]).map(_.astListAsVector)
-      body match {
-        case Some(asts) => asts collect { case node: Ast if Seq(AstNodeName.Call, AstNodeName.Scatter).contains(node.getName) => node }
-        case None => Seq.empty[Ast]
-      }
-    }
-
-    /**
-     * Sets the child scopes on this parent from the ast.
-     * @param parentAst Parent ast.
-     * @param parentScope Parent scope.
-     */
-    def setChildScopes(parentAst: Ast, parentScope: Scope): Unit = {
-      parentScope.children = for {
-        child <- getChildrenList(parentAst)
-        scope = generateScopeTree(child, namespaces, tasks, wdlSyntaxErrorFormatter, parentScope)
-      } yield scope
-    }
-
-    /**
-     * Generate a scope from the ast parameter and all its descendants recursively.
-     * @return Scope equivalent
-     */
-    def generateScopeTree(node: Ast,
-                          namespaces: Seq[WdlNamespace],
-                          tasks: Seq[Task],
-                          wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
-                          parent: Scope): Scope = {
-
-      val scope: Scope = node.getName match {
-        case AstNodeName.Call =>
-          Call(node, namespaces, tasks, wdlSyntaxErrorFormatter, Option(parent))
-        case AstNodeName.Scatter =>
-          scopeIndexes(classOf[Scatter]) += 1
-          Scatter(node, scopeIndexes(classOf[Scatter]), Option(parent))
-      }
-      // Generate and set children recursively
-      setChildScopes(node, scope)
-      scope
-    }
-
-    val workflow = Workflow(workflowAst, wdlSyntaxErrorFormatter)
-    setChildScopes(workflowAst, workflow)
-    workflow
-  }
-
-  private def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val declarations = ast.findAsts(AstNodeName.Declaration).map(Declaration(_, wdlSyntaxErrorFormatter))
     val callNames = ast.findAsts(AstNodeName.Call).map {call =>
       Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
     }
@@ -103,23 +29,13 @@ object Workflow {
       case _ =>
     }
 
-    new Workflow(name, declarations, workflowOutputsDecls)
+    new Workflow(name, workflowOutputsDecls, ast)
   }
 }
 
-/**
- * Represents a `workflow` definition in WDL which currently
- * only supports a set of `call` declarations and a name for
- * the workflow
- *
- * @param unqualifiedName The name of the workflow
- */
 case class Workflow(unqualifiedName: String,
-                    declarations: Seq[Declaration],
-                    workflowOutputDecls: Seq[WorkflowOutputDeclaration]) extends Executable with Scope {
-  override val prerequisiteScopes = Set.empty[Scope]
-  override val prerequisiteCallNames = Set.empty[String]
-  override val parent: Option[Scope] = None
+                    workflowOutputDecls: Seq[WorkflowOutputDeclaration],
+                    ast: Ast) extends Scope {
 
   /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.
@@ -134,11 +50,21 @@ case class Workflow(unqualifiedName: String,
     } yield input
 
     val declarationInputs = for {
-      declaration <- scopedDeclarations
+      declaration <- declarations
       input <- declaration.asWorkflowInput
     } yield input
 
     (callInputs ++ declarationInputs) map { input => input.fqn -> input } toMap
+  }
+
+  /** First tries to find any Call with name `name`.  If not found,
+    * Fallback to looking at immediate children or delegating to parent node
+    */
+  override def resolveVariable(name: String, relativeTo: Scope = this): Option[Scope with GraphNode] = {
+    findCallByName(name) match {
+      case call: Some[Call] => call
+      case _ => super.resolveVariable(name, relativeTo)
+    }
   }
 
   /**
@@ -159,11 +85,6 @@ case class Workflow(unqualifiedName: String,
   def findCallByName(name: String): Option[Call] = calls.find(_.unqualifiedName == name)
 
   /**
-    * @return Seq[ScopedDeclaration] which are scoped to this Workflow
-    */
-  def scopedDeclarations: Seq[ScopedDeclaration] = declarations.map(decl => ScopedDeclaration(this, decl))
-
-  /**
    * All outputs for this workflow and their associated types
    *
    * @return a Map[FullyQualifiedName, WdlType] representing the union
@@ -176,14 +97,14 @@ case class Workflow(unqualifiedName: String,
     // Build a list of ALL potentially reportable symbols, and whether they're allowed to match
     // wildcards in the workflow's output {...} spec.
     val outputs: Seq[PotentialReportableSymbol] = for {
-      call: Call <- calls
+      call: Call <- calls.toSeq
       output <- call.task.outputs
-    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${output.name}", output.wdlType, matchWorkflowOutputWildcards = true)
+    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${output.unqualifiedName}", output.wdlType, matchWorkflowOutputWildcards = true)
 
     val inputs: Seq[PotentialReportableSymbol] = for {
-      call: Call <- calls
+      call: Call <- calls.toSeq
       input <- call.task.declarations
-    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${input.name}", input.wdlType, matchWorkflowOutputWildcards = false)
+    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${input.unqualifiedName}", input.wdlType, matchWorkflowOutputWildcards = false)
 
     val filtered = if (workflowOutputDecls isEmpty) {
       outputs
@@ -197,7 +118,7 @@ case class Workflow(unqualifiedName: String,
     filtered map { case PotentialReportableSymbol(fqn, value, wildcardAllowed) => ReportableSymbol(fqn, value) }
   }
 
-  override def rootWorkflow: Workflow = this
+  override def toString = s"[Workflow $fullyQualifiedName]"
 }
 
 case class ReportableSymbol(fullyQualifiedName: FullyQualifiedName, wdlType: WdlType)

@@ -1,0 +1,21 @@
+{
+  "ns1": "WdlNamespaceWithoutWorkflow",
+  "ns1.ps": "Task",
+  "ns1.ps.procs": "TaskOutput",
+  "ns2": "WdlNamespaceWithoutWorkflow",
+  "ns2.cgrep": "Task",
+  "ns2.cgrep.count": "TaskOutput",
+  "ns2.cgrep.in_file": "Declaration",
+  "ns2.cgrep.pattern": "Declaration",
+  "ns3": "WdlNamespaceWithoutWorkflow",
+  "ns3.wc": "Task",
+  "ns3.wc.count": "TaskOutput",
+  "ns3.wc.in_file": "Declaration",
+  "three_step": "Workflow",
+  "three_step.a1": "Call",
+  "three_step.a2": "Call",
+  "three_step.a2.in_file": "Declaration",
+  "three_step.a2.pattern": "Declaration",
+  "three_step.wc": "Call",
+  "three_step.wc.in_file": "Declaration"
+}

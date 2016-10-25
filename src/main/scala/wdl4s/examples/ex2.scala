@@ -1,6 +1,6 @@
 package wdl4s.examples
 
-import wdl4s.{WdlSource, NamespaceWithWorkflow}
+import wdl4s.{WdlSource, WdlNamespaceWithWorkflow}
 
 object ex2 {
   def main(args: Array[String]) {
@@ -22,7 +22,7 @@ object ex2 {
       }
     }
 
-    val ns = NamespaceWithWorkflow.load(wdl, resolver)
+    val ns = WdlNamespaceWithWorkflow.load(wdl, resolver _)
 
     ns.tasks foreach {task =>
       println(s"Task: ${task.name}")

@@ -1,0 +1,22 @@
+{
+  "A": "Task",
+  "A.i": "Declaration",
+  "A.o": "TaskOutput",
+  "w": "Workflow",
+  "w.$if_0": "If",
+  "w.$if_1": "If",
+  "w.$if_2": "If",
+  "w.$scatter_0": "Scatter",
+  "w.A": "Call",
+  "w.A.i": "Declaration",
+  "w.B": "Call",
+  "w.B.i": "Declaration",
+  "w.C": "Call",
+  "w.C.i": "Declaration",
+  "w.D": "Call",
+  "w.D.i": "Declaration",
+  "w.E": "Call",
+  "w.E.i": "Declaration",
+  "w.arr": "Declaration",
+  "w.i": "Declaration"
+}

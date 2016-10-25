@@ -60,22 +60,29 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
   }
 
   override def evaluate(ast: AstNode): Try[Seq[WdlFile]] = {
-    /**
-     * First check if the top-level expression evaluates to a
-     * literal value.  If it does, return all WdlFiles referenced
-     * in that literal value
-     */
     valueEvaluator.evaluate(ast) match {
+        // If the ast can successfully be evaluated, then just find the WdlFiles that it contains
       case Success(v) => Success(findWdlFiles(v))
       case Failure(ex) => evaluateRecursive(ast)
     }
   }
 
   /**
-   * The pattern below is to try to evaluate all ASTs to a static value first, via
-   * evalValueToWdlFile().  If this succeeds, return that value.  Otherwise, call
-   * this function recursively.
-   */
+    * Recursively traverse the ast and collect asts that evaluate successfully to a WdlFile
+    * or that take a WdlFile as a parameter, and that parameter can be evaluated and is a WdlPrimitive
+    * For example, assuming that the command produces a file called "out", take the following output section
+    *   output {
+    *     String x = read_string("out")
+    *   }
+    *
+    * Purely from the output signature (String x) there is no way to know that this task is expected to produce a file.
+    * If we try to evaluate read_string("out") before the task is run it will most likely fail as "out" hasn't been created yet.
+    * So we look at what type of ast read_string is, in this case it's a "FunctionCallWithOneFileParameter",
+    * that means that whatever the parameter is it should evaluates to a file.
+    * We then try to evaluate the "out" string which directly produces WdlString("out").
+    * Because we know that read_string takes a file parameter, WdlString("out") is transformed to a WdlFile (see evalValueToWdlFile)
+    * We can now deduce that this task is expected to produce a WdlFile called "out"
+    */
   private def evaluateRecursive(ast: AstNode): Try[Seq[WdlFile]] = {
     ast match {
       case a: Ast if a.isGlobFunctionCall =>

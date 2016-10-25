@@ -13,21 +13,36 @@ import scala.util.{Failure, Success, Try}
 case class ValueEvaluator(override val lookup: String => WdlValue, override val functions: WdlFunctions[WdlValue]) extends Evaluator {
   override type T = WdlValue
 
+  private val InterpolationTagPattern = "\\$\\{\\s*([^\\}]*)\\s*\\}".r
+
   private def replaceInterpolationTag(string: Try[WdlString], tag: String): Try[WdlString] = {
     val expr = WdlExpression.fromString(tag.substring(2, tag.length - 1))
     (expr.evaluate(lookup, functions), string) match {
-      case (Success(value), Success(str)) => Success(WdlString(str.value.replace(tag, value.valueString)))
+      case (Success(value), Success(str)) =>
+        value match {
+          case s: WdlString if InterpolationTagPattern.anchored.findFirstIn(s.valueString).isDefined =>
+            replaceInterpolationTag(Success(WdlString(str.value.replace(tag, s.valueString))), s.valueString)
+          case v => Success(WdlString(str.value.replace(tag, v.valueString)))
+        }
       case (Failure(ex), _) => Failure(ex)
       case (_, Failure(ex)) => Failure(ex)
     }
   }
 
-  private def interpolate(str: String): Try[WdlString] =
-    "\\$\\{\\s*([^\\}]*)\\s*\\}".r.findAllIn(str).foldLeft(Try(WdlString(str)))(replaceInterpolationTag)
+  private def interpolate(str: String): Try[WdlString] = {
+    InterpolationTagPattern.findAllIn(str).foldLeft(Try(WdlString(str)))(replaceInterpolationTag)
+  }
+
+  private def interpolate(value: WdlValue): Try[WdlValue] = {
+    value match {
+      case s: WdlString => interpolate(s.valueString)
+      case _ => Try(value)
+    }
+  }
 
   override def evaluate(ast: AstNode): Try[WdlValue] = {
     ast match {
-      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString))
+      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString)).flatMap(interpolate)
       case t: Terminal if t.getTerminalStr == "integer" => Success(WdlInteger(t.getSourceString.toInt))
       case t: Terminal if t.getTerminalStr == "float" => Success(WdlFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WdlBoolean(t.getSourceString == "true"))

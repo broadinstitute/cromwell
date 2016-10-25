@@ -74,7 +74,7 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
         case rhs: Terminal if rhs.getTerminalStr == "identifier" =>
           evaluate(a.getAttribute("lhs")).flatMap {
             case o: WdlCallOutputsObjectType =>
-              o.call.task.outputs.find(_.name == rhs.getSourceString) match {
+              o.call.task.outputs.find(_.unqualifiedName == rhs.getSourceString) match {
                 case Some(taskOutput) => evaluate(taskOutput.requiredExpression.ast)
                 case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
               }

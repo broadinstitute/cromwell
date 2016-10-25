@@ -1,0 +1,14 @@
+{
+  "cgrep.count": [],
+  "cgrep.in_file": [],
+  "cgrep.pattern": [],
+  "ps.procs": [],
+  "three_step.cgrep": [],
+  "three_step.cgrep.in_file": [],
+  "three_step.cgrep.pattern": [],
+  "three_step.ps": ["three_step.cgrep", "three_step.wc"],
+  "three_step.wc": [],
+  "three_step.wc.in_file": [],
+  "wc.count": [],
+  "wc.in_file": []
+}

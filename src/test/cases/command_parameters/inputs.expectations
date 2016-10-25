@@ -1,0 +1,8 @@
+{
+  "wf.param_test.a": "String",
+  "wf.param_test.b": "String",
+  "wf.param_test.c": "Array[String]",
+  "wf.param_test.d": "Int",
+  "wf.param_test.e": "Array[Int]",
+  "wf.param_test.f": "Boolean"
+}

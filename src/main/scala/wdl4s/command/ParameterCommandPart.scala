@@ -29,16 +29,16 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
   def attributesToString: String = if (attributes.nonEmpty) attributes.map({case (k,v) => s"$k=${WdlString(v).toWdlString}"}).mkString(" ") + " " else ""
   override def toString: String = "${" + s"$attributesToString${expression.toWdlString}" + "}"
 
-  override def instantiate(declarations: Seq[Declaration],
-                           parameters: Map[String, WdlValue],
-                           functions: WdlFunctions[WdlValue],
-                           valueMapper: WdlValue => WdlValue = (v) => v): String = {
-    val value = expression.evaluate(WdlExpression.standardLookupFunction(parameters, declarations, functions), functions) match {
+  override def instantiate(declarations: Seq[Declaration], inputsMap: EvaluatedTaskInputs, functions: WdlFunctions[WdlValue], valueMapper: (WdlValue) => WdlValue): String = {
+    val inputs = inputsMap map { case (d, v) => d.unqualifiedName -> v }
+    val lookup = (s: String) => inputs.getOrElse(s, throw new VariableNotFoundException(s))
+
+    val value = expression.evaluate(lookup, functions) match {
       case Success(v) => v
       case Failure(f) => f match {
-        case v: VariableNotFoundException => declarations.find(_.name == v.variable) match {
+        case v: VariableNotFoundException => declarations.find(_.unqualifiedName == v.variable) match {
           /* Allow an expression to fail evaluation if one of the variables that it requires is optional (the type has ? after it, e.g. String?) */
-          case Some(d) if d.postfixQuantifier.contains("?") => if (attributes.contains("default")) WdlString(attributes.get("default").head) else WdlString("")
+          case Some(d) if d.postfixQuantifier.contains(Declaration.OptionalPostfixQuantifier) => if (attributes.contains("default")) WdlString(attributes.get("default").head) else WdlString("")
           case Some(d) => throw new UnsupportedOperationException(s"Parameter ${v.variable} is required, but no value is specified")
           case None => throw new UnsupportedOperationException(s"Could not find declaration for ${v.variable}")
         }

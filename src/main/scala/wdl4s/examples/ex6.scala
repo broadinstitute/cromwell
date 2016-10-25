@@ -1,6 +1,6 @@
 package wdl4s.examples
 
-import wdl4s.NamespaceWithWorkflow
+import wdl4s.WdlNamespaceWithWorkflow
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlString, WdlValue}
 
@@ -13,7 +13,7 @@ object ex6 {
       |  String c = "hello " + other_variable
       |}""".stripMargin
 
-    val ns = NamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl)
     def lookup(name: String): WdlValue = {
       name match {
         case "variable" => WdlString("world")

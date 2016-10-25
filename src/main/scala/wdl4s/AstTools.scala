@@ -7,6 +7,7 @@ import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
 import wdl4s.types._
 import wdl4s.values._
+import wdl4s.WdlExpression.AstForExpressions
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -15,7 +16,14 @@ object AstTools {
   implicit class EnhancedAstNode(val astNode: AstNode) extends AnyVal {
     def findAsts(name: String): Seq[Ast] = AstTools.findAsts(astNode, name)
     def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
-      AstTools.findAstsWithTrail(astNode, name, trail)
+      astNode match {
+        case x: Ast =>
+          val thisAst = if (x.getName.equals(name)) Map(x -> trail) else Map.empty[Ast, Seq[AstNode]]
+          combine(x.getAttributes.values.asScala.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap, thisAst)
+        case x: AstList => x.asScala.toVector.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap
+        case x: Terminal => Map.empty[Ast, Seq[AstNode]]
+        case _ => Map.empty[Ast, Seq[AstNode]]
+      }
     }
     def findTerminalsWithTrail(terminalType: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] = {
       astNode match {
@@ -23,6 +31,13 @@ object AstTools {
         case a: AstList => a.asScala.toVector flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
         case t: Terminal if t.getTerminalStr == terminalType => Map(t -> trail)
         case _ => Map.empty[Terminal, Seq[AstNode]]
+      }
+    }
+    def findFirstTerminal: Option[Terminal] = {
+      Option(astNode) flatMap {
+        case l: AstList => l.astListAsVector.flatMap(_.findFirstTerminal).headOption
+        case a: Ast => a.getAttributes.asScala.toMap.flatMap({ case (k, v) => v.findFirstTerminal }).headOption
+        case t: Terminal => Option(t)
       }
     }
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
@@ -128,6 +143,8 @@ object AstTools {
     val Scatter = "Scatter"
     val Meta = "Meta"
     val ParameterMeta = "ParameterMeta"
+    val Namespace = "Namespace" // TODO: rename this in the grammar
+    val If = "If"
   }
 
   def getAst(wdlSource: WdlSource, resource: String): Ast = {
@@ -140,7 +157,8 @@ object AstTools {
 
   /**
    * Given a WDL file, this will simply parse it and return the syntax tree
-   * @param wdlFile The file to parse
+    *
+    * @param wdlFile The file to parse
    * @return an Abstract Syntax Tree (WdlParser.Ast) representing the structure of the code
    * @throws WdlParser.SyntaxError if there was a problem parsing the source code
    */
@@ -157,17 +175,6 @@ object AstTools {
     }
   }
 
-  def findAstsWithTrail(ast: AstNode, name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
-    ast match {
-      case x: Ast =>
-        val thisAst = if (x.getName.equals(name)) Map(x -> trail) else Map.empty[Ast, Seq[AstNode]]
-        combine(x.getAttributes.values.asScala.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap, thisAst)
-      case x: AstList => x.asScala.toVector.flatMap{_.findAstsWithTrail(name, trail :+ x)}.toMap
-      case x: Terminal => Map.empty[Ast, Seq[AstNode]]
-      case _ => Map.empty[Ast, Seq[AstNode]]
-    }
-  }
-
   def findTerminals(ast: AstNode): Seq[Terminal] = {
     ast match {
       case x: Ast => x.getAttributes.values.asScala.flatMap(findTerminals).toSeq
@@ -177,18 +184,39 @@ object AstTools {
     }
   }
 
-  /*
-    All MemberAccess ASTs that are not contained in other MemberAccess ASTs
-
-    The reason this returns a collection would be expressions such as "a.b.c + a.b.d", each one of those
-    would have its own MemberAccess - "a.b.c" and "a.b.d"
-  */
+  /**
+    * All MemberAccess ASTs that are not contained in other MemberAccess ASTs
+    *
+    * The reason this returns a collection would be expressions such as "a.b.c + a.b.d", each one of those
+    * would have its own MemberAccess - "a.b.c" and "a.b.d"
+    */
   def findTopLevelMemberAccesses(expr: AstNode): Iterable[Ast] = expr.findAstsWithTrail("MemberAccess").filterNot {
-    case(k, v) => v exists {
+    case (k, v) => v exists {
       case a: Ast => a.getName == "MemberAccess"
       case _ => false
     }
   }.keys
+
+  /**
+    * All variable references in the expression AstNode that are not part of MemberAccess ASTs
+    *
+    * These represent anything that would need to be have scope resolution done on it to determine the value
+    */
+  def findVariableReferences(expr: AstNode): Iterable[Terminal] = {
+    def isMemberAccessRhs(identifier: Terminal, trail: Seq[AstNode]): Boolean = {
+      /** e.g. for MemberAccess ast representing source code A.B.C, this would return true for only B,C and not A */
+      trail.collect({ case a: Ast if a.isMemberAccess && a.getAttribute("rhs") == identifier => a }).nonEmpty
+    }
+    def isFunctionName(identifier: Terminal, trail: Seq[AstNode]): Boolean = {
+      trail.lastOption match {
+        case Some(last: Ast) if last.isFunctionCall && last.getAttribute("name") == identifier => true
+        case _ => false
+      }
+    }
+    expr.findTerminalsWithTrail("identifier").collect({
+      case (terminal, trail) if !isMemberAccessRhs(terminal, trail) && !isFunctionName(terminal, trail) => terminal
+    })
+  }
 
   /**
    * Given a Call AST, this will validate that there is 0 or 1 'input' section with non-empty

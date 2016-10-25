@@ -30,12 +30,12 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call],
                           conf: BackendConfigurationDescriptor) = {
     val params = SharedFileSystemInitializationActorParams(emptyActor, workflowDescriptor, conf, calls, List.empty)
     val props = Props(new SharedFileSystemInitializationActor(params))

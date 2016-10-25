@@ -12,13 +12,13 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
-import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.impl.jes.JesJobExecutionActor.JesOperationIdKey
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActorClient
+import cromwell.backend.wdl.OutputEvaluator
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, PreemptedException}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
@@ -27,10 +27,7 @@ import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata._
-import wdl4s.AstTools._
-import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s._
-import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
 
@@ -145,11 +142,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
 
-  private val lookup: ScopedLookupFunction = {
-    val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
-    WdlExpression.standardLookupFunction(jobDescriptor.inputs, declarations, callEngineFunctions)
-  }
-
   /**
     * Takes two arrays of remote and local WDL File paths and generates the necessary JesInputs.
     */
@@ -180,31 +172,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Iterable[JesInput] = {
-    /**
-      * Commands in WDL tasks can also generate input files.  For example: ./my_exec --file=${write_lines(arr)}
-      *
-      * write_lines(arr) would produce a string-ified version of the array stored as a GCS path.  The next block of code
-      * will go through each ${...} expression within the task's command section and find all write_*() ASTs and
-      * evaluate them so the files are written to GCS and the they can be included as inputs to Google's Pipeline object
-      */
-    val commandExpressions = jobDescriptor.key.scope.task.commandTemplate.collect({
-      case x: ParameterCommandPart => x.expression
-    })
 
-    val writeFunctionAsts = commandExpressions.map(_.ast).flatMap(x => AstTools.findAsts(x, "FunctionCall")).collect({
-      case y if y.getAttribute("name").sourceString.startsWith("write_") => y
-    })
-
-    val evaluatedExpressionMap = writeFunctionAsts map { ast =>
-      val expression = WdlExpression(ast)
-      val value = expression.evaluate(lookup, callEngineFunctions)
-      expression.toWdlString.md5SumShort -> value
-    } toMap
-
-    val writeFunctionFiles = evaluatedExpressionMap collect { case (k, v: Success[_]) => k -> v.get } collect { case (k, v: WdlFile) => k -> Seq(v)}
+    val writeFunctionFiles = call.task.evaluateFilesFromCommand(jobDescriptor.fullyQualifiedInputs, callEngineFunctions) map {
+      case (expression, file) =>  expression.toWdlString.md5SumShort -> Seq(file)
+    }
 
     /** Collect all WdlFiles from inputs to the call */
-    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.inputs mapValues { _.collectAsSeq { case w: WdlFile => w } }
+    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues { _.collectAsSeq { case w: WdlFile => w } }
 
     (callInputFiles ++ writeFunctionFiles) flatMap {
       case (name, files) => jesInputsFromWdlFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
@@ -239,14 +213,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private[jes] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Seq[JesFileOutput] = {
-    val wdlFileOutputs = jobDescriptor.key.scope.task.outputs flatMap { taskOutput =>
-      taskOutput.requiredExpression.evaluateFiles(lookup, NoFunctions, taskOutput.wdlType) match {
-        case Success(wdlFiles) => wdlFiles map relativeLocalizationPath
-        case Failure(ex) =>
-          jobLogger.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}", ex)
-          Seq.empty[WdlFile]
-      }
-    }
+    val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) map relativeLocalizationPath
 
     // Create the mappings. GLOB mappings require special treatment (i.e. stick everything matching the glob in a folder)
     wdlFileOutputs.distinct map { wdlFile =>
@@ -260,8 +227,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def instantiateCommand: Try[String] = {
-    val backendInputs = jobDescriptor.inputs mapValues gcsPathToLocal
-    jobDescriptor.call.instantiateCommandLine(backendInputs, callEngineFunctions, gcsPathToLocal)
+    val backendInputs = jobDescriptor.inputDeclarations mapValues gcsPathToLocal
+    jobDescriptor.call.task.instantiateCommand(backendInputs, callEngineFunctions, valueMapper = gcsPathToLocal)
   }
 
   private def uploadCommandScript(command: String, withMonitoring: Boolean): Future[Unit] = {
@@ -452,9 +419,6 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  /**
-    * Attempts to find the JES file output corresponding to the WdlValue
-    */
   private[jes] def wdlValueToGcsPath(jesOutputs: Seq[JesFileOutput])(value: WdlValue): WdlValue = {
     def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst {
       case o if o.name == makeSafeJesReferenceName(wdlFile.valueString) => WdlFile(o.gcs)
@@ -559,7 +523,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           FailedNonRetryableExecutionHandle(new RuntimeException(
             s"execution failed: could not parse return code as integer: ${returnCodeContents.get}")).future
         case _: RunStatus.Success if !continueOnReturnCode.continueFor(returnCode.get) =>
-          val badReturnCodeMessage = s"Call ${jobDescriptor.key}: return code was ${returnCode.getOrElse("(none)")}"
+          val badReturnCodeMessage = s"Call ${jobDescriptor.key.tag}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
         case success: RunStatus.Success =>
           handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths, handle, success.eventList).future

@@ -78,7 +78,7 @@ case class WorkflowInitializationActor(workflowId: WorkflowId,
     case Event(StartInitializationCommand, _) =>
       val backendInitializationActors = Try {
         for {
-          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
+          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, serviceRegistryActor)
           ).get

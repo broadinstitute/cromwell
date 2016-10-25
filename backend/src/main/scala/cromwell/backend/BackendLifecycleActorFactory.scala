@@ -16,7 +16,7 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 trait BackendLifecycleActorFactory {
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                       calls: Seq[Call],
+                                       calls: Set[Call],
                                        serviceRegistryActor: ActorRef): Option[Props] = None
 
   def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
@@ -38,7 +38,7 @@ trait BackendLifecycleActorFactory {
   def backendSingletonActorProps: Option[Props] = None
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                     calls: Seq[Call],
+                                     calls: Set[Call],
                                      executionStore: ExecutionStore,
                                      outputStore: OutputStore,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None

@@ -19,7 +19,7 @@ case class SharedFileSystemInitializationActorParams
   serviceRegistryActor: ActorRef,
   workflowDescriptor: BackendWorkflowDescriptor,
   configurationDescriptor: BackendConfigurationDescriptor,
-  calls: Seq[Call],
+  calls: Set[Call],
   pathBuilderFactories: List[PathBuilderFactory]
 )
 
@@ -39,7 +39,7 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
 
   override lazy val workflowDescriptor: BackendWorkflowDescriptor = params.workflowDescriptor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = params.configurationDescriptor
-  override lazy val calls: Seq[Call] = params.calls
+  override lazy val calls: Set[Call] = params.calls
   override lazy val serviceRegistryActor: ActorRef = params.serviceRegistryActor
 
   def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =

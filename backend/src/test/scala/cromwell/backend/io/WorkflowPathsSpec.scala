@@ -3,12 +3,10 @@ package cromwell.backend.io
 import better.files._
 import com.typesafe.config.Config
 import cromwell.backend.BackendSpec
-import org.mockito.Matchers._
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
-class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec with MockitoSugar {
+class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   val backendConfig = mock[Config]
 
@@ -19,8 +17,8 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec with Moc
     val workflowPaths = new WorkflowPaths(wd, backendConfig)
     val id = wd.id
     workflowPaths.workflowRoot.toString shouldBe
-      File(s"local-cromwell-executions/hello/$id").pathAsString
+      File(s"local-cromwell-executions/wf_hello/$id").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe
-      s"/root/hello/$id"
+      s"/root/wf_hello/$id"
   }
 }

@@ -21,7 +21,7 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
+                                                calls: Set[Call],
                                                 serviceRegistryActor: ActorRef): Option[Props] = {
     Option(JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor).withDispatcher(BackendDispatcher))
   }
@@ -46,7 +46,7 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                              calls: Seq[Call],
+                                              calls: Set[Call],
                                               executionStore: ExecutionStore,
                                               outputStore: OutputStore,
                                               initializationData: Option[BackendInitializationData]) = {

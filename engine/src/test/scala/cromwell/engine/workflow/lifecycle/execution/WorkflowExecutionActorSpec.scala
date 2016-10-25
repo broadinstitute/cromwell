@@ -71,7 +71,7 @@ class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter
         "WorkflowExecutionActor")
 
       EventFilter.info(pattern = ".*Final Outputs", occurrences = 1).intercept {
-        EventFilter.info(pattern = "Starting calls: hello.hello", occurrences = 3).intercept {
+        EventFilter.info(pattern = "Starting calls: wf_hello.hello", occurrences = 3).intercept {
           workflowExecutionActor ! ExecuteWorkflowCommand
         }
       }

@@ -10,9 +10,8 @@ import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, Su
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
-import cromwell.core.{WorkflowOptions, TestKitSuite}
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
-import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -51,7 +50,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -69,7 +68,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
       | RUNTIME
       |}
       |
-      |workflow helloClusterMode {
+      |workflow wf_helloClusterMode {
       |   call helloClusterMode
       |}
     """.stripMargin

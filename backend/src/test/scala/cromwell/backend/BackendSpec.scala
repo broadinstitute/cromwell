@@ -7,12 +7,13 @@ import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
+import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.WdlValue
 
-trait BackendSpec extends ScalaFutures with Matchers {
+trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(500, Millis))
 
@@ -26,10 +27,20 @@ trait BackendSpec extends ScalaFutures with Matchers {
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
       inputs,
       options
     )
+  }
+
+  def fqnMapToDeclarationMap(m: Map[String, WdlValue]): Map[Declaration, WdlValue] = {
+    m map {
+      case (fqn, v) =>
+        val mockDeclaration = mock[Declaration]
+        mockDeclaration.fullyQualifiedName returns fqn
+        mockDeclaration.unqualifiedName returns fqn.split('.').lastOption.getOrElse(fqn)
+        mockDeclaration -> v
+    }
   }
 
   def jobDescriptorFromSingleCallWorkflow(workflowDescriptor: BackendWorkflowDescriptor,
@@ -38,9 +49,10 @@ trait BackendSpec extends ScalaFutures with Matchers {
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputs).get // .get is OK here because this is a test
+    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions)
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputs)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
@@ -49,9 +61,10 @@ trait BackendSpec extends ScalaFutures with Matchers {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, workflowDescriptor.inputs).get // .get is OK here because this is a test
+    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, workflowDescriptor.inputs)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
@@ -62,9 +75,10 @@ trait BackendSpec extends ScalaFutures with Matchers {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
     val call = workflowDescriptor.workflowNamespace.workflow.calls.head
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, workflowDescriptor.inputs).get // .get is OK here because this is a test
+    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
+    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, workflowDescriptor.inputs)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -103,7 +117,7 @@ trait BackendSpec extends ScalaFutures with Matchers {
 
   def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                          inputs: Map[String, WdlValue] = Map.empty) = {
-    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, inputs)
+    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, fqnMapToDeclarationMap(inputs))
   }
 }
 

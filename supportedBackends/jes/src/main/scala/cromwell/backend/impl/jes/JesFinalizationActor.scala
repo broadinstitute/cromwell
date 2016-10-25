@@ -16,14 +16,14 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 
 object JesFinalizationActor {
-  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], jesConfiguration: JesConfiguration,
+  def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call], jesConfiguration: JesConfiguration,
             executionStore: ExecutionStore, outputStore: OutputStore, initializationData: Option[JesBackendInitializationData]) = {
     Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, executionStore, outputStore, initializationData))
   }
 }
 
 class JesFinalizationActor (override val workflowDescriptor: BackendWorkflowDescriptor,
-                            override val calls: Seq[Call],
+                            override val calls: Set[Call],
                             jesConfiguration: JesConfiguration, executionStore: ExecutionStore,
                             outputStore: OutputStore,
                             initializationData: Option[JesBackendInitializationData]) extends BackendWorkflowFinalizationActor {

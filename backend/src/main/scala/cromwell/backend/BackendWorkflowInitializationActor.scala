@@ -36,7 +36,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   val serviceRegistryActor: ActorRef
 
-  def calls: Seq[Call]
+  def calls: Set[Call]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow

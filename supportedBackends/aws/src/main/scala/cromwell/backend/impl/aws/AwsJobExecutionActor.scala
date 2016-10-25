@@ -8,7 +8,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import com.amazonaws.services.ecs.model._
 import cromwell.backend.impl.aws.util.AwsSdkAsyncHandler
 import cromwell.backend.impl.aws.util.AwsSdkAsyncHandler.AwsSdkAsyncResult
-import cromwell.backend.wdl.OnlyPureFunctions
+import cromwell.backend.wdl.{Command, OnlyPureFunctions}
 import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
@@ -31,7 +31,8 @@ class AwsJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   override def execute: Future[BackendJobExecutionResponse] = {
 
-    val commandOverride = new ContainerOverride().withName("simple-app").withCommand(jobDescriptor.call.instantiateCommandLine(Map.empty, OnlyPureFunctions, identity).get)
+    val instantiatedCommand = Command.instantiate(jobDescriptor, OnlyPureFunctions).get
+    val commandOverride = new ContainerOverride().withName("simple-app").withCommand(instantiatedCommand)
 
     val runRequest: RunTaskRequest = new RunTaskRequest()
       .withCluster(clusterName)

@@ -17,7 +17,7 @@ case class HtCondorBackendFactory(name: String, configurationDescriptor: Backend
   extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
+                                                calls: Set[Call],
                                                 serviceRegistryActor: ActorRef): Option[Props] = {
     Option(HtCondorInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }

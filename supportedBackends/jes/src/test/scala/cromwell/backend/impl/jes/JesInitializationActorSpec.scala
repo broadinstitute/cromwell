@@ -39,7 +39,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -137,7 +137,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
+  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf), emptyActor))
   }
 

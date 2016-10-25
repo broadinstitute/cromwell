@@ -20,7 +20,7 @@ case object OnlyPureFunctions extends WdlStandardLibraryFunctions with PureFunct
 
 trait PureFunctions { this: WdlStandardLibraryFunctions =>
 
-  def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+  override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     def extractExactlyOneArg: Try[WdlValue] = params.size match {
       case 1 => params.head
       case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function transpose: $n. Ensure transpose(x: Array[Array[X]]) takes exactly 1 parameters."))
@@ -49,7 +49,7 @@ trait PureFunctions { this: WdlStandardLibraryFunctions =>
     extractExactlyOneArg.flatMap(validateAndExpand).flatMap(transpose)
   }
 
-  def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+  override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     def extractAndValidateArguments = params.size match {
       case 1 => validateArguments(params.head)
       case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function range: $n. Ensure range(x: WdlInteger) takes exactly 1 parameters."))

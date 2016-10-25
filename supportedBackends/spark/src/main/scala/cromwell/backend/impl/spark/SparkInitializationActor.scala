@@ -18,14 +18,14 @@ object SparkInitializationActor {
     SparkRuntimeAttributes.NumberOfExecutorsKey, SparkRuntimeAttributes.AppMainClassKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Seq[Call],
+            calls: Set[Call],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
     Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
 }
 
 class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                               override val calls: Seq[Call],
+                               override val calls: Set[Call],
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 

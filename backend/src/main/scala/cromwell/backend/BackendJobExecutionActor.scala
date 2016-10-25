@@ -6,6 +6,7 @@ import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
+import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.{ExecutionEvent, JobOutputs}
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue

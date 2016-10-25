@@ -16,7 +16,6 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core._
 import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvPair, KvPut}
-import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -55,7 +54,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -74,7 +73,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -93,7 +92,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -289,7 +288,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
         """.stripMargin
       val jsonInputFile = createCannedFile("testFile", "some content").pathAsString
       val inputs = Map(
-        "inputFile" -> WdlFile(jsonInputFile)
+        "wf_hello.hello.inputFile" -> WdlFile(jsonInputFile)
       )
       val jobDescriptor = prepareJob(helloWorldWdlWithFileInput, runtime, Option(inputs))
       val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)
@@ -373,7 +372,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       createCannedFile(prefix = "testFile2", contents = "some other content", dir = Some(tempDir2)).pathAsString
 
     val inputs = Map(
-      "inputFiles" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile(jsonInputFile), WdlFile(jsonInputFile2)))
+      "wf_hello.hello.inputFiles" -> WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile(jsonInputFile), WdlFile(jsonInputFile2)))
     )
     val jobDescriptor = prepareJob(helloWorldWdlWithFileArrayInput, runtime, Option(inputs))
     val (job, jobPaths, backendConfigDesc) = (jobDescriptor.jobDescriptor, jobDescriptor.jobPaths, jobDescriptor.backendConfigurationDescriptor)

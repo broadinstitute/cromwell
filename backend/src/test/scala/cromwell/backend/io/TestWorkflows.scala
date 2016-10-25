@@ -23,7 +23,7 @@ object TestWorkflows {
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -39,7 +39,7 @@ object TestWorkflows {
       |  }
       |}
       |
-      |workflow goodbye {
+      |workflow wf_goodbye {
       |  call goodbye
       |}
     """.stripMargin
@@ -61,7 +61,7 @@ object TestWorkflows {
       |  RUNTIME
       |}
       |
-      |workflow localize {
+      |workflow wf_localize {
       |  File workflowFile
       |  call localize { input: inputFileFromCallInputs = workflowFile }
       |}
@@ -76,7 +76,7 @@ object TestWorkflows {
       |  }
       |}
       |
-      |workflow abort {
+      |workflow wf_abort {
       |  call abort
       |}
     """.stripMargin
@@ -93,7 +93,7 @@ object TestWorkflows {
       |  }
       |}
       |
-      |workflow scattering {
+      |workflow wf_scattering {
       |  Array[Int] numbers = [1, 2, 3]
       |  scatter (i in numbers) {
       |     call scattering { input: intNumber = i }
@@ -117,7 +117,7 @@ object TestWorkflows {
       |  }
       |}
       |
-      |workflow localize {
+      |workflow wf_localize {
       |  call localize
       |}
     """.stripMargin
@@ -133,7 +133,7 @@ object TestWorkflows {
       |  }
       |}
       |
-      |workflow localize {
+      |workflow wf_localize {
       |  call localize
       |}
     """.stripMargin

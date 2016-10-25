@@ -28,14 +28,14 @@ object JesInitializationActor {
     JesRuntimeAttributes.PreemptibleKey, JesRuntimeAttributes.BootDiskSizeKey, JesRuntimeAttributes.DisksKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Seq[Call],
+            calls: Set[Call],
             jesConfiguration: JesConfiguration,
             serviceRegistryActor: ActorRef): Props =
     Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor: ActorRef))
 }
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                             override val calls: Seq[Call],
+                             override val calls: Set[Call],
                              private[jes] val jesConfiguration: JesConfiguration,
                              override val serviceRegistryActor: ActorRef)
   extends BackendWorkflowInitializationActor {

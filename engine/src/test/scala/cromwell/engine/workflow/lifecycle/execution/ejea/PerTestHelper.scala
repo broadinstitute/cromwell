@@ -20,6 +20,7 @@ import org.specs2.mock.Mockito
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s._
 import wdl4s.expression.{NoFunctions, WdlFunctions, WdlStandardLibraryFunctions}
+import wdl4s.parser.WdlParser.Ast
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlInteger, WdlString, WdlValue}
 
@@ -39,28 +40,31 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
   val task = mock[Task]
   task.declarations returns Seq.empty
-  task.runtimeAttributes returns RuntimeAttributes(Map.empty)
+  task.runtimeAttributes returns new RuntimeAttributes(Map.empty)
   task.commandTemplateString returns "!!shazam!!"
+  task.name returns taskName
   val stringOutputExpression = mock[WdlExpression]
   stringOutputExpression.valueString returns "hello"
   stringOutputExpression.evaluate(any[ScopedLookupFunction], any[ WdlFunctions[WdlValue]]) returns Success(WdlString("hello"))
-  task.outputs returns Seq(TaskOutput("outString", WdlStringType, stringOutputExpression))
+  task.outputs returns Seq(TaskOutput("outString", WdlStringType, stringOutputExpression, mock[Ast], Option(task)))
 
   val intInputExpression = mock[WdlExpression]
   intInputExpression.valueString returns "543"
   intInputExpression.evaluate(any[ScopedLookupFunction], any[WdlFunctions[WdlValue]]) returns Success(WdlInteger(543))
 
   val intInputDeclaration = mock[Declaration]
-  intInputDeclaration.name returns "inInt"
+  intInputDeclaration.unqualifiedName returns "inInt"
   intInputDeclaration.expression returns Option(intInputExpression)
   intInputDeclaration.wdlType returns WdlIntegerType
   task.declarations returns Seq(intInputDeclaration)
 
-  val call: Call = Call(None, jobFqn, task, Set.empty, Map.empty, None)
+  val workflow = new Workflow(workflowName, Seq.empty, mock[Ast])
+  val call: Call = new Call(None, task, Map.empty, mock[Ast])
+  call.parent_=(workflow)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null)
-  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputs = Map.empty)
+  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputDeclarations = Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[TaskOutput])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
@@ -94,12 +98,12 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
     // These two factory methods should never be called from EJEA or any of its descendants:
     override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
+                                                calls: Set[Call],
                                                 executionStore: ExecutionStore,
                                                 outputStore: OutputStore,
                                                 initializationData: Option[BackendInitializationData]): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                  calls: Seq[Call],
+                                                  calls: Set[Call],
                                                   serviceRegistryActor: ActorRef): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
   }
 

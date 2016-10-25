@@ -74,14 +74,14 @@ object SampleWdl {
         |  RUNTIME
         |}
         |
-        |workflow hello {
+        |workflow wf_hello {
         |  call hello
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    val Addressee = "hello.hello.addressee"
+    val Addressee = "wf_hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")
-    val OutputKey = "hello.hello.salutation"
+    val OutputKey = "wf_hello.hello.salutation"
     val OutputValue = "Hello world!"
   }
 
@@ -117,7 +117,7 @@ object SampleWdl {
         |  }
         |}
         |
-        |workflow goodbye {
+        |workflow wf_goodbye {
         |  call goodbye
         |}
       """.stripMargin
@@ -149,7 +149,7 @@ object SampleWdl {
         |  }
         |}
         |
-        |workflow hello {
+        |workflow wf_hello {
         |  call hello
         |  call goodbye {input: emptyInputString=hello.empty }
         |  output {
@@ -509,7 +509,7 @@ object SampleWdl {
         |  RUNTIME
         |}
         |
-        |workflow whereami {
+        |workflow wf_whereami {
         |  call whereami
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)

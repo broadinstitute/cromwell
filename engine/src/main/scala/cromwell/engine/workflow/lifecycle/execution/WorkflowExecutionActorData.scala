@@ -6,7 +6,7 @@ import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.core._
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
-import wdl4s.Scope
+import wdl4s.{GraphNode, Scope}
 
 
 object WorkflowExecutionDiff {
@@ -20,9 +20,9 @@ final case class WorkflowExecutionDiff(executionStore: Map[JobKey, ExecutionStat
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
-                                      outputStore: OutputStore) extends WdlLookup {
+                                      outputStore: OutputStore) {
 
-  override val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
+  val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
   def jobExecutionSuccess(jobKey: JobKey, outputs: JobOutputs) = this.copy(
     executionStore = executionStore.add(Map(jobKey -> Done)),
@@ -43,9 +43,14 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     * If complete, this will return Some(finalStatus).  Otherwise, returns None */
   def workflowCompletionStatus: Option[ExecutionStatus] = {
     // `List`ify the `prerequisiteScopes` to avoid expensive hashing of `Scope`s when assembling the result.
-    def upstream(scope: Scope): List[Scope] = scope.prerequisiteScopes.toList ++ scope.prerequisiteScopes.toList.flatMap(upstream)
-    def upstreamFailed(scope: Scope) = upstream(scope) filter { s =>
-      executionStore.store.exists({ case (key, status) => status == Failed && key.scope == s })
+    def upstream(scope: GraphNode): List[Scope] = {
+      val directUpstream: List[Scope with GraphNode] = scope.upstream.toList
+      directUpstream ++ directUpstream.flatMap(upstream)
+    }
+    def upstreamFailed(scope: Scope) = scope match {
+      case node: GraphNode => upstream(node) filter { s =>
+        executionStore.store.exists({ case (key, status) => status == Failed && key.scope == s })
+      }
     }
     // activeJobs is the subset of the executionStore that are either running or will run in the future.
     val activeJobs = executionStore.store.toList filter {

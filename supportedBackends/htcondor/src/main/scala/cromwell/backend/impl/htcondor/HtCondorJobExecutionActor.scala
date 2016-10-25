@@ -10,17 +10,18 @@ import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.impl.htcondor.caching.localization.CachedResultLocalization
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.backend.wdl.Command
+import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
-import wdl4s._
+import wdl4s.EvaluatedTaskInputs
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
 import wdl4s.values.WdlArray
 
-import cromwell.core.path.JavaWriterImplicits._
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
@@ -75,7 +76,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
 
-  private val lookup = jobDescriptor.inputs.apply _
+  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
 
   private val runtimeAttributes = {
     val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
@@ -253,7 +254,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   }
 
   private def calculateHash: String = {
-    val cmd = call.task.instantiateCommand(jobDescriptor.inputs, callEngineFunction, identity) match {
+    val cmd = Command.instantiate(jobDescriptor, callEngineFunction) match {
       case Success(command) => command
       case Failure(ex) =>
         val errMsg = s"$tag Cannot instantiate job command for caching purposes due to ${ex.getMessage}."
@@ -277,7 +278,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined)(jobDescriptor.inputDeclarations) flatMap {
         localizedInputs => resolveJobCommand(localizedInputs)
       }
 
@@ -307,7 +308,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     }
   }
 
-  private def resolveJobCommand(localizedInputs: CallInputs): Try[String] = {
+  private def resolveJobCommand(localizedInputs: EvaluatedTaskInputs): Try[String] = {
     val command = if (runtimeAttributes.dockerImage.isDefined) {
       modifyCommandForDocker(call.task.instantiateCommand(localizedInputs, callEngineFunction, identity), localizedInputs)
     } else {
@@ -330,7 +331,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: CallInputs): Try[String] = {
+  private def modifyCommandForDocker(jobCmd: Try[String], localizedInputs: EvaluatedTaskInputs): Try[String] = {
     Try {
       val dockerInputDataVol = localizedInputs.values.collect {
         case file if file.wdlType == WdlFileType =>

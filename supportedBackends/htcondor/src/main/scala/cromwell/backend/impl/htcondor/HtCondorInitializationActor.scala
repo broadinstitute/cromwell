@@ -19,14 +19,14 @@ object HtCondorInitializationActor {
     ContinueOnReturnCodeKey, CpuKey, MemoryKey, DiskKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Seq[Call],
+            calls: Set[Call],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
     Props(new HtCondorInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
 }
 
 class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                                  override val calls: Seq[Call],
+                                  override val calls: Set[Call],
                                   override val configurationDescriptor: BackendConfigurationDescriptor,
                                   override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 

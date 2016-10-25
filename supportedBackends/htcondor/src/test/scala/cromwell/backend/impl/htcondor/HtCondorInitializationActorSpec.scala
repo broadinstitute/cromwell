@@ -29,12 +29,12 @@ class HtCondorInitializationActorSpec extends TestKitSuite("HtCondorInitializati
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
 
-  private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
+  private def getHtCondorBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(HtCondorInitializationActor.props(workflowDescriptor, calls, conf, emptyActor))
   }
 

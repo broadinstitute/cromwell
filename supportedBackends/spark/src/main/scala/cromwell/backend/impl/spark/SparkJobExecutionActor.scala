@@ -7,6 +7,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, F
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
 import cromwell.core.path.JavaWriterImplicits._
@@ -60,7 +61,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
 
-  private val lookup = jobDescriptor.inputs.apply _
+  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
@@ -155,9 +156,12 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callInputsRoot, docker = false, jobDescriptor.inputs) flatMap {
-        localizedInputs => call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
-      }
+
+      val command = Command.instantiate(
+        jobDescriptor,
+        callEngineFunction,
+        localizeInputs(jobPaths.callInputsRoot, docker = false)
+      )
 
       log.debug("{} Creating bash script for executing command: {}", tag, command)
       // TODO: we should use shapeless Heterogeneous list here not good to have generic map

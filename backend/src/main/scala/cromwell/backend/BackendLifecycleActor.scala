@@ -65,7 +65,7 @@ trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowL
   /**
     * The subset of calls which this backend will be expected to run
     */
-  protected def calls: Seq[Call]
+  protected def calls: Set[Call]
 }
 
 trait BackendJobLifecycleActor extends BackendLifecycleActor with JobLogging {

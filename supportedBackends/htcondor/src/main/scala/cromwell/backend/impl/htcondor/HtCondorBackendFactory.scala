@@ -39,7 +39,7 @@ case class HtCondorBackendFactory(name: String, configurationDescriptor: Backend
       jobPaths.stderr.toAbsolutePath.toString
     )
 
-    new SharedFileSystemExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
+    new SharedFileSystemExpressionFunctions(HtCondorJobExecutionActor.pathBuilders, callContext)
   }
 
   private def resolveCacheProviderProps(workflowOptions: WorkflowOptions) = {

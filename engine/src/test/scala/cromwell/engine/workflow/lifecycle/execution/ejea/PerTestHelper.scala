@@ -10,18 +10,18 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching.{CallCachingActivity, CallCachingMode, CallCachingOff}
 import cromwell.core.{ExecutionStore, JobExecutionToken, OutputStore, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
-import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
+import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
+import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
+import cromwell.util.AkkaTestUtil._
 import org.specs2.mock.Mockito
 import wdl4s.WdlExpression.ScopedLookupFunction
+import wdl4s._
 import wdl4s.expression.{NoFunctions, WdlFunctions, WdlStandardLibraryFunctions}
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlInteger, WdlString, WdlValue}
-import wdl4s._
-import cromwell.util.AkkaTestUtil._
-import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 
 import scala.util.Success
 

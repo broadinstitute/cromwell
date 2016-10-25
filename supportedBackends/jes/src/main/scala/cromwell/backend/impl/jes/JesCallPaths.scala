@@ -2,20 +2,17 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import cromwell.backend.impl.jes.authentication.JesCredentials
+import akka.actor.ActorSystem
 import cromwell.backend.io.JobPaths
 import cromwell.backend.io.JobPaths._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.CallContext
 import cromwell.services.metadata.CallMetadataKeys
 
-import scala.concurrent.ExecutionContext
-
 object JesCallPaths {
   def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
-            jesConfiguration: JesConfiguration,
-            credentials: JesCredentials)(implicit ec: ExecutionContext): JesCallPaths = {
-    new JesCallPaths(jobKey, workflowDescriptor, jesConfiguration, credentials)
+            jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem): JesCallPaths = {
+    new JesCallPaths(jobKey, workflowDescriptor, jesConfiguration)
   }
 
   val JesLogPathKey = "jesLog"
@@ -23,9 +20,8 @@ object JesCallPaths {
 }
 
 class JesCallPaths(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
-                   jesConfiguration: JesConfiguration,
-                   credentials: JesCredentials)(implicit ec: ExecutionContext) extends
-  JesWorkflowPaths(workflowDescriptor, jesConfiguration, credentials)(ec) {
+                   jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) extends
+  JesWorkflowPaths(workflowDescriptor, jesConfiguration)(actorSystem) {
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")

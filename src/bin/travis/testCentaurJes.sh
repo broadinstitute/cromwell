@@ -69,7 +69,7 @@ EXIT_CODE="${PIPESTATUS[0]}"
 export WORKFLOW_ID=`grep "SingleWorkflowRunnerActor: Workflow submitted " log.txt | perl -pe 's/\e\[?.*?[\@-~]//g' | cut -f7 -d" "`
 
 # Grab the Centaur log from GCS and cat it so we see it in the main travis log. 
-export CENTAUR_LOG_PATH="gs://cloud-cromwell-dev/cromwell_execution/travis/centaur/${WORKFLOW_ID}/call-centaur//cromwell_root/logs/centaur.log"
+export CENTAUR_LOG_PATH="gs://cloud-cromwell-dev/cromwell_execution/travis/centaur/${WORKFLOW_ID}/call-centaur/cromwell_root/logs/centaur.log"
 gsutil cp ${CENTAUR_LOG_PATH} centaur.log
 cat centaur.log
 echo "More logs for this run are available at https://console.cloud.google.com/storage/browser/cloud-cromwell-dev/cromwell_execution/travis/centaur/${WORKFLOW_ID}/call-centaur/"

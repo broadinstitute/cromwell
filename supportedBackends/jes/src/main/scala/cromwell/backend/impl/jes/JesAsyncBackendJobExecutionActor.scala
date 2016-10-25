@@ -9,21 +9,22 @@ import better.files._
 import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
-import cromwell.backend.impl.jes.JesImplicits.PathString
 import cromwell.backend.impl.jes.JesJobExecutionActor.JesOperationIdKey
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActorClient
-import cromwell.backend.{AttemptedLookupResult, BackendJobDescriptor, BackendWorkflowDescriptor, PreemptedException}
+import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, PreemptedException}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core._
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
-import cromwell.filesystems.gcs.NioGcsPath
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata._
 import wdl4s.AstTools._
@@ -31,7 +32,6 @@ import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s._
 import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values._
 
 import scala.concurrent.duration._
@@ -103,9 +103,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val cmdInput =
-    JesFileInput(ExecParamName, jesCallPaths.gcsExecPath.toString, Paths.get(jesCallPaths.gcsExecFilename), workingDisk)
+    JesFileInput(ExecParamName, jesCallPaths.gcsExecPath.toUri.toString, Paths.get(jesCallPaths.gcsExecFilename), workingDisk)
   private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
-  private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toString, Paths.get(returnCodeFilename), workingDisk)
+  private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toUri.toString, Paths.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
   private lazy val returnCodeContents = Try(File(returnCodeGcsPath).contentAsString)
@@ -132,18 +132,18 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private def globOutputPath(glob: String) = callRootPath.resolve(s"glob-${glob.md5Sum}/")
 
   private def gcsAuthParameter: Option[JesInput] = {
-    if (jesAttributes.gcsFilesystemAuth.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.toString))
+    if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
+      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.toUri.toString))
     else None
   }
 
   private lazy val callContext = CallContext(
     callRootPath,
-    jesStdoutFile.toString,
-    jesStderrFile.toString
+    jesStdoutFile.toUri.toString,
+    jesStderrFile.toUri.toString
   )
 
-  private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsFileSystem), callContext)
+  private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
 
   private val lookup: ScopedLookupFunction = {
     val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
@@ -170,10 +170,12 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
   private def relativeLocalizationPath(file: WdlFile): WdlFile = {
-    Try(getPath(file.value)) match {
-      case Success(gcsPath: NioGcsPath) => WdlFile(gcsPath.bucket + "/" + gcsPath.objectName, file.isGlob)
-      case Success(gcsPath) => file
-      case Failure(e) => file
+    getPath(file.value) match {
+      case Success(path) => {
+        val value: WdlSource = path.toUri.getHost + path.toUri.getPath
+        WdlFile(value, file.isGlob)
+      }
+      case _ => file
     }
   }
 
@@ -249,8 +251,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     // Create the mappings. GLOB mappings require special treatment (i.e. stick everything matching the glob in a folder)
     wdlFileOutputs.distinct map { wdlFile =>
       val destination = wdlFile match {
-        case WdlSingleFile(filePath) => callRootPath.resolve(filePath).toString
-        case WdlGlobFile(filePath) => globOutputPath(filePath).toString
+        case WdlSingleFile(filePath) => callRootPath.resolve(filePath.stripPrefix("/")).toUri.toString
+        case WdlGlobFile(filePath) => globOutputPath(filePath).toUri.toString
       }
       val (relpath, disk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
       JesFileOutput(makeSafeJesReferenceName(wdlFile.value), destination, relpath, disk)
@@ -285,14 +287,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
          |echo $$? > $rcPath
        """.stripMargin.trim
 
-    def writeScript(): Future[Unit] = Future { File(jesCallPaths.gcsExecPath).write(fileContent) } void
-
-    implicit val system = context.system
-    Retry.withRetry(
-      writeScript,
-      isTransient = isTransientJesException,
-      isFatal = isFatalJesException
-    )
+    Future(File(jesCallPaths.gcsExecPath).write(fileContent)) void
   }
 
   private def googleProject(descriptor: BackendWorkflowDescriptor): String = {
@@ -305,7 +300,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       runIdForResumption,
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
-      callRootPath = callRootPath.toString,
+      callRootPath = callRootPath.toUri.toString,
       commandLine = jesCommandLine,
       logFileName = jesLogFilename,
       jesParameters,
@@ -457,59 +452,35 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  private def customLookupFunction(alreadyGeneratedOutputs: Map[String, WdlValue])(toBeLookedUp: String): WdlValue = alreadyGeneratedOutputs.getOrElse(toBeLookedUp, lookup(toBeLookedUp))
-
+  /**
+    * Attempts to find the JES file output corresponding to the WdlValue
+    */
   private[jes] def wdlValueToGcsPath(jesOutputs: Seq[JesFileOutput])(value: WdlValue): WdlValue = {
     def toGcsPath(wdlFile: WdlFile) = jesOutputs collectFirst {
       case o if o.name == makeSafeJesReferenceName(wdlFile.valueString) => WdlFile(o.gcs)
     } getOrElse value
+
     value match {
       case wdlArray: WdlArray => wdlArray map wdlValueToGcsPath(jesOutputs)
       case wdlMap: WdlMap => wdlMap map {
         case (k, v) => wdlValueToGcsPath(jesOutputs)(k) -> wdlValueToGcsPath(jesOutputs)(v)
       }
-      case file: WdlFile => if (file.value.isGcsUrl) file else toGcsPath(file)
+      case file: WdlFile => toGcsPath(file)
       case other => other
     }
   }
 
-  private def outputLookup(taskOutput: TaskOutput, currentList: Seq[AttemptedLookupResult]) = for {
-  /**
-    * This will evaluate the task output expression and coerces it to the task output's type.
-    * If the result is a WdlFile, then attempt to find the JesOutput with the same path and
-    * return a WdlFile that represents the GCS path and not the local path.  For example,
-    *
-    * <pre>
-    * output {
-    *   File x = "out" + ".txt"
-    * }
-    * </pre>
-    *
-    * "out" + ".txt" is evaluated to WdlString("out.txt") and then coerced into a WdlFile("out.txt")
-    * Then, via wdlFileToGcsPath(), we attempt to find the JesOutput with .name == "out.txt".
-    * If it is found, then WdlFile("gs://some_bucket/out.txt") will be returned.
-    */
-    wdlValue <- taskOutput.requiredExpression.evaluate(customLookupFunction(currentList.toLookupMap), callEngineFunctions)
-    coercedValue <- taskOutput.wdlType.coerceRawValue(wdlValue)
-    value = wdlValueToGcsPath(generateJesOutputs(jobDescriptor))(coercedValue)
-  } yield value
-
-
-  private def outputFoldingFunction: (Seq[AttemptedLookupResult], TaskOutput) => Seq[AttemptedLookupResult] = {
-    (currentList: Seq[AttemptedLookupResult], taskOutput: TaskOutput) => {
-      currentList ++ Seq(AttemptedLookupResult(taskOutput.name, outputLookup(taskOutput, currentList)))
-    }
-  }
-
   private def postProcess: Try[JobOutputs] = {
-    val outputs = call.task.outputs
-    val outputMappings = outputs.foldLeft(Seq.empty[AttemptedLookupResult])(outputFoldingFunction).map(_.toPair).toMap
-    TryUtil.sequenceMap(outputMappings) map { outputMap =>
-      outputMap mapValues { v => JobOutput(v) }
-    }
+    def wdlValueToSuccess(value: WdlValue): Try[WdlValue] = Success(value)
+
+    OutputEvaluator.evaluateOutputs(
+      jobDescriptor,
+      callEngineFunctions,
+      (wdlValueToSuccess _).compose(wdlValueToGcsPath(generateJesOutputs(jobDescriptor)))
+    )
   }
 
-  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, String], executionHandle: ExecutionHandle, events: Seq[ExecutionEvent]): ExecutionHandle = {
+  private def handleSuccess(outputMappings: Try[JobOutputs], returnCode: Int, jobDetritusFiles: Map[String, Path], executionHandle: ExecutionHandle, events: Seq[ExecutionEvent]): ExecutionHandle = {
     outputMappings match {
       case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, events)
       case Failure(ex: CromwellAggregatedException) if ex.throwables collectFirst { case s: SocketTimeoutException => s } isDefined =>
@@ -591,7 +562,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           val badReturnCodeMessage = s"Call ${jobDescriptor.key}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
         case success: RunStatus.Success =>
-          handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths.mapValues(_.toString), handle, success.eventList).future
+          handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths, handle, success.eventList).future
         case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {
@@ -611,8 +582,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     * @param gcsPath The input path
     * @return A path which is unique per input path
     */
-  private def localFilePathFromCloudStoragePath(mountPoint: Path, gcsPath: NioGcsPath): Path = {
-    mountPoint.resolve(gcsPath.bucket).resolve(gcsPath.objectName)
+  private def localFilePathFromCloudStoragePath(mountPoint: Path, gcsPath: CloudStoragePath): Path = {
+    mountPoint.resolve(gcsPath.bucket()).resolve(gcsPath.toUri.getPath.stripPrefix("/"))
   }
 
   /**
@@ -625,11 +596,14 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   private[jes] def gcsPathToLocal(wdlValue: WdlValue): WdlValue = {
     wdlValue match {
       case wdlFile: WdlFile =>
-        Try(getPath(wdlFile.valueString)) match {
-          case Success(gcsPath: NioGcsPath) =>
+        getPath(wdlFile.valueString) match {
+          case Success(gcsPath: CloudStoragePath) =>
             WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
-          case Success(otherPath) => wdlValue
-          case Failure(e) => wdlValue
+          case Success(proxy: PathProxy) =>
+            proxy.unbox(classOf[CloudStoragePath]) map { gcsPath =>
+              WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
+            } getOrElse wdlValue
+          case _ => wdlValue
         }
       case wdlArray: WdlArray => wdlArray map gcsPathToLocal
       case wdlMap: WdlMap => wdlMap map { case (k, v) => gcsPathToLocal(k) -> gcsPathToLocal(v) }

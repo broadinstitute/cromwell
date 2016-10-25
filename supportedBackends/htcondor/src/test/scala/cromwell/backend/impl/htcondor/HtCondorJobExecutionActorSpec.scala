@@ -14,6 +14,7 @@ import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
 import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
+import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvPair, KvPut}
 import org.mockito.Matchers._
 import org.mockito.Mockito

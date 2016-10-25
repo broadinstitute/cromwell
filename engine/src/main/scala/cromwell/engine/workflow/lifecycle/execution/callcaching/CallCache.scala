@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import java.nio.file.Path
+
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.SucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
@@ -35,7 +37,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   private def addToCache(callCachingEntry: CallCachingEntry, hashes: Set[HashResult],
-                         result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, String])
+                         result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path])
                         (implicit ec: ExecutionContext): Future[Unit] = {
 
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
@@ -51,7 +53,7 @@ class CallCache(database: CallCachingSqlDatabase) {
 
     val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.toUri.toString)
       }
     }
 

@@ -1,6 +1,5 @@
 package cromwell.backend.impl.htcondor
 
-import java.nio.file.FileSystems
 import java.nio.file.attribute.PosixFilePermission
 import java.util.UUID
 
@@ -11,6 +10,7 @@ import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.impl.htcondor.caching.localization.CachedResultLocalization
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
@@ -20,6 +20,7 @@ import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.util.TryUtil
 import wdl4s.values.WdlArray
 
+import cromwell.core.path.JavaWriterImplicits._
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
@@ -27,7 +28,7 @@ import scala.util.{Failure, Success, Try}
 object HtCondorJobExecutionActor {
   val HtCondorJobIdKey = "htCondor_job_id"
 
-  val fileSystems = List(FileSystems.getDefault)
+  val pathBuilders = List(DefaultPathBuilder)
 
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor, serviceRegistryActor: ActorRef, cacheActorProps: Option[Props]): Props =
     Props(new HtCondorJobExecutionActor(jobDescriptor, configurationDescriptor, serviceRegistryActor, cacheActorProps))
@@ -41,9 +42,9 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
 
   import HtCondorJobExecutionActor._
   import better.files._
-  import cromwell.core.PathFactory._
 
   private val tag = s"CondorJobExecutionActor-${jobDescriptor.call.fullyQualifiedName}:"
+  override val pathBuilders: List[PathBuilder] = HtCondorJobExecutionActor.pathBuilders
 
   implicit val executionContext = context.dispatcher
 
@@ -72,7 +73,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private lazy val stderrWriter = extProcess.tailedWriter(100, submitFileStderr)
 
   private val call = jobDescriptor.key.call
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, fileSystems)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
 
   private val lookup = jobDescriptor.inputs.apply _
 
@@ -276,7 +277,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined, fileSystems, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callInputsRoot, runtimeAttributes.dockerImage.isDefined, jobDescriptor.inputs) flatMap {
         localizedInputs => resolveJobCommand(localizedInputs)
       }
 

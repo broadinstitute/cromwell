@@ -5,8 +5,9 @@ import java.nio.file.{Files, Path}
 import better.files._
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.impl.htcondor
-import cromwell.core.PathFactory.{EnhancedPath, FlushingAndClosingWriter}
-import cromwell.core.{TailedWriter, UntailedWriter}
+import cromwell.core.path.{TailedWriter, UntailedWriter}
+import cromwell.core.path.PathImplicits._
+import cromwell.core.path.JavaWriterImplicits._
 
 import scala.sys.process._
 

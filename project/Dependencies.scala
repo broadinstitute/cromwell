@@ -14,7 +14,8 @@ object Dependencies {
   lazy val sprayJsonV = "1.3.2"
   lazy val akkaV = "2.4.9"
   lazy val slickV = "3.1.1"
-  lazy val googleClientApiV = "1.20.0"
+  lazy val googleClientApiV = "1.22.0"
+  lazy val googleGenomicsServicesApiV = "1.20.0"
   lazy val betterFilesV = "2.16.0"
   lazy val catsV = "0.7.2"
 
@@ -74,10 +75,10 @@ object Dependencies {
   )
 
   private val googleCloudDependencies = List(
-    "com.google.gcloud" % "gcloud-java" % "0.0.9",
-    "com.google.oauth-client" % "google-oauth-client" % googleClientApiV,
-    "com.google.cloud.bigdataoss" % "gcsio" % "1.4.4",
-    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleClientApiV)
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleGenomicsServicesApiV),
+    "com.google.cloud" % "google-cloud-nio" % "0.3.0"
+      exclude("com.google.api.grpc", "grpc-google-common-protos")
+      exclude("com.google.cloud.datastore", "datastore-v1-protos")
   )
 
   private val dbmsDependencies = List(
@@ -95,7 +96,9 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
+  val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies ++ List (
+    "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
 
   val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
 
@@ -133,7 +136,6 @@ object Dependencies {
     "org.webjars" % "swagger-ui" % "2.1.1",
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
-    "com.github.pathikrit" %% "better-files" % betterFilesV,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies

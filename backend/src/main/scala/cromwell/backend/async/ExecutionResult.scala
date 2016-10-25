@@ -1,5 +1,7 @@
 package cromwell.backend.async
 
+import java.nio.file.Path
+
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{ExecutionEvent, JobOutputs}
 
@@ -13,7 +15,7 @@ sealed trait ExecutionResult
  */
 final case class SuccessfulExecution(outputs: JobOutputs,
                                      returnCode: Int,
-                                     jobDetritusFiles: Map[String, String],
+                                     jobDetritusFiles: Map[String, Path],
                                      executionEvents: Seq[ExecutionEvent],
                                      resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionResult
 

@@ -2,12 +2,12 @@ package cromwell.backend.impl.spark
 
 import java.nio.file.Path
 
+import better.files._
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.core.{TailedWriter, UntailedWriter}
-import cromwell.core.PathFactory.EnhancedPath
+import cromwell.core.path.PathImplicits._
+import cromwell.core.path.{TailedWriter, UntailedWriter}
 
 import scala.sys.process._
-import better.files._
 import scala.util.{Failure, Success, Try}
 
 object SparkCommands {

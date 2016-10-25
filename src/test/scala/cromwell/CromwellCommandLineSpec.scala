@@ -1,7 +1,7 @@
 package cromwell
 
 import better.files._
-import cromwell.core.PathFactory._
+import cromwell.core.path.PathImplicits._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.{FlatSpec, Matchers}

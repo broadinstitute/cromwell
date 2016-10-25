@@ -9,7 +9,8 @@ import cromwell.backend.impl.jes.authentication.GcsLocalizing
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.{RefreshTokenMode, SimpleClientSecrets}
+import cromwell.filesystems.gcs.GoogleConfiguration
+import cromwell.filesystems.gcs.auth.{SimpleClientSecrets, RefreshTokenMode}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -197,7 +198,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits(refreshTokenConfig)
     val actor = actorRef.underlyingActor
-    actor.refreshTokenAuth should be(Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret"), "mytoken")))
+    actor.refreshTokenAuth should be(Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret", GoogleConfiguration.GoogleScopes),  "mytoken")))
   }
 
   it should "generate the correct json content for no docker token and no refresh token" in {

@@ -7,21 +7,20 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.services.genomics.Genomics
 import cromwell.backend.impl.jes.JesInitializationActor._
-import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation, JesCredentials}
+import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions
-import cromwell.core.retry.Retry
-import cromwell.filesystems.gcs.{ClientSecrets, GoogleAuthMode}
+import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.Call
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
+import scala.language.postfixOps
 import scala.util.Try
 
 object JesInitializationActor {
@@ -58,13 +57,10 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
 
   private[jes] lazy val refreshTokenAuth: Option[JesAuthInformation] = {
     for {
-      clientSecrets <- List(jesConfiguration.jesAttributes.gcsFilesystemAuth) collectFirst { case s: ClientSecrets => s }
+      clientSecrets <- List(jesConfiguration.jesAttributes.auths.gcs) collectFirst { case s: ClientSecrets => s }
       token <- workflowDescriptor.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(clientSecrets, token)
   }
-
-  private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
-
 
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, JesRuntimeAttributes.coercionMap)
@@ -75,18 +71,13 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
     */
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
 
-    val genomicsCredential = jesConfiguration.jesAttributes.genomicsCredential(workflowDescriptor.workflowOptions)
-    val gcsCredential = jesConfiguration.jesAttributes.gcsCredential(workflowDescriptor.workflowOptions)
-
-    val jesCredentials = JesCredentials(genomicsCredential = genomicsCredential, gcsCredential = gcsCredential)
     def buildGenomics: Future[Genomics] = Future {
-      GenomicsFactory(jesConfiguration.googleConfig.applicationName, genomicsCredential, jesConfiguration.jesAttributes.endpointUrl)
+      jesConfiguration.genomicsFactory.withOptions(workflowDescriptor.workflowOptions)
     }
 
     for {
-      // generate single filesystem and genomics instances
       genomics <- buildGenomics
-      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration, jesCredentials)(iOExecutionContext)
+      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
       _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
     } yield Option(JesBackendInitializationData(workflowPaths, genomics))
@@ -95,12 +86,10 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
       val path = workflowPath.gcsAuthFilePath
-      val upload = () => Future(path.writeAsJson(content))
-
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
-      Retry.withRetry(upload, isFatal = isFatalJesException, isTransient = isTransientJesException)(context.system).void.recoverWith {
+      Future(path.writeAsJson(content)).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
-      }
+      } void
     } getOrElse Future.successful(())
   }
 

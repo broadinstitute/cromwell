@@ -1,6 +1,5 @@
 package cromwell.backend.impl.spark
 
-import java.nio.file.FileSystems
 import java.nio.file.attribute.PosixFilePermission
 
 import akka.actor.Props
@@ -9,7 +8,8 @@ import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import cromwell.core.{TailedWriter, UntailedWriter}
+import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
+import cromwell.core.path.JavaWriterImplicits._
 import wdl4s.parser.MemoryUnit
 import wdl4s.util.TryUtil
 
@@ -18,7 +18,7 @@ import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
 
 object SparkJobExecutionActor {
-  val DefaultFileSystems = List(FileSystems.getDefault)
+  val DefaultPathBuilders = List(DefaultPathBuilder)
 
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props =
     Props(new SparkJobExecutionActor(jobDescriptor, configurationDescriptor))
@@ -29,8 +29,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   import SparkJobExecutionActor._
   import better.files._
-  import cromwell.core.PathFactory._
 
+  override val pathBuilders = DefaultPathBuilders
   private val tag = s"SparkJobExecutionActor-${jobDescriptor.key.tag}:"
 
   lazy val cmds = new SparkCommands
@@ -58,7 +58,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
   private val call = jobDescriptor.key.call
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultFileSystems)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
 
   private val lookup = jobDescriptor.inputs.apply _
 
@@ -155,7 +155,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
 
       log.debug("{} Resolving job command", tag)
-      val command = localizeInputs(jobPaths.callInputsRoot, docker = false, DefaultFileSystems, jobDescriptor.inputs) flatMap {
+      val command = localizeInputs(jobPaths.callInputsRoot, docker = false, jobDescriptor.inputs) flatMap {
         localizedInputs => call.task.instantiateCommand(localizedInputs, callEngineFunction, identity)
       }
 

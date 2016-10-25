@@ -6,17 +6,18 @@ import java.util.UUID
 import akka.actor.{ActorRef, Props}
 import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.impl.jes.MockObjects._
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException, RuntimeAttributeDefinition}
 import cromwell.core.logging.LoggerWrapper
 import cromwell.core.{WorkflowId, WorkflowOptions, _}
-import cromwell.filesystems.gcs._
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
@@ -30,11 +31,12 @@ import wdl4s.{Call, LocallyQualifiedName, NamespaceWithWorkflow}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Success, Try}
-import cromwell.backend.impl.jes.MockObjects._
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito {
+
+  val mockPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
 
   import JesTestConfig._
 
@@ -65,16 +67,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val TestableCallContext = CallContext(MockGcsFileSystemBuilder.mockGcsFileSystem.getPath("gs://root"), "out", "err")
+  val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
 
   val TestableJesExpressionFunctions = {
-    new JesExpressionFunctions(List(MockGcsFileSystemBuilder.mockGcsFileSystem), TestableCallContext)
+    new JesExpressionFunctions(List(mockPathBuilder), TestableCallContext)
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
-    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor,
-      configuration,
-      mockCredentials)(scala.concurrent.ExecutionContext.global)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
     JesBackendInitializationData(workflowPaths, null)
   }
 
@@ -393,14 +393,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   it should "generate correct JesOutputs" in {
     val inputs = Map(
-      "in" -> WdlFile("gs://a/b/c.txt")
+      "in" -> WdlFile("gs://blah/b/c.txt")
     )
     val jesBackend = makeJesActorRef(SampleWdl.FilePassingWorkflow, "a", inputs).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val workflowId = jesBackend.workflowId
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(JesFileInput("in-0", "gs://a/b/c.txt", Paths.get("a/b/c.txt"), workingDisk))
+    jesInputs should contain(JesFileInput("in-0", "gs://blah/b/c.txt", Paths.get("blah/b/c.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(JesFileOutput("out",
@@ -413,7 +413,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     class TestJesExpressionFunctions extends JesExpressionFunctions(
-      List(MockGcsFileSystemBuilder.mockGcsFileSystem), TestableCallContext) {
+      List(mockPathBuilder), TestableCallContext) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))
       }
@@ -597,14 +597,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesBackend = testActorRef.underlyingActor
 
     // TODO: NioGcsPath.equals not implemented, so use toString instead
-    jesBackend.jesCallPaths.stdoutPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stdoutPath.toString shouldBe
+    jesBackend.jesCallPaths.stdoutPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stdoutPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
-    jesBackend.jesCallPaths.stderrPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stderrPath.toString shouldBe
+    jesBackend.jesCallPaths.stderrPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stderrPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.jesLogPath.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
@@ -628,14 +628,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesBackend = testActorRef.underlyingActor
 
-    jesBackend.jesCallPaths.stdoutPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stdoutPath.toString shouldBe
+    jesBackend.jesCallPaths.stdoutPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stdoutPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stdout.log"
-    jesBackend.jesCallPaths.stderrPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stderrPath.toString shouldBe
+    jesBackend.jesCallPaths.stderrPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stderrPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.jesLogPath.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 

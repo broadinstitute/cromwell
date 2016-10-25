@@ -1,12 +1,12 @@
 package cromwell.backend.impl.jes
 
 import cromwell.backend.BackendSpec
+import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import cromwell.backend.impl.jes.MockObjects._
 
-class JesWorkflowPathsSpec extends FlatSpec with Matchers with Mockito {
+class JesWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
   import BackendSpec._
   import JesTestConfig._
 
@@ -16,11 +16,11 @@ class JesWorkflowPathsSpec extends FlatSpec with Matchers with Mockito {
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource())
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val workflowPaths = JesWorkflowPaths(workflowDescriptor, jesConfiguration, mockCredentials)(scala.concurrent.ExecutionContext.global)
-    workflowPaths.rootPath.toString should be("gs://my-cromwell-workflows-bucket")
-    workflowPaths.workflowRootPath.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}")
-    workflowPaths.gcsAuthFilePath.toString should
+    val workflowPaths = JesWorkflowPaths(workflowDescriptor, jesConfiguration)(system)
+    workflowPaths.rootPath.toUri.toString should be("gs://my-cromwell-workflows-bucket/")
+    workflowPaths.workflowRootPath.toUri.toString should
+      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/")
+    workflowPaths.gcsAuthFilePath.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/${workflowDescriptor.id}_auth.json")
   }
 }

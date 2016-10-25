@@ -284,7 +284,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def disableCacheWrite(reason: Throwable) = {
-    log.error("{}: Disabling cache writing for this job.", jobTag)
+    log.error(reason, "{}: Disabling cache writing for this job.", jobTag)
     if (effectiveCallCachingMode.writeToCache) {
       effectiveCallCachingMode = effectiveCallCachingMode.withoutWrite
       writeCallCachingModeToMetadata()

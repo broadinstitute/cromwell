@@ -73,7 +73,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
               case (call, assignment) if call.task.name.equals("hello") => assignment shouldBe "Local"
               case (call, assignment) => fail(s"Unexpected call: ${call.task.name}")
             }
-            wfDesc.engineFilesystems.size shouldBe 1
+            wfDesc.pathBuilders.size shouldBe 1
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")

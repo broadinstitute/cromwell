@@ -1,13 +1,14 @@
 package cromwell.backend.wdl
 
 import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.expression.PureStandardLibraryFunctions
 import wdl4s.types.{WdlArrayType, WdlIntegerType}
 import wdl4s.values.{WdlArray, WdlInteger}
 
 import scala.util.Success
 
 
-class PureFunctionsSpec extends FlatSpec with Matchers {
+class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
 
   behavior of "transpose"
 
@@ -23,7 +24,7 @@ class PureFunctionsSpec extends FlatSpec with Matchers {
       WdlArray(WdlArrayType(WdlIntegerType), List(WdlInteger(3), WdlInteger(6)))
     ))
 
-    OnlyPureFunctions.transpose(Seq(Success(inArray))) should be(Success(expectedResult))
+    PureStandardLibraryFunctions.transpose(Seq(Success(inArray))) should be(Success(expectedResult))
   }
 
 }

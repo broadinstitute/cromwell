@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
-import cromwell.backend.wdl.OnlyPureFunctions
+import wdl4s.expression.PureStandardLibraryFunctions
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -53,7 +53,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     wdlExpressionMaybe match {
       case None => !valueRequired
       case Some(wdlExpression: WdlExpression) =>
-        wdlExpression.evaluate(NoLookup, OnlyPureFunctions) map (_.wdlType) match {
+        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) map (_.wdlType) match {
           case Success(wdlType) => predicate(wdlType)
           case Failure(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
@@ -81,7 +81,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     wdlExpressionMaybe match {
       case None => !valueRequired
       case Some(wdlExpression: WdlExpression) =>
-        wdlExpression.evaluate(NoLookup, OnlyPureFunctions) match {
+        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) match {
           case Success(wdlValue) => validateValue(wdlValue)
           case Failure(throwable) => true // If we can't evaluate it, we'll let it pass for now...
         }

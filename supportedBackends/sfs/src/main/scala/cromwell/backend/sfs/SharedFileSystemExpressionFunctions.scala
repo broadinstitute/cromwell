@@ -7,7 +7,7 @@ import cromwell.backend.wdl._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.CallContext
 import cromwell.core.path.PathBuilder
-import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.expression.PureStandardLibraryFunctionsLike
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.language.postfixOps
@@ -57,10 +57,11 @@ object SharedFileSystemExpressionFunctions {
 
 class SharedFileSystemExpressionFunctions(override val pathBuilders: List[PathBuilder],
                                           context: CallContext
-                                 ) extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
+                                 ) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions {
   import SharedFileSystemExpressionFunctions._
   import better.files._
 
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
   override def globPath(glob: String) = context.root.toString
   override def glob(path: String, pattern: String): Seq[String] = {
     File(context.root).glob(s"**/$pattern") map { _.pathAsString } toSeq

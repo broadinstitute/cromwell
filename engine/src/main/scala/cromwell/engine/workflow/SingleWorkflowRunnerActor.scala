@@ -35,7 +35,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
   extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
-  private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.05)
+  private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
 
   override lazy val workflowStore = new InMemoryWorkflowStore()
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
@@ -73,20 +73,20 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
       goto(RequestingOutputs) using SucceededSwraData(replyTo, id)
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
       log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
-      requestMetadataOrIssueReply(FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state Failed")))
+      requestMetadataOrIssueReply(FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed")))
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
       log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
       requestMetadataOrIssueReply(AbortedSwraData(replyTo, id))
   }
 
   when (RequestingOutputs) {
-    case Event(RequestComplete((StatusCodes.OK, outputs: JsObject)), data: CompletedSwraData) =>
+    case Event(RequestComplete((StatusCodes.OK, outputs: JsObject)), data: TerminalSwraData) =>
       outputOutputs(outputs)
       requestMetadataOrIssueReply(data)
   }
 
   when (RequestingMetadata) {
-    case Event(RequestComplete((StatusCodes.OK, metadata: JsObject)), data: CompletedSwraData) =>
+    case Event(RequestComplete((StatusCodes.OK, metadata: JsObject)), data: TerminalSwraData) =>
       outputMetadata(metadata)
       issueReply(data)
   }
@@ -109,9 +109,9 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
       stay()
   }
 
-  private def requestMetadataOrIssueReply(newData: CompletedSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
+  private def requestMetadataOrIssueReply(newData: TerminalSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
 
-  private def requestMetadata(newData: CompletedSwraData) = {
+  private def requestMetadata(newData: TerminalSwraData) = {
     val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${newData.id}")
     metadataBuilder ! GetSingleWorkflowMetadataAction(newData.id, None, None)
     goto(RequestingMetadata) using newData
@@ -143,7 +143,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
     stay()
   }
 
-  private def issueReply(data: CompletedSwraData) = {
+  private def issueReply(data: TerminalSwraData) = {
     data match {
       case s: SucceededSwraData => issueSuccessReply(s.replyTo)
       case f: FailedSwraData => issueFailureReply(f.replyTo, f.failure)
@@ -156,14 +156,14 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
     log.error(e, s"$Tag received Failure message: ${e.getMessage}")
     data match {
       case EmptySwraData =>
-        log.error(e, s"Cannot issue response for {}. Need a 'replyTo' address to issue the response!", e.getMessage)
+        log.error(e, "Cannot issue response. Need a 'replyTo' address to issue the exception response")
         context.stop(self)
         stay()
       case SubmittedSwraData(replyTo) =>
         issueFailureReply(replyTo, e)
       case RunningSwraData(replyTo, _) =>
         issueFailureReply(replyTo, e)
-      case c: CompletedSwraData =>
+      case c: TerminalSwraData =>
         issueFailureReply(c.replyTo, e)
     }
   }
@@ -211,16 +211,16 @@ object SingleWorkflowRunnerActor {
   final case class SubmittedSwraData(replyTo: ActorRef) extends SwraData
   final case class RunningSwraData(replyTo: ActorRef, id: WorkflowId) extends SwraData
 
-  sealed trait CompletedSwraData extends SwraData { def replyTo: ActorRef; def terminalState: WorkflowState; def id: WorkflowId }
+  sealed trait TerminalSwraData extends SwraData { def replyTo: ActorRef; def terminalState: WorkflowState; def id: WorkflowId }
   final case class SucceededSwraData(replyTo: ActorRef,
-                                     id: WorkflowId) extends CompletedSwraData { override val terminalState = WorkflowSucceeded }
+                                     id: WorkflowId) extends TerminalSwraData { override val terminalState = WorkflowSucceeded }
 
   final case class FailedSwraData(replyTo: ActorRef,
                                   id: WorkflowId,
-                                  failure: Throwable) extends CompletedSwraData { override val terminalState = WorkflowFailed }
+                                  failure: Throwable) extends TerminalSwraData { override val terminalState = WorkflowFailed }
 
   final case class AbortedSwraData(replyTo: ActorRef,
-                                   id: WorkflowId) extends CompletedSwraData { override val terminalState = WorkflowAborted }
+                                   id: WorkflowId) extends TerminalSwraData { override val terminalState = WorkflowAborted }
 
   implicit class EnhancedJsObject(val jsObject: JsObject) extends AnyVal {
     def state: WorkflowState = WorkflowState.fromString(jsObject.fields("status").asInstanceOf[JsString].value)

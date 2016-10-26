@@ -8,5 +8,7 @@ case class AwsBackendActorFactory(name: String, configurationDescriptor: Backend
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef,
-                                      backendSingletonActor: Option[ActorRef]): Props = AwsJobExecutionActor.props(jobDescriptor, configurationDescriptor)
+                                      backendSingletonActor: Option[ActorRef]): Props = {
+    AwsJobExecutionActor.props(jobDescriptor, configurationDescriptor, serviceRegistryActor)
+  }
 }

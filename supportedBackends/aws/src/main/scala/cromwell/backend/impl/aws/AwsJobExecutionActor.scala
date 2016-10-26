@@ -1,78 +1,94 @@
 package cromwell.backend.impl.aws
 
-import akka.actor.Props
-import com.amazonaws.auth.AWSCredentials
-import com.amazonaws.services.ecs.AmazonECSAsyncClient
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse}
+import akka.actor.{ActorRef, Props}
+import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
+import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import com.amazonaws.services.ecs.model._
-import cromwell.backend.impl.aws.util.AwsSdkAsyncHandler
-import cromwell.backend.impl.aws.util.AwsSdkAsyncHandler.AwsSdkAsyncResult
-import cromwell.backend.wdl.{Command, OnlyPureFunctions}
-import net.ceedubs.ficus.Ficus._
+import cromwell.core.Dispatcher
+import cromwell.services.keyvalue.KeyValueServiceActor._
 
-import scala.collection.JavaConverters._
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Future, Promise}
 
 class AwsJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                           override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
+                           override val configurationDescriptor: BackendConfigurationDescriptor,
+                           serviceRegistryActor: ActorRef) extends BackendJobExecutionActor {
 
-  val awsAccessKeyId = configurationDescriptor.backendConfig.as[String]("accessKeyId")
-  val awsSecretKey = configurationDescriptor.backendConfig.as[String]("secretKey")
+  // Copypasta
 
-  val clusterName = "ecs-t2micro-cluster"
+  context.become(startup orElse super.receive)
 
-  val credentials = new AWSCredentials {
-    override def getAWSAccessKeyId: String = awsAccessKeyId
-    override def getAWSSecretKey: String = awsSecretKey
+  private def startup: Receive = {
+    case AbortJobCommand =>
+      context.parent ! AbortedResponse(jobDescriptor.key)
+      context.stop(self)
   }
-  val ecsAsyncClient = new AmazonECSAsyncClient(credentials)
+
+  private def running(executor: ActorRef): Receive = {
+    case AbortJobCommand =>
+      executor ! AbortJobCommand
+    case abortResponse: AbortedResponse =>
+      context.parent ! abortResponse
+      context.stop(self)
+    case KvPair(key, id@Some(jobId)) if key.key == jobIdKey =>
+      // Successful operation ID lookup during recover.
+      executor ! recoverMessage(jobId)
+    case KvKeyLookupFailed(_) =>
+      // Missed operation ID lookup during recover, fall back to execute.
+      executor ! Execute
+    case KvFailure(_, e) =>
+      // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
+      completionPromise.tryFailure(e)
+      throw new RuntimeException(s"Failure attempting to look up job id for key ${jobDescriptor.key}", e)
+  }
+
+  /**
+    * This "synchronous" actor isn't finished until this promise finishes over in the asynchronous version.
+    */
+  private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
 
   override def execute: Future[BackendJobExecutionResponse] = {
-
-    val instantiatedCommand = Command.instantiate(jobDescriptor, OnlyPureFunctions).get
-    val commandOverride = new ContainerOverride().withName("simple-app").withCommand(instantiatedCommand)
-
-    val runRequest: RunTaskRequest = new RunTaskRequest()
-      .withCluster(clusterName)
-      .withCount(1)
-      .withTaskDefinition("ubuntuTask:1")
-      .withOverrides(new TaskOverride().withContainerOverrides(commandOverride))
-
-    val submitResultHandler = new AwsSdkAsyncHandler[RunTaskRequest, RunTaskResult]()
-    val _ = ecsAsyncClient.runTaskAsync(runRequest, submitResultHandler)
-
-    submitResultHandler.future map {
-      case AwsSdkAsyncResult(_, result) =>
-        log.info("AWS submission completed:\n{}", result.toString)
-        val taskArn= result.getTasks.asScala.head.getTaskArn
-        val taskDescription = waitUntilDone(taskArn)
-
-        log.info("AWS task completed!\n{}", taskDescription.toString)
-        SucceededResponse(jobDescriptor.key, Option(0), Map.empty, None, Seq.empty)
-    }
+    val executorRef = context.actorOf(asyncProps, "SharedFileSystemAsyncJobExecutionActor")
+    context.become(running(executorRef) orElse super.receive)
+    executorRef ! Execute
+    completionPromise.future
   }
 
-  private def waitUntilDone(taskArn: String): Task = {
-    val describeTasksRequest = new DescribeTasksRequest().withCluster(clusterName).withTasks(List(taskArn).asJava)
+  override def recover: Future[BackendJobExecutionResponse] = {
+    val executorRef = context.actorOf(asyncProps, "SharedFileSystemAsyncJobExecutionActor")
+    context.become(running(executorRef) orElse super.receive)
+    val kvJobKey =
+      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
+    val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey))
+    serviceRegistryActor ! kvGet
+    completionPromise.future
+  }
 
-    val resultHandler = new AwsSdkAsyncHandler[DescribeTasksRequest, DescribeTasksResult]()
-    val _ = ecsAsyncClient.describeTasksAsync(describeTasksRequest, resultHandler)
+  override def abort() = {
+    throw new NotImplementedError("Abort is implemented via a custom receive of the message AbortJobCommand.")
+  }
 
-    val describedTasks = Await.result(resultHandler.future, Duration.Inf)
-    val taskDescription = describedTasks.result.getTasks.asScala.head
-    if (taskDescription.getLastStatus == DesiredStatus.STOPPED.toString) {
-      taskDescription
-    } else {
-      log.info(s"Still waiting for completion. Last known status: {}", taskDescription.getLastStatus)
-      Thread.sleep(2000)
-      waitUntilDone(taskArn)
-    }
+  // aws specific
+
+  private val jobIdKey = AwsJobId.JobIdKey
+
+  private def recoverMessage(jobId: String): Recover = {
+    Recover(AwsJobId(jobId))
+  }
+
+  private lazy val asyncProps: Props = {
+    Props(
+      new AwsAsyncJobExecutionActor(jobDescriptor, completionPromise, configurationDescriptor, serviceRegistryActor)
+    ).withDispatcher(Dispatcher.BackendDispatcher)
   }
 }
 
 object AwsJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor,
-            configurationDescriptor: BackendConfigurationDescriptor): Props = Props(new AwsJobExecutionActor(jobDescriptor, configurationDescriptor))
+            configurationDescriptor: BackendConfigurationDescriptor,
+            serviceRegistryActor: ActorRef): Props = {
+    Props(
+      new AwsJobExecutionActor(jobDescriptor, configurationDescriptor, serviceRegistryActor)
+    ).withDispatcher(Dispatcher.BackendDispatcher)
+  }
 }

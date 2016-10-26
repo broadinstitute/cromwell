@@ -3,6 +3,7 @@ package cromwell.backend.async
 import java.nio.file.Path
 
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
 import cromwell.core.{ExecutionEvent, JobOutputs}
 
 /**
@@ -12,6 +13,17 @@ import cromwell.core.{ExecutionEvent, JobOutputs}
 trait ExecutionHandle {
   def isDone: Boolean
   def result: ExecutionResult
+}
+
+case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunStatus]
+(
+  jobDescriptor: BackendJobDescriptor,
+  pendingJob: BackendJobId,
+  runInfo: Option[BackendRunInfo],
+  previousStatus: Option[BackendRunStatus]
+) extends ExecutionHandle {
+  override val isDone = false
+  override val result = NonRetryableExecution(new IllegalStateException("PendingExecutionHandle cannot yield a result"))
 }
 
 final case class SuccessfulExecutionHandle(outputs: JobOutputs, returnCode: Int, jobDetritusFiles: Map[String, Path], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {

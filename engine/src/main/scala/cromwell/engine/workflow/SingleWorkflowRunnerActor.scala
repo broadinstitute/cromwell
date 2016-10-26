@@ -32,7 +32,7 @@ import scala.util.{Failure, Try}
  * print out the outputs when complete and reply with a result.
  */
 class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath: Option[Path])
-  extends CromwellRootActor with LoggingFSM[RunnerState, RunnerData] {
+  extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
@@ -40,52 +40,55 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
   override lazy val workflowStore = new InMemoryWorkflowStore()
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
 
-  startWith(NotStarted, RunnerData())
+  startWith(NotStarted, EmptySwraData)
 
   when (NotStarted) {
-    case Event(RunWorkflow, data) =>
+    case Event(RunWorkflow, EmptySwraData) =>
       log.info(s"$Tag: Submitting workflow")
       workflowStoreActor ! SubmitWorkflow(source)
-      goto (RunningWorkflow) using data.copy(replyTo = Option(sender()))
+      goto(SubmittedWorkflow) using SubmittedSwraData(sender())
   }
 
-  when (RunningWorkflow) {
-    case Event(WorkflowStoreActor.WorkflowSubmittedToStore(id), data) =>
+  when (SubmittedWorkflow) {
+    case Event(WorkflowStoreActor.WorkflowSubmittedToStore(id), SubmittedSwraData(replyTo)) =>
       log.info(s"$Tag: Workflow submitted UUID($id)")
       // Since we only have a single workflow, force the WorkflowManagerActor's hand in case the polling rate is long
       workflowManagerActor ! RetrieveNewWorkflows
       schedulePollRequest()
-      stay() using data.copy(id = Option(id))
-    case Event(IssuePollRequest, data) =>
-      data.id match {
-        case None => schedulePollRequest()
-        case _ => requestStatus()
-      }
+      goto(RunningWorkflow) using RunningSwraData(replyTo, id)
+  }
+
+  when (RunningWorkflow) {
+    case Event(IssuePollRequest, RunningSwraData(_, id)) =>
+      requestStatus(id)
       stay()
-    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if !jsObject.state.isTerminal =>
+    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(_, _)) if !jsObject.state.isTerminal =>
       schedulePollRequest()
       stay()
-    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if jsObject.state == WorkflowSucceeded =>
+    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
       val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
-        s"CompleteRequest-Workflow-${stateData.id.get}-request-${UUID.randomUUID()}")
-      metadataBuilder ! WorkflowOutputs(data.id.get)
-      goto(RequestingOutputs) using data.copy(terminalState = Option(WorkflowSucceeded))
-    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), data) if jsObject.state == WorkflowFailed =>
-      val updatedData = data.copy(terminalState = Option(WorkflowFailed)).addFailure(s"Workflow ${data.id.get} transitioned to state Failed")
-      // If there's an output path specified then request metadata, otherwise issue a reply to the original sender.
-      if (metadataOutputPath.isDefined) requestMetadata(updatedData) else issueReply(updatedData)
+        s"CompleteRequest-Workflow-$id-request-${UUID.randomUUID()}")
+      metadataBuilder ! WorkflowOutputs(id)
+      log.info(s"$Tag workflow finished with status '$WorkflowSucceeded'.")
+      goto(RequestingOutputs) using SucceededSwraData(replyTo, id)
+    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
+      log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
+      requestMetadataOrIssueReply(FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed")))
+    case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
+      log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
+      requestMetadataOrIssueReply(AbortedSwraData(replyTo, id))
   }
 
   when (RequestingOutputs) {
-    case Event(RequestComplete((StatusCodes.OK, outputs: JsObject)), _) =>
+    case Event(RequestComplete((StatusCodes.OK, outputs: JsObject)), data: TerminalSwraData) =>
       outputOutputs(outputs)
-      if (metadataOutputPath.isDefined) requestMetadata(stateData) else issueReply(stateData)
+      requestMetadataOrIssueReply(data)
   }
 
   when (RequestingMetadata) {
-    case Event(RequestComplete((StatusCodes.OK, metadata: JsObject)), _) =>
+    case Event(RequestComplete((StatusCodes.OK, metadata: JsObject)), data: TerminalSwraData) =>
       outputMetadata(metadata)
-      issueReply(stateData)
+      issueReply(data)
   }
 
   onTransition {
@@ -94,22 +97,24 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
 
   whenUnhandled {
     // Handle failures for all failure responses generically.
-    case Event(r: WorkflowStoreActor.WorkflowAbortFailed, data) => failAndFinish(r.reason)
-    case Event(Failure(e), data) => failAndFinish(e)
-    case Event(Status.Failure(e), data) => failAndFinish(e)
-    case Event(RequestComplete((_, snap)), _) => failAndFinish(new RuntimeException(s"Unexpected API completion message: $snap"))
+    case Event(r: WorkflowStoreActor.WorkflowAbortFailed, data) => failAndFinish(r.reason, data)
+    case Event(Failure(e), data) => failAndFinish(e, data)
+    case Event(Status.Failure(e), data) => failAndFinish(e, data)
+    case Event(RequestComplete((_, snap)), data) => failAndFinish(new RuntimeException(s"Unexpected API completion message: $snap"), data)
     case Event((CurrentState(_, _) | Transition(_, _, _)), _) =>
       // ignore uninteresting current state and transition messages
       stay()
-    case Event(m, _) =>
-      log.warning(s"$Tag: received unexpected message: $m")
+    case Event(m, d) =>
+      log.warning(s"$Tag: received unexpected message: $m in state ${d.getClass.getSimpleName}")
       stay()
   }
 
-  private def requestMetadata(data: RunnerData): State = {
-    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${stateData.id.get}")
-    metadataBuilder ! GetSingleWorkflowMetadataAction(stateData.id.get, None, None)
-    goto (RequestingMetadata) using data
+  private def requestMetadataOrIssueReply(newData: TerminalSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
+
+  private def requestMetadata(newData: TerminalSwraData) = {
+    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${newData.id}")
+    metadataBuilder ! GetSingleWorkflowMetadataAction(newData.id, None, None)
+    goto(RequestingMetadata) using newData
   }
 
   private def schedulePollRequest(): Unit = {
@@ -118,27 +123,49 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
     ()
   }
 
-  private def requestStatus(): Unit = {
+  private def requestStatus(id: WorkflowId): Unit = {
     // This requests status via the metadata service rather than instituting an FSM watch on the underlying workflow actor.
     // Cromwell's eventual consistency means it isn't safe to use an FSM transition to a terminal state as the signal for
     // when outputs or metadata have stabilized.
-    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"StatusRequest-Workflow-${stateData.id.get}-request-${UUID.randomUUID()}")
-    metadataBuilder ! GetStatus(stateData.id.get)
+    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"StatusRequest-Workflow-$id-request-${UUID.randomUUID()}")
+    metadataBuilder ! GetStatus(id)
   }
 
-  private def issueReply(data: RunnerData): State = {
-    data.terminalState foreach { state => log.info(s"$Tag workflow finished with status '$state'.") }
-    data.failures foreach { e => log.error(e, e.getMessage) }
-
-    val message: Any = data.terminalState collect { case WorkflowSucceeded => () } getOrElse Status.Failure(data.failures.head)
-    data.replyTo foreach  { _ ! message }
+  private def issueSuccessReply(replyTo: ActorRef): State = {
+    replyTo.tell(msg = (), sender = self) // Because replyTo ! () is the parameterless call replyTo.!()
     context.stop(self)
-    stay
+    stay()
   }
 
-  private def failAndFinish(e: Throwable): State = {
+  private def issueFailureReply(replyTo: ActorRef, e: Throwable): State = {
+    replyTo ! Status.Failure(e)
+    context.stop(self)
+    stay()
+  }
+
+  private def issueReply(data: TerminalSwraData) = {
+    data match {
+      case s: SucceededSwraData => issueSuccessReply(s.replyTo)
+      case f: FailedSwraData => issueFailureReply(f.replyTo, f.failure)
+      case a: AbortedSwraData => issueSuccessReply(a.replyTo)
+
+    }
+  }
+
+  private def failAndFinish(e: Throwable, data: SwraData): State = {
     log.error(e, s"$Tag received Failure message: ${e.getMessage}")
-    issueReply(stateData.addFailure(e))
+    data match {
+      case EmptySwraData =>
+        log.error(e, "Cannot issue response. Need a 'replyTo' address to issue the exception response")
+        context.stop(self)
+        stay()
+      case SubmittedSwraData(replyTo) =>
+        issueFailureReply(replyTo, e)
+      case RunningSwraData(replyTo, _) =>
+        issueFailureReply(replyTo, e)
+      case c: TerminalSwraData =>
+        issueFailureReply(c.replyTo, e)
+    }
   }
 
   /**
@@ -174,19 +201,26 @@ object SingleWorkflowRunnerActor {
 
   sealed trait RunnerState
   case object NotStarted extends RunnerState
+  case object SubmittedWorkflow extends RunnerState
   case object RunningWorkflow extends RunnerState
   case object RequestingOutputs extends RunnerState
   case object RequestingMetadata extends RunnerState
 
-  final case class RunnerData(replyTo: Option[ActorRef] = None,
-                              terminalState: Option[WorkflowState] = None,
-                              id: Option[WorkflowId] = None,
-                              failures: Seq[Throwable] = Seq.empty) {
+  sealed trait SwraData
+  case object EmptySwraData extends SwraData
+  final case class SubmittedSwraData(replyTo: ActorRef) extends SwraData
+  final case class RunningSwraData(replyTo: ActorRef, id: WorkflowId) extends SwraData
 
-    def addFailure(message: String): RunnerData = addFailure(new RuntimeException(message))
+  sealed trait TerminalSwraData extends SwraData { def replyTo: ActorRef; def terminalState: WorkflowState; def id: WorkflowId }
+  final case class SucceededSwraData(replyTo: ActorRef,
+                                     id: WorkflowId) extends TerminalSwraData { override val terminalState = WorkflowSucceeded }
 
-    def addFailure(e: Throwable): RunnerData = this.copy(failures = e +: failures)
-  }
+  final case class FailedSwraData(replyTo: ActorRef,
+                                  id: WorkflowId,
+                                  failure: Throwable) extends TerminalSwraData { override val terminalState = WorkflowFailed }
+
+  final case class AbortedSwraData(replyTo: ActorRef,
+                                   id: WorkflowId) extends TerminalSwraData { override val terminalState = WorkflowAborted }
 
   implicit class EnhancedJsObject(val jsObject: JsObject) extends AnyVal {
     def state: WorkflowState = WorkflowState.fromString(jsObject.fields("status").asInstanceOf[JsString].value)

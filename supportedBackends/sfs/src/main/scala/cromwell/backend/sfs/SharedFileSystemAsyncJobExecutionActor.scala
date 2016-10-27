@@ -177,7 +177,10 @@ trait SharedFileSystemAsyncJobExecutionActor
       callEngineFunction,
       localizer,
       pathTransformFunction
-    ).get
+    ) match {
+      case Success(command) => command
+      case Failure(ex) => throw new RuntimeException("Failed to instantiate command line", ex)
+    }
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext) = {

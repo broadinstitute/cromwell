@@ -10,8 +10,6 @@ import wdl4s.expression.NoFunctions
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
-import scala.util.Try
-
 
 class ArrayWorkflowSpec extends CromwellTestkitSpec {
   val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
@@ -49,8 +47,7 @@ class ArrayWorkflowSpec extends CromwellTestkitSpec {
       val catTask = ns.findTask("cat").getOrElse {
         fail("Expected to find task 'cat'")
       }
-      val command1: Try[String] = catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions)
-      val command = command1.getOrElse {
+      val command = catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions).getOrElse {
         fail("Expected instantiation to work")
       }
       command shouldEqual "cat -s f1 f2 f3"

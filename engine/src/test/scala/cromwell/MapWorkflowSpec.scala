@@ -3,7 +3,7 @@ package cromwell
 import akka.testkit._
 import better.files._
 import cromwell.util.SampleWdl
-import wdl4s.NamespaceWithWorkflow
+import wdl4s.WdlNamespaceWithWorkflow
 import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
@@ -13,7 +13,7 @@ import scala.util.{Success, Try}
 class MapWorkflowSpec extends CromwellTestkitSpec {
   private val pwd = File(".")
   private val sampleWdl = SampleWdl.MapLiteral(pwd.path)
-  val ns = NamespaceWithWorkflow.load(sampleWdl.wdlSource(""))
+  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.wdlSource(""))
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
     WdlFile("f2") -> WdlString("bob"),
@@ -42,7 +42,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
 
   "A static Map[File, String] declaration" should {
     "be a valid declaration" in {
-      val declaration = ns.workflow.declarations.find {_.name == "map"}.getOrElse {
+      val declaration = ns.workflow.declarations.find {_.unqualifiedName == "map"}.getOrElse {
         fail("Expected declaration 'map' to be found")
       }
       val expression = declaration.expression.getOrElse {
@@ -64,7 +64,7 @@ class MapWorkflowSpec extends CromwellTestkitSpec {
           case _ => throw new UnsupportedOperationException("Only write_map should be called")
         }
       }
-      val command = writeMapTask.instantiateCommand(Map("file_to_name" -> expectedMap), new CannedFunctions).getOrElse {
+      val command = writeMapTask.instantiateCommand(writeMapTask.inputsFromMap(Map("file_to_name" -> expectedMap)), new CannedFunctions).getOrElse {
         fail("Expected instantiation to work")
       }
       command shouldEqual "cat /test/map/path"

@@ -8,6 +8,7 @@ import cromwell.jobstore.JobStoreServiceSpec._
 import cromwell.services.SingletonServicesStore
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
+import wdl4s.parser.WdlParser.Ast
 import wdl4s.types.WdlStringType
 import wdl4s.values.WdlString
 import wdl4s.{Call, Task, TaskOutput, WdlExpression}
@@ -31,7 +32,7 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
       val successCall = mock[Call]
       successCall.fullyQualifiedName returns "foo.bar"
       val mockTask = mock[Task]
-      mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression))
+      mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression, mock[Ast], Option(mockTask)))
       successCall.task returns mockTask
 
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)

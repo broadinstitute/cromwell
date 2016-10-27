@@ -164,8 +164,18 @@ object WorkflowExecutionActor {
     }
 
     private def arePrerequisitesDone(key: JobKey): Boolean = {
-      val upstream = key.scope.prerequisiteScopes.toList.map(s => upstreamEntries(key, s))
-      val downstream = key match {
+      val upstream = key.scope match {
+        case node: GraphNode => node.upstream collect {
+          // Only scatters and calls are in the execution store for now (not declarations)
+          // However declarations are nodes so they can be an upstream dependency
+          // We don't want to look for those in the execution store (yet ?) since upstreamEntry would return None
+          case n: Call => upstreamEntry(key, n)
+          case n: Scatter => upstreamEntry(key, n)
+        }
+        case _ => Set.empty
+      }
+
+      val downstream: List[(JobKey, ExecutionStatus)] = key match {
         case collector: CollectorKey => findShardEntries(collector)
         case _ => Nil
       }
@@ -182,7 +192,7 @@ object WorkflowExecutionActor {
       (upstream forall { _.nonEmpty }) && dependenciesResolved
     }
 
-    private def upstreamEntries(entry: JobKey, prerequisiteScope: Scope): Seq[ExecutionStoreEntry] = {
+    private def upstreamEntry(entry: JobKey, prerequisiteScope: Scope): Option[ExecutionStoreEntry] = {
       prerequisiteScope.closestCommonAncestor(entry.scope) match {
         /**
           * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
@@ -194,18 +204,18 @@ object WorkflowExecutionActor {
           * work as-is for nested scatter blocks
           */
         case Some(ancestor: Scatter) =>
-          executionStore.store filter {
+          executionStore.store find {
             case (k, _) => k.scope == prerequisiteScope && k.index == entry.index
-          } toSeq
+          }
 
         /**
           * Otherwise, simply refer to the entry the collector entry.  This means that 'entry' depends
           * on every shard of the pre-requisite scope to finish.
           */
         case _ =>
-          executionStore.store filter {
+          executionStore.store find {
             case (k, _) => k.scope == prerequisiteScope && k.index.isEmpty
-          } toSeq
+          }
       }
     }
   }
@@ -224,9 +234,9 @@ object WorkflowExecutionActor {
       }
       collector.scope.task.outputs map { taskOutput =>
         val wdlValues = shardsOutputs.map(
-          _.getOrElse(taskOutput.name, throw new RuntimeException(s"Could not retrieve output ${taskOutput.name}")))
+          _.getOrElse(taskOutput.unqualifiedName, throw new RuntimeException(s"Could not retrieve output ${taskOutput.unqualifiedName}")))
         val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
-        taskOutput.name -> JobOutput(arrayOfValues)
+        taskOutput.unqualifiedName -> JobOutput(arrayOfValues)
       } toMap
     }
   }
@@ -286,11 +296,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     val workflow = workflowDescriptor.backendDescriptor.workflowNamespace.workflow
     // Only add direct children to the store, the rest is dynamically created when necessary
     val keys = workflow.children map {
-      case call: Call => BackendJobDescriptorKey(call, None, 1)
-      case scatter: Scatter => ScatterKey(scatter)
+      case call: Call => Option(BackendJobDescriptorKey(call, None, 1))
+      case scatter: Scatter => Option(ScatterKey(scatter))
+      case _ => None // FIXME there are other types of scopes now (Declarations, Ifs) Figure out what to do with those
     }
 
-    ExecutionStore(keys.map(_ -> NotStarted).toMap)
+    ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap)
   }
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData, failedJobKey: JobKey, reason: Throwable) = {
@@ -580,13 +591,13 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def pushRunningJobMetadata(jobDescriptor: BackendJobDescriptor) = {
-    val inputEvents = jobDescriptor.inputs match {
+    val inputEvents = jobDescriptor.inputDeclarations match {
       case empty if empty.isEmpty =>
         List(MetadataEvent.empty(metadataKey(jobDescriptor.key, s"${CallMetadataKeys.Inputs}")))
       case inputs =>
         inputs flatMap {
           case (inputName, inputValue) =>
-            wdlValueToMetadataEvents(metadataKey(jobDescriptor.key, s"${CallMetadataKeys.Inputs}:$inputName"), inputValue)
+            wdlValueToMetadataEvents(metadataKey(jobDescriptor.key, s"${CallMetadataKeys.Inputs}:${inputName.unqualifiedName}"), inputValue)
         }
     }
 
@@ -621,7 +632,11 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val lookup = data.hierarchicalLookup(scatterKey.scope, None) _
+    val lookup = scatterKey.scope.lookupFunction(
+      workflowDescriptor.workflowInputs,
+      data.expressionLanguageFunctions,
+      data.outputStore.fetchCallOutputEntries
+    )
 
     scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
       case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size) + (scatterKey -> ExecutionStatus.Done))

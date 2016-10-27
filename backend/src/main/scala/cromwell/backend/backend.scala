@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.{JobKey, WorkflowId, WorkflowOptions}
 import wdl4s.values.WdlValue
-import wdl4s.{Call, NamespaceWithWorkflow, _}
+import wdl4s.{Call, WdlNamespaceWithWorkflow, _}
 
 import scala.util.Try
 
@@ -25,7 +25,8 @@ case class BackendJobDescriptorKey(call: Call, index: Option[Int], attempt: Int)
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
                                 runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
-                                inputs: Map[LocallyQualifiedName, WdlValue]) {
+                                inputDeclarations: EvaluatedTaskInputs) {
+  val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> value }
   val call = key.call
   override val toString = s"${key.mkTag(workflowDescriptor.id)}"
 }
@@ -34,7 +35,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
   * For passing to a BackendActor construction time
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
-                                     workflowNamespace: NamespaceWithWorkflow,
+                                     workflowNamespace: WdlNamespaceWithWorkflow,
                                      inputs: Map[FullyQualifiedName, WdlValue],
                                      workflowOptions: WorkflowOptions) {
   override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflowNamespace.workflow.unqualifiedName}]"

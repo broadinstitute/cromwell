@@ -30,7 +30,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -262,12 +262,11 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
 
     def createLookup(call: Call): ScopedLookupFunction = {
-      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
       val knownInputs = workflowDescriptor.inputs
-      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
+      call.lookupFunction(knownInputs, NoFunctions)
     }
 
-    workflowDescriptor.workflowNamespace.workflow.calls map {
+    workflowDescriptor.workflowNamespace.workflow.calls.toSeq map {
       call =>
         val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
         TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get

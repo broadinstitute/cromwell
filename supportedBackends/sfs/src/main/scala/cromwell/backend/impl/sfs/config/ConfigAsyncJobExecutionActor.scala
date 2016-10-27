@@ -48,10 +48,11 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param taskName The name of the task to retrieve from the precomputed wdl namespace.
     * @param inputs   The customized inputs to this task.
     */
-  def writeTaskScript(script: File, taskName: String, inputs: CallInputs): Unit = {
+  def writeTaskScript(script: File, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
-    val command = task.instantiateCommand(inputs, NoFunctions).get
+    val inputsWithFqns = inputs map { case (k, v) => s"$taskName.$k" -> v }
+    val command = task.instantiateCommand(task.inputsFromMap(inputsWithFqns), NoFunctions).get
     jobLogger.info(s"executing: $command")
     val scriptBody =
       s"""
@@ -68,7 +69,7 @@ $command
     * The inputs that are not specified by the config, that will be passed into a command for both submit and
     * submit-docker.
     */
-  private lazy val standardInputs: CallInputs = {
+  private lazy val standardInputs: WorkflowCoercedInputs = {
     Map(
       JobNameInput -> WdlString(jobName),
       CwdInput -> WdlString(jobPaths.callRoot.toString),
@@ -81,7 +82,7 @@ $command
   /**
     * Extra arguments if this is a submit-docker command, or Map.empty.
     */
-  private lazy val dockerInputs: CallInputs = {
+  private lazy val dockerInputs: WorkflowCoercedInputs = {
     if (isDockerRun) {
       Map(
         DockerCwdInput -> WdlString(jobPaths.callDockerRoot.toString)
@@ -95,7 +96,7 @@ $command
     * The arguments generated from the backend config's list of attributes. These will include things like CPU, memory,
     * and other custom arguments like "backend_queue_name", "backend_billing_project", etc.
     */
-  private lazy val runtimeAttributeInputs: CallInputs = {
+  private lazy val runtimeAttributeInputs: WorkflowCoercedInputs = {
     val declarationValidations = configInitializationData.declarationValidations
     val inputOptions = declarationValidations map { declarationValidation =>
       declarationValidation.extractWdlValueOption(validatedRuntimeAttributes) map { wdlValue =>

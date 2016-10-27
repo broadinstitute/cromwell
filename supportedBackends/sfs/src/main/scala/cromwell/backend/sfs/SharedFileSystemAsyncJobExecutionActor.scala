@@ -12,7 +12,8 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.io.WorkflowPathsBackendInitializationData
 import cromwell.backend.sfs.SharedFileSystem._
 import cromwell.backend.validation._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, OutputEvaluator}
+import cromwell.backend.wdl.{OutputEvaluator, Command}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.JobOutputs
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.DefaultPathBuilder
@@ -168,12 +169,18 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   def instantiatedScript: String = {
-    val pathTransformFunction: WdlValue => WdlValue = toUnixPath(isDockerRun)
-    val tryCommand = sharedFileSystem.localizeInputs(jobPaths.callInputsRoot,
-      isDockerRun, jobDescriptor.inputs) flatMap { localizedInputs =>
-      call.task.instantiateCommand(localizedInputs, callEngineFunction, pathTransformFunction)
+    val pathTransformFunction = toUnixPath(isDockerRun) _
+    val localizer = sharedFileSystem.localizeInputs(jobPaths.callInputsRoot, isDockerRun) _
+    
+    Command.instantiate(
+      jobDescriptor, 
+      callEngineFunction,
+      localizer,
+      pathTransformFunction
+    ) match {
+      case Success(command) => command
+      case Failure(ex) => throw new RuntimeException("Failed to instantiate command line", ex)
     }
-    tryCommand.get
   }
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext) = {
@@ -321,7 +328,7 @@ mv $rcTmpPath $rcPath
   def processReturnCode()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     val returnCodeTry = Try(File(jobPaths.returnCode).contentAsString.stripLineEnd.toInt)
 
-    lazy val badReturnCodeMessage = s"Call ${jobDescriptor.key}: return code was ${returnCodeTry.getOrElse("(none)")}"
+    lazy val badReturnCodeMessage = s"Call ${jobDescriptor.key.tag}: return code was ${returnCodeTry.getOrElse("(none)")}"
 
     lazy val badReturnCodeResponse = Future.successful(
       FailedNonRetryableExecutionHandle(new Exception(badReturnCodeMessage), returnCodeTry.toOption))

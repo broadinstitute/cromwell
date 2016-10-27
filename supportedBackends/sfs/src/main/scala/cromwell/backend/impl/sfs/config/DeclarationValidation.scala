@@ -24,7 +24,7 @@ object DeclarationValidation {
     * @return The DeclarationValidation object for the declaration.
     */
   def fromDeclaration(declaration: Declaration): DeclarationValidation = {
-    declaration.name match {
+    declaration.unqualifiedName match {
       // Docker and CPU are special keys understood by cromwell.
       case DockerValidation.key => new DeclarationValidation(declaration, DockerValidation.instance)
       case CpuValidation.key => new DeclarationValidation(declaration, CpuValidation.default)
@@ -34,11 +34,11 @@ object DeclarationValidation {
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
         val validator: PrimitiveRuntimeAttributesValidation[_] = declaration.wdlType match {
-          case WdlBooleanType => new BooleanRuntimeAttributesValidation(declaration.name)
-          case WdlFloatType => new FloatRuntimeAttributesValidation(declaration.name)
-          case WdlIntegerType => new IntRuntimeAttributesValidation(declaration.name)
-          case WdlStringType => new StringRuntimeAttributesValidation(declaration.name)
-          case other => throw new RuntimeException(s"Unsupported config runtime attribute $other ${declaration.name}")
+          case WdlBooleanType => new BooleanRuntimeAttributesValidation(declaration.unqualifiedName)
+          case WdlFloatType => new FloatRuntimeAttributesValidation(declaration.unqualifiedName)
+          case WdlIntegerType => new IntRuntimeAttributesValidation(declaration.unqualifiedName)
+          case WdlStringType => new StringRuntimeAttributesValidation(declaration.unqualifiedName)
+          case other => throw new RuntimeException(s"Unsupported config runtime attribute $other ${declaration.unqualifiedName}")
         }
         new DeclarationValidation(declaration, validator)
     }
@@ -52,7 +52,7 @@ object DeclarationValidation {
   * @param instanceValidation A basic instance validation for the declaration.
   */
 class DeclarationValidation(declaration: Declaration, instanceValidation: RuntimeAttributesValidation[_]) {
-  val key = declaration.name
+  val key = declaration.unqualifiedName
 
   /**
     * Creates a validation, by adding on defaults if they're specified in the declaration, and then making the
@@ -151,7 +151,7 @@ class MemoryDeclarationValidation(declaration: Declaration)
   }
 
   private lazy val declarationMemoryUnit: MemoryUnit = {
-    val suffix = memoryUnitSuffix(declaration.name)
+    val suffix = memoryUnitSuffix(declaration.unqualifiedName)
     val memoryUnitOption = MemoryUnit.values.find(_.suffixes.map(_.toLowerCase).contains(suffix.toLowerCase))
     memoryUnitOption match {
       case Some(memoryUnit) => memoryUnit

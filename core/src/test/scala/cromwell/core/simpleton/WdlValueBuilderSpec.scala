@@ -2,6 +2,8 @@ package cromwell.core.simpleton
 
 import cromwell.core.simpleton.WdlValueBuilderSpec._
 import org.scalatest.{FlatSpec, Matchers}
+import org.specs2.mock.Mockito
+import wdl4s.parser.WdlParser.Ast
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlInteger, WdlMap, WdlString}
 import wdl4s.{TaskOutput, WdlExpression}
@@ -11,7 +13,7 @@ object WdlValueBuilderSpec {
   val IgnoredExpression = WdlExpression.fromString(""" "" """)
 }
 
-class WdlValueBuilderSpec extends FlatSpec with Matchers {
+class WdlValueBuilderSpec extends FlatSpec with Matchers with Mockito {
 
   "Builder" should "build" in {
 
@@ -42,7 +44,7 @@ class WdlValueBuilderSpec extends FlatSpec with Matchers {
       ))
     )
 
-    val taskOutputs = wdlValues map { case (k, wv) => TaskOutput(k, wv.wdlType, IgnoredExpression) }
+    val taskOutputs = wdlValues map { case (k, wv) => TaskOutput(k, wv.wdlType, IgnoredExpression, mock[Ast], None) }
 
     import WdlValueSimpleton._
     val actual = WdlValueBuilder.toWdlValues(taskOutputs, wdlValues.simplify)

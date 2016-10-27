@@ -62,7 +62,7 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
     case Event(StartFinalizationCommand, _) =>
       val backendFinalizationActors = Try {
         for {
-          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keys.toSeq)
+          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
             _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, executionStore, outputStore, initializationData.get(backend))
           ).get

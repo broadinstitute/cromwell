@@ -182,7 +182,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFiles,
-                                      namespace: NamespaceWithWorkflow,
+                                      namespace: WdlNamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
@@ -200,7 +200,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
-                                      namespace: NamespaceWithWorkflow,
+                                      namespace: WdlNamespaceWithWorkflow,
                                       rawInputs: Map[String, JsValue],
                                       backendAssignments: Map[Call, String],
                                       workflowOptions: WorkflowOptions,
@@ -209,7 +209,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
                                       callCachingMode: CallCachingMode): ErrorOr[EngineWorkflowDescriptor] = {
 
     def checkTypes(inputs: Map[FullyQualifiedName, WdlValue]): ErrorOr[Map[FullyQualifiedName, WdlValue]] = {
-      val allDeclarations = namespace.workflow.scopedDeclarations ++ namespace.workflow.calls.flatMap(_.scopedDeclarations)
+      val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
       val list: List[ErrorOr[(FullyQualifiedName, WdlValue)]] = inputs.map({ case (k, v) =>
         allDeclarations.find(_.fullyQualifiedName == k) match {
           case Some(decl) if decl.wdlType.coerceRawValue(v).isFailure =>
@@ -245,7 +245,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
-  private def validateBackendAssignments(calls: Seq[Call], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[Call, String]] = {
+  private def validateBackendAssignments(calls: Set[Call], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[Call, String]] = {
     val callToBackendMap = Try {
       calls map { call =>
         val backendPriorities = Seq(
@@ -289,19 +289,19 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     }
   }
 
-  private def validateDeclarations(namespace: NamespaceWithWorkflow,
+  private def validateDeclarations(namespace: WdlNamespaceWithWorkflow,
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
                                    pathBuilders: List[PathBuilder]): ErrorOr[WorkflowCoercedInputs] = {
-    namespace.staticWorkflowDeclarationsRecursive(coercedInputs, new WdlFunctions(pathBuilders)) match {
+    namespace.staticDeclarationsRecursive(coercedInputs, new WdlFunctions(pathBuilders)) match {
       case Success(d) => d.validNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".invalidNel
     }
   }
 
-  private def validateNamespace(source: WdlSource): ErrorOr[NamespaceWithWorkflow] = {
+  private def validateNamespace(source: WdlSource): ErrorOr[WdlNamespaceWithWorkflow] = {
     try {
-      NamespaceWithWorkflow.load(source).validNel
+      WdlNamespaceWithWorkflow.load(source).validNel
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
     }
@@ -316,7 +316,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   }
 
   private def validateCoercedInputs(rawInputs: Map[String, JsValue],
-                                    namespace: NamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
+                                    namespace: WdlNamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
     namespace.coerceRawInputs(rawInputs) match {
       case Success(r) => r.validNel
       case Failure(e: ExceptionWithErrors) => Invalid(e.errors)

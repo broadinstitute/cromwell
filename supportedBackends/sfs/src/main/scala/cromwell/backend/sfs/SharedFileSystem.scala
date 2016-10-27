@@ -9,7 +9,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.core._
 import cromwell.core.path.PathFactory
 import cromwell.util.TryUtil
-import wdl4s.CallInputs
+import wdl4s.EvaluatedTaskInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.values._
 
@@ -50,8 +50,6 @@ object SharedFileSystem {
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
-    // -Ywarn-value-discard
-    // Try(executionPath.linkTo(originalPath, symbolic = false)) map { _ => executionPath }
     Try { executionPath.linkTo(originalPath, symbolic = false) } void
   }
 
@@ -144,11 +142,8 @@ trait SharedFileSystem extends PathFactory {
   /**
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
-   * NOTE: This ends up being a backdoor implementation of Backend.adjustInputPaths as both LocalBackend and SgeBackend
-   *    end up with this implementation and thus use it to satisfy their contract with Backend.
-   *    This is yuck-tastic and I consider this a FIXME, but not for this refactor
    */
-  def localizeInputs(inputsRoot: Path, docker: Boolean, inputs: CallInputs): Try[CallInputs] = {
+  def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: EvaluatedTaskInputs): Try[EvaluatedTaskInputs] = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Use URI to identify protocol scheme and strip it out
@@ -181,7 +176,7 @@ trait SharedFileSystem extends PathFactory {
     // Optional function to adjust the path to "docker path" if the call runs in docker
     val localizeFunction = localizeWdlValue(toCallPath, strategies.toStream) _
     val localizedValues = inputs.toSeq map {
-      case (name, value) => localizeFunction(value) map { name -> _ }
+      case (declaration, value) => localizeFunction(value) map { declaration -> _ }
     }
 
     TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recover {

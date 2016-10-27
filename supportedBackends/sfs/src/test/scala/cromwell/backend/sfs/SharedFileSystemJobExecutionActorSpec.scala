@@ -15,7 +15,6 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, OptionValues}
 import wdl4s.types._
@@ -25,7 +24,7 @@ import wdl4s.values._
 import scala.concurrent.duration._
 
 class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
-  with FlatSpecLike with BackendSpec with MockitoSugar with TableDrivenPropertyChecks with OptionValues {
+  with FlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
 
   behavior of "SharedFileSystemJobExecutionActor"
 
@@ -82,8 +81,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jsonInputFile = createCannedFile("localize", "content from json inputs").pathAsString
     val callInputFile = createCannedFile("localize", "content from call inputs").pathAsString
     val inputs = Map(
-      "inputFileFromCallInputs" -> WdlFile(callInputFile),
-      "inputFileFromJson" -> WdlFile(jsonInputFile)
+      "wf_localize.localize.inputFileFromCallInputs" -> WdlFile(callInputFile),
+      "wf_localize.localize.inputFileFromJson" -> WdlFile(jsonInputFile)
     )
 
     val expectedOutputs: JobOutputs = Map(
@@ -106,7 +105,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val runtime = if (docker) """runtime { docker: "ubuntu:latest" } """ else ""
       val workflowDescriptor = buildWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions), conf)
-      val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
+      val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
       val expectedResponse = SucceededResponse(jobDescriptor.key, Some(0), expectedOutputs, None, Seq.empty)
 
       val jobPaths = new JobPaths(workflowDescriptor, conf.backendConfig, jobDescriptor.key)
@@ -224,12 +223,12 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     0 to 2 foreach { shard =>
       // This assumes that engine will give us the evaluated value of the scatter item at the correct index
       // If this is not the case, more context/logic will need to be moved to the backend so it can figure it out by itself
-      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("intNumber" -> WdlInteger(shard))
+      val symbolMaps: Map[LocallyQualifiedName, WdlInteger] = Map("scattering.intNumber" -> WdlInteger(shard))
 
       val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(call.task.runtimeAttributes.attrs)
 
       val jobDescriptor: BackendJobDescriptor =
-        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, symbolMaps)
+        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnMapToDeclarationMap(symbolMaps))
       val backend = createBackend(jobDescriptor, emptyBackendConfig)
       val response =
         SucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))), None, Seq.empty)
@@ -240,7 +239,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   it should "post process outputs" in {
     val inputFile = createCannedFile("localize", "content from json inputs").pathAsString
     val inputs = Map {
-      "inputFile" -> WdlFile(inputFile)
+      "wf_localize.localize.inputFile" -> WdlFile(inputFile)
     }
     val workflowDescriptor = buildWorkflowDescriptor(OutputProcess, inputs)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)

@@ -62,10 +62,10 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
         expectMsgPF() {
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
             wfDesc.id shouldBe workflowId
-            wfDesc.name shouldBe "hello"
+            wfDesc.name shouldBe "wf_hello"
             wfDesc.namespace.tasks.size shouldBe 1
-            wfDesc.workflowInputs.head shouldBe (("hello.hello.addressee", WdlString("world")))
-            wfDesc.backendDescriptor.inputs.head shouldBe (("hello.hello.addressee", WdlString("world")))
+            wfDesc.workflowInputs.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
+            wfDesc.backendDescriptor.inputs.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
             // Default backend assignment is "Local":
@@ -362,7 +362,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed.\nRequired workflow input 'hello.hello.addressee' not specified")
+            reason.getMessage should startWith("Workflow input processing failed.\nRequired workflow input 'wf_hello.hello.addressee' not specified")
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -388,7 +388,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with Be
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed.\nInvalid right-side type of 'foo.j'.  Expecting Int, got String")
+            reason.getMessage should startWith("Workflow input processing failed.\nUnable to load namespace from workflow: ERROR: Value for j is not coerceable into a Int")
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

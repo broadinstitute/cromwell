@@ -119,7 +119,7 @@ object WdlValueBuilder {
 
     // This is meant to "rehydrate" simpletonized WdlValues back to WdlValues.  It is assumed that these WdlValues were
     // "dehydrated" to WdlValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
-    val types = taskOutputs map { o => o.name -> o.wdlType } toMap
+    val types = taskOutputs map { o => o.unqualifiedName -> o.wdlType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
     val simpletonComponentsByOutputName = simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
     types map { case (name, outputType) => name -> toWdlValue(outputType, simpletonComponentsByOutputName(name))}

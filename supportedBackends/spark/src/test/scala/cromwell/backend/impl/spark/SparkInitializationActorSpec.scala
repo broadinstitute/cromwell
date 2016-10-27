@@ -27,12 +27,12 @@ class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationAc
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
 
-  private def getSparkBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call], conf: BackendConfigurationDescriptor) = {
+  private def getSparkBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call], conf: BackendConfigurationDescriptor) = {
     system.actorOf(SparkInitializationActor.props(workflowDescriptor, calls, conf, emptyActor))
   }
 

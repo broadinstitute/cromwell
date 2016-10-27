@@ -33,13 +33,13 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
 
     val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
     callPaths.returnCodePath.toUri.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello/hello-rc.txt")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-rc.txt")
     callPaths.stdoutPath.toUri.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
     callPaths.stderrPath.toUri.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
     callPaths.jesLogPath.toUri.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello/hello.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
 
   it should "map the correct call context" in {
@@ -49,7 +49,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
 
     val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
     callPaths.callContext.root.toUri.toString should
-      be(s"gs://my-cromwell-workflows-bucket/hello/${workflowDescriptor.id}/call-hello")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should be("hello-stdout.log")
     callPaths.callContext.stderr should be("hello-stderr.log")
   }

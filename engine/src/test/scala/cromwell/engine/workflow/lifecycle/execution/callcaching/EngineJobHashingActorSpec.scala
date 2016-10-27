@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import cats.data.NonEmptyList
 import cromwell.CromwellTestkitSpec
 import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
-import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, RuntimeAttributeDefinition}
+import cromwell.backend._
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
 import org.scalatest.mockito.MockitoSugar
@@ -168,7 +168,7 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
   }
 }
 
-object EngineJobHashingActorSpec extends MockitoSugar {
+object EngineJobHashingActorSpec extends BackendSpec {
   import org.mockito.Mockito._
 
   def createEngineJobHashingActor
@@ -203,7 +203,7 @@ object EngineJobHashingActorSpec extends MockitoSugar {
     when(task.outputs).thenReturn(List.empty)
     when(call.task).thenReturn(task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs))
     jobDescriptor
   }
 

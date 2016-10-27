@@ -78,10 +78,8 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
                           outputFile: => Option[Path] = None): Unit = {
-    implicit val timeout = Timeout(TimeoutDuration)
-
     val actorRef = createRunnerActor(sampleWdl, managerActor, outputFile)
-    val futureResult = actorRef ? RunWorkflow
+    val futureResult = actorRef.ask(RunWorkflow)(timeout = new Timeout(TimeoutDuration))
     Await.ready(futureResult, Duration.Inf)
     ()
   }
@@ -202,7 +200,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       val calls = metadata.get("calls").toFields
       calls should not be empty
 
-      val callSeq = calls("goodbye.goodbye").asInstanceOf[JsArray].elements
+      val callSeq = calls("wf_goodbye.goodbye").asInstanceOf[JsArray].elements
       callSeq should have size 1
       val call = callSeq.head.asJsObject.fields
       val inputs = call.get("inputs").toFields

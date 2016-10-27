@@ -22,15 +22,14 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
 
   behavior of "MetadataParser"
 
-  val defaultTimeout = 100 millis
+  val defaultTimeout = 200 millis
   val mockServiceRegistry = TestProbe()
-  val parentProbe = TestProbe()
-
 
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
                              expectedRes: String) = {
+    val parentProbe = TestProbe()
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     metadataBuilder ! action // Ask for everything
     mockServiceRegistry.expectMsg(defaultTimeout, action) // TestActor runs on CallingThreadDispatcher

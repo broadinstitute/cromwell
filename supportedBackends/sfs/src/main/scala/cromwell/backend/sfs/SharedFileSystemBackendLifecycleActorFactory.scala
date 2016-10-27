@@ -63,7 +63,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
     */
   def asyncJobExecutionActorClass: Class[_ <: SharedFileSystemAsyncJobExecutionActor]
 
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Seq[Call],
+  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call],
                                                 serviceRegistryActor: ActorRef) = {
     val params = SharedFileSystemInitializationActorParams(serviceRegistryActor, workflowDescriptor,
       configurationDescriptor, calls, pathBuilderFactories)

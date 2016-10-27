@@ -43,7 +43,7 @@ import scala.util.matching.Regex
 case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
+                                                calls: Set[Call],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
@@ -280,7 +280,7 @@ abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   override protected def afterAll() = { twms.shutdownTestActorSystem(); () }
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit val ec = system.dispatcher
 
   val dummyServiceRegistryActor = system.actorOf(Props.empty)

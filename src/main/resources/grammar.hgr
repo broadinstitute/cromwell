@@ -331,13 +331,14 @@ grammar {
     $kv = :identifier :colon $e -> RuntimeAttribute(key=$0, value=$2)
 
     # Declarations: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#declarations
-    $declaration = $type_e optional($postfix_quantifier) :identifier optional($setter) -> Declaration(type=$0, postfix=$1, name=$2, expression=$3)
+    $declaration = $type_e :identifier optional($setter) -> Declaration(type=$0, name=$1, expression=$2)
     $setter = :equal $e -> $1
-    $postfix_quantifier = :qmark | :plus
 
     # Types: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#types
     $type_e = parser<expression> {
       (*:left) $type_e = :type <=> :lsquare list($type_e, :comma) :rsquare -> Type(name=$0, subtype=$2)
+      (*:left) $type_e = :type <=> :qmark -> OptionalType(innerType=$0)
+      (*:left) $type_e = :type <=> :plus -> NonEmptyType(innerType=$0)
       $type_e = :type
     }
 

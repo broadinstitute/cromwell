@@ -243,14 +243,22 @@ object SampleWdl {
         |  command {ps}
         |}
         |
+        |task c {
+        |  Int? foo = 3
+        |  Array[Int]+ bar = [ 1, 2, 3 ]
+        |  command {ps}
+        |}
+        |
         |workflow w {
         |  String foo = "foo"
         |  String bar = "bar"
         |  String foobar = foo + bar
+        |  String? baz = "baz"
         |
         |  call a
         |  call a as a_prime
         |  call b
+        |  call c
         |}
       """.stripMargin
 

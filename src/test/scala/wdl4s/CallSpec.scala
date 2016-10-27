@@ -2,7 +2,7 @@ package wdl4s
 
 import org.scalatest.{Matchers, WordSpec}
 import wdl4s.expression.NoFunctions
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlIntegerType}
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
 import wdl4s.values._
 
 import scala.util.{Failure, Success, Try}
@@ -30,14 +30,15 @@ class CallSpec extends WordSpec with Matchers {
     val shardMap = Map(namespace.scatters.head -> 2)
 
     val declarations = callV.evaluateTaskInputs(inputs, NoFunctions, outputResolver, shardMap)
-    declarations.size shouldBe 10
+    declarations.size shouldBe 11
     declarations.find(_._1.unqualifiedName == "a").get._2 shouldBe WdlString("a")
     declarations.find(_._1.unqualifiedName == "b").get._2 shouldBe WdlString("b")
     declarations.find(_._1.unqualifiedName == "c").get._2 shouldBe WdlString("c 2")
     declarations.find(_._1.unqualifiedName == "d").get._2 shouldBe WdlInteger(2)
     declarations.find(_._1.unqualifiedName == "e").get._2 shouldBe WdlString("e")
     declarations.find(_._1.unqualifiedName == "f").get._2 shouldBe WdlString("f")
-    declarations.find(_._1.unqualifiedName == "g").get._2 shouldBe WdlString("g")
+    declarations.find(_._1.unqualifiedName == "g").get._2 shouldBe WdlOptionalValue(WdlString("g"))
+    declarations.find(_._1.unqualifiedName == "h").get._2 shouldBe WdlOptionalValue(WdlStringType, None)
     declarations.find(_._1.unqualifiedName == "i").get._2 shouldBe WdlString("b")
     declarations.find(_._1.unqualifiedName == "j").get._2 shouldBe WdlFile("j")
     declarations.find(_._1.unqualifiedName == "k").get._2 shouldBe WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("a"), WdlFile("b"), WdlFile("c")))
@@ -67,7 +68,7 @@ class CallSpec extends WordSpec with Matchers {
   }
   
   "find workflows" in {
-    
+
     val subWorkflow =
       """
         |task hello2 {
@@ -87,7 +88,7 @@ class CallSpec extends WordSpec with Matchers {
         |  }
         |}
       """.stripMargin
-    
+
     val wdl =
       s"""
         |import "placeholder" as sub
@@ -107,7 +108,7 @@ class CallSpec extends WordSpec with Matchers {
         |  call hello {input: addressee = sub_hello.result }
         |}
       """.stripMargin
-    
+
     val ns = WdlNamespaceWithWorkflow.load(wdl, importResolver = (uri: String) => subWorkflow)
     ns.workflow.workflowCalls.size shouldBe 1
     ns.workflow.taskCalls.size shouldBe 1

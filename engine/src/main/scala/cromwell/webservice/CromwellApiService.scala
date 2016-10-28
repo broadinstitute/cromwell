@@ -1,7 +1,6 @@
 package cromwell.webservice
 
 import akka.actor._
-import java.lang.Throwable
 
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}

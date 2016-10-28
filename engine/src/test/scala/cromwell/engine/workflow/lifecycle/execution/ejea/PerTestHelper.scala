@@ -41,7 +41,13 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     outputs = Seq(("outString", WdlStringType, mockStringExpression("hello")))
   )
 
-  val workflow = new Workflow(workflowName, Seq.empty, mock[WdlSyntaxErrorFormatter], mock[Ast])
+  val workflow = new Workflow(
+    unqualifiedName = workflowName,
+    workflowOutputWildcards = Seq.empty,
+    wdlSyntaxErrorFormatter = mock[WdlSyntaxErrorFormatter],
+    meta = Map.empty,
+    parameterMeta = Map.empty,
+    ast = mock[Ast])
   val call: TaskCall = TaskCall(None, task, Map.empty, mock[Ast])
   call.parent_=(workflow)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)

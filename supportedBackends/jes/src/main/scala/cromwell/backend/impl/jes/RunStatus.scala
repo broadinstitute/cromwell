@@ -1,5 +1,6 @@
 package cromwell.backend.impl.jes
 
+import cromwell.backend.impl.jes.Run.GlobInfo
 import cromwell.core.ExecutionEvent
 
 sealed trait RunStatus {
@@ -15,6 +16,9 @@ sealed trait RunStatus {
 object RunStatus {
   case object Initializing extends RunStatus
   case object Running extends RunStatus
+  case class AwaitingGlobConsistency(globChecks: Seq[GlobInfo], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String]) extends RunStatus {
+    override def toString = this.getClass.getSimpleName
+  }
 
   sealed trait TerminalRunStatus extends RunStatus {
     def eventList: Seq[ExecutionEvent]

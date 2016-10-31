@@ -7,7 +7,7 @@ import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
+import cromwell.backend.impl.jes.RunStatus._
 import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
@@ -93,16 +93,17 @@ object Run {
 
   def interpretOperationStatus(op: Operation): RunStatus = {
     if (op.getDone) {
-      lazy val eventList = getEventList(op)
-      lazy val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
+      lazy val refinedJesEvents = getEventList(op)
+      lazy val ceInfo = op.getMetadata.get("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
       lazy val machineType = Option(ceInfo.get("machineType"))
       lazy val instanceName = Option(ceInfo.get("instanceName"))
       lazy val zone = Option(ceInfo.get("zone"))
-
+      lazy val globInfos = refinedJesEvents.globs
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
-        case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, eventList, machineType, zone, instanceName)
+        case None if globInfos.nonEmpty => AwaitingGlobConsistency(globInfos, refinedJesEvents.events, machineType, zone, instanceName)
+        case None => Success(refinedJesEvents.events, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, refinedJesEvents.events, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running
@@ -111,9 +112,11 @@ object Run {
     }
   }
 
-  def getEventList(op: Operation): Seq[ExecutionEvent] = {
-    val metadata = op.getMetadata.asScala.toMap
+  private[jes] case class GlobInfo(path: String, count: Int)
+  private[jes] case class RefinedJesEvents(events: Seq[ExecutionEvent], globs: Seq[GlobInfo])
 
+  private[jes] def getEventList(op: Operation): RefinedJesEvents = {
+    val metadata = op.getMetadata.asScala.toMap
     val starterEvents: Seq[ExecutionEvent] = Seq(
       eventIfExists("createTime", metadata, "waiting for quota"),
       eventIfExists("startTime", metadata, "initializing VM")).flatten
@@ -124,12 +127,21 @@ object Run {
     } yield ExecutionEvent(entry.get("description"), OffsetDateTime.parse(entry.get("startTime")))
 
     val filteredEventsList: Seq[ExecutionEvent] = eventsList filter { i => AcceptableEvents.contains(i.name) }
+    val globEvents: Seq[GlobInfo] = eventsList map { e => parseGlobEvent(e.name) } collect {
+      case Some(globEvent) => globEvent
+    }
 
     // A little bit ugly... the endTime of the jes operation can actually be before the final "event" time, due to differences
     // in the reported precision. As a result, we have to make sure it all lines up nicely:
     val finalEvent = getCromwellPollIntervalEvent(metadata, filteredEventsList)
 
-    starterEvents ++ filteredEventsList :+ finalEvent
+    RefinedJesEvents(starterEvents ++ filteredEventsList :+ finalEvent, globEvents)
+  }
+
+  private def parseGlobEvent(eventText: String): Option[GlobInfo] = {
+    val regex = "copied ([0-9]+) file\\(s\\) to \"(.*)\"".r
+    regex.findFirstMatchIn(eventText) collect {
+      case m if m.group(1).toInt > 1 => GlobInfo(m.group(2), m.group(1).toInt) }
   }
 
   private def getCromwellPollIntervalEvent(metadata: Map[String, AnyRef], eventsList: Seq[ExecutionEvent]) = {

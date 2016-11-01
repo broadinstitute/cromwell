@@ -12,11 +12,10 @@ class HtCondorCommandSpec extends WordSpecLike with Matchers {
 
   "submitCommand method" should {
     "return submit file with content passed to it" in {
-      val dir = File.newTemporaryFile()
-      val command = htCondorCommands.generateSubmitFile(dir.path, attributes, nativeSpecs)
-      val file = dir
-      resultAttributes shouldEqual dir.lines.toList
-      dir.delete()
+      val file = File.newTemporaryFile()
+      val command = htCondorCommands.generateSubmitFile(file.path, attributes, nativeSpecs)
+      resultAttributes shouldEqual file.lines.toList
+      file.delete()
       command shouldEqual s"condor_submit ${file.path}"
     }
   }

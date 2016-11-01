@@ -33,7 +33,6 @@ class MongoCacheActorSpec extends TestKit(ActorSystem("MongoCacheProviderActorSp
   val mongoDbCollectionMock = mock[MongoCollection]
   val memorySize = MemorySize.parse("0.512 GB").get
   val diskSize = MemorySize.parse("1.024 GB").get
-  val nativeSpecs = None
   val runtimeConfig = HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), Some("tool-name"), Some("/workingDir"), Some("/outputDir"), true, 1, memorySize, diskSize, None)
   val jobHash = "88dde49db10f1551299fb9937f313c10"
   val taskStatus = "done"

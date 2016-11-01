@@ -889,6 +889,18 @@ This backend supports CPU, memory and disk size configuration through the use of
 
 It they are not set, HtCondor backend will use default values.
 
+### Native Specifications
+The use of runtime attribute 'nativeSpecs' allows to the user to attach custom HtCondor configuration to tasks.
+An example of this is when there is a need to work with 'requirements' or 'rank' configuration.
+
+```
+"runtimeAttributes": {
+    "nativeSpecs": ["requirements = Arch == \"INTEL\"", "rank = Memory >= 64"]
+}
+```
+
+nativeSpecs attribute needs to be specified as an array of strings to work.
+
 ## Spark Backend
 
 This backend adds support for execution of spark jobs in a workflow using the existing wdl format. 

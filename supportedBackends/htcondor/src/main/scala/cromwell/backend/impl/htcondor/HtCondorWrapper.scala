@@ -74,15 +74,10 @@ echo $$? > rc
     }
 
     val submitFileWriter = path.untailed
-    attributes.foreach(attribute => submitFileWriter.writeWithNewline(s"${attribute._1}=${attribute._2}"))
+    attributes.foreach { attribute => submitFileWriter.writeWithNewline(s"${attribute._1}=${attribute._2}") }
     //Native specs is intended for attaching HtCondor native configuration such as 'requirements' and 'rank' definition
     //directly to the submit file.
-    nativeSpecs match {
-      case Some(ns) => ns foreach { value =>
-        submitFileWriter.writeWithNewline(value)
-      }
-      case None => //Do nothing
-    }
+    nativeSpecs foreach { _.foreach { submitFileWriter.writeWithNewline } }
     submitFileWriter.writeWithNewline(HtCondorRuntimeKeys.Queue)
     submitFileWriter.writer.flushAndClose()
     logger.debug(s"submit file name is : $path")

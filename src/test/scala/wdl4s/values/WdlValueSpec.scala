@@ -26,7 +26,8 @@ class WdlValueSpec extends FlatSpec with Matchers {
     (WdlInteger(Int.MinValue), "-2147483648"),
     (WdlString(""), "\"\""),
     (WdlObject(Map("one" -> WdlString("two"))), "object {one: \"two\"}"),
-    (WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(WdlString("one") -> WdlString("two"))), "{\"one\": \"two\"}")
+    (WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(WdlString("one") -> WdlString("two"))), "{\"one\": \"two\"}"),
+    (WdlPair(WdlInteger(1), WdlInteger(2)), "(1, 2)")
   )
 
   forAll(wdlValueRawStrings) { (wdlValue, rawString) =>

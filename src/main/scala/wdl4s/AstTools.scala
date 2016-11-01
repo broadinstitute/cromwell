@@ -42,7 +42,7 @@ object AstTools {
     }
     def findTopLevelMemberAccesses(): Iterable[Ast] = AstTools.findTopLevelMemberAccesses(astNode)
     def sourceString: String = astNode.asInstanceOf[Terminal].getSourceString
-    def astListAsVector(): Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector
+    def astListAsVector: Seq[AstNode] = astNode.asInstanceOf[AstList].asScala.toVector
     def wdlType(wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): WdlType = {
       astNode match {
         case t: Terminal =>
@@ -56,9 +56,14 @@ object AstTools {
             case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
         case a: Ast =>
-          val subtypes = a.getAttribute("subtype").astListAsVector()
+          val subtypes = a.getAttribute("subtype").astListAsVector
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
           a.getAttribute("name").sourceString match {
+            case "Pair" =>
+              if (subtypes.size != 2) throw new SyntaxError(wdlSyntaxErrorFormatter.pairMustHaveExactlyTwoTypeParameters(typeTerminal))
+              val leftType = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
+              val rightType = subtypes.tail.head.wdlType(wdlSyntaxErrorFormatter)
+              WdlPairType(leftType, rightType)
             case "Array" =>
               if (subtypes.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveOnlyOneTypeParameter(typeTerminal))
               val member = subtypes.head.wdlType(wdlSyntaxErrorFormatter)
@@ -97,6 +102,19 @@ object AstTools {
         WdlObject(elements)
       }
 
+      def astTupleToValue(a: Ast): WdlValue = {
+        val subElements = a.getAttribute("values").astListAsVector
+        if (subElements.size == 1) {
+          // Tuple 1 is equivalent to the value inside it. Enables nesting parens, e.g. (1 + 2) + 3
+          a.wdlValue(wdlType, wdlSyntaxErrorFormatter)
+        } else if (subElements.size == 2 && wdlType.isInstanceOf[WdlPairType]) {
+          val pairType = wdlType.asInstanceOf[WdlPairType]
+          WdlPair(subElements.head.wdlValue(pairType.leftType, wdlSyntaxErrorFormatter), subElements(1).wdlValue(pairType.rightType, wdlSyntaxErrorFormatter))
+        } else {
+          throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
+        }
+      }
+
       astNode match {
         case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlStringType => WdlString(t.getSourceString)
         case t: Terminal if t.getTerminalStr == "string" && wdlType == WdlFileType => WdlFile(t.getSourceString)
@@ -113,6 +131,7 @@ object AstTools {
           val arrType = wdlType.asInstanceOf[WdlArrayType]
           val elements = a.getAttribute("values").astListAsVector map {node => node.wdlValue(arrType.memberType, wdlSyntaxErrorFormatter)}
           WdlArray(arrType, elements)
+        case a: Ast if a.getName == "TupleLiteral" => astTupleToValue(a)
         case a: Ast if a.getName == "MapLiteral" && wdlType.isInstanceOf[WdlMapType] => astToMap(a)
         case a: Ast if a.getName == "ObjectLiteral" && wdlType == WdlObjectType => astToObject(a)
         case _ => throw new SyntaxError(s"Could not convert AST to a $wdlType (${Option(astNode).getOrElse("No AST").toString})")
@@ -244,7 +263,7 @@ object AstTools {
       case asts: Seq[Ast] if asts.isEmpty => Seq.empty[Ast]
       case asts: Seq[Ast] =>
         /* Uses of .head here are assumed by the above code that ensures that there are no empty maps */
-        val secondInputSectionIOMappings = asts(1).getAttribute("map").astListAsVector()
+        val secondInputSectionIOMappings = asts(1).getAttribute("map").astListAsVector
         val firstKeyTerminal = secondInputSectionIOMappings.head.asInstanceOf[Ast].getAttribute("key").asInstanceOf[Terminal]
         throw new SyntaxError(wdlSyntaxErrorFormatter.multipleInputStatementsOnCall(firstKeyTerminal))
     }

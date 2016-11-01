@@ -25,6 +25,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
       WdlString("c") -> WdlInteger(2)
     ))
     case "o" => WdlObject(Map("key1" -> WdlString("value1"), "key2" -> WdlInteger(9)))
+    case "myPair" => WdlPair(WdlInteger(3), WdlString("hello"))
     case "etc_f" => WdlFile("/etc")
     case "etc2_f" => WdlFile("/etc2")
     case "etc_s" => WdlString("/etc")
@@ -61,19 +62,19 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     def append(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
   }
 
-  def constEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]].get
-  def constEvalType(exprStr: String): WdlType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).asInstanceOf[Try[WdlType]].get
+  def constEval(exprStr: String): WdlValue = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).get
+  def constEvalType(exprStr: String): WdlType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
   def constEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => // Expected
-      case Success(value) => fail(s"Operation was supposed to fail, instead I got value: $value")
+      case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
   }
   def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]].get
   def identifierEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => // Expected
-      case Success(value) => fail(s"Operation was supposed to fail, instead I got value: $value")
+      case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
   }
 
@@ -173,7 +174,26 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     // Order of Operations
     ("1+2*3", WdlInteger(7)),
     ("1+2==3", WdlBoolean.True),
-    ("(1+2)*3", WdlInteger(9))
+    ("(1+2)*3", WdlInteger(9)),
+
+    // Simple pair:
+    ("(1, \"apple\")", WdlPair(WdlInteger(1), WdlString("apple"))),
+
+    // 1-tuple equivalent to a simple value:
+    ("(1)", WdlInteger(1)),
+
+    // Array in pair:
+    ("(\"hello\", [ 1, 2, 3 ])", WdlPair(WdlString("hello"), WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(1), WdlInteger(2), WdlInteger(3))))),
+
+    // Map to pairs:
+    ("""{
+    | 1: (1, 2),
+    | 2: (2, 3)
+    |}
+    """.stripMargin, WdlMap(WdlMapType(WdlIntegerType, WdlPairType(WdlIntegerType, WdlIntegerType)), Map(
+      WdlInteger(1) -> WdlPair(WdlInteger(1), WdlInteger(2)),
+      WdlInteger(2) -> WdlPair(WdlInteger(2), WdlInteger(3))
+    )))
   )
 
   val badExpressions = Table(
@@ -297,6 +317,8 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("s + a", WdlString("s1")),
     ("o.key1", WdlString("value1")),
     ("o.key2", WdlInteger(9)),
+    ("myPair.left", WdlInteger(3)),
+    ("myPair.right", WdlString("hello")),
 
     // Call Functions
     ("b(1)", WdlInteger(2)),

@@ -456,7 +456,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Variable does not reference any declaration in the task (line 3, col 26):
+      """ERROR: Variable y does not reference any declaration in the task (line 3, col 26):
         |
         |  command { ./script ${x+y} }
         |                         ^
@@ -483,7 +483,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Variable does not reference any declaration in the task (line 3, col 15):
+      """ERROR: Variable z does not reference any declaration in the task (line 3, col 15):
         |
         |  Int y = x + z
         |              ^
@@ -511,7 +511,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Variable does not reference any declaration in the task (line 3, col 15):
+      """ERROR: Variable z does not reference any declaration in the task (line 3, col 15):
         |
         |  Int y = x + z
         |              ^
@@ -606,31 +606,31 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   }
 
   val syntaxErrorWdlTable = Table(
-    ("errorWdl"),
-    (CallReferencesBadInput),
-    (CallReferencesBadTask),
-    (MultipleWorkflows),
-    (TaskAndNamespaceNameCollision),
-    (WorkflowAndNamespaceNameCollision),
-    (TwoTasksHaveTheSameName),
-    (BadMemberAccessInCallInputSection),
-    (BadMemberAccessInCallInputSection2),
-    (UnexpectedEof),
-    (UnexpectedSymbol),
-    (ExtraneousSymbol),
-    (MultipleCallStatementsHaveTheSameName),
-    (MultipleCallInputSections),
-    (MapParameterizedTypes),
-    (TypeMismatch1),
-    (TypeMismatch2),
-    (MetaSectionStringValues),
-    (MultipleCommandSections),
-    (CommandExpressionVariableReferenceIntegrity),
-    (DeclarationVariableReferenceIntegrity),
-    (DeclarationVariableReferenceIntegrity2),
-    (MultipleVariableDeclarationsInScope),
-    (MultipleVariableDeclarationsInScope2),
-    (MultipleVariableDeclarationsInScope3)
+    "errorWdl",
+    CallReferencesBadInput,
+    CallReferencesBadTask,
+    MultipleWorkflows,
+    TaskAndNamespaceNameCollision,
+    WorkflowAndNamespaceNameCollision,
+    TwoTasksHaveTheSameName,
+    BadMemberAccessInCallInputSection,
+    BadMemberAccessInCallInputSection2,
+    UnexpectedEof,
+    UnexpectedSymbol,
+    ExtraneousSymbol,
+    MultipleCallStatementsHaveTheSameName,
+    MultipleCallInputSections,
+    MapParameterizedTypes,
+    TypeMismatch1,
+    TypeMismatch2,
+    MetaSectionStringValues,
+    MultipleCommandSections,
+    CommandExpressionVariableReferenceIntegrity,
+    DeclarationVariableReferenceIntegrity,
+    DeclarationVariableReferenceIntegrity2,
+    MultipleVariableDeclarationsInScope,
+    MultipleVariableDeclarationsInScope2,
+    MultipleVariableDeclarationsInScope3
   )
 
   forAll(syntaxErrorWdlTable) { (errorWdl) =>

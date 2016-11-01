@@ -1,6 +1,6 @@
 package wdl4s.types
 
-import wdl4s.values.{WdlInteger, WdlString, WdlMap, WdlObject}
+import wdl4s.values.{WdlMap, WdlObject, WdlString}
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -19,13 +19,7 @@ class WdlObjectTypeSpec extends FlatSpec with Matchers {
     WdlString("c") -> WdlString("three"))
   )
 
-  val nonCoerceableMap1 = WdlMap(WdlMapType(WdlIntegerType, WdlStringType), Map(
-    WdlInteger(1) -> WdlString("one"),
-    WdlInteger(2) -> WdlString("two"),
-    WdlInteger(3) -> WdlString("three"))
-  )
-
-  val nonCoerceableMap2 = WdlMap(WdlMapType(WdlStringType, WdlObjectType), Map(
+  val nonCoerceableMap = WdlMap(WdlMapType(WdlStringType, WdlObjectType), Map(
     WdlString("a") -> WdlObject(Map.empty),
     WdlString("b") -> WdlObject(Map.empty),
     WdlString("c") -> WdlObject(Map.empty))
@@ -53,14 +47,7 @@ class WdlObjectTypeSpec extends FlatSpec with Matchers {
   }
 
   it should "NOT successfully coerce a NON coerceable map into a WdlObject" in {
-    WdlObjectType.coerceRawValue(nonCoerceableMap1) match {
-      case Success(v) => fail("should not have succeeded")
-      case Failure(f) => // expected
-    }
-  }
-
-  it should "NOT successfully coerce a NON coerceable map into a WdlObject (2)" in {
-    WdlObjectType.coerceRawValue(nonCoerceableMap2) match {
+    WdlObjectType.coerceRawValue(nonCoerceableMap) match {
       case Success(v) => fail("should not have succeeded")
       case Failure(f) => // expected
     }

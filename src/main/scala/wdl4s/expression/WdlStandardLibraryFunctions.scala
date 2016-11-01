@@ -6,6 +6,7 @@ import wdl4s.{TsvSerializable, WdlExpressionException}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+import WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def fileContentsToString(path: String): String = readFile(path)
@@ -17,9 +18,6 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile]
   def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile]
   def size(params: Seq[Try[WdlValue]]): Try[WdlFloat]
-  def sub(params: Seq[Try[WdlValue]]): Try[WdlString]
-  def range(params: Seq[Try[WdlValue]]): Try[WdlArray]
-  def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray]
 
   def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
   def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter(params).map(s => WdlString(s.trim))
@@ -42,7 +40,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
     for {
       contents <- readContentsFromSingleFileParameter(params)
-      wdlMap <- WdlMap.fromTsv(contents)
+      wdlMap <- WdlMap.fromTsv(contents, WdlMapType(WdlAnyType, WdlAnyType))
     } yield wdlMap
   }
 
@@ -71,6 +69,97 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
       files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }
     } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles)
+  }
+
+  def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    def extractExactlyOneArg: Try[WdlValue] = params.size match {
+      case 1 => params.head
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function transpose: $n. Ensure transpose(x: Array[Array[X]]) takes exactly 1 parameters."))
+    }
+
+    case class ExpandedTwoDimensionalArray(innerType: WdlType, value: Seq[Seq[WdlValue]])
+    def validateAndExpand(value: WdlValue): Try[ExpandedTwoDimensionalArray] = value match {
+      case WdlArray(WdlArrayType(WdlArrayType(innerType)), array: Seq[WdlValue]) => expandWdlArray(array) map { ExpandedTwoDimensionalArray(innerType, _) }
+      case array @ WdlArray(WdlArrayType(nonArrayType), _) => Failure(new IllegalArgumentException(s"Array must be two-dimensional to be transposed but given array of $nonArrayType"))
+      case otherValue => Failure(new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got ${otherValue.typeName}"))
+    }
+
+    def expandWdlArray(outerArray: Seq[WdlValue]): Try[Seq[Seq[WdlValue]]] = Try {
+      outerArray map {
+        case array: WdlArray => array.value
+        case otherValue => throw new IllegalArgumentException(s"Function 'transpose' must be given a two-dimensional array but instead got WdlArray[${otherValue.typeName}]")
+      }
+    }
+
+    def transpose(expandedTwoDimensionalArray: ExpandedTwoDimensionalArray): Try[WdlArray] = Try {
+      val innerType = expandedTwoDimensionalArray.innerType
+      val array = expandedTwoDimensionalArray.value
+      WdlArray(WdlArrayType(WdlArrayType(innerType)), array.transpose map { WdlArray(WdlArrayType(innerType), _) })
+    }
+
+    extractExactlyOneArg.flatMap(validateAndExpand).flatMap(transpose)
+  }
+
+  def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    def extractAndValidateArguments = params.size match {
+      case 1 => validateArguments(params.head)
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function range: $n. Ensure range(x: WdlInteger) takes exactly 1 parameters."))
+    }
+
+    def validateArguments(value: Try[WdlValue]) = value match {
+      case Success(intValue: WdlValue) if WdlIntegerType.isCoerceableFrom(intValue.wdlType) =>
+        Integer.valueOf(intValue.valueString) match {
+          case i if i >= 0 => Success(i)
+          case n => Failure(new IllegalArgumentException(s"Parameter to seq must be greater than or equal to 0 (but got $n)"))
+        }
+      case _ => Failure(new IllegalArgumentException(s"Invalid parameter for engine function seq: $value."))
+    }
+
+    extractAndValidateArguments map { intValue => WdlArray(WdlArrayType(WdlIntegerType), (0 until intValue).map(WdlInteger(_))) }
+  }
+
+  def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = {
+    def extractArguments = params.size match {
+      case 3 => Success((params.head, params(1), params(2)))
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function sub: $n. sub takes exactly 3 parameters."))
+    }
+
+    def validateArguments(values: (Try[WdlValue], Try[WdlValue], Try[WdlValue])) = values match {
+      case (Success(strValue), Success(WdlString(pattern)), Success(replaceValue))
+        if WdlStringType.isCoerceableFrom(strValue.wdlType) &&
+          WdlStringType.isCoerceableFrom(replaceValue.wdlType) =>
+        Success((strValue.valueString, pattern, replaceValue.valueString))
+      case _ => Failure(new IllegalArgumentException(s"Invalid parameters for engine function sub: $values."))
+    }
+
+    for {
+      args <- extractArguments
+      (str, pattern, replace) <- validateArguments(args)
+    } yield WdlString(pattern.r.replaceAllIn(str, replace))
+  }
+
+  def zip(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    val badArgsFailure = Failure(new IllegalArgumentException(s"Invalid parameters for engine function zip: $params. Requires exactly two evaluated array values of equal length."))
+
+    for {
+      values <- extractTwoParams(params, badArgsFailure)
+      (left, right) <- assertEquallySizedArrays(values, badArgsFailure)
+      leftType = left.wdlType.memberType
+      rightType = right.wdlType.memberType
+      zipped = left.value.zip(right.value) map { case (l,r) => WdlPair(l, r) }
+    } yield WdlArray(WdlArrayType(WdlPairType(leftType, rightType)), zipped)
+  }
+
+  def cross(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    val badArgsFailure = Failure(new IllegalArgumentException(s"Invalid parameters for engine function cross: $params. Requires exactly two evaluated array values of equal length."))
+
+    for {
+      values <- extractTwoParams(params, badArgsFailure)
+      (left, right) <- assertArrays(values, badArgsFailure)
+      leftType = left.wdlType.memberType
+      rightType = right.wdlType.memberType
+      crossed = stdLibCrossProduct(left.value, right.value) map { case (l,r) => WdlPair(l, r) }
+    } yield WdlArray(WdlArrayType(WdlPairType(leftType, rightType)), crossed)
   }
 
   /**
@@ -104,6 +193,48 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   }
 }
 
+object WdlStandardLibraryFunctions {
+  def crossProduct[A, B](as: Seq[A], bs: Seq[B]): Seq[(A, B)] = for {
+    a <- as
+    b <- bs
+  } yield (a, b)
+
+  def extractTwoParams[A](params: Seq[Try[A]], badArgsFailure: Failure[Nothing]): Try[(A, A)] = {
+    if (params.size != 2) { badArgsFailure }
+    else for {
+      left <- params.head
+      right <- params(1)
+    } yield (left, right)
+  }
+
+  def assertEquallySizedArrays[A](values: (WdlValue, WdlValue), badArgsFailure: Failure[Nothing] ): Try[(WdlArray, WdlArray)] = values match {
+    case (leftArray: WdlArray, rightArray: WdlArray) if leftArray.value.size == rightArray.value.size => Success((leftArray, rightArray))
+    case _ => badArgsFailure
+  }
+
+  def assertArrays(values: (WdlValue, WdlValue), badArgsFailure: Failure[Nothing] ): Try[(WdlArray, WdlArray)] = values match {
+    case (leftArray: WdlArray, rightArray: WdlArray) => Success((leftArray, rightArray))
+    case _ => badArgsFailure
+  }
+}
+
+trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
+
+  def className = this.getClass.getCanonicalName
+
+  override def readFile(path: String): String = throw new NotImplementedError(s"readFile not available in $className.")
+  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = throw new NotImplementedError(s"read_json not available in $className.")
+  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"write_json not available in $className.")
+  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = throw new NotImplementedError(s"size not available in $className.")
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"write_tsv not available in $className.")
+  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"stdout not available in $className.")
+  override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError(s"writeTempFile not available in $className.")
+  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"stderr not available in $className.")
+}
+
+case object PureStandardLibraryFunctions extends PureStandardLibraryFunctionsLike
+
 class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def stdout(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   def stderr(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
@@ -131,6 +262,14 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
     case Success(t @ WdlArrayType(WdlArrayType(wdlType))) :: Nil => Success(t)
     case _ => Failure(new Exception(s"Unexpected transpose target: $params"))
   }
+  def zip(params: Seq[Try[WdlType]]): Try[WdlType] = {
+    val badArgsFailure = Failure(new Exception(s"Unexpected zip parameters: $params"))
+    WdlStandardLibraryFunctions.extractTwoParams(params, badArgsFailure) flatMap {
+      case (arrayType1: WdlArrayType, arrayType2: WdlArrayType) => Success(WdlArrayType(WdlPairType(arrayType1.memberType, arrayType2.memberType)))
+      case _ => badArgsFailure
+    }
+  }
+  def cross(params: Seq[Try[WdlType]]): Try[WdlType] = zip(params)
 }
 
 case object NoFunctions extends WdlStandardLibraryFunctions {
@@ -146,4 +285,6 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
   override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
   override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+  override def zip(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+  override def cross(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
 }

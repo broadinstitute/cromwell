@@ -195,6 +195,13 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
+  def pairMustHaveExactlyTwoTypeParameters(arrayDecl: Terminal): String = {
+    s"""ERROR: Pair type should have exactly two parameterized types (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
+        |
+     |${pointToSource(arrayDecl)}
+     """.stripMargin
+  }
+
   def arrayMustHaveOnlyOneTypeParameter(arrayDecl: Terminal): String = {
     s"""ERROR: Array type should only have one parameterized type (line ${arrayDecl.getLine}, col ${arrayDecl.getColumn}):
      |
@@ -266,7 +273,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
   }
 
   def commandExpressionContainsInvalidVariableReference(taskName: Terminal, variable: Terminal) = {
-    s"""ERROR: Variable does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
+    s"""ERROR: Variable ${variable.getSourceString} does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
         |
         |${pointToSource(variable)}
         |
@@ -277,7 +284,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
   }
 
   def declarationContainsInvalidVariableReference(declarationName: Terminal, variable: Terminal) = {
-    s"""ERROR: Variable does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
+    s"""ERROR: Variable ${variable.getSourceString} does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
         |
         |${pointToSource(variable)}
         |

@@ -4,7 +4,7 @@ import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import wdl4s.util.TryUtil
 import spray.json.JsArray
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class WdlArrayType(memberType: WdlType) extends WdlType {
   val toWdlString: String = s"Array[${memberType.toWdlString}]"

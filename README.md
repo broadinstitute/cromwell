@@ -35,6 +35,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Caching configuration](#caching-configuration)
     * [Docker](#docker)
     * [CPU, Memory and Disk](#cpu-memory-and-disk)
+    * [Native Specifications](#native-specifications)
   * [Spark Backend](#spark-backend)
     * [Configuring Spark Project](#configuring-spark-project)
     * [Configuring Spark Master and Deploy Mode](#configuring-spark-master-and-deploy-mode)

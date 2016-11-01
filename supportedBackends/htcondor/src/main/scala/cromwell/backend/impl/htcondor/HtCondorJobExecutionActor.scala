@@ -298,7 +298,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
           HtCondorRuntimeKeys.Disk -> runtimeAttributes.disk.to(MemoryUnit.KB).amount.toLong
         )
 
-      cmds.generateSubmitFile(submitFilePath, attributes) // This writes the condor submit file
+      cmds.generateSubmitFile(submitFilePath, attributes, runtimeAttributes.nativeSpecs) // This writes the condor submit file
       ()
 
     } catch {

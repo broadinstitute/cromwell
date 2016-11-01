@@ -68,13 +68,21 @@ echo $$? > rc
     ()
   }
 
-  def generateSubmitFile(path: Path, attributes: Map[String, Any]): String = {
+  def generateSubmitFile(path: Path, attributes: Map[String, Any], nativeSpecs: Option[Array[String]]): String = {
     def htCondorSubmitCommand(filePath: Path) = {
       s"${HtCondorCommands.Submit} ${filePath.toString}"
     }
 
     val submitFileWriter = path.untailed
     attributes.foreach(attribute => submitFileWriter.writeWithNewline(s"${attribute._1}=${attribute._2}"))
+    //Native specs is intended for attaching HtCondor native configuration such as 'requirements' and 'rank' definition
+    //directly to the submit file.
+    nativeSpecs match {
+      case Some(ns) => ns foreach { value =>
+        submitFileWriter.writeWithNewline(value)
+      }
+      case None => //Do nothing
+    }
     submitFileWriter.writeWithNewline(HtCondorRuntimeKeys.Queue)
     submitFileWriter.writer.flushAndClose()
     logger.debug(s"submit file name is : $path")

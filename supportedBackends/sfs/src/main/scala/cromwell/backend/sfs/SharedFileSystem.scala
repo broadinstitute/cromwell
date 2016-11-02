@@ -5,6 +5,7 @@ import java.nio.file.{Path, Paths}
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.core._
 import cromwell.core.path.PathFactory
@@ -17,7 +18,7 @@ import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object SharedFileSystem {
+object SharedFileSystem extends StrictLogging {
   import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
@@ -45,19 +46,25 @@ object SharedFileSystem {
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
     val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void
+    val result = Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void
+    if (result.isFailure) logger.warn(s"Localization via copy has failed: ${result.failed.get.getMessage}", result.failed.get)
+    result
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
-    Try { executionPath.linkTo(originalPath, symbolic = false) } void
+    val result = Try(executionPath.linkTo(originalPath, symbolic = false)).void
+    if (result.isFailure) logger.warn(s"Localization via hard link has failed: ${result.failed.get.getMessage}", result.failed.get)
+    result
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
         executionPath.parent.createDirectories()
-        Try { executionPath.linkTo(originalPath, symbolic = true) } void
+        val result = Try(executionPath.linkTo(originalPath, symbolic = true)).void
+        if (result.isFailure) logger.warn(s"Localization via symbolic link has failed: ${result.failed.get.getMessage}", result.failed.get)
+        result
       }
   }
 

@@ -39,7 +39,8 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   val memorySize = MemorySize.parse("0.512 GB").get
   val diskSize = MemorySize.parse("1.024 GB").get
-  val staticDefaults = new HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), None, None, None, false, 1, memorySize, diskSize)
+  val staticDefaults = new HtCondorRuntimeAttributes(ContinueOnReturnCodeSet(Set(0)), None, None, None, false, 1,
+    memorySize, diskSize, None)
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
@@ -219,9 +220,14 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
     }
 
-    "throw an exception when tries to validate an invalid disk entry" in {
+    "throw an exception when tries to validate an invalid String disk entry" in {
       val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" disk: "value" }""").head
       assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+    }
+
+    "throw an exception when tries to validate an invalid Integer array disk entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { docker: "ubuntu:latest" disk: [1] }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disk runtime attribute to be an Integer or String with format '8 GB'")
     }
 
     "use workflow options as default if disk key is missing" in {
@@ -237,25 +243,48 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
       val shouldBeIgnored = workflowOptionsWithDefaultRA(Map())
       assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, shouldBeIgnored, expectedRuntimeAttributes)
     }
+
+    "return an instance of itself when tries to validate a valid native specs entry" in {
+      val expectedRuntimeAttributes = staticDefaults.copy(nativeSpecs = Option(Array("spec1", "spec2")))
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { nativeSpecs: ["spec1", "spec2"] }""").head
+      assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes, emptyWorkflowOptions, expectedRuntimeAttributes)
+    }
+
+    "throw an exception when tries to validate an invalid native specs entry" in {
+      val runtimeAttributes = createRuntimeAttributes(HelloWorld, """runtime { nativeSpecs: [1, 2] }""").head
+      assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting nativeSpecs runtime attribute to be an Array of Strings.")
+    }
   }
 
-  private def assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], workflowOptions: WorkflowOptions, expectedRuntimeAttributes: HtCondorRuntimeAttributes): Unit = {
+  private def assertHtCondorRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue],
+                                                                workflowOptions: WorkflowOptions,
+                                                                expectedRuntimeAttributes: HtCondorRuntimeAttributes) = {
     try {
-      assert(HtCondorRuntimeAttributes(runtimeAttributes, workflowOptions) == expectedRuntimeAttributes)
+      val actualRuntimeAttr = HtCondorRuntimeAttributes(runtimeAttributes, workflowOptions)
+      assert(actualRuntimeAttr.cpu == expectedRuntimeAttributes.cpu)
+      assert(actualRuntimeAttr.disk == expectedRuntimeAttributes.disk)
+      assert(actualRuntimeAttr.memory == expectedRuntimeAttributes.memory)
+      assert(actualRuntimeAttr.continueOnReturnCode == expectedRuntimeAttributes.continueOnReturnCode)
+      assert(actualRuntimeAttr.failOnStderr == expectedRuntimeAttributes.failOnStderr)
+      assert(actualRuntimeAttr.dockerWorkingDir == expectedRuntimeAttributes.dockerWorkingDir)
+      assert(actualRuntimeAttr.dockerImage == expectedRuntimeAttributes.dockerImage)
+      assert(actualRuntimeAttr.dockerOutputDir == expectedRuntimeAttributes.dockerOutputDir)
+      expectedRuntimeAttributes.nativeSpecs match {
+        case Some(ns) => assert(ns.deep == expectedRuntimeAttributes.nativeSpecs.get.deep)
+        case None => assert(expectedRuntimeAttributes.nativeSpecs.isEmpty)
+      }
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
-    ()
   }
 
-  private def assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
+  private def assertHtCondorRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String) = {
     try {
       HtCondorRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
     }
-    ()
   }
 
   private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String): Seq[Map[String, WdlValue]] = {

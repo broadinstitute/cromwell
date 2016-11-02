@@ -35,6 +35,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Caching configuration](#caching-configuration)
     * [Docker](#docker)
     * [CPU, Memory and Disk](#cpu-memory-and-disk)
+    * [Native Specifications](#native-specifications)
   * [Spark Backend](#spark-backend)
     * [Configuring Spark Project](#configuring-spark-project)
     * [Configuring Spark Master and Deploy Mode](#configuring-spark-master-and-deploy-mode)
@@ -888,6 +889,18 @@ This backend supports CPU, memory and disk size configuration through the use of
 * disk: defines the amount of disk to use. Default value: "1024 MB". Type: String. Ex: "1 GB" or "1024 MB"
 
 It they are not set, HtCondor backend will use default values.
+
+### Native Specifications
+The use of runtime attribute 'nativeSpecs' allows to the user to attach custom HtCondor configuration to tasks.
+An example of this is when there is a need to work with 'requirements' or 'rank' configuration.
+
+```
+"runtimeAttributes": {
+    "nativeSpecs": ["requirements = Arch == \"INTEL\"", "rank = Memory >= 64"]
+}
+```
+
+nativeSpecs attribute needs to be specified as an array of strings to work.
 
 ## Spark Backend
 

@@ -46,26 +46,25 @@ object SharedFileSystem extends StrictLogging {
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
     val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    val result = Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void
-    if (result.isFailure) logger.warn(s"Localization via copy has failed: ${result.failed.get.getMessage}", result.failed.get)
-    result
+    copyOrElseLog(Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void, "copy")
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
-    val result = Try(executionPath.linkTo(originalPath, symbolic = false)).void
-    if (result.isFailure) logger.warn(s"Localization via hard link has failed: ${result.failed.get.getMessage}", result.failed.get)
-    result
+    copyOrElseLog(Try(executionPath.linkTo(originalPath, symbolic = false)).void, "hard link")
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
         executionPath.parent.createDirectories()
-        val result = Try(executionPath.linkTo(originalPath, symbolic = true)).void
-        if (result.isFailure) logger.warn(s"Localization via symbolic link has failed: ${result.failed.get.getMessage}", result.failed.get)
-        result
+        copyOrElseLog(Try(executionPath.linkTo(originalPath, symbolic = true)).void, "symbolic link")
       }
+  }
+
+  private def copyOrElseLog(action: => Try[Unit], actionLabel: String): Try[Unit] = {
+    if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}", action.failed.get)
+    action
   }
 
   private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]) = {

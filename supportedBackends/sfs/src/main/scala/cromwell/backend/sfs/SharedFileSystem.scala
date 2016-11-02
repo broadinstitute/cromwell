@@ -46,23 +46,23 @@ object SharedFileSystem extends StrictLogging {
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
     val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    copyOrElseLog(Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void, "copy")
+    logOnFailure(Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void, "copy")
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     executionPath.parent.createDirectories()
-    copyOrElseLog(Try(executionPath.linkTo(originalPath, symbolic = false)).void, "hard link")
+    logOnFailure(Try(executionPath.linkTo(originalPath, symbolic = false)).void, "hard link")
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
         executionPath.parent.createDirectories()
-        copyOrElseLog(Try(executionPath.linkTo(originalPath, symbolic = true)).void, "symbolic link")
+        logOnFailure(Try(executionPath.linkTo(originalPath, symbolic = true)).void, "symbolic link")
       }
   }
 
-  private def copyOrElseLog(action: => Try[Unit], actionLabel: String): Try[Unit] = {
+  private def logOnFailure(action: Try[Unit], actionLabel: String): Try[Unit] = {
     if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}", action.failed.get)
     action
   }

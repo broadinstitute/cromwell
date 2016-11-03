@@ -2,11 +2,11 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.{Files, Path}
 
-import cromwell.backend.wdl.{PureFunctions, ReadLikeFunctions, WriteFunctions}
+import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.path.PathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder
-import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.expression.{PureStandardLibraryFunctionsLike, WdlStandardLibraryFunctions}
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -14,8 +14,9 @@ import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 class JesExpressionFunctions(override val pathBuilders: List[PathBuilder], context: CallContext)
-  extends WdlStandardLibraryFunctions with PureFunctions with ReadLikeFunctions with WriteFunctions {
+  extends WdlStandardLibraryFunctions with PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions {
 
+  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
   private def globDirectory(glob: String): String = s"glob-${glob.md5Sum}/"
 
   override def globPath(glob: String): String = context.root.resolve(globDirectory(glob)).toString

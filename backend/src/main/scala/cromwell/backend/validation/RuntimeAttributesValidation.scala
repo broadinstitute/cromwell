@@ -1,9 +1,8 @@
 package cromwell.backend.validation
 
 import cats.syntax.validated._
-import cromwell.backend.wdl.OnlyPureFunctions
+import wdl4s.expression.PureStandardLibraryFunctions
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
-import cromwell.core._
 import cromwell.core.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.WdlExpression
@@ -336,7 +335,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
         For now, if something tries to "lookup" a value, convert it to a WdlString.
          */
         val wdlStringLookup: ScopedLookupFunction = (value: String) => WdlString(value)
-        wdlExpression.evaluate(wdlStringLookup, OnlyPureFunctions) match {
+        wdlExpression.evaluate(wdlStringLookup, PureStandardLibraryFunctions) match {
           case Success(wdlValue) => validateExpression.applyOrElse(wdlValue, (_: Any) => false)
           case Failure(throwable) =>
             throw new RuntimeException(s"Expression evaluation failed due to $throwable: $wdlExpression", throwable)

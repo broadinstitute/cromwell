@@ -1,8 +1,8 @@
 package cromwell.core.simpleton
 
 import wdl4s.TaskOutput
-import wdl4s.types.{WdlArrayType, WdlMapType, WdlPrimitiveType, WdlType}
-import wdl4s.values.{WdlArray, WdlMap, WdlValue}
+import wdl4s.types._
+import wdl4s.values.{WdlArray, WdlMap, WdlPair, WdlValue}
 
 import scala.language.postfixOps
 import cromwell.core.{JobOutput, JobOutputs}
@@ -73,6 +73,19 @@ object WdlValueBuilder {
       component.path match { case MapElementPattern(key, more) => key.unescapeMeta -> component.copy(path = more)}
     }
 
+    // Returns a tuple of the key into the pair (i.e. left or right) and a `SimpletonComponent` whose path reflects the "descent"
+    // into the pair.  e.g. for a component
+    // SimpletonComponent(":left:foo", someValue) this would return (PairLeft -> SimpletonComponent(":baz", someValue)).
+    sealed trait PairLeftOrRight
+    case object PairLeft extends PairLeftOrRight
+    case object PairRight extends PairLeftOrRight
+    def descendIntoPair(component: SimpletonComponent): (PairLeftOrRight, SimpletonComponent) = {
+      component.path match {
+        case MapElementPattern("left", more) => PairLeft -> component.copy(path = more)
+        case MapElementPattern("right", more) => PairRight -> component.copy(path = more)
+      }
+    }
+
     // Group tuples by key using a Map with key type `K`.
     def group[K](tuples: Traversable[(K, SimpletonComponent)]): Map[K, Traversable[SimpletonComponent]] = {
       tuples groupBy { case (i, _) => i } mapValues { _ map { case (i, s) => s} }
@@ -87,6 +100,9 @@ object WdlValueBuilder {
         val groupedByMapKey: Map[String, Traversable[SimpletonComponent]] = group(components map descendIntoMap)
         // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
         WdlMap(mapType, groupedByMapKey map { case (k, ss) => mapType.keyType.coerceRawValue(k).get -> toWdlValue(mapType.valueType, ss) })
+      case pairType: WdlPairType =>
+        val groupedByLeftOrRight: Map[PairLeftOrRight, Traversable[SimpletonComponent]] = group(components map descendIntoPair)
+        WdlPair(toWdlValue(pairType.leftType, groupedByLeftOrRight(PairLeft)), toWdlValue(pairType.rightType, groupedByLeftOrRight(PairRight)))
     }
   }
 

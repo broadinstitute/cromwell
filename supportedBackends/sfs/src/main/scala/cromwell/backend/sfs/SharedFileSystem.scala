@@ -44,21 +44,30 @@ object SharedFileSystem extends StrictLogging {
   }
 
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
-    executionPath.parent.createDirectories()
-    val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    logOnFailure(Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void, "copy")
+    val action = Try {
+      executionPath.parent.createDirectories()
+      val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
+      originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
+    }.void
+    logOnFailure(action, "copy")
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
-    executionPath.parent.createDirectories()
-    logOnFailure(Try(executionPath.linkTo(originalPath, symbolic = false)).void, "hard link")
+    val action = Try {
+      executionPath.parent.createDirectories()
+      executionPath.linkTo(originalPath, symbolic = false)
+    }.void
+    logOnFailure(action, "hard link")
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
-        executionPath.parent.createDirectories()
-        logOnFailure(Try(executionPath.linkTo(originalPath, symbolic = true)).void, "symbolic link")
+        val action = Try {
+          executionPath.parent.createDirectories()
+          executionPath.linkTo(originalPath, symbolic = true)
+        }.void
+        logOnFailure(action, "symbolic link")
       }
   }
 

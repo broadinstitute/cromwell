@@ -5,6 +5,7 @@ import java.nio.file.{Path, Paths}
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.core._
 import cromwell.core.path.PathFactory
@@ -17,7 +18,7 @@ import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object SharedFileSystem {
+object SharedFileSystem extends StrictLogging {
   import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
@@ -43,22 +44,36 @@ object SharedFileSystem {
   }
 
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
-    executionPath.parent.createDirectories()
-    val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
-    Try(originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)).void
+    val action = Try {
+      executionPath.parent.createDirectories()
+      val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
+      originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
+    }.void
+    logOnFailure(action, "copy")
   }
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
-    executionPath.parent.createDirectories()
-    Try { executionPath.linkTo(originalPath, symbolic = false) } void
+    val action = Try {
+      executionPath.parent.createDirectories()
+      executionPath.linkTo(originalPath, symbolic = false)
+    }.void
+    logOnFailure(action, "hard link")
   }
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else {
-        executionPath.parent.createDirectories()
-        Try { executionPath.linkTo(originalPath, symbolic = true) } void
+        val action = Try {
+          executionPath.parent.createDirectories()
+          executionPath.linkTo(originalPath, symbolic = true)
+        }.void
+        logOnFailure(action, "symbolic link")
       }
+  }
+
+  private def logOnFailure(action: Try[Unit], actionLabel: String): Try[Unit] = {
+    if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}", action.failed.get)
+    action
   }
 
   private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]) = {

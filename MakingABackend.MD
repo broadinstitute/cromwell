@@ -194,4 +194,423 @@ class AwsJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 }
 ```
 
+## Part 3 (October 26 2016): Moving synchronous polling to asynchronous polling
 
+After getting a synchronous actor working, the next steps were to take the polling `waitUntilDone` and migrate it to an asynchronous version.
+
+### Beginning AWS Async Job Execution Actor:
+
+- We began by creating an empty `AsyncBackendJobExecutionActor` extending the prerequisite traits, and adding stubs for the functions we'll need to fill in.
+
+```scala
+package cromwell.backend.impl.aws
+
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle}
+import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
+
+import scala.concurrent.{ExecutionContext, Promise}
+
+class AwsAsyncJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
+                                override val completionPromise: Promise[BackendJobExecutionResponse],
+                                val configurationDescriptor: BackendConfigurationDescriptor,
+                                val serviceRegistryActor: ActorRef)
+  extends Actor with ActorLogging with BackendJobLifecycleActor with AsyncBackendJobExecutionActor {
+
+  override def retryable = ???
+
+  override def executeOrRecoverBackOff = ???
+
+  override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext) = ???
+
+  override def pollBackOff = ???
+
+  override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext) = ???
+}
+```
+
+### Tracking the job:
+
+- The asynchronous system needs a couple of classes to keep track of the running job and its status.
+
+- The job will be tracked with an extension of the `JobId` trait, and stored in the key value store under a custom key "aws_task_arn".
+
+```scala
+case class AwsJobId(taskArn: String) extends JobId
+
+object AwsJobId {
+  val JobIdKey = "aws_task_arn"
+}
+```
+
+- The run status will be tracked by wrapping the task in a case class.
+
+```scala
+case class AwsRunStatus(task: Task)
+```
+
+### Copying in an async implementation:
+
+- We began by implementing the stubs using (aka copying and pasting) similar code from other backends, specifically the SFS and Jes backends.
+
+```scala
+override def retryable = false
+
+override def executeOrRecoverBackOff = SimpleExponentialBackoff(
+  initialInterval = 3.seconds, maxInterval = 20.seconds, multiplier = 1.1)
+
+override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  Future.fromTry(Try {
+    mode match {
+      case Recover(jobId: BackendJobId) => recover(jobId)
+      case _ => execute()
+    }
+  })
+}
+
+override lazy val pollBackOff = SimpleExponentialBackoff(
+  initialInterval = 30.seconds, maxInterval = 600.seconds, multiplier = 1.1)
+
+override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  Future.fromTry(Try {
+    previous match {
+      case handle: PendingExecutionHandle[
+        BackendJobId@unchecked, BackendRunInfo@unchecked, BackendRunStatus@unchecked] =>
+
+        jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
+        Try(pollStatus(handle.pendingJob)) match {
+          case Success(backendRunStatus) => updateExecutionHandleSuccess(handle, backendRunStatus)
+          case Failure(throwable) => updateExecutionHandleFailure(handle, throwable)
+        }
+      case f: FailedNonRetryableExecutionHandle => f
+      case s: SuccessfulExecutionHandle => s
+      case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
+    }
+  })
+}
+
+private def updateExecutionHandleSuccess(oldHandle: BackendPendingExecutionHandle,
+                                         status: BackendRunStatus): ExecutionHandle = {
+  val previousStatus = oldHandle.previousStatus
+  if (!(previousStatus contains status)) {
+    // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise
+    // just use the state names.
+    val prevStateName = previousStatus.map(_.toString).getOrElse("-")
+    jobLogger.info(s"$tag Status change from $prevStateName to $status")
+    tellMetadata(Map("backendStatus" -> status))
+  }
+
+  status match {
+    case _ if isTerminal(status) =>
+      val metadata = getTerminalMetadata(status)
+      tellMetadata(metadata)
+      executionResult(status, oldHandle)
+    case s => oldHandle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+  }
+}
+
+private def updateExecutionHandleFailure(oldHandle: BackendPendingExecutionHandle,
+                                         throwable: Throwable): ExecutionHandle = {
+  throwable match {
+    case exception: Exception =>
+      val handler: PartialFunction[Exception, ExecutionHandle] =
+        customPollStatusFailure(oldHandle) orElse {
+          case exception: Exception =>
+            // Log exceptions and return the original handle to try again.
+            jobLogger.warn(s"Caught exception, retrying", exception)
+            oldHandle
+        }
+      handler(exception)
+    case error: Error => throw error // JVM-ending calamity.
+    case _: Throwable =>
+      // Someone has subclassed or instantiated Throwable directly. Kill the job. They should be using an Exception.
+      FailedNonRetryableExecutionHandle(throwable)
+  }
+}
+
+private def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
+  import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+  serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
+}
+
+private def executionResult(status: BackendRunStatus, handle: BackendPendingExecutionHandle)
+                           (implicit ec: ExecutionContext): ExecutionHandle = {
+  try {
+    if (isSuccess(status)) {
+
+      lazy val stderrLength: Long = File(remoteStrErrPath).size
+      lazy val returnCode: Try[Int] = returnCodeContents.map(_.trim.toInt)
+      status match {
+        case _ if failOnStderr && stderrLength.intValue > 0 =>
+          // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+            s"execution failed: stderr has length $stderrLength"), returnCode.toOption)
+        case _ if returnCodeContents.isFailure =>
+          val exception = returnCode.failed.get
+          jobLogger.warn(s"could not download return code file, retrying", exception)
+          // Return handle to try again.
+          handle
+        case _ if returnCode.isFailure =>
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+            s"execution failed: could not parse return code as integer: ${returnCodeContents.get}"))
+        case _ if !continueOnReturnCode.continueFor(returnCode.get) =>
+          val badReturnCodeMessage = s"Call ${jobDescriptor.key}: return code was ${returnCode.getOrElse("(none)")}"
+          FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption)
+        case _ =>
+          handleSuccess(status)
+      }
+
+    } else {
+      handleFailure(status)
+    }
+  } catch {
+    case e: Exception =>
+      jobLogger.warn("Caught exception processing job result, retrying", e)
+      // Return the original handle to try again.
+      handle
+  }
+}
+
+private lazy val instantiatedCommand = Command.instantiate(
+  jobDescriptor, commandLineFunctions, commandLinePreProcessor, commandLineValueMapper).get
+
+private lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
+```
+
+### Adding our specific async implementation:
+
+- There are a few types used above, mainly concerned with the pending execution handle, the job id, and the run status. We'll first start with filling in the type aliases:
+
+```scala
+type BackendJobId = AwsJobId
+type BackendRunInfo = Any
+type BackendRunStatus = AwsRunStatus
+type BackendPendingExecutionHandle = PendingExecutionHandle[BackendJobId, BackendRunInfo, BackendRunStatus]
+```
+
+- Next we added basic implementations of the file accessors. These will be will be filled in during a future date.
+
+```scala
+private def commandLineFunctions: WdlFunctions[WdlValue] = OnlyPureFunctions
+
+private def commandLinePreProcessor: EvaluatedTaskInputs => Try[EvaluatedTaskInputs] = Success.apply
+
+private def commandLineValueMapper: WdlValue => WdlValue = identity
+
+private def remoteStrErrPath: Path = ???
+
+private lazy val returnCodeContents: Try[String] = Try("0")
+```
+
+- Then we added basic implementations of the standard runtime attributes. Again, these will be will be filled in at a future date.
+
+```scala
+private def continueOnReturnCode: ContinueOnReturnCode = ContinueOnReturnCodeFlag(false)
+
+private def failOnStderr: Boolean = false
+```
+
+- We then migrate over our aws configuration code:
+```scala
+private val awsAccessKeyId: String = configurationDescriptor.backendConfig.as[String]("accessKeyId")
+private val awsSecretKey: String = configurationDescriptor.backendConfig.as[String]("secretKey")
+private val clusterName: String =
+  configurationDescriptor.backendConfig.getOrElse("clusterName", "ecs-t2micro-cluster")
+
+private val credentials: AWSCredentials = new BasicAWSCredentials(awsAccessKeyId, awsSecretKey)
+private val ecsAsyncClient: AmazonECSAsync = new AmazonECSAsyncClient(credentials)
+```
+
+- With all of the above, we can now implement our `execute`. It will return a handle that may be used for asynchronous polling:
+
+```scala
+private def execute(): ExecutionHandle = {
+  val commandOverride = new ContainerOverride()
+    .withName("simple-app")
+    .withCommand(commandLine)
+
+  val taskOverride = new TaskOverride()
+    .withContainerOverrides(commandOverride)
+
+  val runTaskRequest = new RunTaskRequest()
+    .withCluster(clusterName)
+    .withCount(1)
+    .withTaskDefinition("ubuntuTask:1")
+    .withOverrides(taskOverride)
+
+  val runTaskResult = ecsAsyncClient.runTask(runTaskRequest)
+
+  log.info("AWS submission completed:\n{}", runTaskResult)
+  val taskArn = runTaskResult.getTasks.asScala.head.getTaskArn
+
+  PendingExecutionHandle(jobDescriptor, AwsJobId(taskArn), None, None)
+}
+```
+
+- We also need a recover, but we'll implement that later. When asked to recover, for now we'll just start a new execution:
+
+```scala
+private def recover(jobId: BackendJobId): ExecutionHandle = execute()
+```
+
+- The polling status will check the job id and return a new status instance:
+
+```scala
+private def pollStatus(pendingJob: BackendJobId): BackendRunStatus = {
+  val taskArn = pendingJob.taskArn
+
+  val describeTasksRequest = new DescribeTasksRequest()
+    .withCluster(clusterName)
+    .withTasks(List(taskArn).asJava)
+
+  val describeTasksResult = ecsAsyncClient.describeTasks(describeTasksRequest)
+
+  val tasks = describeTasksResult.getTasks.asScala
+  val task = tasks.head
+  AwsRunStatus(task)
+}
+```
+
+- For now, we won't do anything special for custom polling failures:
+
+```scala
+private def customPollStatusFailure(oldHandle: BackendPendingExecutionHandle):
+PartialFunction[Exception, ExecutionHandle] = {
+  PartialFunction.empty
+}
+```
+
+- As in the synchronous version, we will stop polling when the aws status is STOPPED:
+
+```scala
+private def isTerminal(runStatus: BackendRunStatus): Boolean = {
+  runStatus.task.getLastStatus == DesiredStatus.STOPPED.toString
+}
+```
+
+- For now, we will ignore aws job status, and not return any custom job metadata:
+
+```scala
+private def getTerminalMetadata(runStatus: BackendRunStatus): Map[String, Any] = {
+  // TODO: Get terminal metadata
+  Map.empty
+}
+
+private def isSuccess(runStatus: BackendRunStatus): Boolean = {
+  // TODO: Discriminate failure statuses
+  true
+}
+```
+
+- The last thing to do will be to handle job completion, with either a success or failure handle:
+
+```scala
+private def handleSuccess(runStatus: BackendRunStatus, handle: BackendPendingExecutionHandle,
+                          returnCode: Int): ExecutionHandle = {
+  // TODO: Processes success
+  log.info("AWS task completed!\n{}", runStatus.task)
+  SuccessfulExecutionHandle(Map.empty, returnCode, Map.empty, Seq.empty, None)
+}
+
+private def handleFailure(runStatus: BackendRunStatus, handle: BackendPendingExecutionHandle): ExecutionHandle = {
+  // TODO: Process failure
+  FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: ${runStatus.task}"), None)
+}
+```
+
+### Refactoring sync actor to call the async actor
+
+- With the async actor containing basic wiring, we can now update the synchronous actor to call into our asynchronous version and then wait. The synchronous actor constructor starts out with a similar signature. In this updated version, we'll also pass in the service registry actor, and specify the backend dispatcher when creating Props:
+
+```scala
+class AwsJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
+                           override val configurationDescriptor: BackendConfigurationDescriptor,
+                           serviceRegistryActor: ActorRef) extends BackendJobExecutionActor {
+
+  override def execute: Future[BackendJobExecutionResponse] = ???
+}
+
+object AwsJobExecutionActor {
+  def props(jobDescriptor: BackendJobDescriptor,
+            configurationDescriptor: BackendConfigurationDescriptor,
+            serviceRegistryActor: ActorRef): Props = {
+    Props(
+      new AwsJobExecutionActor(jobDescriptor, configurationDescriptor, serviceRegistryActor)
+    ).withDispatcher(Dispatcher.BackendDispatcher)
+  }
+}
+```
+
+- From there, we'll now implement the execute method using (again copying and pasting) most of the synchronous backend from SFS and/or Jes:
+
+```scala
+context.become(startup orElse super.receive)
+
+private def startup: Receive = {
+  case AbortJobCommand =>
+    context.parent ! AbortedResponse(jobDescriptor.key)
+    context.stop(self)
+}
+
+private def running(executor: ActorRef): Receive = {
+  case AbortJobCommand =>
+    executor ! AbortJobCommand
+  case abortResponse: AbortedResponse =>
+    context.parent ! abortResponse
+    context.stop(self)
+  case KvPair(key, id@Some(jobId)) if key.key == jobIdKey =>
+    // Successful operation ID lookup during recover.
+    executor ! recoverMessage(jobId)
+  case KvKeyLookupFailed(_) =>
+    // Missed operation ID lookup during recover, fall back to execute.
+    executor ! Execute
+  case KvFailure(_, e) =>
+    // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
+    completionPromise.tryFailure(e)
+    throw new RuntimeException(s"Failure attempting to look up job id for key ${jobDescriptor.key}", e)
+}
+
+/**
+  * This "synchronous" actor isn't finished until this promise finishes over in the asynchronous version.
+  */
+private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
+
+override def execute: Future[BackendJobExecutionResponse] = {
+  val executorRef = context.actorOf(asyncProps, "SharedFileSystemAsyncJobExecutionActor")
+  context.become(running(executorRef) orElse super.receive)
+  executorRef ! Execute
+  completionPromise.future
+}
+
+override def recover: Future[BackendJobExecutionResponse] = {
+  val executorRef = context.actorOf(asyncProps, "SharedFileSystemAsyncJobExecutionActor")
+  context.become(running(executorRef) orElse super.receive)
+  val kvJobKey =
+    KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
+  val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey))
+  serviceRegistryActor ! kvGet
+  completionPromise.future
+}
+
+override def abort() = {
+  throw new NotImplementedError("Abort is implemented via a custom receive of the message AbortJobCommand.")
+}
+```
+
+- What's left is to add our custom aws implementation pointing to our job id, job id key, and aws async actor:
+
+```scala
+private val jobIdKey = AwsJobId.JobIdKey
+
+private def recoverMessage(jobId: String): Recover = {
+  Recover(AwsJobId(jobId))
+}
+
+private lazy val asyncProps: Props = {
+  Props(
+    new AwsAsyncJobExecutionActor(jobDescriptor, completionPromise, configurationDescriptor, serviceRegistryActor)
+  ).withDispatcher(Dispatcher.BackendDispatcher)
+}
+```

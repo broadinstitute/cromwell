@@ -2,6 +2,8 @@ package cromwell.backend.impl.jes
 
 import java.net.SocketTimeoutException
 import java.nio.file.{Files, Path, Paths}
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
@@ -75,6 +77,20 @@ object JesAsyncBackendJobExecutionActor {
   }
 
   case class JesJobId(operationId: String) extends JobId
+
+  sealed trait GlobVerification {
+    def globInfo: GlobInfo
+    def remaining: Int
+    override def toString = s"${globInfo.path}: $remaining remaining"
+  }
+  object GlobVerification {
+    def apply(globInfo: GlobInfo, files: Seq[String]): GlobVerification = {
+      if (files.size >= globInfo.count) GlobComplete(globInfo, files.toList)
+      else GlobIncomplete(globInfo, globInfo.count - files.size)
+    }
+  }
+  case class GlobIncomplete(globInfo: GlobInfo, remaining: Int) extends GlobVerification
+  case class GlobComplete(globInfo: GlobInfo, globContents: List[String]) extends GlobVerification { val remaining = 0 }
 }
 
 
@@ -142,7 +158,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     jesStderrFile.toUri.toString
   )
 
-  private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
+  private[jes] lazy val callEngineFunctions = new JesInputEvaluatingExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
 
   /**
     * Takes two arrays of remote and local WDL File paths and generates the necessary JesInputs.
@@ -368,18 +384,22 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def verifyGlobConsistency(agc: AwaitingGlobConsistency): RunStatus = {
-    val globsStillWaiting = agc.globChecks filter {
-      case g if !verifyGlob(g) => true
+    val (completeGlobs, incompleteGlobs) = agc.globChecks map {
+      case a: GlobComplete => a
+      case b: GlobIncomplete => verifyGlob(b.globInfo)
+    } partition {
+      case _: GlobComplete => true
       case _ => false
     }
-    if (globsStillWaiting.isEmpty) {
-      RunStatus.Success(agc.eventList, agc.machineType, agc.zone, agc.instanceName)
+
+    if (incompleteGlobs.isEmpty) {
+      RunStatus.Success(completeGlobs map { _.asInstanceOf[GlobComplete] }, agc.eventList, agc.machineType, agc.zone, agc.instanceName)
     } else {
-      agc.copy(globChecks = globsStillWaiting)
+      agc.copy(globChecks = incompleteGlobs ++ completeGlobs)
     }
   }
 
-  private def verifyGlob(globInfo: GlobInfo): Boolean = {
+  private def verifyGlob(globInfo: GlobInfo): GlobVerification = {
     jobLogger.debug("Verifying {}", globInfo)
 
     // This is kinda ugly. We have to work out what the call path suffix is, so that when we append it to the call's execution root we
@@ -388,9 +408,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val globPathSuffix = globInfo.path.stripPrefix(callRootPrefix).stripPrefix("/") // Do this in two steps since the '/' might be missing
 
     val directory = callContext.root.resolve(globPathSuffix).toRealPath()
-    val globbed = Files.list(directory).iterator().asScala filterNot { Files.isDirectory(_) } map { _.toUri.toString } toSeq
+    val startTime = OffsetDateTime.now
+    val globbed = Files.newDirectoryStream(directory).asScala filterNot { Files.isDirectory(_) } map { _.toUri.toString } toSeq
+    val endTime = OffsetDateTime.now
 
     val fileCount = globbed.size
+    log.info(s"Took ${ChronoUnit.MILLIS.between(startTime, endTime)}ms to calculate the size of a $fileCount-item glob...")
+
     if (fileCount > globInfo.count) {
       jobLogger.error(s"A glob ${globInfo.path} generated more outputs than JES told us it would!!? Expected ${globInfo.count} but got $fileCount")
     } else if (fileCount < globInfo.count) {
@@ -400,7 +424,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
 
     // If there are more files, then we've already logged the error. Return out:
-    fileCount >= globInfo.count
+    GlobVerification(globInfo, globbed)
   }
 
   private def updateExecutionHandleSuccess(oldHandle: JesPendingExecutionHandle)(status: RunStatus): Future[ExecutionHandle] = {
@@ -478,12 +502,13 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     }
   }
 
-  private def postProcess: Try[JobOutputs] = {
+  private def postProcess(precalculatedGlobs: Seq[GlobComplete]): Try[JobOutputs] = {
     def wdlValueToSuccess(value: WdlValue): Try[WdlValue] = Success(value)
+    val outputEvaluatingJesFunctions = new JesOutputEvaluatingExpressionFunctions(callEngineFunctions.pathBuilders, callEngineFunctions.context, precalculatedGlobs)
 
     OutputEvaluator.evaluateOutputs(
       jobDescriptor,
-      callEngineFunctions,
+      outputEvaluatingJesFunctions,
       (wdlValueToSuccess _).compose(wdlValueToGcsPath(generateJesOutputs(jobDescriptor)))
     )
   }
@@ -570,7 +595,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
           val badReturnCodeMessage = s"Call ${jobDescriptor.key.tag}: return code was ${returnCode.getOrElse("(none)")}"
           FailedNonRetryableExecutionHandle(new RuntimeException(badReturnCodeMessage), returnCode.toOption).future
         case success: RunStatus.Success =>
-          handleSuccess(postProcess, returnCode.get, jesCallPaths.detritusPaths, handle, success.eventList).future
+          handleSuccess(postProcess(success.precalculatedGlobs), returnCode.get, jesCallPaths.detritusPaths, handle, success.eventList).future
         case RunStatus.Failed(errorCode, errorMessage, _, _, _, _) => handleFailure(errorCode, errorMessage)
       }
     } catch {

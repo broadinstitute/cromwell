@@ -7,6 +7,7 @@ import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.GlobIncomplete
 import cromwell.backend.impl.jes.RunStatus._
 import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
@@ -101,8 +102,10 @@ object Run {
       lazy val globInfos = refinedJesEvents.globs
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
-        case None if globInfos.nonEmpty => AwaitingGlobConsistency(globInfos, refinedJesEvents.events, machineType, zone, instanceName)
-        case None => Success(refinedJesEvents.events, machineType, zone, instanceName)
+        case None if globInfos.nonEmpty =>
+          val globVerifications = globInfos map {gi => GlobIncomplete(gi, gi.count)}
+          AwaitingGlobConsistency(globVerifications, refinedJesEvents.events, machineType, zone, instanceName)
+        case None => Success(Seq.empty, refinedJesEvents.events, machineType, zone, instanceName)
         case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, refinedJesEvents.events, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
@@ -141,7 +144,7 @@ object Run {
   private def parseGlobEvent(eventText: String): Option[GlobInfo] = {
     val regex = "copied ([0-9]+) file\\(s\\) to \"(.*)\"".r
     regex.findFirstMatchIn(eventText) collect {
-      case m if m.group(1).toInt > 1 => GlobInfo(m.group(2), m.group(1).toInt) }
+      case m if m.group(2).endsWith("/") => GlobInfo(m.group(2), m.group(1).toInt) }
   }
 
   private def getCromwellPollIntervalEvent(metadata: Map[String, AnyRef], eventsList: Seq[ExecutionEvent]) = {

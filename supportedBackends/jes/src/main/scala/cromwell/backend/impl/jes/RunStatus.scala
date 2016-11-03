@@ -1,6 +1,6 @@
 package cromwell.backend.impl.jes
 
-import cromwell.backend.impl.jes.Run.GlobInfo
+import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.{GlobComplete, GlobVerification}
 import cromwell.core.ExecutionEvent
 
 sealed trait RunStatus {
@@ -16,8 +16,8 @@ sealed trait RunStatus {
 object RunStatus {
   case object Initializing extends RunStatus
   case object Running extends RunStatus
-  case class AwaitingGlobConsistency(globChecks: Seq[GlobInfo], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String]) extends RunStatus {
-    override def toString = this.getClass.getSimpleName
+  case class AwaitingGlobConsistency(globChecks: Seq[GlobVerification], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String]) extends RunStatus {
+    override def toString = s"AwaitingGlobConsistency(${globChecks.mkString(", ")})"
   }
 
   sealed trait TerminalRunStatus extends RunStatus {
@@ -27,7 +27,7 @@ object RunStatus {
     def instanceName: Option[String]
   }
 
-  case class Success(eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String]) extends TerminalRunStatus {
+  case class Success(precalculatedGlobs: Seq[GlobComplete], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String]) extends TerminalRunStatus {
     override def toString = "Success"
   }
 

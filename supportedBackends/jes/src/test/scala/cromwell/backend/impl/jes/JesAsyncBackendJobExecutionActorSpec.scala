@@ -71,7 +71,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
 
   val TestableJesExpressionFunctions = {
-    new JesExpressionFunctions(List(mockPathBuilder), TestableCallContext)
+    new JesInputEvaluatingExpressionFunctions(List(mockPathBuilder), TestableCallContext)
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
@@ -82,7 +82,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   class TestableJesJobExecutionActor(jobDescriptor: BackendJobDescriptor,
                                      promise: Promise[BackendJobExecutionResponse],
                                      jesConfiguration: JesConfiguration,
-                                     functions: JesExpressionFunctions = TestableJesExpressionFunctions,
+                                     functions: JesInputEvaluatingExpressionFunctions = TestableJesExpressionFunctions,
                                      jesSingletonActor: ActorRef = emptyActor)
     extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration, buildInitializationData(jobDescriptor, jesConfiguration), emptyActor, jesSingletonActor) {
 
@@ -374,7 +374,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   def makeJesActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WdlValue],
-                      functions: JesExpressionFunctions = TestableJesExpressionFunctions):
+                      functions: JesInputEvaluatingExpressionFunctions = TestableJesExpressionFunctions):
   TestActorRef[TestableJesJobExecutionActor] = {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
@@ -413,7 +413,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       "strs" -> WdlArray(WdlArrayType(WdlStringType), Seq("A", "B", "C").map(WdlString))
     )
 
-    class TestJesExpressionFunctions extends JesExpressionFunctions(
+    class TestJesExpressionFunctions extends JesInputEvaluatingExpressionFunctions(
       List(mockPathBuilder), TestableCallContext) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))

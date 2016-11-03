@@ -52,7 +52,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     jpActor.underlyingActor.callbackResponses :+= CallbackSuccess
     jpActor.underlyingActor.callbackResponses :+= CallbackFailure
 
-    val successStatus = RunStatus.Success(Seq.empty[ExecutionEvent], None, None, None)
+    val successStatus = RunStatus.Success(Seq.empty, Seq.empty[ExecutionEvent], None, None, None)
     val failureStatus = RunStatus.Failed(-1, List.empty[String], Seq.empty[ExecutionEvent], None, None, None)
     jpActor.underlyingActor.operationStatusResponses :+= successStatus
     jpActor.underlyingActor.operationStatusResponses :+= failureStatus

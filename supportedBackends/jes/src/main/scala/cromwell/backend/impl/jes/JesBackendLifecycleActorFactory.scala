@@ -64,7 +64,7 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
 
     val jesCallPaths = initializationData.toJes.get.workflowPaths.toJesCallPaths(jobKey)
-    new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), jesCallPaths.callContext)
+    new JesInputEvaluatingExpressionFunctions(List(jesCallPaths.gcsPathBuilder), jesCallPaths.callContext)
   }
 
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,

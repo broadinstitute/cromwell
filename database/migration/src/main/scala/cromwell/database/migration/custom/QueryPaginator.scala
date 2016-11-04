@@ -1,4 +1,4 @@
-package cromwell.database.migration.metadata.table.symbol
+package cromwell.database.migration.custom
 
 import java.sql.{PreparedStatement, ResultSet}
 

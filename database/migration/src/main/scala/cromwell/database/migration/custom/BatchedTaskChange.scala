@@ -2,7 +2,6 @@ package cromwell.database.migration.custom
 
 import java.sql.{PreparedStatement, ResultSet}
 
-import cromwell.database.migration.metadata.table.symbol.{QueryPaginator, ResultSetIterator}
 import liquibase.database.jvm.JdbcConnection
 import liquibase.exception.CustomChangeException
 

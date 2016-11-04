@@ -2,15 +2,9 @@ package cromwell.database.migration.metadata.table.symbol
 
 import java.sql.{PreparedStatement, ResultSet}
 
-import com.typesafe.config.ConfigFactory
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.migration.WdlTransformation
-import liquibase.change.custom.CustomTaskChange
-import liquibase.database.Database
-import liquibase.database.jvm.JdbcConnection
-import liquibase.exception.{CustomChangeException, ValidationErrors}
-import liquibase.resource.ResourceAccessor
-import org.slf4j.LoggerFactory
+import cromwell.database.migration.custom.BatchedTaskChange
 import wdl4s.WdlExpression
 import wdl4s.types.WdlType
 import wdl4s.values.WdlValue
@@ -25,42 +19,12 @@ object SymbolTableMigration {
     """.stripMargin
 }
 
-trait SymbolTableMigration extends CustomTaskChange {
-  import SymbolTableMigration._
+trait SymbolTableMigration extends BatchedTaskChange {
   import cromwell.database.migration.WdlTransformation._
 
-  // Nb of rows to retrieve / process in a batch
-  val config = ConfigFactory.load
+  override val readCountQuery = SymbolTableMigration.NbRowsQuery
 
-  /**
-   * Specify the size of a "page".
-   * For databases with a very large number of symbols, selecting all the rows at once can generate a variety of problems.
-   * In order to avoid any issue, the selection is paginated. This value sets how many rows should be retrieved and processed at a time, before asking for the next chunk.
-   */
-  val readBatchSize = config.getInt("database.migration.read-batch-size")
-
-  /**
-   * Because a symbol row can contain any arbitrary wdl value, the amount of metadata rows to insert from a single symbol row can vary from 1 to several thousands (or more).
-   * To keep the size of the insert batch from growing out of control we monitor its size and execute/commit when it reaches or exceeds writeBatchSize.
-   */
-  val writeBatchSize = config.getInt("database.migration.write-batch-size")
-
-  val logger = LoggerFactory.getLogger("LiquibaseMetadataMigration")
-
-  override def execute(database: Database): Unit = {
-    try {
-      val dbConn = database.getConnection.asInstanceOf[JdbcConnection]
-      val autoCommit = dbConn.getAutoCommit
-      dbConn.setAutoCommit(false)
-      migrate(dbConn)
-      dbConn.setAutoCommit(autoCommit)
-    } catch {
-      case t: CustomChangeException => throw t
-      case t: Throwable => throw new CustomChangeException(s"Could not apply migration script for metadata at ${getClass.getSimpleName}", t)
-    }
-  }
-
-  def tmpSymbolPaginatedStatement(connection: JdbcConnection): PreparedStatement = connection.prepareStatement("""
+  override val readBatchQuery = """
       |SELECT
       |    WORKFLOW_EXECUTION_UUID,
       |    SYMBOL_NAME,
@@ -71,64 +35,14 @@ trait SymbolTableMigration extends CustomTaskChange {
       |    WDL_VALUE
       |   FROM TMP_SYMBOL
       |   WHERE TMP_SYMBOL_ID >= ? AND TMP_SYMBOL_ID < ?;
-    """.stripMargin)
+    """.stripMargin
 
-  private def migrate(connection: JdbcConnection) = {
-    logger.info(s"Running migration with a read batch size of $readBatchSize and a write batch size of $writeBatchSize")
-
-    /**
-     * Keep count of the size of the batch.
-      *
-      * @see writeBatchSize
-     */
-    var insertsCounter: Int = 0
-
-    // Find the max row id in the TMP_SYMBOL table
-    val tmpSymbolCountRS = connection.createStatement().executeQuery(NbRowsQuery)
-
-    if (tmpSymbolCountRS.next()) {
-      val tmpSymbolCount = tmpSymbolCountRS.getInt("symbol_count")
-
-      // So we can display progress
-      val nbPages = Math.max(tmpSymbolCount / readBatchSize, 1)
-
-      val paginator = new QueryPaginator(tmpSymbolPaginatedStatement(connection), readBatchSize, tmpSymbolCount)
-      val metadataInsertStatement = MetadataStatement.makeStatement(connection)
-
-      // Loop over pages
-      paginator.zipWithIndex foreach {
-        case (resultBatch, page) =>
-          // Loop over rows in page
-          new ResultSetIterator(resultBatch).zipWithIndex foreach {
-            case (row, idx) =>
-              insertsCounter += migrateRow(connection, metadataInsertStatement, row, idx)
-              // insertsCounter can actually be bigger than writeBatchSize as wdlValues are processed atomically, so this is a best effort
-              if (insertsCounter >= writeBatchSize) {
-                metadataInsertStatement.executeBatch()
-                connection.commit()
-                insertsCounter = 0
-              }
-          }
-
-          resultBatch.close()
-
-          val progress = Math.min((page + 1) * 100 / nbPages, 100)
-          logger.info(s"[${getClass.getSimpleName}] $progress%")
-      }
-
-      if (insertsCounter != 0) {
-        metadataInsertStatement.executeBatch()
-        connection.commit()
-      }
-    } else {
-      throw new CustomChangeException("Could not find max value of symbol id for pagination")
-    }
-  }
+  override val migrateBatchQuery = MetadataStatement.InsertSql
 
   /**
     * Migrate a row to the metadata table
     */
-  protected def migrateRow(connection: JdbcConnection, statement: PreparedStatement, row: ResultSet, idx: Int): Int = {
+  override def migrateBatchRow(row: ResultSet, statement: PreparedStatement): Int = {
     // Try to coerce the value to a WdlValue
     val value = for {
       wdlType <- Try(WdlType.fromWdlString(row.getString("WDL_TYPE")))
@@ -147,7 +61,7 @@ trait SymbolTableMigration extends CustomTaskChange {
 
     value match {
       case Success(wdlValue) =>
-        processSymbol(statement, idx, workflowUuid, symbolName, symbolScope, symbolIndex, symbolAttempt, wdlValue)
+        processSymbol(statement, workflowUuid, symbolName, symbolScope, symbolIndex, symbolAttempt, wdlValue)
       case Failure(f) =>
         logger.error(
           s"""Could not parse symbol of type ${row.getString("WDL_TYPE")}
@@ -157,19 +71,12 @@ trait SymbolTableMigration extends CustomTaskChange {
   }
 
   def processSymbol(statement: PreparedStatement,
-                    idx: Int,
                     workflowUuid: String,
                     symbolName: String,
                     symbolScope: String,
                     symbolIndex: Option[Int],
                     symbolAttempt: Option[Int],
                     wdlValue: WdlValue): Int
-
-  override def setUp(): Unit = ()
-
-  override def validate(database: Database): ValidationErrors = new ValidationErrors
-
-  override def setFileOpener(resourceAccessor: ResourceAccessor): Unit = {}
 
   /**
     * Add all necessary statements to the batch for the provided WdlValue.

@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSourceFiles}
+import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -12,9 +12,10 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, PutMetadataAction}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.apache.commons.lang3.exception.ExceptionUtils
+import wdl4s.util.TryUtil
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorRef)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
@@ -69,14 +70,14 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
   private def startNewWork(command: WorkflowStoreActorCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
       case cmd @ SubmitWorkflow(sourceFiles) =>
-        store.add(NonEmptyList.of(sourceFiles)) map { ids =>
+        storeWorkflowSources(NonEmptyList.of(sourceFiles)) map { ids =>
           val id = ids.head
           registerSubmissionWithMetadataService(id, sourceFiles)
           sndr ! WorkflowSubmittedToStore(id)
           log.info("Workflow {} submitted.", id)
         }
       case cmd @ BatchSubmitWorkflows(sources) =>
-        store.add(sources) map { ids =>
+        storeWorkflowSources(sources) map { ids =>
           val assignedSources = ids.toList.zip(sources.toList)
           assignedSources foreach { case (id, sourceFiles) => registerSubmissionWithMetadataService(id, sourceFiles) }
           sndr ! WorkflowsBatchSubmittedToStore(ids)
@@ -116,6 +117,37 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     goto(Working) using nextData
   }
 
+  private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFiles]): Future[NonEmptyList[WorkflowId]] = {
+    for {
+      processedSources <- Future.fromTry(processSources(sources, _.asPrettyJson))
+      workflowIds <- store.add(processedSources)
+    } yield workflowIds
+  }
+
+  private def processSources(sources: NonEmptyList[WorkflowSourceFiles],
+                             processOptions: WorkflowOptions => WorkflowOptionsJson):
+  Try[NonEmptyList[WorkflowSourceFiles]] = {
+    val nelTries: NonEmptyList[Try[WorkflowSourceFiles]] = sources map processSource(processOptions)
+    val seqTries: Seq[Try[WorkflowSourceFiles]] = nelTries.toList
+    val trySeqs: Try[Seq[WorkflowSourceFiles]] = TryUtil.sequence(seqTries)
+    val tryNel: Try[NonEmptyList[WorkflowSourceFiles]] = trySeqs.map(seq => NonEmptyList.fromList(seq.toList).get)
+    tryNel
+  }
+
+  /**
+    * Runs processing on workflow source files before they are stored.
+    *
+    * @param processOptions How to process the workflow options
+    * @param source         Original workflow source
+    * @return Attempted updated workflow source
+    */
+  private def processSource(processOptions: WorkflowOptions => WorkflowOptionsJson)
+                           (source: WorkflowSourceFiles): Try[WorkflowSourceFiles] = {
+    for {
+      processedWorkflowOptions <- WorkflowOptions.fromJsonString(source.workflowOptionsJson)
+    } yield source.copy(workflowOptionsJson = processOptions(processedWorkflowOptions))
+  }
+
   private def addWorkCompletionHooks[A](command: WorkflowStoreActorCommand, work: Future[A]) = {
     work.onComplete {
       case Success(_) =>
@@ -152,7 +184,9 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerSubmissionWithMetadataService(id: WorkflowId, sourceFiles: WorkflowSourceFiles): Unit = {
+  private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFiles): Unit = {
+    val sourceFiles = processSource(_.clearEncryptedValues)(originalSourceFiles).get
+
     val submissionEvents = List(
       MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
       MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),

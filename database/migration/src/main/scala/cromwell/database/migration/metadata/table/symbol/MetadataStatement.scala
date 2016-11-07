@@ -4,7 +4,6 @@ import java.sql.{PreparedStatement, Timestamp, Types}
 import java.time.format.DateTimeFormatter
 import java.time.{OffsetDateTime, ZoneId, ZoneOffset}
 
-import liquibase.database.jvm.JdbcConnection
 import org.slf4j.LoggerFactory
 import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlValue}
 
@@ -18,12 +17,12 @@ object MetadataStatement {
   val TimestampIdx = 7
   val ValueTypeIdx = 8
 
-  def makeStatement(connection: JdbcConnection): PreparedStatement = connection.prepareStatement(
+  val InsertSql =
     """
       |INSERT INTO METADATA_JOURNAL
       |(WORKFLOW_EXECUTION_UUID, METADATA_KEY, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT, METADATA_VALUE, METADATA_TIMESTAMP, METADATA_VALUE_TYPE)
       |VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """.stripMargin)
+    """.stripMargin
 
   implicit class OffsetDateTimeToSystemTimestamp(val offsetDateTime: OffsetDateTime) extends AnyVal {
     def toSystemTimestamp = Timestamp.valueOf(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault).toLocalDateTime)

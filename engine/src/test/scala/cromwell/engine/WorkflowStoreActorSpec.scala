@@ -1,9 +1,13 @@
 package cromwell.engine
 
 import cromwell.CromwellTestkitSpec
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore._
+import cromwell.services.metadata.MetadataQuery
+import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse}
+import cromwell.services.metadata.impl.ReadMetadataActor
+import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.Matchers
 
@@ -29,6 +33,11 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
     }
 
     list.foldLeft((List.empty[WorkflowToStart], true))(folderFunction)._2
+  }
+
+  private def prettyOptions(workflowSourceFiles: WorkflowSourceFiles): WorkflowSourceFiles = {
+    import spray.json._
+    workflowSourceFiles.copy(workflowOptionsJson = workflowSourceFiles.workflowOptionsJson.parseJson.prettyPrint)
   }
 
   "The WorkflowStoreActor" should {
@@ -63,8 +72,58 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
           workflowNel.foreach {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
-              sources shouldBe helloWorldSourceFiles
+              sources shouldBe prettyOptions(helloWorldSourceFiles)
               state shouldBe WorkflowStoreState.Submitted
+          }
+      }
+    }
+
+    "fetch encrypted and cleared workflow options" in {
+      EncryptionSpec.assumeAes256Cbc()
+
+      val optionedSourceFiles = HelloWorld.asWorkflowSources(workflowOptions =
+        s"""|{
+            |  "key": "value",
+            |  "refresh_token": "it's a secret"
+            |}
+            |""".stripMargin)
+
+
+      val store = new InMemoryWorkflowStore
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestkitSpec.ServiceRegistryActorInstance))
+      val readMetadataActor = system.actorOf(ReadMetadataActor.props())
+      storeActor ! BatchSubmitWorkflows(NonEmptyList(optionedSourceFiles))
+      val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.list.toList
+
+      storeActor ! FetchRunnableWorkflows(1)
+      expectMsgPF(10 seconds) {
+        case NewWorkflowsToStart(workflowNel) =>
+          workflowNel.size should be(1)
+          checkDistinctIds(workflowNel.list.toList) should be(true)
+          workflowNel.foreach {
+            case WorkflowToStart(id, sources, state) =>
+              insertedIds.contains(id) should be(true)
+              sources.wdlSource should be(optionedSourceFiles.wdlSource)
+              sources.inputsJson should be(optionedSourceFiles.inputsJson)
+              state should be(WorkflowStoreState.Submitted)
+
+              import spray.json._
+
+              val encryptedJsObject = sources.workflowOptionsJson.parseJson.asJsObject
+              encryptedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
+              encryptedJsObject.fields("key") should be(JsString("value"))
+              encryptedJsObject.fields("refresh_token").asJsObject.fields.keys should contain theSameElementsAs
+                Seq("iv", "ciphertext")
+
+              readMetadataActor ! GetMetadataQueryAction(MetadataQuery.forWorkflow(id))
+              expectMsgPF(10 seconds) {
+                case MetadataLookupResponse(_, eventList) =>
+                  val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get
+                  val clearedJsObject = optionsEvent.value.get.value.parseJson.asJsObject
+                  clearedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
+                  clearedJsObject.fields("key") should be(JsString("value"))
+                  clearedJsObject.fields("refresh_token") should be(JsString("cleared"))
+              }
           }
       }
     }
@@ -84,7 +143,7 @@ class WorkflowStoreActorSpec extends CromwellTestkitSpec with Matchers {
           workflowNel.foreach {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
-              sources shouldBe helloWorldSourceFiles
+              sources shouldBe prettyOptions(helloWorldSourceFiles)
               state shouldBe WorkflowStoreState.Submitted
           }
       }

@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
-import cromwell.core._
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSourceFilesCollection, WorkflowSourceFiles, WorkflowSourceFilesWithImports}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -184,7 +184,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFiles): Unit = {
+  private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
     val sourceFiles = processSource(_.clearEncryptedValues)(originalSourceFiles).get
 
     val submissionEvents = List(
@@ -197,7 +197,12 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
       MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson))
     )
 
-    serviceRegistryActor ! PutMetadataAction(submissionEvents)
+    val wfImportEvent = sourceFiles match {
+      case w: WorkflowSourceFilesWithImports => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue(w.importsFile.pathAsString))
+      case w: WorkflowSourceFiles => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue("None"))
+    }
+
+    serviceRegistryActor ! PutMetadataAction(submissionEvents :+ wfImportEvent)
   }
 }
 
@@ -220,8 +225,8 @@ object WorkflowStoreActor {
   private[workflowstore] case object Idle extends WorkflowStoreActorState
 
   sealed trait WorkflowStoreActorCommand
-  final case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowStoreActorCommand
-  final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFiles]) extends WorkflowStoreActorCommand
+  final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorCommand
+  final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorCommand
   final case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorCommand
   final case class RemoveWorkflow(id: WorkflowId) extends WorkflowStoreActorCommand
   final case class AbortWorkflow(id: WorkflowId, manager: ActorRef) extends WorkflowStoreActorCommand

@@ -237,6 +237,39 @@ $ cat my_wf.metadata.json
 }
 ```
 
+The fifth, optional parameter to the 'run' subcommand is a zip file which contains WDL source files. This zip file can be passed
+and your primary workflow can import any WDL's from that collection and re-use those tasks.
+
+For example, consider you have a directory of WDL files:
+```
+my_WDLs
+└──cgrep.wdl
+└──ps.wdl
+└──wc.wdl
+```
+
+If you zip that directory to my_WDLs.zip, you have the option to pass it in as the last parameter in your run command
+and be able to reference these WDLs as imports in your primary WDL. For example, your primary WDL can look like this:
+```
+import "ps.wdl" as ps
+import "cgrep.wdl"
+import "wc.wdl" as wordCount
+
+workflow threestep {
+
+call ps.ps as getStatus
+call cgrep.cgrep { input: str = getStatus.x }
+call wordCount { input: str = ... }
+
+}
+
+```
+The command to run this WDL, without needing any inputs, workflow options or metadata files would look like:
+
+```
+$ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
+```
+
 ## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.

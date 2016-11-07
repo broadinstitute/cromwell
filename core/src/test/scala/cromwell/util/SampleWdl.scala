@@ -4,7 +4,7 @@ import java.nio.file.{Files, Path}
 import java.util.UUID
 
 import better.files._
-import cromwell.core.WorkflowSourceFiles
+import cromwell.core.{WorkflowSourceFiles}
 import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}

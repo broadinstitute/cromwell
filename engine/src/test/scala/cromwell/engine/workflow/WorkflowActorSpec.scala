@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.AllBackendInitializationData
-import cromwell.core.{ExecutionStore, OutputStore, WorkflowId, WorkflowSourceFiles}
+import cromwell.core._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
@@ -151,7 +151,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
 class MockWorkflowActor(val finalizationProbe: TestProbe,
                         workflowId: WorkflowId,
                         startMode: StartMode,
-                        workflowSources: WorkflowSourceFiles,
+                        workflowSources: WorkflowSourceFilesCollection,
                         conf: Config,
                         serviceRegistryActor: ActorRef,
                         workflowLogCopyRouter: ActorRef,

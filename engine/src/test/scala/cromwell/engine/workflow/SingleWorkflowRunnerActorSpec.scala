@@ -9,8 +9,8 @@ import akka.testkit.TestKit
 import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestKitSpec._
-import cromwell.core.WorkflowSourceFiles
+import cromwell.CromwellTestkitSpec._
+import cromwell.core.{WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -46,7 +46,7 @@ object SingleWorkflowRunnerActorSpec {
     def toFields = jsValue.get.asJsObject.fields
   }
 
-  class TestSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
+  class TestSingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                       metadataOutputPath: Option[Path])
     extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
     override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance

@@ -331,9 +331,14 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 # Security
 
+Warning! 
+ - Only YOU are responsible for your own security! 
+ - Cromwell is NOT a security appliance! 
+ - What follows are ideas and starting points and not necessarily a secure system configuration in your situation
+
 Cromwell running in server mode accepts all connections on the configured webservice port. The simplest way to restrict access is by putting an authenticating proxy server in between users and the cromwell server:
- 1. Configure a firewall rule on the cromwell server host to deny access to the webservice port (e.g. 8000) from all addresses except a secure proxy host. "Secure" here meaning administrator login access only.
- 1. Configure `<YourFavoriteWebProxy>` on the proxy host with `<YourFavouriteAuthMechanism>`, to proxy authenticated traffic from the world to the cromwell server. Using Apache `httpd` web server for example with basic htpassword file-based authentication, the configuration might look something like:
+ 1. Configure a firewall rule on the cromwell server host to deny access to the webservice port (e.g. 8000) from all addresses except a secure proxy host.
+ 1. Configure `<YourFavoriteWebProxy>` on the proxy host with `<YourFavoriteAuthMechanism>`, to proxy authenticated traffic from the world to the cromwell server. Using Apache `httpd` web server for example with basic htpassword file-based authentication, the configuration might look something like:
  
  ```Apache
 <Location /cromwell>

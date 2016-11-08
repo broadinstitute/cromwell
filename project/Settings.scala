@@ -133,11 +133,6 @@ object Settings {
     name := "cromwell-sfs-backend"
   ) ++ commonSettings
 
-  val awsBackendSettings = List(
-    name := "cromwell-aws-backend",
-    libraryDependencies ++= awsBackendDependencies
-  ) ++ commonSettings
-
   val htCondorBackendSettings = List(
     name := "cromwell-htcondor-backend",
     libraryDependencies ++= htCondorBackendDependencies

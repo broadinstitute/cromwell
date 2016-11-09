@@ -5,6 +5,8 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.wdl.OnlyPureFunctions
 import wdl4s.values.{WdlFile, WdlSingleFile}
 
+import scala.util.Try
+
 final case class TesTask(name: Option[String],
                          projectId: Option[String],
                          description: Option[String],
@@ -20,18 +22,23 @@ final case class TesTask(name: Option[String],
  */
 object TesTaskCompanion {
 
-  def from(jobDescriptor: BackendJobDescriptor): TesTask = {
+  private def getCommand(jobDescriptor: BackendJobDescriptor): Try[String] = {
+    // The jobDescriptor.inputs are of type WdlValue and need to be casted to WdlFile
+    val cliInputs = jobDescriptor.inputs.mapValues(f => WdlFile(f.valueString))
 
-    val cliInputs = jobDescriptor.inputs.mapValues (f => WdlFile(f.valueString))
-
-    val commandLine = jobDescriptor
+    jobDescriptor
       .call
       .instantiateCommandLine(
         cliInputs,
         OnlyPureFunctions,
         identity
       )
-      .get
+  }
+
+  def from(jobDescriptor: BackendJobDescriptor): TesTask = {
+
+    // Get the "command" section of the WDL task.
+    val command = getCommand(jobDescriptor).get
 
     // TODO it's possible that the "docker" key doesn't exist
     val docker = jobDescriptor
@@ -40,7 +47,7 @@ object TesTaskCompanion {
 
     val dockerExecutor = DockerExecutor(
       Option(docker),
-      Option(Seq(commandLine)),
+      Option(Seq(command)),
       None,
       Option("/tmp/test_out"),
       None)
@@ -59,7 +66,7 @@ object TesTaskCompanion {
         )
       }
 
-    val outputs = Resources(
+    val resources = Resources(
       None,
       None,
       None,
@@ -78,9 +85,9 @@ object TesTaskCompanion {
       Option("TestMD5"),
       Option("My Project"),
       Option("My Desc"),
-      None,
       Some(inputs),
-      Some(outputs),
+      None,
+      Some(resources),
       None,
       Option(Seq(dockerExecutor)))
   }

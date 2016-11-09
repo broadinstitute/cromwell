@@ -2,6 +2,7 @@ package cromwell
 
 import java.nio.file.Paths
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
@@ -121,8 +122,10 @@ object CromwellTestkitSpec {
 
   val TimeoutDuration = 60 seconds
 
+  private val testWorkflowManagerSystemCount = new AtomicInteger()
+
   class TestWorkflowManagerSystem extends CromwellSystem {
-    override protected def systemName: String = "test-system"
+    override protected def systemName: String = "test-system-" + testWorkflowManagerSystemCount.incrementAndGet()
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
     /**
       * Do NOT shut down the test actor system inside the normal flow.
@@ -132,18 +135,6 @@ object CromwellTestkitSpec {
     override def shutdownActorSystem(): Future[Terminated] = { Future.successful(null) }
 
     def shutdownTestActorSystem() = super.shutdownActorSystem()
-  }
-
-  /**
-    * Loans a test actor system. NOTE: This should be run OUTSIDE of a wait block, never within one.
-    */
-  def withTestWorkflowManagerSystem[T](block: CromwellSystem => T): T = {
-    val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem
-    try {
-      block(testWorkflowManagerSystem)
-    } finally {
-      TestKit.shutdownActorSystem(testWorkflowManagerSystem.actorSystem, TimeoutDuration)
-    }
   }
 
   /**
@@ -266,6 +257,7 @@ object CromwellTestkitSpec {
   class TestCromwellRootActor(config: Config) extends CromwellRootActor {
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
+    override val abortJobsOnTerminate = false
     def submitWorkflow(sources: WorkflowSourceFiles): WorkflowId = {
       val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
       val result = Await.result(workflowStoreActor.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId

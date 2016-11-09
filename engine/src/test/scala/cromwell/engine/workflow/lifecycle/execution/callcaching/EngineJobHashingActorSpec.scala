@@ -1,23 +1,23 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestProbe}
 import cats.data.NonEmptyList
 import cromwell.CromwellTestkitSpec
-import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend._
+import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWorkflowManagerSystem().actorSystem)
-  with ImplicitSender with WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterAll {
+class EngineJobHashingActorSpec extends CromwellTestkitSpec
+  with ImplicitSender with WordSpecLike with Matchers with MockitoSugar {
 
   import EngineJobHashingActorSpec._
 
@@ -161,10 +161,6 @@ class EngineJobHashingActorSpec extends TestKit(new CromwellTestkitSpec.TestWork
         deathWatch.expectTerminated(ejha, 5 seconds)
       }
     }
-  }
-
-  override def afterAll() = {
-    TestKit.shutdownActorSystem(system)
   }
 }
 

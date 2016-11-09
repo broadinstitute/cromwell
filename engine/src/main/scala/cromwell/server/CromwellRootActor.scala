@@ -56,9 +56,12 @@ import net.ceedubs.ficus.Ficus._
 
   lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
 
+  def abortJobsOnTerminate: Boolean
+
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobExecutionTokenDispenserActor, backendSingletonCollection),
+      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor,
+      jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate),
     "WorkflowManagerActor")
 
   override def receive = {

@@ -61,14 +61,16 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
 
 
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(),
+    val params = WorkflowManagerActorParams(ConfigFactory.load(),
       workflowStore,
       dummyServiceRegistryActor,
       dummyLogCopyRouter,
       jobStore,
       callCacheReadActor,
       jobTokenDispenserActor,
-      BackendSingletonCollection(Map.empty))), "WorkflowManagerActor")
+      BackendSingletonCollection(Map.empty),
+      abortJobsOnTerminate = false)
+    system.actorOf(Props(new WorkflowManagerActor(params)), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

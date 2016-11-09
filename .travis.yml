@@ -6,10 +6,13 @@ scala:
 jdk:
   - oraclejdk8
 env:
-  # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
-  - BUILD_TYPE=sbt
-  - BUILD_TYPE=centaurJes
-  - BUILD_TYPE=centaurLocal
+  global:
+    - CENTAUR_BRANCH=3ceeee61cc4f20ad5fd16b1e1f3f4131d4bbbf1c
+  matrix:
+    # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
+    - BUILD_TYPE=sbt
+    - BUILD_TYPE=centaurJes
+    - BUILD_TYPE=centaurLocal
 script:
   - src/bin/travis/test.sh
 after_success:

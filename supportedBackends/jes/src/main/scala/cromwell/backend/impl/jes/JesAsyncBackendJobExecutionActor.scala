@@ -177,7 +177,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       case (expression, file) =>  expression.toWdlString.md5SumShort -> Seq(file)
     }
 
-    /** Collect all WdlFiles from inputs to the call */
+    /* Collect all WdlFiles from inputs to the call */
     val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues { _.collectAsSeq { case w: WdlFile => w } }
 
     (callInputFiles ++ writeFunctionFiles) flatMap {

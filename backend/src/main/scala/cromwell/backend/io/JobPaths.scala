@@ -35,7 +35,7 @@ class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
     path.toAbsolutePath match {
       case p if p.startsWith(WorkflowPaths.DockerRoot) => p
       case p =>
-        /** For example:
+        /*  For example:
           *
           * p = /abs/path/to/cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
           * localExecutionRoot = /abs/path/to/cromwell-executions

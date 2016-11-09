@@ -52,6 +52,11 @@ object Settings {
     "-Xfatal-warnings"
   )
 
+  val docSettings = List(
+    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
+    "-no-link-warnings"
+  )
+
   lazy val assemblySettings = Seq(
     assemblyJarName in assembly := name.value + "-" + version.value + ".jar",
     aggregate in assembly := false,
@@ -98,6 +103,7 @@ object Settings {
     scalaVersion := "2.11.8",
     resolvers ++= commonResolvers,
     scalacOptions ++= compilerSettings,
+    scalacOptions in (Compile, doc) ++= docSettings,
     parallelExecution := false
   )
 

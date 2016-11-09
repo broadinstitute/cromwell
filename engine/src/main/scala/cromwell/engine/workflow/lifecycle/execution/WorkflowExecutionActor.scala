@@ -183,7 +183,7 @@ object WorkflowExecutionActor {
       val dependencies = upstream.flatten ++ downstream
       val dependenciesResolved = dependencies forall { case (_, s) => s == ExecutionStatus.Done }
 
-      /**
+      /*
         * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
         * If a scope cannot be resolved it may be because it is in a scatter that has not been populated yet,
         * therefore there is no entry in the executionStore for this scope.
@@ -194,7 +194,7 @@ object WorkflowExecutionActor {
 
     private def upstreamEntry(entry: JobKey, prerequisiteScope: Scope): Option[ExecutionStoreEntry] = {
       prerequisiteScope.closestCommonAncestor(entry.scope) match {
-        /**
+        /*
           * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
           * and that common ancestor is a Scatter block, then find the shard with the same index
           * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
@@ -208,7 +208,7 @@ object WorkflowExecutionActor {
             case (k, _) => k.scope == prerequisiteScope && k.index == entry.index
           }
 
-        /**
+        /*
           * Otherwise, simply refer to the entry the collector entry.  This means that 'entry' depends
           * on every shard of the pre-requisite scope to finish.
           */
@@ -444,7 +444,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
     if (jobKey.attempt <= MaxRetries) {
       val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
       workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
-      /** Currently, we update the status of the old key to Preempted, and add a new entry (with the #attempts incremented by 1)
+      /*  Currently, we update the status of the old key to Preempted, and add a new entry (with the #attempts incremented by 1)
         * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
       val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Preempted, newJobKey -> ExecutionStatus.NotStarted))
       val newData = stateData.mergeExecutionDiff(executionDiff)

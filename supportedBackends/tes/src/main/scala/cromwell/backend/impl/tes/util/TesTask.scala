@@ -3,6 +3,7 @@ package cromwell.backend.impl.tes.util
 import TesTaskCompanion._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.wdl.OnlyPureFunctions
+import wdl4s.values.{WdlFile, WdlSingleFile}
 
 final case class TesTask(name: Option[String],
                          projectId: Option[String],
@@ -20,18 +21,66 @@ final case class TesTask(name: Option[String],
 object TesTaskCompanion {
 
   def from(jobDescriptor: BackendJobDescriptor): TesTask = {
-    // FIXME: this doesn't work - but Seq("echo", "foo") below should be commandLine instead
-    val commandLine = jobDescriptor.call.instantiateCommandLine(Map.empty, OnlyPureFunctions, identity).get
 
-    val docker = jobDescriptor.runtimeAttributes("docker").valueString
-    val dockerExecutor = DockerExecutor(Option(docker), Option(Seq(commandLine)), None, Option("/tmp/test_out"), None)
+    val cliInputs = jobDescriptor.inputs.mapValues (f => WdlFile(f.valueString))
 
-    TesTask(Option("TestMD5"),
+    val commandLine = jobDescriptor
+      .call
+      .instantiateCommandLine(
+        cliInputs,
+        OnlyPureFunctions,
+        identity
+      )
+      .get
+
+    // TODO it's possible that the "docker" key doesn't exist
+    val docker = jobDescriptor
+      .runtimeAttributes("docker")
+      .valueString
+
+    val dockerExecutor = DockerExecutor(
+      Option(docker),
+      Option(Seq(commandLine)),
+      None,
+      Option("/tmp/test_out"),
+      None)
+
+    val inputs = jobDescriptor
+      .inputs
+      .toSeq
+      .map {
+        case (lqName, f: WdlSingleFile) => TaskParameter(
+          Some(lqName),
+          Some("description"),
+          Some(f.value),
+          Some("path"),
+          Some("file"),
+          Some(true)
+        )
+      }
+
+    val outputs = Resources(
+      None,
+      None,
+      None,
+      Some(
+        Seq(
+          Volume(
+            Some("test_file"),
+            Some(1),
+            None,
+            Some("/tmp")
+          ))),
+      None
+    )
+
+    TesTask(
+      Option("TestMD5"),
       Option("My Project"),
       Option("My Desc"),
       None,
-      Some(Seq(TaskParameter(None, None, None, Some("/tmp/test_out"), None, None))),
-      Some(Resources(None, None, None, Some(Seq(Volume(Some("test_file"), Some(1), None, Some("/tmp")))), None)),
+      Some(inputs),
+      Some(outputs),
       None,
       Option(Seq(dockerExecutor)))
   }

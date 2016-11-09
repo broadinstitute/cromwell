@@ -4,9 +4,7 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
-val sprayV = "1.3.3"
-val downgradedSprayV = "1.3.2"
-val akkaV = "2.3.14"
+val akkaV = "2.4.11" // Note: akka-http branches from akkaV after 2.4.11
 
 /***
  * by default log buffering is set to true in sbt, which means
@@ -21,11 +19,8 @@ libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.0",
   "org.typelevel" %% "cats" % "0.7.2",
   "com.typesafe.akka" %% "akka-actor" % akkaV,
-  "io.spray" %% "spray-can" % sprayV,
-  "io.spray" %% "spray-routing" % sprayV,
-  "io.spray" %% "spray-client" % sprayV,
-  "io.spray" %% "spray-http" % sprayV,
-  "io.spray" %% "spray-json" % downgradedSprayV,
+  "com.typesafe.akka" %% "akka-http-experimental" % akkaV,
+  "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaV,
   "org.scalatest" %% "scalatest" % "2.2.6" % Test,
   "com.github.pathikrit" %% "better-files" % "2.13.0"
 )

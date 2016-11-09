@@ -6,23 +6,14 @@ import java.util.UUID
 import cats.Monad
 import centaur._
 import centaur.api.CromwellClient._
-import centaur.api.CromwellStatusJsonSupport._
-import centaur.api.FailedWorkflowSubmissionJsonSupport._
-import centaur.api.{CromwellStatus, _}
+import centaur.api._
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
-import spray.client.pipelining._
-import spray.http.{FormData, HttpRequest, HttpResponse}
-import spray.httpx.PipelineException
-import spray.httpx.SprayJsonSupport._
-import spray.httpx.unmarshalling._
-import spray.json._
-
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future, blocking}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -65,16 +56,7 @@ object Test {
 object Operations {
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
-      override def run: Try[SubmittedWorkflow] = {
-        // Collect only the parameters which exist:
-        val params = List("wdlSource" -> Option(workflow.data.wdl),
-          "workflowInputs" -> workflow.data.inputs,
-          "workflowOptions" -> insertSecrets(workflow.data.options)
-        ) collect { case (name, Some(value)) => (name, value) }
-        val formData = FormData(params)
-        val response = Pipeline[CromwellStatus].apply(Post(CentaurConfig.cromwellUrl + "/api/workflows/v1", formData))
-        sendReceiveFutureCompletion(response map { _.id } map UUID.fromString map { SubmittedWorkflow(_, CentaurConfig.cromwellUrl, workflow) })
-      }
+      override def run: Try[SubmittedWorkflow] = CromwellClient.submit(workflow)
     }
   }
 
@@ -87,12 +69,10 @@ object Operations {
     new Test[SubmittedWorkflow] {
       @tailrec
       def doPerform(allowed404s: Int = 2): SubmittedWorkflow = {
-        val response = Pipeline[CromwellStatus].apply(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/status"))
-        val status = sendReceiveFutureCompletion(response map { r => WorkflowStatus(r.status) })
-        status match {
+        CromwellClient.status(workflow) match {
           case Success(s) if s == expectedStatus => workflow
           case Success(s: TerminalStatus) => throw new Exception(s"Unexpected terminal status $s but was waiting for $expectedStatus")
-          case Failure(f) if f.getMessage.contains("Status: 404 Not Found") && allowed404s > 0 =>
+          case Failure(f) if f.getMessage.contains("404 Not Found") && allowed404s > 0 =>
             // It's possible that we've started polling prior to the metadata service learning of this workflow
             pollDelay()
             doPerform(allowed404s = allowed404s - 1)
@@ -104,25 +84,6 @@ object Operations {
       }
 
       override def run: Try[SubmittedWorkflow] = workflowLengthFutureCompletion(Future { doPerform() })
-    }
-  }
-
-  private def insertSecrets(options: Option[String]): Option[String] = {
-    import DefaultJsonProtocol._
-    val tokenKey = "refresh_token"
-
-    def addToken(optionsMap: Map[String, JsValue]): Map[String, JsValue] = {
-      CentaurConfig.optionalToken match {
-        case Some(token) if optionsMap.get(tokenKey).isDefined => optionsMap + (tokenKey -> JsString(token))
-        case _ => optionsMap
-      }
-    }
-
-    options match {
-      case Some(someOptions) =>
-        val optionsMap = someOptions.toString.parseJson.asJsObject.convertTo[Map[String, JsValue]]
-        Option(addToken(optionsMap).toJson.toString)
-      case None => options
     }
   }
 
@@ -148,11 +109,7 @@ object Operations {
           }
         }
 
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        // Try to convert the response to a Metadata in our return Try.
-        // Currently any error msg will be opaque as it's unlikely to be an issue (can flesh out later)
-        val metadata = sendReceiveFutureCompletion(response map { r => WorkflowMetadata.fromMetadataJson(r).toOption.get })
-        metadata.map(expectedMetadata.diff(_, workflow.id, cacheHitUUID)) map checkDiff
+        CromwellClient.metadata(workflow).map(expectedMetadata.diff(_, workflow.id, cacheHitUUID)).map(checkDiff)
       }
 
       override def run: Try[Unit] = {
@@ -180,33 +137,11 @@ object Operations {
   // FIXME: Should be abstracted w/ validateMetadata - ATM still used by the unused caching tests
   def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
-      override def run: Try[WorkflowMetadata] = {
-        val response = MetadataRequest(Get(CentaurConfig.cromwellUrl + "/api/workflows/v1/" + workflow.id + "/metadata"))
-        // Try to convert the response to a Metadata in our return Try.
-        // Currently any error msg will be opaque as it's unlikely to be an issue (can flesh out later)
-        sendReceiveFutureCompletion(response map { r => WorkflowMetadata.fromMetadataJson(r).toOption.get })
-      }
+      override def run: Try[WorkflowMetadata] = CromwellClient.metadata(workflow)
     }
   }
 
   /* Some enhancements of CromwellApi tools specific to these tests */
   def workflowLengthFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.maxWorkflowLength)
   def metadataFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.metadataConsistencyTimeout)
-
-  val MetadataRequest: HttpRequest => Future[String] = sendReceive ~> unmarshal[String]
-  def FailingPipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[FailedWorkflowSubmission] = sendReceive ~> unmarshalFailure[FailedWorkflowSubmission]
-
-  private def unmarshalFailure[T: FromResponseUnmarshaller]: HttpResponse => T =
-    response =>
-      if (!response.status.isSuccess)
-        response.as[T] match {
-          case Right(value) => value
-          case Left(error: MalformedContent) =>
-            throw new PipelineException(error.errorMessage, error.cause.orNull)
-          case Left(error) => throw new PipelineException(error.toString)
-        }
-      else throw new SuccessfulResponseException(response)
-
-  class SuccessfulResponseException(val response: HttpResponse) extends RuntimeException(s"Status: ${response.status}\n" +
-    s"Body: ${if (response.entity.data.length < 1024) response.entity.asString else response.entity.data.length + " bytes"}")
 }

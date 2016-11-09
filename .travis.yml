@@ -7,7 +7,7 @@ jdk:
   - oraclejdk8
 env:
   global:
-    - CENTAUR_BRANCH=develop
+    - CENTAUR_BRANCH=79dc5f9f0f6ca6aedb5b13358d47b0c9c4156d51
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt

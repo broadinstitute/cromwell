@@ -25,6 +25,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Workflow Submission](#workflow-submission)
   * [Database](#database)
   * [SIGINT abort handler](#sigint-abort-handler)
+* [Security](#security)
 * [Backends](#backends)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
@@ -64,6 +65,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Logging](#logging)
 * [Workflow Options](#workflow-options)
 * [Call Caching](#call-caching)
+  * [Configuring Call Caching](#configuring-call-caching)
+  * [Call Caching Workflow Options](#call-caching-workflow-options)
+  * [Local Filesystem Options](#local-filesystem-options)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
@@ -323,6 +327,12 @@ system {
 ```
 
 Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
+
+# Security
+
+ - Cromwell is NOT on its own a security appliance!
+ - Only YOU are responsible for your own security! 
+ - Some recommendations and suggestions on security can be found in the [SecurityRecommendations.md](SecurityRecommendations.md) document
 
 # Backends
 

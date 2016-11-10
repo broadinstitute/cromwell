@@ -5,7 +5,6 @@ import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import cromwell.backend.impl.tes.util._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
@@ -16,7 +15,6 @@ import spray.http.HttpRequest
 import spray.httpx.unmarshalling._
 import net.ceedubs.ficus.Ficus._
 
-import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -61,6 +59,7 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
   }
 
   private def updateExecutionHandle(oldHandle: TesPendingExecutionHandle): Future[ExecutionHandle] = {
+
     def successfulResponse(response: TesGetResponse): ExecutionHandle = {
       if (response.state contains "Complete") {
         jobLogger.info(s"Job ${oldHandle.job.jobId} is complete")
@@ -77,10 +76,14 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
-    pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${oldHandle.job.jobId}")) map successfulResponse recover failedTesResponse
+    pipeline[TesGetResponse]
+      .apply(Get(s"$tesEndpoint/${oldHandle.job.jobId}"))
+      .map(successfulResponse)
+      .recover(failedTesResponse)
   }
 
   def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+
     def successfulResponse(response: TesPostResponse): ExecutionHandle = {
       response.value match {
         case Some(jobId) =>
@@ -92,34 +95,29 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
     }
 
     val task = TesTask(jobDescriptor, configurationDescriptor)
-    val taskMessage = for {
-      docker <- task.dockerExecutor
-    } yield TesTaskMessage(
+    val taskMessage = TesTaskMessage(
       task.name,
       task.project,
-      task.desc,
+      task.description,
+      task.taskId,
       Some(task.inputs),
       Some(task.outputs),
       task.resources,
-      task.taskId,
-      Seq(docker)
+      task.dockerExecutor
     )
 
     // FIXME: Only executing now, no recover
-    taskMessage match {
-      case Success(message) => {
-        pipeline[TesPostResponse].apply(Post(tesEndpoint, message)) map successfulResponse recover failedTesResponse
-      }
-      case Failure(e) => {
-        Future.successful(FailedNonRetryableExecutionHandle(e, None))
-      }
-    }
+    pipeline[TesPostResponse]
+      .apply(Post(tesEndpoint, taskMessage))
+      .map(successfulResponse)
+      .recover(failedTesResponse)
   }
 
   override protected implicit def ec: ExecutionContext = context.dispatcher
 }
 
 object TesAsyncBackendJobExecutionActor {
+
   def failedTesResponse: PartialFunction[Throwable, ExecutionHandle] = {
     case e => FailedNonRetryableExecutionHandle(e)
   }
@@ -137,5 +135,4 @@ object TesAsyncBackendJobExecutionActor {
   }
 
   final case class TesJob(jobId: String)
-
 }

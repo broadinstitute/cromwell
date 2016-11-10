@@ -1,75 +1,21 @@
 package cromwell.backend.impl.tes
 
 import java.nio.file.{FileSystems, Paths}
-
+import wdl4s.util.TryUtil
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import wdl4s.util.TryUtil
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 
-import scala.util.Try
-
-final case class TesTaskMessage(
-                          name: String,
-                          projectId: String,
-                          description: Option[String],
-                          inputs: Option[Seq[TaskParameter]],
-                          outputs: Option[Seq[TaskParameter]],
-                          resources: Resources,
-                          taskId: String,
-                          docker: Seq[DockerExecutor]
-                        )
-
-final case class DockerExecutor(
-                                 imageName: String,
-                                 cmd: Seq[String],
-                                 workDir: Option[String],
-                                 stdout: String,
-                                 stderr: String,
-                                 stdin: Option[String]
-                               )
-
-final case class TaskParameter(
-                                name: String,
-                                description: Option[String],
-                                location: String,
-                                path: String,
-                                `class`: String,
-                                create: Boolean
-                              )
-
-final case class Resources(
-                            minimumCpuCores: Option[Int],
-                            preemtible: Option[Boolean],
-                            minimumRamGb: Option[Double],
-                            volumes: Seq[Volume],
-                            zones: Option[Seq[String]]
-                          )
-
-final case class Volume(
-                         name: Option[String],
-                         sizeGb: Option[Double],
-                         source: Option[String],
-                         mountPoint: Option[String]
-                       )
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor) {
 
-  val workflowDescriptor = jobDescriptor.workflowDescriptor
-  val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
-  val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
 
-  val name = jobDescriptor.call.task.name
-  val taskId = jobDescriptor.toString
-  val project = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
-    "project",
-    jobDescriptor.call.rootWorkflow.unqualifiedName
-  )
-  val desc = None
-
-  val runtimeAttributes = {
+  private val runtimeAttributes = {
     val lookup = jobDescriptor.inputs.apply _
     val evaluateAttrs = jobDescriptor.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
     // Fail the call if runtime attributes can't be evaluated
@@ -86,82 +32,110 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
   }
 
-  val inputs: Seq[TaskParameter] = {
-    jobDescriptor.inputs.toSeq.map {
-      case (varName, f: WdlSingleFile) => TaskParameter(
-        varName,
-        Option("description"),
+
+  val name = jobDescriptor.call.task.name
+  val description = jobDescriptor.toString
+  val taskId = jobDescriptor.toString
+
+  // TODO validate "project" field of workflowOptions
+  val project = {
+    val workflowName = jobDescriptor.call.rootWorkflow.unqualifiedName
+    workflowDescriptor.workflowOptions.getOrElse("project", workflowName)
+  }
+
+  val command = jobDescriptor
+    .call
+    .instantiateCommandLine(
+      jobDescriptor.inputs,
+      callEngineFunction,
+      toDockerPath
+    )
+    .get
+
+  val inputs = jobDescriptor
+    .inputs
+    .toSeq
+    .map {
+      case (inputName, f: WdlSingleFile) => TaskParameter(
+        inputName,
+        None,
         f.value,
         toDockerPath(f).toString,
         "file",
         false
       )
     }
-  }
 
   val outputs = Seq()
-  //  def prepareOutputs(jobDescriptor: BackendJobDescriptor): Seq[Map[String, String]] = {
-  //    val wdlFileOutputs = jobDescriptor.key.scope.task.outputs flatMap { taskOutput =>
-  //      taskOutput.requiredExpression.evaluateFiles(lookup, NoFunctions, taskOutput.wdlType) match {
-  //        case Success(wdlFiles) => wdlFiles
-  //        case Failure(ex) =>
-  //          jobLogger.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}", ex)
-  //          Seq.empty[WdlFile]
-  //      }
-  //    }
-  //
-  //    wdlFileOutputs.distinct map { wdlFile =>
-  //      val lPath = wdlFile match {
-  //        case WdlSingleFile(filePath) => jobPaths.callExecutionRoot.resolve(filePath).toString
-  //        case WdlGlobFile(filePath) => jobPaths.callExecutionRoot.resolve(filePath).toString
-  //      }
-  //      val mPath = toDockerPath(wdlFile).toString
-  //      Map("name" -> "",
-  //          "localPath" -> lPath,
-  //          "mountPath" -> mPath)
-  //    }
-  //  }
 
-  //  private def getCommonVolumes(inputs: Seq[Map[String,String]],
-  //                               outputs: Seq[Map[String,String]]): Seq[Map[String, String]] = {
-  //
-  //  }
-
-  val command: Try[String] = {
-    jobDescriptor
-      .call
-      .instantiateCommandLine(
-        jobDescriptor.inputs,
-        callEngineFunction,
-        toDockerPath
-      )
-  }
-
-  // TODO - command shouldn't be wrapped in a sub-shell like this
-  val dockerExecutor = for {
-    cmd <- command
-  } yield DockerExecutor(
-    runtimeAttributes.dockerImage.get,
-    Seq("/bin/bash", "-c", cmd),
-    runtimeAttributes.dockerWorkingDir,
-    "/tmp/stdout",
-    "/tmp/stderr",
-    None
-  )
+  val volumes = Some(Seq(
+    Volume(
+      // Name
+      Some("cromwell_inputs"),
+      // Size in GB
+      Some(runtimeAttributes.disk.amount.toInt),
+      // Source
+      None,
+      // Mount point
+      Some("/tmp")
+    )
+  ))
 
   // TODO - resolve TES schema around memory format Int -> Double
   val resources = Resources(
-    Option(runtimeAttributes.cpu),
-    None,
-    Option(runtimeAttributes.memory.amount.toInt),
-    Seq(
-      Volume(
-        Some("cromwell_inputs"),
-        Some(runtimeAttributes.disk.amount.toInt),
-        None,
-        Some("/tmp")
-      )
-    ),
+    // Minimum CPU cores
+    runtimeAttributes.cpu,
+    // Minimum RAM in GB
+    runtimeAttributes.memory.amount.toInt,
+    // Preemptible?
+    false,
+    volumes,
+    // Zones
     None
   )
+
+  val dockerExecutor = Seq(DockerExecutor(
+    runtimeAttributes.dockerImage.get,
+    // TODO command shouldn't be wrapped in a subshell
+    Seq("/bin/bash", "-c", command),
+    runtimeAttributes.dockerWorkingDir,
+    Some("/tmp/stdout"),
+    Some("/tmp/stderr"),
+    None
+  ))
 }
+
+
+final case class TesTaskMessage(name: String,
+                                description: String,
+                                projectId: String,
+                                taskId: String,
+                                inputs: Option[Seq[TaskParameter]],
+                                outputs: Option[Seq[TaskParameter]],
+                                resources: Resources,
+                                docker: Seq[DockerExecutor])
+
+final case class DockerExecutor(imageName: String,
+                                cmd: Seq[String],
+                                workDir: Option[String],
+                                stdout: Option[String],
+                                stderr: Option[String],
+                                stdin: Option[String])
+
+final case class TaskParameter(name: String,
+                               description: Option[String],
+                               location: String,
+                               path: String,
+                               `class`: String,
+                               create: Boolean)
+
+final case class Resources(minimumCpuCores: Int,
+                           minimumRamGb: Int,
+                           preemptible: Boolean,
+                           volumes: Option[Seq[Volume]],
+                           zones: Option[Seq[String]])
+
+final case class Volume(name: Option[String],
+                        sizeGb: Option[Int],
+                        source: Option[String],
+                        mountPoint: Option[String])

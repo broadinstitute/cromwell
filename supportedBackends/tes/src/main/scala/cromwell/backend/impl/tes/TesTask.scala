@@ -1,97 +1,110 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.wdl.OnlyPureFunctions
-import wdl4s.values.{WdlFile, WdlSingleFile}
-
+import java.nio.file.{FileSystems, Paths}
 import scala.util.{Failure, Try}
+import wdl4s.util.TryUtil
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
+import cromwell.backend.io.JobPaths
+import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 
 
-final case class TesTask(jobDescriptor: BackendJobDescriptor) {
+final case class TesTask(jobDescriptor: BackendJobDescriptor,
+                         configurationDescriptor: BackendConfigurationDescriptor) {
 
-  val name = jobDescriptor.key.tag
-  // Get the workflow name
-  val projectId = jobDescriptor.workflowDescriptor.workflowNamespace.workflow.unqualifiedName
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
+
+  private val runtimeAttributes = {
+    val lookup = jobDescriptor.inputs.apply _
+    val evaluateAttrs = jobDescriptor.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
+    // Fail the call if runtime attributes can't be evaluated
+    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
+    TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
+  }
+
+  private def toDockerPath(path: WdlValue): WdlValue = {
+    path match {
+      case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toString)
+      case array: WdlArray => WdlArray(array.wdlType, array.value map toDockerPath)
+      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toDockerPath)
+      case wdlValue => wdlValue
+    }
+  }
+
+
+  val name = jobDescriptor.call.task.name
   val description = jobDescriptor.toString
   val taskId = jobDescriptor.toString
 
-  val commands = {
-    // The jobDescriptor.inputs are of type WdlValue and need to be casted to WdlFile
-    val cliInputs = jobDescriptor.inputs.mapValues(f => WdlFile(f.valueString))
-
-    jobDescriptor
-      .call
-      .instantiateCommandLine(
-        cliInputs,
-        OnlyPureFunctions,
-        identity
-      )
-      .map(Seq(_))
+  // TODO validate "project" field of workflowOptions
+  val project = {
+    val workflowName = jobDescriptor.call.rootWorkflow.unqualifiedName
+    workflowDescriptor.workflowOptions.getOrElse("project", workflowName)
   }
+
+  val commands = jobDescriptor
+    .call
+    .instantiateCommandLine(
+      jobDescriptor.inputs
+      callEngineFunction,
+      toDockerFile
+    )
 
   val inputs = jobDescriptor
     .inputs
     .toSeq
     .map {
       case (inputName, f: WdlSingleFile) => TaskParameter(
-        Some(inputName),     // Name
-        None,           // Description
-        Some(f.value),  // Source path
-        Some("/tmp"),   // Destination path   NOTE: this must match a Volume.mountPoint in the Resources
-        Some("file"),   // Type
-        Some(true)      // Create?
+        inputName,       // Name
+        None,            // Description
+        f.value,         // Source path
+        toDockerPath(f), // Destination path   NOTE: this must match a Volume.mountPoint in the Resources
+        "file",          // Type
+        false            // Create?
       )
     })
 
-//  val outputs = Some(jobDescriptor
-//    .call
-//    .task
-//    .outputs)
-  val outputs = None
+  val outputs = Seq()
 
   val volumes = Some(Seq(
     Volume(
-      Some("volume name"), // Name
-      Some(1),             // Size in GB
-      None,                // Source
-      Some("/tmp")         // Mount point
+      // Name
+      Some("cromwell_inputs"),
+      // Size in GB
+      Some(runtimeAttributes.disk.amount.toInt),
+      // Source
+      None,
+      // Mount point
+      Some("/tmp")
     )
   ))
 
+  // TODO - resolve TES schema around memory format Int -> Double
   val resources = Resources(
-    None, // Minimum CPU cores
-    None, // Minimum RAM in GB
-    None, // Preemptible?
+    // Minimum CPU cores
+    runtimeAttributes.cpu
+    // Minimum RAM in GB
+    runtimeAttribute.memory.amount.toInt,
+    // Preemptible?
+    None, 
     volumes,
-    None  // Zones
+    // Zones
+    None
   )
 
-  val dockerImageId = Try(jobDescriptor.runtimeAttributes("docker"))
-    .map(_.valueString)
-    .recoverWith({
-      case e: NoSuchElementException => Failure(ConfigError(
-        "Runtime attribute 'docker' is required for TES backend tasks"))
-    })
-
-  val dockerExecutor = {
-    val workingDirectory = None
-    val stdoutPath = Some("/tmp/test_out")
-    val stderrPath = None
-
-    for {
-      imageId <- dockerImageId
-      cmd <- commands
-    } yield Seq(DockerExecutor(
-      imageId,
-      cmd,
-      workingDirectory,
-      stdoutPath,
-      stderrPath))
-  }
+  val dockerExecutor = Seq(DockerExecutor(
+    runtimeAttributes.dockerImage.get,
+    // TODO command shouldn't be wrapped in a subshell
+    Seq("/bin/bash", "-c", cmd),
+    runtimeAttributes.dockerWorkingDir,
+    Some("/tmp/stdout"),
+    Some("/tmp/stderr"),
+    None
+  )
 }
 
-
-final case class ConfigError(msg: String) extends Exception(msg)
 
 final case class TesTaskMessage(name: String,
                                 description: String,
@@ -106,7 +119,8 @@ final case class DockerExecutor(imageName: String,
                                 cmd: Seq[String],
                                 workDir: Option[String],
                                 stdout: Option[String],
-                                stderr: Option[String])
+                                stderr: Option[String],
+                                stdin: Option[String])
 
 final case class TaskParameter(name: String,
                                description: Option[String],

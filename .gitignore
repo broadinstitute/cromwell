@@ -1,3 +1,5 @@
+.ensime
+.ensime_cache/
 .idea
 log
 target

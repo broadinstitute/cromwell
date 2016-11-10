@@ -52,7 +52,7 @@ lazy val awsBackend = (project in backendRoot / "aws")
 lazy val tesBackend = (project in backendRoot / "tes")
   .settings(tesBackendSettings:_*)
   .withTestSettings
-  .dependsOn(backend)
+  .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
 
 lazy val htCondorBackend = (project in backendRoot / "htcondor")

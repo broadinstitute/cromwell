@@ -8,13 +8,14 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
-import cromwell.core.WorkflowId
+import cromwell.core._
 import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.http.HttpRequest
 import spray.httpx.unmarshalling._
 import net.ceedubs.ficus.Ficus._
 
+import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -25,17 +26,28 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
                                                   override val completionPromise: Promise[BackendJobExecutionResponse],
                                                   configurationDescriptor: BackendConfigurationDescriptor)
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
+
   import TesAsyncBackendJobExecutionActor._
 
-  private implicit val actorSystem: ActorSystem = context.system
-  private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
+  private val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
 
   override lazy val jobTag = jobDescriptor.key.tag
-  override lazy val pollBackOff = SimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 10 seconds, multiplier = 1.1)
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 20 seconds, multiplier = 1.1)
+
+  private implicit val actorSystem: ActorSystem = context.system
+
+  override lazy val pollBackOff = SimpleExponentialBackoff(
+    initialInterval = 1 seconds,
+    maxInterval = 10 seconds,
+    multiplier = 1.1
+  )
+  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
+    initialInterval = 1 seconds,
+    maxInterval = 20 seconds,
+    multiplier = 1.1
+  )
   override lazy val retryable = false
 
-  private val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
+  private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
@@ -53,8 +65,17 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
     def successfulResponse(response: TesGetResponse): ExecutionHandle = {
       if (response.state contains "Complete") {
         jobLogger.info(s"Job ${oldHandle.job.jobId} is complete")
-        SuccessfulExecutionHandle(Map.empty, 0, Map.empty, Seq.empty, None) // FIXME: blah
-      } else oldHandle
+        // FIXME: blah
+        SuccessfulExecutionHandle(
+          Map.empty,
+          0,
+          Map.empty,
+          Seq.empty,
+          None
+        )
+      } else {
+        oldHandle
+      }
     }
 
     pipeline[TesGetResponse]
@@ -75,30 +96,30 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
-    // FIXME: Only executing now, no recover
-    val task = TesTask(jobDescriptor)
-
-    val message = for {
-      resources <- task.resources
-      executors <- task.dockerExecutor
+    val task = TesTask(jobDescriptor, configurationDescriptor)
+    val taskMessage = for {
+      docker <- task.dockerExecutor
     } yield TesTaskMessage(
       task.name,
-      task.description,
-      task.projectId,
-      task.taskId,
+      task.project,
+      task.desc,
       Some(task.inputs),
-      task.outputs,
+      Some(task.outputs),
       task.resources,
-      executors
+      task.taskId,
+      Seq(docker)
     )
 
-    message match {
+    // FIXME: Only executing now, no recover
+    taskMessage match {
       case Success(task) => pipeline[TesPostResponse]
         .apply(Post(tesEndpoint, task))
         .map(successfulResponse)
         .recover(failedTesResponse)
 
-      case Failure(e) => Future.successful(FailedNonRetryableExecutionHandle(e, None))
+      case Failure(e) => {
+        Future.successful(FailedNonRetryableExecutionHandle(e, None))
+      }
     }
   }
 

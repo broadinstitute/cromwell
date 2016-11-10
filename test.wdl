@@ -11,6 +11,10 @@ task TestTask {
     cat ${taskIn}
   }
 
+  output {
+    File taskOut = "out.txt"
+  }
+
   runtime {
     docker: "bar"
   }

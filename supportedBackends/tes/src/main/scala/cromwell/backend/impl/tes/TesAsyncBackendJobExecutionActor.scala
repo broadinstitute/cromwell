@@ -5,7 +5,6 @@ import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import cromwell.backend.impl.tes.util._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
@@ -19,7 +18,7 @@ import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success, Try}
 
 final case class TesAsyncBackendJobExecutionActor(override val workflowId: WorkflowId,
                                                   override val jobDescriptor: BackendJobDescriptor,
@@ -76,8 +75,24 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
+    def taskToMessage(task: TesTask): Try[TesTaskMessage] = for {
+      executors <- task.dockerExecutor
+    } yield TesTaskMessage(
+      task.taskName,
+      task.description,
+      task.projectId,
+      task.taskId,
+      task.inputs,
+      task.outputs,
+      task.resources,
+      executors
+    )
+
     // FIXME: Only executing now, no recover
-    TesTaskCompanion.from(jobDescriptor) match {
+    val task = TesTask(jobDescriptor)
+    val message = taskToMessage(task)
+
+    message match {
       case Success(task) => pipeline[TesPostResponse]
         .apply(Post(tesEndpoint, task))
         .map(successfulResponse)

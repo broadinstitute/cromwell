@@ -82,7 +82,7 @@ trait BatchedTaskChange extends MigrationTaskChange {
     logger.info(s"Running migration $migrationName with a read batch size of " +
       s"$readBatchSize and a write batch size of $writeBatchSize")
 
-    /**
+    /*
       * Keep count of the size of the batch.
       *
       * @see writeBatchSize

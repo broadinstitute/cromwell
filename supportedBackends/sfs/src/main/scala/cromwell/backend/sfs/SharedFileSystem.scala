@@ -170,7 +170,7 @@ trait SharedFileSystem extends PathFactory {
       host map { h => Paths.get(h, uriPath) } getOrElse Paths.get(uriPath)
     }
 
-    /**
+    /*
       * Transform an original input path to a path in the call directory.
       * The new path matches the original path, it only "moves" the root to be the call directory.
       */

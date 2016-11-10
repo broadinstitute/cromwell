@@ -11,6 +11,7 @@ env:
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt
+    - BUILD_TYPE=checkPublish
     - BUILD_TYPE=centaurJes
     - BUILD_TYPE=centaurLocal
 script:

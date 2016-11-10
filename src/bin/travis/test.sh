@@ -11,6 +11,8 @@ elif [ "$BUILD_TYPE" = "centaurLocal" ]; then
     "${SCRIPT_DIR}"/testCentaurLocal.sh
 elif [ "$BUILD_TYPE" = "sbt" ]; then
     "${SCRIPT_DIR}"/testSbt.sh
+elif [ "$BUILD_TYPE" = "checkPublish" ]; then
+    "${SCRIPT_DIR}"/testCheckPublish.sh
 else
     echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
     exit 1

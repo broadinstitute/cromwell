@@ -1,7 +1,6 @@
 package cromwell.backend.impl.tes
 
 import java.nio.file.{FileSystems, Paths}
-import scala.util.{Failure, Try}
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPaths
@@ -44,27 +43,28 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     workflowDescriptor.workflowOptions.getOrElse("project", workflowName)
   }
 
-  val commands = jobDescriptor
+  val command = jobDescriptor
     .call
     .instantiateCommandLine(
-      jobDescriptor.inputs
+      jobDescriptor.inputs,
       callEngineFunction,
-      toDockerFile
+      toDockerPath
     )
+    .get
 
   val inputs = jobDescriptor
     .inputs
     .toSeq
     .map {
       case (inputName, f: WdlSingleFile) => TaskParameter(
-        inputName,       // Name
-        None,            // Description
-        f.value,         // Source path
-        toDockerPath(f), // Destination path   NOTE: this must match a Volume.mountPoint in the Resources
-        "file",          // Type
-        false            // Create?
+        inputName,
+        None,
+        f.value,
+        toDockerPath(f).toString,
+        "file",
+        false
       )
-    })
+    }
 
   val outputs = Seq()
 
@@ -84,11 +84,11 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   // TODO - resolve TES schema around memory format Int -> Double
   val resources = Resources(
     // Minimum CPU cores
-    runtimeAttributes.cpu
+    runtimeAttributes.cpu,
     // Minimum RAM in GB
-    runtimeAttribute.memory.amount.toInt,
+    runtimeAttributes.memory.amount.toInt,
     // Preemptible?
-    None, 
+    false,
     volumes,
     // Zones
     None
@@ -97,12 +97,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val dockerExecutor = Seq(DockerExecutor(
     runtimeAttributes.dockerImage.get,
     // TODO command shouldn't be wrapped in a subshell
-    Seq("/bin/bash", "-c", cmd),
+    Seq("/bin/bash", "-c", command),
     runtimeAttributes.dockerWorkingDir,
     Some("/tmp/stdout"),
     Some("/tmp/stderr"),
     None
-  )
+  ))
 }
 
 
@@ -129,9 +129,9 @@ final case class TaskParameter(name: String,
                                `class`: String,
                                create: Boolean)
 
-final case class Resources(minimumCpuCores: Option[Int],
-                           minimumRamGb: Option[Int],
-                           preemptible: Option[Boolean],
+final case class Resources(minimumCpuCores: Int,
+                           minimumRamGb: Int,
+                           preemptible: Boolean,
                            volumes: Option[Seq[Volume]],
                            zones: Option[Seq[String]])
 

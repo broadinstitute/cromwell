@@ -23,7 +23,8 @@ final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDesc
   private def launchExecutor: Future[Unit] = {
     Future {
       val executionProps = TesAsyncBackendJobExecutionActor.props(
-        workflowId, jobDescriptor, completionPromise, configurationDescriptor)
+        workflowId, jobDescriptor, completionPromise, configurationDescriptor
+      )
 
       val executorRef = context.actorOf(executionProps, s"TesAsyncBackendJobExecutionActor-$workflowId")
       executor = Option(executorRef)

@@ -15,11 +15,9 @@ import spray.http.HttpRequest
 import spray.httpx.unmarshalling._
 import net.ceedubs.ficus.Ficus._
 
-import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 
 final case class TesAsyncBackendJobExecutionActor(override val workflowId: WorkflowId,
                                                   override val jobDescriptor: BackendJobDescriptor,
@@ -97,30 +95,22 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
     }
 
     val task = TesTask(jobDescriptor, configurationDescriptor)
-    val taskMessage = for {
-      docker <- task.dockerExecutor
-    } yield TesTaskMessage(
+    val taskMessage = TesTaskMessage(
       task.name,
       task.project,
-      task.desc,
+      task.description,
+      task.taskId,
       Some(task.inputs),
       Some(task.outputs),
       task.resources,
-      task.taskId,
-      Seq(docker)
+      task.dockerExecutor
     )
 
     // FIXME: Only executing now, no recover
-    taskMessage match {
-      case Success(task) => pipeline[TesPostResponse]
-        .apply(Post(tesEndpoint, task))
-        .map(successfulResponse)
-        .recover(failedTesResponse)
-
-      case Failure(e) => {
-        Future.successful(FailedNonRetryableExecutionHandle(e, None))
-      }
-    }
+    pipeline[TesPostResponse]
+      .apply(Post(tesEndpoint, taskMessage))
+      .map(successfulResponse)
+      .recover(failedTesResponse)
   }
 
   override protected implicit def ec: ExecutionContext = context.dispatcher

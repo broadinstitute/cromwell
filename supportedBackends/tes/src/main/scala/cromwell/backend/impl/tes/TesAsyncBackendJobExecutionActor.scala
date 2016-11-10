@@ -75,22 +75,22 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
-    def taskToMessage(task: TesTask): Try[TesTaskMessage] = for {
+    // FIXME: Only executing now, no recover
+    val task = TesTask(jobDescriptor)
+
+    val message = for {
+      resources <- task.resources
       executors <- task.dockerExecutor
     } yield TesTaskMessage(
-      task.taskName,
+      task.name,
       task.description,
       task.projectId,
       task.taskId,
-      task.inputs,
+      Some(task.inputs),
       task.outputs,
       task.resources,
       executors
     )
-
-    // FIXME: Only executing now, no recover
-    val task = TesTask(jobDescriptor)
-    val message = taskToMessage(task)
 
     message match {
       case Success(task) => pipeline[TesPostResponse]

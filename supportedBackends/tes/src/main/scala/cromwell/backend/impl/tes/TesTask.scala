@@ -9,7 +9,8 @@ import scala.util.{Failure, Try}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor) {
 
-  val taskName = jobDescriptor.key.tag
+  val name = jobDescriptor.key.tag
+  // Get the workflow name
   val projectId = jobDescriptor.workflowDescriptor.workflowNamespace.workflow.unqualifiedName
   val description = jobDescriptor.toString
   val taskId = jobDescriptor.toString
@@ -28,12 +29,12 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor) {
       .map(Seq(_))
   }
 
-  val inputs = Some(jobDescriptor
+  val inputs = jobDescriptor
     .inputs
     .toSeq
     .map {
-      case (name, f: WdlSingleFile) => TaskParameter(
-        Some(name),     // Name
+      case (inputName, f: WdlSingleFile) => TaskParameter(
+        Some(inputName),     // Name
         None,           // Description
         Some(f.value),  // Source path
         Some("/tmp"),   // Destination path   NOTE: this must match a Volume.mountPoint in the Resources
@@ -107,12 +108,12 @@ final case class DockerExecutor(imageName: String,
                                 stdout: Option[String],
                                 stderr: Option[String])
 
-final case class TaskParameter(name: Option[String],
+final case class TaskParameter(name: String,
                                description: Option[String],
-                               location: Option[String],
-                               path: Option[String],
-                               `class`: Option[String],
-                               create: Option[Boolean])
+                               location: String,
+                               path: String,
+                               `class`: String,
+                               create: Boolean)
 
 final case class Resources(minimumCpuCores: Option[Int],
                            minimumRamGb: Option[Int],

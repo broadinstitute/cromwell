@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestProbe}
 import cats.data.NonEmptyList
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 import cromwell.backend._
 import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.core.callcaching._
@@ -16,7 +16,7 @@ import wdl4s.values.{WdlFile, WdlValue}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class EngineJobHashingActorSpec extends CromwellTestkitSpec
+class EngineJobHashingActorSpec extends CromwellTestKitSpec
   with ImplicitSender with WordSpecLike with Matchers with MockitoSugar {
 
   import EngineJobHashingActorSpec._

@@ -6,9 +6,9 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 
-class RestartWorkflowSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder {
+class RestartWorkflowSpec extends CromwellTestKitSpec with WorkflowDescriptorBuilder {
 
-  val actorSystem = ActorSystem("RestartWorkflowSpec", ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
+  val actorSystem = ActorSystem("RestartWorkflowSpec", ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
   //val localBackend = new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   val sources = WorkflowSourceFiles(
     wdlSource="""task a {command{}}

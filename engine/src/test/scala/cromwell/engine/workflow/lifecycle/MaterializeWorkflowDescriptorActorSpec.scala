@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFiles}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
@@ -16,7 +16,7 @@ import wdl4s.values.{WdlInteger, WdlString}
 
 import scala.concurrent.duration._
 
-class MaterializeWorkflowDescriptorActorSpec extends CromwellTestkitSpec with BeforeAndAfter with MockitoSugar {
+class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with BeforeAndAfter with MockitoSugar {
 
   val workflowId = WorkflowId.randomId()
   val minimumConf = ConfigFactory.parseString(

@@ -9,7 +9,7 @@ import akka.testkit.TestKit
 import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec._
+import cromwell.CromwellTestKitSpec._
 import cromwell.core.WorkflowSourceFiles
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
@@ -18,7 +18,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
@@ -49,11 +49,11 @@ object SingleWorkflowRunnerActorSpec {
   class TestSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
                                       metadataOutputPath: Option[Path])
     extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
-    override lazy val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
+    override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
   }
 }
 
-abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
+abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)

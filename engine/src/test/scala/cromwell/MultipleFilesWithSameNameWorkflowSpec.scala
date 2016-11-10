@@ -5,7 +5,7 @@ import cromwell.util.SampleWdl
 import wdl4s.values.WdlString
 
 
-class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestkitSpec {
+class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestKitSpec {
   "A workflow with two file inputs that have the same name" should {
     "not clobber one file with the contents of another" in {
       runWdlAndAssertOutputs(

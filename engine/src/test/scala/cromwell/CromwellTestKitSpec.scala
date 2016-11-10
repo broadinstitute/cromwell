@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.CromwellTestkitSpec._
+import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
 import cromwell.engine.backend.BackendConfigurationEntry
@@ -64,7 +64,7 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
 case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")
 
-object CromwellTestkitSpec {
+object CromwellTestKitSpec {
   val ConfigText =
     """
       |akka {
@@ -126,7 +126,7 @@ object CromwellTestkitSpec {
 
   class TestWorkflowManagerSystem extends CromwellSystem {
     override protected def systemName: String = "test-system-" + testWorkflowManagerSystemCount.incrementAndGet()
-    override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
+    override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
@@ -267,7 +267,7 @@ object CromwellTestkitSpec {
   }
 }
 
-abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
+abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestKitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
   with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with Eventually {
 
   override protected def afterAll() = { twms.shutdownTestActorSystem(); () }

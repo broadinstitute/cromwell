@@ -13,13 +13,13 @@ import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinali
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.util.SampleWdl.ThreeStep
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
 
-class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
+class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
   override implicit val actorSystem = system
 
   val mockServiceRegistryActor = TestActorRef(new Actor {
@@ -62,7 +62,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
     actor
   }
 
-  implicit val TimeoutDuration = CromwellTestkitSpec.TimeoutDuration
+  implicit val TimeoutDuration = CromwellTestKitSpec.TimeoutDuration
 
   "WorkflowActor" should {
 
@@ -108,7 +108,7 @@ class WorkflowActorSpec extends CromwellTestkitSpec with WorkflowDescriptorBuild
       deathwatch watch actor
       actor ! AbortWorkflowCommand
       eventually { actor.stateName should be(WorkflowAbortingState) }
-      currentLifecycleActor.expectMsgPF(CromwellTestkitSpec.TimeoutDuration) {
+      currentLifecycleActor.expectMsgPF(CromwellTestKitSpec.TimeoutDuration) {
         case EngineLifecycleActorAbortCommand =>
           actor ! WorkflowExecutionAbortedResponse(ExecutionStore.empty, OutputStore.empty)
       }

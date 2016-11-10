@@ -10,7 +10,7 @@ import wdl4s.values._
 
 import scala.util.{Success, Try}
 
-class MapWorkflowSpec extends CromwellTestkitSpec {
+class MapWorkflowSpec extends CromwellTestKitSpec {
   private val pwd = File(".")
   private val sampleWdl = SampleWdl.MapLiteral(pwd.path)
   val ns = WdlNamespaceWithWorkflow.load(sampleWdl.wdlSource(""))

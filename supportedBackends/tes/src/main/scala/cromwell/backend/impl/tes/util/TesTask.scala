@@ -1,20 +1,10 @@
 package cromwell.backend.impl.tes.util
 
-import TesTaskCompanion._
+import scala.util.{Failure, Try}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.wdl.OnlyPureFunctions
 import wdl4s.values.{WdlFile, WdlSingleFile}
 
-import scala.util.Try
-
-final case class TesTask(name: Option[String],
-                         projectId: Option[String],
-                         description: Option[String],
-                         inputs: Option[Seq[TaskParameter]],
-                         outputs: Option[Seq[TaskParameter]],
-                         resources: Option[Resources],
-                         taskId: Option[String],
-                         docker: Option[Seq[DockerExecutor]])
 
 /*
   Because of spray serialization support we can't have the companion object named TesTask, and that also has
@@ -35,64 +25,89 @@ object TesTaskCompanion {
       )
   }
 
-  def from(jobDescriptor: BackendJobDescriptor): TesTask = {
+  case class ConfigError(msg: String) extends Exception(msg)
 
-    // Get the "command" section of the WDL task.
-    val command = getCommand(jobDescriptor).get
+  private def dockerImageId(jobDescriptor: BackendJobDescriptor): Try[String] = {
+    Try(jobDescriptor.runtimeAttributes("docker"))
+      .map(_.valueString)
+      .recoverWith({
+        case e: NoSuchElementException => Failure(ConfigError("Runtime attribute 'docker' is required for TES backend tasks"))
+      })
+  }
 
-    // TODO it's possible that the "docker" key doesn't exist
-    val docker = jobDescriptor
-      .runtimeAttributes("docker")
-      .valueString
+  def from(jobDescriptor: BackendJobDescriptor): Try[TesTask] = {
 
-    val dockerExecutor = DockerExecutor(
-      Option(docker),
-      Option(Seq(command)),
-      None,
-      Option("/tmp/test_out"),
-      None)
+    val taskName = jobDescriptor.key.tag
+    val projectId = jobDescriptor.call.parent.get.unqualifiedName
+    val description = jobDescriptor.toString
+    val taskId = jobDescriptor.toString
 
-    val inputs = jobDescriptor
+    val inputs = Some(jobDescriptor
       .inputs
       .toSeq
       .map {
-        case (lqName, f: WdlSingleFile) => TaskParameter(
-          Some(lqName),
-          Some("description"),
-          Some(f.value),
-          Some("path"),
-          Some("file"),
-          Some(true)
+        case (name, f: WdlSingleFile) => TaskParameter(
+          Some(name),     // Name
+          Some(name),     // Description
+          Some(f.value),  // Source path
+          Some("/tmp"),   // Destination path   DEVNOTE: this must match a Volume.mountPoint in the Resources
+          Some("file"),   // Type
+          Some(true)      // Create?
         )
-      }
+      })
+
+    val outputs = Some(Seq())
+
+    val volumes = Some(Seq(
+      Volume(
+        Some("volume name"), // Name
+        Some(1),             // Size in GB
+        None,                // Source
+        Some("/tmp")         // Mount point
+      )
+    ))
 
     val resources = Resources(
-      None,
-      None,
-      None,
-      Some(
-        Seq(
-          Volume(
-            Some("test_file"),
-            Some(1),
-            None,
-            Some("/tmp")
-          ))),
-      None
+      None, // Minimum CPU cores
+      None, // Minimum RAM in GB
+      None, // Preemptible?
+      volumes,
+      None  // Zones
     )
 
-    TesTask(
-      Option("TestMD5"),
-      Option("My Project"),
-      Option("My Desc"),
-      Some(inputs),
-      None,
-      Some(resources),
-      None,
-      Option(Seq(dockerExecutor)))
+    for {
+      imageId <- dockerImageId(jobDescriptor)
+      command <- getCommand(jobDescriptor)
+    } yield {
+      val dockerExecutor = Seq(DockerExecutor(
+        imageId,
+        Option(Seq(command)),
+        None,
+        Option("/tmp/test_out"),
+        None))
+
+      TesTask(
+        taskName,
+        projectId,
+        description,
+        inputs,
+        outputs,
+        resources,
+        taskId,
+        dockerExecutor)
+    }
   }
 
-  final case class DockerExecutor(imageName: Option[String],
+  final case class TesTask(name: String,
+                           projectId: String,
+                           description: String,
+                           inputs: Option[Seq[TaskParameter]],
+                           outputs: Option[Seq[TaskParameter]],
+                           resources: Resources,
+                           taskId: String,
+                           docker: Seq[DockerExecutor])
+
+  final case class DockerExecutor(imageName: String,
                                   cmd: Option[Seq[String]],
                                   workDir: Option[String],
                                   stdout: Option[String],
@@ -106,8 +121,8 @@ object TesTaskCompanion {
                                  create: Option[Boolean])
 
   final case class Resources(minimumCpuCores: Option[Int],
-                             preemtible: Option[Boolean],
                              minimumRamGb: Option[Int],
+                             preemptible: Option[Boolean],
                              volumes: Option[Seq[Volume]],
                              zones: Option[Seq[String]])
 

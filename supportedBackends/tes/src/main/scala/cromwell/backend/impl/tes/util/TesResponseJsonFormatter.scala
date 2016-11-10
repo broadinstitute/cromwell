@@ -1,6 +1,6 @@
 package cromwell.backend.impl.tes.util
 
-import cromwell.backend.impl.tes.util.TesTaskCompanion.{DockerExecutor, Resources, TaskParameter, Volume}
+import cromwell.backend.impl.tes.util.TesTaskCompanion.{DockerExecutor, Resources, TaskParameter, Volume, TesTask}
 import spray.json._
 
 final case class TesPostResponse(value: Option[String])

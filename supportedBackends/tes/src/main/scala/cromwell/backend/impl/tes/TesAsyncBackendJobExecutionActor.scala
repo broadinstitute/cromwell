@@ -9,14 +9,14 @@ import cromwell.backend.impl.tes.util._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
-import cromwell.backend.impl.tes.util.TesTaskCompanion.{DockerExecutor, Resources, TaskParameter, Volume}
-import cromwell.core.WorkflowId
+import cromwell.core._
 import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.http.HttpRequest
 import spray.httpx.unmarshalling._
 import net.ceedubs.ficus.Ficus._
 
+import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -26,17 +26,28 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
                                                   override val completionPromise: Promise[BackendJobExecutionResponse],
                                                   configurationDescriptor: BackendConfigurationDescriptor)
   extends Actor with ActorLogging with AsyncBackendJobExecutionActor with JobLogging {
+
   import TesAsyncBackendJobExecutionActor._
 
-  private implicit val actorSystem: ActorSystem = context.system
-  private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
+  private val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
 
   override lazy val jobTag = jobDescriptor.key.tag
-  override lazy val pollBackOff = SimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 10 seconds, multiplier = 1.1)
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(initialInterval = 1 seconds, maxInterval = 20 seconds, multiplier = 1.1)
+
+  private implicit val actorSystem: ActorSystem = context.system
+
+  override lazy val pollBackOff = SimpleExponentialBackoff(
+    initialInterval = 1 seconds,
+    maxInterval = 10 seconds,
+    multiplier = 1.1
+  )
+  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
+    initialInterval = 1 seconds,
+    maxInterval = 20 seconds,
+    multiplier = 1.1
+  )
   override lazy val retryable = false
 
-  private val tesEndpoint = configurationDescriptor.backendConfig.as[String]("endpoint")
+  private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
@@ -50,14 +61,23 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
   }
 
   private def updateExecutionHandle(oldHandle: TesPendingExecutionHandle): Future[ExecutionHandle] = {
-    def successulResponse(response: TesGetResponse): ExecutionHandle = {
+    def successfulResponse(response: TesGetResponse): ExecutionHandle = {
       if (response.state contains "Complete") {
         jobLogger.info(s"Job ${oldHandle.job.jobId} is complete")
-        SuccessfulExecutionHandle(Map.empty, 0, Map.empty, Seq.empty, None) // FIXME: blah
-      } else oldHandle
+        // FIXME: blah
+        SuccessfulExecutionHandle(
+          Map.empty,
+          0,
+          Map.empty,
+          Seq.empty,
+          None
+        )
+      } else {
+        oldHandle
+      }
     }
 
-    pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${oldHandle.job.jobId}")) map successulResponse recover failedTesResponse
+    pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${oldHandle.job.jobId}")) map successfulResponse recover failedTesResponse
   }
 
   def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
@@ -71,9 +91,29 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
+    val task = TesTask(jobDescriptor, configurationDescriptor)
+    val taskMessage = for {
+      docker <- task.dockerExecutor
+    } yield TesTaskMessage(
+      task.name,
+      task.project,
+      task.desc,
+      Some(task.inputs),
+      Some(task.outputs),
+      task.resources,
+      task.taskId,
+      Seq(docker)
+    )
+
     // FIXME: Only executing now, no recover
-    val task = TesTaskCompanion.from(jobDescriptor)
-    pipeline[TesPostResponse].apply(Post(tesEndpoint, task)) map successfulResponse recover failedTesResponse
+    taskMessage match {
+      case Success(message) => {
+        pipeline[TesPostResponse].apply(Post(tesEndpoint, message)) map successfulResponse recover failedTesResponse
+      }
+      case Failure(e) => {
+        Future.successful(FailedNonRetryableExecutionHandle(e, None))
+      }
+    }
   }
 
   override protected implicit def ec: ExecutionContext = context.dispatcher
@@ -98,14 +138,4 @@ object TesAsyncBackendJobExecutionActor {
 
   final case class TesJob(jobId: String)
 
-  val TaskDesc = TesTask( // FIXME
-    Some("TestMD5"),
-    Some("MyProject"),
-    Some("My Desc"),
-    None,
-    Some(Seq(TaskParameter(None, None, None, Some("/tmp/test_out"), None, None))),
-    Some(Resources(None, None, None, Some(Seq(Volume(Some("test_file"), Some(1), None, Some("/tmp")))), None)),
-    None,
-    Some(Seq(DockerExecutor(Some("ubuntu"), Some(Seq("echo", "foo")), None, Some("/tmp/test_out"), None)))
-  )
 }

@@ -7,7 +7,7 @@ import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
 import scala.concurrent.{Future, Promise}
 
 final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                           override val configurationDescriptor: BackendConfigurationDescriptor)
+                                      override val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendJobExecutionActor {
   private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
   private var executor: Option[ActorRef] = None

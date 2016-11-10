@@ -5,7 +5,6 @@ import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.async.AsyncBackendJobExecutionActor.ExecutionMode
 import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, NonRetryableExecution, SuccessfulExecutionHandle}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import cromwell.backend.impl.tes.util._
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._

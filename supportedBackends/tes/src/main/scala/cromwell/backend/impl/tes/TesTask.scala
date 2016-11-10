@@ -5,6 +5,7 @@ import java.nio.file.{FileSystems, Paths}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import wdl4s.parser.MemoryUnit
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 
@@ -42,14 +43,14 @@ final case class TaskParameter(
 final case class Resources(
                             minimumCpuCores: Option[Int],
                             preemtible: Option[Boolean],
-                            minimumRamGb: Option[Double],
+                            minimumRamGb: Option[Int],
                             volumes: Seq[Volume],
                             zones: Option[Seq[String]]
                           )
 
 final case class Volume(
                          name: Option[String],
-                         sizeGb: Option[Double],
+                         sizeGb: Option[Int],
                          source: Option[String],
                          mountPoint: Option[String]
                        )
@@ -57,9 +58,9 @@ final case class Volume(
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor) {
 
-  val workflowDescriptor = jobDescriptor.workflowDescriptor
-  val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
-  val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
 
   val name = jobDescriptor.call.task.name
   val taskId = jobDescriptor.toString
@@ -69,7 +70,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   )
   val desc = None
 
-  val runtimeAttributes = {
+  private val runtimeAttributes = {
     val lookup = jobDescriptor.inputs.apply _
     val evaluateAttrs = jobDescriptor.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
     // Fail the call if runtime attributes can't be evaluated
@@ -79,7 +80,18 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private def toDockerPath(path: WdlValue): WdlValue = {
     path match {
-      case file: WdlFile => WdlFile(jobPaths.toDockerPath(Paths.get(path.valueString)).toString)
+      case file: WdlFile => {
+        val localPath = Paths.get(file.valueString)
+
+        localPath.toAbsolutePath match {
+          case p if p.startsWith(jobPaths.DockerRoot) => WdlFile(p.toString)
+          case p =>
+            val fileName = p.getFileName
+            val callPath = jobPaths.callRoot.resolve(fileName)
+            val subPath = callPath.subpath(jobPaths.executionRoot.getNameCount, callPath.getNameCount)
+            WdlFile(jobPaths.DockerRoot.resolve(subPath).toString)
+        }
+      }
       case array: WdlArray => WdlArray(array.wdlType, array.value map toDockerPath)
       case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toDockerPath)
       case wdlValue => wdlValue
@@ -100,27 +112,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   val outputs = Seq()
-  //  def prepareOutputs(jobDescriptor: BackendJobDescriptor): Seq[Map[String, String]] = {
-  //    val wdlFileOutputs = jobDescriptor.key.scope.task.outputs flatMap { taskOutput =>
-  //      taskOutput.requiredExpression.evaluateFiles(lookup, NoFunctions, taskOutput.wdlType) match {
-  //        case Success(wdlFiles) => wdlFiles
-  //        case Failure(ex) =>
-  //          jobLogger.warn(s"Could not evaluate $taskOutput: ${ex.getMessage}", ex)
-  //          Seq.empty[WdlFile]
-  //      }
-  //    }
-  //
-  //    wdlFileOutputs.distinct map { wdlFile =>
-  //      val lPath = wdlFile match {
-  //        case WdlSingleFile(filePath) => jobPaths.callExecutionRoot.resolve(filePath).toString
-  //        case WdlGlobFile(filePath) => jobPaths.callExecutionRoot.resolve(filePath).toString
-  //      }
-  //      val mPath = toDockerPath(wdlFile).toString
-  //      Map("name" -> "",
-  //          "localPath" -> lPath,
-  //          "mountPath" -> mPath)
-  //    }
-  //  }
 
   //  private def getCommonVolumes(inputs: Seq[Map[String,String]],
   //                               outputs: Seq[Map[String,String]]): Seq[Map[String, String]] = {
@@ -151,13 +142,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   // TODO - resolve TES schema around memory format Int -> Double
   val resources = Resources(
-    Option(runtimeAttributes.cpu),
+    Some(runtimeAttributes.cpu),
     None,
-    Option(runtimeAttributes.memory.amount.toInt),
+    Some(runtimeAttributes.memory.to(MemoryUnit.GB).amount.toInt),
     Seq(
       Volume(
         Some("cromwell_inputs"),
-        Some(runtimeAttributes.disk.amount.toInt),
+        Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
         None,
         Some("/tmp")
       )

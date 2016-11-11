@@ -7,7 +7,6 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import wdl4s.parser.MemoryUnit
-import scala.util.Try
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor) {
@@ -27,16 +26,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private def toDockerPath(path: WdlValue): WdlValue = {
     path match {
       case file: WdlFile => {
-        val localPath = Paths.get(file.valueString)
-
-        localPath.toAbsolutePath match {
-          case p if p.startsWith(jobPaths.DockerRoot) => WdlFile(p.toString)
-          case p =>
-            val fileName = p.getFileName
-            val callPath = jobPaths.callRoot.resolve(fileName)
-            val subPath = callPath.subpath(jobPaths.executionRoot.getNameCount, callPath.getNameCount)
-            WdlFile(jobPaths.DockerRoot.resolve(subPath).toString)
-        }
+        val localPath = Paths.get(file.valueString).toAbsolutePath
+        WdlFile(
+          jobPaths.callDockerRoot
+          .resolve("inputs")
+          .resolve(localPath)
+          .toString
+        )
       }
       case array: WdlArray => WdlArray(array.wdlType, array.value map toDockerPath)
       case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toDockerPath)
@@ -83,13 +79,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val volumes = Some(Seq(
     Volume(
       // Name
-      Some("cromwell_inputs"),
+      jobPaths.DockerRoot.toString,
       // Size in GB
       Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
       // Source
       None,
       // Mount point
-      Some("/tmp")
+      jobPaths.DockerRoot.toString
     )
   ))
 
@@ -111,8 +107,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // TODO command shouldn't be wrapped in a subshell
     Seq("/bin/bash", "-c", command),
     runtimeAttributes.dockerWorkingDir,
-    Some("/tmp/stdout"),
-    Some("/tmp/stderr"),
+    jobPaths.callExecutionDockerRoot.resolve("stdout").toString,
+    jobPaths.callExecutionDockerRoot.resolve("stderr").toString,
     None
   ))
 }
@@ -130,8 +126,8 @@ final case class TesTaskMessage(name: String,
 final case class DockerExecutor(imageName: String,
                                 cmd: Seq[String],
                                 workDir: Option[String],
-                                stdout: Option[String],
-                                stderr: Option[String],
+                                stdout: String,
+                                stderr: String,
                                 stdin: Option[String])
 
 final case class TaskParameter(name: String,
@@ -147,7 +143,7 @@ final case class Resources(minimumCpuCores: Int,
                            volumes: Option[Seq[Volume]],
                            zones: Option[Seq[String]])
 
-final case class Volume(name: Option[String],
+final case class Volume(name: String,
                         sizeGb: Option[Int],
                         source: Option[String],
-                        mountPoint: Option[String])
+                        mountPoint: String)

@@ -5,25 +5,13 @@ import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, OutputEvaluator}
+import cromwell.core.JobOutput
 import wdl4s.parser.MemoryUnit
+import scala.util.Try
 
-final case class TesTask(jobDescriptor: BackendJobDescriptor,
-                         configurationDescriptor: BackendConfigurationDescriptor) {
-
-  private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
-
-  private val runtimeAttributes = {
-    val lookup = jobDescriptor.inputs.apply _
-    val evaluateAttrs = jobDescriptor.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
-  }
-
-  private def toDockerPath(path: WdlValue): WdlValue = {
+object TesTask {
+  private def toDockerPath(path: WdlValue)(implicit jobPaths: JobPaths): WdlValue = {
     path match {
       case file: WdlFile => {
         val localPath = Paths.get(file.valueString).toAbsolutePath
@@ -40,8 +28,30 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
   }
 
+  private def mapOutputs(value: WdlValue) = Try {
+    value
+  }
+}
 
-  val name = jobDescriptor.call.task.name
+final case class TesTask(jobDescriptor: BackendJobDescriptor,
+                         configurationDescriptor: BackendConfigurationDescriptor) {
+
+  import TesTask._
+
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, List(FileSystems.getDefault))
+
+  private val runtimeAttributes = {
+    val lookup = jobDescriptor.inputs.apply _
+    val evaluateAttrs = jobDescriptor.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
+    // Fail the call if runtime attributes can't be evaluated
+    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
+    TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
+  }
+
+  // TODO name should be fully qualified
+  val name = jobDescriptor.call.fullyQualifiedName
   val description = jobDescriptor.toString
   val taskId = jobDescriptor.toString
 
@@ -58,6 +68,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       callEngineFunction,
       toDockerPath
     )
+    // TODO remove this .get and handle error appropriately
     .get
 
   val inputs = jobDescriptor
@@ -74,9 +85,37 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       )
     }
 
-  val outputs = Seq()
+  // TODO make paths "file://" URIs
 
-  val volumes = Some(Seq(
+  val outputs = OutputEvaluator
+    .evaluateOutputs(jobDescriptor, callEngineFunction, mapOutputs)
+    // TODO remove this .get and handle error appropriately
+    .get
+    .toSeq
+    .map {
+      // TODO why doesn't WdlValue have unapply
+      case (outputName, JobOutput(wdlValue)) => TaskParameter(
+        outputName,
+        None,
+        // TODO probably wrong. should be client-side path (aka storage path)
+        wdlValue.valueString,
+        // TODO wrong should be worker-side path (aka container path)
+        "",
+        "file",
+        false
+      )
+    }
+
+  val workingDirVolume = runtimeAttributes
+    .dockerWorkingDir
+    .map(path => Volume(
+      Some(path),
+      Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
+      None,
+      Some(path)
+    ))
+
+  val volumes = Seq(
     Volume(
       // Name
       jobPaths.DockerRoot.toString,
@@ -87,7 +126,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       // Mount point
       jobPaths.DockerRoot.toString
     )
-  ))
+  ) ++ workingDirVolume
 
   // TODO - resolve TES schema around memory format Int -> Double
   val resources = Resources(
@@ -97,7 +136,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     runtimeAttributes.memory.to(MemoryUnit.GB).amount.toInt,
     // Preemptible?
     false,
-    volumes,
+    Some(volumes),
     // Zones
     None
   )

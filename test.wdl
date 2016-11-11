@@ -17,5 +17,6 @@ task TestTask {
 
   runtime {
     docker: "bar"
+    dockerWorkingDir: "foo"
   }
 }

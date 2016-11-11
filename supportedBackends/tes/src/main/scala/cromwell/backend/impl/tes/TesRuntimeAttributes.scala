@@ -24,7 +24,6 @@ object TesRuntimeAttributes {
   private val DisksDefaultValue = "1 GB"
 
   val DockerWorkingDirKey = "dockerWorkingDir"
-  val DockerOutputDirKey = "dockerOutputDir"
   val DiskKey = "disk"
 
   val staticDefaults = Map(
@@ -40,7 +39,6 @@ object TesRuntimeAttributes {
     ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
     DockerKey -> Set(WdlStringType),
     DockerWorkingDirKey -> Set(WdlStringType),
-    DockerOutputDirKey -> Set(WdlStringType),
     CpuKey -> Set(WdlIntegerType),
     MemoryKey -> Set(WdlStringType),
     DiskKey -> Set(WdlStringType)
@@ -53,15 +51,14 @@ object TesRuntimeAttributes {
 
     val docker = validateDocker(withDefaultValues.get(DockerKey))
     val dockerWorkingDir = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.validNel)
-    val dockerOutputDir = validateDockerOutputDir(withDefaultValues.get(DockerOutputDirKey), None.validNel)
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
     val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
     val cpu = validateCpu(withDefaultValues.get(CpuKey), noValueFoundFor(CpuKey))
     val memory = validateMemory(withDefaultValues.get(MemoryKey), noValueFoundFor(MemoryKey))
     val disk = validateDisk(withDefaultValues.get(DiskKey), noValueFoundFor(DiskKey))
 
-    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| dockerOutputDir |@| failOnStderr |@| cpu |@| memory |@| disk) map {
-      new TesRuntimeAttributes(_, _, _, _, _, _, _, _)
+    (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| failOnStderr |@| cpu |@| memory |@| disk) map {
+      new TesRuntimeAttributes(_, _, _, _, _, _, _)
     } match {
       case Valid(x) => x
       case Invalid(nel) => throw new RuntimeException with MessageAggregation {
@@ -87,14 +84,6 @@ object TesRuntimeAttributes {
     }
   }
 
-  private def validateDockerOutputDir(dockerOutputDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
-    dockerOutputDir match {
-      case Some(WdlString(s)) => Some(s).validNel
-      case None => onMissingKey
-      case _ => s"Expecting $DockerOutputDirKey runtime attribute to be a String".invalidNel
-    }
-  }
-
   private def validateDisk(value: Option[WdlValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
     val diskWrongFormatMsg = s"Expecting $DiskKey runtime attribute to be an Integer or String with format '8 GB'. Exception: %s"
 
@@ -110,7 +99,6 @@ object TesRuntimeAttributes {
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: Option[String],
                                 dockerWorkingDir: Option[String],
-                                dockerOutputDir: Option[String],
                                 failOnStderr: Boolean,
                                 cpu: Int,
                                 memory: MemorySize,

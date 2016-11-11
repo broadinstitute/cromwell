@@ -21,7 +21,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val jobPaths = new TesPaths(
-    workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key
+    workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key, runtimeAttributes
   )
   private val callEngineFunction = SharedFileSystemExpressionFunctions(
     jobPaths, List(FileSystems.getDefault)
@@ -92,6 +92,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .dockerWorkingDir
     .map(path => Volume(
       path,
+      // TODO all volumes currently get the same requirements
       Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
       None,
       path
@@ -130,7 +131,8 @@ object TesTask {
 
   private final class TesPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                config: Config,
-                               jobKey: BackendJobDescriptorKey)
+                               jobKey: BackendJobDescriptorKey,
+                               runtimeAttributes: TesRuntimeAttributes)
     extends JobPaths(workflowDescriptor, config, jobKey) {
 
     // Utility for converting a WdlValue so that the path is localized to the
@@ -166,8 +168,9 @@ object TesTask {
     // callDockerRoot.resolve("outputs").resolve(name).toString
 
     // Given an file name, return a path localized to the container's execution directory
-    def containerExec(name: String): String = {
-      callExecutionDockerRoot.resolve(name).toString
+    def containerExec(name: String): String = runtimeAttributes.dockerWorkingDir match {
+      case Some(path) => Paths.get(path).resolve(name).toString
+      case None => callExecutionDockerRoot.resolve(name).toString
     }
 
     // The path to the workflow root directory, localized to the container's file system

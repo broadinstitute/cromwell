@@ -6,9 +6,10 @@ workflow Test {
 
 task TestTask {
   File taskIn
+  Array[File] taskArray
 
   command {
-    cat ${taskIn}
+    cat ${taskIn} > "out.txt"
   }
 
   output {

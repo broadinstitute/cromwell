@@ -9,7 +9,6 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor,
                          BackendJobDescriptorKey, BackendWorkflowDescriptor, OutputEvaluator}
-import cromwell.core.JobOutput
 import wdl4s.parser.MemoryUnit
 
 import scala.util.Try
@@ -58,9 +57,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // TODO remove this .get and handle error appropriately
     .get
 
-  val inputs = jobDescriptor
+   val inputs = jobDescriptor
     .inputs
     .toSeq
+    .flatMap(flattenWdlValueMap)
     .map {
       case (inputName, f: WdlSingleFile) => TaskParameter(
         inputName,
@@ -77,8 +77,11 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // TODO remove this .get and handle error appropriately
     .get
     .toSeq
+    .map { case (k, v) => (k, v.wdlValue) }
+    .flatMap(flattenWdlValueMap)
     .map {
-      case (outputName, JobOutput(WdlSingleFile(path))) => TaskParameter(
+      // TODO handle globs
+      case (outputName, WdlSingleFile(path)) => TaskParameter(
         outputName,
         None,
         jobPaths.storagePath(path),
@@ -106,7 +109,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     )
   ) ++ workingDirVolume
 
-  // TODO - resolve TES schema around memory format Int -> Double
+  // TODO resolve TES schema around memory format Int -> Double
   val resources = Resources(
     runtimeAttributes.cpu,
     runtimeAttributes.memory.to(MemoryUnit.GB).amount.toInt,
@@ -127,6 +130,23 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 }
 
 object TesTask {
+
+  def flattenWdlValueMap(pair: (String, WdlValue)): Seq[(String, WdlValue)] = {
+    pair match {
+      case (name, file: WdlFile) => Seq((name, file))
+      case (name, array: WdlArray) => array.value.zipWithIndex.flatMap {
+        case (v: WdlValue, i: Int) => flattenWdlValueMap((name + "-" + i, v))
+      }
+      case (name, map: WdlMap) => {
+        map.value.toSeq flatMap {
+          case (name: WdlValue, item: WdlValue) => {
+            flattenWdlValueMap((name + name.valueString, item))
+          }
+        }
+      }
+      case (name, wdlValue) => Seq((name, wdlValue))
+    }
+  }
 
   private final class TesPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                config: Config,

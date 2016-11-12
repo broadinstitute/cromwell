@@ -2,13 +2,11 @@ package cromwell.backend.impl.tes
 
 import java.nio.file.{FileSystems, Paths}
 
-import com.typesafe.config.Config
 import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor,
-                         BackendJobDescriptorKey, BackendWorkflowDescriptor, OutputEvaluator}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, OutputEvaluator}
 import wdl4s.parser.MemoryUnit
 
 import scala.util.Try
@@ -19,14 +17,13 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   import TesTask._
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new TesPaths(
+  private val jobPaths = new JobPaths(
     workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key
   )
   private val callEngineFunction = SharedFileSystemExpressionFunctions(
     jobPaths, List(FileSystems.getDefault)
   )
-
-  private val runtimeAttributes = {
+  private val runtimeAttributes: TesRuntimeAttributes = {
     val lookup = jobDescriptor.inputs.apply _
     val evaluateAttrs = jobDescriptor.call.task
       .runtimeAttributes
@@ -36,6 +33,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
     TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
   }
+  private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
   val name = jobDescriptor.call.fullyQualifiedName
   val description = jobDescriptor.toString
@@ -52,7 +50,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .instantiateCommandLine(
       jobDescriptor.inputs,
       callEngineFunction,
-      jobPaths.toContainerPath
+      tesPaths.toContainerPath
     )
     // TODO remove this .get and handle error appropriately
     .get
@@ -65,8 +63,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       case (inputName, f: WdlSingleFile) => TaskParameter(
         inputName,
         None,
-        jobPaths.storageInput(f.value),
-        jobPaths.toContainerPath(f).toString,
+        tesPaths.storageInput(f.value),
+        tesPaths.toContainerPath(f).toString,
         "file",
         false
       )
@@ -84,8 +82,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       case (outputName, WdlSingleFile(path)) => TaskParameter(
         outputName,
         None,
-        jobPaths.storagePath(path),
-        jobPaths.containerOutput(path),
+        tesPaths.storagePath(path),
+        tesPaths.containerOutput(path),
         "file",
         false
       )
@@ -95,6 +93,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .dockerWorkingDir
     .map(path => Volume(
       path,
+      // TODO all volumes currently get the same requirements
       Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
       None,
       path
@@ -102,10 +101,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   val volumes = Seq(
     Volume(
-      jobPaths.containerWorkflowRoot,
+      tesPaths.containerWorkflowRoot,
       Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
       None,
-      jobPaths.containerWorkflowRoot
+      tesPaths.containerWorkflowRoot
     )
   ) ++ workingDirVolume
 
@@ -123,8 +122,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // TODO command shouldn't be wrapped in a subshell
     Seq("/bin/bash", "-c", command),
     runtimeAttributes.dockerWorkingDir,
-    jobPaths.containerExec("stdout"),
-    jobPaths.containerExec("stderr"),
+    tesPaths.containerExec("stdout"),
+    tesPaths.containerExec("stderr"),
     None
   ))
 }
@@ -148,10 +147,7 @@ object TesTask {
     }
   }
 
-  private final class TesPaths(workflowDescriptor: BackendWorkflowDescriptor,
-                               config: Config,
-                               jobKey: BackendJobDescriptorKey)
-    extends JobPaths(workflowDescriptor, config, jobKey) {
+  private final class TesPaths(jobPaths: JobPaths, runtimeAttributes: TesRuntimeAttributes) {
 
     // Utility for converting a WdlValue so that the path is localized to the
     // container's filesystem.
@@ -173,11 +169,11 @@ object TesTask {
 
     // Given an output path, return a path localized to the storage file system
     def storagePath(path: String): String = {
-      prefixScheme(callExecutionRoot.resolve(path).toString)
+      prefixScheme(jobPaths.callExecutionRoot.resolve(path).toString)
     }
 
     def containerInput(path: String): String = {
-      callDockerRoot.resolve("inputs").resolve(path).toString
+      jobPaths.callDockerRoot.resolve("inputs").resolve(path).toString
     }
 
     // Given an output path, return a path localized to the container file system
@@ -186,12 +182,13 @@ object TesTask {
     // callDockerRoot.resolve("outputs").resolve(name).toString
 
     // Given an file name, return a path localized to the container's execution directory
-    def containerExec(name: String): String = {
-      callExecutionDockerRoot.resolve(name).toString
+    def containerExec(name: String): String = runtimeAttributes.dockerWorkingDir match {
+      case Some(path) => Paths.get(path).resolve(name).toString
+      case None => jobPaths.callExecutionDockerRoot.resolve(name).toString
     }
 
     // The path to the workflow root directory, localized to the container's file system
-    val containerWorkflowRoot = dockerWorkflowRoot.toString
+    val containerWorkflowRoot = jobPaths.dockerWorkflowRoot.toString
   }
 
   // Utility for converting a WdValue representing an output file path to a WdlValue with

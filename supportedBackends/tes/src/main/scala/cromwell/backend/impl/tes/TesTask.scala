@@ -130,7 +130,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
 object TesTask {
 
-  def flattenWdlValueMap(pair: (String, WdlValue)): Seq[(String, WdlValue)] = {
+  private def flattenWdlValueMap(pair: (String, WdlValue)): Seq[(String, WdlValue)] = {
     pair match {
       case (name, file: WdlFile) => Seq((name, file))
       case (name, array: WdlArray) => array.value.zipWithIndex.flatMap {

@@ -49,7 +49,7 @@ object TesRuntimeAttributes {
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
     val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
 
-    val docker = validateDocker(withDefaultValues.get(DockerKey))
+    val docker = validateDocker(withDefaultValues.get(DockerKey), noValueFoundFor(DockerKey))
     val dockerWorkingDir = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.validNel)
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
     val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
@@ -60,7 +60,7 @@ object TesRuntimeAttributes {
     (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| failOnStderr |@| cpu |@| memory |@| disk) map {
       new TesRuntimeAttributes(_, _, _, _, _, _, _)
     } match {
-      case Valid(x) => x
+      case Valid(x: TesRuntimeAttributes) => x
       case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"
         override def errorMessages: Traversable[String] = nel.toList
@@ -68,13 +68,6 @@ object TesRuntimeAttributes {
     }
   }
 
-  private def validateDocker(docker: Option[WdlValue]): ErrorOr[Option[String]] = {
-    docker match {
-      case Some(WdlString(s)) => Some(s).validNel
-      case None => throw new RuntimeException(s"$DockerKey was not provided for task")
-      case _ => throw new RuntimeException(s"Expecting $DockerKey runtime attribute to be a String")
-    }
-  }
 
   private def validateDockerWorkingDir(dockerWorkingDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     dockerWorkingDir match {

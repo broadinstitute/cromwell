@@ -6,7 +6,7 @@ workflow Test {
 
 task TestTask {
   File taskIn
-  Array[File] taskArray
+  # Array[File] taskArray
 
   command {
     cat ${taskIn} > "out.txt"
@@ -17,6 +17,7 @@ task TestTask {
   }
 
   runtime {
+    foo: "bar"
     docker: "bar"
     dockerWorkingDir: "foo"
   }

@@ -17,7 +17,7 @@ env:
 script:
   - src/bin/travis/test.sh
 after_success:
-  - src/bin/travis/publishSnapshot.sh
+  - src/bin/travis/afterSuccess.sh
 deploy:
   provider: script
   script: src/bin/travis/publishRelease.sh

@@ -70,8 +70,11 @@ object Settings {
       ImageName(
         namespace = Option("broadinstitute"),
         repository = name.value,
-        tag = Some(s"${version.value}")
-      )
+        tag = Option(cromwellVersion)),
+      ImageName(
+        namespace = Option("broadinstitute"),
+        repository = name.value,
+        tag = Option(version.value))
     ),
     dockerfile in docker := {
       // The assembly task generates a fat JAR file

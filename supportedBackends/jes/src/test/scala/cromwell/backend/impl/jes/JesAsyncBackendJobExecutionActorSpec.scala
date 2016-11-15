@@ -129,7 +129,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     // Mock/stub out the bits that would reach out to JES.
     val run = mock[Run]
-    val handle = JesPendingExecutionHandle(jobDescriptor, Seq.empty, run, None)
+    val handle = JesPendingExecutionHandle(jobDescriptor, Set.empty, run, None)
 
     class ExecuteOrRecoverActor extends TestableJesJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
@@ -488,7 +488,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
-    val jesOutputs = Seq(
+    val jesOutputs = Set(
       JesFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
         Paths.get("/cromwell_root/path/to/file1"), workingDisk),
       JesFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",

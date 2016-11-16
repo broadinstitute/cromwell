@@ -6,7 +6,7 @@ import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor._
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -390,11 +390,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   }
 
   when(WorkflowExecutionAbortingState) {
-    case Event(AbortedResponse(jobKey), stateData) =>
-      workflowLogger.info(s"$tag job aborted: ${jobKey.tag}")
+    case Event(response: BackendJobExecutionResponse, stateData) =>
+      val jobKey = response.jobKey
+      workflowLogger.info(s"$tag job exited with ${response.getClass.getSimpleName}: ${jobKey.tag}")
       val newStateData = stateData.removeBackendJobExecutionActor(jobKey)
       if (newStateData.backendJobExecutionActors.isEmpty) {
-        workflowLogger.info(s"$tag all jobs aborted")
+        workflowLogger.info(s"$tag all jobs exited")
         goto(WorkflowExecutionAbortedState)
       } else {
         stay() using newStateData

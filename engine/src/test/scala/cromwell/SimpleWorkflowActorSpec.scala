@@ -28,7 +28,7 @@ object SimpleWorkflowActorSpec {
     promise: Promise[Unit])
 }
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
+class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
 
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
@@ -148,7 +148,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
   }
 
   private def startingCallsFilter[T](callNames: String*)(block: => T): T = {
-    import CromwellTestkitSpec.waitForInfo
+    import CromwellTestKitSpec.waitForInfo
     within(TestExecutionTimeout) {
       waitForInfo(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$", 1) {
         block

@@ -328,6 +328,8 @@ system {
 
 Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
+By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
+
 # Security
 
  - Cromwell is NOT on its own a security appliance!

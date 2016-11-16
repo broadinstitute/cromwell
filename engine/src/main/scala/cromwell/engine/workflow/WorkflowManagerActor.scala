@@ -18,6 +18,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
+import scala.sys.ShutdownHookThread
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -44,10 +45,12 @@ object WorkflowManagerActor {
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
-            backendSingletonCollection: BackendSingletonCollection): Props = {
-    Props(new WorkflowManagerActor(
-      workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)
-    ).withDispatcher(EngineDispatcher)
+            backendSingletonCollection: BackendSingletonCollection,
+            abortJobsOnTerminate: Boolean): Props = {
+    val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, serviceRegistryActor,
+      workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection,
+      abortJobsOnTerminate)
+    Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
   /**
@@ -78,24 +81,20 @@ object WorkflowManagerActor {
   }
 }
 
-class WorkflowManagerActor(config: Config,
-                           val workflowStore: ActorRef,
-                           val serviceRegistryActor: ActorRef,
-                           val workflowLogCopyRouter: ActorRef,
-                           val jobStoreActor: ActorRef,
-                           val callCacheReadActor: ActorRef,
-                           val jobTokenDispenserActor: ActorRef,
-                           val backendSingletonCollection: BackendSingletonCollection)
+case class WorkflowManagerActorParams(config: Config,
+                                      workflowStore: ActorRef,
+                                      serviceRegistryActor: ActorRef,
+                                      workflowLogCopyRouter: ActorRef,
+                                      jobStoreActor: ActorRef,
+                                      callCacheReadActor: ActorRef,
+                                      jobTokenDispenserActor: ActorRef,
+                                      backendSingletonCollection: BackendSingletonCollection,
+                                      abortJobsOnTerminate: Boolean)
+
+class WorkflowManagerActor(params: WorkflowManagerActorParams)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
 
-  def this(workflowStore: ActorRef,
-           serviceRegistryActor: ActorRef,
-           workflowLogCopyRouter: ActorRef,
-           jobStoreActor: ActorRef,
-           callCacheReadActor: ActorRef,
-           jobTokenDispenserActor: ActorRef,
-           backendSingletonCollection: BackendSingletonCollection) = this(
-    ConfigFactory.load, workflowStore, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)
+  private val config = params.config
 
   private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
@@ -105,6 +104,7 @@ class WorkflowManagerActor(config: Config,
   private val tag = self.path.name
 
   private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
+  private var shutdownHookThreadOption: Option[ShutdownHookThread] = None
 
   override def preStart(): Unit = {
     addShutdownHook()
@@ -112,13 +112,19 @@ class WorkflowManagerActor(config: Config,
     self ! RetrieveNewWorkflows
   }
 
+  override def postStop() = {
+    // If the actor is stopping, especially during error tests, then there's nothing to wait for later at JVM shutdown.
+    tryRemoveShutdownHook()
+    super.postStop()
+  }
+
   private def addShutdownHook() = {
     // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
     val abortJobsOnTerminate =
-      config.getConfig("system").as[Option[Boolean]]("abort-jobs-on-terminate").getOrElse(false)
+    config.getConfig("system").as[Option[Boolean]]("abort-jobs-on-terminate").getOrElse(params.abortJobsOnTerminate)
 
     if (abortJobsOnTerminate) {
-      sys.addShutdownHook {
+      val shutdownHookThread = sys.addShutdownHook {
         logger.info(s"$tag: Received shutdown signal.")
         self ! AbortAllWorkflowsCommand
         while (stateData != null && stateData.workflows.nonEmpty) {
@@ -126,7 +132,18 @@ class WorkflowManagerActor(config: Config,
           Thread.sleep(1000)
         }
       }
+      shutdownHookThreadOption = Option(shutdownHookThread)
     }
+  }
+
+  private def tryRemoveShutdownHook() = {
+    try {
+      shutdownHookThreadOption.foreach(_.remove())
+    } catch {
+      case _: IllegalStateException => /* ignore, we're probably shutting down */
+      case exception: Exception => log.error(exception, "Error while removing shutdown hook: {}", exception.getMessage)
+    }
+    shutdownHookThreadOption = None
   }
 
   startWith(Running, WorkflowManagerData(workflows = Map.empty))
@@ -141,7 +158,7 @@ class WorkflowManagerActor(config: Config,
         Determine the number of available workflow slots and request the smaller of that number of maxWorkflowsToLaunch.
        */
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size)
-      workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
+      params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
       stay()
     case Event(WorkflowStoreActor.NoNewWorkflowsToStart, stateData) =>
       log.debug("WorkflowStore provided no new workflows to start")
@@ -188,13 +205,13 @@ class WorkflowManagerActor(config: Config,
       log.info(s"$tag ${workflowActor.path.name} is in a terminal state: $toState")
       // This silently fails if idFromActor is None, but data.without call right below will as well
       data.idFromActor(workflowActor) foreach { workflowId =>
-        jobStoreActor ! RegisterWorkflowCompleted(workflowId)
+        params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)
         if (toState.workflowState == WorkflowAborted) {
           val replyTo = abortingWorkflowToReplyTo(workflowId)
           replyTo ! WorkflowStoreActor.WorkflowAborted(workflowId)
           abortingWorkflowToReplyTo -= workflowId
         } else {
-          workflowStore ! WorkflowStoreActor.RemoveWorkflow(workflowId)
+          params.workflowStore ! WorkflowStoreActor.RemoveWorkflow(workflowId)
         }
       }
       stay using data.without(workflowActor)
@@ -264,8 +281,9 @@ class WorkflowManagerActor(config: Config,
       StartNewWorkflow
     }
 
-    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)
+    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.serviceRegistryActor,
+      params.workflowLogCopyRouter, params.jobStoreActor, params.callCacheReadActor, params.jobTokenDispenserActor,
+      params.backendSingletonCollection)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

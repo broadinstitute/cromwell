@@ -7,7 +7,7 @@ import akka.actor.{Actor, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 import cromwell.core._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{WorkflowAborted => _, _}
@@ -67,7 +67,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   implicit val defaultTimeout = RouteTestTimeout(30.seconds.dilated)
 
   override def actorRefFactory = system
-  override val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
+  override val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
 
   override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
   override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)

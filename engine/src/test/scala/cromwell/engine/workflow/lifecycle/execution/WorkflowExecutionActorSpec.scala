@@ -12,13 +12,13 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor, MetadataWatchActor}
+import cromwell.{AlwaysHappyJobStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor, MetadataWatchActor}
 import org.scalatest.BeforeAndAfter
 
 import scala.concurrent.{Await, Promise}
 import scala.concurrent.duration._
 
-class WorkflowExecutionActorSpec extends CromwellTestkitSpec with BeforeAndAfter with WorkflowDescriptorBuilder {
+class WorkflowExecutionActorSpec extends CromwellTestKitSpec with BeforeAndAfter with WorkflowDescriptorBuilder {
 
   override implicit val actorSystem = system
   implicit val DefaultDuration = 20.seconds.dilated

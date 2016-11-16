@@ -2,10 +2,10 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import cromwell.CromwellTestkitSpec.AnyValueIsFine
+import cromwell.CromwellTestKitSpec.AnyValueIsFine
 
 
-class WorkflowOutputsSpec extends CromwellTestkitSpec {
+class WorkflowOutputsSpec extends CromwellTestKitSpec {
   "Workflow outputs" should {
     "use all outputs if none are specified" in {
       runWdlAndAssertOutputs(

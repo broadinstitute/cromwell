@@ -2,12 +2,13 @@ package cromwell
 
 import java.nio.file.Paths
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.CromwellTestkitSpec._
+import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
 import cromwell.engine.backend.BackendConfigurationEntry
@@ -63,7 +64,7 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
 case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")
 
-object CromwellTestkitSpec {
+object CromwellTestKitSpec {
   val ConfigText =
     """
       |akka {
@@ -121,9 +122,11 @@ object CromwellTestkitSpec {
 
   val TimeoutDuration = 60 seconds
 
+  private val testWorkflowManagerSystemCount = new AtomicInteger()
+
   class TestWorkflowManagerSystem extends CromwellSystem {
-    override protected def systemName: String = "test-system"
-    override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestkitSpec.ConfigText))
+    override protected def systemName: String = "test-system-" + testWorkflowManagerSystemCount.incrementAndGet()
+    override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
     /**
       * Do NOT shut down the test actor system inside the normal flow.
       * The actor system will be externally shutdown outside the block.
@@ -132,18 +135,6 @@ object CromwellTestkitSpec {
     override def shutdownActorSystem(): Future[Terminated] = { Future.successful(null) }
 
     def shutdownTestActorSystem() = super.shutdownActorSystem()
-  }
-
-  /**
-    * Loans a test actor system. NOTE: This should be run OUTSIDE of a wait block, never within one.
-    */
-  def withTestWorkflowManagerSystem[T](block: CromwellSystem => T): T = {
-    val testWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem
-    try {
-      block(testWorkflowManagerSystem)
-    } finally {
-      TestKit.shutdownActorSystem(testWorkflowManagerSystem.actorSystem, TimeoutDuration)
-    }
   }
 
   /**
@@ -266,6 +257,7 @@ object CromwellTestkitSpec {
   class TestCromwellRootActor(config: Config) extends CromwellRootActor {
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
+    override val abortJobsOnTerminate = false
     def submitWorkflow(sources: WorkflowSourceFiles): WorkflowId = {
       val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
       val result = Await.result(workflowStoreActor.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId
@@ -275,7 +267,7 @@ object CromwellTestkitSpec {
   }
 }
 
-abstract class CromwellTestkitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestkitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
+abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestKitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
   with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with Eventually {
 
   override protected def afterAll() = { twms.shutdownTestActorSystem(); () }

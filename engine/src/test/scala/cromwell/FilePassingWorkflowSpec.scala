@@ -6,7 +6,7 @@ import wdl4s.values.{WdlFile, WdlString}
 
 import scala.concurrent.duration._
 
-class FilePassingWorkflowSpec extends CromwellTestkitSpec {
+class FilePassingWorkflowSpec extends CromwellTestKitSpec {
   "A workflow that passes files between tasks" should {
     "pass files properly" in {
       runWdlAndAssertOutputs(

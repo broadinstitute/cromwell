@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor
@@ -12,7 +12,7 @@ import scala.concurrent.Await
 
 trait WorkflowDescriptorBuilder {
 
-  implicit val awaitTimeout = CromwellTestkitSpec.TimeoutDuration
+  implicit val awaitTimeout = CromwellTestKitSpec.TimeoutDuration
   implicit val actorSystem: ActorSystem
 
   def createMaterializedEngineWorkflowDescriptor(id: WorkflowId, workflowSources: WorkflowSourceFiles): EngineWorkflowDescriptor = {

@@ -37,6 +37,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
 
+  override val abortJobsOnTerminate = true
   override lazy val workflowStore = new InMemoryWorkflowStore()
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
 

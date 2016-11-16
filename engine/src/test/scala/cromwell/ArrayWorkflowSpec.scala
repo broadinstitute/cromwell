@@ -11,7 +11,7 @@ import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
 
-class ArrayWorkflowSpec extends CromwellTestkitSpec {
+class ArrayWorkflowSpec extends CromwellTestKitSpec {
   val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
   val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""))
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))

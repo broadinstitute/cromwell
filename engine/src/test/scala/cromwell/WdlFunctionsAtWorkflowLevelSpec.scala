@@ -6,7 +6,7 @@ import wdl4s.types.{WdlMapType, WdlStringType}
 import wdl4s.values.{WdlMap, WdlString}
 
 
-class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestkitSpec {
+class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestKitSpec {
   val outputMap = WdlMap(WdlMapType(WdlStringType, WdlStringType), Map(
     WdlString("k1") -> WdlString("v1"),
     WdlString("k2") -> WdlString("v2"),

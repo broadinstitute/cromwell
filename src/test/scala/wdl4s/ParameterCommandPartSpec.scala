@@ -28,7 +28,7 @@ class ParameterCommandPartSpec extends WdlTest {
 
     "raise exception if 'true' attribute is specified but 'false' is not" in {
       Try(
-        WdlNamespace.load(
+        WdlNamespace.loadUsingSource(
           """task param_test {
             |  Boolean f
             |
@@ -38,7 +38,7 @@ class ParameterCommandPartSpec extends WdlTest {
             |}
             |
             |workflow wf {call param_test}
-          """.stripMargin)
+          """.stripMargin, None, None)
       ) match {
         case Failure(s: SyntaxError) => // expected
         case _ => fail("Expecting a syntax error")

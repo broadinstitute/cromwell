@@ -28,7 +28,7 @@ object ex3 {
 
     ns.namespaces foreach { n =>
       n.tasks.foreach { t =>
-        println(s"Imported Task: ${t.name} (from ${n.importedAs.get})")
+        println(s"Imported Task: ${t.name} (from ${n.importedAs})")
       }
     }
   }

@@ -3,11 +3,11 @@ import "../wc.wdl"
 import "../cgrep.wdl"
 
 workflow three_step {
-  call ps
-  call cgrep {
+  call ps.ps
+  call cgrep.cgrep {
     input: in_file = ps.procs
   }
-  call wc {
+  call wc.wc {
     input: in_file = ps.procs
   }
 }

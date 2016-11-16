@@ -1,10 +1,12 @@
 {
   "cgrep": [""],
-  "cgrep.count": ["cgrep", ""],
-  "cgrep.in_file": ["cgrep", ""],
-  "cgrep.pattern": ["cgrep", ""],
+  "cgrep.cgrep": ["cgrep", ""],
+  "cgrep.cgrep.count": ["cgrep.cgrep", "cgrep", ""],
+  "cgrep.cgrep.in_file": ["cgrep.cgrep", "cgrep", ""],
+  "cgrep.cgrep.pattern": ["cgrep.cgrep", "cgrep", ""],
   "ps": [""],
-  "ps.procs": ["ps", ""],
+  "ps.ps": ["ps", ""],
+  "ps.ps.procs": ["ps.ps", "ps", ""],
   "three_step": [""],
   "three_step.cgrep": ["three_step", ""],
   "three_step.cgrep.in_file": ["three_step.cgrep", "three_step", ""],
@@ -13,6 +15,7 @@
   "three_step.wc": ["three_step", ""],
   "three_step.wc.in_file": ["three_step.wc", "three_step", ""],
   "wc": [""],
-  "wc.count": ["wc", ""],
-  "wc.in_file": ["wc", ""]
+  "wc.wc": ["wc", ""],
+  "wc.wc.count": ["wc.wc", "wc", ""],
+  "wc.wc.in_file": ["wc.wc", "wc", ""]
 }

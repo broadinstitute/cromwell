@@ -1,10 +1,12 @@
 {
-  "cgrep": "Task",
-  "cgrep.count": "TaskOutput",
-  "cgrep.in_file": "Declaration",
-  "cgrep.pattern": "Declaration",
-  "ps": "Task",
-  "ps.procs": "TaskOutput",
+  "cgrep": "WdlNamespaceWithoutWorkflow",
+  "cgrep.cgrep": "Task",
+  "cgrep.cgrep.count": "TaskOutput",
+  "cgrep.cgrep.in_file": "Declaration",
+  "cgrep.cgrep.pattern": "Declaration",
+  "ps": "WdlNamespaceWithoutWorkflow",
+  "ps.ps": "Task",
+  "ps.ps.procs": "TaskOutput",
   "three_step": "Workflow",
   "three_step.cgrep": "Call",
   "three_step.cgrep.in_file": "Declaration",
@@ -12,7 +14,8 @@
   "three_step.ps": "Call",
   "three_step.wc": "Call",
   "three_step.wc.in_file": "Declaration",
-  "wc": "Task",
-  "wc.count": "TaskOutput",
-  "wc.in_file": "Declaration"
+  "wc": "WdlNamespaceWithoutWorkflow",
+  "wc.wc": "Task",
+  "wc.wc.count": "TaskOutput",
+  "wc.wc.in_file": "Declaration"
 }

@@ -1,5 +1,6 @@
 package wdl4s
 
+import better.files.File
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -52,8 +53,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |import "cgrep"
         |
         |workflow three_step {
-        |  call ps
-        |  call cgrep {
+        |  call ps.ps
+        |  call cgrep.cgrep {
         |    input: BADin_file=ps.procs
         |  }
         |}
@@ -79,17 +80,17 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |import "cgrep"
         |
         |workflow three_step {
-        |  call ps
-        |  call cgrepBAD {
+        |  call ps.ps
+        |  call cgrep.cgrepBAD {
         |    input: in_file=ps.procs
         |  }
         |}
       """.stripMargin
 
     val errors =
-      """ERROR: Call references a task (cgrepBAD) that doesn't exist (line 6, col 8)
+      """ERROR: Call references a task (cgrep.cgrepBAD) that doesn't exist (line 6, col 8)
         |
-        |  call cgrepBAD {
+        |  call cgrep.cgrepBAD {
         |       ^
       """.stripMargin
   }
@@ -101,8 +102,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |import "cgrep"
         |
         |workflow three_step {
-        |  call ps
-        |  call cgrep {
+        |  call ps.ps
+        |  call cgrep.cgrep {
         |    input: in_file=ps.procs
         |  }
         |}
@@ -124,33 +125,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
   }
 
-  case object TaskAndNamespaceNameCollision extends ErrorWdl {
-    val testString = "detect when a task and a namespace have the same name"
-    val wdl =
-      """import "ps" as ps
-        |task ps {command {ps}}
-        |workflow three_step {
-        |  call ps
-        |}
-      """.stripMargin
-
-    val errors =
-      """ERROR: Sibling nodes have conflicting names:
-        |
-        |Task defined here (line 2, col 6):
-        |
-        |task ps {command {ps}}
-        |     ^
-        |
-        |Namespace statement defined here (line 1, col 16):
-        |
-        |import "ps" as ps
-        |               ^
-      """.stripMargin
-  }
-
   case object WorkflowAndNamespaceNameCollision extends ErrorWdl {
-    val testString = "detect when a namespacex and a workflow have the same name"
+    val testString = "detect when a namespace and a workflow have the same name"
     val wdl =
       """import "ps" as ps
         |workflow ps {
@@ -173,28 +149,27 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
   }
 
-  case object TwoTasksHaveTheSameName extends ErrorWdl {
-    val testString = "detect when two tasks have the same name"
+  case object NamespaceNameCollision extends ErrorWdl {
+    val testString = "detect when two namespaces have the same name"
     val wdl =
-      """import "ps"
-        |task ps {command {ps}}
-        |workflow three_step {
-        |  call ps
-        |}
+      """import "ps" as ps
+        |import "cgrep" as ps
+        |
+        |workflow test {}
       """.stripMargin
 
     val errors =
       """ERROR: Sibling nodes have conflicting names:
         |
-        |Task defined here (line 2, col 6):
+        |Namespace defined here (line 1, col 16):
         |
-        |task ps {
-        |     ^
+        |import "ps" as ps
+        |               ^
         |
-        |Task statement defined here (line 2, col 6):
+        |Namespace statement defined here (line 2, col 19):
         |
-        |task ps {command {ps}}
-        |     ^
+        |import "cgrep" as ps
+        |                  ^
       """.stripMargin
   }
 
@@ -204,8 +179,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """import "ps"
         |import "cgrep"
         |workflow three_step {
-        |  call ps
-        |  call cgrep {
+        |  call ps.ps
+        |  call cgrep.cgrep {
         |    input: pattern=ps.BAD
         |  }
         |}
@@ -225,8 +200,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """import "ps"
         |import "cgrep"
         |workflow three_step {
-        |  call ps
-        |  call cgrep {
+        |  call ps.ps
+        |  call cgrep.cgrep {
         |    input: pattern=psBAD.procs
         |  }
         |}
@@ -610,9 +585,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     CallReferencesBadInput,
     CallReferencesBadTask,
     MultipleWorkflows,
-    TaskAndNamespaceNameCollision,
     WorkflowAndNamespaceNameCollision,
-    TwoTasksHaveTheSameName,
+    NamespaceNameCollision,
     BadMemberAccessInCallInputSection,
     BadMemberAccessInCallInputSection2,
     UnexpectedEof,
@@ -636,7 +610,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   forAll(syntaxErrorWdlTable) { (errorWdl) =>
     it should errorWdl.testString in {
       try {
-        WdlNamespace.load(errorWdl.wdl, resolver _)
+        WdlNamespace.loadUsingSource(errorWdl.wdl, None, Option(Seq(resolver)))
         fail("Expecting a SyntaxError")
       } catch {
         case e: SyntaxError =>

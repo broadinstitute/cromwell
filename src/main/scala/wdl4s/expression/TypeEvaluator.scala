@@ -84,7 +84,7 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
                 case "left" => Success(leftType)
                 case "right" => Success(rightType)
               }
-            case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
+            case ns: WdlNamespace => Success(lookup(ns.importedAs.map{ n => s"$n.${rhs.getSourceString}" }.getOrElse(rhs.getSourceString)))
             case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
           }
         case _ => Failure(new WdlExpressionException("Right-hand side of expression must be identifier"))

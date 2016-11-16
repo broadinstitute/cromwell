@@ -129,7 +129,7 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
                 if (identifier.equals("left")) Success(p.left)
                 else if (identifier.equals("right")) Success(p.right)
                 else Failure(new WdlExpressionException("A pair only has the members: 'left' and 'right'"))
-              case ns: WdlNamespace => Success(lookup(ns.importedAs.map {n => s"$n.${rhs.getSourceString}"}.getOrElse(rhs.getSourceString)))
+              case ns: WdlNamespace => Success(lookup(ns.importedAs.map{ n => s"$n.${rhs.getSourceString}" }.getOrElse(rhs.getSourceString)))
               case _ => Failure(new WdlExpressionException("Left-hand side of expression must be a WdlObject or Namespace"))
             }
           case _ => Failure(new WdlExpressionException("Right-hand side of expression must be identifier"))

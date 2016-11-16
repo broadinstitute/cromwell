@@ -84,7 +84,7 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
   private def onTerminate(terminee: ActorRef): Unit = {
     tokenAssignments.get(terminee) match {
       case Some(token) =>
-        log.error("Actor {} stopped without returning its Job Execution Token. Reclaiming it!", terminee)
+        log.debug("Actor {} stopped without returning its Job Execution Token. Reclaiming it!", terminee)
         self.tell(msg = JobExecutionTokenReturn(token), sender = terminee)
       case None =>
         log.debug("Actor {} stopped while we were still watching it... but it doesn't have a token. Removing it from any queues if necessary", terminee)

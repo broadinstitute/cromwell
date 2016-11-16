@@ -8,18 +8,19 @@ import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import wdl4s.{GraphNode, Scope}
 
-
 object WorkflowExecutionDiff {
   def empty = WorkflowExecutionDiff(Map.empty)
 }
 /** Data differential between current execution data, and updates performed in a method that needs to be merged. */
-final case class WorkflowExecutionDiff(executionStore: Map[JobKey, ExecutionStatus]) {
-  def containsNewEntry = executionStore.exists(_._2 == NotStarted)
+final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
+                                       engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty) {
+  def containsNewEntry = executionStoreChanges.exists(_._2 == NotStarted)
 }
 
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
+                                      engineJobExecutionActors: Map[ActorRef, JobKey],
                                       outputStore: OutputStore) {
 
   val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
@@ -68,6 +69,10 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     executionStore.store.values.exists(_ == ExecutionStatus.Failed)
   }
 
+  def removeEngineJobExecutionActor(actorRef: ActorRef) = {
+    this.copy(engineJobExecutionActors = engineJobExecutionActors - actorRef)
+  }
+
   def addBackendJobExecutionActor(jobKey: JobKey, actor: Option[ActorRef]): WorkflowExecutionActorData = actor match {
       case Some(actorRef) => this.copy(backendJobExecutionActors = backendJobExecutionActors + (jobKey -> actorRef))
       case None => this
@@ -91,7 +96,9 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
-    this.copy(executionStore = executionStore.add(diff.executionStore))
+    this.copy(
+      executionStore = executionStore.add(diff.executionStoreChanges),
+      engineJobExecutionActors = engineJobExecutionActors ++ diff.engineJobExecutionActorAdditions)
   }
 
   def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {

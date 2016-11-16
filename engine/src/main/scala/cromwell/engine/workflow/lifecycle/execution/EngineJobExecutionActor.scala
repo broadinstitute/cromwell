@@ -122,7 +122,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         case CallCachingOff => runJob(updatedData)
       }
     case Event(response: BackendJobPreparationFailed, NoData) =>
-      forwardAndStop(response)
+      respondAndStop(FailedNonRetryableResponse(response.jobKey, response.throwable, None))
   }
 
   private val callCachingReadResultMetadataKey = "Call caching read result"

@@ -119,7 +119,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       jobPreparationProbe = jobPreparationProbe,
       replyTo = replyToProbe.ref,
       jobDescriptorKey = jobDescriptorKey,
-      executionData = WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, OutputStore(Map.empty)),
+      executionData = WorkflowExecutionActorData(descriptor, ExecutionStore(Map.empty), Map.empty, Map.empty, OutputStore(Map.empty)),
       factory = factory,
       initializationData = None,
       restarting = restarting,

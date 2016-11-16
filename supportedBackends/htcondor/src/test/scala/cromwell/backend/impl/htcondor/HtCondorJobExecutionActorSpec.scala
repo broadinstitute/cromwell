@@ -7,11 +7,11 @@ import akka.actor.{Actor, Props}
 import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.htcondor.caching.CacheActor
 import cromwell.backend.impl.htcondor.caching.exception.CachedResultNotFoundException
 import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
-import cromwell.backend.io.JobPaths
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
 import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
@@ -147,7 +147,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       }).underlyingActor
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
         verify(htCondorProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(htCondorProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(htCondorProcess, times(1)).untailedWriter(any[Path])
@@ -179,7 +179,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       }).underlyingActor
 
       whenReady(backend.recover, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
       }
 
       cleanUpJob(jobPaths)
@@ -207,7 +207,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       }).underlyingActor
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
         verify(htCondorProcess, times(1)).externalProcess(any[Seq[String]], any[ProcessLogger])
         verify(htCondorProcess, times(1)).tailedWriter(any[Int], any[Path])
         verify(htCondorProcess, times(1)).untailedWriter(any[Path])
@@ -237,8 +237,8 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(-1))
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains("Job exited with invalid return code"))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains("Job exited with invalid return code"))
       }
 
       cleanUpJob(jobPaths)
@@ -271,7 +271,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(911))
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
       }
 
       cleanUpJob(jobPaths)
@@ -310,7 +310,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
       whenReady(backend.execute) { response =>
-        response shouldBe a[SucceededResponse]
+        response shouldBe a[JobSucceededResponse]
       }
 
       val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
@@ -346,8 +346,8 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(-1))
 
       whenReady(backend.execute, timeout) { response =>
-        response shouldBe a[FailedNonRetryableResponse]
-        assert(response.asInstanceOf[FailedNonRetryableResponse].throwable.getMessage.contains("Could not write the file."))
+        response shouldBe a[JobFailedNonRetryableResponse]
+        assert(response.asInstanceOf[JobFailedNonRetryableResponse].throwable.getMessage.contains("Could not write the file."))
       }
 
       cleanUpJob(jobPaths)
@@ -394,7 +394,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     when(htCondorProcess.jobReturnCode(any[String], any[Path])).thenReturn(Option(0))
 
     whenReady(backend.execute) { response =>
-      response shouldBe a[SucceededResponse]
+      response shouldBe a[JobSucceededResponse]
     }
 
     val bashScript = Source.fromFile(jobPaths.script.toFile).getLines.mkString
@@ -408,7 +408,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     cleanUpJob(jobPaths)
   }
 
-  private def cleanUpJob(jobPaths: JobPaths): Unit = {
+  private def cleanUpJob(jobPaths: JobPathsWithDocker): Unit = {
     File(jobPaths.workflowRoot).delete(true)
     ()
   }
@@ -425,7 +425,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = source, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), emptyWorkflowOptions, Set.empty)
-    val jobPaths = new JobPaths(backendWorkflowDescriptor, backendConfig, jobDesc.key)
+    val jobPaths = new JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendConfig)
     val executionDir = File(jobPaths.callExecutionRoot)
     val stdout = File(executionDir.pathAsString, "stdout")
     stdout.createIfNotExists(asDirectory = false, createParents = true)
@@ -440,7 +440,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     TestJobDescriptor(jobDesc, jobPaths, backendConfigurationDescriptor)
   }
 
-  private case class TestJobDescriptor(jobDescriptor: BackendJobDescriptor, jobPaths: JobPaths, backendConfigurationDescriptor: BackendConfigurationDescriptor)
+  private case class TestJobDescriptor(jobDescriptor: BackendJobDescriptor, jobPaths: JobPathsWithDocker, backendConfigurationDescriptor: BackendConfigurationDescriptor)
 
   trait MockWriter extends Writer {
     var closed = false

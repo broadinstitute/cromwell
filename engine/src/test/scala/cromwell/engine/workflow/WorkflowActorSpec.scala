@@ -3,8 +3,8 @@ package cromwell.engine.workflow
 import akka.actor.{Actor, ActorRef}
 import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.AllBackendInitializationData
-import cromwell.core._
+import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
+import cromwell.core.{CallOutputs, WorkflowId, _}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
@@ -13,7 +13,7 @@ import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinali
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.util.SampleWdl.ThreeStep
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
+import cromwell.{AlwaysHappyJobStoreActor, AlwaysHappySubWorkflowStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
@@ -53,6 +53,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
         serviceRegistryActor = mockServiceRegistryActor,
         workflowLogCopyRouter = TestProbe().ref,
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
+        subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         jobTokenDispenserActor = TestProbe().ref
       ),
@@ -95,7 +96,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
     "run Finalization if Execution fails" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
       deathwatch watch actor
-      actor ! WorkflowExecutionFailedResponse(ExecutionStore.empty, OutputStore.empty, Seq(new Exception("Execution Failed")))
+      actor ! WorkflowExecutionFailedResponse(Map.empty, new Exception("Execution Failed"))
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
@@ -110,7 +111,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
       eventually { actor.stateName should be(WorkflowAbortingState) }
       currentLifecycleActor.expectMsgPF(CromwellTestKitSpec.TimeoutDuration) {
         case EngineLifecycleActorAbortCommand =>
-          actor ! WorkflowExecutionAbortedResponse(ExecutionStore.empty, OutputStore.empty)
+          actor ! WorkflowExecutionAbortedResponse(Map.empty)
       }
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
@@ -122,7 +123,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
     "run Finalization actor if Execution succeeds" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
       deathwatch watch actor
-      actor ! WorkflowExecutionSucceededResponse(ExecutionStore.empty, OutputStore.empty)
+      actor ! WorkflowExecutionSucceededResponse(Map.empty, Map.empty)
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
@@ -156,8 +157,9 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         serviceRegistryActor: ActorRef,
                         workflowLogCopyRouter: ActorRef,
                         jobStoreActor: ActorRef,
+                        subWorkflowStoreActor: ActorRef,
                         callCacheReadActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty)) {
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty)) {
 
-  override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = finalizationProbe.ref
+  override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

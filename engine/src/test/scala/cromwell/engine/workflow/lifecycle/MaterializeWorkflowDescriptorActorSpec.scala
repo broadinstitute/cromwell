@@ -203,7 +203,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
-            wfDesc.namespace.workflow.calls foreach {
+            wfDesc.namespace.workflow.taskCalls foreach {
               case call if call.task.name.equals("a") =>
                 wfDesc.backendAssignments(call) shouldBe "SpecifiedBackend"
               case call if call.task.name.equals("b") =>

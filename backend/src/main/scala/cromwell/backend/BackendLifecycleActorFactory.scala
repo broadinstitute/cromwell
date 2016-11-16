@@ -6,17 +6,16 @@ import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
-import cromwell.backend.io.WorkflowPaths
-import wdl4s.expression.PureStandardLibraryFunctions
+import cromwell.backend.io.WorkflowPathsWithDocker
+import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.core.{ExecutionStore, OutputStore}
-import wdl4s.Call
-import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.TaskCall
+import wdl4s.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
 
 
 trait BackendLifecycleActorFactory {
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                       calls: Set[Call],
+                                       calls: Set[TaskCall],
                                        serviceRegistryActor: ActorRef): Option[Props] = None
 
   def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
@@ -38,9 +37,9 @@ trait BackendLifecycleActorFactory {
   def backendSingletonActorProps: Option[Props] = None
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                     calls: Set[Call],
-                                     executionStore: ExecutionStore,
-                                     outputStore: OutputStore,
+                                     calls: Set[TaskCall],
+                                     jobExecutionMap: JobExecutionMap,
+                                     workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
@@ -48,7 +47,11 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = PureStandardLibraryFunctions
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
-    new WorkflowPaths(workflowDescriptor, backendConfig).executionRoot
+    new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot
+  }
+
+  def getWorkflowExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
+    new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).workflowRoot
   }
 
   def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = Set.empty

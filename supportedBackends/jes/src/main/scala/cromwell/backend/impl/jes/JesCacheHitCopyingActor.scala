@@ -15,9 +15,11 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
   extends BackendCacheHitCopyingActor with CacheHitDuplicating with JesJobCachingActorHelper with JobLogging {
   override protected def duplicate(source: Path, destination: Path) = PathCopier.copy(source, destination).get
 
-  override protected def destinationCallRootPath = jesCallPaths.callRootPath
+  override protected def destinationCallRootPath = jesCallPaths.callExecutionRoot
 
   override protected def destinationJobDetritusPaths = jesCallPaths.detritusPaths
+  
+  override val workflowDescriptor = jobDescriptor.workflowDescriptor
 }
 
 object JesCacheHitCopyingActor {

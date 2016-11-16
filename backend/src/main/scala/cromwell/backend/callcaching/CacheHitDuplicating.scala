@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import akka.actor.ActorRef
 import cromwell.backend.BackendCacheHitCopyingActor
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.PathCopier
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
@@ -99,6 +99,6 @@ trait CacheHitDuplicating {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
 
-    SucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
+    JobSucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
   }
 }

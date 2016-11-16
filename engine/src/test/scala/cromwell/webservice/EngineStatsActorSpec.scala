@@ -14,22 +14,22 @@ class EngineStatsActorSpec extends TestKitSuite("EngineStatsActor") with FlatSpe
   behavior of "EngineStatsActor"
 
   val replyTo = TestProbe()
-  val defaultTimeout = 100 millis
+  val defaultTimeout = 500 millis
 
   it should "return double zeros with no WorkflowActors" in {
-    TestActorRef(EngineStatsActor.props(List.empty[ActorRef], replyTo.ref))
+    TestActorRef(EngineStatsActor.props(List.empty[ActorRef], replyTo.ref, timeout = 200 millis))
     replyTo.expectMsg(defaultTimeout, EngineStats(0, 0))
   }
 
   it should "return snakeyes with a single workflow with one job" in {
     val workflowActors = List(Props(FakeWorkflowActor(1))) map { TestActorRef(_) }
-    TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref))
+    TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref, timeout = 200 millis))
     replyTo.expectMsg(defaultTimeout, EngineStats(1, 1))
   }
 
   it should "return an unemployed workflow when that's the world it lives in" in {
     val workflowActors = List(Props(FakeWorkflowActor(0))) map { TestActorRef(_) }
-    TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref))
+    TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref, timeout = 200 millis))
     replyTo.expectMsg(defaultTimeout, EngineStats(1, 0))
   }
 
@@ -41,7 +41,7 @@ class EngineStatsActorSpec extends TestKitSuite("EngineStatsActor") with FlatSpe
 
   it should "return the summation of jobs for all WorkflowActors" in {
     val workflowActors = List(Props(FakeWorkflowActor(1)), Props(FakeWorkflowActor(2))) map { TestActorRef(_) }
-    TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref))
+    TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref, timeout = 200 millis))
     replyTo.expectMsg(defaultTimeout, EngineStats(2, 3))
   }
 }

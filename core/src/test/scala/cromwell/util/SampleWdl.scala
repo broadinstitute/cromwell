@@ -147,6 +147,7 @@ object SampleWdl {
         |  output {
         |    String empty = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow wf_hello {

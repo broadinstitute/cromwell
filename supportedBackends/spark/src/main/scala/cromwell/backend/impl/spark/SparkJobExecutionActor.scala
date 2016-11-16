@@ -3,14 +3,14 @@ package cromwell.backend.impl.spark
 import java.nio.file.attribute.PosixFilePermission
 
 import akka.actor.Props
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
-import cromwell.backend.io.JobPaths
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
-import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
 import cromwell.core.path.JavaWriterImplicits._
+import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
 import wdl4s.parser.MemoryUnit
 import wdl4s.util.TryUtil
 
@@ -44,7 +44,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val sparkDeployMode = configurationDescriptor.backendConfig.getString("deployMode").toLowerCase
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
 
   // Files
   private val executionDir = jobPaths.callExecutionRoot
@@ -108,12 +108,12 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private def resolveExecutionResult(jobReturnCode: Try[Int], failedOnStderr: Boolean): Future[BackendJobExecutionResponse] = {
     (jobReturnCode, failedOnStderr) match {
       case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
-        Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
+        Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess
-      case (Success(rc), _) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key,
+      case (Success(rc), _) => Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException(s"Execution process failed. Spark returned non zero status code: $rc"), Option(rc)))
-      case (Failure(error), _) => Future.successful(FailedNonRetryableResponse(jobDescriptor.key, error, None))
+      case (Failure(error), _) => Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key, error, None))
     }
 
   }
@@ -123,9 +123,9 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
       case true =>
         clusterExtProcess.startMonitoringSparkClusterJob(jobPaths.callExecutionRoot, SubmitJobJson.format(sparkDeployMode)) collect {
           case Finished => processSuccess(0)
-          case Failed(error: Throwable) => FailedNonRetryableResponse(jobDescriptor.key, error, None)
+          case Failed(error: Throwable) => JobFailedNonRetryableResponse(jobDescriptor.key, error, None)
         } recover {
-          case error: Throwable => FailedNonRetryableResponse(jobDescriptor.key, error, None)
+          case error: Throwable => JobFailedNonRetryableResponse(jobDescriptor.key, error, None)
         }
       case false => Future.successful(processSuccess(0))
     }
@@ -133,12 +133,12 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case Success(outputs) => SucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
+      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
       case Failure(e) =>
         val message = Option(e.getMessage) map {
           ": " + _
         } getOrElse ""
-        FailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
+        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
     }
   }
 
@@ -206,7 +206,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         case false => executionResponse completeWith executeTask(extProcess, stdoutWriter, stderrWriter)
       }
     } recover {
-      case exception => executionResponse success FailedNonRetryableResponse(jobDescriptor.key, exception, None)
+      case exception => executionResponse success JobFailedNonRetryableResponse(jobDescriptor.key, exception, None)
     }
   }
 

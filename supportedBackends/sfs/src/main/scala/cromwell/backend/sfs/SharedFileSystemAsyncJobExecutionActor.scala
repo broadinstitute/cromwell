@@ -14,7 +14,7 @@ import cromwell.backend.sfs.SharedFileSystem._
 import cromwell.backend.validation._
 import cromwell.backend.wdl.{OutputEvaluator, Command}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
-import cromwell.core.JobOutputs
+import cromwell.core.CallOutputs
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -386,7 +386,7 @@ mv $rcTmpPath $rcPath
     }
   }
 
-  private def processOutputs(): Try[JobOutputs] = {
+  private def processOutputs(): Try[CallOutputs] = {
     OutputEvaluator.evaluateOutputs(jobDescriptor, callEngineFunction, sharedFileSystem.outputMapper(jobPaths))
   }
 }

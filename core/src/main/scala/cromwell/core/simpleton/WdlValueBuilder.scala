@@ -5,7 +5,7 @@ import wdl4s.types._
 import wdl4s.values.{WdlArray, WdlMap, WdlPair, WdlValue}
 
 import scala.language.postfixOps
-import cromwell.core.{JobOutput, JobOutputs}
+import cromwell.core.{JobOutput, CallOutputs}
 import cromwell.core.simpleton.WdlValueSimpleton._
 
 
@@ -123,7 +123,7 @@ object WdlValueBuilder {
     */
   private case class SimpletonComponent(path: String, value: WdlValue)
 
-  def toJobOutputs(taskOutputs: Traversable[TaskOutput], simpletons: Traversable[WdlValueSimpleton]): JobOutputs = {
+  def toJobOutputs(taskOutputs: Traversable[TaskOutput], simpletons: Traversable[WdlValueSimpleton]): CallOutputs = {
     toWdlValues(taskOutputs, simpletons) mapValues JobOutput.apply
   }
 

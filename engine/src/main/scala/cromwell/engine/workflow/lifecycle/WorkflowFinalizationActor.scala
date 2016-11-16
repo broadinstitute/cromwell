@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.{FSM, Props}
-import cromwell.backend.AllBackendInitializationData
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
+import cromwell.backend._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{ExecutionStore, OutputStore, WorkflowId}
+import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
@@ -37,14 +37,14 @@ object WorkflowFinalizationActor {
   case object WorkflowFinalizationSucceededResponse extends WorkflowLifecycleSuccessResponse
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore,
-  outputStore: OutputStore, initializationData: AllBackendInitializationData): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, executionStore, outputStore, initializationData)).withDispatcher(EngineDispatcher)
+  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap,
+            workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData): Props = {
+    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, jobExecutionMap, workflowOutputs, initializationData)).withDispatcher(EngineDispatcher)
   }
 }
 
-case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor,
-                                     executionStore: ExecutionStore, outputStore: OutputStore, initializationData: AllBackendInitializationData)
+case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor,
+                                     jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData)
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
 
   val tag = self.path.name
@@ -64,14 +64,14 @@ case class WorkflowFinalizationActor(workflowId: WorkflowId, workflowDescriptor:
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
-            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, executionStore, outputStore, initializationData.get(backend))
+            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, jobExecutionMap, workflowOutputs, initializationData.get(backend))
           ).get
           actor = context.actorOf(props, backend)
         } yield actor
       }
 
       val engineFinalizationActor = Try {
-        context.actorOf(CopyWorkflowOutputsActor.props(workflowId, workflowDescriptor, outputStore, initializationData),
+        context.actorOf(CopyWorkflowOutputsActor.props(workflowIdForLogging, workflowDescriptor, workflowOutputs, initializationData),
           "CopyWorkflowOutputsActor")
       }
 

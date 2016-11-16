@@ -50,7 +50,8 @@ object MetadataService {
 
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
-                                             excludeKeysOption: Option[NonEmptyList[String]])
+                                             excludeKeysOption: Option[NonEmptyList[String]],
+                                             expandSubWorkflows: Boolean)
     extends ReadAction
   case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
   case class GetStatus(workflowId: WorkflowId) extends ReadAction
@@ -113,7 +114,7 @@ object MetadataService {
   }
 
   def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable): List[MetadataEvent] = {
-    val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
+    val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(Option(t.getMessage).getOrElse(""))))
     val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
     message ++ cause
   }

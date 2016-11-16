@@ -1,7 +1,7 @@
 package cromwell.backend
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, FailedRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.Matchers
@@ -27,7 +27,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)),
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)).workflow,
       inputs,
       options
     )
@@ -47,7 +47,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           inputs: Map[String, WdlValue],
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
@@ -59,7 +59,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
@@ -73,7 +73,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
@@ -83,7 +83,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
     (executionResponse, expectedResponse) match {
-      case (SucceededResponse(_, _, responseOutputs, _, _), SucceededResponse(_, _, expectedOutputs, _, _)) =>
+      case (JobSucceededResponse(_, _, responseOutputs, _, _), JobSucceededResponse(_, _, expectedOutputs, _, _)) =>
         responseOutputs.size shouldBe expectedOutputs.size
         responseOutputs foreach {
           case (fqn, out) =>
@@ -91,10 +91,10 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
             expectedOut.isDefined shouldBe true
             expectedOut.get.wdlValue.valueString shouldBe out.wdlValue.valueString
         }
-      case (FailedNonRetryableResponse(_, failure, _), FailedNonRetryableResponse(_, expectedFailure, _)) =>
+      case (JobFailedNonRetryableResponse(_, failure, _), JobFailedNonRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
         failure.getMessage should include(expectedFailure.getMessage)
-      case (FailedRetryableResponse(_, failure, _), FailedRetryableResponse(_, expectedFailure, _)) =>
+      case (JobFailedRetryableResponse(_, failure, _), JobFailedRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
       case (response, expectation) =>
         fail(s"Execution response $response wasn't conform to expectation $expectation")
@@ -111,7 +111,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     ConfigFactory.parseString("{}"), ConfigFactory.load())
 
   def firstJobDescriptorKey(workflowDescriptor: BackendWorkflowDescriptor): BackendJobDescriptorKey = {
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val call = workflowDescriptor.workflow.taskCalls.head
     BackendJobDescriptorKey(call, None, 1)
   }
 

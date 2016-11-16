@@ -4,11 +4,11 @@ import java.nio.file.attribute.PosixFilePermission
 import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, FailedNonRetryableResponse, SucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActor._
 import cromwell.backend.impl.htcondor.caching.localization.CachedResultLocalization
-import cromwell.backend.io.JobPaths
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.core.path.JavaWriterImplicits._
@@ -55,7 +55,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
   private val fileSystemsConfig = configurationDescriptor.backendConfig.getConfig("filesystems")
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobDescriptor.key)
+  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
 
   // Files
   private val executionDir = jobPaths.callExecutionRoot
@@ -204,18 +204,18 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
             condorJobId = Option(overallJobIdentifier)
             self ! TrackTaskStatus(overallJobIdentifier)
 
-          case _ => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+          case _ => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
             new IllegalStateException("Failed to retrieve job(id) and cluster id"), Option(condorReturnCode)))
         }
 
       case 0 =>
         log.error(s"Unexpected! Received return code for condor submission as 0, although stderr file is non-empty: {}", File(submitFileStderr).lines)
-        self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+        self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed. HtCondor returned zero status code but non empty stderr file: $condorReturnCode"),
           Option(condorReturnCode)))
 
       case nonZeroExitCode: Int =>
-        self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+        self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed. HtCondor returned non zero status code: $condorReturnCode"), Option(condorReturnCode)))
     }
   }
@@ -231,16 +231,16 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         context.system.scheduler.scheduleOnce(pollingInterval.seconds, self, TrackTaskStatus(jobIdentifier))
         ()
       case Success(Some(rc)) if runtimeAttributes.continueOnReturnCode.continueFor(rc) => self ! JobExecutionResponse(processSuccess(rc))
-      case Success(Some(rc)) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key,
+      case Success(Some(rc)) => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key,
         new IllegalStateException("Job exited with invalid return code: " + rc), Option(rc)))
-      case Failure(error) => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, error, None))
+      case Failure(error) => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key, error, None))
     }
   }
 
   private def processSuccess(rc: Int): BackendJobExecutionResponse = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
       case Success(outputs) =>
-        val succeededResponse = SucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
+        val succeededResponse = JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
         log.debug("{} Storing data into cache for hash {}.", tag, jobHash)
         // If cache fails to store data for any reason it should not stop the workflow/task execution but log the issue.
         cacheActor foreach { _ ! StoreExecutionResult(jobHash, succeededResponse) }
@@ -249,7 +249,7 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
         val message = Option(e.getMessage) map {
           ": " + _
         } getOrElse ""
-        FailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
+        JobFailedNonRetryableResponse(jobDescriptor.key, new Throwable("Failed post processing of outputs" + message, e), Option(rc))
     }
   }
 
@@ -364,16 +364,16 @@ class HtCondorJobExecutionActor(override val jobDescriptor: BackendJobDescriptor
       createExecutionFolderAndScript()
       executeTask()
     } catch {
-      case e: Exception => self ! JobExecutionResponse(FailedNonRetryableResponse(jobDescriptor.key, e, None))
+      case e: Exception => self ! JobExecutionResponse(JobFailedNonRetryableResponse(jobDescriptor.key, e, None))
     }
   }
 
-  private def localizeCachedResponse(succeededResponse: SucceededResponse): BackendJobExecutionResponse = {
+  private def localizeCachedResponse(succeededResponse: JobSucceededResponse): BackendJobExecutionResponse = {
     Try(localizeCachedOutputs(executionDir, succeededResponse.jobOutputs)) match {
       case Success(outputs) =>
         executionDir.toString.toFile.createIfNotExists(asDirectory = true, createParents = true)
-        SucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs, None, Seq.empty)
-      case Failure(exception) => FailedNonRetryableResponse(jobDescriptor.key, exception, None)
+        JobSucceededResponse(jobDescriptor.key, succeededResponse.returnCode, outputs, None, Seq.empty)
+      case Failure(exception) => JobFailedNonRetryableResponse(jobDescriptor.key, exception, None)
     }
   }
 }

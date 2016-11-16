@@ -90,7 +90,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark"))),
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark"))).workflow,
       inputs,
       options
     )
@@ -104,7 +104,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
       call.lookupFunction(knownInputs, NoFunctions)
     }
 
-    workflowDescriptor.workflowNamespace.workflow.calls map {
+    workflowDescriptor.workflow.taskCalls map {
       call =>
         val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
         TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get

@@ -95,7 +95,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
         |  "id": "$workflowA"
       |}""".stripMargin
 
-    val mdQuery = MetadataQuery(workflowA, None, None, None, None)
+    val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, workflowAEvents, expectedRes)
   }
@@ -112,8 +112,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
     val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
 
-    val mdQuery = MetadataQuery(workflow, None, None, None, None)
-    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None)
+    val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
+    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
   }
 
@@ -304,7 +304,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
           | }
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
@@ -325,7 +325,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
           |}
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
@@ -345,14 +345,14 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
           |}
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, events, expectedResponse)
   }
 
   it should "render empty Json" in {
     val workflowId = WorkflowId.randomId()
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataQueryAction(mdQuery)
     val expectedEmptyResponse = """{}"""
     assertMetadataResponse(queryAction, mdQuery, List.empty, expectedEmptyResponse)
@@ -382,7 +382,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
           |}
       """.stripMargin
 
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None)
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val queryAction = GetMetadataQueryAction(mdQuery)
     assertMetadataResponse(queryAction, mdQuery, emptyEvents, expectedEmptyResponse)
 
@@ -396,5 +396,99 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
       """.stripMargin
 
     assertMetadataResponse(queryAction, mdQuery, valueEvents, expectedNonEmptyResponse)
+  }
+  
+  it should "expand sub workflow metadata when asked for" in {
+    val mainWorkflowId = WorkflowId.randomId()
+    val subWorkflowId = WorkflowId.randomId()
+    
+    val mainEvents = List(
+      MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"), MetadataValue(subWorkflowId))
+    )
+
+    val subEvents = List(
+      MetadataEvent(MetadataKey(mainWorkflowId, None, "some"), MetadataValue("sub workflow info"))
+    )
+    
+    val mainQuery = MetadataQuery(mainWorkflowId, None, None, None, None, expandSubWorkflows = true)
+    val mainQueryAction = GetMetadataQueryAction(mainQuery)
+    
+    val subQuery = MetadataQuery(subWorkflowId, None, None, None, None, expandSubWorkflows = true)
+    val subQueryAction = GetMetadataQueryAction(subQuery)
+    
+    val parentProbe = TestProbe()
+    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
+    metadataBuilder ! mainQueryAction
+    mockServiceRegistry.expectMsg(defaultTimeout, mainQueryAction)
+    mockServiceRegistry.reply(MetadataLookupResponse(mainQuery, mainEvents))
+    mockServiceRegistry.expectMsg(defaultTimeout, subQueryAction)
+    mockServiceRegistry.reply(MetadataLookupResponse(subQuery, subEvents))
+    
+    val expandedRes =
+      s"""
+         |{
+         |  "calls": {
+         |    "callA": [
+         |      {
+         |        "subWorkflowMetadata": {
+         |          "some": "sub workflow info",
+         |          "calls": {},
+         |          "id": "$subWorkflowId"
+         |         },
+         |         "attempt": 1,
+         |         "shardIndex": -1
+         |      }
+         |    ]
+         |  },
+         |  "id": "$mainWorkflowId"
+         |}
+       """.stripMargin
+
+    parentProbe.expectMsgPF(defaultTimeout) {
+      case response: RequestComplete[(StatusCode, JsObject)] @unchecked =>
+        response.response._1 shouldBe StatusCodes.OK
+        response.response._2 shouldBe expandedRes.parseJson
+    }
+  }
+  
+  it should "NOT expand sub workflow metadata when NOT asked for" in {
+    val mainWorkflowId = WorkflowId.randomId()
+    val subWorkflowId = WorkflowId.randomId()
+
+    val mainEvents = List(
+      MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"), MetadataValue(subWorkflowId))
+    )
+
+    val queryNoExpand = MetadataQuery(mainWorkflowId, None, None, None, None, expandSubWorkflows = false)
+    val queryNoExpandAction = GetMetadataQueryAction(queryNoExpand)
+    
+    val parentProbe = TestProbe()
+    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
+    metadataBuilder ! queryNoExpandAction
+    mockServiceRegistry.expectMsg(defaultTimeout, queryNoExpandAction)
+    mockServiceRegistry.reply(MetadataLookupResponse(queryNoExpand, mainEvents))
+
+
+    val nonExpandedRes =
+      s"""
+         |{
+         |  "calls": {
+         |    "callA": [
+         |      {
+         |        "subWorkflowId": "$subWorkflowId",
+         |        "attempt": 1,
+         |        "shardIndex": -1
+         |      }  
+         |    ]
+         |  },
+         |  "id": "$mainWorkflowId"
+         |}
+       """.stripMargin
+    
+    parentProbe.expectMsgPF(defaultTimeout) {
+      case response: RequestComplete[(StatusCode, JsObject)] @unchecked =>
+        response.response._1 shouldBe StatusCodes.OK
+        response.response._2 shouldBe nonExpandedRes.parseJson
+    }
   }
 }

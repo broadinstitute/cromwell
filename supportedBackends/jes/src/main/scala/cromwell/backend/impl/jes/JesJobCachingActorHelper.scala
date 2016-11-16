@@ -4,12 +4,11 @@ import java.nio.file.Path
 
 import akka.actor.{Actor, ActorRef}
 import better.files._
+import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.callcaching.JobCachingActorHelper
-import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.WorkflowOptionKeys
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.core.logging.JobLogging
 
-import scala.language.postfixOps
 import scala.util.Try
 
 trait JesJobCachingActorHelper extends JobCachingActorHelper {
@@ -26,23 +25,33 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   def initializationData: JesBackendInitializationData
 
   def serviceRegistryActor: ActorRef
+  
+  def workflowDescriptor: BackendWorkflowDescriptor
 
   def getPath(str: String): Try[Path] = jesCallPaths.getPath(str)
 
   override lazy val configurationDescriptor = jesConfiguration.configurationDescriptor
 
-  lazy val jesCallPaths = initializationData.workflowPaths.toJesCallPaths(jobDescriptor.key)
+  lazy val jesCallPaths = {
+    val workflowPaths = if (workflowDescriptor.breadCrumbs.isEmpty) {
+      initializationData.workflowPaths
+    } else {
+      new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
+    }
+    
+    workflowPaths.toJobPaths(jobDescriptor.key)
+  }
 
   lazy val runtimeAttributes = JesRuntimeAttributes(jobDescriptor.runtimeAttributes, jobLogger)
 
   lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
 
-  lazy val callRootPath: Path = jesCallPaths.callRootPath
+  lazy val callRootPath: Path = jesCallPaths.callExecutionRoot
   lazy val returnCodeFilename = jesCallPaths.returnCodeFilename
-  lazy val returnCodeGcsPath = jesCallPaths.returnCodePath
-  lazy val jesStdoutFile = jesCallPaths.stdoutPath
-  lazy val jesStderrFile = jesCallPaths.stderrPath
+  lazy val returnCodeGcsPath = jesCallPaths.returnCode
+  lazy val jesStdoutFile = jesCallPaths.stdout
+  lazy val jesStderrFile = jesCallPaths.stderr
   lazy val jesLogFilename = jesCallPaths.jesLogFilename
   lazy val defaultMonitoringOutputPath = callRootPath.resolve(JesMonitoringLogFile)
 
@@ -50,28 +59,22 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
 
   lazy val jesAttributes = jesConfiguration.jesAttributes
-  // TODO: Move monitoring paths to JesCallPaths
   lazy val monitoringScript: Option[JesInput] = {
-    jobDescriptor.workflowDescriptor.workflowOptions.get(WorkflowOptionKeys.MonitoringScript) map { path =>
-      JesFileInput(s"$MonitoringParamName-in", getPath(path).get.toUri.toString,
+    jesCallPaths.monitoringPath map { path =>
+      JesFileInput(s"$MonitoringParamName-in", path.toUri.toString,
         JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
-    } toOption
+    }
   }
   lazy val monitoringOutput = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
     defaultMonitoringOutputPath.toString, File(JesMonitoringLogFile).path, workingDisk)
   }
 
+  // Implements CacheHitDuplicating.metadataKeyValues
   lazy val metadataKeyValues: Map[String, Any] = {
     val runtimeAttributesMetadata: Map[String, Any] = runtimeAttributes.asMap map {
       case (key, value) => s"runtimeAttributes:$key" -> value
     }
-
-    var fileMetadata: Map[String, Any] = jesCallPaths.metadataPaths
-    if (monitoringOutput.nonEmpty) {
-      // TODO: Move this to JesCallPaths
-      fileMetadata += JesMetadataKeys.MonitoringLog -> monitoringOutput.get.gcs
-    }
-
+    
     val otherMetadata: Map[String, Any] = Map(
       JesMetadataKeys.GoogleProject -> jesAttributes.project,
       JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
@@ -80,6 +83,6 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
       "cache:allowResultReuse" -> true
     )
 
-    runtimeAttributesMetadata ++ fileMetadata ++ otherMetadata
+    runtimeAttributesMetadata ++ jesCallPaths.metadataPaths ++ otherMetadata
   }
 }

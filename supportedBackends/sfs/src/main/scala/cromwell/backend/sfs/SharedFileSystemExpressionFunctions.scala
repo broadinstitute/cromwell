@@ -2,7 +2,7 @@ package cromwell.backend.sfs
 
 import java.nio.file.Path
 
-import cromwell.backend.io.{JobPaths, WorkflowPathsBackendInitializationData}
+import cromwell.backend.io.{JobPaths, JobPathsWithDocker, WorkflowPathsBackendInitializationData}
 import cromwell.backend.wdl._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.CallContext
@@ -22,7 +22,7 @@ object SharedFileSystemExpressionFunctions {
             jobKey: BackendJobDescriptorKey,
             configurationDescriptor: BackendConfigurationDescriptor,
             pathBuilders: List[PathBuilder]): SharedFileSystemExpressionFunctions = {
-    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
+    val jobPaths = new JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,
@@ -44,7 +44,7 @@ object SharedFileSystemExpressionFunctions {
             configurationDescriptor: BackendConfigurationDescriptor,
             jobKey: BackendJobDescriptorKey,
             initializationData: Option[BackendInitializationData]) = {
-    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
+    val jobPaths = new JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toString,

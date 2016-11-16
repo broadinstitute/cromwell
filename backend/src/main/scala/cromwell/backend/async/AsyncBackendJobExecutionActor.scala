@@ -2,7 +2,7 @@ package cromwell.backend.async
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, SucceededResponse, _}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse, _}
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
@@ -60,7 +60,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   }
 
   private def failAndStop(t: Throwable) = {
-    val responseBuilder = if (retryable) FailedRetryableResponse else FailedNonRetryableResponse
+    val responseBuilder = if (retryable) JobFailedRetryableResponse else JobFailedNonRetryableResponse
     completionPromise.success(responseBuilder.apply(jobDescriptor.key, t, None))
     context.stop(self)
   }
@@ -75,13 +75,13 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
       ()
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)) =>
-      completionPromise.success(SucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents))
+      completionPromise.success(JobSucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents))
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>
-      completionPromise.success(FailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))
+      completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
     case Finish(FailedRetryableExecutionHandle(throwable, returnCode)) =>
-      completionPromise.success(FailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
+      completionPromise.success(JobFailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
     case Finish(cromwell.backend.async.AbortedExecutionHandle) =>
       completionPromise.success(AbortedResponse(jobDescriptor.key))

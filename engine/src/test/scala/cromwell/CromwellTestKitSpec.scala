@@ -22,6 +22,7 @@ import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
+import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -31,7 +32,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
 import spray.http.StatusCode
 import spray.json._
-import wdl4s.Call
+import wdl4s.TaskCall
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.types._
 import wdl4s.values._
@@ -44,7 +45,7 @@ import scala.util.matching.Regex
 case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Set[Call],
+                                                calls: Set[TaskCall],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
@@ -374,7 +375,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   def getWorkflowMetadata(workflowId: WorkflowId, serviceRegistryActor: ActorRef, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
     // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
-    val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None))
+    val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None, expandSubWorkflows = false))
     val parentProbe = TestProbe()
 
     TestActorRef(MetadataBuilderActor.props(serviceRegistryActor), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}") ! message
@@ -434,6 +435,10 @@ class AlwaysHappyJobStoreActor extends Actor {
   override def receive: Receive = {
     case x: JobStoreWriterCommand => sender ! JobStoreWriteSuccess(x)
   }
+}
+
+object AlwaysHappySubWorkflowStoreActor {
+  def props: Props = Props(new EmptySubWorkflowStoreActor)
 }
 
 object AlwaysHappyJobStoreActor {

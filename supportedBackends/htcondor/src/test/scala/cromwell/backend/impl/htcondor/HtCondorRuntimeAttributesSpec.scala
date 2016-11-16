@@ -295,7 +295,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
       call.lookupFunction(knownInputs, NoFunctions)
     }
 
-    workflowDescriptor.workflowNamespace.workflow.calls.toSeq map {
+    workflowDescriptor.workflow.taskCalls.toSeq map {
       call =>
         val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
         TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get

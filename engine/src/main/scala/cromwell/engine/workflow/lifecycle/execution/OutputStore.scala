@@ -1,10 +1,12 @@
-package cromwell.core
+package cromwell.engine.workflow.lifecycle.execution
 
 import cromwell.core.ExecutionIndex._
-import cromwell.core.OutputStore.{OutputCallKey, OutputEntry}
-import wdl4s.types.WdlType
+import cromwell.core.{JobOutput, ExecutionIndex => _, _}
+import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
+import wdl4s.types.{WdlArrayType, WdlType}
 import wdl4s.util.TryUtil
-import wdl4s.values.{WdlCallOutputsObject, WdlValue}
+import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 import wdl4s.{Call, Scope}
 
 import scala.language.postfixOps
@@ -37,4 +39,24 @@ case class OutputStore(store: Map[OutputCallKey, Traversable[OutputEntry]]) {
       case None => Failure(new RuntimeException(s"Could not find call ${call.unqualifiedName}"))
     }
   }
+
+  /**
+    * Try to generate output for a collector call, by collecting outputs for all of its shards.
+    * It's fail-fast on shard output retrieval
+    */
+  def generateCollectorOutput(collector: CollectorKey,
+                              shards: Iterable[CallKey]): Try[CallOutputs] = Try {
+    val shardsOutputs = shards.toSeq sortBy { _.index.fromIndex } map { e =>
+      fetchCallOutputEntries(e.scope, e.index) map {
+        _.outputs
+      } getOrElse(throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}"))
+    }
+    collector.scope.outputs map { taskOutput =>
+      val wdlValues = shardsOutputs.map(
+        _.getOrElse(taskOutput.unqualifiedName, throw new RuntimeException(s"Could not retrieve output ${taskOutput.unqualifiedName}")))
+      val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+      taskOutput.unqualifiedName -> JobOutput(arrayOfValues)
+    } toMap
+  }
+  
 }

@@ -43,6 +43,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
+        subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None))),

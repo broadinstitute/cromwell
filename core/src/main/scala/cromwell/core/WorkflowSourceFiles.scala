@@ -11,6 +11,12 @@ sealed trait WorkflowSourceFilesCollection {
   def wdlSource: WdlSource
   def inputsJson: WdlJson
   def workflowOptionsJson: WorkflowOptionsJson
+
+  def copyOptions(workflowOptions: WorkflowOptionsJson) = this match {
+    case w: WorkflowSourceFiles => WorkflowSourceFiles(w.wdlSource, w.inputsJson, workflowOptions)
+    case w: WorkflowSourceFilesWithImports => WorkflowSourceFilesWithImports(w.wdlSource, w.inputsJson, workflowOptions, w.importsFile)
+  }
+
 }
 
 final case class WorkflowSourceFiles(wdlSource: WdlSource,

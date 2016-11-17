@@ -2,7 +2,7 @@ package cromwell.engine
 
 import cats.data.NonEmptyList
 import cromwell.CromwellTestKitSpec
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore._
 import cromwell.services.metadata.MetadataQuery
@@ -35,15 +35,15 @@ class WorkflowStoreActorSpec extends CromwellTestKitSpec with Matchers {
     list.foldLeft((List.empty[WorkflowToStart], true))(folderFunction)._2
   }
 
-  private def prettyOptions(workflowSourceFiles: WorkflowSourceFiles): WorkflowSourceFiles = {
+  private def prettyOptions(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowSourceFilesCollection = {
     import spray.json._
-    workflowSourceFiles.copy(workflowOptionsJson = workflowSourceFiles.workflowOptionsJson.parseJson.prettyPrint)
+    workflowSourceFiles.copyOptions(workflowSourceFiles.workflowOptionsJson.parseJson.prettyPrint)
   }
 
   "The WorkflowStoreActor" should {
     "return an ID for a submitted workflow" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance))git commit
       storeActor ! SubmitWorkflow(helloWorldSourceFiles)
       expectMsgType[WorkflowSubmittedToStore](10 seconds)
     }

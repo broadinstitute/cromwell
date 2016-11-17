@@ -9,7 +9,7 @@ import akka.testkit.TestKit
 import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec._
+import cromwell.CromwellTestKitSpec._
 import cromwell.core.{WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow

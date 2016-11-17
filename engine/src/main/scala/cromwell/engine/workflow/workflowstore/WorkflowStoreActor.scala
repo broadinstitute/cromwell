@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSourceFilesCollection, WorkflowSourceFiles, WorkflowSourceFilesWithImports}
+import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -117,20 +117,20 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     goto(Working) using nextData
   }
 
-  private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFiles]): Future[NonEmptyList[WorkflowId]] = {
+  private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFilesCollection]): Future[NonEmptyList[WorkflowId]] = {
     for {
       processedSources <- Future.fromTry(processSources(sources, _.asPrettyJson))
       workflowIds <- store.add(processedSources)
     } yield workflowIds
   }
 
-  private def processSources(sources: NonEmptyList[WorkflowSourceFiles],
+  private def processSources(sources: NonEmptyList[WorkflowSourceFilesCollection],
                              processOptions: WorkflowOptions => WorkflowOptionsJson):
-  Try[NonEmptyList[WorkflowSourceFiles]] = {
-    val nelTries: NonEmptyList[Try[WorkflowSourceFiles]] = sources map processSource(processOptions)
-    val seqTries: Seq[Try[WorkflowSourceFiles]] = nelTries.toList
-    val trySeqs: Try[Seq[WorkflowSourceFiles]] = TryUtil.sequence(seqTries)
-    val tryNel: Try[NonEmptyList[WorkflowSourceFiles]] = trySeqs.map(seq => NonEmptyList.fromList(seq.toList).get)
+  Try[NonEmptyList[WorkflowSourceFilesCollection]] = {
+    val nelTries: NonEmptyList[Try[WorkflowSourceFilesCollection]] = sources map processSource(processOptions)
+    val seqTries: Seq[Try[WorkflowSourceFilesCollection]] = nelTries.toList
+    val trySeqs: Try[Seq[WorkflowSourceFilesCollection]] = TryUtil.sequence(seqTries)
+    val tryNel: Try[NonEmptyList[WorkflowSourceFilesCollection]] = trySeqs.map(seq => NonEmptyList.fromList(seq.toList).get)
     tryNel
   }
 
@@ -142,10 +142,10 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     * @return Attempted updated workflow source
     */
   private def processSource(processOptions: WorkflowOptions => WorkflowOptionsJson)
-                           (source: WorkflowSourceFiles): Try[WorkflowSourceFiles] = {
+                           (source: WorkflowSourceFilesCollection): Try[WorkflowSourceFilesCollection] = {
     for {
       processedWorkflowOptions <- WorkflowOptions.fromJsonString(source.workflowOptionsJson)
-    } yield source.copy(workflowOptionsJson = processOptions(processedWorkflowOptions))
+    } yield source.copyOptions(processOptions(processedWorkflowOptions))
   }
 
   private def addWorkCompletionHooks[A](command: WorkflowStoreActorCommand, work: Future[A]) = {

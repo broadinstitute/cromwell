@@ -13,6 +13,8 @@ import scala.concurrent.duration._
 import SubWorkflowStoreSpec._
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 
+import scala.language.postfixOps
+
 object SubWorkflowStoreSpec {
   val MaxWait = 5 seconds
   val EmptyExpression = WdlExpression.fromString(""" "" """)

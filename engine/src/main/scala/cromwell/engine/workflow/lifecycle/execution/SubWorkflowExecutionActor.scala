@@ -190,7 +190,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   private def createSubWorkflowId() = {
     val subWorkflowId = WorkflowId.randomId()
     // Register ID to the sub workflow store
-    subWorkflowStoreActor ! RegisterSubWorkflow(parentWorkflow.id, key, subWorkflowId)
+    subWorkflowStoreActor ! RegisterSubWorkflow(parentWorkflow.rootWorkflow.id, parentWorkflow.id, key, subWorkflowId)
     subWorkflowId
   }
   

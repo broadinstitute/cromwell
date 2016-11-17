@@ -22,6 +22,7 @@ class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with Actor
   
   private def registerSubWorkflow(replyTo: ActorRef, command: RegisterSubWorkflow) = {
     val subWorkflowStoreEntry = SubWorkflowStoreEntry(
+      command.rootWorkflowExecutionUuid.toString,
       command.parentWorkflowExecutionUuid.toString,
       command.jobKey.scope.fullyQualifiedName,
       command.jobKey.index.fromIndex,
@@ -55,7 +56,7 @@ class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with Actor
 
 object SubWorkflowStoreActor {
   sealed trait SubWorkflowStoreActorCommand
-  case class RegisterSubWorkflow(parentWorkflowExecutionUuid: WorkflowId, jobKey: JobKey, subWorkflowExecutionUuid: WorkflowId) extends SubWorkflowStoreActorCommand
+  case class RegisterSubWorkflow(rootWorkflowExecutionUuid: WorkflowId, parentWorkflowExecutionUuid: WorkflowId, jobKey: JobKey, subWorkflowExecutionUuid: WorkflowId) extends SubWorkflowStoreActorCommand
   case class QuerySubWorkflow(parentWorkflowExecutionUuid: WorkflowId, jobKey: JobKey) extends SubWorkflowStoreActorCommand
   case class WorkflowComplete(workflowExecutionUuid: WorkflowId) extends SubWorkflowStoreActorCommand
 

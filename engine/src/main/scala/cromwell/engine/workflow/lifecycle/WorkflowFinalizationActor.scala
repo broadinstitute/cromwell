@@ -9,6 +9,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor._
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
+import wdl4s.TaskCall
 
 import scala.util.{Failure, Success, Try}
 
@@ -64,7 +65,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowD
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
-            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, jobExecutionMap, workflowOutputs, initializationData.get(backend))
+            _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, calls, filterJobExecutionsForBackend(calls), workflowOutputs, initializationData.get(backend))
           ).get
           actor = context.actorOf(props, backend)
         } yield actor
@@ -94,6 +95,15 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowD
         case _ =>
           goto(WorkflowFinalizationFailedState)
       }
+  }
+  
+  // Only send to each backend the jobs that it executed
+  private def filterJobExecutionsForBackend(calls: Set[TaskCall]): JobExecutionMap = {
+    jobExecutionMap map {
+      case (wd, keys) => wd -> (keys filter { jobKey => calls.contains(jobKey.call) })
+    } collect {
+      case (wd, keys) if keys.nonEmpty => wd -> keys
+    }
   }
 
   when(FinalizationInProgressState) {

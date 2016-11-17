@@ -11,6 +11,8 @@ trait SubWorkflowStoreEntryComponent {
   class SubWorkflowStoreEntries(tag: Tag) extends Table[SubWorkflowStoreEntry](tag, "SUB_WORKFLOW_STORE_ENTRY") {
     def subWorkflowStoreEntryId = column[Int]("SUB_WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
+    def rootWorkflowExecutionUuid = column[String]("ROOT_WORKFLOW_EXECUTION_UUID")
+    
     def parentWorkflowExecutionUuid = column[String]("PARENT_WORKFLOW_EXECUTION_UUID")
 
     def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME")
@@ -21,7 +23,7 @@ trait SubWorkflowStoreEntryComponent {
 
     def subWorkflowExecutionUuid = column[String]("SUB_WORKFLOW_EXECUTION_UUID")
 
-    override def * = (parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt, subWorkflowExecutionUuid, subWorkflowStoreEntryId.?) <> (SubWorkflowStoreEntry.tupled, SubWorkflowStoreEntry.unapply)
+    override def * = (rootWorkflowExecutionUuid, parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt, subWorkflowExecutionUuid, subWorkflowStoreEntryId.?) <> (SubWorkflowStoreEntry.tupled, SubWorkflowStoreEntry.unapply)
 
     def ucSubWorkflowStoreEntryPweuCfqnJiJa = index("UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA",
       (parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt), unique = true)
@@ -33,10 +35,10 @@ trait SubWorkflowStoreEntryComponent {
 
   val subWorkflowStoreEntryIdsAutoInc = subWorkflowStoreEntries returning subWorkflowStoreEntries.map(_.subWorkflowStoreEntryId)
 
-  val subWorkflowStoreEntriesForParentWorkflowExecutionUuid = Compiled(
-    (parentWorkflowExecutionUuid: Rep[String]) => for {
+  val subWorkflowStoreEntriesForRootWorkflowExecutionUuid = Compiled(
+    (rootWorkflowExecutionUuid: Rep[String]) => for {
       subWorkflowStoreEntry <- subWorkflowStoreEntries
-      if subWorkflowStoreEntry.parentWorkflowExecutionUuid === parentWorkflowExecutionUuid
+      if subWorkflowStoreEntry.rootWorkflowExecutionUuid === rootWorkflowExecutionUuid
     } yield subWorkflowStoreEntry
   )
 

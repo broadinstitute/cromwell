@@ -31,10 +31,10 @@ trait SubWorkflowStoreSlickDatabase extends SubWorkflowStoreSqlDatabase {
     runTransaction(action)
   }
 
-  override def removeSubWorkflowStoreEntries(parentWorkflowExecutionUuid: String)
+  override def removeSubWorkflowStoreEntries(rootWorkflowExecutionUuid: String)
                                             (implicit ec: ExecutionContext): Future[Int] = {
     val action = for {
-      deleted <- dataAccess.subWorkflowStoreEntriesForParentWorkflowExecutionUuid(parentWorkflowExecutionUuid).delete
+      deleted <- dataAccess.subWorkflowStoreEntriesForRootWorkflowExecutionUuid(rootWorkflowExecutionUuid).delete
     } yield deleted
     
     runTransaction(action)

@@ -94,7 +94,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     ewea.setState(SubWorkflowCheckingStoreState)
     
     val subWorkflowUuid = WorkflowId.randomId()
-    ewea ! SubWorkflowFound(SubWorkflowStoreEntry(parentWorkflowId.toString, subKey.scope.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
+    ewea ! SubWorkflowFound(SubWorkflowStoreEntry(parentWorkflowId.toString, parentWorkflowId.toString, subKey.scope.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
     preparationActor.expectMsg(CallPreparationActor.Start)
     parentProbe.expectMsg(JobStarting(subKey))
     

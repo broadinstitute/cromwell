@@ -15,6 +15,9 @@
                 <constraints primaryKey="true" primaryKeyName="PK_SUB_WORKFLOW_STORE_ENTRY"/>
             </column>
             <!-- Key fields -->
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
             <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>

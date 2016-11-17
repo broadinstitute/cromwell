@@ -39,14 +39,17 @@ object Settings {
     logLevel in assembly := Level.Info,
     assemblyMergeStrategy in assembly := customMergeStrategy
   )
-  
+
   lazy val dockerSettings = Seq(
     imageNames in docker := Seq(
-        ImageName(
-          namespace = Option("broadinstitute"),
-          repository = name.value,
-          tag = Some(s"${version.value}")
-        )
+      ImageName(
+        namespace = Option("broadinstitute"),
+        repository = name.value,
+        tag = Option(cromwellVersion)),
+      ImageName(
+        namespace = Option("broadinstitute"),
+        repository = name.value,
+        tag = Option(version.value))
     ),
     dockerfile in docker := {
       // The assembly task generates a fat JAR file
@@ -71,7 +74,7 @@ object Settings {
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
     )
-  
+
 
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(

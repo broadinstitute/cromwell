@@ -3,7 +3,7 @@ import sbt.Keys._
 import sbt._
 
 object Version {
-  // Upcoming release, or current if we're on the master branch
+  // Upcoming release, or current if we're on a master / hotfix branch
   val cromwellVersion = "0.21"
 
   // Adapted from SbtGit.versionWithGit

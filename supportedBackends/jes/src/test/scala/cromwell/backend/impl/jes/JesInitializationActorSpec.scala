@@ -7,10 +7,11 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.impl.jes.authentication.GcsLocalizing
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
+import cromwell.core.Tags.IntegrationTest
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.filesystems.gcs.auth.{SimpleClientSecrets, RefreshTokenMode}
+import cromwell.filesystems.gcs.auth.{RefreshTokenMode, SimpleClientSecrets}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -143,7 +144,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   behavior of "JesInitializationActor"
 
-  it should "log a warning message when there are unsupported runtime attributes" in {
+  it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")

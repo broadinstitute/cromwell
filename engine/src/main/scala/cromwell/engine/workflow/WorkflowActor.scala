@@ -136,7 +136,7 @@ object WorkflowActor {
 
   def props(workflowId: WorkflowId,
             startMode: StartMode,
-            wdlSource: WorkflowSourceFiles,
+            wdlSource: WorkflowSourceFilesCollection,
             conf: Config,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
@@ -154,7 +154,7 @@ object WorkflowActor {
   */
 class WorkflowActor(val workflowId: WorkflowId,
                     startMode: StartMode,
-                    workflowSources: WorkflowSourceFiles,
+                    workflowSources: WorkflowSourceFilesCollection,
                     conf: Config,
                     serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,

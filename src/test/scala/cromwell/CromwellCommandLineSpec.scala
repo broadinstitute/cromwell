@@ -3,7 +3,7 @@ package cromwell
 import better.files._
 import cromwell.core.path.PathImplicits._
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.ThreeStep
+import cromwell.util.SampleWdl.{FileClobber, FilePassingWorkflow, GoodbyeWorld, ThreeStep}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.Try
@@ -30,7 +30,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
   }
 
   it should "fail with too many arguments to run" in {
-    CromwellCommandLine(List("run", "bork", "bork", "bork", "bork", "bork"))
+    CromwellCommandLine(List("run", "bork", "bork", "bork", "bork", "bork", "blerg"))
   }
 
   it should "RunSingle when supplying wdl and inputs" in {
@@ -75,6 +75,41 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
     val ccl = Try(CromwellCommandLine(List("run", threeStep.wdl, threeStep.inputs, "-", threeStep.metadata)))
     ccl.isFailure shouldBe true
     ccl.failed.get.getMessage should include("Unable to write to metadata directory:")
+  }
+
+  it should "fail if imports path is not a direcotry" in {
+    val goodBye = WdlAndInputs(GoodbyeWorld)
+    val badDirectory = goodBye.wdlFile
+    val ccl = Try(CromwellCommandLine(List("run", goodBye.wdl, "-", "-", "-", badDirectory.toString)))
+    ccl.isFailure shouldBe true
+    ccl.failed.get.getMessage should include("Unable to import workflows as the given path is not a directory:")
+  }
+
+  it should "fail if imports directory is empty" in {
+    val goodBye = WdlAndInputs(GoodbyeWorld)
+    val emptyDirectory = File.newTemporaryDirectory(s"temp_empty_dir")
+    val ccl =  Try(CromwellCommandLine(List("run", goodBye.wdl, "-", "-", "-", emptyDirectory.pathAsString)))
+    ccl.failed.get.getMessage should include("Unable to import workflows as the given path is an empty directory:")
+
+    goodBye.deleteTempFiles()
+    emptyDirectory.delete(swallowIOExceptions = true)
+  }
+
+  it should "run if imports directory is a .zip file" in {
+    val wdlDir = File.newTemporaryDirectory("wdlDirectory")
+
+    val filePassing = File.newTemporaryFile("filePassing", ".wdl", Option(wdlDir))
+    val fileClobber = File.newTemporaryFile("fileClobber", ".wdl", Option(wdlDir))
+    filePassing write FilePassingWorkflow.wdlSource()
+    fileClobber write FileClobber.wdlSource()
+
+    val zippedDir = wdlDir.zip()
+    val zippedPath = zippedDir.pathAsString
+
+    val ccl = Try(CromwellCommandLine(List("run", filePassing.pathAsString, "-", "-", "-", zippedPath)))
+    ccl.isFailure shouldBe false
+
+    zippedDir.delete(swallowIOExceptions = true)
   }
 }
 

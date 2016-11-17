@@ -49,7 +49,7 @@ object MaterializeWorkflowDescriptorActor {
   Commands
    */
   sealed trait MaterializeWorkflowDescriptorActorMessage
-  case class MaterializeWorkflowDescriptorCommand(workflowSourceFiles: WorkflowSourceFiles,
+  case class MaterializeWorkflowDescriptorCommand(workflowSourceFiles: WorkflowSourceFilesCollection,
                                                   conf: Config) extends MaterializeWorkflowDescriptorActorMessage
   case object MaterializeWorkflowDescriptorAbortCommand
 
@@ -159,9 +159,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
-                                      sourceFiles: WorkflowSourceFiles,
+                                      sourceFiles: WorkflowSourceFilesCollection,
                                       conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
-    val namespaceValidation = validateNamespace(sourceFiles.wdlSource)
+    val namespaceValidation = validateNamespace(sourceFiles)
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     (namespaceValidation |@| workflowOptionsValidation) map {
       (_, _)
@@ -181,7 +181,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
-                                      sourceFiles: WorkflowSourceFiles,
+                                      sourceFiles: WorkflowSourceFilesCollection,
                                       namespace: WdlNamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
                                       conf: Config,
@@ -299,9 +299,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     }
   }
 
-  private def validateNamespace(source: WdlSource): ErrorOr[WdlNamespaceWithWorkflow] = {
+  private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
     try {
-      WdlNamespaceWithWorkflow.load(source).validNel
+      source match {
+        case w: WorkflowSourceFilesWithImports => WdlNamespaceWithWorkflow.load(w.wdlSource, w.importsFile).validNel
+        case w: WorkflowSourceFiles => WdlNamespaceWithWorkflow.load(w.wdlSource).validNel
+      }
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
     }

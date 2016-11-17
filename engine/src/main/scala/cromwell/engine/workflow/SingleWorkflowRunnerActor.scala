@@ -31,7 +31,7 @@ import scala.util.{Failure, Try}
  * Designed explicitly for the use case of the 'run' functionality in Main. This Actor will start a workflow,
  * print out the outputs when complete and reply with a result.
  */
-class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath: Option[Path])
+class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])
   extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
@@ -144,7 +144,15 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
     stay()
   }
 
+  private def cleanUpTempFiles = source match {
+    case w: WorkflowSourceFilesWithImports => w.importsFile.delete(swallowIOExceptions = true)
+    case w: WorkflowSourceFiles => //
+  }
+
   private def issueReply(data: TerminalSwraData) = {
+
+    cleanUpTempFiles
+
     data match {
       case s: SucceededSwraData => issueSuccessReply(s.replyTo)
       case f: FailedSwraData => issueFailureReply(f.replyTo, f.failure)
@@ -190,7 +198,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFiles, metadataOutputPath:
 }
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFiles, metadataOutputFile: Option[Path]): Props = {
+  def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path]): Props = {
     Props(new SingleWorkflowRunnerActor(source, metadataOutputFile))
   }
 

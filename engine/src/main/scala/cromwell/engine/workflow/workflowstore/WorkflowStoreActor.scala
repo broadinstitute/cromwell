@@ -117,20 +117,20 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     goto(Working) using nextData
   }
 
-  private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFiles]): Future[NonEmptyList[WorkflowId]] = {
+  private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFilesCollection]): Future[NonEmptyList[WorkflowId]] = {
     for {
       processedSources <- Future.fromTry(processSources(sources, _.asPrettyJson))
       workflowIds <- store.add(processedSources)
     } yield workflowIds
   }
 
-  private def processSources(sources: NonEmptyList[WorkflowSourceFiles],
+  private def processSources(sources: NonEmptyList[WorkflowSourceFilesCollection],
                              processOptions: WorkflowOptions => WorkflowOptionsJson):
-  Try[NonEmptyList[WorkflowSourceFiles]] = {
-    val nelTries: NonEmptyList[Try[WorkflowSourceFiles]] = sources map processSource(processOptions)
-    val seqTries: Seq[Try[WorkflowSourceFiles]] = nelTries.toList
-    val trySeqs: Try[Seq[WorkflowSourceFiles]] = TryUtil.sequence(seqTries)
-    val tryNel: Try[NonEmptyList[WorkflowSourceFiles]] = trySeqs.map(seq => NonEmptyList.fromList(seq.toList).get)
+  Try[NonEmptyList[WorkflowSourceFilesCollection]] = {
+    val nelTries: NonEmptyList[Try[WorkflowSourceFilesCollection]] = sources map processSource(processOptions)
+    val seqTries: Seq[Try[WorkflowSourceFilesCollection]] = nelTries.toList
+    val trySeqs: Try[Seq[WorkflowSourceFilesCollection]] = TryUtil.sequence(seqTries)
+    val tryNel: Try[NonEmptyList[WorkflowSourceFilesCollection]] = trySeqs.map(seq => NonEmptyList.fromList(seq.toList).get)
     tryNel
   }
 
@@ -142,10 +142,10 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
     * @return Attempted updated workflow source
     */
   private def processSource(processOptions: WorkflowOptions => WorkflowOptionsJson)
-                           (source: WorkflowSourceFiles): Try[WorkflowSourceFiles] = {
+                           (source: WorkflowSourceFilesCollection): Try[WorkflowSourceFilesCollection] = {
     for {
       processedWorkflowOptions <- WorkflowOptions.fromJsonString(source.workflowOptionsJson)
-    } yield source.copy(workflowOptionsJson = processOptions(processedWorkflowOptions))
+    } yield source.copyOptions(processOptions(processedWorkflowOptions))
   }
 
   private def addWorkCompletionHooks[A](command: WorkflowStoreActorCommand, work: Future[A]) = {
@@ -184,7 +184,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFiles): Unit = {
+  private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
     val sourceFiles = processSource(_.clearEncryptedValues)(originalSourceFiles).get
 
     val submissionEvents = List(
@@ -197,7 +197,12 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
       MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson))
     )
 
-    serviceRegistryActor ! PutMetadataAction(submissionEvents)
+    val wfImportEvent = sourceFiles match {
+      case w: WorkflowSourceFilesWithImports => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue(w.importsFile.pathAsString))
+      case w: WorkflowSourceFiles => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue("None"))
+    }
+
+    serviceRegistryActor ! PutMetadataAction(submissionEvents :+ wfImportEvent)
   }
 }
 
@@ -220,8 +225,8 @@ object WorkflowStoreActor {
   private[workflowstore] case object Idle extends WorkflowStoreActorState
 
   sealed trait WorkflowStoreActorCommand
-  final case class SubmitWorkflow(source: WorkflowSourceFiles) extends WorkflowStoreActorCommand
-  final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFiles]) extends WorkflowStoreActorCommand
+  final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorCommand
+  final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorCommand
   final case class FetchRunnableWorkflows(n: Int) extends WorkflowStoreActorCommand
   final case class RemoveWorkflow(id: WorkflowId) extends WorkflowStoreActorCommand
   final case class AbortWorkflow(id: WorkflowId, manager: ActorRef) extends WorkflowStoreActorCommand

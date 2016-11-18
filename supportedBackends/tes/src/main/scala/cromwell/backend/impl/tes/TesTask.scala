@@ -22,7 +22,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val callEngineFunction = SharedFileSystemExpressionFunctions(
     jobPaths, List(FileSystems.getDefault)
   )
-  private val runtimeAttributes = TesRuntimeAttributes.fromJobDescriptor(jobDescriptor, callEngineFunction)
+  private val runtimeAttributes = TesRuntimeAttributes(jobDescriptor, callEngineFunction)
   private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
   val name = jobDescriptor.call.fullyQualifiedName

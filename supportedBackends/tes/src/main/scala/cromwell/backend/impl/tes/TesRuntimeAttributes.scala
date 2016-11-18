@@ -19,24 +19,19 @@ import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 
 object TesRuntimeAttributes {
-  private val FailOnStderrDefaultValue = false
-  private val ContinueOnRcDefaultValue = 0
-  private val CpuDefaultValue = 1
-  private val MemoryDefaultValue = "1 GB"
-  private val DisksDefaultValue = "1 GB"
 
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DiskKey = "disk"
 
   val staticDefaults = Map(
-    FailOnStderrKey         -> WdlBoolean(FailOnStderrDefaultValue),
-    ContinueOnReturnCodeKey -> WdlInteger(ContinueOnRcDefaultValue),
-    CpuKey                  -> WdlInteger(CpuDefaultValue),
-    MemoryKey               -> WdlString(MemoryDefaultValue),
-    DiskKey                 -> WdlString(DisksDefaultValue)
+    FailOnStderrKey         -> WdlBoolean(false),
+    ContinueOnReturnCodeKey -> WdlInteger(0),
+    CpuKey                  -> WdlInteger(1),
+    MemoryKey               -> WdlString("1 GB"),
+    DiskKey                 -> WdlString("1 GB")
   )
 
-  private[tes] val coercionMap: Map[String, Set[WdlType]] = Map (
+  private[tes] val coercionMap: Map[String, Set[WdlType]] = Map(
     FailOnStderrKey         -> Set[WdlType](WdlBooleanType),
     ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
     DockerKey               -> Set(WdlStringType),
@@ -46,7 +41,8 @@ object TesRuntimeAttributes {
     DiskKey                 -> Set(WdlStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue]): TesRuntimeAttributes = {
+  def apply(attrsNoDefaults: Map[String, WdlValue]): TesRuntimeAttributes = {
+    val attrs = withDefaults(attrsNoDefaults, List(TesRuntimeAttributes.staticDefaults))
 
     val docker               = validateDocker(attrs.get(DockerKey), noValueFoundFor(DockerKey))
     val dockerWorkingDir     = validateDockerWorkingDir(attrs.get(DockerWorkingDirKey), None.validNel)
@@ -67,7 +63,7 @@ object TesRuntimeAttributes {
     }
   }
 
-  def fromJobDescriptor(jobDescriptor: BackendJobDescriptor, expressionFunctions: WdlStandardLibraryFunctions): TesRuntimeAttributes = {
+  def apply(jobDescriptor: BackendJobDescriptor, expressionFunctions: WdlStandardLibraryFunctions): TesRuntimeAttributes = {
     val lookup = jobDescriptor.inputs.apply _
     val evaluateAttrs = jobDescriptor.call.task
       .runtimeAttributes
@@ -78,7 +74,7 @@ object TesRuntimeAttributes {
     // Fail now if some workflow options are specified but can't be parsed correctly
     val options = jobDescriptor.workflowDescriptor.workflowOptions
     val defaultFromOptions = workflowOptionsDefault(options, TesRuntimeAttributes.coercionMap).get
-    val withDefaultValues = withDefaults(runtimeMap, List(defaultFromOptions, TesRuntimeAttributes.staticDefaults))
+    val withDefaultValues = withDefaults(runtimeMap, List(defaultFromOptions))
     TesRuntimeAttributes(withDefaultValues)
   }
 

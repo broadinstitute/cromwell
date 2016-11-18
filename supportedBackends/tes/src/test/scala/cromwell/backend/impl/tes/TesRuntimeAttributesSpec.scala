@@ -15,11 +15,11 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
     Some("ubuntu:latest"),
-    Some("/path/to/docker/working/dir"),
+    None,
     false,
     1,
-    MemorySize(2, MemoryUnit.GB),
-    MemorySize(2, MemoryUnit.GB)
+    MemorySize(1, MemoryUnit.GB),
+    MemorySize(1, MemoryUnit.GB)
   )
 
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = Some("ubuntu:latest"))
@@ -76,11 +76,10 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
       assertFailure(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
     }
 
-    "validate a valid cpu entry" in {
-      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlInteger(2))
-      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(cpu = 2)
-      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
-    }
+    "validate a valid cpu entry" in assertSuccess(
+      Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlInteger(2)),
+      expectedDefaultsPlusUbuntuDocker.copy(cpu = 2)
+    )
 
     "validate a valid cpu string entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlString("2"))

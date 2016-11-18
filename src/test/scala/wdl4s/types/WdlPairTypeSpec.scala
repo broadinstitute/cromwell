@@ -2,6 +2,7 @@ package wdl4s.types
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
+import wdl4s.WdlNamespace
 import wdl4s.values.{WdlInteger, WdlMap, WdlPair, WdlString}
 
 import scala.util.{Failure, Success}
@@ -58,5 +59,44 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         case (Failure(t), Some(expectedValue)) => fail(s"Expected coercion to produce $expectedValue but instead got exception $t")
       }
     }
+  }
+  
+  it should "Allow use of pairs in call input mappings" in {
+    val wdl =
+      """
+        |task t {
+        |  File f1
+        |  File f2
+        |  File f3
+        |  File f4
+        |  File f5
+        |  command {...}
+        |  output {
+        |    File o1 = f1
+        |    File o2 = f2
+        |    File o3 = f3
+        |    File o4 = f4
+        |    File o5 = f5
+        |  }
+        |}
+        |
+        |workflow w {
+        |  Array[Pair[File, Array[File]]] arr = [("left_file", ["right_file1", "right_file2"])]
+        |  Pair[String, String] p = ("hello", "world")
+        |  
+        |  scatter (i in arr) {
+        |    call t {
+        |      input:
+        |       f1 = i.left,
+        |       f2 = i.right[0],
+        |       f3 = i.right[1],
+        |       f4 = p.left,
+        |       f5 = p.right
+        |    }
+        |  }
+        |}
+      """.stripMargin
+    
+    noException should be thrownBy WdlNamespace.load(wdl)
   }
 }

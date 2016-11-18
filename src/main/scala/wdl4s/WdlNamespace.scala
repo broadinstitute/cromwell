@@ -376,20 +376,20 @@ object WdlNamespace {
     invalidVariableReferences ++ typeMismatches
   }
 
-  def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
-    def lookupType(from: Scope)(n: String): WdlType = {
-      from.resolveVariable(n) match {
-        case Some(d: DeclarationInterface) => d.wdlType
-        case Some(c: Call) => WdlObjectType
-        case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) match {
-          case Success(a: WdlArrayType) => a.memberType
-          case _ => throw new VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
-        }
-        case Some(ns: WdlNamespace) => WdlNamespaceType
-        case _ => throw new VariableLookupException(s"Could not resolve $n from scope ${from.fullyQualifiedName}")
+  def lookupType(from: Scope)(n: String): WdlType = {
+    from.resolveVariable(n) match {
+      case Some(d: DeclarationInterface) => d.wdlType
+      case Some(c: Call) => WdlObjectType
+      case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) match {
+        case Success(a: WdlArrayType) => a.memberType
+        case _ => throw VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
       }
+      case Some(ns: WdlNamespace) => WdlNamespaceType
+      case _ => throw VariableLookupException(s"Could not resolve $n from scope ${from.fullyQualifiedName}")
     }
-
+  }
+  
+  def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     decl.expression flatMap { expr =>
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType) match {
         case Success(wdlType) if !decl.wdlType.isCoerceableFrom(wdlType) =>
@@ -434,10 +434,21 @@ object WdlNamespace {
     val invalidMemberAccesses = callInputSections flatMap { ast =>
       ast.getAttribute("value").findTopLevelMemberAccesses flatMap { memberAccessAst =>
         val memberAccess = MemberAccess(memberAccessAst)
-        call.resolveVariable(memberAccess.lhs) match {
+        val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhs)
+        resolvedScope match {
           case Some(c: Call) if c.task.outputs.exists(_.unqualifiedName == memberAccess.rhs) => None
           case Some(c: Call) =>
             Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst)))
+          case Some(s: Scatter) => 
+            s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
+              case WdlArrayType(WdlObjectType) => None
+              case WdlArrayType(_: WdlPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
+              case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst)))
+            } getOrElse None
+          case Some(d: Declaration) => d.wdlType match {
+            case _: WdlPairType => None
+            case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst)))
+          }
           case None =>
             Option(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(memberAccessAst)))
         }

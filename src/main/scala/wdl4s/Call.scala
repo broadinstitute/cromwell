@@ -13,6 +13,7 @@ object Call {
   def apply(ast: Ast,
             namespaces: Seq[WdlNamespace],
             tasks: Seq[Task],
+            workflows: Seq[Workflow],
             wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Call = {
     val alias: Option[String] = ast.getAttribute("alias") match {
       case x: Terminal => Option(x.getSourceString)
@@ -21,13 +22,16 @@ object Call {
 
     val taskName = ast.getAttribute("task").sourceString
 
-    val task = WdlNamespace.findTask(taskName, namespaces, tasks) getOrElse {
+    val callable = WdlNamespace.findCallable(taskName, namespaces, tasks ++ workflows) getOrElse {
       throw new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskName(ast, taskName))
     }
 
     val callInputSectionMappings = processCallInput(ast, wdlSyntaxErrorFormatter)
 
-    new Call(alias, task, callInputSectionMappings, ast)
+    callable match {
+      case task: Task => new TaskCall(alias, task, callInputSectionMappings, ast)
+      case workflow: Workflow => new WorkflowCall(alias, workflow, callInputSectionMappings, ast)
+    }
   }
 
   private def processCallInput(ast: Ast,
@@ -48,16 +52,28 @@ object Call {
  *
  * @param alias The alias for this call.  If two calls in a workflow use the same task
  *              then one of them needs to be aliased to a different name
- * @param task The task that this `call` will invoke
+ * @param callable The callable that this `call` will invoke
  * @param inputMappings A map of task-local input names and corresponding expression for the
  *                      value of those inputs
  */
-case class Call(alias: Option[String],
-                task: Task,
-                inputMappings: Map[String, WdlExpression],
-                ast: Ast) extends Scope with GraphNode with WorkflowScoped {
-  val unqualifiedName: String = alias getOrElse task.name
-
+sealed abstract class Call(val alias: Option[String],
+                    val callable: Callable,
+                    val inputMappings: Map[String, WdlExpression],
+                    val ast: Ast) extends Scope with GraphNode with WorkflowScoped {
+  val unqualifiedName: String = alias getOrElse callable.unqualifiedName
+  
+  def callType: String
+  
+  def toCallOutput(output: Output) = output match {
+    case taskOutput: TaskOutput => CallOutput(this, taskOutput.copy(parent = Option(this)))
+    case workflowOutput: WorkflowOutput => CallOutput(this, workflowOutput.copy(parent = Option(this)))
+    case error => throw new Exception(s"Invalid output type ${error.getClass.getSimpleName}")
+  }
+  
+  lazy val outputs: Seq[CallOutput] = callable.outputs map toCallOutput
+  
+  override def children: Seq[Scope] = super.children ++ outputs
+  
   lazy val upstream: Set[Scope with GraphNode] = {
     val dependentNodes = for {
       expr <- inputMappings.values
@@ -76,7 +92,7 @@ case class Call(alias: Option[String],
   lazy val downstream: Set[Scope with GraphNode] = {
     def expressions(node: GraphNode): Iterable[WdlExpression] = node match {
       case scatter: Scatter => Set(scatter.collection)
-      case call: Call => call.inputMappings.values
+      case call: TaskCall => call.inputMappings.values
       case ifStatement: If => Set(ifStatement.condition)
       case declaration: Declaration => declaration.expression.toSet
       case _ => Set.empty
@@ -116,7 +132,7 @@ case class Call(alias: Option[String],
                          wdlFunctions: WdlFunctions[WdlValue],
                          outputResolver: OutputResolver = NoOutputResolver,
                          shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): EvaluatedTaskInputs = {
-    val declarationAttempts = task.declarations map { declaration =>
+    val declarationAttempts = callable.declarations map { declaration =>
       val lookup = lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo = declaration)
       val evaluatedDeclaration = Try(lookup(declaration.unqualifiedName))
       val coercedDeclaration = evaluatedDeclaration flatMap { declaration.wdlType.coerceRawValue(_) }
@@ -176,7 +192,7 @@ case class Call(alias: Option[String],
       } yield evaluatedExpr
 
       val taskParentResolution = for {
-        parent <- Try(task.parent.getOrElse(throw new Exception(s"Task ${task.unqualifiedName} has no parent")))
+        parent <- Try(callable.parent.getOrElse(throw new Exception(s"Task ${callable.unqualifiedName} has no parent")))
         parentLookup <- Try(parent.lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo)(name))
       } yield parentLookup
 
@@ -189,4 +205,11 @@ case class Call(alias: Option[String],
     }
     lookup
   }
+}
+
+case class TaskCall(override val alias: Option[String], task: Task, override val inputMappings: Map[String, WdlExpression], override val ast: Ast) extends Call(alias, task, inputMappings, ast) {
+  override val callType = "call"
+}
+case class WorkflowCall(override val alias: Option[String], calledWorkflow: Workflow, override val inputMappings: Map[String, WdlExpression], override val ast: Ast) extends Call(alias, calledWorkflow, inputMappings, ast) {
+  override val callType = "workflow"
 }

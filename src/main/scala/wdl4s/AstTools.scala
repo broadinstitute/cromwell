@@ -3,11 +3,11 @@ package wdl4s
 import java.nio.file.Path
 
 import better.files._
+import wdl4s.WdlExpression.AstForExpressions
 import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
 import wdl4s.types._
 import wdl4s.values._
-import wdl4s.WdlExpression.AstForExpressions
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -158,7 +158,9 @@ object AstTools {
     val Runtime = "Runtime"
     val RuntimeAttribute = "RuntimeAttribute"
     val Declaration = "Declaration"
-    val WorkflowOutput = "WorkflowOutput"
+    val WorkflowOutputWildcard = "WorkflowOutputWildcard"
+    val WorkflowOutputDeclaration = "WorkflowOutputDeclaration"
+    val WorkflowOutputs = "WorkflowOutputs"
     val Scatter = "Scatter"
     val Meta = "Meta"
     val ParameterMeta = "ParameterMeta"

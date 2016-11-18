@@ -2,7 +2,7 @@ package wdl4s
 
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.WdlExpression._
-import wdl4s.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator, WdlFunctions}
+import wdl4s.expression._
 import wdl4s.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
 import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser.{Ast, AstList, AstNode, Terminal}

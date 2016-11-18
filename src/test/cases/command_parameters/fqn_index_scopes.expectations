@@ -7,7 +7,7 @@
   "param_test.e": "Declaration",
   "param_test.f": "Declaration",
   "wf": "Workflow",
-  "wf.param_test": "Call",
+  "wf.param_test": "TaskCall",
   "wf.param_test.a": "Declaration",
   "wf.param_test.b": "Declaration",
   "wf.param_test.c": "Declaration",

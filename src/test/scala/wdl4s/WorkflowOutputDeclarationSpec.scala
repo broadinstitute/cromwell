@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, FlatSpec}
 class WorkflowOutputDeclarationSpec extends FlatSpec with Matchers {
 
   "WorkflowOutputDeclaration" should "match outputs" in {
-    val declaration = WorkflowOutputDeclaration("wf.mytask", wildcard = true)
+    val declaration = WorkflowOutputWildcard("wf.mytask", wildcard = true, null)
 
     declaration.outputMatchesDeclaration("wf.mytask.a", wildcardsAllowed = true) shouldBe true
     declaration.outputMatchesDeclaration("wf.mytask.a", wildcardsAllowed = false) shouldBe false

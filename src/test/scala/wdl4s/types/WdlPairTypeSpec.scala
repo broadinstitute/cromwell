@@ -1,8 +1,8 @@
 package wdl4s.types
 
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
-import wdl4s.WdlNamespace
+import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.WdlNamespaceWithWorkflow
 import wdl4s.values.{WdlInteger, WdlMap, WdlPair, WdlString}
 
 import scala.util.{Failure, Success}
@@ -97,6 +97,6 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
     
-    noException should be thrownBy WdlNamespace.load(wdl)
+    noException should be thrownBy WdlNamespaceWithWorkflow.load(wdl)
   }
 }

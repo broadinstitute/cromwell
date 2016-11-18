@@ -1,6 +1,6 @@
 package wdl4s.examples
 
-import wdl4s.{Call, WdlNamespaceWithWorkflow}
+import wdl4s.{TaskCall, WdlNamespaceWithWorkflow}
 
 object ex5 {
   def main(args: Array[String]) {
@@ -23,7 +23,7 @@ object ex5 {
     val ns = WdlNamespaceWithWorkflow.load(wdl)
 
     Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach {
-      case Some(c: Call) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.upstream}")
+      case Some(c: TaskCall) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.upstream}")
       case _ =>
     }
   }

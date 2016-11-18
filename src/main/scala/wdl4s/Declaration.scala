@@ -59,7 +59,7 @@ trait DeclarationInterface extends Scope with GraphNode {
   }
 
   override def toString(): String = {
-    s"[Declaration name=$unqualifiedName expr=${expression.map(_.toWdlString)}]"
+    s"[Declaration type=${wdlType.toWdlString} name=$unqualifiedName expr=${expression.map(_.toWdlString)}]"
   }
 }
 

@@ -80,13 +80,13 @@ case class Task(name: String,
                 runtimeAttributes: RuntimeAttributes,
                 meta: Map[String, String],
                 parameterMeta: Map[String, String],
-                ast: Ast) extends Scope {
+                ast: Ast) extends Callable {
 
   override val unqualifiedName: LocallyQualifiedName = name
 
   // Assumes that this will not be accessed before the children for the task are set, otherwise it will be empty
   // If that assumption proves false, make it a def or a var that is set after children are.
-  lazy val outputs: Seq[TaskOutput] = children collect { case output: TaskOutput => output }
+  override lazy val outputs: Seq[TaskOutput] = children collect { case output: TaskOutput => output }
 
   /**
     * Given a map of task-local parameter names and WdlValues, create a command String.

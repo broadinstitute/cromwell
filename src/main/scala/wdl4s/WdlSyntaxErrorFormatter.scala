@@ -187,11 +187,27 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def memberAccessReferencesBadTaskInput(ast: Ast): String = {
+  def memberAccessReferencesBadCallInput(ast: Ast, call: Call): String = {
     val rhsAst = ast.getAttribute("rhs").asInstanceOf[Terminal]
-    s"""ERROR: Expression reference input on task that doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+    s"""ERROR: Expression references input on ${call.callType} that doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
      |
      |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+  
+  def memberAccessReferencesBadCallOutput(ast: Ast): String = {
+    val rhsAst = ast.getAttribute("fqn").asInstanceOf[Terminal]
+    s"""ERROR: Expression references output on call that doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+        |
+     |${pointToSource(rhsAst)}
+     """.stripMargin
+  }
+
+  def variableIsNotAnObject(ast: Ast): String = {
+    val lhsAst = ast.getAttribute("lhs").asInstanceOf[Terminal]
+    s"""ERROR: Variable is not an object (line ${lhsAst.getLine}, col ${lhsAst.getColumn}):
+        |
+     |${pointToSource(lhsAst)}
      """.stripMargin
   }
 

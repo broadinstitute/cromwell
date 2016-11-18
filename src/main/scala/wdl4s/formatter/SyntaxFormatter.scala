@@ -151,16 +151,16 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   private def formatWorkflow(workflow: Workflow): String = {
     val declarations = workflow.declarations.map(formatDeclaration(_, 1))
     val children = workflow.children.collect({case c if !workflow.declarations.contains(c) => formatScope(c, 1) })
-    val outputs = formatWorkflowOutputs(workflow.workflowOutputDecls, 1)
+    val outputs = formatWorkflowOutputs(workflow.workflowOutputWildcards, 1)
     val sections = (declarations ++ children ++ Seq(outputs)).filter(_.nonEmpty)
     s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.unqualifiedName)} {
         |${sections.mkString("\n")}
         |}""".stripMargin
   }
 
-  private def formatWorkflowOutputs(outputs: Seq[WorkflowOutputDeclaration], level: Int): String = {
+  private def formatWorkflowOutputs(outputs: Seq[WorkflowOutputWildcard], level: Int): String = {
     outputs match {
-      case x: Seq[WorkflowOutputDeclaration] if x.nonEmpty =>
+      case x: Seq[WorkflowOutputWildcard] if x.nonEmpty =>
         val outputStrings = outputs.map(formatWorkflowOutput(_, 1))
         indent(s"""${highlighter.keyword("output")} {
                   |${outputStrings.mkString("\n")}
@@ -169,7 +169,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     }
   }
 
-  private def formatWorkflowOutput(output: WorkflowOutputDeclaration, level: Int): String = {
+  private def formatWorkflowOutput(output: WorkflowOutputWildcard, level: Int): String = {
     output.wildcard match {
       case true => indent(s"${formatWorkflowOutputFqn(output.fqn)}.*", level)
       case false => indent(formatWorkflowOutputFqn(output.fqn), level)
@@ -184,11 +184,11 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   }
 
   private def formatScope(scope: Scope, level: Int): String = scope match {
-    case c: Call => formatCall(c, level)
+    case c: TaskCall => formatCall(c, level)
     case s: Scatter => formatScatter(s, level)
   }
 
-  private def formatCall(call: Call, level: Int): String = {
+  private def formatCall(call: TaskCall, level: Int): String = {
     val header = s"${highlighter.keyword("call")} ${highlighter.name(call.task.name)}${formatCallAlias(call)}"
     if (call.inputMappings.isEmpty) {
       indent(header, level)
@@ -210,7 +210,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
        |}""".stripMargin, level)
   }
 
-  private def formatCallAlias(call: Call): String = {
+  private def formatCallAlias(call: TaskCall): String = {
     call.alias.map {a => s" as ${highlighter.alias(a)}"}.getOrElse("")
   }
 }

@@ -2,10 +2,10 @@ package wdl4s
 
 import org.scalatest.{Matchers, WordSpec}
 import wdl4s.expression.NoFunctions
-import wdl4s.types.{WdlIntegerType, WdlArrayType, WdlFileType}
+import wdl4s.types.{WdlArrayType, WdlFileType, WdlIntegerType}
 import wdl4s.values._
 
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class CallSpec extends WordSpec with Matchers {
 
@@ -66,5 +66,51 @@ class CallSpec extends WordSpec with Matchers {
     exception.getMessage shouldBe "Input evaluation for Call w.t failed.\nVariable 's1' not found\nVariable 's2' not found"
   }
   
+  "find workflows" in {
+    
+    val subWorkflow =
+      """
+        |task hello2 {
+        |  String addressee = "hey"
+        |  command {
+        |    echo "Hello ${addressee}!"
+        |  }
+        |  output {
+        |    String salutation = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow sub_hello {
+        |  call hello2
+        |  output {
+        |    String result = hello2.salutation
+        |  }
+        |}
+      """.stripMargin
+    
+    val wdl =
+      s"""
+        |import "placeholder" as sub
+        |
+        |task hello {
+        |  String addressee
+        |  command {
+        |    echo "Hello $${addressee}!"
+        |  }
+        |  output {
+        |    String salutation = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow wf_hello {
+        |  call sub.sub_hello
+        |  call hello {input: addressee = sub_hello.result }
+        |}
+      """.stripMargin
+    
+    val ns = WdlNamespaceWithWorkflow.load(wdl, importResolver = (uri: String) => subWorkflow)
+    ns.workflow.workflowCalls.size shouldBe 1
+    ns.workflow.taskCalls.size shouldBe 1
+  }
 
 }

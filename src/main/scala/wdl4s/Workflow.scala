@@ -1,12 +1,15 @@
 package wdl4s
 
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
-import wdl4s.types.WdlType
-import wdl4s.parser.WdlParser.{Ast, AstList, SyntaxError, Terminal}
+import wdl4s.WdlExpression._
+import wdl4s.expression.WdlFunctions
+import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
+import wdl4s.types.{WdlArrayType, WdlType}
+import wdl4s.util.TryUtil
+import wdl4s.values.WdlValue
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.language.postfixOps
+import scala.util.Try
 
 object Workflow {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Workflow = {
@@ -17,10 +20,10 @@ object Workflow {
     val callNames = ast.findAsts(AstNodeName.Call).map {call =>
       Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
     }
-    val workflowOutputsDecls = ast.findAsts(AstNodeName.WorkflowOutput) map { wfOutput =>
+    val workflowOutputsWildcards = ast.findAsts(AstNodeName.WorkflowOutputWildcard) map { wfOutput =>
       val wildcard = Option(wfOutput.getAttribute("wildcard")).map(_.sourceString).getOrElse("").nonEmpty
       val outputFqn = name + "." + wfOutput.getAttribute("fqn").sourceString
-      WorkflowOutputDeclaration(outputFqn, wildcard)
+      WorkflowOutputWildcard(outputFqn, wildcard, wfOutput)
     }
 
     callNames groupBy { _.sourceString } foreach {
@@ -29,13 +32,14 @@ object Workflow {
       case _ =>
     }
 
-    new Workflow(name, workflowOutputsDecls, ast)
+    new Workflow(name, workflowOutputsWildcards, wdlSyntaxErrorFormatter, ast)
   }
 }
 
 case class Workflow(unqualifiedName: String,
-                    workflowOutputDecls: Seq[WorkflowOutputDeclaration],
-                    ast: Ast) extends Scope {
+                    workflowOutputWildcards: Seq[WorkflowOutputWildcard],
+                    wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
+                    ast: Ast) extends Callable {
 
   /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.
@@ -63,7 +67,11 @@ case class Workflow(unqualifiedName: String,
   override def resolveVariable(name: String, relativeTo: Scope = this): Option[Scope with GraphNode] = {
     findCallByName(name) match {
       case call: Some[Call] => call
-      case _ => super.resolveVariable(name, relativeTo)
+      case _ =>
+        val leftOutputs = if (outputs.contains(relativeTo))
+          outputs.dropRight(outputs.size - outputs.indexOf(relativeTo))
+        else outputs
+        leftOutputs.find(_.unqualifiedName == name) orElse super.resolveVariable(name, relativeTo)
     }
   }
 
@@ -90,35 +98,79 @@ case class Workflow(unqualifiedName: String,
    * @return a Map[FullyQualifiedName, WdlType] representing the union
    *         of all outputs from all `call`s within this workflow
    */
-  lazy val outputs: Seq[ReportableSymbol] = {
+  lazy val expandedWildcardOutputs: Seq[WorkflowOutput] = {
 
-    case class PotentialReportableSymbol(name: String, wdlType: WdlType, matchWorkflowOutputWildcards: Boolean)
-
-    // Build a list of ALL potentially reportable symbols, and whether they're allowed to match
-    // wildcards in the workflow's output {...} spec.
-    val outputs: Seq[PotentialReportableSymbol] = for {
-      call: Call <- calls.toSeq
-      output <- call.task.outputs
-    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${output.unqualifiedName}", output.wdlType, matchWorkflowOutputWildcards = true)
-
-    val inputs: Seq[PotentialReportableSymbol] = for {
-      call: Call <- calls.toSeq
-      input <- call.task.declarations
-    } yield PotentialReportableSymbol(s"${call.fullyQualifiedName}.${input.unqualifiedName}", input.wdlType, matchWorkflowOutputWildcards = false)
-
-    val filtered = if (workflowOutputDecls isEmpty) {
-      outputs
-    } else {
-      (outputs ++ inputs) filter {
-        case PotentialReportableSymbol(fqn, wdlType, wildcardsAllowed) =>
-          workflowOutputDecls.isEmpty || workflowOutputDecls.exists(_.outputMatchesDeclaration(fqn, wildcardsAllowed))
+    def sanitizeFqn(fqn: FullyQualifiedName) = fqn.replaceAll("\\.", "_")
+    
+    def toWorkflowOutput(output: DeclarationInterface, wdlType: WdlType) = {
+      val locallyQualifiedName = output.parent map { parent => output.locallyQualifiedName(parent) } getOrElse { 
+        throw new RuntimeException(s"output ${output.fullyQualifiedName} has no parent Scope") 
       }
+      
+      new WorkflowOutput(sanitizeFqn(output.fullyQualifiedName), wdlType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
     }
 
-    filtered map { case PotentialReportableSymbol(fqn, value, wildcardAllowed) => ReportableSymbol(fqn, value) }
-  }
+    def toWorkflowOutputs(scope: Scope) = {
+      // Find out the number of parent scatters
+      val (outputs, parentScatters) = scope match {
+        case call: Call => (call.outputs, call.ancestry collect { case scatter: Scatter => Scatter })
+        case outputDeclaration: Output => (Seq(outputDeclaration), outputDeclaration.ancestry collect { case scatter: Scatter => Scatter })
+          // For non output declaration, don't return an array but return the raw value
+        case otherDeclaration: DeclarationInterface => (Seq(otherDeclaration), Seq.empty)
+        case _ => (Seq.empty, Seq.empty)
+      }
+      
+      outputs map { output =>
+        val wdlType = parentScatters.foldLeft(output.wdlType)((acc, _) => {
+          WdlArrayType(acc)
+        })
+        
+        toWorkflowOutput(output, wdlType)
+      }
+    }
+    
+    // No outputs means all outputs
+    val effectiveOutputWildcards = if (workflowOutputWildcards.isEmpty && children.collect({ case o: WorkflowOutput => o }).isEmpty) {
+      calls map { call => WorkflowOutputWildcard(unqualifiedName + "." + call.unqualifiedName, wildcard = true, call.ast) } toSeq
+    } else workflowOutputWildcards
 
+    effectiveOutputWildcards flatMap { output =>
+      // Prepend the namespace name in case it's an imported subworkflow so it can be resolved
+      val outputFqn = namespace.unqualifiedName match {
+        case empty if empty.isEmpty => output.fqn
+        case alias => alias + "." + output.fqn
+      }
+      namespace.resolveCallOrOutputOrDeclaration(outputFqn) match {
+        case Some(call: Call) if output.wildcard && calls.contains(call) => toWorkflowOutputs(call)
+        case Some(declaration: DeclarationInterface) if descendants.contains(declaration) => toWorkflowOutputs(declaration)
+        case e => throw new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadCallOutput(output.ast))
+      }
+    }
+  }
+  
+  override lazy val outputs: Seq[WorkflowOutput] = expandedWildcardOutputs ++ children collect { case o: WorkflowOutput => o }
+  
   override def toString = s"[Workflow $fullyQualifiedName]"
+
+  def evaluateOutputs(knownInputs: WorkflowCoercedInputs,
+                      wdlFunctions: WdlFunctions[WdlValue],
+                      outputResolver: OutputResolver = NoOutputResolver,
+                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[LocallyQualifiedName, WdlValue]] = {
+    
+    val evaluatedOutputs = outputs.foldLeft(Map.empty[WorkflowOutput, Try[WdlValue]])((outputMap, output) => {
+      val currentOutputs = outputMap collect {
+        case (outputName, value) if value.isSuccess => outputName.fullyQualifiedName -> value.get
+      }
+      def knownValues = currentOutputs ++ knownInputs
+      val lookup = lookupFunction(knownValues, wdlFunctions, outputResolver, shards, output)
+      val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
+      val workflowOutput = output -> coerced
+
+      outputMap + workflowOutput
+    }) map { case (k, v) => k.unqualifiedName -> v }
+
+    TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate workflow outputs.\n")
+  }
 }
 
 case class ReportableSymbol(fullyQualifiedName: FullyQualifiedName, wdlType: WdlType)

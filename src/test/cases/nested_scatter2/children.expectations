@@ -9,8 +9,10 @@
   "w.$scatter_0": ["w.$scatter_1"],
   "w.$scatter_1": ["w.inner"],
   "w.array": [],
-  "w.inner": ["w.inner.i"],
+  "w.inner": ["w.inner.i", "w.inner.out"],
   "w.inner.i": [],
-  "w.outer": ["w.outer.matrix"],
-  "w.outer.matrix": []
+  "w.inner.out": [],
+  "w.outer": ["w.outer.matrix", "w.outer.tsv"],
+  "w.outer.matrix": [],
+  "w.outer.tsv": []
 }

@@ -34,7 +34,7 @@ object ex7 {
       }
     }
 
-    ns.calls.find( _.unqualifiedName == "a") foreach { call =>
+    ns.taskCalls.find( _.unqualifiedName == "a") foreach { call =>
       val wdlFunctions: CustomFunctions = new CustomFunctions
       val evaluatedInputs = call.evaluateTaskInputs(inputs, wdlFunctions)
       println(call.task.instantiateCommand(evaluatedInputs, wdlFunctions).get)

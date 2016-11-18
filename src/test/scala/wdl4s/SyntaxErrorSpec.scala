@@ -187,7 +187,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Expression reference input on task that doesn't exist (line 6, col 23):
+      """ERROR: Expression references input on call that doesn't exist (line 6, col 23):
         |
         |    input: pattern=ps.BAD
         |                      ^
@@ -343,7 +343,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: x is declared as a String but the expression evaluates to a Array[String]:
+      """ERROR: x is declared as a Array[String] but the expression evaluates to a String:
         |
         |    Array[String] x = "bad value"
         |                  ^
@@ -371,6 +371,62 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |    Int x = "bad value"
         |        ^
       """.stripMargin
+  }
+
+  case object TypeMismatch3 extends ErrorWdl {
+    val testString = "detect when a call output has a type mismatch (3)"
+    val wdl =
+      """task a {
+        |  command { .. }
+        |  output {
+        |    Int x = 2
+        |  }
+        |}
+        |
+        |workflow w {
+        |  Array[Int] arr = [1]
+        |  call a
+        |  
+        |  output {
+        |    Boolean o = a.x
+        |  }
+        |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: o is declared as a Boolean but the expression evaluates to a Int:
+        |
+        |    Boolean o = a.x
+        |            ^""".stripMargin
+  }
+  
+  case object TypeMismatch4 extends ErrorWdl {
+    val testString = "detect when a call output has a type mismatch (4)"
+    val wdl =
+      """task a {
+        |  command { .. }
+        |  output {
+        |    Int x = 2
+        |  }
+        |}
+        |
+        |workflow w {
+        |  Array[Int] arr = [1]
+        |  scatter(i in arr) {
+        |    call a
+        |  }
+        |  
+        |  output {
+        |    Int o = a.x
+        |  }
+        |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: o is declared as a Int but the expression evaluates to a Array[Int]:
+        |
+        |    Int o = a.x
+        |        ^""".stripMargin
   }
 
   case object MetaSectionStringValues extends ErrorWdl {
@@ -540,12 +596,12 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     val errors =
       """ERROR: Sibling nodes have conflicting names:
         |
-        |TaskOutput defined here (line 4, col 5):
+        |CallOutput defined here (line 4, col 5):
         |
         |    Int b = 5
         |    ^
         |
-        |TaskOutput statement defined here (line 5, col 5):
+        |CallOutput statement defined here (line 5, col 5):
         |
         |    Int b = 10
         |    ^
@@ -554,6 +610,32 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
 
   case object MultipleVariableDeclarationsInScope3 extends ErrorWdl {
     val testString = "detect when a variable is declared more than once (3)"
+    val wdl =
+      """workflow c { 
+        | output {
+        |   String o = "output"
+        |   String o = "output2"
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Sibling nodes have conflicting names:
+        |
+        |WorkflowOutput defined here (line 3, col 4):
+        |
+        |   String o = "output"
+        |   ^
+        |
+        |WorkflowOutput statement defined here (line 4, col 4):
+        |
+        |   String o = "output2"
+        |   ^
+      """.stripMargin
+  }
+
+  case object MultipleVariableDeclarationsInScope4 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (4)"
     val wdl =
       """task inputOutputOops {
         |  Int c = 5
@@ -573,10 +655,70 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |  Int c = 5
         |  ^
         |
-        |TaskOutput statement defined here (line 5, col 5):
+        |CallOutput statement defined here (line 5, col 5):
         |
         |    Int c = 10
         |    ^
+      """.stripMargin
+  }
+
+  case object MultipleVariableDeclarationsInScope5 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (5)"
+    val wdl =
+      """task t {
+        | command {...}
+        | output {
+        |   String o = "output"
+        | }
+        |}
+        |
+        |workflow c {
+        | call t
+        | 
+        | output {
+        |   t.*
+        |   t.o
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Sibling nodes have conflicting names:
+        |
+        |WorkflowOutput defined here (line 4, col 4):
+        |
+        |   String o = "output"
+        |   ^
+        |
+        |WorkflowOutput statement defined here (line 4, col 4):
+        |
+        |   String o = "output"
+        |   ^
+      """.stripMargin
+  }
+
+  case object WorkflowOutputReferenceNonExistingCall extends ErrorWdl {
+    val testString = "detect when a workflow output references a non existing call"
+    val wdl =
+      """task t {
+        | command {...}
+        | output {
+        |   String o = "output"
+        | }
+        |}
+        |
+        |workflow c {
+        | output {
+        |   t.o
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Expression references output on call that doesn't exist (line 10, col 4):
+        |
+        |   t.o
+        |   ^
       """.stripMargin
   }
 
@@ -597,6 +739,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     MapParameterizedTypes,
     TypeMismatch1,
     TypeMismatch2,
+    TypeMismatch3,
+    TypeMismatch4,
     MetaSectionStringValues,
     MultipleCommandSections,
     CommandExpressionVariableReferenceIntegrity,
@@ -604,7 +748,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     DeclarationVariableReferenceIntegrity2,
     MultipleVariableDeclarationsInScope,
     MultipleVariableDeclarationsInScope2,
-    MultipleVariableDeclarationsInScope3
+    MultipleVariableDeclarationsInScope3,
+    MultipleVariableDeclarationsInScope4,
+    MultipleVariableDeclarationsInScope5,
+    WorkflowOutputReferenceNonExistingCall
   )
 
   forAll(syntaxErrorWdlTable) { (errorWdl) =>

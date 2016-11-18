@@ -2,10 +2,10 @@ package wdl4s.expression
 
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.WdlExpression._
-import wdl4s.types._
-import wdl4s.{WdlExpressionException, WdlNamespace}
 import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
+import wdl4s.types._
 import wdl4s.util.TryUtil
+import wdl4s.{Scatter, WdlExpressionException, WdlNamespace}
 
 import scala.util.{Failure, Success, Try}
 
@@ -75,8 +75,12 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
         case rhs: Terminal if rhs.getTerminalStr == "identifier" =>
           evaluate(a.getAttribute("lhs")).flatMap {
             case o: WdlCallOutputsObjectType =>
-              o.call.task.outputs.find(_.unqualifiedName == rhs.getSourceString) match {
-                case Some(taskOutput) => evaluate(taskOutput.requiredExpression.ast)
+              o.call.outputs.find(_.unqualifiedName == rhs.getSourceString) match {
+                case Some(taskOutput) => 
+                  val parentScatters = o.call.ancestrySafe.collect({case s: Scatter => s})
+                  evaluate(taskOutput.requiredExpression.ast) map { outputType =>
+                    parentScatters.foldLeft(outputType)((acc, _) => WdlArrayType(acc))
+                  }
                 case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
               }
             case WdlPairType(leftType, rightType) =>

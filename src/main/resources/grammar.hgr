@@ -79,6 +79,8 @@ grammar {
     r'[0-9]+' -> :integer
     mode<wf_output> {
       r'\s+' -> null
+      r'#.*' -> null
+      r'{%_type%}(?!{%_identifier_follow%})' -> :type %pop @wf_output_declaration
       r'\{' -> :lbrace
       r'\}' -> :rbrace %pop
       r',' -> :comma
@@ -88,6 +90,58 @@ grammar {
         python: r'{%_identifier%}(\.{%_identifier%})*'
         java: "{%_identifier%}(\\.{%_identifier%})*"
       } -> :fqn
+    }
+    mode<wf_output_declaration> {
+      r'\s+' -> null
+      r'#.*' -> null
+      r'\}' -> :rbrace %pop
+      r'\[' -> :lsquare
+      r'\]' -> :rsquare
+      r'=' -> :equal
+      r'\+' -> :plus
+      r'\*' -> :asterisk
+      r'[0-9]+' -> :integer
+      r'(true|false)(?!{%_identifier_follow%})' -> :boolean
+      r'{%_type%}(?!{%_identifier_follow%})' -> :type
+      r'{%_identifier%}' -> :identifier
+
+      # Expression tokens
+      r':' -> :colon
+      r',' -> :comma
+      r'\.' -> :dot
+      r'==' -> :double_equal
+      r'\|\|' -> :double_pipe
+      r'\&\&' -> :double_ampersand
+      r'!=' -> :not_equal
+      r'=' -> :equal
+      r'\.' -> :dot
+      r'\{' -> :lbrace
+      r'\(' -> :lparen
+      r'\)' -> :rparen
+      r'\[' -> :lsquare
+      r'\]' -> :rsquare
+      r'\+' -> :plus
+      r'\*' -> :asterisk
+      r'-' -> :dash
+      r'/' -> :slash
+      r'%' -> :percent
+      r'<=' -> :lteq
+      r'<' -> :lt
+      r'>=' -> :gteq
+      r'>' -> :gt
+      r'!' -> :not
+
+      # Literals
+      enum {
+        python: r'"([^\\\"\n]|\\[\\"\'nrbtfav\?]|\\[0-7]{1,3}|\\x[0-9a-fA-F]+|\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*"'
+        java: "\\\"(?>[^\\\\\\\"\\n]|\\\\[\\\"\\'nrbtfav\\\\?]|\\\\[0-7]{1,3}|\\\\x[0-9a-fA-F]+|\\\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*\\\""
+      } -> unescape(:string)
+      enum {
+        python: r'\'([^\\\'\n]|\\[\\"\'nrbtfav\?]|\\[0-7]{1,3}|\\x[0-9a-fA-F]+|\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*\''
+        java: "'(?>[^\\\\\\'\\n]|\\\\[\\\"\\'nrbtfav\\\\?]|\\\\[0-7]{1,3}|\\\\x[0-9a-fA-F]+|\\\\[uU]([0-9a-fA-F]{4})([0-9a-fA-F]{4})?)*'"
+      } -> unescape(:string)
+      r'-?[0-9]+\.[0-9]+' -> :float
+      r'[0-9]+' -> :integer
     }
     mode<task_fqn> {
       r'\s+' -> null
@@ -330,7 +384,10 @@ grammar {
     $mapping = :identifier :equal $e -> IOMapping(key=$0, value=$2)
     $alias = :as :identifier -> $1
     $wf_outputs = :output :lbrace list($wf_output) :rbrace -> WorkflowOutputs(outputs=$2)
-    $wf_output = :fqn optional($wf_output_wildcard) -> WorkflowOutput(fqn=$0, wildcard=$1)
+    $wf_output = $wf_output_declaration_syntax | $wf_output_wildcard_syntax
+    $wf_output_declaration_syntax = $type_e :identifier :equal $e -> WorkflowOutputDeclaration(type=$0, name=$1, expression=$3)
+    # Keep for backward compatibility
+    $wf_output_wildcard_syntax = :fqn optional($wf_output_wildcard) -> WorkflowOutputWildcard(fqn=$0, wildcard=$1)
     $wf_output_wildcard = :dot :asterisk -> $1
 
     $while_loop = :while :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> WhileLoop(expression=$2, body=$5)

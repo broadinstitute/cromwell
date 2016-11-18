@@ -52,6 +52,14 @@ trait Scope {
     case None => Seq.empty[Scope]
   }
 
+  // This is needed in one specific case during WdlNamespace validation
+  // where we need to compute the ancestries at a point where the full
+  // parent branch has not been set yet.
+  private [wdl4s] def ancestrySafe: Seq[Scope] = parent match {
+    case Some(p) => Seq(p) ++ p.ancestrySafe
+    case None => Seq.empty[Scope]
+  }
+  
   /**
     * All children ++ children's children ++ etc
     */
@@ -61,6 +69,10 @@ trait Scope {
     * Descendants that are Calls
     */
   lazy val calls: Set[Call] = descendants.collect({ case c: Call => c })
+  
+  lazy val taskCalls: Set[TaskCall] = calls collect { case c: TaskCall => c }
+  
+  lazy val workflowCalls: Set[WorkflowCall] = calls collect { case c: WorkflowCall => c }
 
   /**
     * Descendants that are Scatters
@@ -79,6 +91,33 @@ trait Scope {
     (ancestry.reverse.filter(_.appearsInFqn).map(_.unqualifiedName) :+ unqualifiedName).mkString(".")
   }
 
+  /**
+    * Similar to fullyQualifiedName but relatively to an ancestry scope.
+    * e.g.
+    * Workflow w
+    *   Call a
+    *     Output o
+    *     
+    * o.locallyQualified(a) = "a.o"
+    * o.locallyQualified(w) = o.fullyQualifiedName = "w.a.o"
+    */
+  def locallyQualifiedName(relativeTo: Scope): String = {
+    // Take ancestries until we reach relativeTo
+    (ancestry.takeWhile(_ != relativeTo)
+      // we want relativeTo in the lqn but it's been rejected by takeWhile wo add it back
+      .:+(relativeTo)
+      // Reverse because we start from the scope and climb up the ancestry tree but in the end we want a top-bottom lqn 
+      .reverse
+      // Get rid of scatters, ifs... because we don't want them here
+      .filter(_.appearsInFqn)
+      // Take the unqualifiedName of each scope
+      .map(_.unqualifiedName)
+      // Add the current scope
+      :+ unqualifiedName)
+      // Concatenate all of this
+      .mkString(".")
+  }
+  
   /**
     * String identifier for this scope, with hidden scope information.
     *
@@ -111,7 +150,7 @@ trait Scope {
 
     val localLookup = siblingScopes collect {
       case d: Declaration if d.unqualifiedName == name => d
-      case c: Call if c.unqualifiedName == name => c
+      case c: TaskCall if c.unqualifiedName == name => c
       case o: TaskOutput if o.unqualifiedName == name => o
     }
 

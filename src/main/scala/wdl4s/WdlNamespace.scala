@@ -4,9 +4,6 @@ import java.nio.file.{Path, Paths}
 
 import better.files._
 import cats.data.NonEmptyList
-import cats.syntax.flatMap
-import java.net
-
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
@@ -40,6 +37,15 @@ sealed trait WdlNamespace extends WdlValue with Scope {
   def resolve(fqn: FullyQualifiedName): Option[Scope] = {
     (descendants + this).find(d => d.fullyQualifiedName == fqn || d.fullyQualifiedNameWithIndexScopes == fqn)
   }
+  def resolveCallOrOutputOrDeclaration(fqn: FullyQualifiedName): Option[Scope] = {
+    val callsAndOutputs = descendants collect { 
+      case c: Call => c
+      case d: Declaration => d
+      case o: TaskOutput => o
+      case o: CallOutput => o
+    }
+    callsAndOutputs.find(d => d.fullyQualifiedName == fqn || d.fullyQualifiedNameWithIndexScopes == fqn)
+  }
 }
 
 /**
@@ -66,7 +72,8 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
                                     terminalMap: Map[Terminal, WdlSource],
                                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
                                     ast: Ast) extends WdlNamespace {
-  val workflows = Seq(workflow)
+  
+  override val workflows = Seq(workflow)
 
   override def toString: String = s"[WdlNamespace importedAs=$importedAs]"
 
@@ -122,15 +129,12 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
       }
     }
 
-    def evalScope(scope: Scope): Map[FullyQualifiedName, Try[WdlValue]] = {
-      val evaledDeclarations = scope.declarations.foldLeft(Map.empty[FullyQualifiedName, Try[WdlValue]])(evalDeclaration)
-      val nonTasks = scope.children.collect({
-        case w: Workflow => w
-      })
-      evaledDeclarations ++ nonTasks.flatMap(evalScope).toMap
+    def evalScope: Map[FullyQualifiedName, Try[WdlValue]] = {
+      val workflowDeclarations = children.collect({ case w: Workflow => w.declarations }).flatten
+      (declarations ++ workflowDeclarations).foldLeft(Map.empty[FullyQualifiedName, Try[WdlValue]])(evalDeclaration)
     }
 
-    TryUtil.sequenceMap(evalScope(this))
+    TryUtil.sequenceMap(evalScope)
   }
 }
 
@@ -155,6 +159,7 @@ object WdlNamespace {
   def loadUsingSource(wdlSource: WdlSource, resource: Option[String], importResolver: Option[Seq[ImportResolver]]): WdlNamespace = {
     load(wdlSource, resource.getOrElse("string"), importResolver.getOrElse(Seq(fileResolver)), None)
   }
+
   private def load(wdlSource: WdlSource, resource: String, importResolver: Seq[ImportResolver], importedAs: Option[String]): WdlNamespace = {
     WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, importedAs, root = true)
   }
@@ -189,15 +194,15 @@ object WdlNamespace {
       */
     val namespaces: Seq[WdlNamespace] = for {
       imp <- imports
-      source = tryResolve(imp.uri,importResolvers, List.empty)
+      source = tryResolve(imp.uri, importResolvers, List.empty)
     } yield WdlNamespace.load(source, imp.uri, importResolvers, Option(imp.namespaceName))
 
     /**
       * Map of Terminal -> WDL Source Code so the syntax error formatter can show line numbers
       */
     val terminalMap = AstTools.terminalMap(ast, source)
-    val combinedTerminalMap = ((namespaces map {x => x.terminalMap}) ++ Seq(terminalMap)) reduce (_ ++ _)
-    val wdlSyntaxErrorFormatter = new WdlSyntaxErrorFormatter(combinedTerminalMap)
+    val combinedTerminalMap = ((namespaces map { x => x.terminalMap }) ++ Seq(terminalMap)) reduce (_ ++ _)
+    val wdlSyntaxErrorFormatter = WdlSyntaxErrorFormatter(combinedTerminalMap)
 
     val topLevelAsts = ast.getAttribute("body").astListAsVector.collect({ case a: Ast => a })
 
@@ -208,6 +213,10 @@ object WdlNamespace {
       taskAst <- topLevelAsts if taskAst.getName == AstNodeName.Task
     } yield Task(taskAst, wdlSyntaxErrorFormatter)
 
+    val workflows: Seq[Workflow] = for {
+      workflowAst <- topLevelAsts if workflowAst.getName == AstNodeName.Workflow
+    } yield Workflow(workflowAst, wdlSyntaxErrorFormatter)
+
     /**
       * Build scope tree recursively
       */
@@ -215,7 +224,7 @@ object WdlNamespace {
 
     def getScope(scopeAst: Ast, parent: Option[Scope]): Scope = {
       val scope = scopeAst.getName match {
-        case AstNodeName.Call => Call(scopeAst, namespaces, topLevelTasks, wdlSyntaxErrorFormatter)
+        case AstNodeName.Call => Call(scopeAst, namespaces, topLevelTasks, workflows, wdlSyntaxErrorFormatter)
         case AstNodeName.Workflow => Workflow(scopeAst, wdlSyntaxErrorFormatter)
         case AstNodeName.Declaration => Declaration(scopeAst, wdlSyntaxErrorFormatter, parent)
         case AstNodeName.Scatter =>
@@ -225,6 +234,7 @@ object WdlNamespace {
           scopeIndexes(classOf[If]) += 1
           If(scopeAst, scopeIndexes(classOf[If]))
         case AstNodeName.Output => TaskOutput(scopeAst, wdlSyntaxErrorFormatter, parent)
+        case AstNodeName.WorkflowOutputDeclaration => WorkflowOutput(scopeAst, wdlSyntaxErrorFormatter, parent)
       }
 
       scope.children = getChildren(scopeAst, Option(scope))
@@ -248,30 +258,40 @@ object WdlNamespace {
         inputDeclarations ++ outputDeclarations
       }
 
+      def getWorkflowOutputs(ast: Ast) = ast.findAsts(AstNodeName.WorkflowOutputDeclaration).map(getScope(_, scope))
+
       scopeAst.getName match {
         case AstNodeName.Task => getTaskInputsOutputs(scopeAst)
-        case AstNodeName.Declaration | AstNodeName.Output => Seq.empty[Scope]
+        case AstNodeName.Declaration | AstNodeName.Output | AstNodeName.WorkflowOutputDeclaration => Seq.empty[Scope]
         case AstNodeName.Call =>
-          val referencedTask = findTask(scopeAst.getAttribute("task").sourceString, namespaces, topLevelTasks)
+          val referencedTask = findCallable(scopeAst.getAttribute("task").sourceString, namespaces, topLevelTasks ++ workflows)
           referencedTask match {
-            case Some(task) => getScopeAsts(task.ast, "declarations").map(d => getScope(d, scope))
-            case None => Seq.empty[Scope]
+            case Some(task: Task) =>
+              getScopeAsts(task.ast, "declarations").map(d => getScope(d, scope))
+            case Some(workflow: Workflow) =>
+              workflow.ast.getAttribute("body").astListAsVector collect {
+                case declaration: Ast if declaration.getName == AstNodeName.Declaration => getScope(declaration, scope)
+              }
+            case _ => Seq.empty[Scope]
           }
-        case AstNodeName.Workflow | AstNodeName.Scatter | AstNodeName.If | AstNodeName.Namespace =>
+        case AstNodeName.Scatter | AstNodeName.If | AstNodeName.Namespace =>
           getScopeAsts(scopeAst, "body").map(getScope(_, scope))
+        case AstNodeName.Workflow =>
+          getScopeAsts(scopeAst, "body").map(getScope(_, scope)) ++ getWorkflowOutputs(scopeAst)
       }
     }
 
-    val nonTaskScopes = for {
+    val topLevelDeclarationScopes = for {
       ast <- topLevelAsts
-      if ast.getName != AstNodeName.Task
+      if ast.getName != AstNodeName.Task && ast.getName != AstNodeName.Workflow
     } yield ast
 
-    val children = topLevelTasks ++ namespaces ++ nonTaskScopes.map(ast => getScope(ast, parent = None))
+    val children = topLevelTasks ++ namespaces ++ workflows ++ topLevelDeclarationScopes.map(ast => getScope(ast, parent = None))
 
-    val namespace = children.collect({ case w: Workflow => w }) match {
+    val namespace = workflows match {
       case Nil => WdlNamespaceWithoutWorkflow(namespaceName, imports, namespaces, topLevelTasks, terminalMap, ast)
-      case Seq(workflow) => WdlNamespaceWithWorkflow(ast, workflow, namespaceName, imports, namespaces, topLevelTasks, terminalMap, wdlSyntaxErrorFormatter)
+      case Seq(w) => WdlNamespaceWithWorkflow(ast, w, namespaceName, imports, namespaces, topLevelTasks, terminalMap, wdlSyntaxErrorFormatter)
+
       case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(ast.findAsts(AstNodeName.Workflow).asJava))
     }
 
@@ -296,13 +316,18 @@ object WdlNamespace {
       task.children.foreach(_.parent = task)
     }
 
+    workflows foreach { workflow =>
+      workflow.children = getChildren(workflow.ast, Option(workflow))
+      workflow.children.foreach(_.parent = workflow)
+    }
+
     descendants(namespace).foreach(_.namespace = namespace)
 
     /**
       * SYNTAX CHECKS
       */
 
-    val callInputSectionErrors = namespace.descendants.collect({ case c: Call => c }).flatMap(
+    val callInputSectionErrors = namespace.descendants.collect({ case c: TaskCall => c }).flatMap(
       validateCallInputSection(_, wdlSyntaxErrorFormatter)
     )
 
@@ -320,19 +345,30 @@ object WdlNamespace {
     }
 
     case class ScopeAccumulator(accumulated: Seq[Scope] = Seq.empty, errors: Seq[String] = Seq.empty)
-    val accumulatedErrors = (namespace.descendants + namespace).filter(_.namespace == namespace) map { scope =>
 
-      scope.children.foldLeft(ScopeAccumulator()) { (acc, cur) =>
+    def lookForDuplicates(scopes: Traversable[Scope]) = {
+      scopes.foldLeft(ScopeAccumulator()) { (acc, cur) =>
         val possibleError = acc.accumulated.find(_.unqualifiedName == cur.unqualifiedName) map { duplicate =>
-            val (dupName, dupTerminal) = scopeNameAndTerminal(duplicate)
-            val (curName, curTerminal) = scopeNameAndTerminal(cur)
-            wdlSyntaxErrorFormatter.twoSiblingScopesHaveTheSameName(
-              dupName, dupTerminal, curName, curTerminal
-            )
+          val (dupName, dupTerminal) = scopeNameAndTerminal(duplicate)
+          val (curName, curTerminal) = scopeNameAndTerminal(cur)
+          wdlSyntaxErrorFormatter.twoSiblingScopesHaveTheSameName(
+            dupName, dupTerminal, curName, curTerminal
+          )
         }
         ScopeAccumulator(acc.accumulated :+ cur, acc.errors ++ possibleError.toSeq)
       }
     }
+
+    val scopeDuplicationErrors = (namespace.descendants + namespace) collect {
+      case scope if scope.namespace == namespace => lookForDuplicates(scope.children)
+    }
+
+    val expandedWorkflowOutputsDuplicationErrors = {
+      (namespace.descendants + namespace) collect { case workflow: Workflow => lookForDuplicates(workflow.outputs) }
+    }
+
+    val accumulatedErrors = expandedWorkflowOutputsDuplicationErrors ++ scopeDuplicationErrors
+
     val duplicateSiblingScopeNameErrors = accumulatedErrors.flatMap(_.errors).map(new SyntaxError(_)).toSeq
 
     val taskCommandReferenceErrors = for {
@@ -344,7 +380,7 @@ object WdlNamespace {
 
     val all = declarationErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
 
-    all.toSeq.sortWith({ case (l, r) => l.getMessage < r.getMessage}) match {
+    all.toSeq.sortWith({ case (l, r) => l.getMessage < r.getMessage }) match {
       case s: Seq[SyntaxError] if s.nonEmpty => throw s.head
       case _ =>
     }
@@ -355,6 +391,7 @@ object WdlNamespace {
   private def getDecls(scope: Scope): Seq[DeclarationInterface] = {
     scope match {
       case t: Task => t.declarations ++ t.outputs
+      case w: Workflow => w.declarations ++ w.outputs
       case s => s.declarations
     }
   }
@@ -379,7 +416,7 @@ object WdlNamespace {
   def lookupType(from: Scope)(n: String): WdlType = {
     from.resolveVariable(n) match {
       case Some(d: DeclarationInterface) => d.wdlType
-      case Some(c: Call) => WdlObjectType
+      case Some(c: Call) => WdlCallOutputsObjectType(c)
       case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) match {
         case Success(a: WdlArrayType) => a.memberType
         case _ => throw VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
@@ -394,7 +431,7 @@ object WdlNamespace {
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType) match {
         case Success(wdlType) if !decl.wdlType.isCoerceableFrom(wdlType) =>
           Option(new SyntaxError(wdlSyntaxErrorFormatter.taskOutputExpressionTypeDoesNotMatchDeclaredType(
-            declarationName(decl.ast), wdlType, decl.wdlType
+            declarationName(decl.ast), decl.wdlType, wdlType
           )))
         case Success(wdlType) =>
           expr.evaluate(NoLookup, NoFunctions) match {
@@ -409,14 +446,13 @@ object WdlNamespace {
     }
   }
 
-  private def validateCallInputSection(call: Call, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
+  private def validateCallInputSection(call: TaskCall, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
     val callInputSections = AstTools.callInputSectionIOMappings(call.ast, wdlSyntaxErrorFormatter)
 
     val invalidCallInputReferences = callInputSections flatMap { ast =>
       val lhs = ast.getAttribute("key").sourceString
-      val rhs = ast.getAttribute("value")
       call.declarations.find(_.unqualifiedName == lhs) match {
-        case Some(decl) => None
+        case Some(_) => None
         case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskInput(ast, call.task.ast)))
       }
     }
@@ -436,18 +472,18 @@ object WdlNamespace {
         val memberAccess = MemberAccess(memberAccessAst)
         val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhs)
         resolvedScope match {
-          case Some(c: Call) if c.task.outputs.exists(_.unqualifiedName == memberAccess.rhs) => None
+          case Some(c: Call) if c.outputs.exists(_.unqualifiedName == memberAccess.rhs) => None
           case Some(c: Call) =>
-            Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst)))
+            Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadCallInput(memberAccessAst, c)))
           case Some(s: Scatter) => 
             s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
               case WdlArrayType(WdlObjectType) => None
               case WdlArrayType(_: WdlPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
-              case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst)))
+              case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
             } getOrElse None
           case Some(d: Declaration) => d.wdlType match {
             case _: WdlPairType => None
-            case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadTaskInput(memberAccessAst)))
+            case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
           }
           case None =>
             Option(new SyntaxError(wdlSyntaxErrorFormatter.undefinedMemberAccess(memberAccessAst)))
@@ -463,32 +499,23 @@ object WdlNamespace {
     * a Task with that name within those collections.
     */
   def findTask(name: String, namespaces: Seq[WdlNamespace], tasks: Seq[Task]): Option[Task] = {
+    findCallable(name, namespaces, tasks) collect { case t: Task => t }
+  }
+
+  def findCallable(name: String, namespaces: Seq[WdlNamespace], callables: Seq[Callable]): Option[Callable] = {
     if (name.contains(".")) {
       val parts = name.split("\\.", 2)
-      /* This is supposed to resolve a dot-notation'd string (e.g. "a.b.c") by recursively
-       * traversing child namespaces or resolving to a task.
-       *
-       * For example:
-       * findTasks("a.b.c") would first find namespace "a" and then return a.findTasks("b.c")
-       * a.findTasks("b.c") would call a.b.findTasks("c")
-       * a.b.findTasks("c") would return the task named "c" in the "b" namespace
-       */
-      namespaces find (_.importedAs.contains(parts(0))) flatMap { x => findTask(parts(1), x.namespaces, x.tasks)}
-    } else {
-        tasks.find(_.name == name)
-    }
-  }
-  // File => String => WdlSource
-  def directoryResolver(directory: File)(str: String): WdlSource = {
-    fileResolver(directory.path.resolve(str).toString)
+
+      namespaces find (_.importedAs.contains(parts(0))) flatMap { x => findCallable(parts(1), x.namespaces, x.workflows ++ x.tasks) }
+    } else callables.find(_.unqualifiedName == name)
   }
 
-  // String => WdlSource
-  def fileResolver(str: String): WdlSource = {
-    readFile(Paths.get(str))
-  }
 
   private def readFile(wdlFile: Path): WdlSource = File(wdlFile).contentAsString
+
+  def fileResolver(str: String): WdlSource = readFile(Paths.get(str))
+
+  def directoryResolver(directory: File)(str: String): WdlSource = fileResolver(directory.path.resolve(str).toString)
 }
 
 object WdlNamespaceWithWorkflow {

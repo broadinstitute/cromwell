@@ -1,10 +1,10 @@
 package wdl4s.types
 
+import spray.json.JsObject
 import wdl4s.Call
 import wdl4s.values._
-import spray.json.JsObject
 
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case object WdlObjectType extends WdlType {
   val toWdlString: String = "Object"

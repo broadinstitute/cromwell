@@ -1,8 +1,9 @@
 package wdl4s.values
 
 import wdl4s.types._
-import wdl4s.{Call, TsvSerializable}
 import wdl4s.util.FileUtil
+import wdl4s.{Call, TaskCall, TsvSerializable}
+
 import scala.util.{Failure, Success, Try}
 
 trait WdlObjectLike {

@@ -1,6 +1,8 @@
 package wdl4s
 
-case class WorkflowOutputDeclaration(fqn: String, wildcard: Boolean) {
+import wdl4s.parser.WdlParser.Ast
+
+case class WorkflowOutputWildcard(fqn: String, wildcard: Boolean, ast: Ast) {
 
   def outputMatchesDeclaration(outputFqn: String, wildcardsAllowed: Boolean): Boolean = {
     if (wildcard) {

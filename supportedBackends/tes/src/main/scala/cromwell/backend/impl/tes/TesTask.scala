@@ -2,7 +2,6 @@ package cromwell.backend.impl.tes
 
 import java.nio.file.{FileSystems, Paths}
 
-import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
@@ -23,16 +22,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val callEngineFunction = SharedFileSystemExpressionFunctions(
     jobPaths, List(FileSystems.getDefault)
   )
-  private val runtimeAttributes: TesRuntimeAttributes = {
-    val lookup = jobDescriptor.inputs.apply _
-    val evaluateAttrs = jobDescriptor.call.task
-      .runtimeAttributes
-      .attrs
-      .mapValues(_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
-  }
+  private val runtimeAttributes = TesRuntimeAttributes.fromJobDescriptor(jobDescriptor, callEngineFunction)
   private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
   val name = jobDescriptor.call.fullyQualifiedName

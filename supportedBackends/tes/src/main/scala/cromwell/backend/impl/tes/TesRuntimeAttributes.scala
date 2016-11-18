@@ -4,7 +4,7 @@ package cromwell.backend.impl.tes
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.cartesian._
 import cats.syntax.validated._
-import cromwell.backend.MemorySize
+import cromwell.backend.{BackendJobDescriptor, MemorySize}
 import cromwell.backend.validation.ContinueOnReturnCode
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -12,8 +12,10 @@ import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
 import cromwell.core.ErrorOr._
 import lenthall.exception.MessageAggregation
-import wdl4s.types.{WdlIntegerType, WdlStringType, WdlBooleanType, WdlType}
-import wdl4s.values.{WdlString, WdlBoolean, WdlInteger, WdlValue}
+import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
+import wdl4s.util.TryUtil
+import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 
 object TesRuntimeAttributes {
@@ -27,35 +29,32 @@ object TesRuntimeAttributes {
   val DiskKey = "disk"
 
   val staticDefaults = Map(
-    FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
+    FailOnStderrKey         -> WdlBoolean(FailOnStderrDefaultValue),
     ContinueOnReturnCodeKey -> WdlInteger(ContinueOnRcDefaultValue),
-    CpuKey -> WdlInteger(CpuDefaultValue),
-    MemoryKey -> WdlString(MemoryDefaultValue),
-    DiskKey -> WdlString(DisksDefaultValue)
+    CpuKey                  -> WdlInteger(CpuDefaultValue),
+    MemoryKey               -> WdlString(MemoryDefaultValue),
+    DiskKey                 -> WdlString(DisksDefaultValue)
   )
 
   private[tes] val coercionMap: Map[String, Set[WdlType]] = Map (
-    FailOnStderrKey -> Set[WdlType](WdlBooleanType),
+    FailOnStderrKey         -> Set[WdlType](WdlBooleanType),
     ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
-    DockerKey -> Set(WdlStringType),
-    DockerWorkingDirKey -> Set(WdlStringType),
-    CpuKey -> Set(WdlIntegerType),
-    MemoryKey -> Set(WdlStringType),
-    DiskKey -> Set(WdlStringType)
+    DockerKey               -> Set(WdlStringType),
+    DockerWorkingDirKey     -> Set(WdlStringType),
+    CpuKey                  -> Set(WdlIntegerType),
+    MemoryKey               -> Set(WdlStringType),
+    DiskKey                 -> Set(WdlStringType)
   )
 
-  def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): TesRuntimeAttributes = {
-    // Fail now if some workflow options are specified but can't be parsed correctly
-    val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
-    val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
+  def apply(attrs: Map[String, WdlValue]): TesRuntimeAttributes = {
 
-    val docker = validateDocker(withDefaultValues.get(DockerKey), noValueFoundFor(DockerKey))
-    val dockerWorkingDir = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.validNel)
-    val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
-    val continueOnReturnCode = validateContinueOnReturnCode(withDefaultValues.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
-    val cpu = validateCpu(withDefaultValues.get(CpuKey), noValueFoundFor(CpuKey))
-    val memory = validateMemory(withDefaultValues.get(MemoryKey), noValueFoundFor(MemoryKey))
-    val disk = validateDisk(withDefaultValues.get(DiskKey), noValueFoundFor(DiskKey))
+    val docker               = validateDocker(attrs.get(DockerKey), noValueFoundFor(DockerKey))
+    val dockerWorkingDir     = validateDockerWorkingDir(attrs.get(DockerWorkingDirKey), None.validNel)
+    val failOnStderr         = validateFailOnStderr(attrs.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
+    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
+    val cpu                  = validateCpu(attrs.get(CpuKey), noValueFoundFor(CpuKey))
+    val memory               = validateMemory(attrs.get(MemoryKey), noValueFoundFor(MemoryKey))
+    val disk                 = validateDisk(attrs.get(DiskKey), noValueFoundFor(DiskKey))
 
     (continueOnReturnCode |@| docker |@| dockerWorkingDir |@| failOnStderr |@| cpu |@| memory |@| disk) map {
       new TesRuntimeAttributes(_, _, _, _, _, _, _)
@@ -68,6 +67,20 @@ object TesRuntimeAttributes {
     }
   }
 
+  def fromJobDescriptor(jobDescriptor: BackendJobDescriptor, expressionFunctions: WdlStandardLibraryFunctions): TesRuntimeAttributes = {
+    val lookup = jobDescriptor.inputs.apply _
+    val evaluateAttrs = jobDescriptor.call.task
+      .runtimeAttributes
+      .attrs
+      .mapValues(_.evaluate(lookup, expressionFunctions))
+    // Fail the call if runtime attributes can't be evaluated
+    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
+    // Fail now if some workflow options are specified but can't be parsed correctly
+    val options = jobDescriptor.workflowDescriptor.workflowOptions
+    val defaultFromOptions = workflowOptionsDefault(options, TesRuntimeAttributes.coercionMap).get
+    val withDefaultValues = withDefaults(runtimeMap, List(defaultFromOptions, TesRuntimeAttributes.staticDefaults))
+    TesRuntimeAttributes(withDefaultValues)
+  }
 
   private def validateDockerWorkingDir(dockerWorkingDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     dockerWorkingDir match {

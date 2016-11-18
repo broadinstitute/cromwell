@@ -14,6 +14,7 @@ import net.ceedubs.ficus.Ficus._
 import wdl4s.ExceptionWithErrors
 
 case class JesAttributes(project: String,
+                         computeServiceAccount: String,
                          auths: JesAuths,
                          executionBucket: String,
                          endpointUrl: URL,
@@ -25,6 +26,7 @@ object JesAttributes {
     "project",
     "root",
     "maximum-polling-interval",
+    "compute-service-account",
     "dockerhub",
     "genomics",
     "filesystems",
@@ -42,6 +44,7 @@ object JesAttributes {
     val executionBucket: ValidatedNel[String, String] = backendConfig.validateString("root")
     val endpointUrl: ErrorOr[URL] = backendConfig.validateURL("genomics.endpoint-url")
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
+    val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = backendConfig.validateString("genomics.auth")
     val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
 
@@ -49,7 +52,7 @@ object JesAttributes {
       (_, _, _, _, _)
     } flatMap { case (p, b, u, genomicsName, gcsName) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval)
+        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval)
       }
     } match {
       case Valid(r) => r

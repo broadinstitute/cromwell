@@ -16,7 +16,19 @@ class JesAttributesSpec extends FlatSpec with Matchers {
 
   it should "parse correct JES config" taggedAs IntegrationTest in {
     val googleConfig = GoogleConfiguration(JesGlobalConfig)
-    val backendConfig = ConfigFactory.parseString(configString.replace("[PREEMPTIBLE]", ""))
+    val backendConfig = ConfigFactory.parseString(configString())
+
+    val jesAttributes = JesAttributes(googleConfig, backendConfig)
+    jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
+    jesAttributes.project should be("myProject")
+    jesAttributes.executionBucket should be("gs://myBucket")
+    jesAttributes.maxPollingInterval should be(600)
+    jesAttributes.computeServiceAccount should be("default")
+  }
+
+  it should "parse correct preemptible config" taggedAs IntegrationTest in {
+    val googleConfig = GoogleConfiguration(JesGlobalConfig)
+    val backendConfig = ConfigFactory.parseString(configString(preemptible = "preemptible = 3"))
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
     jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
@@ -25,15 +37,12 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     jesAttributes.maxPollingInterval should be(600)
   }
 
-  it should "parse correct preemptible config" taggedAs IntegrationTest in {
+  it should "parse compute service account" taggedAs IntegrationTest in {
     val googleConfig = GoogleConfiguration(JesGlobalConfig)
-    val backendConfig = ConfigFactory.parseString(configString.replace("[PREEMPTIBLE]", "preemptible = 3"))
+    val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
-    jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
-    jesAttributes.project should be("myProject")
-    jesAttributes.executionBucket should be("gs://myBucket")
-    jesAttributes.maxPollingInterval should be(600)
+    jesAttributes.computeServiceAccount should be("testing")
   }
 
   it should "not parse invalid config" taggedAs IntegrationTest in {
@@ -60,17 +69,18 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     errorsList should contain("no protocol: myEndpoint")
   }
 
-  val configString =
-    """
+  def configString(preemptible:String = "", genomics:String = "") =
+    s"""
       |{
       |   project = "myProject"
       |   root = "gs://myBucket"
       |   maximum-polling-interval = 600
-      |   [PREEMPTIBLE]
+      |   $preemptible
       |   genomics {
       |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
       |     // Pipelines and manipulate auth JSONs.
       |     auth = "application-default"
+      |    $genomics
       |     endpoint-url = "http://myEndpoint"
       |   }
       |

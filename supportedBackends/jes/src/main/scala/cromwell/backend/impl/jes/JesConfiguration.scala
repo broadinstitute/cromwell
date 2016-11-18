@@ -28,6 +28,7 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val root = configurationDescriptor.backendConfig.getString("root")
   val jesAttributes = JesAttributes(googleConfig, configurationDescriptor.backendConfig)
   val jesAuths = jesAttributes.auths
+  val jesComputeServiceAccount = jesAttributes.computeServiceAccount
   val gcsPathBuilderFactory = RetryableGcsPathBuilderFactory(jesAuths.gcs, customRetryParams = JesConfiguration.GcsRetryParams)
   val genomicsFactory = GenomicsFactory(googleConfig.applicationName, jesAuths.genomics, jesAttributes.endpointUrl)
   val dockerCredentials = DockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply

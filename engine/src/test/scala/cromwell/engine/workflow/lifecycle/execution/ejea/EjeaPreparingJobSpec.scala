@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import EngineJobExecutionActorSpec._
+import cromwell.backend.BackendJobExecutionActor.FailedNonRetryableResponse
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
 import org.scalatest.concurrent.Eventually
@@ -34,10 +35,11 @@ class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHas
       }
 
       s"Not proceed if Job Preparation fails ($mode)" in {
-        val prepFailedResponse = BackendJobPreparationFailed(helper.jobDescriptorKey, new Exception("The goggles! They do nothing!"))
+        val prepActorResponse = BackendJobPreparationFailed(helper.jobDescriptorKey, new Exception("The goggles! They do nothing!"))
+        val prepFailedEjeaResponse = FailedNonRetryableResponse(prepActorResponse.jobKey, prepActorResponse.throwable, None)
         ejea = ejeaInPreparingState(mode)
-        ejea ! prepFailedResponse
-        helper.replyToProbe.expectMsg(prepFailedResponse)
+        ejea ! prepActorResponse
+        helper.replyToProbe.expectMsg(prepFailedEjeaResponse)
         helper.deathwatch.expectTerminated(ejea, awaitTimeout)
       }
     }

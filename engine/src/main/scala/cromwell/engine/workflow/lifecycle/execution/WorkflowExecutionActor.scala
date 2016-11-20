@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import java.time.OffsetDateTime
 
-import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor._
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
@@ -19,12 +18,12 @@ import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{JobRunning, JobStarting}
-import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.BackendJobPreparationFailed
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.WorkflowExecutionActorState
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import net.ceedubs.ficus.Ficus._
@@ -251,17 +250,9 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
                                         backendSingletonCollection: BackendSingletonCollection,
                                         initializationData: AllBackendInitializationData,
                                         restarting: Boolean)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with StopAndLogSupervisor {
 
   import WorkflowExecutionActor._
-
-  override def supervisorStrategy = AllForOneStrategy() {
-    case ex: ActorInitializationException =>
-      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(ex))
-      context.stop(self)
-      Stop
-    case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
-  }
 
   val tag = s"WorkflowExecutionActor [UUID(${workflowId.shortString})]"
   private lazy val DefaultMaxRetriesFallbackValue = 10
@@ -288,6 +279,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       workflowDescriptor,
       executionStore = buildInitialExecutionStore(),
       backendJobExecutionActors = Map.empty,
+      engineJobExecutionActors = Map.empty,
       outputStore = OutputStore.empty
     )
   )
@@ -333,17 +325,14 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       // The EJEA is telling us that the job is now Starting. Update the metadata and our execution store.
       val statusChange = MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Starting))
       serviceRegistryActor ! PutMetadataAction(statusChange)
-      stay() using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
+      stay() using stateData
+        .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Starting)))
     case Event(JobRunning(jobDescriptor, backendJobExecutionActor), stateData) =>
       // The EJEA is telling us that the job is now Running. Update the metadata and our execution store.
       pushRunningJobMetadata(jobDescriptor)
       stay() using stateData
         .addBackendJobExecutionActor(jobDescriptor.key, backendJobExecutionActor)
         .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobDescriptor.key -> ExecutionStatus.Running)))
-    case Event(BackendJobPreparationFailed(jobKey, throwable), stateData) =>
-      pushFailedJobMetadata(jobKey, None, throwable, retryableFailure = false)
-      context.parent ! WorkflowExecutionFailedResponse(stateData.executionStore, stateData.outputStore, List(throwable))
-      goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
     case Event(SucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
       pushSuccessfulJobMetadata(jobKey, returnCode, callOutputs)
       handleJobSuccessful(jobKey, callOutputs, stateData)
@@ -402,7 +391,25 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
       }
   }
 
+  def handleTerminated(actorRef: ActorRef) = {
+    // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.
+    // If they do, it's a big programmer error and the workflow execution fails.
+    val jobKey = stateData.engineJobExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
+    val jobStatus = stateData.executionStore.store.getOrElse(jobKey, throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
+
+    if (!jobStatus.isTerminal) {
+      val terminationException = getFailureCause(actorRef) match {
+        case Some(e) => new RuntimeException("Unexpected failure in EJEA.", e)
+        case None => new RuntimeException("Unexpected failure in EJEA (root cause not captured).")
+      }
+      self ! FailedNonRetryableResponse(jobKey, terminationException, None)
+    }
+
+    stay
+  }
+
   whenUnhandled {
+    case Event(Terminated(actorRef), stateData) => handleTerminated(actorRef) using stateData.removeEngineJobExecutionActor(actorRef)
     case Event(MetadataPutFailed(action, error), _) =>
       // Do something useful here??
       workflowLogger.warn(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
@@ -586,7 +593,7 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
   private def pushQueuedJobMetadata(diffs: Seq[WorkflowExecutionDiff]) = {
     val startingEvents = for {
       diff <- diffs
-      (jobKey, executionState) <- diff.executionStore if jobKey.isInstanceOf[BackendJobDescriptorKey] && executionState == ExecutionStatus.QueuedInCromwell
+      (jobKey, executionState) <- diff.executionStoreChanges if jobKey.isInstanceOf[BackendJobDescriptorKey] && executionState == ExecutionStatus.QueuedInCromwell
     } yield MetadataEvent(metadataKey(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.QueuedInCromwell))
     serviceRegistryActor ! PutMetadataAction(startingEvents)
   }
@@ -623,9 +630,12 @@ final case class WorkflowExecutionActor(workflowId: WorkflowId,
               self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
               jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingleton, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
+            context watch ejeaRef
             pushNewJobMetadata(jobKey, backendName)
             ejeaRef ! EngineJobExecutionActor.Execute
-            Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.QueuedInCromwell)))
+            Success(WorkflowExecutionDiff(
+              executionStoreChanges = Map(jobKey -> ExecutionStatus.QueuedInCromwell),
+              engineJobExecutionActorAdditions = Map(ejeaRef -> jobKey)))
           case None =>
             throw WorkflowExecutionException(NonEmptyList.of(new Exception(s"Could not get BackendLifecycleActor for backend $backendName")))
         }

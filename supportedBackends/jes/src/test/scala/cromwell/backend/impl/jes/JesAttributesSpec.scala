@@ -69,7 +69,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     errorsList should contain("no protocol: myEndpoint")
   }
 
-  def configString(preemptible:String = "", genomics:String = "") =
+  def configString(preemptible: String = "", genomics: String = "") =
     s"""
       |{
       |   project = "myProject"

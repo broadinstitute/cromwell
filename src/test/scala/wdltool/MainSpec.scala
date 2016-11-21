@@ -35,7 +35,7 @@ class MainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
     testWdl(ThreeStep) { wdlAndInputs =>
       val res = Main.dispatchCommand(Seq("parse", wdlAndInputs.wdl))
       assert(res.isInstanceOf[SuccessfulTermination])
-      res.output should include("(Document:")
+      res.output should include("(Namespace:")
     }
   }
 

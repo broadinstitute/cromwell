@@ -8,16 +8,21 @@ organization := "org.broadinstitute"
 
 scalaVersion := "2.11.8"
 
-// Upcoming release, or current if we're on the master branch
-git.baseVersion := "0.7"
+lazy val versionSettings = Seq(
+  // Upcoming release, or current if we're on the master branch
+  git.baseVersion := "0.7",
 
-// Shorten the git commit hash
-git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) }
+  // Shorten the git commit hash
+  git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) },
 
-// Travis will deploy tagged releases, add -SNAPSHOT for all local builds
-git.gitUncommittedChanges := true
+  // Travis will deploy tagged releases, add -SNAPSHOT for all local builds
+  git.gitUncommittedChanges := true,
 
-versionWithGit
+  // For now, obfuscate SNAPSHOTs from sbt's developers: https://github.com/sbt/sbt/issues/2687#issuecomment-236586241
+  git.uncommittedSignifier := Option("SNAP")
+)
+
+versionWithGit ++ versionSettings
 
 assemblyJarName in assembly := "wdltool-" + git.baseVersion.value + ".jar"
 
@@ -29,7 +34,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.broadinstitute" %% "wdl4s" % "0.6",
+  "org.broadinstitute" %% "wdl4s" % "0.7-4a9e61e-SNAP",
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "2.2.5" % Test
 )

@@ -5,7 +5,7 @@ import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{CallMetadataKeys, MetadataQuery, WorkflowQueryParameters}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -20,7 +20,10 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
 
   def receive = {
     case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
-      queryAndRespond(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+      val includeKeys = if (expandSubWorkflows) {
+        includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) }
+      } else includeKeysOption
+      queryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)

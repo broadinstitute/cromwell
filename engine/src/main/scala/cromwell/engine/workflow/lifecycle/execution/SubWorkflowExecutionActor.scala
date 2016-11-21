@@ -24,13 +24,15 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
-                                restarting: Boolean) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper {
+                                restarting: Boolean) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
   
   private val parentWorkflow = data.workflowDescriptor
   override val workflowId = parentWorkflow.id
+  override val workflowIdForCallMetadata = parentWorkflow.id
   override def jobTag: String = key.tag
 
   startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
+  private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
   
   when(SubWorkflowPendingState) {
     case Event(Execute, _) =>
@@ -101,10 +103,16 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   onTransition {
     case (fromState, subWorkflowTerminalState: SubWorkflowTerminalState) =>
       stateData.subWorkflowId match {
-        case Some(id) => pushWorkflowEnd(id)
+        case Some(id) => 
+          pushWorkflowEnd(id)
+          pushExecutionEventsToMetadataService(key, eventList)
         case None => jobLogger.error("Sub workflow completed without a Sub Workflow UUID.")
       } 
       context stop self
+  }
+  
+  onTransition {
+    case fromState -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
   
   private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) = {
@@ -155,7 +163,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.workflow.unqualifiedName)),
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.callable.unqualifiedName)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id))
     )
 
@@ -193,8 +201,6 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     subWorkflowStoreActor ! RegisterSubWorkflow(parentWorkflow.rootWorkflow.id, parentWorkflow.id, key, subWorkflowId)
     subWorkflowId
   }
-  
-  def metadataKey(k: String, subWorkflowId: WorkflowId) = MetadataKey(subWorkflowId, Option(MetadataJobKey(key.scope.fullyQualifiedName, key.index, key.attempt)), k)
 }
 
 object SubWorkflowExecutionActor {

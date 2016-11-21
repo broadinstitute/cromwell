@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import java.time.OffsetDateTime
-
 import akka.actor.{ActorRef, ActorRefFactory, LoggingFSM, Props}
 import akka.routing.RoundRobinPool
 import cats.data.NonEmptyList
@@ -23,8 +21,6 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecu
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
-import cromwell.services.metadata.MetadataService.PutMetadataAction
-import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataKey, MetadataValue}
 import wdl4s.TaskOutput
 
 import scala.concurrent.ExecutionContext
@@ -36,15 +32,16 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
                               restarting: Boolean,
-                              serviceRegistryActor: ActorRef,
+                              val serviceRegistryActor: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
                               jobTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               backendName: String,
-                              callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging {
+                              callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging with CallMetadataHelper {
 
   override val workflowIdForLogging = executionData.workflowDescriptor.id
+  override val workflowIdForCallMetadata = executionData.workflowDescriptor.id
 
   val jobTag = s"${workflowIdForLogging.shortString}:${jobDescriptorKey.call.fullyQualifiedName}:${jobDescriptorKey.index.fromIndex}:${jobDescriptorKey.attempt}"
   val tag = s"EJEA_$jobTag"
@@ -264,7 +261,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def forwardAndStop(response: Any): State = {
     replyTo forward response
     returnExecutionToken()
-    tellEventMetadata()
+    pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     context stop self
     stay()
   }
@@ -272,7 +269,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def respondAndStop(response: Any): State = {
     replyTo ! response
     returnExecutionToken()
-    tellEventMetadata()
+    pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     context stop self
     stay()
   }
@@ -441,40 +438,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val updatedData = data.copy(hashes = Option(Success(hashes)))
     stay using updatedData
   }
-
-  /**
-    * Fire and forget events to the metadata service
-    */
-  private def tellEventMetadata(): Unit = {
-    eventList.headOption foreach { firstEvent =>
-      // The final event is only used as the book-end for the final pairing so the name is never actually used...
-      val offset = firstEvent.offsetDateTime.getOffset
-      val now = OffsetDateTime.now.withOffsetSameInstant(offset)
-      val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
-      val tailedEventList = eventList :+ lastEvent
-      val events = tailedEventList.sliding(2).zipWithIndex flatMap {
-        case (Seq(eventCurrent, eventNext), index) =>
-          val eventKey = s"executionEvents[$index]"
-          List(
-            metadataEvent(s"$eventKey:description", eventCurrent.name),
-            metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
-            metadataEvent(s"$eventKey:endTime", eventNext.offsetDateTime)
-          )
-      }
-
-      serviceRegistryActor ! PutMetadataAction(events.toIterable)
-    }
-  }
-
-  private def metadataEvent(key: String, value: Any) = {
-    val metadataValue = MetadataValue(value)
-    MetadataEvent(metadataKey(key), metadataValue)
-  }
-
-  private lazy val metadataJobKey = {
-    MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)
-  }
-  private def metadataKey(key: String) = MetadataKey(workflowIdForLogging, Option(metadataJobKey), key)
 }
 
 object EngineJobExecutionActor {

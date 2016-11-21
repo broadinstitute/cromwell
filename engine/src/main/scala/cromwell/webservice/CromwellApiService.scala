@@ -210,7 +210,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def timingRoute =
     path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
       withRecognizedWorkflowId(possibleWorkflowId) { id =>
-        getFromResource("workflowTimings/workflowTimings.html")
+        getFromFile("/Users/tjeandet/Codebase/cromwell/engine/src/main/resources/workflowTimings/workflowTimings.html")
+//        getFromResource("workflowTimings/workflowTimings.html")
       }
     }
 

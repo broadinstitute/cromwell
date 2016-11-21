@@ -42,7 +42,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   implicit val ec = context.dispatcher
   
   override val workflowIdForLogging = workflowDescriptor.id
-  override val workflowIdForMetadata = workflowDescriptor.id
+  override val workflowIdForCallMetadata = workflowDescriptor.id
 
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
   private val MaxRetries = ConfigFactory.load().as[Option[Int]]("system.max-retries") match {

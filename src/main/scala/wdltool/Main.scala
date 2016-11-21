@@ -3,7 +3,7 @@ package wdltool
 import java.nio.file.Paths
 
 import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl4s.{AstTools, NamespaceWithWorkflow, WdlNamespace}
+import wdl4s.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
 import spray.json._
 
 import scala.util.{Failure, Success, Try}
@@ -57,7 +57,7 @@ object Main extends App {
       loadWdl(args.head) { namespace =>
         import wdl4s.types.WdlTypeJsonFormatter._
         val msg = namespace match {
-          case x: NamespaceWithWorkflow => x.workflow.inputs.toJson.prettyPrint
+          case x: WdlNamespaceWithWorkflow => x.workflow.inputs.toJson.prettyPrint
           case _ => "WDL does not have a local workflow"
         }
 
@@ -75,7 +75,7 @@ object Main extends App {
   private[this] def continueIf(valid: => Boolean)(block: => Termination): Termination = if (valid) block else BadUsageTermination
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
-    Try(WdlNamespace.load(Paths.get(path))) match {
+    Try(WdlNamespace.loadUsingPath(Paths.get(path), None, None)) match {
       case Success(namespace) => f(namespace)
       case Failure(t) => UnsuccessfulTermination(t.getMessage)
     }

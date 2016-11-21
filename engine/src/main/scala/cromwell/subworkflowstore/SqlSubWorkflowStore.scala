@@ -5,8 +5,20 @@ import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import scala.concurrent.{ExecutionContext, Future}
 
 class SqlSubWorkflowStore(subWorkflowStoreSqlDatabase: SubWorkflowStoreSqlDatabase) extends SubWorkflowStore {
-  override def addSubWorkflowStoreEntry(subWorkflowStoreEntry: SubWorkflowStoreEntry)(implicit ec: ExecutionContext): Future[Unit] = {
-    subWorkflowStoreSqlDatabase.addSubWorkflowStoreEntry(subWorkflowStoreEntry)
+  override def addSubWorkflowStoreEntry(rootWorkflowExecutionUuid: String,
+                                        parentWorkflowExecutionUuid: String,
+                                        callFullyQualifiedName: String,
+                                        jobIndex: Int,
+                                        jobAttempt: Int,
+                                        subWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Unit] = {
+    subWorkflowStoreSqlDatabase.addSubWorkflowStoreEntry(
+      rootWorkflowExecutionUuid,
+      parentWorkflowExecutionUuid,
+      callFullyQualifiedName,
+      jobIndex,
+      jobAttempt,
+      subWorkflowExecutionUuid
+    )
   }
 
   override def querySubWorkflowStore(parentWorkflowExecutionUuid: String, callFqn: String, jobIndex: Int, jobAttempt: Int)(implicit ec: ExecutionContext): Future[Option[SubWorkflowStoreEntry]] = {

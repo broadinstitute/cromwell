@@ -21,16 +21,14 @@ class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with Actor
   }
   
   private def registerSubWorkflow(replyTo: ActorRef, command: RegisterSubWorkflow) = {
-    val subWorkflowStoreEntry = SubWorkflowStoreEntry(
+    database.addSubWorkflowStoreEntry(
       command.rootWorkflowExecutionUuid.toString,
       command.parentWorkflowExecutionUuid.toString,
       command.jobKey.scope.fullyQualifiedName,
       command.jobKey.index.fromIndex,
       command.jobKey.attempt,
       command.subWorkflowExecutionUuid.toString
-    )
-    
-    database.addSubWorkflowStoreEntry(subWorkflowStoreEntry) onComplete { 
+    ) onComplete { 
       case Success(_) => replyTo ! SubWorkflowStoreRegisterSuccess(command) 
       case Failure(ex) => replyTo ! SubWorkflowStoreFailure(command, ex)
     }

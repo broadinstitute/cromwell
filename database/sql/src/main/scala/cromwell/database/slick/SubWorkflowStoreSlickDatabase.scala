@@ -13,10 +13,29 @@ trait SubWorkflowStoreSlickDatabase extends SubWorkflowStoreSqlDatabase {
 
   import dataAccess.driver.api._
 
-  def addSubWorkflowStoreEntry(subWorkflowStoreEntry: SubWorkflowStoreEntry)(implicit ec: ExecutionContext): Future[Unit] = {
+  def addSubWorkflowStoreEntry(rootWorkflowExecutionUuid: String, 
+                               parentWorkflowExecutionUuid: String,
+                               callFullyQualifiedName: String,
+                               jobIndex: Int,
+                               jobAttempt: Int,
+                               subWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
-      subWorkflowStoreEntryId <- dataAccess.subWorkflowStoreEntryIdsAutoInc += subWorkflowStoreEntry
+      workflowStoreEntry <- dataAccess.workflowStoreEntriesForWorkflowExecutionUuid(rootWorkflowExecutionUuid).result.headOption
+      _ <- workflowStoreEntry match {
+        case Some(rootWorkflow) =>
+          dataAccess.subWorkflowStoreEntryIdsAutoInc +=
+            SubWorkflowStoreEntry(
+              rootWorkflow.workflowStoreEntryId,
+              parentWorkflowExecutionUuid,
+              callFullyQualifiedName,
+              jobIndex,
+              jobAttempt,
+              subWorkflowExecutionUuid
+            )
+        case None => DBIO.failed(new IllegalArgumentException(s"Could not find root workflow with UUID $rootWorkflowExecutionUuid"))
+      }
     } yield ()
+    
     runTransaction(action) void
   }
 
@@ -34,7 +53,13 @@ trait SubWorkflowStoreSlickDatabase extends SubWorkflowStoreSqlDatabase {
   override def removeSubWorkflowStoreEntries(rootWorkflowExecutionUuid: String)
                                             (implicit ec: ExecutionContext): Future[Int] = {
     val action = for {
-      deleted <- dataAccess.subWorkflowStoreEntriesForRootWorkflowExecutionUuid(rootWorkflowExecutionUuid).delete
+      workflowStoreEntry <- dataAccess.workflowStoreEntriesForWorkflowExecutionUuid(rootWorkflowExecutionUuid).result.headOption
+      deleted <- workflowStoreEntry match {
+        case Some(rootWorkflow) =>
+          dataAccess.subWorkflowStoreEntriesForRootWorkflowId(rootWorkflow.workflowStoreEntryId.get).delete
+        case None =>
+          DBIO.successful(0)
+      }
     } yield deleted
     
     runTransaction(action)

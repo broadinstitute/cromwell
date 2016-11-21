@@ -1642,13 +1642,13 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
 ```
 # Sub Workflows
 
-WDL allows the execution of an entire workflow as a step in a larger workflow (see WDL SPEC for more details), which is what will be referred as a sub workflow going forward.
-Cromwell supports execution of such workflows. Note that sub workflows can themselves contain sub workflows, etc... There is no limitation as to how deep workflows can be nested.
+WDL allows the execution of an entire workflow as a step in a larger workflow (see WDL SPEC for more details), which is what will be referred to as a sub workflow going forward.
+Cromwell supports execution of such workflows. Note that sub workflows can themselves contain sub workflows, etc... There is no limitation as to how deeply workflows can be nested.
 
 ## Execution
 
 Sub workflows are executed exactly as a task would be.
-*This means that if a another call depends on an output of a sub workflow, this call will run when the whole sub workflow completes (successfully).*
+*This means that if another call depends on an output of a sub workflow, this call will run when the whole sub workflow completes (successfully).*
 For example, in the following case :
 
 `main.wdl`
@@ -1708,7 +1708,7 @@ workflow hello_and_goodbye {
 }
 ```
 
-`myTask` will start only when hello_and_goodbye completes (which means all of its task are done), even though `myTask` only needs the output of hello in the hello_and_goodbye sub workflow. 
+`myTask` will start only when hello_and_goodbye completes (which means all of its calls are done), even though `myTask` only needs the output of hello in the hello_and_goodbye sub workflow. 
 If hello_and_goodbye fails, then `myTask` won't be executed.
 Only workflow outputs are visible outside a workflow, which means that references to outputs produced by a sub workflow will only be valid if those outputs are exposed in the workflow output section.
 
@@ -1716,9 +1716,9 @@ Sub workflows are executed in the context of a main workflow, which means that o
 will NOT be re-executed for each sub workflow. For instance if a resource is created during workflow initialization, sub workflows will need to share this same resource.
 Workflow outputs will be copied for the main root workflow but not for intermediate sub workflows.
 
-Restarts, aborts, and call-caching work exactly as they would with classic tasks. 
+Restarts, aborts, and call-caching work exactly as they would with tasks. 
 All tasks run by a sub workflow are eligible for call caching under the same rules as any other task.
-However, workflow themselves are not cached as such. Which means that running the exact same workflow twice with call caching on will trigger each task to cache individually,
+However, workflows themselves are not cached as such. Which means that running the exact same workflow twice with call caching on will trigger each task to cache individually,
 but not the workflow itself.
 
 The root path for sub workflow execution files (scripts, output files, logs) will be under the parent workflow call directory.
@@ -1753,7 +1753,7 @@ cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/ <- main 
 ```
 
 ## Metadata
-Each sub workflow will be attributed its own workflow ID. This ID will appear in the metadata of the parent workflow, in the call section corresponding to the sub workflow, under the "subWorkflowId" attribute.
+Each sub workflow will have its own workflow ID. This ID will appear in the metadata of the parent workflow, in the call section corresponding to the sub workflow, under the "subWorkflowId" attribute.
 For example, querying the `main_workflow` metadata above (minus the `myTask` call) , could result in something like this:
 
 `GET /api/workflows/v2/1d919bd4-d046-43b0-9918-9964509689dd/metadata`

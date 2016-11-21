@@ -188,8 +188,6 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         val excludeKeysOption = NonEmptyList.fromList(parameters.getOrElse("excludeKey", List.empty))
         val expandSubWorkflowsOption = {
           parameters.get("expandSubWorkflows") match {
-            case None => Success(false)
-            case Some(Nil) => Success(false)
             case Some(v :: Nil) => Try(v.toBoolean)
             case _ => Success(false)
           }

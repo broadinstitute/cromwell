@@ -40,8 +40,9 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
     }
   }
 
-  def findShardEntries(key: CollectorKey): List[ExecutionStoreEntry] = store.toList collect {
-    case (k: CallKey, v) if k.scope == key.scope && k.isShard => (k, v)
+  def findShardEntries(key: CollectorKey): List[ExecutionStoreEntry] = store.toList filter {
+    case (k: CallKey, v) => k.scope == key.scope && k.isShard
+    case _ => false
   }
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
@@ -90,7 +91,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
         }
 
       /**
-        * Otherwise, simply refer to the entry the collector entry.  This means that 'entry' depends
+        * Otherwise, simply refer to the collector entry.  This means that 'entry' depends
         * on every shard of the pre-requisite scope to finish.
         */
       case _ =>

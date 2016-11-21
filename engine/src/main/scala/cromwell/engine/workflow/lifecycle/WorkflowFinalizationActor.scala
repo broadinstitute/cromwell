@@ -100,9 +100,9 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowD
   // Only send to each backend the jobs that it executed
   private def filterJobExecutionsForBackend(calls: Set[TaskCall]): JobExecutionMap = {
     jobExecutionMap map {
-      case (wd, keys) => wd -> (keys filter { jobKey => calls.contains(jobKey.call) })
-    } collect {
-      case (wd, keys) if keys.nonEmpty => wd -> keys
+      case (wd, executedKeys) => wd -> (executedKeys filter { jobKey => calls.contains(jobKey.call) })
+    } filter {
+      case (wd, keys) => keys.nonEmpty
     }
   }
 

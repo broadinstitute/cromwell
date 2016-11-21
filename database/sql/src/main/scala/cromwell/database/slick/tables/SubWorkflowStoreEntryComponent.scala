@@ -1,17 +1,18 @@
 package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
+import slick.model.ForeignKeyAction.Cascade
 
 trait SubWorkflowStoreEntryComponent {
 
-  this: DriverComponent =>
+  this: DriverComponent with WorkflowStoreEntryComponent =>
 
   import driver.api._
 
   class SubWorkflowStoreEntries(tag: Tag) extends Table[SubWorkflowStoreEntry](tag, "SUB_WORKFLOW_STORE_ENTRY") {
     def subWorkflowStoreEntryId = column[Int]("SUB_WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def rootWorkflowExecutionUuid = column[String]("ROOT_WORKFLOW_EXECUTION_UUID")
+    def rootWorkflowId = column[Int]("ROOT_WORKFLOW_ID")
     
     def parentWorkflowExecutionUuid = column[String]("PARENT_WORKFLOW_EXECUTION_UUID")
 
@@ -23,10 +24,13 @@ trait SubWorkflowStoreEntryComponent {
 
     def subWorkflowExecutionUuid = column[String]("SUB_WORKFLOW_EXECUTION_UUID")
 
-    override def * = (rootWorkflowExecutionUuid, parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt, subWorkflowExecutionUuid, subWorkflowStoreEntryId.?) <> (SubWorkflowStoreEntry.tupled, SubWorkflowStoreEntry.unapply)
+    override def * = (rootWorkflowId.?, parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt, subWorkflowExecutionUuid, subWorkflowStoreEntryId.?) <> (SubWorkflowStoreEntry.tupled, SubWorkflowStoreEntry.unapply)
 
     def ucSubWorkflowStoreEntryPweuCfqnJiJa = index("UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA",
       (parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt), unique = true)
+
+    def fkSubWorkflowStoreRootWorkflowStoreEntryId = foreignKey("FK_SUB_WORKFLOW_STORE_ROOT_WORKFLOW_ID_WORKFLOW_STORE_ENTRY_ID",
+      rootWorkflowId, workflowStoreEntries)(_.workflowStoreEntryId, onDelete = Cascade)
 
     def ixSubWorkflowStoreEntryPweu = index("IX_SUB_WORKFLOW_STORE_ENTRY_PWEU", parentWorkflowExecutionUuid, unique = false)
   }
@@ -35,15 +39,15 @@ trait SubWorkflowStoreEntryComponent {
 
   val subWorkflowStoreEntryIdsAutoInc = subWorkflowStoreEntries returning subWorkflowStoreEntries.map(_.subWorkflowStoreEntryId)
 
-  val subWorkflowStoreEntriesForRootWorkflowExecutionUuid = Compiled(
-    (rootWorkflowExecutionUuid: Rep[String]) => for {
+  val subWorkflowStoreEntriesForRootWorkflowId = Compiled(
+    (rootWorkflowId: Rep[Int]) => for {
       subWorkflowStoreEntry <- subWorkflowStoreEntries
-      if subWorkflowStoreEntry.rootWorkflowExecutionUuid === rootWorkflowExecutionUuid
+      if subWorkflowStoreEntry.rootWorkflowId === rootWorkflowId
     } yield subWorkflowStoreEntry
   )
 
   /**
-    * Useful for finding the unique job store for a given job key
+    * Useful for finding the unique sub workflow entry for a given job key
     */
   val subWorkflowStoreEntriesForJobKey = Compiled(
     (parentWorkflowExecutionUuid: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Int],

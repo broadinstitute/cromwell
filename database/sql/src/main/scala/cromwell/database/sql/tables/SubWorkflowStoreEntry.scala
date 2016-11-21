@@ -2,7 +2,7 @@ package cromwell.database.sql.tables
 
 case class SubWorkflowStoreEntry
 (
-  rootWorkflowExecutionUuid: String,
+  rootWorkflowId: Option[Int],
   parentWorkflowExecutionUuid: String,
   callFullyQualifiedName: String,
   jobIndex: Int,

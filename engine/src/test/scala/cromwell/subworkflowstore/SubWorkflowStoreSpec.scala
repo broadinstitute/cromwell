@@ -1,7 +1,7 @@
 package cromwell.subworkflowstore
 
 import cromwell.CromwellTestKitSpec
-import cromwell.core.{JobKey, WorkflowId}
+import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFiles}
 import cromwell.services.SingletonServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import org.scalatest.Matchers
@@ -11,7 +11,10 @@ import cromwell.core.ExecutionIndex._
 
 import scala.concurrent.duration._
 import SubWorkflowStoreSpec._
+import akka.testkit.TestProbe
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{SubmitWorkflow, WorkflowSubmittedToStore}
+import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStoreActor}
 
 import scala.language.postfixOps
 
@@ -26,7 +29,9 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
       lazy val subWorkflowStore = new SqlSubWorkflowStore(SingletonServicesStore.databaseInterface)
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
-      val rootWorkflowId = WorkflowId.randomId()
+      lazy val workflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
+      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref))
+
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()
       val subSubWorkflowId = WorkflowId.randomId()
@@ -39,6 +44,9 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
         override def tag: String = "foobar"
       }
 
+      workflowStoreService ! SubmitWorkflow(WorkflowSourceFiles("", "{}", "{}"))
+      val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
+
       // Query for non existing sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
       expectMsgType[SubWorkflowNotFound](MaxWait)
@@ -49,7 +57,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
 
       // Query for sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
-      val subWorkflowEntry = SubWorkflowStoreEntry(rootWorkflowId.toString, parentWorkflowId.toString, jobKey.scope.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subWorkflowId.toString, Some(0))
+      val subWorkflowEntry = SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, jobKey.scope.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subWorkflowId.toString, Some(0))
       expectMsg[SubWorkflowFound](SubWorkflowFound(subWorkflowEntry))
 
       // Register sub sub workflow
@@ -58,7 +66,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
 
       // Query for sub sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(subWorkflowId, jobKey)
-      val subSubWorkflowEntry = SubWorkflowStoreEntry(rootWorkflowId.toString, subWorkflowId.toString, jobKey.scope.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subSubWorkflowId.toString, Some(1))
+      val subSubWorkflowEntry = SubWorkflowStoreEntry(Option(0), subWorkflowId.toString, jobKey.scope.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subSubWorkflowId.toString, Some(1))
       expectMsg[SubWorkflowFound](SubWorkflowFound(subSubWorkflowEntry))
       
       // Delete root workflow

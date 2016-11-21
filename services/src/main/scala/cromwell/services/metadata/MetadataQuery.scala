@@ -36,7 +36,7 @@ case object MetadataBoolean extends MetadataType { override val typeName = "bool
 
 object MetadataValue {
   def apply(value: Any) = {
-    value match {
+    Option(value).getOrElse("") match {
       case WdlInteger(i) => new MetadataValue(i.toString, MetadataInt)
       case WdlFloat(f) => new MetadataValue(f.toString, MetadataNumber)
       case WdlBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)

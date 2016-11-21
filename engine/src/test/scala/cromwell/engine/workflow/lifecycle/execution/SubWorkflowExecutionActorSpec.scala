@@ -24,7 +24,7 @@ import scala.language.postfixOps
 
 class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito with Eventually {
   
-  behavior of "EngineWorkflowExecutionActor"
+  behavior of "SubWorkflowExecutionActor"
 
   val serviceRegistryProbe = TestProbe()
   val jobStoreProbe = TestProbe()
@@ -51,7 +51,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   subWorkflow.unqualifiedName returns "sub_wf"
   val subWorkflowCall = mock[WorkflowCall]
   subWorkflowCall.fullyQualifiedName returns "foo.bar"
-  subWorkflowCall.workflow returns subWorkflow
+  subWorkflowCall.callable returns subWorkflow
   val subKey = SubWorkflowKey(subWorkflowCall, None, 1)
   
   val awaitTimeout: FiniteDuration = 10 seconds
@@ -73,7 +73,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref
-      }), parentProbe.ref, s"EngineWorkflowExecutionActorSpec-${UUID.randomUUID()}")
+      }), parentProbe.ref, s"SubWorkflowExecutionActorSpec-${UUID.randomUUID()}")
   }
   
   it should "Check the sub workflow store when restarting" in {
@@ -94,7 +94,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     ewea.setState(SubWorkflowCheckingStoreState)
     
     val subWorkflowUuid = WorkflowId.randomId()
-    ewea ! SubWorkflowFound(SubWorkflowStoreEntry(parentWorkflowId.toString, parentWorkflowId.toString, subKey.scope.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
+    ewea ! SubWorkflowFound(SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, subKey.scope.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
     preparationActor.expectMsg(CallPreparationActor.Start)
     parentProbe.expectMsg(JobStarting(subKey))
     
@@ -159,10 +159,12 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     val ewea = buildEWEA()
     ewea.setState(SubWorkflowPreparingState)
     deathWatch watch ewea
-    
-    val preparationFailedMessage: CallPreparationFailed = CallPreparationFailed(mock[JobKey], new Exception("Expected test exception"))
+
+    val subWorkflowKey = mock[SubWorkflowKey]
+    val throwable: Exception = new Exception("Expected test exception")
+    val preparationFailedMessage: CallPreparationFailed = CallPreparationFailed(subWorkflowKey, throwable)
     ewea ! preparationFailedMessage
-    parentProbe.expectMsg(preparationFailedMessage)
+    parentProbe.expectMsg(SubWorkflowFailedResponse(subKey, Map.empty, throwable))
     deathWatch.expectTerminated(ewea, awaitTimeout)
   }
   

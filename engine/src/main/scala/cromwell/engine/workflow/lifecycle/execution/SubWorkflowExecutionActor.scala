@@ -32,6 +32,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   override def jobTag: String = key.tag
 
   startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
+  
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
   
   when(SubWorkflowPendingState) {
@@ -96,7 +97,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   onTransition {
-    case (fromState, toState) if fromState.workflowState != toState.workflowState =>
+    case (fromState, toState) =>
       stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) } 
   }
   

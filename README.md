@@ -1197,6 +1197,8 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
+While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  It's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
+
 #### Refresh Token
 
 A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
@@ -1567,7 +1569,8 @@ Valid keys and their meanings:
         * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
     * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.
 * JES Backend Only
-    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.root` in the [configuration](#configuring-cromwell).
+    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.config.root` in the [configuration](#configuring-cromwell).
+    * **google_compute_service_account** - (JES backend only) Specifies an alternate service account to use on the compute instance (e.g. my-new-svcacct@my-google-project.iam.gserviceaccount.com).  If this is not set, this defaults to the value within `backend.jes.config.genomics.compute-service-account` in the [configuration](#configuring-cromwell) if specified or `default` otherwise.
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
     * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)

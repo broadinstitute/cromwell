@@ -55,6 +55,7 @@ object JesAsyncBackendJobExecutionActor {
   object WorkflowOptionKeys {
     val MonitoringScript = "monitoring_script"
     val GoogleProject = "google_project"
+    val GoogleComputeServiceAccount = "google_compute_service_account"
   }
 
 
@@ -307,6 +308,10 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, jesAttributes.project)
   }
 
+  private def computeServiceAccount(descriptor: BackendWorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleComputeServiceAccount, jesAttributes.computeServiceAccount)
+  }
+
   private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Future[Run] = {
 
     def createRun() = Future(Run(
@@ -318,6 +323,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       logFileName = jesLogFilename,
       jesParameters,
       googleProject(jobDescriptor.workflowDescriptor),
+      computeServiceAccount(jobDescriptor.workflowDescriptor),
       retryable,
       initializationData.genomics
     ))

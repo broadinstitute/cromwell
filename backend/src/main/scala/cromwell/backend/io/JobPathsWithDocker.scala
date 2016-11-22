@@ -22,7 +22,7 @@ class JobPathsWithDocker(val jobKey: BackendJobDescriptorKey,
     path.toAbsolutePath match {
       case p if p.startsWith(WorkflowPathsWithDocker.DockerRoot) => p
       case p =>
-        /** For example:
+        /* For example:
           *
           * p = /abs/path/to/cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
           * localExecutionRoot = /abs/path/to/cromwell-executions

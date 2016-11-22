@@ -65,7 +65,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
     val dependencies = upstream.flatten ++ downstream
     val dependenciesResolved = dependencies forall { case (_, s) => s == ExecutionStatus.Done }
 
-    /**
+    /*
       * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.
       * If a scope cannot be resolved it may be because it is in a scatter that has not been populated yet,
       * therefore there is no entry in the executionStore for this scope.
@@ -76,7 +76,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
 
   private def upstreamEntry(entry: JobKey, prerequisiteScope: Scope): Option[ExecutionStoreEntry] = {
     prerequisiteScope.closestCommonAncestor(entry.scope) match {
-      /**
+      /*
         * If this entry refers to a Scope which has a common ancestor with prerequisiteScope
         * and that common ancestor is a Scatter block, then find the shard with the same index
         * as 'entry'.  In other words, if you're in the same scatter block as your pre-requisite
@@ -90,7 +90,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
           case (k, _) => k.scope == prerequisiteScope && k.index == entry.index
         }
 
-      /**
+      /*
         * Otherwise, simply refer to the collector entry.  This means that 'entry' depends
         * on every shard of the pre-requisite scope to finish.
         */

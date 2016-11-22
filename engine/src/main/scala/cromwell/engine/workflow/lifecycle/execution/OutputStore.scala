@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import cromwell.core.ExecutionIndex._
-import cromwell.core.{JobOutput, ExecutionIndex => _, _}
+import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
 import wdl4s.types.{WdlArrayType, WdlType}

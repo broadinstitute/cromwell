@@ -19,7 +19,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.{WdlNamespaceWithWorkflow, Workflow, WorkflowCall}
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito with Eventually {

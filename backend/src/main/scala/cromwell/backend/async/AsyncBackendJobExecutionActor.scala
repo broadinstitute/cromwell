@@ -2,7 +2,7 @@ package cromwell.backend.async
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse, _}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalException
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}

@@ -86,7 +86,7 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
       val path = workflowPath.gcsAuthFilePath
-      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toUri.toString}")
+      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toUri}")
       Future(path.writeAsJson(content)).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
       } void

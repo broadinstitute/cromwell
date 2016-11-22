@@ -5,8 +5,8 @@ import java.time.OffsetDateTime
 import akka.actor.ActorRef
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus._
-import cromwell.core.{ExecutionStatus, _}
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, _}
+import cromwell.core._
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import wdl4s._
 import wdl4s.values.WdlValue

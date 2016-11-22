@@ -246,7 +246,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       data.expressionLanguageFunctions,
       data.outputStore.fetchCallOutputEntries
     ) map { workflowOutputs =>
-       workflowLogger.info(s"Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs: \n" + workflowOutputs.toJson.prettyPrint)
+       workflowLogger.info(
+         s"""Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs:
+             |${workflowOutputs.toJson.prettyPrint}""".stripMargin
+       )
        pushWorkflowOutputMetadata(workflowOutputs)
        (WorkflowExecutionSucceededResponse(data.jobExecutionMap, workflowOutputs mapValues JobOutput.apply), WorkflowExecutionSuccessfulState)
     } recover {

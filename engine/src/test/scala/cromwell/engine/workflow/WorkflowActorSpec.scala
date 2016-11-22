@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
-import cromwell.core.{CallOutputs, WorkflowId, _}
+import cromwell.core._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._

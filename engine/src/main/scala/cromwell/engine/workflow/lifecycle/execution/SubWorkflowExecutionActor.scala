@@ -7,10 +7,10 @@ import cromwell.core.logging.JobLogging
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
 import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{CallPreparationFailed, Start, SubWorkflowPreparationSucceeded}
-import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor.{SubWorkflowExecutionActorData, _}
+import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataKey, _}
+import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import wdl4s.EvaluatedTaskInputs
 

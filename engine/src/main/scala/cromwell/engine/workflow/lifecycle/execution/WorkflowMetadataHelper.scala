@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, _}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
 import scala.util.Random

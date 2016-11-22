@@ -42,7 +42,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
 
   private def findFiles(values: Seq[WdlValue]): Seq[WdlSingleFile] = {
     values flatMap {
-      case f: WdlSingleFile => Seq(f)
+      case file: WdlSingleFile => Seq(file)
       case array: WdlArray => findFiles(array.value)
       case map: WdlMap => findFiles(map.value.values.toSeq)
       case _ => Seq.empty

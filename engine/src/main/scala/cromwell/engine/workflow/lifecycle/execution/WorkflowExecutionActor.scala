@@ -173,7 +173,7 @@ object WorkflowExecutionActor {
       }
 
       val dependencies = upstream.flatten ++ downstream
-      val dependenciesResolved = dependencies forall { case (k,_) => isDone(k) }
+      val dependenciesResolved = dependencies forall { case (k, _) => isDone(k) }
 
       /**
         * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.

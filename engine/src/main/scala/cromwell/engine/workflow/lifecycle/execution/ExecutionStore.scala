@@ -62,7 +62,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       case _ => Nil
     }
 
-    def isDone(e: JobKey): Boolean = executionStore.store exists {
+    def isDone(e: JobKey): Boolean = store exists {
       case (k, s) => k.scope.fullyQualifiedName == e.scope.fullyQualifiedName && k.index == e.index && s == ExecutionStatus.Done
     }
 

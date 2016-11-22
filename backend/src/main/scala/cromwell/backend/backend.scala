@@ -37,14 +37,6 @@ object BackendWorkflowDescriptor {
             workflowOptions: WorkflowOptions) = {
     new BackendWorkflowDescriptor(id, workflow, inputs, workflowOptions, List.empty)
   }
-
-  def apply(id: WorkflowId,
-            workflow: Workflow,
-            inputs: Map[FullyQualifiedName, WdlValue],
-            workflowOptions: WorkflowOptions,
-            rootWorkflow: Workflow) = {
-    new BackendWorkflowDescriptor(id, workflow, inputs, workflowOptions, List.empty)
-  }
 }
 
 /**

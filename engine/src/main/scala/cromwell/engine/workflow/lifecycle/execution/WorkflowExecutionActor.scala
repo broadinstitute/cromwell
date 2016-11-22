@@ -368,16 +368,16 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
   
   private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val eweaRef = context.actorOf(
+    val sweaRef = context.actorOf(
       SubWorkflowExecutionActor.props(key, data, backendFactories, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
         callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting),
       s"SubWorkflowExecutionActor-${key.tag}"
     )
 
     pushNewCallMetadata(key, None)
-    eweaRef ! SubWorkflowExecutionActor.Execute
+    sweaRef ! SubWorkflowExecutionActor.Execute
     
-    Success(WorkflowExecutionDiff(Map(key -> ExecutionStatus.Running)))
+    Success(WorkflowExecutionDiff(Map(key -> ExecutionStatus.QueuedInCromwell)))
   }
 
   private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
@@ -504,7 +504,7 @@ object WorkflowExecutionActor {
           val shards = (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
           shards :+ CollectorKey(call)
         case scatter: Scatter =>
-          throw new UnsupportedOperationException("Nested Scatters are not supported (yet).")
+          throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
         case e =>
           throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
       }

@@ -40,11 +40,7 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
     val genomicsCredentials = jesConfiguration.jesAuths.genomics
     
     // The default auth file bucket is always at the root of the root workflow
-    val defaultBucket = workflowDescriptor.breadCrumbs.headOption map { rootWorkflow =>
-      executionRoot.resolve(rootWorkflow.workflow.unqualifiedName).resolve(rootWorkflow.id.toString)
-    } getOrElse {
-      executionRoot.resolve(workflowDescriptor.workflow.unqualifiedName).resolve(workflowDescriptor.id.toString)
-    }
+    val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.unqualifiedName).resolve(workflowDescriptor.rootWorkflowId.toString)
     
     val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.toUri.toString
     val authBucket = GcsPathBuilderFactory(genomicsCredentials).withOptions(workflowOptions).build(bucket) recover {

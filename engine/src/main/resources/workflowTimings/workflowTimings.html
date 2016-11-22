@@ -175,9 +175,6 @@
             });
         }
 
-        /**
-         * If selectedRow uis undefined, hide all rows
-         */
         function toggleSubWorkflowRows(dt, selectedRow) {
             function filterFunction(cell, row, column, table) {
                 var ancestry = table.getRowProperty(row, "ancestry");

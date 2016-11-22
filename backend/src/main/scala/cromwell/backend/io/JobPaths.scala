@@ -36,10 +36,7 @@ trait JobPaths { this: WorkflowPaths =>
   def jobKey: JobKey
   lazy val callRoot = callPathBuilder(workflowRoot, jobKey)
   lazy val callExecutionRoot = callRoot
-  lazy val stdout = {
-    val s = callExecutionRoot.resolve(stdoutFilename)
-    s
-  }
+  lazy val stdout = callExecutionRoot.resolve(stdoutFilename)
   lazy val stderr = callExecutionRoot.resolve(stderrFilename)
   lazy val script = callExecutionRoot.resolve(scriptFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)

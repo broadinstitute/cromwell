@@ -1804,7 +1804,7 @@ The sub workflow ID can be queried separately:
 
 ```
 {
-  "workflowName": "main_workflow",
+  "workflowName": "hello_and_goodbye",
   "calls": {
     "sub.hello_and_goodbye.hello": [
       {
@@ -1953,7 +1953,7 @@ It's also possible to set the URL query parameter `expandSubWorkflows` to `true`
     "main_workflow.hello_and_goodbye": [{
       "executionStatus": "Done",
       "subWorkflowMetadata": {
-        "workflowName": "main_workflow",
+        "workflowName": "hello_and_goodbye",
         "calls": {
           "sub.hello_and_goodbye.hello": [{
             "executionStatus": "Done",

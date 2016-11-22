@@ -8,6 +8,6 @@ files {
 metadata {
   workflowName: test
   status: Succeeded
-  "outputs.test.echo_str.o": "bar"
-  "outputs.test.echo_int.o": 200
+  "outputs.test_echo_str_o": "bar"
+  "outputs.test_echo_int_o": 200
 }

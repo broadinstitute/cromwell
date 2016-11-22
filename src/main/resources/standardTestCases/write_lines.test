@@ -10,6 +10,6 @@ metadata {
   status: Succeeded
   "calls.write_lines.a2f.executionStatus": Done
   "calls.write_lines.f2a.executionStatus": Done
-  "outputs.write_lines.a2f_second.x": "a\nb\nc\nd"
+  "outputs.write_lines_a2f_second_x": "a\nb\nc\nd"
 }
 

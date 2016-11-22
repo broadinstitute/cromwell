@@ -11,5 +11,5 @@ metadata {
   "calls.forkjoin.wc.outputs.count": 1000
   "calls.forkjoin.grep.outputs.count": 21
   "calls.forkjoin.join.outputs.proportion": 47
-  "outputs.forkjoin.join.proportion": 47
+  "outputs.forkjoin_join_proportion": 47
 }

@@ -10,7 +10,7 @@ files {
 metadata {
   workflowName: wf
   status: Succeeded
-  "outputs.wf.sub.o2": myfilename.txt
-  "outputs.wf.sub.stdout": myfilename.txt
-  "outputs.wf.sub.swappedContent": content
+  "outputs.wf_sub_o2": myfilename.txt
+  "outputs.wf_sub_stdout": myfilename.txt
+  "outputs.wf_sub_swappedContent": content
 }

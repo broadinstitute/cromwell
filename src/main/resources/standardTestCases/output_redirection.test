@@ -6,6 +6,6 @@ files {
 }
 
 metadata {
-  "outputs.output_redirection_wf.output_redirection.stdout": "should be on stdout"
-  "outputs.output_redirection_wf.output_redirection.stderr": "should be on stderr"
+  "outputs.output_redirection_wf_output_redirection_stdout": "should be on stdout"
+  "outputs.output_redirection_wf_output_redirection_stderr": "should be on stderr"
 }

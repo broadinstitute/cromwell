@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: mirror_mirror_on_the_wall
   status: Succeeded
-  "outputs.mirror_mirror_on_the_wall.mirror2.out": "The sixth sheikh's sheep is sick"
+  "outputs.mirror_mirror_on_the_wall_mirror2_out": "The sixth sheikh's sheep is sick"
 }

@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: wf
   status: Succeeded
-  "outputs.wf.blah.ab": "ab"
+  "outputs.wf_blah_ab": "ab"
 }

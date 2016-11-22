@@ -9,5 +9,5 @@ files {
 metadata {
   workflowName: oneToMany
   status: Succeeded
-  "outputs.oneToMany.listFiles.result": hello
+  "outputs.oneToMany_listFiles_result": hello
 }

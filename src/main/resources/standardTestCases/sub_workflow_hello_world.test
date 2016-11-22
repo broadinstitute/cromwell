@@ -1,0 +1,16 @@
+name: sub_workflow_hello_world
+testFormat: workflowsuccess
+ignore: true
+
+files {
+  wdl: sub_workflow_hello_world/sub_workflow_hello_world.wdl
+  imports: [
+    sub_workflow_hello_world/sub_workflow_hello_world_import.wdl
+  ]
+}
+
+metadata {
+  workflowName: main_workflow
+  status: Succeeded
+  "outputs.main_output": "Hello sub world!"
+}

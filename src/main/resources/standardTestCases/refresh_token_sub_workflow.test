@@ -1,0 +1,19 @@
+name: refresh_token_sub_workflow
+testFormat: workflowsuccess
+backends: [Jes-Refresh]
+ignore: true
+
+files {
+  wdl: refresh_token_sub_workflow/refresh_token_sub_workflow.wdl
+  inputs: refresh_token_sub_workflow/refresh_token_sub_workflow.inputs
+  options: refresh_token_sub_workflow/refresh_token_sub_workflow.options
+  imports: [
+    refresh_token_sub_workflow/refresh_token_sub_workflow_import.wdl
+  ]
+}
+
+metadata {
+  workflowName: refresh_token_sub_workflow
+  status: Succeeded
+  "calls.refresh_token_sub_workflow.hello.backend": "Jes-Refresh"
+}

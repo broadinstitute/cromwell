@@ -9,6 +9,6 @@ files {
 metadata {
   workflowName: echo_wf
   status: Succeeded
-  "outputs.echo_wf.echo.two": 2
-  "outputs.echo_wf.echo.a_string": "world"
+  "outputs.echo_wf_echo_two": 2
+  "outputs.echo_wf_echo_a_string": "world"
 }

@@ -7,7 +7,7 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -34,7 +34,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
                                  matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
-    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
+    val workflowSources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
@@ -46,7 +46,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
         subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props),
-        backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None))),
+        backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
+        serverMode = true),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )

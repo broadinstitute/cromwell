@@ -30,6 +30,7 @@ import net.ceedubs.ficus.Ficus._
 
   private val logger = Logging(context.system, this)
   private val config = ConfigFactory.load()
+  val serverMode: Boolean
 
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
   lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
@@ -65,7 +66,7 @@ import net.ceedubs.ficus.Ficus._
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
       workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor,
-      jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate),
+      jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
     "WorkflowManagerActor")
 
   override def receive = {

@@ -90,7 +90,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark"))).workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).workflow,
       inputs,
       options
     )

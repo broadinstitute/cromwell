@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import akka.actor.SupervisorStrategy.Escalate
+import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core._
 import cromwell.core.logging.JobLogging
@@ -25,7 +26,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
                                 restarting: Boolean) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
-  
+
+  override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
+
   private val parentWorkflow = data.workflowDescriptor
   override val workflowId = parentWorkflow.id
   override val workflowIdForCallMetadata = parentWorkflow.id

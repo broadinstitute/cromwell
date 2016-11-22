@@ -141,9 +141,10 @@ object WorkflowActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
-            backendSingletonCollection: BackendSingletonCollection): Props = {
+            backendSingletonCollection: BackendSingletonCollection,
+            serverMode: Boolean): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)).withDispatcher(EngineDispatcher)
+      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -160,7 +161,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
-                    backendSingletonCollection: BackendSingletonCollection)
+                    backendSingletonCollection: BackendSingletonCollection,
+                    serverMode: Boolean)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper {
 
   implicit val ec = context.dispatcher
@@ -174,7 +176,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId),
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
 

@@ -1,11 +1,12 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
+import javax.sql.rowset.serial.SerialBlob
 
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
-import cromwell.core.{WorkflowId, WorkflowSourceFiles, WorkflowSourceFilesCollection}
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
@@ -52,10 +53,12 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {
-    val sources = WorkflowSourceFiles(
+    val sources = WorkflowSourceFilesCollection(
       workflowStoreEntry.workflowDefinition.toRawString,
       workflowStoreEntry.workflowInputs.toRawString,
-      workflowStoreEntry.workflowOptions.toRawString)
+      workflowStoreEntry.workflowOptions.toRawString,
+      workflowStoreEntry.importsZipFile.map(b => b.getBytes(1, b.length.asInstanceOf[Int]))
+    )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
       sources,
@@ -69,7 +72,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowSourceFiles.inputsJson.toClob,
       workflowSourceFiles.workflowOptionsJson.toClob,
       WorkflowStoreState.Submitted.toString,
-      OffsetDateTime.now.toSystemTimestamp
+      OffsetDateTime.now.toSystemTimestamp,
+      workflowSourceFiles.importsZipFileOption.map(new SerialBlob(_))
     )
   }
 

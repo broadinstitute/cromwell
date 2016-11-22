@@ -40,7 +40,7 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
       call.evaluateTaskInputs(
         workflowDescriptor.backendDescriptor.inputs,
         expressionLanguageFunctions,
-        outputStore.fetchCallOutputEntries,
+        outputStore.fetchNodeOutputEntries,
         scatterMap
       )
     }

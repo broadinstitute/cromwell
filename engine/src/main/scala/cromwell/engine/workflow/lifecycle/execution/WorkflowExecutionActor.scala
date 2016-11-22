@@ -168,8 +168,12 @@ object WorkflowExecutionActor {
         case _ => Nil
       }
 
+      def isDone(e: JobKey): Boolean = executionStore.store exists {
+        case (k, s) => k.scope == e.scope && k.index == e.index && s == ExecutionStatus.Done
+      }
+
       val dependencies = upstream.flatten ++ downstream
-      val dependenciesResolved = dependencies forall { case (_, s) => s == ExecutionStatus.Done }
+      val dependenciesResolved = dependencies forall { case (k, s) => isDone(k) }
 
       /**
         * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.

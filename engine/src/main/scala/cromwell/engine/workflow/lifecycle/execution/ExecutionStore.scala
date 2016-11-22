@@ -4,7 +4,7 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.ExecutionStoreEntry
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{CollectorKey, ScatterKey, SubWorkflowKey}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{CollectorKey, DeclarationKey, ScatterKey, SubWorkflowKey}
 import wdl4s._
 
 
@@ -17,7 +17,8 @@ object ExecutionStore {
       case call: TaskCall => Option(BackendJobDescriptorKey(call, None, 1))
       case call: WorkflowCall => Option(SubWorkflowKey(call, None, 1))
       case scatter: Scatter => Option(ScatterKey(scatter))
-      case _ => None // FIXME there are other types of scopes now (Declarations, Ifs) Figure out what to do with those
+      case declaration: Declaration if declaration.expression.isDefined => Option(DeclarationKey(declaration, None))
+      case _ => None // Ifs will need to be added here when supported
     }
 
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap)
@@ -48,11 +49,9 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     val upstream = key.scope match {
       case node: GraphNode => node.upstream collect {
-        // Only scatters and calls are in the execution store for now (not declarations)
-        // However declarations are nodes so they can be an upstream dependency
-        // We don't want to look for those in the execution store (yet ?) since upstreamEntry would return None
         case n: Call => upstreamEntry(key, n)
         case n: Scatter => upstreamEntry(key, n)
+        case n: Declaration if n.expression.isDefined => upstreamEntry(key, n)
       }
       case _ => Set.empty
     }

@@ -100,6 +100,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         // Scatter
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>
       handleCallSuccessful(jobKey, callOutputs, stateData, Map.empty)
+        // Declaration
+    case Event(DeclarationEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
+      handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
 
       // Failure
         // Initialization
@@ -118,6 +121,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, descendantJobKeys)
+    case Event(DeclarationEvaluationFailedResponse(jobKey, reason), stateData) =>
+      handleDeclarationEvaluationFailure(jobKey, reason, stateData)
   }
 
   when(WorkflowExecutionAbortingState) {
@@ -219,21 +224,31 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData, failedJobKey: JobKey, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
-    val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(failedJobKey -> ExecutionStatus.Failed)))
-        .removeCallExecutionActor(failedJobKey)
-        .addExecutions(jobExecutionMap)
-
+    val newData = stateData
+      .removeCallExecutionActor(failedJobKey)
+      .addExecutions(jobExecutionMap)
+    
+    handleExecutionFailure(failedJobKey, newData, reason, jobExecutionMap)
+  }
+  
+  private def handleDeclarationEvaluationFailure(declarationKey: DeclarationKey, reason: Throwable, stateData: WorkflowExecutionActorData) = {
+    handleExecutionFailure(declarationKey, stateData, reason, Map.empty)
+  }
+  
+  private def handleExecutionFailure(failedJobKey: JobKey, data: WorkflowExecutionActorData, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
+    val newData = data.executionFailed(failedJobKey)
+    
     if (workflowDescriptor.getWorkflowOption(WorkflowFailureMode).contains(ContinueWhilePossible.toString)) {
-      mergedStateData.workflowCompletionStatus match {
+      newData.workflowCompletionStatus match {
         case Some(completionStatus) if completionStatus == Failed =>
-          context.parent ! WorkflowExecutionFailedResponse(stateData.jobExecutionMap, reason)
-          goto(WorkflowExecutionFailedState) using mergedStateData
+          context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
+          goto(WorkflowExecutionFailedState) using newData
         case _ =>
-          stay() using startRunnableScopes(mergedStateData)
+          stay() using startRunnableScopes(newData)
       }
     } else {
-      context.parent ! WorkflowExecutionFailedResponse(stateData.jobExecutionMap, reason)
-      goto(WorkflowExecutionFailedState) using mergedStateData
+      context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
+      goto(WorkflowExecutionFailedState) using newData
     }
   }
   
@@ -278,17 +293,22 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
-    workflowLogger.debug(s"Job ${jobKey.tag} succeeded!")
-    val newData = data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
-
-    newData.workflowCompletionStatus match {
+    handleExecutionSuccess(data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap))
+  }
+  
+  private def handleDeclarationEvaluationSuccessful(key: DeclarationKey, value: WdlValue, data: WorkflowExecutionActorData) = {
+    handleExecutionSuccess(data.declarationEvaluationSuccess(key, value))
+  }
+  
+  private def handleExecutionSuccess(data: WorkflowExecutionActorData) = {
+    data.workflowCompletionStatus match {
       case Some(ExecutionStatus.Done) =>
-        handleWorkflowSuccessful(newData)
+        handleWorkflowSuccessful(data)
       case Some(sts) =>
         context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in fail-slow mode"))
-        goto(WorkflowExecutionFailedState) using newData
+        goto(WorkflowExecutionFailedState) using data
       case _ =>
-        stay() using startRunnableScopes(newData)
+        stay() using startRunnableScopes(data)
     }
   }
   
@@ -320,6 +340,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       case k: ScatterKey => processRunnableScatter(k, data)
       case k: CollectorKey => processRunnableCollector(k, data)
       case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
+      case k: DeclarationKey => processRunnableDeclaration(k, data)
       case k =>
         val exception = new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}")
         self ! JobInitializationFailed(k, exception)
@@ -337,6 +358,27 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         }
       case Failure(e) => throw new RuntimeException("Unexpected engine failure", e)
     }
+  }
+
+  private def processRunnableDeclaration(key: DeclarationKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
+    val declaration = key.scope
+
+    val lookup = declaration.lookupFunction(
+      workflowDescriptor.workflowInputs,
+      data.expressionLanguageFunctions,
+      data.outputStore.fetchCallOutputEntries
+    )
+    
+    declaration.expression match {
+      case Some(e) => 
+        e.evaluate(lookup, data.expressionLanguageFunctions) match {
+          case Success(result) => self ! DeclarationEvaluationSucceededResponse(key, result)
+          case Failure(ex) => self ! DeclarationEvaluationFailedResponse(key, ex)
+        }
+      case None => self ! DeclarationEvaluationFailedResponse(key, new RuntimeException(s"Could not evaluate declaration ${key.scope.fullyQualifiedName} because it has no expression"))
+    } 
+
+    Success(WorkflowExecutionDiff(Map(key -> ExecutionStatus.Running)))
   }
 
   private def processRunnableJob(jobKey: BackendJobDescriptorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
@@ -464,6 +506,10 @@ object WorkflowExecutionActor {
   private case class ScatterCollectionFailedResponse(collectorKey: CollectorKey, throwable: Throwable)
 
   private case class ScatterCollectionSucceededResponse(collectorKey: CollectorKey, outputs: CallOutputs)
+  
+  private case class DeclarationEvaluationSucceededResponse(declarationKey: DeclarationKey, value: WdlValue)
+  
+  private case class DeclarationEvaluationFailedResponse(declarationKey: DeclarationKey, reason: Throwable)
 
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
 
@@ -520,6 +566,11 @@ object WorkflowExecutionActor {
 
   case class SubWorkflowKey(scope: WorkflowCall, index: ExecutionIndex, attempt: Int) extends CallKey {
     override val tag = s"SubWorkflow-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
+  }
+
+  case class DeclarationKey(scope: Declaration, index: ExecutionIndex) extends JobKey {
+    override val attempt = 1
+    override val tag = s"Declaration-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
   }
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {

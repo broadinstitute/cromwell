@@ -13,8 +13,8 @@ import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.PerRequest.{RequestComplete, RequestCompleteWithHeaders}
-import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, MetadataBuilderActorState, WaitingForMetadataService}
-import cromwell.webservice.{APIResponse, WorkflowJsonSupport}
+import cromwell.webservice.metadata.MetadataBuilderActor.{Idle, MetadataBuilderActorData, MetadataBuilderActorState, WaitingForMetadataService, WaitingForSubWorkflows}
+import cromwell.webservice.{APIResponse, PerRequestCreator, WorkflowJsonSupport}
 import org.slf4j.LoggerFactory
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
@@ -29,7 +29,21 @@ object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
   case object Idle extends MetadataBuilderActorState
   case object WaitingForMetadataService extends MetadataBuilderActorState
+  case object WaitingForSubWorkflows extends MetadataBuilderActorState
 
+  case class MetadataBuilderActorData(
+                                      originalQuery: MetadataQuery,
+                                      originalEvents: Seq[MetadataEvent],
+                                      subWorkflowsMetadata: Map[String, JsValue],
+                                      waitFor: Int
+                                    ) {
+    def withSubWorkflow(id: String, metadata: JsValue) = {
+      this.copy(subWorkflowsMetadata = subWorkflowsMetadata + ((id, metadata)))
+    }
+    
+    def isComplete = subWorkflowsMetadata.size == waitFor
+  }
+  
   def props(serviceRegistryActor: ActorRef) = {
     Props(new MetadataBuilderActor(serviceRegistryActor)).withDispatcher(ApiDispatcher)
   }
@@ -138,8 +152,8 @@ object MetadataBuilderActor {
     events.toList map { e => keyValueToIndexedJson(e.key.key, e.value, e.offsetDateTime) } combineAll
   }
 
-  private def eventsToAttemptMetadata(attempt: Int, events: Seq[MetadataEvent]) = {
-    val withAttemptField = JsObject(eventsToIndexedJson(events).toJson.asJsObject.fields + (AttemptKey -> JsNumber(attempt)))
+  private def eventsToAttemptMetadata(expandedValues: Map[String, JsValue])(attempt: Int, events: Seq[MetadataEvent]) = {
+    val withAttemptField = JsObject(eventsToIndexedJson(events).toJson(expandedValues).asJsObject.fields + (AttemptKey -> JsNumber(attempt)))
     MetadataForAttempt(attempt, withAttemptField)
   }
 
@@ -160,10 +174,10 @@ object MetadataBuilderActor {
     workflowNonStatusEvents ++ sortedStateEvents.headOption.toList
   }
 
-  private def parseWorkflowEventsToTimestampedJsValue(events: Seq[MetadataEvent], includeCallsIfEmpty: Boolean): JsObject = {
+  private def parseWorkflowEventsToTimestampedJsValue(events: Seq[MetadataEvent], includeCallsIfEmpty: Boolean, expandedValues: Map[String, JsValue]): JsObject = {
     // Partition if sequence of events in a pair of (Workflow level events, Call level events)
     val (workflowLevel, callLevel) = events partition { _.key.jobKey.isEmpty }
-    val foldedWorkflowValues = eventsToIndexedJson(reduceWorkflowEvents(workflowLevel)).toJson.asJsObject
+    val foldedWorkflowValues = eventsToIndexedJson(reduceWorkflowEvents(workflowLevel)).toJson(expandedValues).asJsObject
 
     val callsGroupedByFQN = callLevel groupBy { _.key.jobKey.get.callFqn }
     val callsGroupedByFQNAndIndex = callsGroupedByFQN mapValues { _ groupBy { _.key.jobKey.get.index } }
@@ -171,7 +185,7 @@ object MetadataBuilderActor {
 
     val callsMap = callsGroupedByFQNAndIndexAndAttempt mapValues { eventsForIndex =>
       eventsForIndex mapValues { eventsForAttempt =>
-        eventsForAttempt map Function.tupled(eventsToAttemptMetadata)
+        eventsForAttempt map Function.tupled(eventsToAttemptMetadata(expandedValues))
       } map { Function.tupled(attemptMetadataToIndexMetadata) }
     } mapValues { md => JsArray(md.toVector.sortBy(_.index) flatMap { _.metadata }) }
 
@@ -180,13 +194,13 @@ object MetadataBuilderActor {
     JsObject(foldedWorkflowValues.fields ++ callData)
   }
 
-  private def parseWorkflowEvents(includeCallsIfEmpty: Boolean)(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToTimestampedJsValue(events, includeCallsIfEmpty)
+  private def parseWorkflowEvents(includeCallsIfEmpty: Boolean, expandedValues: Map[String, JsValue])(events: Seq[MetadataEvent]): JsObject = parseWorkflowEventsToTimestampedJsValue(events, includeCallsIfEmpty, expandedValues)
 
   /**
     * Parse a Seq of MetadataEvent into a full Json metadata response.
     */
-  private def parse(events: Seq[MetadataEvent]): JsObject = {
-    JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents(includeCallsIfEmpty = true))
+  private def parse(events: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {
+    JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents(includeCallsIfEmpty = true, expandedValues))
   }
 
   implicit class EnhancedMetadataValue(val value: MetadataValue) extends AnyVal {
@@ -194,12 +208,12 @@ object MetadataBuilderActor {
   }
 }
 
-class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Unit]
+class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Option[MetadataBuilderActorData]]
   with DefaultJsonProtocol with WorkflowQueryPagination {
 
   import WorkflowJsonSupport._
 
-  startWith(Idle, ())
+  startWith(Idle, None)
   val tag = self.path.name
 
   when(Idle) {
@@ -214,9 +228,8 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
   }
 
   when(WaitingForMetadataService) {
-    case Event(MetadataLookupResponse(query, metadata), _) =>
-      context.parent ! RequestComplete((StatusCodes.OK, processMetadataResponse(query, metadata)))
-      allDone
+    case Event(MetadataLookupResponse(query, metadata), None) =>
+      processMetadataResponse(query, metadata)
     case Event(StatusLookupResponse(w, status), _) =>
       context.parent ! RequestComplete((StatusCodes.OK, processStatusResponse(w, status)))
       allDone
@@ -225,7 +238,6 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
       allDone
     case Event(WorkflowQuerySuccess(uri: Uri, response, metadata), _) =>
-      import WorkflowJsonSupport._
       context.parent ! RequestCompleteWithHeaders(response, generateLinkHeaders(uri, metadata):_*)
       allDone
     case Event(failure: WorkflowQueryFailure, _) =>
@@ -235,10 +247,10 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       // Add in an empty output event if there aren't already any output events.
       val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
       val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
-      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false)))
+      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false, Map.empty)))
       allDone
     case Event(LogsResponse(w, l), _) =>
-      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false)))
+      context.parent ! RequestComplete((StatusCodes.OK, workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty)))
       allDone
     case Event(failure: MetadataServiceFailure, _) =>
       context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(failure.reason)))
@@ -249,14 +261,76 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       context stop self
       stay()
   }
+  
+  when(WaitingForSubWorkflows) {
+    case Event(RequestComplete(metadata), Some(data)) =>
+      processSubWorkflowMetadata(metadata, data)
+  }
+  
+  whenUnhandled {
+    case Event(message, data) =>
+      log.error(s"Received unexpected message $message in state $stateName with data $data")
+      stay()
+  }
+  
+  def processSubWorkflowMetadata(metadataResponse: Any, data: MetadataBuilderActorData) = {
+    metadataResponse match {
+      case (StatusCodes.OK, js: JsObject) =>
+        js.fields.get(WorkflowMetadataKeys.Id) match {
+          case Some(subId: JsString) =>
+            val newData = data.withSubWorkflow(subId.value, js)
+            
+            if (newData.isComplete) {
+              buildAndStop(data.originalQuery, data.originalEvents, newData.subWorkflowsMetadata)
+            } else {
+              stay() using Option(newData)
+            }
+          case _ => failAndDie(new RuntimeException("Received unexpected response while waiting for sub workflow metadata."))
+        }
+      case _ => failAndDie(new RuntimeException("Failed to retrieve metadata for a sub workflow."))
+    }
+  }
+  
+  def failAndDie(reason: Throwable) = {
+    context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(reason)))
+    context stop self
+    stay()
+  }
+  
+  def buildAndStop(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue]) = {
+    context.parent ! RequestComplete((StatusCodes.OK, processMetadataEvents(query, eventsList, expandedValues)))
+    allDone
+  }
+  
+  def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent]) = {
+    if (query.expandSubWorkflows) {
+      // Scan events for sub workflow ids
+      val subWorkflowIds = eventsList.collect({
+        case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
+      }).flatten
 
-  def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent]): JsObject = {
+      // If none is found just proceed to build metadata
+      if (subWorkflowIds.isEmpty) buildAndStop(query, eventsList, Map.empty)
+      else {
+        // Otherwise spin up a metadata builder actor for each sub workflow
+        subWorkflowIds foreach { subId =>
+          val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), PerRequestCreator.endpointActorName)
+          subMetadataBuilder ! GetMetadataQueryAction(query.copy(workflowId = WorkflowId.fromString(subId)))
+        }
+        goto(WaitingForSubWorkflows) using Option(MetadataBuilderActorData(query, eventsList, Map.empty, subWorkflowIds.size))
+      }
+    } else {
+      buildAndStop(query, eventsList, Map.empty)
+    }
+  }
+
+  def processMetadataEvents(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {
     // Should we send back some message ? Or even fail the request instead ?
     if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
     else {
       query match {
-        case MetadataQuery(w, _, _, _, _) => workflowMetadataResponse(w, eventsList)
-        case _ => MetadataBuilderActor.parse(eventsList)
+        case MetadataQuery(w, _, _, _, _, _) => workflowMetadataResponse(w, eventsList, includeCallsIfEmpty = true, expandedValues)
+        case _ => MetadataBuilderActor.parse(eventsList, expandedValues)
       }
     }
   }
@@ -268,7 +342,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     ))
   }
 
-  private def workflowMetadataResponse(workflowId: WorkflowId, eventsList: Seq[MetadataEvent], includeCallsIfEmpty: Boolean = true) = {
-    JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+  private def workflowMetadataResponse(workflowId: WorkflowId, eventsList: Seq[MetadataEvent], includeCallsIfEmpty: Boolean, expandedValues: Map[String, JsValue]) = {
+    JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty, expandedValues)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
   }
 }

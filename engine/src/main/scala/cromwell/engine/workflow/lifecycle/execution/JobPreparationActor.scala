@@ -3,44 +3,36 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.{Actor, ActorRef, Props}
 import cromwell.backend._
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.{ExecutionStore, JobKey, OutputStore}
+import cromwell.core.{CallKey, JobKey, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor._
+import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
 import wdl4s._
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
 import scala.util.{Failure, Success, Try}
 
-final case class JobPreparationActor(executionData: WorkflowExecutionActorData,
-                                     jobKey: BackendJobDescriptorKey,
-                                     factory: BackendLifecycleActorFactory,
-                                     initializationData: Option[BackendInitializationData],
-                                     serviceRegistryActor: ActorRef,
-                                     backendSingletonActor: Option[ActorRef])
-  extends Actor with WorkflowLogging {
-
-  lazy val workflowDescriptor: EngineWorkflowDescriptor = executionData.workflowDescriptor
-  lazy val workflowId = workflowDescriptor.id
-  lazy val executionStore: ExecutionStore = executionData.executionStore
-  lazy val outputStore: OutputStore = executionData.outputStore
-  lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(
-    workflowDescriptor.backendDescriptor, jobKey, initializationData)
-
+abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescriptor,
+                                    val outputStore: OutputStore,
+                                    callKey: CallKey) extends Actor with WorkflowLogging {
+  lazy val workflowIdForLogging = workflowDescriptor.id
+  def expressionLanguageFunctions: WdlStandardLibraryFunctions
+  def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse
+  
   override def receive = {
     case Start =>
-      val response = resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions) map { prepareJobExecutionActor }
-      context.parent ! (response recover { case f => BackendJobPreparationFailed(jobKey, f) }).get
+      val response = resolveAndEvaluateInputs() map { prepareExecutionActor }
+      context.parent ! (response recover { case f => CallPreparationFailed(callKey, f) }).get
       context stop self
 
     case unhandled => workflowLogger.warn(self.path.name + " received an unhandled message: " + unhandled)
   }
 
-  def resolveAndEvaluateInputs(jobKey: BackendJobDescriptorKey,
-                               wdlFunctions: WdlStandardLibraryFunctions): Try[Map[Declaration, WdlValue]] = {
+  def resolveAndEvaluateInputs(): Try[Map[Declaration, WdlValue]] = {
     Try {
-      val call = jobKey.call
-      val scatterMap = jobKey.index flatMap { i =>
+      val call = callKey.scope
+      val scatterMap = callKey.index flatMap { i =>
         // Will need update for nested scatters
         call.upstream collectFirst { case s: Scatter => Map(s -> i) }
       } getOrElse Map.empty[Scatter, Int]
@@ -53,8 +45,19 @@ final case class JobPreparationActor(executionData: WorkflowExecutionActorData,
       )
     }
   }
+}
 
-  private def prepareJobExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): JobPreparationActorResponse = {
+final case class JobPreparationActor(executionData: WorkflowExecutionActorData,
+                                     jobKey: BackendJobDescriptorKey,
+                                     factory: BackendLifecycleActorFactory,
+                                     initializationData: Option[BackendInitializationData],
+                                     serviceRegistryActor: ActorRef,
+                                     backendSingletonActor: Option[ActorRef])
+  extends CallPreparationActor(executionData.workflowDescriptor, executionData.outputStore, jobKey) {
+
+  override lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData)
+  
+  override def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
     val curriedAddDefaultsToAttributes = addDefaultsToAttributes(factory.runtimeAttributeDefinitions(initializationData), workflowDescriptor.backendDescriptor.workflowOptions) _
 
@@ -65,19 +68,45 @@ final case class JobPreparationActor(executionData: WorkflowExecutionActorData,
       jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, attributesWithDefault, inputEvaluation)
     } yield BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor, backendSingletonActor))) match {
       case Success(s) => s
-      case Failure(f) => BackendJobPreparationFailed(jobKey, f)
+      case Failure(f) => CallPreparationFailed(jobKey, f)
     }
   }
 }
 
+final case class SubWorkflowPreparationActor(executionData: WorkflowExecutionActorData,
+                                             key: SubWorkflowKey,
+                                             subWorkflowId: WorkflowId)
+  extends CallPreparationActor(executionData.workflowDescriptor, executionData.outputStore, key) {
+
+  override lazy val expressionLanguageFunctions = executionData.expressionLanguageFunctions
+
+  override def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse = {
+    val oldBackendDescriptor = workflowDescriptor.backendDescriptor
+    
+    val newBackendDescriptor = oldBackendDescriptor.copy(
+      id = subWorkflowId,
+      workflow = key.scope.calledWorkflow,
+      inputs = workflowDescriptor.inputs ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, key)
+    )
+    val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))
+    SubWorkflowPreparationSucceeded(engineDescriptor, inputEvaluation)
+  }
+}
+
+object CallPreparationActor {
+  sealed trait CallPreparationActorCommands
+  case object Start extends CallPreparationActorCommands
+
+  sealed trait CallPreparationActorResponse
+  
+  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends CallPreparationActorResponse
+  case class SubWorkflowPreparationSucceeded(workflowDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) extends CallPreparationActorResponse
+  case class JobCallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
+  case class CallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
+}
+
 object JobPreparationActor {
-  sealed trait JobPreparationActorCommands
-  case object Start extends JobPreparationActorCommands
-
-  sealed trait JobPreparationActorResponse
-  case class BackendJobPreparationSucceeded(jobDescriptor: BackendJobDescriptor, bjeaProps: Props) extends JobPreparationActorResponse
-  case class BackendJobPreparationFailed(jobKey: JobKey, throwable: Throwable) extends JobPreparationActorResponse
-
   def props(executionData: WorkflowExecutionActorData,
             jobKey: BackendJobDescriptorKey,
             factory: BackendLifecycleActorFactory,
@@ -87,5 +116,15 @@ object JobPreparationActor {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
     Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor, backendSingletonActor))
+  }
+}
+
+object SubWorkflowPreparationActor {
+  def props(executionData: WorkflowExecutionActorData,
+            key: SubWorkflowKey,
+            subWorkflowId: WorkflowId) = {
+    // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
+    // (WDL expression evaluation using Backend's expressionLanguageFunctions)
+    Props(new SubWorkflowPreparationActor(executionData, key, subWorkflowId))
   }
 }

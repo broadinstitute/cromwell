@@ -50,7 +50,7 @@ object WorkflowInitializationActor {
   case class BackendActorAndBackend(actor: ActorRef, backend: String)
 }
 
-case class WorkflowInitializationActor(workflowId: WorkflowId,
+case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
                                        workflowDescriptor: EngineWorkflowDescriptor,
                                        serviceRegistryActor: ActorRef)
   extends AbortableWorkflowLifecycleActor[WorkflowInitializationActorState] {

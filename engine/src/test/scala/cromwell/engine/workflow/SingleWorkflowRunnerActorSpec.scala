@@ -18,7 +18,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
+import cromwell.{AlwaysHappyJobStoreActor, AlwaysHappySubWorkflowStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
@@ -56,6 +56,7 @@ object SingleWorkflowRunnerActorSpec {
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
+  private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
 
@@ -66,6 +67,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
       dummyServiceRegistryActor,
       dummyLogCopyRouter,
       jobStore,
+      subWorkflowStore,
       callCacheReadActor,
       jobTokenDispenserActor,
       BackendSingletonCollection(Map.empty),

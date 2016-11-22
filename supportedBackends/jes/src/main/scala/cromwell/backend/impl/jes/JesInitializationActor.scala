@@ -15,7 +15,7 @@ import cromwell.backend.{BackendInitializationData, BackendWorkflowDescriptor, B
 import cromwell.core.WorkflowOptions
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
-import wdl4s.Call
+import wdl4s.TaskCall
 import wdl4s.types.{WdlBooleanType, WdlFloatType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
 
@@ -28,14 +28,14 @@ object JesInitializationActor {
     JesRuntimeAttributes.PreemptibleKey, JesRuntimeAttributes.BootDiskSizeKey, JesRuntimeAttributes.DisksKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[Call],
+            calls: Set[TaskCall],
             jesConfiguration: JesConfiguration,
             serviceRegistryActor: ActorRef): Props =
     Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor: ActorRef))
 }
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                             override val calls: Set[Call],
+                             override val calls: Set[TaskCall],
                              private[jes] val jesConfiguration: JesConfiguration,
                              override val serviceRegistryActor: ActorRef)
   extends BackendWorkflowInitializationActor {
@@ -79,14 +79,14 @@ class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
       genomics <- buildGenomics
       workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
-      _ = publishWorkflowRoot(workflowPaths.workflowRootPath.toString)
+      _ = publishWorkflowRoot(workflowPaths.workflowRoot.toString)
     } yield Option(JesBackendInitializationData(workflowPaths, genomics))
   }
 
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
       val path = workflowPath.gcsAuthFilePath
-      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toString}")
+      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toUri}")
       Future(path.writeAsJson(content)).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
       } void

@@ -8,7 +8,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.Call
+import wdl4s.TaskCall
 
 import scala.concurrent.duration._
 
@@ -35,7 +35,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
                           conf: BackendConfigurationDescriptor) = {
     val params = SharedFileSystemInitializationActorParams(emptyActor, workflowDescriptor, conf, calls, List.empty)
     val props = Props(new SharedFileSystemInitializationActor(params))
@@ -47,7 +47,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       within(Timeout) {
         val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
         val conf = emptyBackendConfig
-        val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, conf)
+        val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCalls, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of jobs executions."
         EventFilter.warning(pattern = escapePattern(pattern), occurrences = 1) intercept {

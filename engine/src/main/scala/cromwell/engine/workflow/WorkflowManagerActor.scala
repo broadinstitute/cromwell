@@ -43,12 +43,13 @@ object WorkflowManagerActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
+            subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             abortJobsOnTerminate: Boolean): Props = {
     val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection,
+      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection,
       abortJobsOnTerminate)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
@@ -86,6 +87,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       serviceRegistryActor: ActorRef,
                                       workflowLogCopyRouter: ActorRef,
                                       jobStoreActor: ActorRef,
+                                      subWorkflowStoreActor: ActorRef,
                                       callCacheReadActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
@@ -282,7 +284,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     }
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.serviceRegistryActor,
-      params.workflowLogCopyRouter, params.jobStoreActor, params.callCacheReadActor, params.jobTokenDispenserActor,
+      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.jobTokenDispenserActor,
       params.backendSingletonCollection)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 

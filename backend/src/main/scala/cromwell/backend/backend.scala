@@ -2,20 +2,19 @@ package cromwell.backend
 
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
-import cromwell.core.{JobKey, WorkflowId, WorkflowOptions}
+import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
+import wdl4s._
 import wdl4s.values.WdlValue
-import wdl4s.{Call, WdlNamespaceWithWorkflow, _}
 
 import scala.util.Try
 
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: Call, index: Option[Int], attempt: Int) extends JobKey {
+case class BackendJobDescriptorKey(call: TaskCall, index: Option[Int], attempt: Int) extends CallKey {
   def scope = call
   private val indexString = index map { _.toString } getOrElse "NA"
   val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
-  val isShard = index.isDefined
   def mkTag(workflowId: WorkflowId) = s"$workflowId:$this"
 }
 
@@ -31,14 +30,28 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
   override val toString = s"${key.mkTag(workflowDescriptor.id)}"
 }
 
+object BackendWorkflowDescriptor {
+  def apply(id: WorkflowId,
+            workflow: Workflow,
+            inputs: Map[FullyQualifiedName, WdlValue],
+            workflowOptions: WorkflowOptions) = {
+    new BackendWorkflowDescriptor(id, workflow, inputs, workflowOptions, List.empty)
+  }
+}
+
 /**
   * For passing to a BackendActor construction time
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
-                                     workflowNamespace: WdlNamespaceWithWorkflow,
+                                     workflow: Workflow,
                                      inputs: Map[FullyQualifiedName, WdlValue],
-                                     workflowOptions: WorkflowOptions) {
-  override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflowNamespace.workflow.unqualifiedName}]"
+                                     workflowOptions: WorkflowOptions,
+                                     breadCrumbs: List[BackendJobBreadCrumb]) {
+  
+  val rootWorkflow = breadCrumbs.headOption.map(_.workflow).getOrElse(workflow)
+  val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)
+  
+  override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflow.unqualifiedName}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption
 }
 

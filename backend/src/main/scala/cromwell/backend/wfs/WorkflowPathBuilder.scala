@@ -1,7 +1,7 @@
 package cromwell.backend.wfs
 
 import com.typesafe.config.Config
-import cromwell.backend.io.WorkflowPaths
+import cromwell.backend.io.{WorkflowPathsWithDocker, WorkflowPaths}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilder
@@ -12,7 +12,7 @@ object WorkflowPathBuilder {
   def workflowPaths(configurationDescriptor: BackendConfigurationDescriptor,
                     workflowDescriptor: BackendWorkflowDescriptor,
                     pathBuilders: List[PathBuilder]): WorkflowPaths = {
-    new WorkflowPaths(workflowDescriptor, configurationDescriptor.backendConfig, pathBuilders)
+    new WorkflowPathsWithDocker(workflowDescriptor, configurationDescriptor.backendConfig, pathBuilders)
   }
 }
 

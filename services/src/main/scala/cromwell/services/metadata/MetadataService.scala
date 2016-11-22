@@ -50,7 +50,8 @@ object MetadataService {
 
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
-                                             excludeKeysOption: Option[NonEmptyList[String]])
+                                             excludeKeysOption: Option[NonEmptyList[String]],
+                                             expandSubWorkflows: Boolean)
     extends ReadAction
   case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
   case class GetStatus(workflowId: WorkflowId) extends ReadAction

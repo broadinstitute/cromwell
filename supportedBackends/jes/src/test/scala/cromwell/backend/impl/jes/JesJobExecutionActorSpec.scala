@@ -9,7 +9,7 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import akka.testkit._
-import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, FailedNonRetryableResponse}
+import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
 import cromwell.backend.impl.jes.ControllableFailingJabjea.JabjeaExplode
 
 import scala.concurrent.{ExecutionContext, Promise}
@@ -43,7 +43,7 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     testJJEA.tell(msg = ExecuteJobCommand, sender = parent.ref)
 
     parent.expectMsgPF(max = TimeoutDuration) {
-      case FailedNonRetryableResponse(jobKey, e, errorCode) =>
+      case JobFailedNonRetryableResponse(jobKey, e, errorCode) =>
         e.getMessage should be("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.")
     }
   }
@@ -75,7 +75,7 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     jabjeaConstructionPromise.future foreach { _ ! JabjeaExplode }
 
     parent.expectMsgPF(max = TimeoutDuration) {
-      case FailedNonRetryableResponse(jobKey, e, errorCode) =>
+      case JobFailedNonRetryableResponse(jobKey, e, errorCode) =>
         e.getMessage should be("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.")
     }
   }

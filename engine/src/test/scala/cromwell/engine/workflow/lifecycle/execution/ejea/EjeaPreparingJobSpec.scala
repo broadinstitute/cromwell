@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import EngineJobExecutionActorSpec._
-import cromwell.backend.BackendJobExecutionActor.FailedNonRetryableResponse
+import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.callcaching.CallCachingMode
-import cromwell.engine.workflow.lifecycle.execution.JobPreparationActor.{BackendJobPreparationFailed, BackendJobPreparationSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{BackendJobPreparationSucceeded, CallPreparationFailed}
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import org.scalatest.concurrent.Eventually
 
 class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHashingInitialization with Eventually {
@@ -35,8 +35,8 @@ class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHas
       }
 
       s"Not proceed if Job Preparation fails ($mode)" in {
-        val prepActorResponse = BackendJobPreparationFailed(helper.jobDescriptorKey, new Exception("The goggles! They do nothing!"))
-        val prepFailedEjeaResponse = FailedNonRetryableResponse(prepActorResponse.jobKey, prepActorResponse.throwable, None)
+        val prepActorResponse = CallPreparationFailed(helper.jobDescriptorKey, new Exception("The goggles! They do nothing!"))
+        val prepFailedEjeaResponse = JobFailedNonRetryableResponse(helper.jobDescriptorKey, prepActorResponse.throwable, None)
         ejea = ejeaInPreparingState(mode)
         ejea ! prepActorResponse
         helper.replyToProbe.expectMsg(prepFailedEjeaResponse)

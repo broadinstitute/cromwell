@@ -48,7 +48,7 @@ object Run {
              .setProjectId(projectId)
              .setDocker(pipelineInfo.docker)
              .setResources(pipelineInfo.resources)
-             .setName(workflow.workflowNamespace.workflow.unqualifiedName)
+             .setName(workflow.workflow.unqualifiedName)
              .setInputParameters(jesParameters.collect({ case i: JesInput => i.toGooglePipelineParameter }).toVector.asJava)
              .setOutputParameters(jesParameters.collect({ case i: JesFileOutput => i.toGooglePipelineParameter }).toVector.asJava)
 

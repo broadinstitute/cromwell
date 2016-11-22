@@ -6,9 +6,9 @@ import cromwell.backend.io.{WorkflowPaths, WorkflowPathsBackendInitializationDat
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.path.PathBuilderFactory
 import cromwell.core.WorkflowOptions
-import wdl4s.Call
+import cromwell.core.path.PathBuilderFactory
+import wdl4s.TaskCall
 import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
@@ -19,7 +19,7 @@ case class SharedFileSystemInitializationActorParams
   serviceRegistryActor: ActorRef,
   workflowDescriptor: BackendWorkflowDescriptor,
   configurationDescriptor: BackendConfigurationDescriptor,
-  calls: Set[Call],
+  calls: Set[TaskCall],
   pathBuilderFactories: List[PathBuilderFactory]
 )
 
@@ -39,7 +39,7 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
 
   override lazy val workflowDescriptor: BackendWorkflowDescriptor = params.workflowDescriptor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = params.configurationDescriptor
-  override lazy val calls: Set[Call] = params.calls
+  override lazy val calls: Set[TaskCall] = params.calls
   override lazy val serviceRegistryActor: ActorRef = params.serviceRegistryActor
 
   def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =

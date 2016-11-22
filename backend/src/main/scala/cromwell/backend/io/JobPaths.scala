@@ -2,8 +2,7 @@ package cromwell.backend.io
 
 import java.nio.file.Path
 
-import com.typesafe.config.Config
-import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.JobKey
 import cromwell.services.metadata.CallMetadataKeys
 
 object JobPaths {
@@ -15,65 +14,50 @@ object JobPaths {
   val StdErrPathKey = "stderr"
   val ReturnCodePathKey = "returnCode"
   val CallRootPathKey = "callRootPath"
-}
 
-class JobPaths(workflowDescriptor: BackendWorkflowDescriptor,
-               config: Config,
-               jobKey: BackendJobDescriptorKey) extends WorkflowPaths(workflowDescriptor, config) {
-  import JobPaths._
-
-  private def callPathBuilder(root: Path) = {
-    val callName = jobKey.call.fullyQualifiedName.split('.').last
+  def callPathBuilder(root: Path, jobKey: JobKey) = {
+    val callName = jobKey.scope.unqualifiedName
     val call = s"$CallPrefix-$callName"
     val shard = jobKey.index map { s => s"$ShardPrefix-$s" } getOrElse ""
     val retry = if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}" else ""
 
     List(call, shard, retry).foldLeft(root)((path, dir) => path.resolve(dir))
   }
+}
 
-  def toDockerPath(path: Path): Path = {
-    path.toAbsolutePath match {
-      case p if p.startsWith(WorkflowPaths.DockerRoot) => p
-      case p =>
-        /*  For example:
-          *
-          * p = /abs/path/to/cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
-          * localExecutionRoot = /abs/path/to/cromwell-executions
-          * subpath = three-step/f00ba4/call-ps/stdout.txt
-          *
-          * return value = /root/three-step/f00ba4/call-ps/stdout.txt
-          *
-          * TODO: this assumes that p.startsWith(localExecutionRoot)
-          */
-        val subpath = p.subpath(executionRoot.getNameCount, p.getNameCount)
-        WorkflowPaths.DockerRoot.resolve(subpath)
-    }
-  }
+trait JobPaths { this: WorkflowPaths =>
+  import JobPaths._
 
-  val callRoot = callPathBuilder(workflowRoot)
-  val callDockerRoot = callPathBuilder(dockerWorkflowRoot)
+  def returnCodeFilename: String = "rc"
+  def stdoutFilename: String = "stdout"
+  def stderrFilename: String = "stderr"
+  def scriptFilename: String = "script"
+  
+  def jobKey: JobKey
+  lazy val callRoot = callPathBuilder(workflowRoot, jobKey)
+  lazy val callExecutionRoot = callRoot
+  lazy val stdout = callExecutionRoot.resolve(stdoutFilename)
+  lazy val stderr = callExecutionRoot.resolve(stderrFilename)
+  lazy val script = callExecutionRoot.resolve(scriptFilename)
+  lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
 
-  val callExecutionRoot = callRoot.resolve("execution")
-  val callExecutionDockerRoot = callDockerRoot.resolve("execution")
-
-  val callInputsRoot = callRoot.resolve("inputs")
-
-  val stdout = callExecutionRoot.resolve("stdout")
-  val stderr = callExecutionRoot.resolve("stderr")
-  val script = callExecutionRoot.resolve("script")
-  val returnCode = callExecutionRoot.resolve("rc")
-
-  lazy val metadataPaths: Map[String, Path] = Map(
+  private lazy val commonMetadataPaths: Map[String, Path] = Map(
     CallMetadataKeys.CallRoot -> callRoot,
     CallMetadataKeys.Stdout -> stdout,
     CallMetadataKeys.Stderr -> stderr
   )
 
-  lazy val detritusPaths: Map[String, Path] = Map(
+  private lazy val commonDetritusPaths: Map[String, Path] = Map(
     JobPaths.CallRootPathKey -> callRoot,
     JobPaths.ScriptPathKey -> script,
     JobPaths.StdoutPathKey -> stdout,
     JobPaths.StdErrPathKey -> stderr,
     JobPaths.ReturnCodePathKey -> returnCode
   )
+  
+  protected lazy val customMetadataPaths: Map[String, Path] = Map.empty
+  protected lazy val customDetritusPaths: Map[String, Path] = Map.empty
+  
+  lazy val metadataPaths = commonMetadataPaths ++ customMetadataPaths
+  lazy val detritusPaths = commonDetritusPaths ++ customDetritusPaths
 }

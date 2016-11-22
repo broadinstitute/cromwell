@@ -9,7 +9,7 @@ import better.files._
 import cats.instances.try_._
 import cats.syntax.functor._
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{ExecutionStore => _, _}
+import cromwell.core._
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
@@ -17,6 +17,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
+import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import spray.http.StatusCodes
@@ -40,6 +41,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
   override val abortJobsOnTerminate = true
   override lazy val workflowStore = new InMemoryWorkflowStore()
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
+  override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props)
 
   startWith(NotStarted, EmptySwraData)
 
@@ -111,11 +113,11 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
   }
 
   private def requestMetadataOrIssueReply(newData: TerminalSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
-
-  private def requestMetadata(newData: TerminalSwraData) = {
+  
+  private def requestMetadata(newData: TerminalSwraData): State = {
     val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${newData.id}")
-    metadataBuilder ! GetSingleWorkflowMetadataAction(newData.id, None, None)
-    goto(RequestingMetadata) using newData
+    metadataBuilder ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true)
+    goto (RequestingMetadata) using newData
   }
 
   private def schedulePollRequest(): Unit = {

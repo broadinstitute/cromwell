@@ -194,7 +194,7 @@ object EngineJobHashingActorSpec extends BackendSpec {
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
     val task = mock[Task]
-    val call = mock[Call]
+    val call = mock[TaskCall]
     when(task.commandTemplateString).thenReturn("Do the stuff... now!!")
     when(task.outputs).thenReturn(List.empty)
     when(call.task).thenReturn(task)

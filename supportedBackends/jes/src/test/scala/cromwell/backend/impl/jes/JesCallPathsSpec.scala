@@ -18,7 +18,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor,
+    val callPaths = JesJobPaths(jobDescriptorKey, workflowDescriptor,
       jesConfiguration)
     callPaths.returnCodeFilename should be("hello-rc.txt")
     callPaths.stderrFilename should be("hello-stderr.log")
@@ -31,12 +31,12 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
-    callPaths.returnCodePath.toUri.toString should
+    val callPaths = JesJobPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
+    callPaths.returnCode.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-rc.txt")
-    callPaths.stdoutPath.toUri.toString should
+    callPaths.stdout.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
-    callPaths.stderrPath.toUri.toString should
+    callPaths.stderr.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
     callPaths.jesLogPath.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
@@ -47,7 +47,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-    val callPaths = JesCallPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
+    val callPaths = JesJobPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
     callPaths.callContext.root.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should be("hello-stdout.log")

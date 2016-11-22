@@ -7,6 +7,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s._
+
 import scala.concurrent.duration._
 
 class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationActorSpec")
@@ -32,7 +33,7 @@ class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationAc
       |}
     """.stripMargin
 
-  private def getSparkBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call], conf: BackendConfigurationDescriptor) = {
+  private def getSparkBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
     system.actorOf(SparkInitializationActor.props(workflowDescriptor, calls, conf, emptyActor))
   }
 
@@ -41,7 +42,7 @@ class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationAc
       within(Timeout) {
         EventFilter.warning(message = s"Key/s [memory] is/are not supported by SparkBackend. Unsupported attributes will not be part of jobs executions.", occurrences = 1) intercept {
           val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { memory: 1 %s: "%s"}""".format("appMainClass", "test"))
-          val backend = getSparkBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls, emptyBackendConfig)
+          val backend = getSparkBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls, emptyBackendConfig)
           backend ! Initialize
         }
       }

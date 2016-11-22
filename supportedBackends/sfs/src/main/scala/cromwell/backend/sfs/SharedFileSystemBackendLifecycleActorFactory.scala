@@ -6,11 +6,11 @@ import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher._
-import cromwell.core.path.{PathBuilderFactory, DefaultPathBuilderFactory}
+import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
-import wdl4s.Call
+import wdl4s.TaskCall
 import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.concurrent.Promise
@@ -63,7 +63,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
     */
   def asyncJobExecutionActorClass: Class[_ <: SharedFileSystemAsyncJobExecutionActor]
 
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call],
+  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
                                                 serviceRegistryActor: ActorRef) = {
     val params = SharedFileSystemInitializationActorParams(serviceRegistryActor, workflowDescriptor,
       configurationDescriptor, calls, pathBuilderFactories)

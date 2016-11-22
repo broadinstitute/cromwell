@@ -6,7 +6,7 @@ import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
-import wdl4s.Call
+import wdl4s.TaskCall
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
 import wdl4s.values.WdlValue
 
@@ -18,14 +18,14 @@ object SparkInitializationActor {
     SparkRuntimeAttributes.NumberOfExecutorsKey, SparkRuntimeAttributes.AppMainClassKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[Call],
+            calls: Set[TaskCall],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
     Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
 }
 
 class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                               override val calls: Set[Call],
+                               override val calls: Set[TaskCall],
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 

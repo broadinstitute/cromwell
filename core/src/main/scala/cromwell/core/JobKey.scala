@@ -12,4 +12,6 @@ trait JobKey {
     import ExecutionIndex.IndexEnhancedIndex
     s"${scope.fullyQualifiedName}:${index.fromIndex}:$attempt"
   }
+  
+ def isShard = index.isDefined
 }

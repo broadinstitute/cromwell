@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import akka.actor._
 import java.lang.Throwable
+
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFiles}
 import cromwell.engine.backend.BackendConfiguration
@@ -14,6 +15,8 @@ import spray.http._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing._
+
+import scala.util.{Failure, Success, Try}
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromwell"
@@ -183,13 +186,21 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       parameterMultiMap { parameters =>
         val includeKeysOption = NonEmptyList.fromList(parameters.getOrElse("includeKey", List.empty))
         val excludeKeysOption = NonEmptyList.fromList(parameters.getOrElse("excludeKey", List.empty))
-        (includeKeysOption, excludeKeysOption) match {
-          case (Some(_), Some(_)) =>
+        val expandSubWorkflowsOption = {
+          parameters.get("expandSubWorkflows") match {
+            case Some(v :: Nil) => Try(v.toBoolean)
+            case _ => Success(false)
+          }
+        }
+        
+        (includeKeysOption, excludeKeysOption, expandSubWorkflowsOption) match {
+          case (Some(_), Some(_), _) =>
             failBadRequest(new IllegalArgumentException("includeKey and excludeKey may not be specified together"))
-          case _ =>
+          case (_, _, Success(expandSubWorkflows)) =>
             withRecognizedWorkflowId(possibleWorkflowId) { id =>
-              handleMetadataRequest(GetSingleWorkflowMetadataAction(id, includeKeysOption, excludeKeysOption))
+              handleMetadataRequest(GetSingleWorkflowMetadataAction(id, includeKeysOption, excludeKeysOption, expandSubWorkflows))
             }
+          case (_, _, Failure(ex)) => failBadRequest(new IllegalArgumentException(ex))
         }
       }
     }

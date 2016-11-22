@@ -109,7 +109,7 @@ object MaterializeWorkflowDescriptorActor {
   }
 }
 
-class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val workflowId: WorkflowId, cromwellBackends: => CromwellBackends) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
+class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val workflowIdForLogging: WorkflowId, cromwellBackends: => CromwellBackends) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
@@ -121,7 +121,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
   when(ReadyToMaterializeState) {
     case Event(MaterializeWorkflowDescriptorCommand(workflowSourceFiles, conf), _) =>
-      buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf) match {
+      buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf) match {
         case Valid(descriptor) =>
           sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
           goto(MaterializationSuccessfulState)
@@ -175,7 +175,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
 
   private def pushWfNameMetadataService(name: String): Unit = {
     // Workflow name:
-    val nameEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(name))
+    val nameEvent = MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
 
     serviceRegistryActor ! PutMetadataAction(nameEvent)
   }
@@ -189,7 +189,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     val defaultBackendName = conf.as[Option[String]]("backend.default")
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
-    val backendAssignmentsValidation = validateBackendAssignments(namespace.workflow.calls, workflowOptions, defaultBackendName)
+    val backendAssignmentsValidation = validateBackendAssignments(namespace.taskCalls, workflowOptions, defaultBackendName)
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
 
     (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) map {
@@ -202,7 +202,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       namespace: WdlNamespaceWithWorkflow,
                                       rawInputs: Map[String, JsValue],
-                                      backendAssignments: Map[Call, String],
+                                      backendAssignments: Map[TaskCall, String],
                                       workflowOptions: WorkflowOptions,
                                       failureMode: WorkflowFailureMode,
                                       pathBuilders: List[PathBuilder],
@@ -225,27 +225,27 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
       _ = pushWfInputsToMetadataService(coercedInputs)
-      declarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
-      declarationsAndInputs <- checkTypes(declarations ++ coercedInputs)
-      backendDescriptor = BackendWorkflowDescriptor(id, namespace, declarationsAndInputs, workflowOptions)
-    } yield EngineWorkflowDescriptor(backendDescriptor, coercedInputs, backendAssignments, failureMode, pathBuilders, callCachingMode)
+      evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
+      declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedInputs)
+      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions)
+    } yield EngineWorkflowDescriptor(namespace, backendDescriptor, coercedInputs, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 
   private def pushWfInputsToMetadataService(workflowInputs: WorkflowCoercedInputs): Unit = {
     // Inputs
     val inputEvents = workflowInputs match {
       case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(MetadataKey(workflowId, None,WorkflowMetadataKeys.Inputs)))
+        List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
         inputs flatMap { case (inputName, wdlValue) =>
-          wdlValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
+          wdlValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), wdlValue)
         }
     }
 
     serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
-  private def validateBackendAssignments(calls: Set[Call], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[Call, String]] = {
+  private def validateBackendAssignments(calls: Set[TaskCall], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[TaskCall, String]] = {
     val callToBackendMap = Try {
       calls map { call =>
         val backendPriorities = Seq(
@@ -274,7 +274,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
   /**
     * Map a call to a backend name depending on the runtime attribute key
     */
-  private def assignBackendUsingRuntimeAttrs(call: Call): Option[String] = {
+  private def assignBackendUsingRuntimeAttrs(call: TaskCall): Option[String] = {
     val runtimeAttributesMap = call.task.runtimeAttributes.attrs
     runtimeAttributesMap.get(RuntimeBackendKey) map { wdlExpr => evaluateBackendNameExpression(call.fullyQualifiedName, wdlExpr) }
   }

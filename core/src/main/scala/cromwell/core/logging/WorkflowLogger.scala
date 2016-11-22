@@ -15,9 +15,9 @@ import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 
 trait WorkflowLogging extends ActorLogging { this: Actor =>
-  def workflowId: WorkflowId
+  def workflowIdForLogging: WorkflowId
 
-  lazy val workflowLogger = new WorkflowLogger(self.path.name, workflowId, Option(log))
+  lazy val workflowLogger = new WorkflowLogger(self.path.name, workflowIdForLogging, Option(log))
 }
 
 object WorkflowLogger {
@@ -113,10 +113,10 @@ class WorkflowLogger(loggerName: String,
 
   import WorkflowLogger._
 
-  val workflowLogPath = workflowLogConfiguration.map(workflowLogConfigurationActual =>
+  lazy val workflowLogPath = workflowLogConfiguration.map(workflowLogConfigurationActual =>
     File(workflowLogConfigurationActual.dir).createDirectories() / s"workflow.$workflowId.log").map(_.path)
 
-  val fileLogger = workflowLogPath match {
+  lazy val fileLogger = workflowLogPath match {
     case Some(path) => makeFileLogger(path, Level.toLevel(sys.props.getOrElse("LOG_LEVEL", "debug")))
     case None => NOPLogger.NOP_LOGGER
   }

@@ -22,9 +22,9 @@ class ArrayWorkflowSpec extends CromwellTestKitSpec {
         sampleWdl = SampleWdl.ArrayIO,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "wf.count_lines.count" -> WdlInteger(3),
-          "wf.count_lines_array.count" -> WdlInteger(3),
-          "wf.serialize.contents" -> WdlString("str1\nstr2\nstr3")
+          "wf_count_lines_count" -> WdlInteger(3),
+          "wf_count_lines_array_count" -> WdlInteger(3),
+          "wf_serialize_contents" -> WdlString("str1\nstr2\nstr3")
         )
       )
     }
@@ -54,7 +54,7 @@ class ArrayWorkflowSpec extends CromwellTestKitSpec {
     }
     "Coerce Array[String] to Array[File] when running the workflow" in {
       val outputs = Map(
-        "wf.cat.lines" -> WdlArray(WdlArrayType(WdlStringType), Seq(
+        "wf_cat_lines" -> WdlArray(WdlArrayType(WdlStringType), Seq(
             WdlString("line1"),
             WdlString("line2"),
             WdlString("line3"),

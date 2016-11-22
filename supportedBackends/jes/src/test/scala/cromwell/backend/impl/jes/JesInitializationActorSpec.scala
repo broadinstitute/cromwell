@@ -16,7 +16,7 @@ import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
-import wdl4s.Call
+import wdl4s.TaskCall
 
 import scala.concurrent.duration._
 
@@ -138,7 +138,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[Call], conf: BackendConfigurationDescriptor) = {
+  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
     system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf), emptyActor))
   }
 
@@ -148,7 +148,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
         defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."
@@ -165,7 +165,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   it should "return InitializationFailed when docker runtime attribute key is not present" in {
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflowNamespace.workflow.calls,
+      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
         defaultBackendConfig)
       backend ! Initialize
       expectMsgPF() {
@@ -184,7 +184,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   private def buildJesInitializationTestingBits(backendConfig: Config = dockerBackendConfig): TestingBits = {
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource(), options = workflowOptions)
-    val calls = workflowDescriptor.workflowNamespace.workflow.calls
+    val calls = workflowDescriptor.workflow.taskCalls
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 

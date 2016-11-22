@@ -1,11 +1,9 @@
 package cromwell.engine.workflow
 
-import java.time.OffsetDateTime
-
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import com.typesafe.config.Config
-import cromwell.backend.AllBackendInitializationData
+import cromwell.backend._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core._
@@ -18,13 +16,12 @@ import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{Ma
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle._
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
+import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
-
-import scala.util.Random
+import wdl4s.{LocallyQualifiedName => _}
 
 object WorkflowActor {
 
@@ -141,11 +138,12 @@ object WorkflowActor {
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
+            subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)).withDispatcher(EngineDispatcher)
+      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -156,28 +154,29 @@ class WorkflowActor(val workflowId: WorkflowId,
                     startMode: StartMode,
                     workflowSources: WorkflowSourceFilesCollection,
                     conf: Config,
-                    serviceRegistryActor: ActorRef,
+                    override val serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
                     jobStoreActor: ActorRef,
+                    subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection)
-  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging {
+  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper {
 
   implicit val ec = context.dispatcher
+  override val workflowIdForLogging = workflowId
 
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
-  pushCurrentStateToMetadataService(WorkflowUnstartedState.workflowState)
-
+  pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
+  
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId),
         "MaterializeWorkflowDescriptorActor")
-      val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
-      serviceRegistryActor ! PutMetadataAction(startEvent)
+      pushWorkflowStart(workflowId)
 
       actor ! MaterializeWorkflowDescriptorCommand(workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
@@ -204,10 +203,11 @@ class WorkflowActor(val workflowId: WorkflowId,
         case RestartExistingWorkflow => true
       }
 
-      val executionActor = context.actorOf(WorkflowExecutionActor.props(workflowId,
+      val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
         serviceRegistryActor,
         jobStoreActor,
+        subWorkflowStoreActor,
         callCacheReadActor,
         jobTokenDispenserActor,
         backendSingletonCollection,
@@ -218,16 +218,16 @@ class WorkflowActor(val workflowId: WorkflowId,
 
       goto(ExecutingWorkflowState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
     case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, Option(reason.toList))
+      finalizeWorkflow(data, workflowDescriptor, Map.empty, Map.empty, Option(reason.toList))
   }
 
   when(ExecutingWorkflowState) {
-    case Event(WorkflowExecutionSucceededResponse(executionStore, outputStore),
+    case Event(WorkflowExecutionSucceededResponse(jobKeys, outputs),
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, None)
-    case Event(WorkflowExecutionFailedResponse(executionStore, outputStore, failures),
+      finalizeWorkflow(data, workflowDescriptor, jobKeys, outputs, None)
+    case Event(WorkflowExecutionFailedResponse(jobKeys, failures),
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, executionStore, outputStore, Option(failures.toList))
+      finalizeWorkflow(data, workflowDescriptor, jobKeys, Map.empty, Option(List(failures)))
     case Event(msg @ EngineStatsActor.JobCountQuery, data) =>
       data.currentLifecycleStateActor match {
         case Some(a) => a forward msg
@@ -246,7 +246,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(WorkflowAbortingState) {
     case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, ExecutionStore.empty, OutputStore.empty, failures = None)
+      finalizeWorkflow(data, workflowDescriptor, Map.empty, Map.empty, failures = None)
     case _ => stay()
   }
 
@@ -279,22 +279,19 @@ class WorkflowActor(val workflowId: WorkflowId,
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
       if (fromState.workflowState != toState.workflowState) {
-        pushCurrentStateToMetadataService(toState.workflowState)
+        pushCurrentStateToMetadataService(workflowId, toState.workflowState)
       }
   }
 
   onTransition {
     case (oldState, terminalState: WorkflowActorTerminalState) =>
       workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
-      // Add the end time of the workflow in the MetadataService
-      val now = OffsetDateTime.now
-      val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(now))
-      serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+      pushWorkflowEnd(workflowId)
+      subWorkflowStoreActor ! WorkflowComplete(workflowId)
       terminalState match {
         case WorkflowFailedState =>
           val failures = nextStateData.lastStateReached.failures.getOrElse(List.empty)
-          val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"), r) }
-          serviceRegistryActor ! PutMetadataAction(failureEvents)
+          pushWorkflowFailures(workflowId, failures)
           context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, failures)
         case _ => // The WMA is watching state transitions and needs no further info
       }
@@ -324,24 +321,17 @@ class WorkflowActor(val workflowId: WorkflowId,
     goto(finalState) using data.copy(currentLifecycleStateActor = None)
   }
 
-  private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, executionStore: ExecutionStore, outputStore: OutputStore) = {
-    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, executionStore, outputStore, stateData.initializationData), name = s"WorkflowFinalizationActor")
+  private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs) = {
+    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, jobExecutionMap, workflowOutputs, stateData.initializationData), name = s"WorkflowFinalizationActor")
   }
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.
     */
   private def finalizeWorkflow(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor,
-                               executionStore: ExecutionStore, outputStore: OutputStore,
+                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                failures: Option[List[Throwable]]) = {
-    val finalizationActor = makeFinalizationActor(workflowDescriptor, executionStore, outputStore)
+    val finalizationActor = makeFinalizationActor(workflowDescriptor, jobExecutionMap, workflowOutputs)
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
-  }
-
-  // Update the current State of the Workflow (corresponding to the FSM state) in the Metadata service
-  private def pushCurrentStateToMetadataService(workflowState: WorkflowState): Unit = {
-    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
-      MetadataValue(workflowState))
-    serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
 }

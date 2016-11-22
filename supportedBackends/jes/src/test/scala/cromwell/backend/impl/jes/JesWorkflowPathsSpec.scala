@@ -17,8 +17,8 @@ class JesWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers 
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
     val workflowPaths = JesWorkflowPaths(workflowDescriptor, jesConfiguration)(system)
-    workflowPaths.rootPath.toUri.toString should be("gs://my-cromwell-workflows-bucket/")
-    workflowPaths.workflowRootPath.toUri.toString should
+    workflowPaths.executionRoot.toUri.toString should be("gs://my-cromwell-workflows-bucket/")
+    workflowPaths.workflowRoot.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")
     workflowPaths.gcsAuthFilePath.toUri.toString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/${workflowDescriptor.id}_auth.json")

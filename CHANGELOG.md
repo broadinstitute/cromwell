@@ -11,6 +11,7 @@
   * `transpose: (Array[Array[X]]) => Array[Array[X]]` compute the matrix transpose for a 2D array. Assumes each inner array has the same length.
 * By default, `system.abort-jobs-on-terminate` is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
 * Enable WDL imports when running in Single Workflow Runner Mode.
+* Support for sub workflows
 
 ## 0.22
 

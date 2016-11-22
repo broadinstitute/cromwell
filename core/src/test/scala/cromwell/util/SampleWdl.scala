@@ -147,6 +147,7 @@ object SampleWdl {
         |  output {
         |    String empty = read_string(stdout())
         |  }
+        |  RUNTIME
         |}
         |
         |workflow wf_hello {
@@ -661,7 +662,7 @@ object SampleWdl {
   class ScatterWdl extends SampleWdl {
     val tasks = s"""task A {
       |  command {
-      |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nscott"
+      |    echo -n -e "jeff\nchris\nmiguel\nthibault\nkhalid\nruchi"
       |  }
       |  RUNTIME
       |  output {

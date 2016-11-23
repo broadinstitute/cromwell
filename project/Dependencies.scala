@@ -21,23 +21,28 @@ object Dependencies {
 
   // Internal collections of dependencies
 
-  private val baseDependencies = List(
-    "org.broadinstitute" %% "lenthall" % lenthallV,
+  private val catsDependencies = List(
+    "org.typelevel" %% "cats" % "0.7.2",
+    "com.github.benhutchison" %% "mouse" % "0.5"
+  ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.
     If sbt detects scalacheck, it tries to run it.
     Explicitly excluding the two problematic artifacts instead of including the three (or four?).
     https://github.com/typelevel/cats/tree/v0.7.2#getting-started
+    Re "_2.11", see also: https://github.com/sbt/sbt/issues/1518
      */
-    "org.typelevel" %% "cats" % "0.7.2"
-      exclude("org.typelevel", "cats-laws_2.11")
-      exclude("org.typelevel", "cats-kernel-laws_2.11"),
-    "com.github.benhutchison" %% "mouse" % "0.5",
+    exclude("org.typelevel", "cats-laws_2.11")
+    exclude("org.typelevel", "cats-kernel-laws_2.11")
+    )
+
+  private val baseDependencies = List(
+    "org.broadinstitute" %% "lenthall" % lenthallV,
     "com.iheart" %% "ficus" % "1.3.0",
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test,
     "org.specs2" %% "specs2-mock" % "3.8.5" % Test
-  )
+  ) ++ catsDependencies
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html

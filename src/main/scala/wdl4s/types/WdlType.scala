@@ -20,6 +20,7 @@ trait WdlType {
    * the partial function is not defined are assumed to not be convertible to the target type.
    */
   protected def coercion: PartialFunction[Any, WdlValue]
+  def coercionDefined(any: Any) = coercion.isDefinedAt(any)
 
   /**
    * Public interface for a `Try`-wrapped conversion of an input of type `Any` to

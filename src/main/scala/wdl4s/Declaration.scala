@@ -21,18 +21,17 @@ import wdl4s.parser.WdlParser.{Ast, AstNode}
   */
 trait DeclarationInterface extends Scope with GraphNode {
   def wdlType: WdlType
-  def postfixQuantifier: Option[String]
   def expression: Option[WdlExpression]
   def ast: Ast
 
   def asTaskInput: Option[TaskInput] = expression match {
     case Some(expr) => None
-    case None => Option(TaskInput(unqualifiedName, wdlType, postfixQuantifier))
+    case None => Option(TaskInput(unqualifiedName, wdlType))
   }
 
   def asWorkflowInput: Option[WorkflowInput] = expression match {
     case Some(expr) => None
-    case None => Some(WorkflowInput(fullyQualifiedName, wdlType, postfixQuantifier))
+    case None => Some(WorkflowInput(fullyQualifiedName, wdlType))
   }
 
   def toWdlString: String = {
@@ -64,12 +63,10 @@ trait DeclarationInterface extends Scope with GraphNode {
 }
 
 object Declaration {
-  val OptionalPostfixQuantifier = "?"
-  
+
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration = {
     Declaration(
       ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter),
-      Option(ast.getAttribute("postfix")).map(_.sourceString),
       ast.getAttribute("name").sourceString,
       ast.getAttribute("expression") match {
         case a: AstNode => Option(WdlExpression(a))
@@ -82,7 +79,6 @@ object Declaration {
 }
 
 case class Declaration(wdlType: WdlType,
-                       postfixQuantifier: Option[String],
                        unqualifiedName: String,
                        expression: Option[WdlExpression],
                        override val parent: Option[Scope],

@@ -15,6 +15,8 @@ object WdlArray {
 }
 
 case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue with TsvSerializable {
+
+  val nonEmpty = value.nonEmpty
   val typesUsedInValue = Set(value map {_.wdlType}: _*)
   if (typesUsedInValue.size == 1 && typesUsedInValue.head != wdlType.memberType) {
     throw new UnsupportedOperationException(s"Could not construct array of type $wdlType with this value: $value")

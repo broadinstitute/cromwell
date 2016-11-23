@@ -2,41 +2,41 @@ package wdl4s
 
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.expression.NoFunctions
-import wdl4s.types.WdlStringType
-import wdl4s.values.{WdlInteger, WdlString, WdlValue}
+import wdl4s.types._
+import wdl4s.values.{WdlOptionalValue, WdlString, WdlValue}
 
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 class DeclarationSpec extends FlatSpec with Matchers {
   val wdlSource = (new SampleWdl.DeclarationsWdl).wdlSource()
   val namespace = WdlNamespaceWithWorkflow.load(wdlSource)
 
   "A Workflow with declarations" should "have declarations defined properly" in {
-    namespace.workflow.declarations.size shouldEqual 3
+    namespace.workflow.declarations.size shouldEqual 4
 
-    val foo = namespace.workflow.declarations(0)
+    val foo = namespace.workflow.declarations.head
     foo.unqualifiedName shouldEqual "foo"
     foo.wdlType shouldEqual WdlStringType
     foo.expression.map(_.toWdlString) shouldEqual Option(""" "foo" """.trim)
-    foo.postfixQuantifier shouldEqual None
 
     val bar = namespace.workflow.declarations(1)
     bar.unqualifiedName shouldEqual "bar"
     bar.wdlType shouldEqual WdlStringType
     bar.expression.map(_.toWdlString) shouldEqual Option(""" "bar" """.trim)
-    bar.postfixQuantifier shouldEqual None
 
     val foobar = namespace.workflow.declarations(2)
     foobar.unqualifiedName shouldEqual "foobar"
     foobar.wdlType shouldEqual WdlStringType
     foobar.expression.map(_.toWdlString) shouldEqual Option(""" foo + bar """.trim)
-    foobar.postfixQuantifier shouldEqual None
+
+    val baz = namespace.workflow.declarations(3)
+    baz.unqualifiedName shouldEqual "baz"
+    baz.wdlType shouldEqual WdlOptionalType(WdlStringType)
+    baz.expression.map(_.toWdlString) shouldEqual Option(""" "baz" """.trim)
   }
 
   it should "have scoped declarations defined properly" in {
-    namespace.workflow.declarations.size shouldEqual 3
-
-    val foo = namespace.workflow.declarations(0)
+    val foo = namespace.workflow.declarations.head
     foo.parent shouldEqual Option(namespace.workflow)
     foo.fullyQualifiedName shouldEqual "w.foo"
     foo.toWdlString shouldEqual "String foo = \"foo\""
@@ -50,14 +50,21 @@ class DeclarationSpec extends FlatSpec with Matchers {
     foobar.parent shouldEqual Option(namespace.workflow)
     foobar.fullyQualifiedName shouldEqual "w.foobar"
     foobar.toWdlString shouldEqual "String foobar = foo + bar"
+
+    val baz = namespace.workflow.declarations(3)
+    baz.parent shouldEqual Option(namespace.workflow)
+    baz.fullyQualifiedName shouldEqual "w.baz"
+    baz.toWdlString shouldEqual "String? baz = \"baz\""
   }
 
   "A Call with declarations" should "have scoped declarations defined properly" in {
     val a = namespace.workflow.findCallByName("a").get
     val aPrime = namespace.workflow.findCallByName("a_prime").get
     val b = namespace.workflow.findCallByName("b").get
+    val c = namespace.workflow.findCallByName("c").get
 
-    val aFoo = a.declarations(0)
+    a.declarations.size should be(3)
+    val aFoo = a.declarations.head
     aFoo.parent shouldEqual Option(a)
     aFoo.fullyQualifiedName shouldEqual "w.a.foo"
     aFoo.toWdlString shouldEqual "String foo = \"notfoo\""
@@ -72,7 +79,8 @@ class DeclarationSpec extends FlatSpec with Matchers {
     aFooBar.fullyQualifiedName shouldEqual "w.a.foobar"
     aFooBar.toWdlString shouldEqual "String foobar = foo + bar"
 
-    val aPrimeFoo = aPrime.declarations(0)
+    aPrime.declarations.size should be(3)
+    val aPrimeFoo = aPrime.declarations.head
     aPrimeFoo.parent shouldEqual Option(aPrime)
     aPrimeFoo.fullyQualifiedName shouldEqual "w.a_prime.foo"
     aPrimeFoo.toWdlString shouldEqual "String foo = \"notfoo\""
@@ -87,7 +95,8 @@ class DeclarationSpec extends FlatSpec with Matchers {
     aPrimeFooBar.fullyQualifiedName shouldEqual "w.a_prime.foobar"
     aPrimeFooBar.toWdlString shouldEqual "String foobar = foo + bar"
 
-    val bFoo = b.declarations(0)
+    b.declarations.size should be(4)
+    val bFoo = b.declarations.head
     bFoo.parent shouldEqual Option(b)
     bFoo.fullyQualifiedName shouldEqual "w.b.foo"
     bFoo.toWdlString shouldEqual "Int foo = 10"
@@ -106,6 +115,19 @@ class DeclarationSpec extends FlatSpec with Matchers {
     bFooBar2.parent shouldEqual Option(b)
     bFooBar2.fullyQualifiedName shouldEqual "w.b.foobar2"
     bFooBar2.toWdlString shouldEqual "Int foobar2 = foo + 2"
+
+    c.declarations.size should be(2)
+    val cFoo = c.declarations.head
+    cFoo.parent shouldEqual Option(c)
+    cFoo.fullyQualifiedName shouldEqual "w.c.foo"
+    cFoo.wdlType should be(WdlOptionalType(WdlIntegerType))
+    cFoo.toWdlString shouldEqual "Int? foo = 3"
+
+    val cBar = c.declarations(1)
+    cBar.parent shouldEqual Option(c)
+    cBar.fullyQualifiedName shouldEqual "w.c.bar"
+    cBar.wdlType should be(WdlNonEmptyArrayType(WdlIntegerType))
+    cBar.toWdlString shouldEqual "Array[Int]+ bar = [1,2,3]"
   }
 
   "A workflow" should "Be able to evaluate static declarations" in {
@@ -115,7 +137,8 @@ class DeclarationSpec extends FlatSpec with Matchers {
         values shouldEqual Map(
           "w.foo" -> WdlString("foo"),
           "w.bar" -> WdlString("bar"),
-          "w.foobar" -> WdlString("foobar")
+          "w.foobar" -> WdlString("foobar"),
+          "w.baz" -> WdlOptionalValue(WdlString("baz"))
         )
     }
   }

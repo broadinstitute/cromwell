@@ -4,9 +4,10 @@ import wdl4s.AstTools.EnhancedAstNode
 import wdl4s._
 import wdl4s.expression.WdlFunctions
 import wdl4s.values._
-import wdl4s.parser.WdlParser.{Terminal, SyntaxError, Ast}
-import scala.language.postfixOps
+import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
+import wdl4s.types.{WdlOptionalType, WdlPrimitiveType, WdlType}
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object ParameterCommandPart {
@@ -34,11 +35,14 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
     val lookup = (s: String) => inputs.getOrElse(s, throw new VariableNotFoundException(s))
 
     val value = expression.evaluate(lookup, functions) match {
-      case Success(v) => v
+      case Success(v) => v match {
+        case WdlOptionalValue(memberType, None) => defaultString(memberType)
+        case _ => v
+      }
       case Failure(f) => f match {
         case v: VariableNotFoundException => declarations.find(_.unqualifiedName == v.variable) match {
           /* Allow an expression to fail evaluation if one of the variables that it requires is optional (the type has ? after it, e.g. String?) */
-          case Some(d) if d.postfixQuantifier.contains(Declaration.OptionalPostfixQuantifier) => if (attributes.contains("default")) WdlString(attributes.get("default").head) else WdlString("")
+          case Some(d) if d.wdlType.isInstanceOf[WdlOptionalType] => defaultString(d.wdlType.asInstanceOf[WdlOptionalType].memberType)
           case Some(d) => throw new UnsupportedOperationException(s"Parameter ${v.variable} is required, but no value is specified")
           case None => throw new UnsupportedOperationException(s"Could not find declaration for ${v.variable}")
         }
@@ -52,6 +56,15 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
       case a: WdlArray if attributes.contains("sep") => a.value.map(_.valueString).mkString(attributes.get("sep").head)
       case a: WdlArray => throw new UnsupportedOperationException(s"Expression '${expression.toString}' evaluated to an Array but no 'sep' was specified")
       case _ => throw new UnsupportedOperationException(s"Could not string-ify value: $value")
+    }
+  }
+
+  private def defaultString(wdlType: WdlType) = {
+    if (attributes.contains("default")) {
+      if (wdlType.isInstanceOf[WdlPrimitiveType]) WdlString(attributes.get("default").head)
+      else throw new UnsupportedOperationException(s"String interpolation 'default's can only be used for primitive types. Try setting the default in the declaration instead")
+    } else {
+      WdlString("")
     }
   }
 }

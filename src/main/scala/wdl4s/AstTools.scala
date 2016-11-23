@@ -55,6 +55,8 @@ object AstTools {
             case WdlObjectType.toWdlString => WdlObjectType
             case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
+        case a: Ast if isOptionalType(a) => optionalType(a, wdlSyntaxErrorFormatter)
+        case a: Ast if isNonEmptyType(a) => nonEmptyType(a, wdlSyntaxErrorFormatter)
         case a: Ast =>
           val subtypes = a.getAttribute("subtype").astListAsVector
           val typeTerminal = a.getAttribute("name").asInstanceOf[Terminal]
@@ -74,8 +76,19 @@ object AstTools {
               val valueType = subtypes.tail.head.wdlType(wdlSyntaxErrorFormatter)
               WdlMapType(keyType, valueType)
           }
-        case null => WdlStringType
-        case _ => throw new UnsupportedOperationException("Implement this later for compound types")
+        case _ => throw new UnsupportedOperationException(s"Unexpected WDL type AST: ${astNode.sourceString}")
+      }
+    }
+
+    def isOptionalType(a: Ast) = a.getName.equals("OptionalType")
+    def optionalType(a: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = WdlOptionalType(a.getAttribute("innerType").wdlType(wdlSyntaxErrorFormatter))
+
+    def isNonEmptyType(a: Ast) = a.getName.equals("NonEmptyType")
+    def nonEmptyType(a: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter) = {
+      val innerType = a.getAttribute("innerType").wdlType(wdlSyntaxErrorFormatter)
+      innerType match {
+        case arrayType: WdlArrayType => arrayType.asNonEmptyArrayType
+        case _ => throw new UnsupportedOperationException("Currently the only supported non-empty types are Array[X]+")
       }
     }
 

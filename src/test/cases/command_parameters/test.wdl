@@ -3,7 +3,7 @@ task param_test {
   String b
   Array[String] c
   Int? d
-  Array[Int] e
+  Array[Int]+ e
   Boolean f
 
   command <<<

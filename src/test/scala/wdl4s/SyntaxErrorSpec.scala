@@ -239,7 +239,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |workflow foo workflow
         |             ^
         |
-        |$workflow = :workflow :identifier :lbrace $_gen11 :rbrace -> Workflow( name=$1, body=$3 )
+        |$workflow = :workflow :identifier :lbrace $_gen10 :rbrace -> Workflow( name=$1, body=$3 )
       """.stripMargin
   }
 

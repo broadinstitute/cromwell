@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.expression.WdlFunctions
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
+import wdl4s.types.WdlOptionalType
 import wdl4s.values.WdlValue
 
 import scala.language.postfixOps
@@ -116,7 +117,7 @@ sealed abstract class Call(val alias: Option[String],
    */
   def unsatisfiedInputs: Seq[WorkflowInput] = for {
     i <- declarations if !inputMappings.contains(i.unqualifiedName) && i.expression.isEmpty
-  } yield WorkflowInput(i.fullyQualifiedName, i.wdlType, i.postfixQuantifier)
+  } yield WorkflowInput(i.fullyQualifiedName, i.wdlType)
 
   override def toString: String = s"[Call $fullyQualifiedName]"
 
@@ -142,7 +143,7 @@ sealed abstract class Call(val alias: Option[String],
     
     val (success, errors) = declarationAttempts partition {
       case (_, Success(_)) => true
-      case (d, Failure(_: VariableNotFoundException)) if d.postfixQuantifier.contains(Declaration.OptionalPostfixQuantifier) => true
+      case (d, Failure(_: VariableNotFoundException)) if d.wdlType.isInstanceOf[WdlOptionalType] => true
       case _ => false
     }
     

@@ -62,6 +62,11 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       case _ => Nil
     }
 
+    /*
+      * We need to use an "exists" in this case because the execution store can contain a job attempt with the same
+      * fqn and index but a preempted status. We wouldn't want that preempted attempt to count against the completion
+      * of the scatter block.
+      */
     def isDone(e: JobKey): Boolean = store exists {
       case (k, s) => k.scope.fullyQualifiedName == e.scope.fullyQualifiedName && k.index == e.index && s == ExecutionStatus.Done
     }

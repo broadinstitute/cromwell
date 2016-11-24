@@ -17,6 +17,7 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case a: WdlArray => new JsArray(a.value.map(write).toVector)
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case e: WdlExpression => JsString(e.toWdlString)
+      case q: WdlPair => new JsArray(Vector(q.left, q.right).map(write))
     }
 
     // NOTE: This assumes a map's keys are strings. Since we're coming from JSON this is fine.

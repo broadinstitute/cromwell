@@ -65,49 +65,35 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
   }
 
   AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>
-    it should s"catch polling actors if they $name and then recreate them" in {
+    /*
+      This test creates two statusPoller ActorRefs which are handed to the TestJesApiQueryManager. Work is added to that query
+      manager and then the first statusPoller requests work and is subsequently killed. The expectation is that:
 
+      - The work will return to the workQueue of the query manager
+      - The query manager will have registered a new statusPoller
+      - That statusPoller is the second ActorRef (and artifact of TestJesApiQueryManager)
+     */
+    it should s"catch polling actors if they $name, recreate them and add work back to the queue" in {
       val statusPoller1 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
-      val statusPoller2 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()))
+      val statusPoller2 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
       val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(statusPoller1, statusPoller2))
 
-      val statusRequesters = ((0 until BatchSize * 2) map { i => i -> TestProbe(name = s"StatusRequester_$i") }).toMap
+      val emptyActor = system.actorOf(Props.empty)
 
-      // Send a few status poll requests:
+       // Send a few status poll requests:
       BatchSize indexedTimes { index =>
-        val probe = statusRequesters(index)
-        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(index.toString, null)), sender = probe.ref)
-      }
-      BatchSize indexedTimes { i =>
-        val index = i + BatchSize // For the second half of the statusRequester set
-        val probe = statusRequesters(index)
-        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(index.toString, null)), sender = probe.ref)
+        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(index.toString, null)), sender = emptyActor)
       }
 
-      // Request a set of work from the middle of the queue:
-      val batchOffset = 2
-      jaqmActor.tell(msg = JesApiQueryManager.RequestJesPollingWork(batchOffset), sender = statusPoller1)
       jaqmActor.tell(msg = JesApiQueryManager.RequestJesPollingWork(BatchSize), sender = statusPoller1)
 
-      // Kill the original status poller:
       stopMethod(statusPoller1)
 
-      // Only the appropriate requesters get an error:
-      (0 until batchOffset) foreach { index =>
-        val probe = statusRequesters(index)
-        probe.expectNoMsg(max = AwaitAlmostNothing)
+      eventually {
+        jaqmActor.underlyingActor.testPollerCreations should be (2)
+        jaqmActor.underlyingActor.queueSize should be (BatchSize)
+        jaqmActor.underlyingActor.statusPollerEquals(statusPoller2) should be (true)
       }
-      (batchOffset until batchOffset + BatchSize) foreach { index =>
-        val probe = statusRequesters(index)
-        probe.expectMsg(max = TestExecutionTimeout, hint = s"Polling error to requester #$index", obj = JesPollingActor.JesPollError)
-      }
-      (batchOffset + BatchSize until 2 * BatchSize) foreach { index =>
-        val probe = statusRequesters(index)
-        probe.expectNoMsg(max = AwaitAlmostNothing)
-      }
-
-      // Check the next status poller gets created:
-      eventually { jaqmActor.underlyingActor.testPollerCreations should be(2) }
     }
   }
 }
@@ -123,7 +109,6 @@ object JesApiQueryManagerSpec {
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
 class TestJesApiQueryManager(statusPollerProbes: ActorRef*) extends JesApiQueryManager {
-
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
@@ -133,7 +118,7 @@ class TestJesApiQueryManager(statusPollerProbes: ActorRef*) extends JesApiQueryM
   }
 
   override private[statuspolling] def makeStatusPoller(): ActorRef = {
-    // Initialise the queue, if necessary:
+    // Initialize the queue, if necessary:
     if (testProbes == null) {
       init()
     }
@@ -146,6 +131,9 @@ class TestJesApiQueryManager(statusPollerProbes: ActorRef*) extends JesApiQueryM
     testProbes = newQueue
     probe
   }
+
+  def queueSize = workQueue.size
+  def statusPollerEquals(otherStatusPoller: ActorRef) = statusPoller == otherStatusPoller
 }
 
 object TestJesApiQueryManager {

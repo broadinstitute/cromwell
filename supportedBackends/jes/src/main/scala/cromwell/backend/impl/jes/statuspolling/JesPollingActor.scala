@@ -118,5 +118,4 @@ object JesPollingActor {
   def props(pollingManager: ActorRef) = Props(new JesPollingActor(pollingManager))
 
   final case class JesPollFailed(e: GoogleJsonError, responseHeaders: HttpHeaders)
-  case object JesPollError
 }

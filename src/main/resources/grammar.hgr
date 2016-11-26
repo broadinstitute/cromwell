@@ -378,7 +378,7 @@ grammar {
 
     # Workflows: https://github.com/broadinstitute/wdl/blob/wdl2/SPEC.md#workflow-definition
     $workflow = :workflow :identifier :lbrace list($wf_body_element) :rbrace -> Workflow(name=$1, body=$3)
-    $wf_body_element = $call | $declaration | $while_loop | $if_stmt | $scatter | $wf_outputs
+    $wf_body_element = $call | $declaration | $while_loop | $if_stmt | $scatter | $wf_outputs | $wf_parameter_meta | $wf_meta
     $call = :call :fqn optional($alias) optional($call_body) -> Call(task=$1, alias=$2, body=$3)
     $call_body = :lbrace list($declaration) list($call_input) :rbrace -> CallBody(declarations=$1, io=$2)
     $call_input = :input :colon list($mapping, :comma) -> Inputs(map=$2)
@@ -390,7 +390,8 @@ grammar {
     # Keep for backward compatibility
     $wf_output_wildcard_syntax = :fqn optional($wf_output_wildcard) -> WorkflowOutputWildcard(fqn=$0, wildcard=$1)
     $wf_output_wildcard = :dot :asterisk -> $1
-
+    $wf_parameter_meta = :parameter_meta $map -> ParameterMeta(map=$1)
+    $wf_meta = :meta $map -> Meta(map=$1)
     $while_loop = :while :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> WhileLoop(expression=$2, body=$5)
     $if_stmt = :if :lparen $e :rparen :lbrace list($wf_body_element) :rbrace -> If(expression=$2, body=$5)
 

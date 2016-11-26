@@ -30,8 +30,8 @@ object Task {
     val name = taskNameTerminal.sourceString
     val commandAsts = ast.findAsts(AstNodeName.Command)
     val runtimeAttributes = RuntimeAttributes(ast)
-    val meta = wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
-    val parameterMeta = wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
+    val meta = AstTools.wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
+    val parameterMeta = AstTools.wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
 
     if (commandAsts.size != 1) throw new SyntaxError(wdlSyntaxErrorFormatter.expectedExactlyOneCommandSectionPerTask(taskNameTerminal))
     val commandTemplate = commandAsts.head.getAttribute("parts").asInstanceOf[AstList].asScala.toVector map {
@@ -40,26 +40,6 @@ object Task {
     }
 
     Task(name, commandTemplate, runtimeAttributes, meta, parameterMeta, ast)
-  }
-
-  private def wdlSectionToStringMap(taskAst: Ast, node: String, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Map[String, String] = {
-    taskAst.findAsts(node) match {
-      case a if a.isEmpty => Map.empty[String, String]
-      case a if a.size == 1 =>
-        // Yes, even 'meta {}' and 'parameter_meta {}' sections have RuntimeAttribute ASTs.
-        // In hindsight, this was a poor name for the AST.
-        a.head.findAsts(AstNodeName.RuntimeAttribute).map({ ast =>
-          val key = ast.getAttribute("key").asInstanceOf[Terminal]
-          val value = ast.getAttribute("value")
-          if (!value.isInstanceOf[Terminal] || value.asInstanceOf[Terminal].getTerminalStr != "string") {
-            // Keys are parsed as identifiers, but values are parsed as expressions.
-            // For now, only accept expressions that are strings
-            throw new SyntaxError(wdlSyntaxErrorFormatter.expressionExpectedToBeString(key))
-          }
-          key.sourceString -> value.sourceString
-        }).toMap
-      case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.expectedAtMostOneSectionPerTask(node, taskAst.getAttribute("name").asInstanceOf[Terminal]))
-    }
   }
 
   def empty: Task = new Task("taskName", Seq.empty, RuntimeAttributes(Map.empty[String, WdlExpression]), Map.empty, Map.empty, null)

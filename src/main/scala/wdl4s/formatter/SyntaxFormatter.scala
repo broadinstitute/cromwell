@@ -152,7 +152,9 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
     val declarations = workflow.declarations.map(formatDeclaration(_, 1))
     val children = workflow.children.collect({case c if !workflow.declarations.contains(c) => formatScope(c, 1) })
     val outputs = formatWorkflowOutputs(workflow.workflowOutputWildcards, 1)
-    val sections = (declarations ++ children ++ Seq(outputs)).filter(_.nonEmpty)
+    val meta = formatMetaSection("meta", workflow.meta, 1)
+    val parameterMeta = formatMetaSection("parameter_meta", workflow.parameterMeta, 1)
+    val sections = (declarations ++ children ++ Seq(meta, parameterMeta, outputs)).filter(_.nonEmpty)
     s"""${highlighter.keyword("workflow")} ${highlighter.name(workflow.unqualifiedName)} {
         |${sections.mkString("\n")}
         |}""".stripMargin

@@ -36,7 +36,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
 
     val value = expression.evaluate(lookup, functions) match {
       case Success(v) => v match {
-        case WdlOptionalValue(memberType, None) => defaultString(memberType)
+        case WdlOptionalValue(memberType, opt) => opt.getOrElse(defaultString(memberType))
         case _ => v
       }
       case Failure(f) => f match {

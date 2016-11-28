@@ -3,7 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
@@ -15,7 +15,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
-          if ( ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
+          if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
             sqlDatabase.updateWorkflowState(
                 WorkflowStoreState.Running.toString,
                 WorkflowStoreState.Restartable.toString)

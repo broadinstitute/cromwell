@@ -13,7 +13,7 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.{Run, RunStatus}
+import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesStatusPollQuery
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor.JesPollFailed
 import cromwell.backend.impl.jes.statuspolling.TestJesPollingActor.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
@@ -29,8 +29,16 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   implicit val DefaultPatienceConfig = PatienceConfig(TestExecutionTimeout)
   val AwaitAlmostNothing = 30.milliseconds.dilated
 
+  import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfigurationDescriptor
+  val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
+
   var managerProbe: TestProbe = _
   var jpActor: TestActorRef[TestJesPollingActor] = _
+
+  it should "correctly calculate batch intervals" in {
+    JesPollingActor.determineBatchInterval(10) shouldBe 9.seconds
+    JesPollingActor.determineBatchInterval(100) shouldBe 1.second
+  }
 
   it should "query for work and wait for a reply" in {
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[JesApiQueryManager.RequestJesPollingWork])
@@ -77,7 +85,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
   before {
     managerProbe = TestProbe()
-    jpActor = TestActorRef(TestJesPollingActor.props(managerProbe.ref), managerProbe.ref)
+    jpActor = TestActorRef(TestJesPollingActor.props(managerProbe.ref, jesConfiguration), managerProbe.ref)
   }
 }
 
@@ -94,8 +102,9 @@ object JesPollingActorSpec extends Mockito {
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef) extends JesPollingActor(manager) with Mockito {
-  override val BatchInterval = 10.milliseconds
+class TestJesPollingActor(manager: ActorRef, jesConfiguration: JesConfiguration) extends JesPollingActor(manager, jesConfiguration) with Mockito {
+
+  override lazy val batchInterval = 10.milliseconds
 
   var operationStatusResponses: Queue[RunStatus] = Queue.empty
   var resultHandlers: Queue[JsonBatchCallback[Operation]] = Queue.empty
@@ -123,7 +132,7 @@ class TestJesPollingActor(manager: ActorRef) extends JesPollingActor(manager) wi
 }
 
 object TestJesPollingActor {
-  def props(manager: ActorRef) = Props(new TestJesPollingActor(manager))
+  def props(manager: ActorRef, jesConfiguration: JesConfiguration) = Props(new TestJesPollingActor(manager, jesConfiguration))
 
   sealed trait JesBatchCallbackResponse
   case object CallbackSuccess extends JesBatchCallbackResponse

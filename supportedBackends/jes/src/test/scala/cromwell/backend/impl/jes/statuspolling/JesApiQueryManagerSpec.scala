@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestActorRef, TestProbe}
-import cromwell.backend.impl.jes.Run
+import cromwell.backend.impl.jes.{JesConfiguration, Run}
 import cromwell.core.TestKitSuite
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -108,7 +108,7 @@ object JesApiQueryManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestJesApiQueryManager(statusPollerProbes: ActorRef*) extends JesApiQueryManager {
+class TestJesApiQueryManager(jesConfiguration: JesConfiguration, statusPollerProbes: ActorRef*) extends JesApiQueryManager(jesConfiguration) {
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
@@ -137,5 +137,8 @@ class TestJesApiQueryManager(statusPollerProbes: ActorRef*) extends JesApiQueryM
 }
 
 object TestJesApiQueryManager {
-  def props(statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(statusPollers: _*))
+  import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfigurationDescriptor
+  val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
+
+  def props(statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration, statusPollers: _*))
 }

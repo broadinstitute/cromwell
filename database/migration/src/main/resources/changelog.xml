@@ -50,6 +50,7 @@
     <include file="changesets/call_caching_job_detritus.xml" relativeToChangelogFile="true"/>
     <include file="changesets/job_store_tinyints.xml" relativeToChangelogFile="true" />
     <include file="changesets/standardize_column_names_again.xml" relativeToChangelogFile="true" />
+    <include file="changesets/rename_workflow_options_in_metadata.xml" relativeToChangelogFile="true" />
     <include file="changesets/encrypt_and_clear_workflow_options.xml" relativeToChangelogFile="true" />
     <include file="changesets/sub_workflow_store.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

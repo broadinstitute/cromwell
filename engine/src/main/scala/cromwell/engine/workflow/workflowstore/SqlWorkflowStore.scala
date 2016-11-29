@@ -3,6 +3,8 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
+import com.typesafe.config.ConfigFactory
+import net.ceedubs.ficus.Ficus._
 import cromwell.core.{WorkflowId, WorkflowSourceFiles, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
@@ -13,9 +15,13 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
-    sqlDatabase.updateWorkflowState(
-      WorkflowStoreState.Running.toString,
-      WorkflowStoreState.Restartable.toString)
+          if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
+            sqlDatabase.updateWorkflowState(
+                WorkflowStoreState.Running.toString,
+                WorkflowStoreState.Restartable.toString)
+          } else {
+            Future.successful(())
+          }
   }
 
   override def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {

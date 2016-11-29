@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes.statuspolling
 import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import cromwell.backend.impl.jes.statuspolling.JesPollingActor.{JesPollError, JesPollFailed}
+import cromwell.backend.impl.jes.statuspolling.JesPollingActor.JesPollFailed
 import cromwell.backend.impl.jes.{Run, RunStatus}
 
 import scala.concurrent.{Future, Promise}
@@ -28,9 +28,6 @@ trait JesPollingActorClient { this: Actor with ActorLogging =>
     case JesPollFailed(e, responseHeaders) =>
       log.debug("JES poll failed! Sad.")
       completePromise(Failure(new IOException(s"Google request failed: ${e.toPrettyString}")))
-    case JesPollError =>
-      log.debug("JES poll failed when polling actor died unexpectedly! Sad.")
-      completePromise(Failure(new RuntimeException("Unexpected actor death!")))
   }
 
   private def completePromise(runStatus: Try[RunStatus]) = {

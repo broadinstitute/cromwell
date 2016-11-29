@@ -41,6 +41,18 @@ class SyntaxHighlightSpec extends WordSpec with Matchers {
         |    t.p
         |    t.f
         |  }
+        |
+        |	parameter_meta {
+        |    memory_mb: "Amount of memory to allocate to the JVM"
+        |    param: "Some arbitrary parameter"
+        |    sample_id: "The ID of the sample in format foo_bar_baz"
+        |  }
+        |
+        |  meta {
+        |   author: "Joe Somebody"
+        |   email: "joe@company.org"
+        |  }
+        |
         |}""".stripMargin,
       None, None)
 
@@ -75,6 +87,15 @@ class SyntaxHighlightSpec extends WordSpec with Matchers {
         |    \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m as v {
         |      input: f=t, p=3
         |    }
+        |  }
+        |  \u001b[38;5;214mmeta\u001b[0m {
+        |    author: "Joe Somebody"
+        |    email: "joe@company.org"
+        |  }
+        |  \u001b[38;5;214mparameter_meta\u001b[0m {
+        |    memory_mb: "Amount of memory to allocate to the JVM"
+        |    param: "Some arbitrary parameter"
+        |    sample_id: "The ID of the sample in format foo_bar_baz"
         |  }
         |  \u001b[38;5;214moutput\u001b[0m {
         |    t.p
@@ -113,6 +134,15 @@ class SyntaxHighlightSpec extends WordSpec with Matchers {
         |    <span class="keyword">call</span> <span class="name">t</span> as <span class="alias">v</span> {
         |      input: f=t, p=3
         |    }
+        |  }
+        |  <span class="keyword">meta</span> {
+        |    author: "Joe Somebody"
+        |    email: "joe@company.org"
+        |  }
+        |  <span class="keyword">parameter_meta</span> {
+        |    memory_mb: "Amount of memory to allocate to the JVM"
+        |    param: "Some arbitrary parameter"
+        |    sample_id: "The ID of the sample in format foo_bar_baz"
         |  }
         |  <span class="keyword">output</span> {
         |    t.p

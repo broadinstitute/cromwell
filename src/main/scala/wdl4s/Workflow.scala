@@ -32,13 +32,18 @@ object Workflow {
       case _ =>
     }
 
-    new Workflow(name, workflowOutputsWildcards, wdlSyntaxErrorFormatter, ast)
+    val meta = AstTools.wdlSectionToStringMap(ast, AstNodeName.Meta, wdlSyntaxErrorFormatter)
+    val parameterMeta = AstTools.wdlSectionToStringMap(ast, AstNodeName.ParameterMeta, wdlSyntaxErrorFormatter)
+
+    new Workflow(name, workflowOutputsWildcards, wdlSyntaxErrorFormatter, meta, parameterMeta, ast)
   }
 }
 
 case class Workflow(unqualifiedName: String,
                     workflowOutputWildcards: Seq[WorkflowOutputWildcard],
                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
+                    meta: Map[String, String],
+                    parameterMeta: Map[String, String],
                     ast: Ast) extends Callable {
 
   /**

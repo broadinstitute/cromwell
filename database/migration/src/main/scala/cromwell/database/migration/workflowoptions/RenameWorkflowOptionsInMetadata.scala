@@ -6,9 +6,6 @@ import cromwell.database.migration.custom.BatchedTaskChange
 import cromwell.database.migration.workflowoptions.WorkflowOptionsRenaming._
 import spray.json.{JsObject, _}
 
-/**
-  * Clear the values from encrypted keys in METADATA_ENTRY.
-  */
 class RenameWorkflowOptionsInMetadata extends BatchedTaskChange {
   val tableName = "METADATA_ENTRY"
   val primaryKeyColumn = "METADATA_JOURNAL_ID"

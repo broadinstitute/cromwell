@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+
+    <changeSet author="mcovarr" id="summary_or_summary_entry_xor">
+        <preConditions>
+            <or>
+                <and>
+                    <tableExists tableName="WORKFLOW_METADATA_SUMMARY"/>
+                    <not>
+                        <tableExists tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+                    </not>
+                </and>
+                <and>
+                    <tableExists tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+                    <not>
+                        <tableExists tableName="WORKFLOW_METADATA_SUMMARY"/>
+                    </not>
+                </and>
+            </or>
+        </preConditions>
+        <comment>
+            Either WORKFLOW_METADATA_SUMMARY or WORKFLOW_METADATA_SUMMARY_ENTRY must exist, but not both (Liquibase doesn't have an xor).
+        </comment>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="embiggen_summary_entry_workflow_name">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+        </preConditions>
+        <comment>
+            The WORKFLOW_METADATA_SUMMARY_ENTRY version of the embiggener. This should gracefully handle the absence of the table
+            in the event the table is still called WORKFLOW_METADATA_SUMMARY when this runs.
+        </comment>
+        <modifyDataType tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" columnName="WORKFLOW_NAME" newDataType="VARCHAR(500)"/>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="embiggen_summary_workflow_name">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="WORKFLOW_METADATA_SUMMARY"/>
+        </preConditions>
+        <comment>
+            The WORKFLOW_METADATA_SUMMARY version of the embiggener. This should gracefully handle the absence of the table
+            in the event the table has been renamed to WORKFLOW_METADATA_SUMMARY_ENTRY when this runs.
+        </comment>
+        <modifyDataType tableName="WORKFLOW_METADATA_SUMMARY" columnName="WORKFLOW_NAME" newDataType="VARCHAR(500)"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -93,7 +93,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
     }
 
     "fail to construct with inputs of the wrong type" in {
-      val expectedError = "Could not coerce value for 'wf_hello.hello.addressee' into: WdlStringType"
+      val expectedError = "Could not coerce JsNumber value for 'wf_hello.hello.addressee' (3) into: WdlStringType"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
         workflowId, failureMatcher)
@@ -101,7 +101,13 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
       val probe = TestProbe()
       probe watch workflowActor
       workflowActor ! StartWorkflowCommand
-      Await.result(promise.future, TestExecutionTimeout)
+      try {
+        Await.result(promise.future, TestExecutionTimeout)
+      } catch {
+        case e: Throwable =>
+          val info = failureMatcher.nearMissInformation
+          fail(s"We didn't see the expected error message $expectedError within $TestExecutionTimeout. ${info.mkString(", ")}")
+      }
       probe.expectTerminated(workflowActor, AwaitAlmostNothing)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
         case x: WorkflowFailedResponse =>

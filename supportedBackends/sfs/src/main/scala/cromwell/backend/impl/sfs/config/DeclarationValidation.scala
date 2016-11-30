@@ -74,7 +74,7 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     val validationDefault = if (declaration.expression.isDefined)
       default(instanceValidation, declaration.expression.get)
     else instanceValidation
-    if (declaration.postfixQuantifier.contains("?")) validationDefault.optional else validationDefault
+    if (declaration.wdlType.isInstanceOf[WdlOptionalType]) validationDefault.optional else validationDefault
   }
 
   /**

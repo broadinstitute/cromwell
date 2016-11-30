@@ -117,7 +117,7 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
 
   val pathMock = mock(classOf[Path])
 
-  it should "timeout if the operation takes too long" in {
+  it should "timeout if the operation takes too long" ignore {
     val retryParams = testRetryParams.copy(timeout = 100 millis)
     val mockFs = mockFileSystem(delay = Option(200 millis))
     val retryableFs = new RetryableFileSystemProviderProxy(mockFs, retryParams)(system)

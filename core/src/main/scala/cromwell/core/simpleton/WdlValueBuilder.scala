@@ -2,10 +2,10 @@ package cromwell.core.simpleton
 
 import wdl4s.TaskOutput
 import wdl4s.types._
-import wdl4s.values.{WdlArray, WdlMap, WdlPair, WdlValue}
+import wdl4s.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
 
 import scala.language.postfixOps
-import cromwell.core.{JobOutput, CallOutputs}
+import cromwell.core.{CallOutputs, JobOutput}
 import cromwell.core.simpleton.WdlValueSimpleton._
 
 
@@ -93,6 +93,12 @@ object WdlValueBuilder {
 
     outputType match {
       case _: WdlPrimitiveType => components collectFirst { case SimpletonComponent(_, v) => v } get
+      case opt: WdlOptionalType =>
+        if (components.isEmpty) {
+          WdlOptionalValue(opt.memberType, None)
+        } else {
+          WdlOptionalValue(toWdlValue(opt.memberType, components))
+        }
       case arrayType: WdlArrayType =>
         val groupedByArrayIndex: Map[Int, Traversable[SimpletonComponent]] = group(components map descendIntoArray)
         WdlArray(arrayType, groupedByArrayIndex.toList.sortBy(_._1) map { case (_, s) => toWdlValue(arrayType.memberType, s) })

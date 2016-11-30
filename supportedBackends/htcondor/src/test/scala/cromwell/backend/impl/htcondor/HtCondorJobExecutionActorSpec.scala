@@ -102,7 +102,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
         |  root = "local-cromwell-executions"
         |
         |  docker {
-        |    cmd = "docker run -w %s %s %s %s --rm %s %s"
+        |    cmd = "docker run -w %s %s %s %s --rm %s /bin/bash -c \\"%s\\""
         |    defaultWorkingDir = "/workingDir/"
         |    defaultOutputDir = "/output/"
         |  }
@@ -318,7 +318,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
       assert(bashScript.contains("docker run -w /workingDir/ -v"))
       assert(bashScript.contains(":/workingDir/"))
       assert(bashScript.contains(":ro"))
-      assert(bashScript.contains("/call-hello/execution:/outputDir/ --rm ubuntu/latest echo"))
+      assert(bashScript.contains("/call-hello/execution:/outputDir/ --rm ubuntu/latest /bin/bash -c \"echo"))
 
       cleanUpJob(jobPaths)
     }

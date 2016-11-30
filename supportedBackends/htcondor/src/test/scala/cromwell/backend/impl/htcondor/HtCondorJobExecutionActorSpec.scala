@@ -403,7 +403,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     assert(bashScript.contains(":/workingDir/"))
     assert(bashScript.contains(tempDir1.toAbsolutePath.toString))
     assert(bashScript.contains(tempDir2.toAbsolutePath.toString))
-    assert(bashScript.contains("/call-hello/execution:/outputDir/ --rm ubuntu/latest echo"))
+    assert(bashScript.contains("/call-hello/execution:/outputDir/ --rm ubuntu/latest /bin/bash -c \"echo"))
 
     cleanUpJob(jobPaths)
   }

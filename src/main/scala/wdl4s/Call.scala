@@ -60,7 +60,7 @@ object Call {
 sealed abstract class Call(val alias: Option[String],
                     val callable: Callable,
                     val inputMappings: Map[String, WdlExpression],
-                    val ast: Ast) extends Scope with GraphNode with WorkflowScoped {
+                    val ast: Ast) extends GraphNode with WorkflowScoped {
   val unqualifiedName: String = alias getOrElse callable.unqualifiedName
   
   def callType: String
@@ -75,7 +75,7 @@ sealed abstract class Call(val alias: Option[String],
   
   override def children: Seq[Scope] = super.children ++ outputs
   
-  lazy val upstream: Set[Scope with GraphNode] = {
+  lazy val upstream: Set[GraphNode] = {
     val dependentNodes = for {
       expr <- inputMappings.values
       variable <- expr.variableReferences
@@ -90,7 +90,7 @@ sealed abstract class Call(val alias: Option[String],
     (dependentNodes ++ firstScatterOrIf.toSeq).toSet
   }
 
-  lazy val downstream: Set[Scope with GraphNode] = {
+  lazy val downstream: Set[GraphNode] = {
     def expressions(node: GraphNode): Iterable[WdlExpression] = node match {
       case scatter: Scatter => Set(scatter.collection)
       case call: TaskCall => call.inputMappings.values

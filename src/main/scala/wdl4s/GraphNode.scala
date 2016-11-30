@@ -1,6 +1,6 @@
 package wdl4s
 
-trait GraphNode {
-  def upstream: Set[Scope with GraphNode]
-  def downstream: Set[Scope with GraphNode]
+trait GraphNode extends Scope {
+  def upstream: Set[GraphNode]
+  def downstream: Set[GraphNode]
 }

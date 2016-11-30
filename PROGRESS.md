@@ -54,8 +54,8 @@ I introduced the concept of a `GraphNode` trait:
 
 ```scala
 trait GraphNode {
-  def upstream: Set[Scope with GraphNode]
-  def downstream: Set[Scope with GraphNode]
+  def upstream: Set[GraphNode]
+  def downstream: Set[GraphNode]
 }
 ```
 
@@ -95,7 +95,7 @@ workflow w {
 If you'd like `b.upstream` to return `call a as a0`, `call a as a1`, AND `Array[Int] ints = [a0.o, a1.o]`, this can be done easily like this:
 
 ```scala
-def upstreamRecursive(node: GraphNode): Set[Scope with GraphNode] = {
+def upstreamRecursive(node: GraphNode): Set[GraphNode] = {
   node.upstream ++ node.upstream.flatMap(upstreamRecursive)
 }
 ```
@@ -121,7 +121,7 @@ trait Scope {
   def ancestry: Seq[Scope]
   def descendants: Set[Scope]
   def closestCommonAncestor(other: Scope): Option[Scope]
-  def resolveVariable(name: String): Option[Scope with GraphNode]
+  def resolveVariable(name: String): Option[GraphNode]
   def lookupFunction(inputs: WorkflowCoercedInputs,
                      wdlFunctions: WdlFunctions[WdlValue],
                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int],

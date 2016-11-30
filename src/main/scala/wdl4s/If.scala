@@ -21,11 +21,11 @@ object If {
   * @param condition WDL Expression representing the condition in which to execute this If-block
   */
 case class If(index: Int, condition: WdlExpression, ast: Ast)
-  extends Scope with GraphNode with WorkflowScoped {
+  extends GraphNode with WorkflowScoped {
   val unqualifiedName = s"${If.FQNIdentifier}_$index"
   override def appearsInFqn = false
 
-  lazy val upstream: Set[Scope with GraphNode] = {
+  lazy val upstream: Set[GraphNode] = {
     val referencedNodes = for {
       variable <- condition.variableReferences
       node <- resolveVariable(variable.sourceString)
@@ -40,7 +40,7 @@ case class If(index: Int, condition: WdlExpression, ast: Ast)
     (referencedNodes ++ firstScatterOrIf.toSeq).toSet
   }
 
-  lazy val downstream: Set[Scope with GraphNode] = {
+  lazy val downstream: Set[GraphNode] = {
     for {
       node <- namespace.descendants.collect({ 
         case n: GraphNode if n.fullyQualifiedName != fullyQualifiedName => n 
@@ -49,6 +49,6 @@ case class If(index: Int, condition: WdlExpression, ast: Ast)
     } yield node
   }
 
-  override def toString(): String = s"[If fqn=$fullyQualifiedName, condition=${condition.toWdlString}]"
+  override def toString: String = s"[If fqn=$fullyQualifiedName, condition=${condition.toWdlString}]"
 }
 

@@ -70,46 +70,47 @@ class WorkflowSpec extends WordSpec with Matchers {
 
     val workflowInputs = Map("main_workflow.workflow_input" -> WdlString("workflow_input"))
 
-    def outputResolverForWorkflow(workflow: Workflow)(call: Call, index: Option[Int])= {
+    def outputResolverForWorkflow(workflow: Workflow)(call: GraphNode, index: Option[Int])= {
       call match {
         // Main Task
-        case c if c == workflow.findCallByName("main_task").get =>
+        case c: Call if c == workflow.findCallByName("main_task").get =>
           Success(WdlCallOutputsObject(c, Map(
             "task_o1" -> WdlString("MainTaskOutputString"),
             "task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(8)))
           )))
-        case c if c == workflow.findCallByName("main_task2").get =>
+        case c: Call if c == workflow.findCallByName("main_task2").get =>
           Success(WdlCallOutputsObject(c, Map(
             "task_o1" -> WdlString("MainTask2OutputString"),
             "task_o2" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(16)))
           )))
-        case c if c == workflow.findCallByName("main_task_in_scatter").get =>
+        case c: Call if c == workflow.findCallByName("main_task_in_scatter").get =>
           Success(WdlCallOutputsObject(c, Map(
             "task_o1" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("MainTaskOutputString")))
           )))
 
         //Sub Task
-        case c if c == workflow.findCallByName("sub_task").get =>
+        case c: Call if c == workflow.findCallByName("sub_task").get =>
           Success(WdlCallOutputsObject(c, Map(
             "sub_task_o1" -> WdlString("SubTaskOutputString")
           )))
-        case c if c == workflow.findCallByName("sub_task2").get =>
+        case c: Call if c == workflow.findCallByName("sub_task2").get =>
           Success(WdlCallOutputsObject(c, Map(
             "sub_task_o1" -> WdlString("SubTask2OutputString")
           )))
 
         // Workflow Task
-        case c if c == workflow.findCallByName("sub_workflow").get =>
+        case c: Call if c == workflow.findCallByName("sub_workflow").get =>
           Success(WdlCallOutputsObject(c, Map(
             "sub_sub_workflow_sub_task_sub_task_o1" -> WdlString("SubWorkflowSubTaskOutputString"),
             "sub_o1" -> WdlString("SubWorkflowOutputString")
           )))
-        case c if c == workflow.findCallByName("sub_workflow2").get =>
+        case c: Call if c == workflow.findCallByName("sub_workflow2").get =>
           Success(WdlCallOutputsObject(c, Map(
             "sub_sub_workflow_sub_task_sub_task_o1" -> WdlString("SubWorkflow2SubTaskOutputString"),
             "sub_o1" -> WdlString("SubWorkflow2OutputString")
           )))
-        case c => fail(s"No output found for call ${c.unqualifiedName}")
+        case c: Call => fail(s"No output found for call ${c.unqualifiedName}")
+        case _ => Failure(new Exception())
       }
     }
 
@@ -454,9 +455,9 @@ class WorkflowSpec extends WordSpec with Matchers {
 
       val ns = WdlNamespaceWithWorkflow.load(wdl)
 
-      def outputResolver(call: Call, index: Option[Int])= {
+      def outputResolver(call: GraphNode, index: Option[Int])= {
         call match {
-          case c if c == ns.workflow.findCallByName("t").get =>
+          case c: Call if c == ns.workflow.findCallByName("t").get =>
             Success(WdlCallOutputsObject(c, Map(
               "o1" -> WdlString("o1"),
               "o2" -> WdlString("o2")

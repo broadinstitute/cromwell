@@ -17,7 +17,7 @@ class CallSpec extends WordSpec with Matchers {
 
     val inputs = namespace.coerceRawInputs(SampleWdl.TaskDeclarationsWdl.rawInputs).get
     
-    def outputResolver(call: Call, index: Option[Int]): Try[WdlCallOutputsObject] = {
+    def outputResolver(call: GraphNode, index: Option[Int]): Try[WdlValue] = {
       (call, index) match {
         case (c, Some(2)) if c == callT => Success(WdlCallOutputsObject(callT, Map("o" -> WdlString(s"c ${index.getOrElse(-1)}"))))
         case (c, None) if c == callT2 => Success(WdlCallOutputsObject(callT2, Map(

@@ -1,8 +1,36 @@
 package wdl4s
 
 import wdl4s.AstTools.EnhancedAstNode
-import wdl4s.types.WdlType
 import wdl4s.parser.WdlParser.{Ast, AstNode}
+import wdl4s.types.{WdlArrayType, WdlType}
+
+object DeclarationInterface {
+  /**
+    * Depending on who is asking, the type of a declaration can vary.
+    * e.g
+    * task a {
+    *   ...
+    *   output {
+    *     String o
+    *   }
+    * }
+    * workflow w {
+    *   scatter (...) {
+    *     call a
+    *     String s = a.o # Inside the scatter a.o is a String
+    *   }
+    *
+    *   Array[String] s2 = a.o # Outside the scatter it's an Array[String]
+    * }
+    */
+  def relativeWdlType(from: Scope, target: DeclarationInterface, wdlType: WdlType): WdlType = {
+    target.closestCommonAncestor(from) map { ancestor =>
+      target.ancestrySafe.takeWhile(_ != ancestor).collect({
+        case s: Scatter => s
+      }).foldLeft(wdlType)((acc, _) => WdlArrayType(acc))
+    } getOrElse wdlType
+  }
+}
 
 /**
   * Represents a declaration which can show up in a workflow or a task context.  For example
@@ -19,10 +47,12 @@ import wdl4s.parser.WdlParser.{Ast, AstNode}
   *
   * Both the definition of test_file and wf_string are declarations
   */
-trait DeclarationInterface extends Scope with GraphNode {
+trait DeclarationInterface extends GraphNode {
   def wdlType: WdlType
   def expression: Option[WdlExpression]
   def ast: Ast
+
+  def relativeWdlType(from: Scope): WdlType = DeclarationInterface.relativeWdlType(from, this, wdlType)
 
   def asTaskInput: Option[TaskInput] = expression match {
     case Some(expr) => None
@@ -39,7 +69,7 @@ trait DeclarationInterface extends Scope with GraphNode {
     s"${wdlType.toWdlString} $unqualifiedName$expr"
   }
 
-  lazy val upstream: Set[Scope with GraphNode] = {
+  lazy val upstream: Set[GraphNode] = {
     val nodes = for {
       expr <- expression.toSeq
       variable <- expr.variableReferences
@@ -48,7 +78,7 @@ trait DeclarationInterface extends Scope with GraphNode {
     nodes.toSet
   }
 
-  lazy val downstream: Set[Scope with GraphNode] = {
+  lazy val downstream: Set[GraphNode] = {
     for {
       node <- namespace.descendants.collect({ 
         case n: GraphNode if n.fullyQualifiedName != fullyQualifiedName => n 
@@ -57,7 +87,7 @@ trait DeclarationInterface extends Scope with GraphNode {
     } yield node
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     s"[Declaration type=${wdlType.toWdlString} name=$unqualifiedName expr=${expression.map(_.toWdlString)}]"
   }
 }

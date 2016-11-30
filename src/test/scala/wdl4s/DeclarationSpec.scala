@@ -2,14 +2,14 @@ package wdl4s
 
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.expression.NoFunctions
-import wdl4s.types._
+import wdl4s.types.{WdlStringType, _}
 import wdl4s.values.{WdlOptionalValue, WdlString, WdlValue}
 
 import scala.util.{Failure, Success}
 
 class DeclarationSpec extends FlatSpec with Matchers {
-  val wdlSource = (new SampleWdl.DeclarationsWdl).wdlSource()
-  val namespace = WdlNamespaceWithWorkflow.load(wdlSource)
+  lazy val wdlSource = (new SampleWdl.DeclarationsWdl).wdlSource()
+  lazy val namespace = WdlNamespaceWithWorkflow.load(wdlSource)
 
   "A Workflow with declarations" should "have declarations defined properly" in {
     namespace.workflow.declarations.size shouldEqual 4
@@ -132,7 +132,7 @@ class DeclarationSpec extends FlatSpec with Matchers {
 
   "A workflow" should "Be able to evaluate static declarations" in {
     namespace.staticDeclarationsRecursive(Map.empty[String, WdlValue], NoFunctions) match {
-      case Failure(ex) => fail("Expected all declarations to be statically evaluatable", ex)
+      case Failure(ex) => fail("Expected all declarations to be statically evaluable", ex)
       case Success(values) =>
         values shouldEqual Map(
           "w.foo" -> WdlString("foo"),
@@ -143,6 +143,52 @@ class DeclarationSpec extends FlatSpec with Matchers {
     }
   }
 
+  "A workflow" should "allow for JIT evaluation of declarations" in {
+    val wdl =  """task t {
+                 |    String i
+                 |    command {
+                 |        echo "${i}"
+                 |    }
+                 |    output {
+                 |        String o = read_string(stdout())
+                 |    }
+                 |}
+                 |
+                 |workflow declarations_as_nodes {
+                 |    call t as t1 { input: i = "hello" }
+                 |    
+                 |    String a = t1.o + " world"
+                 |    
+                 |    call t as t2 { input: i = a }
+                 |    
+                 |    Array[String] arr = [t1.o, t2.o]
+                 |    
+                 |    scatter(i in arr) {
+                 |        call t as t3 { input: i = i }
+                 |        String b = i + t3.o
+                 |        call t as t4 { input: i = b }
+                 |        String c = t3.o + " " + t4.o
+                 |    }
+                 |    
+                 |    Array[String] d = c
+                 |     
+                 |    output {
+                 |        String o1 = a
+                 |        Array[String] o2 = t4.o
+                 |        Array[String] o3 = d
+                 |        Array[String] o4 = b
+                 |        Array[String] o5 = c
+                 |    }
+                 |}
+            """.stripMargin
+    val ns = WdlNamespaceWithWorkflow.load(wdl)
+    ns.staticDeclarationsRecursive(Map.empty[String, WdlValue], NoFunctions) match {
+      case Failure(ex) => fail("Expected all declarations to be statically evaluable", ex)
+      case Success(values) =>
+        values shouldEqual Map.empty
+    }
+  }
+  
   "A namespace" should "Be able to coerce inputs" in {
     namespace.coerceRawInputs(Map.empty).get shouldEqual Map.empty[FullyQualifiedName, WdlValue]
   }

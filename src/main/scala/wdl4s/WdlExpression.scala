@@ -16,6 +16,7 @@ import scala.util.Try
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
 case class VariableNotFoundException(variable: String, cause: Throwable = null) extends Exception(s"Variable '$variable' not found", cause)
 case class VariableLookupException(message: String, cause: Throwable = null) extends Exception(message, cause)
+case class ScatterIndexNotFound(message: String, cause: Throwable = null) extends Exception(message, cause)
 
 case object NoLookup extends ScopedLookupFunction {
   def apply(value: String): WdlValue =
@@ -88,13 +89,13 @@ object WdlExpression {
   def evaluateFiles(ast: AstNode, lookup: ScopedLookupFunction, functions: WdlFunctions[WdlValue], coerceTo: WdlType = WdlAnyType) =
     FileEvaluator(ValueEvaluator(lookup, functions), coerceTo).evaluate(ast)
 
-  def evaluateType(ast: AstNode, lookup: (String) => WdlType, functions: WdlFunctions[WdlType]) =
-    TypeEvaluator(lookup, functions).evaluate(ast)
+  def evaluateType(ast: AstNode, lookup: (String) => WdlType, functions: WdlFunctions[WdlType], from: Option[Scope] = None) =
+    TypeEvaluator(lookup, functions, from).evaluate(ast)
 
   def fromString(expression: WdlSource): WdlExpression = {
     val tokens = parser.lex(expression, "string")
     val terminalMap = (tokens.asScala.toVector map {(_, expression)}).toMap
-    val parseTree = parser.parse_e(tokens, new WdlSyntaxErrorFormatter(terminalMap))
+    val parseTree = parser.parse_e(tokens, WdlSyntaxErrorFormatter(terminalMap))
     new WdlExpression(parseTree.toAst)
   }
 
@@ -164,8 +165,8 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   def evaluateFiles(lookup: ScopedLookupFunction, functions: WdlFunctions[WdlValue], coerceTo: WdlType): Try[Seq[WdlFile]] =
     WdlExpression.evaluateFiles(ast, lookup, functions, coerceTo)
 
-  def evaluateType(lookup: (String) => WdlType, functions: WdlFunctions[WdlType]): Try[WdlType] =
-    WdlExpression.evaluateType(ast, lookup, functions)
+  def evaluateType(lookup: (String) => WdlType, functions: WdlFunctions[WdlType], from: Option[Scope] = None): Try[WdlType] =
+    WdlExpression.evaluateType(ast, lookup, functions, from)
 
   def containsFunctionCall = ast.containsFunctionCalls
 

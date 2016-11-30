@@ -5,11 +5,11 @@ import wdl4s.WdlExpression._
 import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
 import wdl4s.types._
 import wdl4s.util.TryUtil
-import wdl4s.{Scatter, WdlExpressionException, WdlNamespace}
+import wdl4s._
 
 import scala.util.{Failure, Success, Try}
 
-case class TypeEvaluator(override val lookup: String => WdlType, override val functions: WdlFunctions[WdlType]) extends Evaluator {
+case class TypeEvaluator(override val lookup: String => WdlType, override val functions: WdlFunctions[WdlType], from: Option[Scope] = None) extends Evaluator {
   override type T = WdlType
 
   override def evaluate(ast: AstNode): Try[WdlType] = ast match {
@@ -77,10 +77,9 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
             case o: WdlCallOutputsObjectType =>
               o.call.outputs.find(_.unqualifiedName == rhs.getSourceString) match {
                 case Some(taskOutput) => 
-                  val parentScatters = o.call.ancestrySafe.collect({case s: Scatter => s})
-                  evaluate(taskOutput.requiredExpression.ast) map { outputType =>
-                    parentScatters.foldLeft(outputType)((acc, _) => WdlArrayType(acc))
-                  }
+                  from map { source =>
+                    evaluate(taskOutput.requiredExpression.ast) map { t => DeclarationInterface.relativeWdlType(source, taskOutput, t) }
+                  } getOrElse evaluate(taskOutput.requiredExpression.ast)
                 case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
               }
             case WdlPairType(leftType, rightType) =>

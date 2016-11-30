@@ -9,7 +9,7 @@ import wdl4s.command.ParameterCommandPart
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wdl4s.parser.WdlParser._
 import wdl4s.types._
-import wdl4s.util.TryUtil
+import wdl4s.util.{AggregatedException, TryUtil}
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -134,7 +134,17 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
       (declarations ++ workflowDeclarations).foldLeft(Map.empty[FullyQualifiedName, Try[WdlValue]])(evalDeclaration)
     }
 
-    TryUtil.sequenceMap(evalScope)
+    val filteredExceptions: Set[Class[_ <: Throwable]] = Set(classOf[OutputVariableLookupException], classOf[ScatterIndexNotFound])
+    
+    // Filter out declarations for which evaluation failed because a call output variable could not be resolved, or a shard could not be found,
+    // as this method is meant for pre-execution validation
+    val filtered = evalScope filterNot {
+      case (_, Failure(ex)) if filteredExceptions.contains(ex.getClass) => true
+      case (_, Failure(e: AggregatedException)) => e.exceptions forall { ex => filteredExceptions.contains(ex.getClass) }
+      case _ => false
+    }
+    
+    TryUtil.sequenceMap(filtered)
   }
 }
 
@@ -415,9 +425,9 @@ object WdlNamespace {
 
   def lookupType(from: Scope)(n: String): WdlType = {
     from.resolveVariable(n) match {
-      case Some(d: DeclarationInterface) => d.wdlType
+      case Some(d: DeclarationInterface) => d.relativeWdlType(from)
       case Some(c: Call) => WdlCallOutputsObjectType(c)
-      case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) match {
+      case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType, Option(from)) match {
         case Success(a: WdlArrayType) => a.memberType
         case _ => throw VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
       }
@@ -428,7 +438,7 @@ object WdlNamespace {
   
   def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     decl.expression flatMap { expr =>
-      expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType) match {
+      expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
         case Success(wdlType) if !decl.wdlType.isCoerceableFrom(wdlType) =>
           Option(new SyntaxError(wdlSyntaxErrorFormatter.taskOutputExpressionTypeDoesNotMatchDeclaredType(
             declarationName(decl.ast), decl.wdlType, wdlType

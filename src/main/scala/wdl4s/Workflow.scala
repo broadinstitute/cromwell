@@ -1,7 +1,6 @@
 package wdl4s
 
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
-import wdl4s.WdlExpression._
 import wdl4s.expression.WdlFunctions
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wdl4s.types.{WdlArrayType, WdlType}
@@ -69,15 +68,8 @@ case class Workflow(unqualifiedName: String,
   /** First tries to find any Call with name `name`.  If not found,
     * Fallback to looking at immediate children or delegating to parent node
     */
-  override def resolveVariable(name: String, relativeTo: Scope = this): Option[Scope with GraphNode] = {
-    findCallByName(name) match {
-      case call: Some[Call] => call
-      case _ =>
-        val leftOutputs = if (outputs.contains(relativeTo))
-          outputs.dropRight(outputs.size - outputs.indexOf(relativeTo))
-        else outputs
-        leftOutputs.find(_.unqualifiedName == name) orElse super.resolveVariable(name, relativeTo)
-    }
+  override def resolveVariable(name: String, relativeTo: Scope = this): Option[GraphNode] = {
+    findCallByName(name) orElse findDeclarationByName(name) orElse findWorkflowOutputByName(name, relativeTo) orElse super.resolveVariable(name, relativeTo)
   }
 
   /**
@@ -96,6 +88,35 @@ case class Workflow(unqualifiedName: String,
     * @return Some(Call) if one with that name was found otherwise None
     */
   def findCallByName(name: String): Option[Call] = calls.find(_.unqualifiedName == name)
+
+  /**
+    * Declarations within the workflow scope (including inside scatters and ifs)
+    */
+  lazy val transitiveDeclarations = {
+    def isValid(d: Declaration) = {
+      d.parent match {
+        case Some(w: Workflow) if w == this => true
+        case Some(_: Scatter) => true
+        case Some(_: If) => true
+        case _ => false
+      }
+    }
+    
+    descendants collect {
+      case declaration: Declaration if isValid(declaration) => declaration
+    }
+  }
+  
+  def findDeclarationByName(name: String): Option[Declaration] = {
+    transitiveDeclarations.find(_.unqualifiedName == name)
+  }
+  
+  def findWorkflowOutputByName(name: String, relativeTo: Scope) = {
+    val leftOutputs = if (outputs.contains(relativeTo))
+      outputs.dropRight(outputs.size - outputs.indexOf(relativeTo))
+    else outputs
+    leftOutputs.find(_.unqualifiedName == name)
+  }
 
   /**
    * All outputs for this workflow and their associated types
@@ -117,21 +138,15 @@ case class Workflow(unqualifiedName: String,
 
     def toWorkflowOutputs(scope: Scope) = {
       // Find out the number of parent scatters
-      val (outputs, parentScatters) = scope match {
-        case call: Call => (call.outputs, call.ancestry collect { case scatter: Scatter => Scatter })
-        case outputDeclaration: Output => (Seq(outputDeclaration), outputDeclaration.ancestry collect { case scatter: Scatter => Scatter })
+      val outputs = scope match {
+        case call: Call => call.outputs
+        case outputDeclaration: Output => Seq(outputDeclaration)
           // For non output declaration, don't return an array but return the raw value
-        case otherDeclaration: DeclarationInterface => (Seq(otherDeclaration), Seq.empty)
-        case _ => (Seq.empty, Seq.empty)
+        case otherDeclaration: DeclarationInterface => Seq(otherDeclaration)
+        case _ => Seq.empty
       }
       
-      outputs map { output =>
-        val wdlType = parentScatters.foldLeft(output.wdlType)((acc, _) => {
-          WdlArrayType(acc)
-        })
-        
-        toWorkflowOutput(output, wdlType)
-      }
+      outputs map { output => toWorkflowOutput(output, output.relativeWdlType(this)) }
     }
     
     // No outputs means all outputs

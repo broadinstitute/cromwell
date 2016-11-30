@@ -1,7 +1,3 @@
-# READ THIS
-
-**This is a work-in-progress branch, to see detailed information about the code on this branch see [PROGRESS.md](PROGRESS.md)**
-
 [![Build Status](https://travis-ci.org/broadinstitute/wdl4s.svg?branch=develop)](https://travis-ci.org/broadinstitute/wdl4s?branch=develop)
 [![Coverage Status](https://coveralls.io/repos/broadinstitute/wdl4s/badge.svg?branch=develop)](https://coveralls.io/r/broadinstitute/wdl4s?branch=develop)
 

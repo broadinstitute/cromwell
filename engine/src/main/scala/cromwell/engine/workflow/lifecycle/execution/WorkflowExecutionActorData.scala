@@ -5,9 +5,10 @@ import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
+import wdl4s.values.WdlValue
 import wdl4s.{GraphNode, Scope}
 
 object WorkflowExecutionDiff {
@@ -57,6 +58,17 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
     )
   }
+  
+  def declarationEvaluationSuccess(declarationKey: DeclarationKey, value: WdlValue) = {
+    val outputStoreKey = OutputCallKey(declarationKey.scope, declarationKey.index)
+    val outputStoreValue = OutputEntry(declarationKey.scope.unqualifiedName, value.wdlType, Option(value))
+    this.copy(
+      executionStore = executionStore.add(Map(declarationKey -> Done)),
+      outputStore = outputStore.add(Map(outputStoreKey -> Seq(outputStoreValue)))
+    )
+  }
+  
+  def executionFailed(jobKey: JobKey) = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
 
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
   private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs) = {

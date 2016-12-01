@@ -10,7 +10,7 @@ import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.WorkflowOptions.WorkflowFailureMode
-import cromwell.core.{JobKey, _}
+import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}

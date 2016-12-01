@@ -62,7 +62,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(
       workflowDescriptor,
-      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow),
+      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow, workflowDescriptor.workflowInputs),
       backendJobExecutionActors = Map.empty,
       engineJobExecutionActors = Map.empty,
       subWorkflowExecutionActors = Map.empty,
@@ -100,6 +100,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         // Scatter
     case Event(ScatterCollectionSucceededResponse(jobKey, callOutputs), stateData) =>
       handleCallSuccessful(jobKey, callOutputs, stateData, Map.empty)
+        // Declaration
+    case Event(DeclarationEvaluationSucceededResponse(jobKey, callOutputs), stateData) =>
+      handleDeclarationEvaluationSuccessful(jobKey, callOutputs, stateData)
 
       // Failure
         // Initialization
@@ -118,6 +121,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, descendantJobKeys)
+    case Event(DeclarationEvaluationFailedResponse(jobKey, reason), stateData) =>
+      handleDeclarationEvaluationFailure(jobKey, reason, stateData)
   }
 
   when(WorkflowExecutionAbortingState) {
@@ -219,21 +224,31 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData, failedJobKey: JobKey, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
-    val mergedStateData = stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(failedJobKey -> ExecutionStatus.Failed)))
-        .removeCallExecutionActor(failedJobKey)
-        .addExecutions(jobExecutionMap)
-
+    val newData = stateData
+      .removeCallExecutionActor(failedJobKey)
+      .addExecutions(jobExecutionMap)
+    
+    handleExecutionFailure(failedJobKey, newData, reason, jobExecutionMap)
+  }
+  
+  private def handleDeclarationEvaluationFailure(declarationKey: DeclarationKey, reason: Throwable, stateData: WorkflowExecutionActorData) = {
+    handleExecutionFailure(declarationKey, stateData, reason, Map.empty)
+  }
+  
+  private def handleExecutionFailure(failedJobKey: JobKey, data: WorkflowExecutionActorData, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
+    val newData = data.executionFailed(failedJobKey)
+    
     if (workflowDescriptor.getWorkflowOption(WorkflowFailureMode).contains(ContinueWhilePossible.toString)) {
-      mergedStateData.workflowCompletionStatus match {
+      newData.workflowCompletionStatus match {
         case Some(completionStatus) if completionStatus == Failed =>
-          context.parent ! WorkflowExecutionFailedResponse(stateData.jobExecutionMap, reason)
-          goto(WorkflowExecutionFailedState) using mergedStateData
+          context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
+          goto(WorkflowExecutionFailedState) using newData
         case _ =>
-          stay() using startRunnableScopes(mergedStateData)
+          stay() using startRunnableScopes(newData)
       }
     } else {
-      context.parent ! WorkflowExecutionFailedResponse(stateData.jobExecutionMap, reason)
-      goto(WorkflowExecutionFailedState) using mergedStateData
+      context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
+      goto(WorkflowExecutionFailedState) using newData
     }
   }
   
@@ -244,7 +259,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
      val (response, finalState) = workflowDescriptor.workflow.evaluateOutputs(
       workflowDescriptor.inputs,
       data.expressionLanguageFunctions,
-      data.outputStore.fetchCallOutputEntries
+      data.outputStore.fetchNodeOutputEntries
     ) map { workflowOutputs =>
        workflowLogger.info(
          s"""Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs:
@@ -278,17 +293,22 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
-    workflowLogger.debug(s"Job ${jobKey.tag} succeeded!")
-    val newData = data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
-
-    newData.workflowCompletionStatus match {
+    handleExecutionSuccess(data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap))
+  }
+  
+  private def handleDeclarationEvaluationSuccessful(key: DeclarationKey, value: WdlValue, data: WorkflowExecutionActorData) = {
+    handleExecutionSuccess(data.declarationEvaluationSuccess(key, value))
+  }
+  
+  private def handleExecutionSuccess(data: WorkflowExecutionActorData) = {
+    data.workflowCompletionStatus match {
       case Some(ExecutionStatus.Done) =>
-        handleWorkflowSuccessful(newData)
+        handleWorkflowSuccessful(data)
       case Some(sts) =>
         context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in fail-slow mode"))
-        goto(WorkflowExecutionFailedState) using newData
+        goto(WorkflowExecutionFailedState) using data
       case _ =>
-        stay() using startRunnableScopes(newData)
+        stay() using startRunnableScopes(data)
     }
   }
   
@@ -320,6 +340,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       case k: ScatterKey => processRunnableScatter(k, data)
       case k: CollectorKey => processRunnableCollector(k, data)
       case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
+      case k: StaticDeclarationKey => processRunnableStaticDeclaration(k)
+      case k: DynamicDeclarationKey => processRunnableDynamicDeclaration(k, data)
       case k =>
         val exception = new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}")
         self ! JobInitializationFailed(k, exception)
@@ -337,6 +359,32 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         }
       case Failure(e) => throw new RuntimeException("Unexpected engine failure", e)
     }
+  }
+
+  def processRunnableStaticDeclaration(declaration: StaticDeclarationKey) = {
+    self ! DeclarationEvaluationSucceededResponse(declaration, declaration.value)
+    Success(WorkflowExecutionDiff(Map(declaration -> ExecutionStatus.Running)))
+  }
+  
+  def processRunnableDynamicDeclaration(declaration: DynamicDeclarationKey, data: WorkflowExecutionActorData) = {
+    val scatterMap = declaration.index flatMap { i =>
+      // Will need update for nested scatters
+      declaration.scope.ancestry collectFirst { case s: Scatter => Map(s -> i) }
+    } getOrElse Map.empty[Scatter, Int]
+
+    val lookup = declaration.scope.lookupFunction(
+      workflowDescriptor.workflowInputs,
+      data.expressionLanguageFunctions,
+      data.outputStore.fetchNodeOutputEntries,
+      scatterMap
+    )
+    
+    declaration.requiredExpression.evaluate(lookup, data.expressionLanguageFunctions) match {
+      case Success(result) => self ! DeclarationEvaluationSucceededResponse(declaration, result)
+      case Failure(ex) => self ! DeclarationEvaluationFailedResponse(declaration, ex)
+    }
+
+    Success(WorkflowExecutionDiff(Map(declaration -> ExecutionStatus.Running)))
   }
 
   private def processRunnableJob(jobKey: BackendJobDescriptorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
@@ -384,17 +432,20 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     val lookup = scatterKey.scope.lookupFunction(
       workflowDescriptor.workflowInputs,
       data.expressionLanguageFunctions,
-      data.outputStore.fetchCallOutputEntries
+      data.outputStore.fetchNodeOutputEntries
     )
 
     scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
-      case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size) + (scatterKey -> ExecutionStatus.Done))
+      case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.workflowInputs) + (scatterKey -> ExecutionStatus.Done))
       case v: WdlValue => throw new RuntimeException("Scatter collection must evaluate to an array")
     }
   }
 
   private def processRunnableCollector(collector: CollectorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val shards = data.executionStore.findShardEntries(collector) collect { case (k: CallKey, v) if v == ExecutionStatus.Done => k }
+    val shards = data.executionStore.findShardEntries(collector) collect { 
+      case (k: CallKey, v) if v == ExecutionStatus.Done => k 
+      case (k: DynamicDeclarationKey, v) if v == ExecutionStatus.Done => k 
+    }
     data.outputStore.generateCollectorOutput(collector, shards) match {
       case Failure(e) => Failure(new RuntimeException(s"Failed to collect output shards for call ${collector.tag}"))
       case Success(outputs) => self ! ScatterCollectionSucceededResponse(collector, outputs)
@@ -464,6 +515,10 @@ object WorkflowExecutionActor {
   private case class ScatterCollectionFailedResponse(collectorKey: CollectorKey, throwable: Throwable)
 
   private case class ScatterCollectionSucceededResponse(collectorKey: CollectorKey, outputs: CallOutputs)
+  
+  private case class DeclarationEvaluationSucceededResponse(declarationKey: DeclarationKey, value: WdlValue)
+  
+  private case class DeclarationEvaluationFailedResponse(declarationKey: DeclarationKey, reason: Throwable)
 
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
 
@@ -486,16 +541,16 @@ object WorkflowExecutionActor {
       * @param count Number of ways to scatter the children.
       * @return ExecutionStore of scattered children.
       */
-    def populate(count: Int): Map[JobKey, ExecutionStatus.Value] = {
+    def populate(count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Map[JobKey, ExecutionStatus.Value] = {
       val keys = this.scope.children flatMap {
-        explode(_, count)
+        explode(_, count, workflowCoercedInputs)
       }
       keys map {
         _ -> ExecutionStatus.NotStarted
       } toMap
     }
 
-    private def explode(scope: Scope, count: Int): Seq[JobKey] = {
+    private def explode(scope: Scope, count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Seq[JobKey] = {
       scope match {
         case call: TaskCall =>
           val shards = (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
@@ -503,6 +558,9 @@ object WorkflowExecutionActor {
         case call: WorkflowCall =>
           val shards = (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
           shards :+ CollectorKey(call)
+        case declaration: Declaration =>
+          val shards = (0 until count) map { i => DeclarationKey(declaration, Option(i), workflowCoercedInputs) }
+          shards :+ CollectorKey(declaration)
         case scatter: Scatter =>
           throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
         case e =>
@@ -512,7 +570,7 @@ object WorkflowExecutionActor {
   }
 
   // Represents a scatter collection for a call in the execution store
-  case class CollectorKey(scope: Call) extends JobKey {
+  case class CollectorKey(scope: Scope with GraphNode) extends JobKey {
     override val index = None
     override val attempt = 1
     override val tag = s"Collector-${scope.unqualifiedName}"
@@ -521,6 +579,28 @@ object WorkflowExecutionActor {
   case class SubWorkflowKey(scope: WorkflowCall, index: ExecutionIndex, attempt: Int) extends CallKey {
     override val tag = s"SubWorkflow-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
   }
+
+  object DeclarationKey {
+    def apply(declaration: Declaration, index: ExecutionIndex, inputs: WorkflowCoercedInputs): DeclarationKey = {
+      inputs.find(_._1 == declaration.fullyQualifiedName) match {
+        case Some((_, value)) => StaticDeclarationKey(declaration, index, value)
+        case None => declaration.expression map { expression =>
+          DynamicDeclarationKey(declaration, index, expression)
+        } getOrElse {
+          throw new RuntimeException(s"Found a declaration ${declaration.fullyQualifiedName} without expression and without input value. This should have been a validation error.")
+        }
+      }
+    }
+  }
+    
+  sealed trait DeclarationKey extends JobKey {
+    override val attempt = 1
+    override val tag = s"Declaration-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
+  }
+  
+  case class StaticDeclarationKey(scope: Declaration, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
+  
+  case class DynamicDeclarationKey(scope: Declaration, index: ExecutionIndex, requiredExpression: WdlExpression) extends DeclarationKey
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
     override val throwables = exceptions.toList

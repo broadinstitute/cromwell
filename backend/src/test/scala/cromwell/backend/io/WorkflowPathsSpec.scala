@@ -6,7 +6,7 @@ import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescr
 import cromwell.core.{JobKey, WorkflowId}
 import org.mockito.Mockito._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.{Call, Scope, Workflow}
+import wdl4s.{Call, Workflow}
 
 class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
@@ -48,7 +48,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     call2.unqualifiedName returns "call2"
     
     val jobKey = new JobKey {
-      override def scope: Scope = call1
+      override def scope = call1
       override def tag: String = "tag1"
       override def index: Option[Int] = Option(1)
       override def attempt: Int = 2

@@ -1,0 +1,18 @@
+name: declarations_as_nodes
+testFormat: workflowsuccess
+
+files {
+  wdl: declarations_as_nodes/declarations_as_nodes.wdl
+}
+
+metadata {
+  workflowName: declarations_as_nodes
+  status: Succeeded
+  "outputs.o1": "hello world"
+  "outputs.o2.0": "hellohello"
+  "outputs.o2.1": "hello worldhello world"
+  "outputs.o3.0": "hello hellohello"
+  "outputs.o3.1": "hello world hello worldhello world"
+  "outputs.o4.0": "hello hellohello"
+  "outputs.o4.1": "hello world hello worldhello world"
+}

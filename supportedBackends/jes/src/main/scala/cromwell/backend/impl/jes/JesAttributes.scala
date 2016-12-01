@@ -50,7 +50,7 @@ object JesAttributes {
     val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
 
     // 1000 per 100s is the default API limit
-    val qps = backendConfig.as[Option[Int]]("genomicsApiQueriesPer100Seconds").getOrElse(1000) / 100
+    val qps = backendConfig.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(1000) / 100
 
     (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName) map {
       (_, _, _, _, _)

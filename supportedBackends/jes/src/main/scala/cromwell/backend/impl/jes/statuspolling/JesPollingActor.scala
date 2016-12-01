@@ -19,10 +19,10 @@ import scala.concurrent.duration._
 /**
   * Polls JES for status. Pipes the results back (so expect either a RunStatus or a akka.actor.Status.Failure).
   */
-class JesPollingActor(val pollingManager: ActorRef, val jesConfiguration: JesConfiguration) extends Actor with ActorLogging {
+class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor with ActorLogging {
   // The interval to delay between submitting each batch
-  lazy val batchInterval = determineBatchInterval(jesConfiguration.qps)
-  log.debug("JES batch polling interval is %", batchInterval)
+  lazy val batchInterval = determineBatchInterval(qps)
+  log.debug("JES batch polling interval is {}", batchInterval)
 
   self ! NoWorkToDo // Starts the check-for-work cycle
 
@@ -114,7 +114,7 @@ class JesPollingActor(val pollingManager: ActorRef, val jesConfiguration: JesCon
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef, jesConfiguration: JesConfiguration) = Props(new JesPollingActor(pollingManager, jesConfiguration))
+  def props(pollingManager: ActorRef, qps: Int) = Props(new JesPollingActor(pollingManager, qps))
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
@@ -128,8 +128,7 @@ object JesPollingActor {
     * easier
     */
   def determineBatchInterval(qps: Int): FiniteDuration = {
-    val batchesPerSecond = qps / MaxBatchSize.toDouble // Force this to be floating point in case the value is < 1
-    val maxInterval = 1 / batchesPerSecond
+    val maxInterval = MaxBatchSize / qps.toDouble // Force this to be floating point in case the value is < 1
     val interval = Math.max(maxInterval * 0.9, 1)
     interval.seconds
   }

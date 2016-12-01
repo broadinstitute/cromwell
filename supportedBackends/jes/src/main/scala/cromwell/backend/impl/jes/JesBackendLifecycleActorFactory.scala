@@ -77,7 +77,7 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
     initializationData.toJes.get.workflowPaths.workflowRoot
   }
 
-  override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration))
+  override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(JesBackendFileHashing.getCrc32c))
 }

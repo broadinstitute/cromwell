@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 
-final case class JesBackendSingletonActor(jesConfiguration: JesConfiguration) extends Actor with ActorLogging {
+final case class JesBackendSingletonActor(qps: Int) extends Actor with ActorLogging {
 
-  val pollingActor = context.actorOf(JesApiQueryManager.props(jesConfiguration))
+  val pollingActor = context.actorOf(JesApiQueryManager.props(qps))
 
   override def receive = {
     case poll: DoPoll =>
@@ -16,5 +16,5 @@ final case class JesBackendSingletonActor(jesConfiguration: JesConfiguration) ex
 }
 
 object JesBackendSingletonActor {
-  def props(jesConfiguration: JesConfiguration): Props = Props(JesBackendSingletonActor(jesConfiguration))
+  def props(qps: Int): Props = Props(JesBackendSingletonActor(qps))
 }

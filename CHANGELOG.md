@@ -12,8 +12,105 @@
   * `transpose: (Array[Array[X]]) => Array[Array[X]]` compute the matrix transpose for a 2D array. Assumes each inner array has the same length.
 * By default, `system.abort-jobs-on-terminate` is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
 * Enable WDL imports when running in Single Workflow Runner Mode.
-* Support for sub workflows
+* Support for sub workflows (see [Annex A](#annex-a---workflow-outputs))
 * Support declarations as graph nodes
+
+### Annex A - Workflow outputs
+    
+The WDL specification has changed regarding [workflow outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs]) to accommodate sub workflows.
+This change is backward compatible in terms of runnable WDLs (WDL files using the deprecated workflow outputs syntax will still run the same). 
+The only visible change lies in the metadata (as well as the console output in single workflow mode, when workflow outputs are printed out at the end of a successful workflow).
+
+TL;DR Unless you are parsing or manipulating the "key" by which workflow outputs are referenced in the metadata (and/or the console output for single workflow mode), you can skip the following explanation.
+
+*Metadata Response*
+```
+{
+  ...
+  outputs {
+    "task_output_1": "hello",
+    "task_output_2": "world"
+            ^
+       If you don't manipulate this part of the metadata, then skip this section
+  }
+}
+```
+
+In order to maintain backward compatibility, workflow outputs expressed with the deprecated syntax are "expanded" to the new syntax. Here is an example:
+
+```
+task t {
+    command {
+        #do something
+    }
+    output {
+        String out1 = "hello"
+        String out2 = "world"
+    }
+}
+```
+
+```
+    workflow old_syntax {
+        call t
+        output {
+            t.*
+        }
+    }
+```
+
+```
+    workflow new_syntax {
+        call t
+        output {
+            String wf_out1 = t.out1
+            String wf_out2 = t.out2
+        }
+    }
+```
+
+The new syntax allows for type checking of the outputs as well as expressions. It also allows for explicitly naming to the outputs.
+The old syntax doesn't give the ability to name workflow outputs. For consistency reasons, Cromwell will generate a "new syntax" workflow output for each task output, and name them.
+Their name will be generated using their FQN, which would give 
+
+```
+output {
+   String w.t.out1 = t.out1
+   String w.t.out2 = t.out2
+}
+```
+        
+However as the FQN separator is `.`, the name itself cannot contain any `.`. 
+For that reason, `.` are replaced with `_` :
+
+*Old syntax expanded to new syntax*
+```
+output {
+   String w_t_out1 = t.out1
+   String w_t_out2 = t.out2
+}
+```
+
+The consequence is that the workflow outputs section of the metadata for `old_syntax` would previously look like 
+ 
+ ```
+    outputs {
+        "w.t.out1": "hello",
+        "w.t.out2": "hello"
+    }
+ ```
+ 
+but it will now look like 
+
+```
+    outputs {
+        "w_t_out1": "hello",
+        "w_t_out2": "hello"
+    }
+```
+
+The same applies for the console output of a workflow run in single workflow mode.
+
 
 ## 0.22
 

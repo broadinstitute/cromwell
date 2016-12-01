@@ -177,10 +177,10 @@ case class Task(name: String,
       def knownValues = currentOutputs ++ fqnInputs
       val lookup = lookupFunction(knownValues, wdlFunctions, relativeTo = output)
       val coerced = output.requiredExpression.evaluate(lookup, wdlFunctions) flatMap output.wdlType.coerceRawValue
-      val jobOutput = output -> (coerced flatMap postMapper)
-
+      val jobOutput = output -> (coerced flatMap postMapper).recoverWith {
+        case t: Throwable => Failure(new RuntimeException(s"Could not evaluate ${output.fullyQualifiedName} = ${output.requiredExpression.toWdlString}", t))
+      }
       outputMap + jobOutput
-
     }) map { case (k, v) => k.unqualifiedName -> v }
 
     TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate outputs.")

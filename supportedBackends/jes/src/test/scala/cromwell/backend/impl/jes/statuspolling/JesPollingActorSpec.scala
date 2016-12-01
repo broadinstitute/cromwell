@@ -102,7 +102,7 @@ object JesPollingActorSpec extends Mockito {
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef, jesConfiguration: JesConfiguration) extends JesPollingActor(manager, jesConfiguration) with Mockito {
+class TestJesPollingActor(manager: ActorRef, qps: Int) extends JesPollingActor(manager, qps) with Mockito {
 
   override lazy val batchInterval = 10.milliseconds
 
@@ -132,7 +132,7 @@ class TestJesPollingActor(manager: ActorRef, jesConfiguration: JesConfiguration)
 }
 
 object TestJesPollingActor {
-  def props(manager: ActorRef, jesConfiguration: JesConfiguration) = Props(new TestJesPollingActor(manager, jesConfiguration))
+  def props(manager: ActorRef, jesConfiguration: JesConfiguration) = Props(new TestJesPollingActor(manager, jesConfiguration.qps))
 
   sealed trait JesBatchCallbackResponse
   case object CallbackSuccess extends JesBatchCallbackResponse

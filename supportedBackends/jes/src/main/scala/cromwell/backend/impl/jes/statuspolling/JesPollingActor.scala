@@ -7,7 +7,7 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.{JesConfiguration, Run}
+import cromwell.backend.impl.jes.{JesAttributes, Run}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesPollingWorkBatch, JesStatusPollQuery, NoWorkToDo}
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 
@@ -21,7 +21,7 @@ import scala.concurrent.duration._
   */
 class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor with ActorLogging {
   // The interval to delay between submitting each batch
-  lazy val batchInterval = determineBatchInterval(qps)
+  lazy val batchInterval = determineBatchInterval(determineEffectiveQps(qps))
   log.debug("JES batch polling interval is {}", batchInterval)
 
   self ! NoWorkToDo // Starts the check-for-work cycle
@@ -110,6 +110,19 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor 
   private def scheduleCheckForWork(): Unit = {
     context.system.scheduler.scheduleOnce(batchInterval) { pollingManager ! JesApiQueryManager.RequestJesPollingWork(MaxBatchSize) }
     ()
+  }
+
+  /**
+    * We don't want to allow non-positive QPS values. Catch these instances and replace them with a sensible default.
+    * Here we're using the default value coming from JES itself
+    */
+  private def determineEffectiveQps(qps: Int): Int = {
+    if (qps > 0) qps
+    else {
+      val defaultQps = JesAttributes.GenomicsApiDefaultQps
+      log.warning("Supplied QPS for Google Genomics API was not positive, value was {} using {} instead", qps, defaultQps)
+      defaultQps
+    }
   }
 }
 

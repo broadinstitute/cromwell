@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated}
 import cats.data.NonEmptyList
-import cromwell.backend.impl.jes.{JesConfiguration, Run}
+import cromwell.backend.impl.jes.Run
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 
 import scala.collection.immutable.Queue

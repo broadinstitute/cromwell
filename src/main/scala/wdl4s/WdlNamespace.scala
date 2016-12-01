@@ -182,7 +182,6 @@ object WdlNamespace {
       importStatement <- importAst.astListAsVector.map(Import(_))
     } yield importStatement
 
-    //TODO: Make sure remainingResolvers has at least one entry the first time this is called
     def tryResolve(str: String, remainingResolvers: Seq[ImportResolver], errors: List[Throwable]): WdlSource = {
       remainingResolvers match {
         case resolver :: tail =>
@@ -193,8 +192,8 @@ object WdlNamespace {
         case Nil =>
           val collectedErrors = errors.map(_.getMessage)
           collectedErrors match {
-            case Nil => throw new UnsatisfiedInputsException("Failed to import workflow, no import resolvers were provided.")
-            case _ => throw new ValidationException(s"Failed to import workflow $str from ", NonEmptyList.fromListUnsafe(collectedErrors))
+            case Nil => throw new UnsatisfiedInputsException("Failed to import workflow, no import sources provided.")
+            case _ => throw new ValidationException(s"Failed to import workflow $str.", NonEmptyList.fromListUnsafe(collectedErrors))
           }
       }
     }
@@ -525,19 +524,35 @@ object WdlNamespace {
 
   def fileResolver(str: String): WdlSource = readFile(Paths.get(str))
 
-  def directoryResolver(directory: File)(str: String): WdlSource = fileResolver(directory.path.resolve(str).toString)
+  def directoryResolver(directory: File)(str: String): WdlSource = {
+    val absolutePathToFile = Paths.get(directory.path.resolve(str).toFile.getCanonicalPath)
+    val absolutePathToImports = Paths.get(directory.toJava.getCanonicalPath)
+    if (absolutePathToFile.startsWith(absolutePathToImports)) {
+      fileResolver(absolutePathToFile.toString)
+    } else {
+      throw new IllegalArgumentException(s"$str is not a valid import")
+    }
+  }
 }
 
 object WdlNamespaceWithWorkflow {
-  def load(wdlSource: WdlSource): WdlNamespaceWithWorkflow = from(WdlNamespace.loadUsingSource(wdlSource, None, None))
-
-  def load(wdlSource: WdlSource, importsDirectory: File): WdlNamespaceWithWorkflow = {
-    val resolvers: Seq[ImportResolver] = Seq(WdlNamespace.directoryResolver(importsDirectory), WdlNamespace.fileResolver)
-    from(WdlNamespace.loadUsingSource(wdlSource, None, Option(resolvers)))
+  def load(wdlSource: WdlSource, importsResolvers: Seq[ImportResolver]): WdlNamespaceWithWorkflow = {
+    from(WdlNamespace.loadUsingSource(wdlSource, None, Option(importsResolvers)))
   }
 
+  @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
+  def load(wdlSource: WdlSource): WdlNamespaceWithWorkflow = from(WdlNamespace.loadUsingSource(wdlSource, None, None))
+
+  @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
+  def load(wdlSource: WdlSource, importsDirectory: File): WdlNamespaceWithWorkflow = {
+    val resolvers: Seq[ImportResolver] = Seq(WdlNamespace.directoryResolver(importsDirectory), WdlNamespace.fileResolver)
+    load(wdlSource, resolvers)
+  }
+
+  @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
   def load(wdlFile: Path, importResolver: ImportResolver): WdlNamespaceWithWorkflow = from(WdlNamespace.loadUsingPath(wdlFile, None, Option(Seq(importResolver))))
 
+  @deprecated("To avoid unexpected default resolutions, I recommend using the load(String, Seq[ImportResolver] method of loading.", "23")
   def load(wdlSource: WdlSource, importResolver: ImportResolver): WdlNamespaceWithWorkflow = {
     WdlNamespaceWithWorkflow.from(WdlNamespace.loadUsingSource(wdlSource, None, Option(Seq(importResolver))))
   }

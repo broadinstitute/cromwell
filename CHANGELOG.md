@@ -14,7 +14,13 @@
 * By default, `system.abort-jobs-on-terminate` is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
 * Enable WDL imports when running in Single Workflow Runner Mode.
 * Support for sub workflows (see [Annex A](#annex-a---workflow-outputs))
+* Enable WDL imports when running in Single Workflow Runner Mode as well as Server Mode
+* Support for WDL imports through an additional imports.zip parameter
+* Support for sub workflows
+* Corrected file globbing in JES to correctly report all generated files. Additionally, file globbing in JES now uses bash-style glob syntax instead of python style glob syntax
 * Support declarations as graph nodes
+* Added the ability to override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`. More details can be found in the README.md
+* Fix bugs related to the behavior of Cromwell in Single Workflow Runner Mode. Cromwell will now exit once a workflow completes in Single Workflow Runner Mode. Additionally, when restarting Cromwell in Single Workflow Runner Mode, Cromwell will no longer restart incomplete workflows from a previous session.
 
 ### Annex A - Workflow outputs
     

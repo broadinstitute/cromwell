@@ -99,7 +99,7 @@ object Main extends App {
         |
         |Actions:
         |run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
-        |  [<OUTPUT workflow metadata>] [<Directory of WDL Files>]
+        |  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
         |
         |  Given a WDL file and JSON file containing the value of the
         |  workflow inputs, this will run the workflow locally and

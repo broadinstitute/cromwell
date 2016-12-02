@@ -197,12 +197,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
       MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson))
     )
 
-    val wfImportEvent = sourceFiles match {
-      case w: WorkflowSourceFilesWithImports => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue(w.importsFile.pathAsString))
-      case w: WorkflowSourceFiles => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue("None"))
-    }
-
-    serviceRegistryActor ! PutMetadataAction(submissionEvents :+ wfImportEvent)
+    serviceRegistryActor ! PutMetadataAction(submissionEvents)
   }
 }
 

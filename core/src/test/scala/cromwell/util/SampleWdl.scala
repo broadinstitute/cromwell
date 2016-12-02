@@ -4,7 +4,7 @@ import java.nio.file.{Files, Path}
 import java.util.UUID
 
 import better.files._
-import cromwell.core.{WorkflowSourceFiles}
+import cromwell.core.{WorkflowSourceFilesWithoutImports}
 import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
@@ -15,7 +15,7 @@ import scala.language.postfixOps
 trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
   def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}") =
-    WorkflowSourceFiles(wdlSource(runtime), wdlJson, workflowOptions)
+    WorkflowSourceFilesWithoutImports(wdlSource(runtime), wdlJson, workflowOptions)
   val rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")

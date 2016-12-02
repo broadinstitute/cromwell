@@ -159,7 +159,7 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         jobStoreActor: ActorRef,
                         subWorkflowStoreActor: ActorRef,
                         callCacheReadActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty)) {
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

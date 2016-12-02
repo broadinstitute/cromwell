@@ -3,7 +3,7 @@ package cromwell
 import better.files._
 import cromwell.core.path.PathImplicits._
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.{FileClobber, FilePassingWorkflow, GoodbyeWorld, ThreeStep}
+import cromwell.util.SampleWdl.{FileClobber, FilePassingWorkflow, ThreeStep}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.Try
@@ -75,24 +75,6 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
     val ccl = Try(CromwellCommandLine(List("run", threeStep.wdl, threeStep.inputs, "-", threeStep.metadata)))
     ccl.isFailure shouldBe true
     ccl.failed.get.getMessage should include("Unable to write to metadata directory:")
-  }
-
-  it should "fail if imports path is not a direcotry" in {
-    val goodBye = WdlAndInputs(GoodbyeWorld)
-    val badDirectory = goodBye.wdlFile
-    val ccl = Try(CromwellCommandLine(List("run", goodBye.wdl, "-", "-", "-", badDirectory.toString)))
-    ccl.isFailure shouldBe true
-    ccl.failed.get.getMessage should include("Unable to import workflows as the given path is not a directory:")
-  }
-
-  it should "fail if imports directory is empty" in {
-    val goodBye = WdlAndInputs(GoodbyeWorld)
-    val emptyDirectory = File.newTemporaryDirectory(s"temp_empty_dir")
-    val ccl =  Try(CromwellCommandLine(List("run", goodBye.wdl, "-", "-", "-", emptyDirectory.pathAsString)))
-    ccl.failed.get.getMessage should include("Unable to import workflows as the given path is an empty directory:")
-
-    goodBye.deleteTempFiles()
-    emptyDirectory.delete(swallowIOExceptions = true)
   }
 
   it should "run if imports directory is a .zip file" in {

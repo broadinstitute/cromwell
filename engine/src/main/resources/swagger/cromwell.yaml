@@ -93,6 +93,11 @@ paths:
           required: false
           type: file
           in: formData
+        - name: wdlDependencies
+          description: Workflow Options JSON
+          required: false
+          type: file
+          in: formData
       tags:
         - Workflows
       responses:
@@ -130,6 +135,11 @@ paths:
           type: file
           in: formData
         - name: workflowOptions
+          description: Workflow Options JSON
+          required: false
+          type: file
+          in: formData
+        - name: wdlDependencies
           description: Workflow Options JSON
           required: false
           type: file

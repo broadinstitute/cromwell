@@ -1,7 +1,7 @@
 package cromwell.subworkflowstore
 
 import cromwell.CromwellTestKitSpec
-import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.services.SingletonServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import org.scalatest.Matchers
@@ -44,7 +44,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
         override def tag: String = "foobar"
       }
 
-      workflowStoreService ! SubmitWorkflow(WorkflowSourceFiles("", "{}", "{}"))
+      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports("", "{}", "{}"))
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 
       // Query for non existing sub workflow

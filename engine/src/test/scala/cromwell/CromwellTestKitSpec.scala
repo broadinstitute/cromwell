@@ -256,10 +256,11 @@ object CromwellTestKitSpec {
   }
 
   class TestCromwellRootActor(config: Config) extends CromwellRootActor {
+    override val serverMode = true
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
     override val abortJobsOnTerminate = false
-    def submitWorkflow(sources: WorkflowSourceFiles): WorkflowId = {
+    def submitWorkflow(sources: WorkflowSourceFilesWithoutImports): WorkflowId = {
       val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
       val result = Await.result(workflowStoreActor.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId
       workflowManagerActor ! RetrieveNewWorkflows
@@ -329,7 +330,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
              config: Config = DefaultConfig,
              patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val rootActor = buildCromwellRootActor(config)
-    val sources = WorkflowSourceFiles(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
+    val sources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
     eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)

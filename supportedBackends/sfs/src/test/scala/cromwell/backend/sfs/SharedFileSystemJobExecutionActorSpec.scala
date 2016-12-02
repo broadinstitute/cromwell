@@ -257,7 +257,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     executeJobAndAssertOutputs(backend, expectedResponse)
   }
 
-  it should "fail post processing if an output fail is not found" in {
+  it should "fail post processing if an output file is not found" in {
     val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey],
       AggregatedException(Seq.empty, "Could not process output, file not found"), Option(0))
     val workflow = TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), emptyBackendConfig, expectedResponse)

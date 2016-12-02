@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="blob.type" value="LONGBLOB" dbms="mysql"/>
+    <property name="blob.type" value="BLOB" dbms="hsqldb"/>
+
+    <changeSet author="cjllanwarne" id="workflow-store-imports-file">
+        <addColumn
+                tableName="WORKFLOW_STORE_ENTRY">
+            <column name="IMPORTS_ZIP" type="${blob.type}" />
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

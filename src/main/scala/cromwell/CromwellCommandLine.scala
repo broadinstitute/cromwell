@@ -6,7 +6,7 @@ import better.files._
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
-import cromwell.core.{WorkflowSourceFiles, WorkflowSourceFilesCollection, WorkflowSourceFilesWithImports}
+import cromwell.core.{WorkflowSourceFilesWithoutImports, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip}
 import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
 import cromwell.core.ErrorOr._
@@ -45,8 +45,8 @@ object RunSingle {
     val optionsJson = readJson("Workflow Options", optionsPath)
 
     val sourceFileCollection = importPath match {
-      case Some(p) => (wdl |@| inputsJson |@| optionsJson |@| validateImportsDirectory(p)) map WorkflowSourceFilesWithImports.apply
-      case None => (wdl |@| inputsJson |@| optionsJson) map WorkflowSourceFiles.apply
+      case Some(p) => (wdl |@| inputsJson |@| optionsJson) map { (w, i, o) => WorkflowSourceFilesWithDependenciesZip.apply(w, i, o, Files.readAllBytes(p)) }
+      case None => (wdl |@| inputsJson |@| optionsJson) map WorkflowSourceFilesWithoutImports.apply
     }
 
     val runSingle = for {
@@ -62,29 +62,6 @@ object RunSingle {
       }
     }
   }
-
-  private def validateImportsDirectory(path: Path): ErrorOr[File] = {
-
-    def unZipFile(f: File): File = {
-      val unzippedFile = f.unzip()
-      val unzippedFileContents = unzippedFile.toJava.listFiles().head
-
-      if (unzippedFileContents.isDirectory) File(unzippedFileContents.getPath)
-      else unzippedFile
-    }
-
-    val importsFile: File = File(path).extension match {
-      case Some(".zip") => unZipFile(File(path))
-      case _ => File(path)
-    }
-
-    importsFile match {
-      case file if !file.isDirectory => s"Unable to import workflows as the given path is not a directory: ${file.pathAsString}".invalidNel
-      case file if file.isDirectory && file.isEmpty => s"Unable to import workflows as the given path is an empty directory: ${file.pathAsString}".invalidNel
-      case file => file.validNel
-    }
-  }
-
 
   private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
     path match {

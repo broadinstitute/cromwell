@@ -4,6 +4,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.{WorkflowId, WorkflowOptions}
+import wdl4s.util.AggregatedException
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -27,7 +28,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime)).workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).workflow,
       inputs,
       options
     )
@@ -93,13 +94,20 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
         }
       case (JobFailedNonRetryableResponse(_, failure, _), JobFailedNonRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
-        failure.getMessage should include(expectedFailure.getMessage)
+        concatenateCauseMessages(failure) should include(expectedFailure.getMessage)
       case (JobFailedRetryableResponse(_, failure, _), JobFailedRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
       case (response, expectation) =>
         fail(s"Execution response $response wasn't conform to expectation $expectation")
     }
   }
+
+  private def concatenateCauseMessages(t: Throwable): String = t match {
+    case null => ""
+    case ae: AggregatedException => ae.getMessage + ae.exceptions.map(concatenateCauseMessages(_)).mkString + concatenateCauseMessages(ae.getCause)
+    case other: Throwable => other.getMessage + concatenateCauseMessages(t.getCause)
+  }
+
 
   def executeJobAndAssertOutputs(backend: BackendJobExecutionActor, expectedResponse: BackendJobExecutionResponse) = {
     whenReady(backend.execute) { executionResponse =>

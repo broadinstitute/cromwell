@@ -62,9 +62,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(
       workflowDescriptor,
-      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow, workflowDescriptor.workflowInputs),
+      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow, workflowDescriptor.inputs),
       backendJobExecutionActors = Map.empty,
-      engineJobExecutionActors = Map.empty,
+      engineCallExecutionActors = Map.empty,
       subWorkflowExecutionActors = Map.empty,
       downstreamExecutionMap = Map.empty,
       outputStore = OutputStore.empty
@@ -168,7 +168,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   def handleTerminated(actorRef: ActorRef) = {
     // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.
     // If they do, it's a big programmer error and the workflow execution fails.
-    val jobKey = stateData.engineJobExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
+    val jobKey = stateData.engineCallExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
     val jobStatus = stateData.executionStore.store.getOrElse(jobKey, throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
 
     if (!jobStatus.isTerminal) {
@@ -422,10 +422,12 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       s"SubWorkflowExecutionActor-${key.tag}"
     )
 
+    context watch sweaRef
     pushNewCallMetadata(key, None)
     sweaRef ! SubWorkflowExecutionActor.Execute
     
-    Success(WorkflowExecutionDiff(Map(key -> ExecutionStatus.QueuedInCromwell)))
+    Success(WorkflowExecutionDiff(executionStoreChanges = Map(key -> ExecutionStatus.QueuedInCromwell),
+      engineJobExecutionActorAdditions = Map(sweaRef -> key)))
   }
 
   private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
@@ -436,7 +438,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
 
     scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
-      case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.workflowInputs) + (scatterKey -> ExecutionStatus.Done))
+      case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.inputs) + (scatterKey -> ExecutionStatus.Done))
       case v: WdlValue => throw new RuntimeException("Scatter collection must evaluate to an array")
     }
   }

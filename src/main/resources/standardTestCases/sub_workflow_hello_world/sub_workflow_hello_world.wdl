@@ -1,4 +1,4 @@
-import "<<IMPORT>>" as sub
+import "sub_workflow_hello_world_import.wdl" as sub
 
 workflow main_workflow {
     call sub.wf_hello { input: wf_hello_input = "sub world" }

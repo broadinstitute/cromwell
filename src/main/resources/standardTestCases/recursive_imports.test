@@ -1,0 +1,19 @@
+name: recursive_imports
+testFormat: workflowsuccess
+ignore: false
+
+files {
+  wdl: recursive_imports/recursive_imports.wdl
+  imports: [
+    forkjoin/forkjoin.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world_import.wdl,
+    sub_workflow_interactions/sub_workflow_interactions_import.wdl,
+    sub_workflow_interactions/sub_workflow_interactions.wdl
+  ]
+}
+
+metadata {
+  workflowName: recursive_imports
+  status: Succeeded
+}

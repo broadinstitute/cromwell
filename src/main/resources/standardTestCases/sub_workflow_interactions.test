@@ -1,6 +1,6 @@
 name: sub_workflow_interactions
 testFormat: workflowsuccess
-ignore: true
+ignore: false
 
 files {
   wdl: sub_workflow_interactions/sub_workflow_interactions.wdl

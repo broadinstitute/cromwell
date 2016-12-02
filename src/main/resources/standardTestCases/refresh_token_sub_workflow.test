@@ -1,7 +1,7 @@
 name: refresh_token_sub_workflow
 testFormat: workflowsuccess
 backends: [Jes-Refresh]
-ignore: true
+ignore: false
 
 files {
   wdl: refresh_token_sub_workflow/refresh_token_sub_workflow.wdl

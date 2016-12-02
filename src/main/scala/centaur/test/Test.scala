@@ -108,7 +108,7 @@ object Operations {
             case _ =>
           }
         }
-
+        cleanUpImports(workflow)
         CromwellClient.metadata(workflow).map(expectedMetadata.diff(_, workflow.id, cacheHitUUID)).map(checkDiff)
       }
 
@@ -131,6 +131,16 @@ object Operations {
         if (cacheHits.isEmpty) Success(())
         else Failure(new Exception(s"Found unexpected cache hits for $workflowName: \n"))
       }
+    }
+  }
+
+  /**
+    * Clean up temporary zip files created for Imports testing.
+    */
+  def cleanUpImports(submittedWF: SubmittedWorkflow) = {
+    submittedWF.workflow.data.zippedImports match {
+      case Some(zipFile) => zipFile.delete(ignoreIOExceptions = true)
+      case None => //
     }
   }
 

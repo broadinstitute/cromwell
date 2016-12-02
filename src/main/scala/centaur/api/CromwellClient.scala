@@ -2,19 +2,22 @@ package centaur.api
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model._
+import akka.actor.ActorSystem
+import akka.http.scaladsl.model.{HttpEntity, _}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.util.ByteString
+
 import centaur.api.CromwellStatusJsonSupport._
 import centaur.api.CromwellBackendsJsonSupport._
 import centaur.{CentaurConfig, SubmittedWorkflow, WorkflowStatus}
-import spray.json._
 
+import spray.json._
+import scala.collection.immutable
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,15 +30,21 @@ object CromwellClient {
   final val apiPath = "/api/workflows/v1"
 
   def submit(workflow: Workflow): Try[SubmittedWorkflow] = {
-    val params = Map(
+    val sourceBodyParts = Map(
       "wdlSource" -> Option(workflow.data.wdl),
       "workflowInputs" -> workflow.data.inputs,
       "workflowOptions" -> insertSecrets(workflow.data.options)
-    ) collect { case (name, Some(value)) => (name, value) }
-    val formData = FormData(params).toEntity
+    ) collect { case (name, Some(source)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
+
+    val zipBodyParts = Map(
+      "wdlDependencies" -> workflow.data.zippedImports
+    ) collect { case (name, Some(file)) => Multipart.FormData.BodyPart.fromPath(name, MediaTypes.`application/zip`, file.path) }
+
+    val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
+    val requestEntity = multipartFormData.toEntity()
 
     val submittedWorkflow = for {
-      response <- Http().singleRequest(HttpRequest(HttpMethods.POST, CentaurConfig.cromwellUrl + apiPath, entity = formData))
+      response <- Http().singleRequest(HttpRequest(HttpMethods.POST, CentaurConfig.cromwellUrl + apiPath, immutable.Seq.empty[HttpHeader], requestEntity))
       entity <- response.toEntity.to[CromwellStatus]
     } yield SubmittedWorkflow(UUID.fromString(entity.id), CentaurConfig.cromwellUrl, workflow)
     sendReceiveFutureCompletion(submittedWorkflow)

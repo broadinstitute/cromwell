@@ -1,4 +1,4 @@
-import "<<IMPORT>>" as counter
+import "sub_workflow_interactions_import.wdl" as counter
 
 task hello {
   String addressee

@@ -1,6 +1,6 @@
 name: sub_workflow_hello_world
 testFormat: workflowsuccess
-ignore: true
+ignore: false
 
 files {
   wdl: sub_workflow_hello_world/sub_workflow_hello_world.wdl

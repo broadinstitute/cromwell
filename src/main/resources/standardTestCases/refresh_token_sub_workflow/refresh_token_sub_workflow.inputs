@@ -2,4 +2,3 @@
   "refresh_token_sub_workflow.hello.iFile": "gs://centaur-refresh-private/inputs/taylorSwift.txt",
   "refresh_token_sub_workflow.wf_hello.wfIFile": "gs://centaur-refresh-private/inputs/taylorSwift.txt"
 }
-

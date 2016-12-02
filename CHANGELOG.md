@@ -17,7 +17,7 @@
 
 ### Annex A - Workflow outputs
     
-The WDL specification has changed regarding [workflow outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs]) to accommodate sub workflows.
+The WDL specification has changed regarding [workflow outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs) to accommodate sub workflows.
 This change is backward compatible in terms of runnable WDLs (WDL files using the deprecated workflow outputs syntax will still run the same). 
 The only visible change lies in the metadata (as well as the console output in single workflow mode, when workflow outputs are printed out at the end of a successful workflow).
 

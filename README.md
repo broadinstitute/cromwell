@@ -1112,6 +1112,7 @@ backend {
       config {
         project = "my-project"
         root = "gs://my-bucket"
+        genomics-api-queries-per-100-seconds = 1000
         .
         .
         .
@@ -1120,6 +1121,8 @@ backend {
   ]
 }
 ```
+
+If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with JES.
 
 ### Configuring Authentication
 

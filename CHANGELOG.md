@@ -3,6 +3,7 @@
 ## 23
 
 * The `meta` and `parameter_meta` blocks are now valid within `workflow` blocks, not just `task`
+* The JES backend configuration now has an option `genomics-api-queries-per-100-seconds` to help tune the rate of batch polling against the JES servers
 * Added an option `call-caching.invalidate-bad-cache-results` (default: `true`). If true, Cromwell will invalidate cached results which have failed to copy as part of a cache hit.
 * Timing diagrams and metadata now receive more fine grained workflow states between submission and Running.
 * Support for the Pair WDL type (e.g. `Pair[Int, File] floo = (3, "gs://blar/blaz/qlux.txt")`)

@@ -18,9 +18,11 @@ case class JesAttributes(project: String,
                          auths: JesAuths,
                          executionBucket: String,
                          endpointUrl: URL,
-                         maxPollingInterval: Int)
+                         maxPollingInterval: Int,
+                         qps: Int)
 
 object JesAttributes {
+  val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
     "project",
@@ -48,11 +50,13 @@ object JesAttributes {
     val genomicsAuthName: ErrorOr[String] = backendConfig.validateString("genomics.auth")
     val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
 
+    val qps = backendConfig.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(GenomicsApiDefaultQps) / 100
+
     (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName) map {
       (_, _, _, _, _)
     } flatMap { case (p, b, u, genomicsName, gcsName) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval)
+        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps)
       }
     } match {
       case Valid(r) => r

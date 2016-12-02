@@ -8,6 +8,8 @@ import cromwell.core.path.CustomRetryParams
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.gcs.{GoogleConfiguration, RetryableGcsPathBuilderFactory}
 
+import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -33,4 +35,6 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val genomicsFactory = GenomicsFactory(googleConfig.applicationName, jesAuths.genomics, jesAttributes.endpointUrl)
   val dockerCredentials = DockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined
+  // 1000 is the default Queries Per 100 Seconds Per User for the genomics API
+  val genomicsApiQueryPer100Seconds = configurationDescriptor.backendConfig.as[Option[Int]]("genomicsApiQueriesPer100Seconds").getOrElse(1000)
 }

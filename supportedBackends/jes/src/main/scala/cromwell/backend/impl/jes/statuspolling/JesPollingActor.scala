@@ -7,7 +7,7 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.Run
+import cromwell.backend.impl.jes.{JesConfiguration, Run}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesPollingWorkBatch, JesStatusPollQuery, NoWorkToDo}
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 
@@ -19,12 +19,13 @@ import scala.concurrent.duration._
 /**
   * Polls JES for status. Pipes the results back (so expect either a RunStatus or a akka.actor.Status.Failure).
   */
-class JesPollingActor(pollingManager: ActorRef) extends Actor with ActorLogging {
+final case class JesPollingActor(pollingManager: ActorRef, jesConfiguration: JesConfiguration) extends Actor with ActorLogging {
 
-  // We want to query at just under our fixed JES QPS limit of 20 per second. That should hopefully allow some room at the edges
-  // for things like new calls, etc.
+  // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
-  val BatchInterval = 5.5.seconds
+  // The interval to delay between submitting each batch
+  lazy val BatchInterval = determineBatchInterval(jesConfiguration.genomicsApiQueryPer100Seconds)
+
   self ! NoWorkToDo // Starts the check-for-work cycle
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -112,10 +113,25 @@ class JesPollingActor(pollingManager: ActorRef) extends Actor with ActorLogging 
     context.system.scheduler.scheduleOnce(BatchInterval) { pollingManager ! JesApiQueryManager.RequestJesPollingWork(MaxBatchSize) }
     ()
   }
+
+  /**
+    * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
+    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
+    * calls, etc.
+    *
+    * It is possible that an absurdly high quota could cause problems via a far too low interval but that seems unlikely
+    */
+  private def determineBatchInterval(queriesPer100: Int): FiniteDuration = {
+    val qps = queriesPer100 / 100
+    val batchesPerSecond = qps / MaxBatchSize.toDouble // Force this to be floating point in case the value is < 1
+    val maxInterval = 1 / batchesPerSecond
+    val interval = maxInterval * 0.9
+    interval.seconds
+  }
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef) = Props(new JesPollingActor(pollingManager))
+  def props(pollingManager: ActorRef, jesConfiguration: JesConfiguration) = Props(new JesPollingActor(pollingManager, jesConfiguration))
 
   final case class JesPollFailed(e: GoogleJsonError, responseHeaders: HttpHeaders)
 }

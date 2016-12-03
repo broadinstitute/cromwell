@@ -9,7 +9,7 @@ import org.scalatest.prop.Tables.Table
 
 import scala.language.postfixOps
 
-class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
+class CopyWorkflowOutputsSpec extends CromwellTestKitSpec {
 
   "CopyWorkflowOutputsCall" should {
     "copy workflow outputs" in {
@@ -31,7 +31,7 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
           pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = "",
         workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
-        expectedOutputs = Seq("A.out", "A.out2", "B.outs") map { o => ("wfoutputs." + o) -> CromwellTestkitSpec.AnyValueIsFine } toMap,
+        expectedOutputs = Seq("A_out", "A_out2", "B_outs") map { o => ("wfoutputs_" + o) -> CromwellTestKitSpec.AnyValueIsFine } toMap,
         allowOtherOutputs = false
       )
 
@@ -64,7 +64,7 @@ class CopyWorkflowOutputsSpec extends CromwellTestkitSpec {
           pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         runtime = "",
         workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
-        expectedOutputs = Map("wfoutputs.A.outs" -> CromwellTestkitSpec.AnyValueIsFine),
+        expectedOutputs = Map("wfoutputs_A_outs" -> CromwellTestKitSpec.AnyValueIsFine),
         allowOtherOutputs = false
       )
 

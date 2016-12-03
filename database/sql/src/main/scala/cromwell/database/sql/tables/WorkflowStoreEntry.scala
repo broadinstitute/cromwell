@@ -1,6 +1,6 @@
 package cromwell.database.sql.tables
 
-import java.sql.{Clob, Timestamp}
+import java.sql.{Blob, Clob, Timestamp}
 
 case class WorkflowStoreEntry
 (
@@ -10,5 +10,6 @@ case class WorkflowStoreEntry
   workflowOptions: Clob,
   workflowState: String,
   submissionTime: Timestamp,
+  importsZipFile: Option[Blob],
   workflowStoreEntryId: Option[Int] = None
 )

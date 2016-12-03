@@ -10,7 +10,8 @@ trait SqlDatabase extends AutoCloseable
   with CallCachingSqlDatabase
   with JobStoreSqlDatabase
   with MetadataSqlDatabase
-  with WorkflowStoreSqlDatabase {
+  with WorkflowStoreSqlDatabase
+  with SubWorkflowStoreSqlDatabase {
 
   protected val urlKey: String
   protected val originalDatabaseConfig: Config

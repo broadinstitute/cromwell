@@ -6,10 +6,11 @@ import java.time.OffsetDateTime
 import akka.actor._
 import akka.pattern.ask
 import akka.testkit.TestKit
+import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec._
-import cromwell.core.WorkflowSourceFiles
+import cromwell.CromwellTestKitSpec._
+import cromwell.core.{WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -17,7 +18,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
-import cromwell.{AlwaysHappyJobStoreActor, CromwellTestkitSpec, EmptyCallCacheReadActor}
+import cromwell.{AlwaysHappyJobStoreActor, AlwaysHappySubWorkflowStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
@@ -45,29 +46,34 @@ object SingleWorkflowRunnerActorSpec {
     def toFields = jsValue.get.asJsObject.fields
   }
 
-  class TestSingleWorkflowRunnerActor(source: WorkflowSourceFiles,
+  class TestSingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                       metadataOutputPath: Option[Path])
     extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
-    override lazy val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
+    override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
   }
 }
 
-abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
+abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
+  private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
 
 
   def workflowManagerActor(): ActorRef = {
-    system.actorOf(Props(new WorkflowManagerActor(ConfigFactory.load(),
+    val params = WorkflowManagerActorParams(ConfigFactory.load(),
       workflowStore,
       dummyServiceRegistryActor,
       dummyLogCopyRouter,
       jobStore,
+      subWorkflowStore,
       callCacheReadActor,
       jobTokenDispenserActor,
-      BackendSingletonCollection(Map.empty))), "WorkflowManagerActor")
+      BackendSingletonCollection(Map.empty),
+      abortJobsOnTerminate = false,
+      serverMode = false)
+    system.actorOf(Props(new WorkflowManagerActor(params)), "WorkflowManagerActor")
   }
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
@@ -78,7 +84,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestkitSpec {
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
                           outputFile: => Option[Path] = None): Unit = {
     val actorRef = createRunnerActor(sampleWdl, managerActor, outputFile)
-    val futureResult = actorRef ? RunWorkflow
+    val futureResult = actorRef.ask(RunWorkflow)(timeout = new Timeout(TimeoutDuration))
     Await.ready(futureResult, Duration.Inf)
     ()
   }
@@ -111,9 +117,8 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       singleWorkflowActor(
         sampleWdl = wdlFile,
         outputFile = Option(metadataFile.path))
+        TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
-    TestKit.shutdownActorSystem(system, TimeoutDuration)
-
     val metadataFileContent = metadataFile.contentAsString
     val metadata = metadataFileContent.parseJson.asJsObject.fields
     metadata.get("id") shouldNot be(empty)
@@ -200,7 +205,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       val calls = metadata.get("calls").toFields
       calls should not be empty
 
-      val callSeq = calls("goodbye.goodbye").asInstanceOf[JsArray].elements
+      val callSeq = calls("wf_goodbye.goodbye").asInstanceOf[JsArray].elements
       callSeq should have size 1
       val call = callSeq.head.asJsObject.fields
       val inputs = call.get("inputs").toFields

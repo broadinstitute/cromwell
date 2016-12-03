@@ -7,7 +7,7 @@ package object core {
   type FullyQualifiedName = String
   type WorkflowOutputs = Map[FullyQualifiedName, JobOutput]
   type WorkflowOptionsJson = String
-  type JobOutputs = Map[LocallyQualifiedName, JobOutput]
+  type CallOutputs = Map[LocallyQualifiedName, JobOutput]
   type HostInputs = Map[String, WdlValue]
   type EvaluatedRuntimeAttributes = Map[String, WdlValue]
 }

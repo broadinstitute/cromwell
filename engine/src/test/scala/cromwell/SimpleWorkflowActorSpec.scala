@@ -7,7 +7,7 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -28,13 +28,13 @@ object SimpleWorkflowActorSpec {
     promise: Promise[Unit])
 }
 
-class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
+class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
 
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
                                  matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
-    val workflowSources = WorkflowSourceFiles(sampleWdl.wdlSource(), rawInputsOverride, "{}")
+    val workflowSources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(), rawInputsOverride, "{}")
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
@@ -43,9 +43,11 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
+        subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props),
-        backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None))),
+        backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
+        serverMode = true),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )
@@ -64,7 +66,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, _) = buildWorkflowActor(SampleWdl.HelloWorld, SampleWdl.HelloWorld.wdlJson, workflowId)
       val probe = TestProbe()
       probe watch workflowActor
-      startingCallsFilter("hello.hello") {
+      startingCallsFilter("wf_hello.hello") {
         workflowActor ! StartWorkflowCommand
       }
 
@@ -75,7 +77,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
     }
 
     "fail to construct with missing inputs" in {
-      val expectedError = "Required workflow input 'hello.hello.addressee' not specified."
+      val expectedError = "Required workflow input 'wf_hello.hello.addressee' not specified."
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, "{}", workflowId, failureMatcher)
       val probe = TestProbe()
@@ -92,7 +94,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
     }
 
     "fail to construct with inputs of the wrong type" in {
-      val expectedError = "Could not coerce value for 'hello.hello.addressee' into: WdlStringType"
+      val expectedError = "Could not coerce JsNumber value for 'wf_hello.hello.addressee' (3) into: WdlStringType"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.HelloWorld, s""" { "$Addressee" : 3} """,
         workflowId, failureMatcher)
@@ -100,7 +102,13 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
       val probe = TestProbe()
       probe watch workflowActor
       workflowActor ! StartWorkflowCommand
-      Await.result(promise.future, TestExecutionTimeout)
+      try {
+        Await.result(promise.future, TestExecutionTimeout)
+      } catch {
+        case e: Throwable =>
+          val info = failureMatcher.nearMissInformation
+          fail(s"We didn't see the expected error message $expectedError within $TestExecutionTimeout. ${info.mkString(", ")}")
+      }
       probe.expectTerminated(workflowActor, AwaitAlmostNothing)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
         case x: WorkflowFailedResponse =>
@@ -111,12 +119,12 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
     }
 
     "fail when a call fails" in {
-      val expectedError = "Call goodbye.goodbye: return code was 1"
+      val expectedError = "Call wf_goodbye.goodbye:NA:1: return code was 1"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()
       probe watch workflowActor
-      startingCallsFilter("goodbye.goodbye") {
+      startingCallsFilter("wf_goodbye.goodbye") {
         workflowActor ! StartWorkflowCommand
       }
       Await.result(promise.future, TestExecutionTimeout)
@@ -130,7 +138,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
     }
 
     "gracefully handle malformed WDL" in {
-      val expectedError = "Input evaluation for Call test1.summary failedVariable 'Can't find bfile' not found"
+      val expectedError = "Input evaluation for Call test1.summary failed.\nVariable 'bfile' not found"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()
@@ -148,7 +156,7 @@ class SimpleWorkflowActorSpec extends CromwellTestkitSpec with BeforeAndAfter {
   }
 
   private def startingCallsFilter[T](callNames: String*)(block: => T): T = {
-    import CromwellTestkitSpec.waitForInfo
+    import CromwellTestKitSpec.waitForInfo
     within(TestExecutionTimeout) {
       waitForInfo(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$", 1) {
         block

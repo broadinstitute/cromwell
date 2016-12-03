@@ -4,19 +4,20 @@ import java.nio.file.Paths
 import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
-import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.impl.jes.MockObjects._
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, PreemptedException, RuntimeAttributeDefinition}
-import cromwell.core.logging.LoggerWrapper
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
+import cromwell.core.logging.JobLogger
 import cromwell.core.{WorkflowId, WorkflowOptions, _}
-import cromwell.filesystems.gcs._
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
@@ -25,16 +26,16 @@ import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
-import wdl4s.{Call, LocallyQualifiedName, NamespaceWithWorkflow}
+import wdl4s.{LocallyQualifiedName, FullyQualifiedName => _, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Success, Try}
-import cromwell.backend.impl.jes.MockObjects._
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
-  with FlatSpecLike with Matchers with ImplicitSender with Mockito {
+  with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
+
+  val mockPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
 
   import JesTestConfig._
 
@@ -56,7 +57,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       |  }
       |}
       |
-      |workflow sup {
+      |workflow wf_sup {
       |  call sup
       |}
     """.stripMargin
@@ -65,16 +66,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val TestableCallContext = CallContext(MockGcsFileSystemBuilder.mockGcsFileSystem.getPath("gs://root"), "out", "err")
+  val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
 
   val TestableJesExpressionFunctions = {
-    new JesExpressionFunctions(List(MockGcsFileSystemBuilder.mockGcsFileSystem), TestableCallContext)
+    new JesExpressionFunctions(List(mockPathBuilder), TestableCallContext)
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
-    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor,
-      configuration,
-      mockCredentials)(scala.concurrent.ExecutionContext.global)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
     JesBackendInitializationData(workflowPaths, null)
   }
 
@@ -85,12 +84,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
                                      jesSingletonActor: ActorRef = emptyActor)
     extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration, buildInitializationData(jobDescriptor, jesConfiguration), emptyActor, jesSingletonActor) {
 
-    override lazy val jobLogger = new LoggerWrapper {
-      override def akkaLogger: Option[LoggingAdapter] = Option(log)
-
+    override lazy val jobLogger = new JobLogger("TestLogger", workflowId, jobTag, akkaLogger = Option(log)) {
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
-
-      override def slf4jLoggers: Set[Logger] = Set.empty
+      override val slf4jLoggers: Set[Logger] = Set.empty
     }
 
     override lazy val callEngineFunctions = functions
@@ -110,15 +106,15 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   private def buildPreemptibleJobDescriptor(attempt: Int, preemptible: Int): BackendJobDescriptor = {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible")),
+      WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"), Seq.empty[ImportResolver]).workflow,
       Inputs,
       NoOptions
     )
 
-    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val job = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(job, None, attempt)
     val runtimeAttributes = makeRuntimeAttributes(job)
-    BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Inputs)
+    BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(Inputs))
   }
 
   private def executionActor(jobDescriptor: BackendJobDescriptor,
@@ -128,7 +124,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     // Mock/stub out the bits that would reach out to JES.
     val run = mock[Run]
-    val handle = JesPendingExecutionHandle(jobDescriptor, Seq.empty, run, None)
+    val handle = JesPendingExecutionHandle(jobDescriptor, Set.empty, run, None)
 
     class ExecuteOrRecoverActor extends TestableJesJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
@@ -187,8 +183,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     expectations foreach { case (attempt, preemptible, errorCode, innerErrorCode, shouldRetry) =>
       it should s"handle call failures appropriately with respect to preemption (attempt=$attempt, preemptible=$preemptible, errorCode=$errorCode, innerErrorCode=$innerErrorCode)" in {
         runAndFail(attempt, preemptible, errorCode, innerErrorCode).getClass.getSimpleName match {
-          case "FailedNonRetryableResponse" => false shouldBe shouldRetry
-          case "FailedRetryableResponse" => true shouldBe shouldRetry
+          case "JobFailedNonRetryableResponse" => false shouldBe shouldRetry
+          case "JobFailedRetryableResponse" => true shouldBe shouldRetry
           case huh => fail(s"Unexpected response class name: '$huh'")
         }
       }
@@ -284,21 +280,21 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", "")),
+      WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", ""), Seq.empty[ImportResolver]).workflow,
       inputs,
       NoOptions
     )
 
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val call = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs))
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
-    val mappedInputs = jobDescriptor.inputs mapValues testActorRef.underlyingActor.gcsPathToLocal
+    val mappedInputs = jobDescriptor.fullyQualifiedInputs mapValues testActorRef.underlyingActor.gcsPathToLocal
 
     mappedInputs(stringKey) match {
       case WdlString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -338,15 +334,15 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
       NoOptions
     )
 
-    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs))
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -377,15 +373,15 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   TestActorRef[TestableJesJobExecutionActor] = {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
       NoOptions
     )
 
-    val call = workflowDescriptor.workflowNamespace.workflow.findCallByName(callName).get
+    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[TaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs))
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
     TestActorRef[TestableJesJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -393,14 +389,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   it should "generate correct JesOutputs" in {
     val inputs = Map(
-      "in" -> WdlFile("gs://a/b/c.txt")
+      "in" -> WdlFile("gs://blah/b/c.txt")
     )
     val jesBackend = makeJesActorRef(SampleWdl.FilePassingWorkflow, "a", inputs).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val workflowId = jesBackend.workflowId
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(JesFileInput("in-0", "gs://a/b/c.txt", Paths.get("a/b/c.txt"), workingDisk))
+    jesInputs should contain(JesFileInput("in-0", "gs://blah/b/c.txt", Paths.get("blah/b/c.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(JesFileOutput("out",
@@ -413,7 +409,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     )
 
     class TestJesExpressionFunctions extends JesExpressionFunctions(
-      List(MockGcsFileSystemBuilder.mockGcsFileSystem), TestableCallContext) {
+      List(mockPathBuilder), TestableCallContext) {
       override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = {
         Success(WdlFile(s"gs://some/path/file.txt"))
       }
@@ -438,15 +434,15 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
       NoOptions
     )
 
-    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs))
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -466,15 +462,15 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
       NoOptions
     )
 
-    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, inputs)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs))
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -487,7 +483,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
-    val jesOutputs = Seq(
+    val jesOutputs = Set(
       JesFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
         Paths.get("/cromwell_root/path/to/file1"), workingDisk),
       JesFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",
@@ -510,12 +506,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
       NoOptions
     )
 
-    val call = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val call = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
@@ -538,12 +534,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "create a JesFileInput for the monitoring script, when specified" in {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
       WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get
     )
 
-    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
@@ -559,12 +555,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "not create a JesFileInput for the monitoring script, when not specified" in {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource),
+      WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
       NoOptions
     )
 
-    val job = workflowDescriptor.workflowNamespace.workflow.calls.head
+    val job = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(job, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(job)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
@@ -579,13 +575,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "return JES log paths for non-scattered call" in {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")),
-      NamespaceWithWorkflow.load(
-        SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).wdlSource),
+      WdlNamespaceWithWorkflow.load(
+        SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get
     )
 
-    val call = workflowDescriptor.workflowNamespace.workflow.findCallByName("hello").get
+    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[TaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
@@ -596,28 +592,27 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesBackend = testActorRef.underlyingActor
 
-    // TODO: NioGcsPath.equals not implemented, so use toString instead
-    jesBackend.jesCallPaths.stdoutPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stdoutPath.toString shouldBe
-      "gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
-    jesBackend.jesCallPaths.stderrPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stderrPath.toString shouldBe
-      "gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.jesLogPath.toString shouldBe
-      "gs://path/to/gcs_root/hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
+    jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stdout.toUri.toString shouldBe
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
+    jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stderr.toUri.toString shouldBe
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
+    jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
   it should "return JES log paths for scattered call" in {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7d")),
-      NamespaceWithWorkflow.load(
-        new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).wdlSource),
+      WdlNamespaceWithWorkflow.load(
+        new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get
     )
 
-    val call = workflowDescriptor.workflowNamespace.workflow.findCallByName("B").get
+    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[TaskCall]
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty)
@@ -628,14 +623,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesBackend = testActorRef.underlyingActor
 
-    jesBackend.jesCallPaths.stdoutPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stdoutPath.toString shouldBe
+    jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stdout.toUri.toString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stdout.log"
-    jesBackend.jesCallPaths.stderrPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.stderrPath.toString shouldBe
+    jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.stderr.toUri.toString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[NioGcsPath])
-    jesBackend.jesCallPaths.jesLogPath.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
+    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 
@@ -662,7 +657,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     descriptorWithMax2AndKey2.preemptible shouldBe true
   }
 
-  private def makeRuntimeAttributes(job: Call) = {
+  private def makeRuntimeAttributes(job: TaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(JesBackendLifecycleActorFactory.staticRuntimeAttributeDefinitions, NoOptions)(evaluatedAttributes.get) // Fine to throw the exception if this "get" fails. This is a test after all!
   }

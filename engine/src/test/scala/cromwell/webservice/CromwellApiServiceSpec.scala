@@ -7,7 +7,7 @@ import akka.actor.{Actor, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 import cromwell.core._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{WorkflowAborted => _, _}
@@ -15,7 +15,6 @@ import cromwell.server.{CromwellServerActor, CromwellSystem}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.MetadataSummarySuccess
-import cromwell.util.SampleWdl.DeclarationsWorkflow._
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.concurrent.{PatienceConfiguration, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
@@ -67,7 +66,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   implicit val defaultTimeout = RouteTestTimeout(30.seconds.dilated)
 
   override def actorRefFactory = system
-  override val serviceRegistryActor = CromwellTestkitSpec.ServiceRegistryActorInstance
+  override val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
 
   override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
   override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
@@ -243,7 +242,8 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   behavior of "REST API submission endpoint"
   it should "return 201 for a successful workflow submission " in {
-    Post(s"/workflows/$version", FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> HelloWorld.rawInputs.toJson.toString()))) ~>
+    val bodyParts: Map[String, BodyPart] = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowInputs" -> BodyPart(HelloWorld.rawInputs.toJson.toString()))
+    Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       submitRoute ~>
       check {
         assertResult(
@@ -261,7 +261,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   it should "succesfully merge and override multiple input files" in {
 
     val input1 = Map("wf.a1" -> "hello", "wf.a2" -> "world").toJson.toString
-    val input2 = Map.empty.toJson.toString
+    val input2 = Map.empty[String, String].toJson.toString
     val overrideInput1 = Map("wf.a2" -> "universe").toJson.toString
     val allInputs = mergeMaps(Seq(Option(input1), Option(input2), Option(overrideInput1)))
 
@@ -274,9 +274,9 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
   behavior of "REST API batch submission endpoint"
   it should "return 200 for a successful workflow submission " in {
     val inputs = HelloWorld.rawInputs.toJson
+    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowInputs" -> BodyPart(s"[$inputs, $inputs]"))
 
-    Post(s"/workflows/$version/batch",
-      FormData(Seq("wdlSource" -> HelloWorld.wdlSource(), "workflowInputs" -> s"[$inputs, $inputs]"))) ~>
+    Post(s"/workflows/$version/batch", MultipartFormData(bodyParts)) ~>
       submitBatchRoute ~>
       check {
         assertResult(

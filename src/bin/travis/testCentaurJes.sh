@@ -54,7 +54,7 @@ echo "RUNNING TRAVIS CENTAUR"
 sbt assembly
 
 # Update the inputs file with stuff specific to this run
-sed -i "s/BRANCH/${TRAVIS_BRANCH}/g" src/bin/travis/resources/centaur.inputs
+sed -i "s/CENTAUR_BRANCH/${CENTAUR_BRANCH}/g" src/bin/travis/resources/centaur.inputs
 CROMWELL_JAR=cromwell_${TRAVIS_BUILD_ID}.jar
 sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.inputs
 
@@ -69,9 +69,9 @@ EXIT_CODE="${PIPESTATUS[0]}"
 export WORKFLOW_ID=`grep "SingleWorkflowRunnerActor: Workflow submitted " log.txt | perl -pe 's/\e\[?.*?[\@-~]//g' | cut -f7 -d" "`
 
 # Grab the Centaur log from GCS and cat it so we see it in the main travis log. 
-export CENTAUR_LOG_PATH="gs://cloud-cromwell-dev/cromwell_execution/travis/centaur/${WORKFLOW_ID}/call-centaur//cromwell_root/logs/centaur.log"
+export CENTAUR_LOG_PATH="gs://cloud-cromwell-dev/cromwell_execution/travis/centaur_workflow/${WORKFLOW_ID}/call-centaur/cromwell_root/logs/centaur.log"
 gsutil cp ${CENTAUR_LOG_PATH} centaur.log
 cat centaur.log
-echo "More logs for this run are available at https://console.cloud.google.com/storage/browser/cloud-cromwell-dev/cromwell_execution/travis/centaur/${WORKFLOW_ID}/call-centaur/"
+echo "More logs for this run are available at https://console.cloud.google.com/storage/browser/cloud-cromwell-dev/cromwell_execution/travis/centaur_workflow/${WORKFLOW_ID}/call-centaur/"
 
 exit "${EXIT_CODE}"

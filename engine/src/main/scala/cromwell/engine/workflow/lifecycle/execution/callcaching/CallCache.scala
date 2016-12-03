@@ -1,7 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import java.nio.file.Path
+
 import cats.data.NonEmptyList
-import cromwell.backend.BackendJobExecutionActor.SucceededResponse
+import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
@@ -19,7 +21,7 @@ final case class CallCachingEntryId(id: Int)
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
   */
 class CallCache(database: CallCachingSqlDatabase) {
-  def addToCache(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, response: SucceededResponse)(implicit ec: ExecutionContext): Future[Unit] = {
+  def addToCache(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, response: JobSucceededResponse)(implicit ec: ExecutionContext): Future[Unit] = {
     val metaInfo = CallCachingEntry(
       workflowExecutionUuid = workflowId.toString,
       callFullyQualifiedName = response.jobKey.call.fullyQualifiedName,
@@ -35,7 +37,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   private def addToCache(callCachingEntry: CallCachingEntry, hashes: Set[HashResult],
-                         result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, String])
+                         result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path])
                         (implicit ec: ExecutionContext): Future[Unit] = {
 
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
@@ -51,7 +53,7 @@ class CallCache(database: CallCachingSqlDatabase) {
 
     val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.toUri.toString)
       }
     }
 

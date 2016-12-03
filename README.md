@@ -25,6 +25,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Workflow Submission](#workflow-submission)
   * [Database](#database)
   * [SIGINT abort handler](#sigint-abort-handler)
+* [Security](#security)
 * [Backends](#backends)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
@@ -35,6 +36,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Caching configuration](#caching-configuration)
     * [Docker](#docker)
     * [CPU, Memory and Disk](#cpu-memory-and-disk)
+    * [Native Specifications](#native-specifications)
   * [Spark Backend](#spark-backend)
     * [Configuring Spark Project](#configuring-spark-project)
     * [Configuring Spark Master and Deploy Mode](#configuring-spark-master-and-deploy-mode)
@@ -63,6 +65,12 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Logging](#logging)
 * [Workflow Options](#workflow-options)
 * [Call Caching](#call-caching)
+  * [Configuring Call Caching](#configuring-call-caching)
+  * [Call Caching Workflow Options](#call-caching-workflow-options)
+  * [Local Filesystem Options](#local-filesystem-options)
+* [Imports](#imports)
+* [Sub Workflows](#sub-workflows)
+* [Meta blocks](#meta-blocks)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
@@ -124,23 +132,29 @@ See the [migration document](MIGRATION.md) for more details.
 Run the JAR file with no arguments to get the usage message:
 
 ```
+
+
 $ java -jar cromwell.jar
 java -jar cromwell.jar <action> <parameters>
 
 Actions:
-run <WDL file> [<JSON inputs file> [<JSON workflow options>
-  [<OUTPUT workflow metadata>]]]
+run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
+  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
   print out the outputs in JSON format.  The workflow
   options file specifies some runtime configuration for the
   workflow (see README for details).  The workflow metadata
-  output is an optional file path to output the metadata.
-  Use a single dash ("-") to skip optional files. Ex:
-    run noinputs.wdl - - metadata.json
+  output is an optional file path to output the metadata. The
+  directory of WDL files is optional. However, it is required
+  if the primary workflow imports workflows that are outside
+  of the root directory of the Cromwell project.
 
-server
+  Use a single dash ("-") to skip optional files. Ex:
+    run noinputs.wdl - - metadata.json -
+
+  server
 
   Starts a web server on port 8000.  See the web server
   documentation for more details about the API endpoints.
@@ -232,6 +246,39 @@ $ cat my_wf.metadata.json
 }
 ```
 
+The fifth, optional parameter to the 'run' subcommand is a zip file which contains WDL source files. This zip file can be passed
+and your primary workflow can import any WDL's from that collection and re-use those tasks.
+
+For example, consider you have a directory of WDL files:
+```
+my_WDLs
+└──cgrep.wdl
+└──ps.wdl
+└──wc.wdl
+```
+
+If you zip that directory to my_WDLs.zip, you have the option to pass it in as the last parameter in your run command
+and be able to reference these WDLs as imports in your primary WDL. For example, your primary WDL can look like this:
+```
+import "ps.wdl" as ps
+import "cgrep.wdl"
+import "wc.wdl" as wordCount
+
+workflow threestep {
+
+call ps.ps as getStatus
+call cgrep.cgrep { input: str = getStatus.x }
+call wordCount { input: str = ... }
+
+}
+
+```
+The command to run this WDL, without needing any inputs, workflow options or metadata files would look like:
+
+```
+$ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
+```
+
 ## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
@@ -292,17 +339,14 @@ Then, edit the configuration file `database` stanza, as follows:
 
 ```
 database {
-  config = main.mysql
 
-  main {
-    mysql {
-      db.url = "jdbc:mysql://localhost:3306/cromwell"
-      db.user = "root"
-      db.password = ""
-      db.driver = "com.mysql.jdbc.Driver"
-      db.connectionTimeout = 5000 # NOTE: The default 1000ms is often too short for production mysql use
-      driver = "slick.driver.MySQLDriver$"
-    }
+  driver = "slick.driver.MySQLDriver$"
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://host/cromwell"
+    user = "user"
+    password = "pass"
+    connectionTimeout = 5000
   }
 
   test {
@@ -322,6 +366,14 @@ system {
 ```
 
 Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
+
+By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
+
+# Security
+
+ - Cromwell is NOT on its own a security appliance!
+ - Only YOU are responsible for your own security! 
+ - Some recommendations and suggestions on security can be found in the [SecurityRecommendations.md](SecurityRecommendations.md) document
 
 # Backends
 
@@ -889,6 +941,18 @@ This backend supports CPU, memory and disk size configuration through the use of
 
 It they are not set, HtCondor backend will use default values.
 
+### Native Specifications
+The use of runtime attribute 'nativeSpecs' allows to the user to attach custom HtCondor configuration to tasks.
+An example of this is when there is a need to work with 'requirements' or 'rank' configuration.
+
+```
+"runtimeAttributes": {
+    "nativeSpecs": ["requirements = Arch == \"INTEL\"", "rank = Memory >= 64"]
+}
+```
+
+nativeSpecs attribute needs to be specified as an array of strings to work.
+
 ## Spark Backend
 
 This backend adds support for execution of spark jobs in a workflow using the existing wdl format. 
@@ -1053,6 +1117,7 @@ backend {
       config {
         project = "my-project"
         root = "gs://my-bucket"
+        genomics-api-queries-per-100-seconds = 1000
         .
         .
         .
@@ -1061,6 +1126,8 @@ backend {
   ]
 }
 ```
+
+If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with JES.
 
 ### Configuring Authentication
 
@@ -1138,6 +1205,8 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
+
+While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  It's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
 
 #### Refresh Token
 
@@ -1509,7 +1578,8 @@ Valid keys and their meanings:
         * The default is `NoNewCalls` but this can be changed using the `workflow-options.workflow-failure-mode` configuration option.
     * **backend** - Override the default backend specified in the Cromwell configuration for this workflow only.
 * JES Backend Only
-    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.root` in the [configuration](#configuring-cromwell).
+    * **jes_gcs_root** - (JES backend only) Specifies where outputs of the workflow will be written.  Expects this to be a GCS URL (e.g. `gs://my-bucket/workflows`).  If this is not set, this defaults to the value within `backend.jes.config.root` in the [configuration](#configuring-cromwell).
+    * **google_compute_service_account** - (JES backend only) Specifies an alternate service account to use on the compute instance (e.g. my-new-svcacct@my-google-project.iam.gserviceaccount.com).  If this is not set, this defaults to the value within `backend.jes.config.genomics.compute-service-account` in the [configuration](#configuring-cromwell) if specified or `default` otherwise.
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
     * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
@@ -1528,22 +1598,528 @@ Cromwell's call cache is maintained in its database.  For best mileage with call
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.
 
+## Configuring Call Caching
 To enable Call Caching, add the following to your Cromwell [configuration](#configuring-cromwell):
 
 ```
 call-caching {
   enabled = true
+  invalidate-bad-cache-results = true
 }
 ```
 
 When `call-caching.enabled=true` (default: `false`), Cromwell will be able to to copy results from previously run jobs (when appropriate).
+When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invalidate any cache results which fail to copy during a cache-hit. This is usually desired but might be unwanted if a cache might fail to copy for external reasons, such as a difference in user authentication.
 
+## Call Caching Workflow Options
 Cromwell also accepts two [workflow option](#workflow-options) related to call caching:
 
 * If call caching is enabled, but one wishes to run a workflow but not add any of the calls into the call cache when they finish, the `write_to_cache` option can be set to `false`.  This value defaults to `true`.
 * If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`
 
 > **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
+
+## Local Filesystem Options
+When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
+
+```
+      config {
+        ...
+        filesystems {
+          ...
+          local {
+            ...
+            caching {
+              # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
+              duplication-strategy: [
+                "hard-link", "soft-link", "copy"
+              ]
+
+              # Possible values: file, path
+              # "file" will compute an md5 hash of the file content.
+              # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
+              # in order to allow for the original file path to be hashed.
+              # Default: file
+              hashing-strategy: "file"
+
+              # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
+              # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.
+              # Default: false
+              check-sibling-md5: false
+            }
+          }
+        }
+      }
+```
+# Imports
+
+Import statements inside of a WDL file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
+
+In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [run](#run).
+
+For example, given a workflow `wf.wdl` and an imports directory `WdlImports.zip`, a sample command would be:
+```
+java -jar cromwell.jar wf.wdl wf.inputs - - WdlImports.zip
+```
+
+In Server Mode, you pass in a zip file using the parameter `wdlDependencies` via the [POST /api/workflows/:version](#post-apiworkflowsversion) endpoint.
+
+
+# Sub Workflows
+
+WDL allows the execution of an entire workflow as a step in a larger workflow (see WDL SPEC for more details), which is what will be referred to as a sub workflow going forward.
+Cromwell supports execution of such workflows. Note that sub workflows can themselves contain sub workflows, etc... There is no limitation as to how deeply workflows can be nested.
+
+## Execution
+
+Sub workflows are executed exactly as a task would be.
+*This means that if another call depends on an output of a sub workflow, this call will run when the whole sub workflow completes (successfully).*
+For example, in the following case :
+
+`main.wdl`
+```
+import "sub_wdl.wdl" as sub
+
+workflow main_workflow {
+
+    call sub.hello_and_goodbye { input: hello_and_goodbye_input = "sub world" }
+    
+    # call myTask { input: hello_and_goodbye.hello_output }
+    
+    output {
+        String main_output = hello_and_goodbye.hello_output
+    }
+}
+```
+
+`sub_wdl.wdl`
+```
+task hello {
+  String addressee
+  command {
+    echo "Hello ${addressee}!"
+  }
+  runtime {
+      docker: "ubuntu:latest"
+  }
+  output {
+    String salutation = read_string(stdout())
+  }
+}
+
+task goodbye {
+  String addressee
+  command {
+    echo "Goodbye ${addressee}!"
+  }
+  runtime {
+      docker: "ubuntu:latest"
+  }
+  output {
+    String salutation = read_string(stdout())
+  }
+}
+
+workflow hello_and_goodbye {
+  String hello_and_goodbye_input
+  
+  call hello {input: addressee = hello_and_goodbye_input }
+  call goodbye {input: addressee = hello_and_goodbye_input }
+  
+  output {
+    String hello_output = hello.salutation
+    String goodbye_output = goodbye.salutation
+  }
+}
+```
+
+`myTask` will start only when hello_and_goodbye completes (which means all of its calls are done), even though `myTask` only needs the output of hello in the hello_and_goodbye sub workflow. 
+If hello_and_goodbye fails, then `myTask` won't be executed.
+Only workflow outputs are visible outside a workflow, which means that references to outputs produced by a sub workflow will only be valid if those outputs are exposed in the workflow output section.
+
+Sub workflows are executed in the context of a main workflow, which means that operations that are normally executed once per workflow (set up, clean up, outputs copying, log copying, etc...)
+will NOT be re-executed for each sub workflow. For instance if a resource is created during workflow initialization, sub workflows will need to share this same resource.
+Workflow outputs will be copied for the main root workflow but not for intermediate sub workflows.
+
+Restarts, aborts, and call-caching work exactly as they would with tasks. 
+All tasks run by a sub workflow are eligible for call caching under the same rules as any other task.
+However, workflows themselves are not cached as such. Which means that running the exact same workflow twice with call caching on will trigger each task to cache individually,
+but not the workflow itself.
+
+The root path for sub workflow execution files (scripts, output files, logs) will be under the parent workflow call directory.
+For example, the execution directory for the above main workflow would look like the following:
+
+```
+cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/ <- main workflow id
+└── call-hello_and_goodbye <- call directory for call hello_and_goodbye in the main workflow
+    └── hello_and_goodbye <- name of the sub workflow 
+        └── a6365f91-c807-465a-9186-a5d3da98fe11 <- sub workflow id
+            ├── call-goodbye
+            │   └── execution
+            │       ├── rc
+            │       ├── script
+            │       ├── script.background
+            │       ├── script.submit
+            │       ├── stderr
+            │       ├── stderr.background
+            │       ├── stdout
+            │       └── stdout.background
+            └── call-hello
+                └── execution
+                    ├── rc
+                    ├── script
+                    ├── script.background
+                    ├── script.submit
+                    ├── stderr
+                    ├── stderr.background
+                    ├── stdout
+                    └── stdout.background
+
+```
+
+## Metadata
+Each sub workflow will have its own workflow ID. This ID will appear in the metadata of the parent workflow, in the call section corresponding to the sub workflow, under the "subWorkflowId" attribute.
+For example, querying the `main_workflow` metadata above (minus the `myTask` call) , could result in something like this:
+
+`GET /api/workflows/v2/1d919bd4-d046-43b0-9918-9964509689dd/metadata`
+
+```
+{
+  "workflowName": "main_workflow",
+  "submittedFiles": {
+    "inputs": "{}",
+    "workflow": "import \"sub_wdl.wdl\" as sub\n\nworkflow main_workflow {\n\n    call sub.hello_and_goodbye { input: hello_and_goodbye_input = \"sub world\" }\n    \n    # call myTask { input: hello_and_goodbye.hello_output }\n    \n    output {\n        String main_output = hello_and_goodbye.hello_output\n    }\n}",
+    "options": "{\n\n}"
+  },
+  "calls": {
+    "main_workflow.hello_and_goodbye": [
+      {
+        "executionStatus": "Done",
+        "shardIndex": -1,
+        "outputs": {
+          "goodbye_output": "Goodbye sub world!",
+          "hello_output": "Hello sub world!"
+        },
+        "inputs": {
+          "hello_and_goodbye_input": "sub world"
+        },
+        "end": "2016-11-17T14:13:41.117-05:00",
+        "attempt": 1,
+        "start": "2016-11-17T14:13:39.236-05:00",
+        "subWorkflowId": "a6365f91-c807-465a-9186-a5d3da98fe11"
+      }
+    ]
+  },
+  "outputs": {
+    "main_output": "Hello sub world!"
+  },
+  "workflowRoot": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd",
+  "id": "1d919bd4-d046-43b0-9918-9964509689dd",
+  "inputs": {},
+  "submission": "2016-11-17T14:13:39.104-05:00",
+  "status": "Succeeded",
+  "end": "2016-11-17T14:13:41.120-05:00",
+  "start": "2016-11-17T14:13:39.204-05:00"
+}
+```
+
+The sub workflow ID can be queried separately:
+
+`GET /api/workflows/v2/a6365f91-c807-465a-9186-a5d3da98fe11/metadata`
+
+```
+{
+  "workflowName": "hello_and_goodbye",
+  "calls": {
+    "sub.hello_and_goodbye.hello": [
+      {
+        "executionStatus": "Done",
+        "stdout": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-hello/execution/stdout",
+        "shardIndex": -1,
+        "outputs": {
+          "salutation": "Hello sub world!"
+        },
+        "runtimeAttributes": {
+          "docker": "ubuntu:latest",
+          "failOnStderr": false,
+          "continueOnReturnCode": "0"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "Effective call caching mode": "CallCachingOff",
+        "inputs": {
+          "addressee": "sub world"
+        },
+        "returnCode": 0,
+        "jobId": "49830",
+        "backend": "Local",
+        "end": "2016-11-17T14:13:40.712-05:00",
+        "stderr": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-hello/execution/stderr",
+        "callRoot": "/cromwell/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-hello",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2016-11-17T14:13:39.240-05:00",
+            "description": "Pending",
+            "endTime": "2016-11-17T14:13:39.240-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:39.240-05:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2016-11-17T14:13:39.240-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:39.240-05:00",
+            "description": "PreparingJob",
+            "endTime": "2016-11-17T14:13:39.243-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:39.243-05:00",
+            "description": "RunningJob",
+            "endTime": "2016-11-17T14:13:40.704-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:40.704-05:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2016-11-17T14:13:40.712-05:00"
+          }
+        ],
+        "start": "2016-11-17T14:13:39.239-05:00"
+      }
+    ],
+    "sub.hello_and_goodbye.goodbye": [
+      {
+        "executionStatus": "Done",
+        "stdout": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-goodbye/execution/stdout",
+        "shardIndex": -1,
+        "outputs": {
+          "salutation": "Goodbye sub world!"
+        },
+        "runtimeAttributes": {
+          "docker": "ubuntu:latest",
+          "failOnStderr": false,
+          "continueOnReturnCode": "0"
+        },
+        "cache": {
+          "allowResultReuse": true
+        },
+        "Effective call caching mode": "CallCachingOff",
+        "inputs": {
+          "addressee": "sub world"
+        },
+        "returnCode": 0,
+        "jobId": "49831",
+        "backend": "Local",
+        "end": "2016-11-17T14:13:41.115-05:00",
+        "stderr": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-goodbye/execution/stderr",
+        "callRoot": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-goodbye",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2016-11-17T14:13:39.240-05:00",
+            "description": "Pending",
+            "endTime": "2016-11-17T14:13:39.240-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:39.240-05:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2016-11-17T14:13:39.240-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:39.240-05:00",
+            "description": "PreparingJob",
+            "endTime": "2016-11-17T14:13:39.243-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:39.243-05:00",
+            "description": "RunningJob",
+            "endTime": "2016-11-17T14:13:41.112-05:00"
+          },
+          {
+            "startTime": "2016-11-17T14:13:41.112-05:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2016-11-17T14:13:41.115-05:00"
+          }
+        ],
+        "start": "2016-11-17T14:13:39.239-05:00"
+      }
+    ]
+  },
+  "outputs": {
+    "goodbye_output": "Goodbye sub world!",
+    "hello_output": "Hello sub world!"
+  },
+  "workflowRoot": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11",
+  "id": "a6365f91-c807-465a-9186-a5d3da98fe11",
+  "inputs": {
+    "hello_and_goodbye_input": "sub world"
+  },
+  "status": "Succeeded",
+  "parentWorkflowId": "1d919bd4-d046-43b0-9918-9964509689dd",
+  "end": "2016-11-17T14:13:41.116-05:00",
+  "start": "2016-11-17T14:13:39.236-05:00"
+}
+```
+
+It's also possible to set the URL query parameter `expandSubWorkflows` to `true` to automatically include sub workflows metadata (`false` by default).
+
+`GET api/workflows/v2/1d919bd4-d046-43b0-9918-9964509689dd/metadata?expandSubWorkflows=true`
+
+```
+{
+  "workflowName": "main_workflow",
+  "submittedFiles": {
+    "inputs": "{}",
+    "workflow": "import \"sub_wdl.wdl\" as sub\n\nworkflow main_workflow {\n\n    call sub.hello_and_goodbye { input: hello_and_goodbye_input = \"sub world\" }\n    \n    # call myTask { input: hello_and_goodbye.hello_output }\n    \n    output {\n        String main_output = hello_and_goodbye.hello_output\n    }\n}",
+    "options": "{\n\n}"
+  },
+  "calls": {
+    "main_workflow.hello_and_goodbye": [{
+      "executionStatus": "Done",
+      "subWorkflowMetadata": {
+        "workflowName": "hello_and_goodbye",
+        "calls": {
+          "sub.hello_and_goodbye.hello": [{
+            "executionStatus": "Done",
+            "stdout": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-hello/execution/stdout",
+            "shardIndex": -1,
+            "outputs": {
+              "salutation": "Hello sub world!"
+            },
+            "runtimeAttributes": {
+              "docker": "ubuntu:latest",
+              "failOnStderr": false,
+              "continueOnReturnCode": "0"
+            },
+            "cache": {
+              "allowResultReuse": true
+            },
+            "Effective call caching mode": "CallCachingOff",
+            "inputs": {
+              "addressee": "sub world"
+            },
+            "returnCode": 0,
+            "jobId": "49830",
+            "backend": "Local",
+            "end": "2016-11-17T14:13:40.712-05:00",
+            "stderr": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-hello/execution/stderr",
+            "callRoot": "cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-hello",
+            "attempt": 1,
+            "executionEvents": [{
+              "startTime": "2016-11-17T14:13:39.240-05:00",
+              "description": "Pending",
+              "endTime": "2016-11-17T14:13:39.240-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:39.240-05:00",
+              "description": "RequestingExecutionToken",
+              "endTime": "2016-11-17T14:13:39.240-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:39.240-05:00",
+              "description": "PreparingJob",
+              "endTime": "2016-11-17T14:13:39.243-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:39.243-05:00",
+              "description": "RunningJob",
+              "endTime": "2016-11-17T14:13:40.704-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:40.704-05:00",
+              "description": "UpdatingJobStore",
+              "endTime": "2016-11-17T14:13:40.712-05:00"
+            }],
+            "start": "2016-11-17T14:13:39.239-05:00"
+          }],
+          "sub.hello_and_goodbye.goodbye": [{
+            "executionStatus": "Done",
+            "stdout": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-goodbye/execution/stdout",
+            "shardIndex": -1,
+            "outputs": {
+              "salutation": "Goodbye sub world!"
+            },
+            "runtimeAttributes": {
+              "docker": "ubuntu:latest",
+              "failOnStderr": false,
+              "continueOnReturnCode": "0"
+            },
+            "cache": {
+              "allowResultReuse": true
+            },
+            "Effective call caching mode": "CallCachingOff",
+            "inputs": {
+              "addressee": "sub world"
+            },
+            "returnCode": 0,
+            "jobId": "49831",
+            "backend": "Local",
+            "end": "2016-11-17T14:13:41.115-05:00",
+            "stderr": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-goodbye/execution/stderr",
+            "callRoot": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11/call-goodbye",
+            "attempt": 1,
+            "executionEvents": [{
+              "startTime": "2016-11-17T14:13:39.240-05:00",
+              "description": "Pending",
+              "endTime": "2016-11-17T14:13:39.240-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:39.240-05:00",
+              "description": "RequestingExecutionToken",
+              "endTime": "2016-11-17T14:13:39.240-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:39.240-05:00",
+              "description": "PreparingJob",
+              "endTime": "2016-11-17T14:13:39.243-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:39.243-05:00",
+              "description": "RunningJob",
+              "endTime": "2016-11-17T14:13:41.112-05:00"
+            }, {
+              "startTime": "2016-11-17T14:13:41.112-05:00",
+              "description": "UpdatingJobStore",
+              "endTime": "2016-11-17T14:13:41.115-05:00"
+            }],
+            "start": "2016-11-17T14:13:39.239-05:00"
+          }]
+        },
+        "outputs": {
+          "goodbye_output": "Goodbye sub world!",
+          "hello_output": "Hello sub world!"
+        },
+        "workflowRoot": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd/call-hello_and_goodbye/hello_and_goodbye/a6365f91-c807-465a-9186-a5d3da98fe11",
+        "id": "a6365f91-c807-465a-9186-a5d3da98fe11",
+        "inputs": {
+          "hello_and_goodbye_input": "sub world"
+        },
+        "status": "Succeeded",
+        "parentWorkflowId": "1d919bd4-d046-43b0-9918-9964509689dd",
+        "end": "2016-11-17T14:13:41.116-05:00",
+        "start": "2016-11-17T14:13:39.236-05:00"
+      },
+      "shardIndex": -1,
+      "outputs": {
+        "goodbye_output": "Goodbye sub world!",
+        "hello_output": "Hello sub world!"
+      },
+      "inputs": {
+        "hello_and_goodbye_input": "sub world"
+      },
+      "end": "2016-11-17T14:13:41.117-05:00",
+      "attempt": 1,
+      "start": "2016-11-17T14:13:39.236-05:00"
+    }]
+  },
+  "outputs": {
+    "main_output": "Hello sub world!"
+  },
+  "workflowRoot": "/cromwell-executions/main_workflow/1d919bd4-d046-43b0-9918-9964509689dd",
+  "id": "1d919bd4-d046-43b0-9918-9964509689dd",
+  "inputs": {
+
+  },
+  "submission": "2016-11-17T14:13:39.104-05:00",
+  "status": "Succeeded",
+  "end": "2016-11-17T14:13:41.120-05:00",
+  "start": "2016-11-17T14:13:39.204-05:00"
+}
+```
 
 # REST API
 
@@ -1561,7 +2137,18 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
 * `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowInputs_2` - *Optional* JSON file containing the inputs.
+* `workflowInputs_3` - *Optional* JSON file containing the inputs.
+* `workflowInputs_4` - *Optional* JSON file containing the inputs.
+* `workflowInputs_5` - *Optional* JSON file containing the inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
+* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements.
+
+Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
+Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+
+Additionally, although Swagger has a limit of 5 JSON input files, the REST endpoint itself can accept an unlimited number of JSON input files.
+
 
 cURL:
 

@@ -27,8 +27,7 @@ object CopyWorkflowLogsActor {
 // Which could be used for other copying work (outputs, call logs..)
 class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
     extends Actor
-    with ActorLogging
-    with PathFactory {
+    with ActorLogging {
 
   def copyAndClean(src: Path, dest: Path) = {
     File(dest).parent.createDirectories()

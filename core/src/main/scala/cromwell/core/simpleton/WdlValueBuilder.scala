@@ -1,11 +1,11 @@
 package cromwell.core.simpleton
 
 import wdl4s.TaskOutput
-import wdl4s.types.{WdlArrayType, WdlMapType, WdlPrimitiveType, WdlType}
-import wdl4s.values.{WdlArray, WdlMap, WdlValue}
+import wdl4s.types._
+import wdl4s.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
 
 import scala.language.postfixOps
-import cromwell.core.{JobOutput, JobOutputs}
+import cromwell.core.{CallOutputs, JobOutput}
 import cromwell.core.simpleton.WdlValueSimpleton._
 
 
@@ -73,6 +73,19 @@ object WdlValueBuilder {
       component.path match { case MapElementPattern(key, more) => key.unescapeMeta -> component.copy(path = more)}
     }
 
+    // Returns a tuple of the key into the pair (i.e. left or right) and a `SimpletonComponent` whose path reflects the "descent"
+    // into the pair.  e.g. for a component
+    // SimpletonComponent(":left:foo", someValue) this would return (PairLeft -> SimpletonComponent(":baz", someValue)).
+    sealed trait PairLeftOrRight
+    case object PairLeft extends PairLeftOrRight
+    case object PairRight extends PairLeftOrRight
+    def descendIntoPair(component: SimpletonComponent): (PairLeftOrRight, SimpletonComponent) = {
+      component.path match {
+        case MapElementPattern("left", more) => PairLeft -> component.copy(path = more)
+        case MapElementPattern("right", more) => PairRight -> component.copy(path = more)
+      }
+    }
+
     // Group tuples by key using a Map with key type `K`.
     def group[K](tuples: Traversable[(K, SimpletonComponent)]): Map[K, Traversable[SimpletonComponent]] = {
       tuples groupBy { case (i, _) => i } mapValues { _ map { case (i, s) => s} }
@@ -80,6 +93,12 @@ object WdlValueBuilder {
 
     outputType match {
       case _: WdlPrimitiveType => components collectFirst { case SimpletonComponent(_, v) => v } get
+      case opt: WdlOptionalType =>
+        if (components.isEmpty) {
+          WdlOptionalValue(opt.memberType, None)
+        } else {
+          WdlOptionalValue(toWdlValue(opt.memberType, components))
+        }
       case arrayType: WdlArrayType =>
         val groupedByArrayIndex: Map[Int, Traversable[SimpletonComponent]] = group(components map descendIntoArray)
         WdlArray(arrayType, groupedByArrayIndex.toList.sortBy(_._1) map { case (_, s) => toWdlValue(arrayType.memberType, s) })
@@ -87,6 +106,9 @@ object WdlValueBuilder {
         val groupedByMapKey: Map[String, Traversable[SimpletonComponent]] = group(components map descendIntoMap)
         // map keys are guaranteed by the WDL spec to be primitives, so the "coerceRawValue(..).get" is safe.
         WdlMap(mapType, groupedByMapKey map { case (k, ss) => mapType.keyType.coerceRawValue(k).get -> toWdlValue(mapType.valueType, ss) })
+      case pairType: WdlPairType =>
+        val groupedByLeftOrRight: Map[PairLeftOrRight, Traversable[SimpletonComponent]] = group(components map descendIntoPair)
+        WdlPair(toWdlValue(pairType.leftType, groupedByLeftOrRight(PairLeft)), toWdlValue(pairType.rightType, groupedByLeftOrRight(PairRight)))
     }
   }
 
@@ -107,7 +129,7 @@ object WdlValueBuilder {
     */
   private case class SimpletonComponent(path: String, value: WdlValue)
 
-  def toJobOutputs(taskOutputs: Traversable[TaskOutput], simpletons: Traversable[WdlValueSimpleton]): JobOutputs = {
+  def toJobOutputs(taskOutputs: Traversable[TaskOutput], simpletons: Traversable[WdlValueSimpleton]): CallOutputs = {
     toWdlValues(taskOutputs, simpletons) mapValues JobOutput.apply
   }
 
@@ -119,7 +141,7 @@ object WdlValueBuilder {
 
     // This is meant to "rehydrate" simpletonized WdlValues back to WdlValues.  It is assumed that these WdlValues were
     // "dehydrated" to WdlValueSimpletons correctly. This code is not robust to corrupt input whatsoever.
-    val types = taskOutputs map { o => o.name -> o.wdlType } toMap
+    val types = taskOutputs map { o => o.unqualifiedName -> o.wdlType } toMap
     val simpletonsByOutputName = simpletons groupBy { _.simpletonKey match { case IdentifierAndPathPattern(i, _) => i } }
     val simpletonComponentsByOutputName = simpletonsByOutputName map { case (name, ss) => name -> (ss map simpletonToComponent(name)) }
     types map { case (name, outputType) => name -> toWdlValue(outputType, simpletonComponentsByOutputName(name))}

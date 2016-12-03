@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -14,7 +14,7 @@ trait WorkflowStore {
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  def add(sources: NonEmptyList[WorkflowSourceFiles])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]]
+  def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]]
 
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp

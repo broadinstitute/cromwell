@@ -48,5 +48,5 @@ object JesTestConfig {
 
   val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)
   val JesGlobalConfig = ConfigFactory.parseString(JesGlobalConfigString)
-  val JesBackendConfigurationDescriptor = new BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig)
+  val JesBackendConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig)
 }

@@ -1,9 +1,12 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
+import javax.sql.rowset.serial.SerialBlob
 
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import com.typesafe.config.ConfigFactory
+import net.ceedubs.ficus.Ficus._
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
@@ -13,9 +16,13 @@ import scala.concurrent.{ExecutionContext, Future}
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = {
-    sqlDatabase.updateWorkflowState(
-      WorkflowStoreState.Running.toString,
-      WorkflowStoreState.Restartable.toString)
+          if (ConfigFactory.load().as[Option[Boolean]]("system.workflow-restart").getOrElse(true)) {
+            sqlDatabase.updateWorkflowState(
+                WorkflowStoreState.Running.toString,
+                WorkflowStoreState.Restartable.toString)
+          } else {
+            Future.successful(())
+          }
   }
 
   override def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -36,7 +43,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  override def add(sources: NonEmptyList[WorkflowSourceFiles])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]] = {
+  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]] = {
 
     val asStoreEntries = sources map toWorkflowStoreEntry
     val returnValue = asStoreEntries map { workflowStore => WorkflowId.fromString(workflowStore.workflowExecutionUuid) }
@@ -46,24 +53,27 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {
-    val sources = WorkflowSourceFiles(
+    val sources = WorkflowSourceFilesCollection(
       workflowStoreEntry.workflowDefinition.toRawString,
       workflowStoreEntry.workflowInputs.toRawString,
-      workflowStoreEntry.workflowOptions.toRawString)
+      workflowStoreEntry.workflowOptions.toRawString,
+      workflowStoreEntry.importsZipFile.map(b => b.getBytes(1, b.length.asInstanceOf[Int]))
+    )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
       sources,
       fromDbStateStringToStartableState(workflowStoreEntry.workflowState))
   }
 
-  private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFiles): WorkflowStoreEntry = {
+  private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowStoreEntry = {
     WorkflowStoreEntry(
       WorkflowId.randomId().toString,
       workflowSourceFiles.wdlSource.toClob,
       workflowSourceFiles.inputsJson.toClob,
       workflowSourceFiles.workflowOptionsJson.toClob,
       WorkflowStoreState.Submitted.toString,
-      OffsetDateTime.now.toSystemTimestamp
+      OffsetDateTime.now.toSystemTimestamp,
+      workflowSourceFiles.importsZipFileOption.map(new SerialBlob(_))
     )
   }
 

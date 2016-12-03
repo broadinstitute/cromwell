@@ -25,7 +25,7 @@ object Retry {
     */
   def withRetry[A](f: () => Future[A],
                    maxRetries: Option[Int] = Option(10),
-                   backoff: SimpleExponentialBackoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
+                   backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
                    isTransient: Throwable => Boolean = throwableToFalse,
                    isFatal: Throwable => Boolean = throwableToFalse)
                    (implicit actorSystem: ActorSystem): Future[A] = {
@@ -38,7 +38,7 @@ object Retry {
         case throwable if isFatal(throwable) => Future.failed(new CromwellFatalException(throwable))
         case throwable if !isFatal(throwable) =>
           val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
-          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft))
+          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal))
       }
     } else f() recoverWith {
       case e: Exception => Future.failed(new CromwellFatalException(e))

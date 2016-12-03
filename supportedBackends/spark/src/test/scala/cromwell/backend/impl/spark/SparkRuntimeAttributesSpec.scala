@@ -9,7 +9,7 @@ import wdl4s.WdlExpression._
 import wdl4s.expression.NoFunctions
 import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
-import wdl4s.{Call, WdlExpression, _}
+import wdl4s.{Call, _}
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -26,7 +26,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
       |  RUNTIME
       |}
       |
-      |workflow hello {
+      |workflow wf_hello {
       |  call hello
       |}
     """.stripMargin
@@ -90,7 +90,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      NamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark"))),
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).workflow,
       inputs,
       options
     )
@@ -100,12 +100,11 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
 
     def createLookup(call: Call): ScopedLookupFunction = {
-      val declarations = workflowDescriptor.workflowNamespace.workflow.declarations ++ call.task.declarations
       val knownInputs = workflowDescriptor.inputs
-      WdlExpression.standardLookupFunction(knownInputs, declarations, NoFunctions)
+      call.lookupFunction(knownInputs, NoFunctions)
     }
 
-    workflowDescriptor.workflowNamespace.workflow.calls map {
+    workflowDescriptor.workflow.taskCalls map {
       call =>
         val ra = call.task.runtimeAttributes.attrs mapValues { _.evaluate(createLookup(call), NoFunctions) }
         TryUtil.sequenceMap(ra, "Runtime attributes evaluation").get

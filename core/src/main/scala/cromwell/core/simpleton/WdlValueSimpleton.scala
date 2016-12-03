@@ -26,8 +26,10 @@ object WdlValueSimpleton {
   implicit class WdlValueSimplifier(wdlValue: WdlValue) {
     def simplify(name: String): Iterable[WdlValueSimpleton] = wdlValue match {
       case prim: WdlPrimitive => List(WdlValueSimpleton(name, prim))
+      case opt: WdlOptionalValue => opt.value.map(_.simplify(name)).getOrElse(Seq.empty)
       case WdlArray(_, arrayValue) => arrayValue.zipWithIndex flatMap { case (arrayItem, index) => arrayItem.simplify(s"$name[$index]") }
       case WdlMap(_, mapValue) => mapValue flatMap { case (key, value) => value.simplify(s"$name:${key.valueString.escapeMeta}") }
+      case WdlPair(left, right) => left.simplify(s"$name:left") ++ right.simplify(s"$name:right")
       case wdlObject: WdlObjectLike => wdlObject.value flatMap { case (key, value) => value.simplify(s"$name:${key.escapeMeta}") }
       case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.wdlType}")
     }

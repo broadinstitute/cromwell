@@ -93,6 +93,11 @@ paths:
           required: false
           type: file
           in: formData
+        - name: wdlDependencies
+          description: Workflow Options JSON
+          required: false
+          type: file
+          in: formData
       tags:
         - Workflows
       responses:
@@ -130,6 +135,11 @@ paths:
           type: file
           in: formData
         - name: workflowOptions
+          description: Workflow Options JSON
+          required: false
+          type: file
+          in: formData
+        - name: wdlDependencies
           description: Workflow Options JSON
           required: false
           type: file
@@ -385,6 +395,13 @@ paths:
           items:
             type: string
           collectionFormat: multi
+          in: query
+        - name: expandSubWorkflows
+          description: >
+            When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response.
+          required: false
+          type: boolean
+          default: false
           in: query
       tags:
         - Workflows

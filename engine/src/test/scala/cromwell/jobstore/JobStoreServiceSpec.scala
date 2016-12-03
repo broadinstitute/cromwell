@@ -1,6 +1,6 @@
 package cromwell.jobstore
 
-import cromwell.CromwellTestkitSpec
+import cromwell.CromwellTestKitSpec
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.jobstore.JobStoreActor._
@@ -8,9 +8,10 @@ import cromwell.jobstore.JobStoreServiceSpec._
 import cromwell.services.SingletonServicesStore
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
+import wdl4s.parser.WdlParser.Ast
 import wdl4s.types.WdlStringType
 import wdl4s.values.WdlString
-import wdl4s.{Call, Task, TaskOutput, WdlExpression}
+import wdl4s._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -20,7 +21,7 @@ object JobStoreServiceSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito {
+class JobStoreServiceSpec extends CromwellTestKitSpec with Matchers with Mockito {
 
   "JobStoreService" should {
     "work" in {
@@ -28,10 +29,10 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 
       val workflowId = WorkflowId.randomId()
-      val successCall = mock[Call]
+      val successCall = mock[TaskCall]
       successCall.fullyQualifiedName returns "foo.bar"
       val mockTask = mock[Task]
-      mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression))
+      mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression, mock[Ast], Option(mockTask)))
       successCall.task returns mockTask
 
       val successKey = BackendJobDescriptorKey(successCall, None, 1).toJobStoreKey(workflowId)
@@ -49,7 +50,7 @@ class JobStoreServiceSpec extends CromwellTestkitSpec with Matchers with Mockito
         case JobComplete(JobResultSuccess(Some(0), os)) if os == outputs =>
       }
 
-      val failureCall = mock[Call]
+      val failureCall = mock[TaskCall]
       failureCall.fullyQualifiedName returns "baz.qux"
       val failureKey = BackendJobDescriptorKey(failureCall, None, 1).toJobStoreKey(workflowId)
 

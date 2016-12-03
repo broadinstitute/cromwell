@@ -1,6 +1,7 @@
 package cromwell.backend.wdl
 
 import cromwell.backend.MemorySize
+import cromwell.core.path.PathFactory
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
@@ -8,7 +9,7 @@ import wdl4s.values._
 
 import scala.util.{Failure, Success, Try}
 
-trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions =>
+trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions =>
   import better.files._
 
   /**
@@ -27,7 +28,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
-  override def readFile(path: String): String = File(toPath(path)).contentAsString
+  override def readFile(path: String): String = File(buildPath(path)).contentAsString
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
@@ -93,7 +94,7 @@ trait ReadLikeFunctions extends FileSystems { this: WdlStandardLibraryFunctions 
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(File(toPath(value.valueString)).size.toDouble, MemoryUnit.Bytes).to(unit).amount
+      } yield MemorySize(File(buildPath(value.valueString)).size.toDouble, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {

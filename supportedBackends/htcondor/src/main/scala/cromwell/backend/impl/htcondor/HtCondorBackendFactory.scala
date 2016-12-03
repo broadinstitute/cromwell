@@ -5,10 +5,10 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
 import cromwell.backend.impl.htcondor.caching.CacheActorFactory
-import cromwell.backend.io.JobPaths
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.{CallContext, WorkflowOptions}
-import wdl4s.Call
+import wdl4s.TaskCall
 import wdl4s.expression.WdlStandardLibraryFunctions
 
 import scala.util.{Failure, Success, Try}
@@ -17,7 +17,7 @@ case class HtCondorBackendFactory(name: String, configurationDescriptor: Backend
   extends BackendLifecycleActorFactory with StrictLogging {
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Seq[Call],
+                                                calls: Set[TaskCall],
                                                 serviceRegistryActor: ActorRef): Option[Props] = {
     Option(HtCondorInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
@@ -32,14 +32,14 @@ case class HtCondorBackendFactory(name: String, configurationDescriptor: Backend
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-    val jobPaths = new JobPaths(workflowDescriptor, configurationDescriptor.backendConfig, jobKey)
+    val jobPaths = new JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString
     )
 
-    new SharedFileSystemExpressionFunctions(HtCondorJobExecutionActor.fileSystems, callContext)
+    new SharedFileSystemExpressionFunctions(HtCondorJobExecutionActor.pathBuilders, callContext)
   }
 
   private def resolveCacheProviderProps(workflowOptions: WorkflowOptions) = {

@@ -1,7 +1,7 @@
 package cromwell
 
 import akka.actor.{Actor, Props}
-import cromwell.core.Dispatcher.ServiceDispatcher
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import MetadataWatchActor._

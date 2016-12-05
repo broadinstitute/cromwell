@@ -6,6 +6,7 @@ scala:
 jdk:
   - oraclejdk8
 cache:
+  # md5deep - https://github.com/travis-ci/travis-ci/issues/3122
   branch: md5deep
   directories:
     - $HOME/.ivy2/cache

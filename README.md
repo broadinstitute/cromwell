@@ -85,6 +85,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
   * [GET /api/engine/:version/stats](#get-apiengineversionstats)
+  * [GET /api/engine/:version/version](#get-apiengineversionversion)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -3112,6 +3113,33 @@ Response:
 {
   "workflows": 3,
   "jobs": 10
+}
+```
+
+## GET /api/engine/:version/version
+
+This endpoint returns the version of the Cromwell engine.
+
+cURL:
+```
+$ curl http://localhost:8000/api/engine/v1/version
+```
+
+HTTPie:
+```
+$ http http://localhost:8000/api/engine/v1/version
+```
+
+Response:
+```
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
+
+{
+  "cromwell": 23,
+  "wdl4s": 0.7
 }
 ```
 

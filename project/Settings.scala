@@ -159,7 +159,7 @@ object Settings {
   val engineSettings = List(
     name := "cromwell-engine",
     libraryDependencies ++= engineDependencies
-  ) ++ commonSettings
+  ) ++ commonSettings ++ versionConfCompileSettings
 
   val rootSettings = List(
     name := "cromwell",

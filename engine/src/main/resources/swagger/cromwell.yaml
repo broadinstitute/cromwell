@@ -586,6 +586,26 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/engine/{version}/version':
+    get:
+      summary: Returns the version of the Cromwell Engine
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+      tags:
+        - Engine
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
+      security:
+        - google_oauth:
+            - openid
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -822,3 +842,12 @@ definitions:
       jobs:
         type: integer
         description: The number of currently running jobs
+  VersionResponse:
+    description: 'Provides the version of the engine running inside the system'
+    properties:
+      cromwell:
+        type: string
+        description: The version of the Cromwell Engine
+      wdl4s:
+        type: string
+        description: The version of the Wdl4S beign used by Cromwell

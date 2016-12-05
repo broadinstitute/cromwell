@@ -2,12 +2,13 @@ package cromwell.jobstore
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.event.LoggingReceive
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
 
 import scala.util.{Failure, Success}
 
 object JobStoreReaderActor {
-  def props(database: JobStore) = Props(new JobStoreReaderActor(database))
+  def props(database: JobStore) = Props(new JobStoreReaderActor(database)).withDispatcher(EngineDispatcher)
 }
 
 class JobStoreReaderActor(database: JobStore) extends Actor with ActorLogging {

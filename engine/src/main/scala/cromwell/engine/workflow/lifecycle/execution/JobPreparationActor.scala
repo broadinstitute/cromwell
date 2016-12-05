@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{Actor, ActorRef, Props}
 import cromwell.backend._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{CallKey, JobKey, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
@@ -115,7 +116,12 @@ object JobPreparationActor {
             backendSingletonActor: Option[ActorRef]) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor, backendSingletonActor))
+    Props(new JobPreparationActor(executionData,
+      jobKey,
+      factory,
+      initializationData,
+      serviceRegistryActor,
+      backendSingletonActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -125,6 +131,6 @@ object SubWorkflowPreparationActor {
             subWorkflowId: WorkflowId) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new SubWorkflowPreparationActor(executionData, key, subWorkflowId))
+    Props(new SubWorkflowPreparationActor(executionData, key, subWorkflowId)).withDispatcher(EngineDispatcher)
   }
 }

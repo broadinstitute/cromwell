@@ -2,6 +2,7 @@ package cromwell.jobstore
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.jobstore.JobStoreActor._
+import cromwell.core.Dispatcher.EngineDispatcher
 
 import scala.util.{Failure, Success}
 
@@ -74,7 +75,7 @@ case class JobStoreWriterActor(jsd: JobStore) extends LoggingFSM[JobStoreWriterS
 }
 
 object JobStoreWriterActor {
-  def props(jobStoreDatabase: JobStore): Props = Props(new JobStoreWriterActor(jobStoreDatabase))
+  def props(jobStoreDatabase: JobStore): Props = Props(new JobStoreWriterActor(jobStoreDatabase)).withDispatcher(EngineDispatcher)
 }
 
 object JobStoreWriterData {

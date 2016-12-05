@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.logging.JobLogging
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
@@ -270,6 +271,6 @@ object SubWorkflowExecutionActor {
       backendSingletonCollection,
       initializationData,
       restarting)
-    )
+    ).withDispatcher(EngineDispatcher)
   }
 }

@@ -6,6 +6,7 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesJobId
 import cromwell.backend.impl.jes.JesJobExecutionActor._
@@ -22,7 +23,11 @@ object JesJobExecutionActor {
             initializationData: JesBackendInitializationData,
             serviceRegistryActor: ActorRef,
             jesBackendSingletonActor: Option[ActorRef]): Props = {
-    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor, jesBackendSingletonActor))
+    Props(new JesJobExecutionActor(jobDescriptor,
+      jesWorkflowInfo,
+      initializationData,
+      serviceRegistryActor,
+      jesBackendSingletonActor)).withDispatcher(BackendDispatcher)
   }
 
   val JesOperationIdKey = "__jes_operation_id"

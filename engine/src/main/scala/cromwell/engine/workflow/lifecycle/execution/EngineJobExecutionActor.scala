@@ -220,6 +220,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       eventList ++= response.executionEvents
       saveCacheResults(hashes, data.withSuccessResponse(response))
     case Event(response: SucceededResponse, data @ ResponsePendingData(_, _, None, _)) if effectiveCallCachingMode.writeToCache =>
+      eventList ++= response.executionEvents
       log.debug(s"Got job result for {}, awaiting hashes", jobTag)
       stay using data.withSuccessResponse(response)
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
@@ -398,7 +399,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
-      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _, _) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _, executionEvents) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+        eventList ++= executionEvents
+        saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(jobKey: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)
         forwardAndStop(updatedData.response)

@@ -1,6 +1,5 @@
 package wdl4s
 
-import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.parser.WdlParser.Ast
 
 object If {
@@ -21,33 +20,11 @@ object If {
   * @param condition WDL Expression representing the condition in which to execute this If-block
   */
 case class If(index: Int, condition: WdlExpression, ast: Ast)
-  extends GraphNode with WorkflowScoped {
+  extends GraphNodeWithUpstreamReferences with WorkflowScoped {
   val unqualifiedName = s"${If.FQNIdentifier}_$index"
   override def appearsInFqn = false
 
-  lazy val upstream: Set[GraphNode] = {
-    val referencedNodes = for {
-      variable <- condition.variableReferences
-      node <- resolveVariable(variable.sourceString)
-      if node.fullyQualifiedNameWithIndexScopes != fullyQualifiedNameWithIndexScopes
-    } yield node
-
-    val firstScatterOrIf = ancestry.collectFirst({
-      case s: Scatter with GraphNode => s
-      case i: If with GraphNode => i
-    })
-
-    (referencedNodes ++ firstScatterOrIf.toSeq).toSet
-  }
-
-  lazy val downstream: Set[GraphNode] = {
-    for {
-      node <- namespace.descendants.collect({ 
-        case n: GraphNode if n.fullyQualifiedName != fullyQualifiedName => n 
-      })
-      if node.upstream.contains(this)
-    } yield node
-  }
+  final val upstreamReferences = condition.variableReferences
 
   override def toString: String = s"[If fqn=$fullyQualifiedName, condition=${condition.toWdlString}]"
 }

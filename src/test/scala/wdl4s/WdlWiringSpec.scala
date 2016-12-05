@@ -13,8 +13,8 @@ class WdlWiringSpec extends FlatSpec with Matchers {
   testCases.list.toSeq.filter(_.isDirectory) foreach { testDir =>
     val wdlFile = testDir / "test.wdl"
     if (!wdlFile.exists) fail(s"Expecting a 'test.wdl' file at ${testDir.name}")
-    def resolver(relPath: String): String = (testDir / relPath).contentAsString
-    val namespace = WdlNamespaceWithWorkflow.load(wdlFile.path, resolver _)
+    def resolvers: Seq[ImportResolver] = Seq((relPath: String) => (testDir / relPath).contentAsString)
+    val namespace = WdlNamespaceWithWorkflow.load(File(wdlFile.path).contentAsString, resolvers)
     val wdlFileRelPath = File(".").relativize(wdlFile)
 
     expectedFullyQualifiedNames(testDir, namespace) foreach { case (fqn, expectedType) =>
@@ -59,6 +59,12 @@ class WdlWiringSpec extends FlatSpec with Matchers {
     expectedUpstream(testDir, namespace) foreach { case (node, expectedUpstreamNodes) =>
       it should s"compute upstream nodes for FQN ${node.fullyQualifiedName} in WDL file $wdlFileRelPath" in {
         node.upstream shouldEqual expectedUpstreamNodes
+      }
+    }
+
+    expectedUpstreamAncestry(testDir, namespace) foreach { case (node, expectedUpstreamAncestorNodes) =>
+      it should s"compute full upstream ancestry for FQN ${node.fullyQualifiedName} in WDL file $wdlFileRelPath" in {
+        node.upstreamAncestry shouldEqual expectedUpstreamAncestorNodes
       }
     }
 
@@ -174,6 +180,25 @@ class WdlWiringSpec extends FlatSpec with Matchers {
         val expectedAncestry = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get)
         val resolvedFqn = namespace.resolve(k).get
         resolvedFqn -> expectedAncestry
+    }
+  }
+
+  private def expectedUpstreamAncestry(testDir: File, namespace: WdlNamespaceWithWorkflow): Map[GraphNode, Set[Scope]] = {
+    val expectedUpstreamFile = testDir / "upstreamAncestry.expectations"
+
+    if (!expectedUpstreamFile.exists) {
+      val upstreamFqns = namespace.descendants.collect({ case n: GraphNode => n }) map { node =>
+        node.fullyQualifiedName -> JsArray(node.upstreamAncestry.toVector.map(_.fullyQualifiedName).sorted.map(JsString(_)))
+      }
+      val jsObject = JsObject(ListMap(upstreamFqns.toSeq.sortBy(_._1): _*))
+      expectedUpstreamFile.write(jsObject.prettyPrint + "\n")
+    }
+
+    expectedUpstreamFile.contentAsString.parseJson.asInstanceOf[JsObject].fields.asInstanceOf[Map[String, JsArray]] map {
+      case (k, v) =>
+        val expectedUpstreamAncestors = v.elements.asInstanceOf[Vector[JsString]].map(n => namespace.resolve(n.value).get).toSet
+        val resolvedFqn = namespace.resolve(k).get.asInstanceOf[GraphNode]
+        resolvedFqn -> expectedUpstreamAncestors
     }
   }
 

@@ -78,8 +78,8 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
         val evaluatedElements = a.getAttribute("values").astListAsVector map evaluate
         for {
           elements <- TryUtil.sequence(evaluatedElements)
-          subtype <- WdlType.homogeneousTypeFromValues(elements)
-        } yield WdlArray(WdlArrayType(subtype), elements)
+          subtype = WdlType.homogeneousTypeFromValues(elements)
+        } yield WdlArray(WdlArrayType(subtype), elements.map(subtype.coerceRawValue(_).get))
       case a: Ast if a.isTupleLiteral =>
         val unevaluatedElements = a.getAttribute("values").astListAsVector
         if (unevaluatedElements.size == 1) {

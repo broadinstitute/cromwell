@@ -95,17 +95,22 @@ object WdlType {
     WdlArrayType(WdlAnyType), WdlBooleanType, WdlObjectType
   )
 
-  def homogeneousTypeFromValues(values: Iterable[WdlValue]): Try[WdlType] =
+  def homogeneousTypeFromValues(values: Iterable[WdlValue]): WdlType =
     homogeneousTypeFromTypes(values.map(_.wdlType))
 
-  def homogeneousTypeFromTypes(types: Iterable[WdlType]): Try[WdlType] = {
+  def homogeneousTypeFromTypes(types: Iterable[WdlType]): WdlType = {
     types.toSet match {
-      case s if s.isEmpty => Failure(new WdlTypeException(s"Can't have empty Array/Map declarations (can't infer type)"))
-      case s if s.size == 1 => Success(s.head)
-      case _ => Failure(new WdlTypeException("Arrays/Maps must have homogeneous types"))
+      case s if s.isEmpty => WdlAnyType
+      case s if s.size == 1 => s.head
+      case _ => lowestCommonSubtype(types)
     }
   }
 
+  def lowestCommonSubtype(types: Iterable[WdlType]): WdlType = {
+    types.collectFirst {
+      case t1 if types.forall(t2 => t1.isCoerceableFrom(t2)) => t1
+    } getOrElse WdlAnyType
+  }
 
   def fromWdlString(wdlString: String): WdlType = {
     wdlString match {

@@ -139,6 +139,13 @@ trait Scope {
     ancestrySafe find { otherAncestry.contains(_) }
   }
 
+  def closestCommonScatter(other: Scope): Option[Scatter] = {
+    val otherAncestry = other.ancestrySafe
+    ancestrySafe collectFirst  {
+      case s: Scatter if otherAncestry.contains(s) => s
+    }
+  }
+
   /**
     * Performs scope resolution starting from this scope and walking up the lexical hierarchy
     * until it finds a GraphNode with the `name` as its unqualifiedName
@@ -219,7 +226,7 @@ trait Scope {
       this match {
         case s: Scatter if children.contains(node) => withShard(s)
         case other =>
-          other.closestCommonAncestor(node) match {
+          other.closestCommonScatter(node) match {
             case Some(s: Scatter) => withShard(s)
             case _ => outputResolver(node, None)
           }

@@ -19,8 +19,8 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile]
   def size(params: Seq[Try[WdlValue]]): Try[WdlFloat]
 
-  def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
-  def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter(params).map(s => WdlString(s.trim))
+  def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects("read_objects", params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
+  def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter("read_string", params).map(s => WdlString(s.trim))
   def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue]
   def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
   def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
@@ -32,20 +32,20 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
 
   def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
-      contents <- readContentsFromSingleFileParameter(params)
+      contents <- readContentsFromSingleFileParameter("read_lines", params)
       lines = contents.split("\n")
     } yield WdlArray(WdlArrayType(WdlStringType), lines map WdlString)
   }
 
   def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
     for {
-      contents <- readContentsFromSingleFileParameter(params)
+      contents <- readContentsFromSingleFileParameter("read_map", params)
       wdlMap <- WdlMap.fromTsv(contents, WdlMapType(WdlAnyType, WdlAnyType))
     } yield wdlMap
   }
 
   def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = {
-    extractObjects(params) map {
+    extractObjects("read_object", params) map {
       case array if array.length == 1 => array.head
       case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
     }
@@ -53,7 +53,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
 
   def read_tsv(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
-      contents <- readContentsFromSingleFileParameter(params)
+      contents <- readContentsFromSingleFileParameter("read_tsv", params)
       wdlArray = WdlArray.fromTsv(contents)
     } yield wdlArray
   }
@@ -64,7 +64,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
 
   def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
-      singleArgument <- extractSingleArgument(params)
+      singleArgument <- extractSingleArgument("glob", params)
       globVal = singleArgument.valueString
       files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }
@@ -138,17 +138,23 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     } yield WdlString(pattern.r.replaceAllIn(str, replace))
   }
 
-  def select_first(params: Seq[Try[WdlValue]]): Try[WdlValue] = extractSingleArgument(params) flatMap {
-    case WdlArray(WdlArrayType(WdlOptionalType(_)), arrayValue) =>
-      (arrayValue collectFirst { case WdlOptionalValue(_, Some(wdlValue)) => wdlValue })
+  def select_first(params: Seq[Try[WdlValue]]): Try[WdlValue] = extractSingleArgument("select_first", params) flatMap {
+    case WdlArray(WdlArrayType(WdlOptionalType(memberType)), arrayValue) =>
+      (arrayValue collectFirst {
+        case WdlOptionalValue(_, Some(wdlValue)) => wdlValue
+        case wdlValue if memberType.isCoerceableFrom(wdlValue.wdlType) => memberType.coerceRawValue(wdlValue).get
+      })
         .map(Success(_))
         .getOrElse(Failure(new IllegalArgumentException("select_first failed. All provided values were empty.")))
-    case other => Failure(new IllegalArgumentException("select_first must take an array of optional values but got: " + other.toWdlString))
+    case other => Failure(new IllegalArgumentException(s"select_first must take an array of optional values but got ${other.wdlType.toWdlString}: ${other.toWdlString}"))
   }
 
-  def select_all(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractSingleArgument(params) flatMap {
+  def select_all(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractSingleArgument("select_all", params) flatMap {
     case WdlArray(WdlArrayType(WdlOptionalType(memberType)), arrayValue) =>
-      Success(WdlArray(WdlArrayType(memberType), arrayValue collect { case WdlOptionalValue(_, Some(wdlValue)) => wdlValue }))
+      Success(WdlArray(WdlArrayType(memberType), arrayValue collect {
+        case WdlOptionalValue(_, Some(wdlValue)) => wdlValue
+        case wdlValue if memberType.isCoerceableFrom(wdlValue.wdlType) => memberType.coerceRawValue(wdlValue).get
+      }))
     case other => Failure(new IllegalArgumentException("select_all must take an array of optional values but got: " + other.toWdlString))
   }
 
@@ -181,15 +187,15 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     * as a File and attempts to read the contents of that file and returns back the contents
     * as a String
     */
-  private def readContentsFromSingleFileParameter(params: Seq[Try[WdlValue]]): Try[String] = {
+  private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WdlValue]]): Try[String] = {
     for {
-      singleArgument <- extractSingleArgument(params)
+      singleArgument <- extractSingleArgument(functionName, params)
       string = fileContentsToString(singleArgument.valueString)
     } yield string
   }
 
-  private def extractObjects(params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] = for {
-    contents <- readContentsFromSingleFileParameter(params)
+  private def extractObjects(functionName: String, params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] = for {
+    contents <- readContentsFromSingleFileParameter(functionName, params)
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
@@ -199,7 +205,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
 
   private def writeToTsv(params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
     for {
-      singleArgument <- extractSingleArgument(params)
+      singleArgument <- extractSingleArgument("writeToTsv", params)
       downcast <- Try(wdlClass.cast(singleArgument))
       tsvSerialized <- downcast.tsvSerialize
       file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
@@ -276,11 +282,11 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
     case Success(t @ WdlArrayType(WdlArrayType(wdlType))) :: Nil => Success(t)
     case _ => Failure(new Exception(s"Unexpected transpose target: $params"))
   }
-  def select_first(params: Seq[Try[WdlType]]): Try[WdlType] = extractSingleArgument(params) flatMap {
+  def select_first(params: Seq[Try[WdlType]]): Try[WdlType] = extractSingleArgument("select_first", params) flatMap {
     case WdlArrayType(WdlOptionalType(innerType)) => Success(innerType)
     case other => Failure(new IllegalArgumentException(s"select_first failed. It expects an array of optional values but got ${other.toWdlString}."))
   }
-  def select_all(params: Seq[Try[WdlType]]): Try[WdlType] = extractSingleArgument(params) flatMap {
+  def select_all(params: Seq[Try[WdlType]]): Try[WdlType] = extractSingleArgument("select_all", params) flatMap {
     case WdlArrayType(WdlOptionalType(innerType)) => Success(WdlArrayType(innerType))
     case other => Failure(new IllegalArgumentException(s"select_all failed. It expects an array of optional values but got ${other.toWdlString}."))
   }

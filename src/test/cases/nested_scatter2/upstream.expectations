@@ -7,7 +7,9 @@
   "w.$scatter_1": ["w.$scatter_0"],
   "w.array": [],
   "w.inner": ["w.$scatter_1"],
-  "w.inner.i": [],
+  "w.inner.i": ["w.inner"],
+  "w.inner.out": ["w.inner"],
   "w.outer": ["w.inner"],
-  "w.outer.matrix": []
+  "w.outer.matrix": ["w.outer"],
+  "w.outer.tsv": ["w.outer"]
 }

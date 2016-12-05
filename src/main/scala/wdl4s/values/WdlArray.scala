@@ -1,7 +1,7 @@
 package wdl4s.values
 
 import wdl4s.TsvSerializable
-import wdl4s.types.{WdlArrayType, WdlObjectType, WdlPrimitiveType, WdlStringType}
+import wdl4s.types._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -21,8 +21,8 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
   if (typesUsedInValue.size == 1 && typesUsedInValue.head != wdlType.memberType) {
     throw new UnsupportedOperationException(s"Could not construct array of type $wdlType with this value: $value")
   }
-  if (typesUsedInValue.size > 1) {
-    throw new UnsupportedOperationException(s"Cannot construct array with a mixed types: $value")
+  if (typesUsedInValue.size > 1 && !value.forall(v => wdlType.memberType.isCoerceableFrom(v.wdlType))) {
+    throw new UnsupportedOperationException(s"Cannot construct ${wdlType.memberType.toWdlString} array with mixed type: ${value.map(_.wdlType).toSet.mkString(", ")}")
   }
 
   override def toWdlString: String = s"[${value.map(_.toWdlString).mkString(", ")}]"

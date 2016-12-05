@@ -1,0 +1,15 @@
+{
+  "summary": "",
+  "summary.bfile": "summary",
+  "summary.hwe": "summary",
+  "summary.imiss": "summary",
+  "summary.lmiss": "summary",
+  "summary.log": "summary",
+  "test1": "",
+  "test1.summary": "test1",
+  "test1.summary.bfile": "test1.summary",
+  "test1.summary.hwe": "test1.summary",
+  "test1.summary.imiss": "test1.summary",
+  "test1.summary.lmiss": "test1.summary",
+  "test1.summary.log": "test1.summary"
+}

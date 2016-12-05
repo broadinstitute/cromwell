@@ -60,7 +60,7 @@ object Call {
 sealed abstract class Call(val alias: Option[String],
                     val callable: Callable,
                     val inputMappings: Map[String, WdlExpression],
-                    val ast: Ast) extends GraphNode with WorkflowScoped {
+                    val ast: Ast) extends GraphNodeWithInputs with WorkflowScoped {
   val unqualifiedName: String = alias getOrElse callable.unqualifiedName
   
   def callType: String
@@ -74,41 +74,6 @@ sealed abstract class Call(val alias: Option[String],
   lazy val outputs: Seq[CallOutput] = callable.outputs map toCallOutput
   
   override def children: Seq[Scope] = super.children ++ outputs
-  
-  lazy val upstream: Set[GraphNode] = {
-    val dependentNodes = for {
-      expr <- inputMappings.values
-      variable <- expr.variableReferences
-      node <- parent.flatMap(_.resolveVariable(variable.sourceString))
-    } yield node
-
-    val firstScatterOrIf = ancestry.collectFirst({
-      case s: Scatter with GraphNode => s
-      case i: If with GraphNode => i
-    })
-
-    (dependentNodes ++ firstScatterOrIf.toSeq).toSet
-  }
-
-  lazy val downstream: Set[GraphNode] = {
-    def expressions(node: GraphNode): Iterable[WdlExpression] = node match {
-      case scatter: Scatter => Set(scatter.collection)
-      case call: TaskCall => call.inputMappings.values
-      case ifStatement: If => Set(ifStatement.condition)
-      case declaration: Declaration => declaration.expression.toSet
-      case _ => Set.empty
-    }
-
-    for {
-      node <- namespace.descendants.collect({ 
-        case n: GraphNode if n.fullyQualifiedNameWithIndexScopes != fullyQualifiedNameWithIndexScopes => n 
-      })
-      expression <- expressions(node)
-      variable <- expression.variableReferences
-      referencedNode = resolveVariable(variable.sourceString)
-      if referencedNode == Option(this)
-    } yield node
-  }
 
   /**
    * Returns a Seq[WorkflowInput] representing the inputs to the call that are

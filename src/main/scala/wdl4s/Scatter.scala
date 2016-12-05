@@ -21,33 +21,11 @@ object Scatter {
  * @param item Item which this block is scattering over
  * @param collection Wdl Expression corresponding to the collection this scatter is looping through
  */
-case class Scatter(index: Int, item: String, collection: WdlExpression, ast: Ast) extends GraphNode with WorkflowScoped {
+case class Scatter(index: Int, item: String, collection: WdlExpression, ast: Ast) extends GraphNodeWithUpstreamReferences with WorkflowScoped {
   val unqualifiedName = s"${Scatter.FQNIdentifier}_$index"
   override def appearsInFqn = false
 
-  lazy val upstream: Set[GraphNode] = {
-    val referencedNodes = for {
-      variable <- collection.variableReferences
-      node <- resolveVariable(variable.sourceString)
-      if node.fullyQualifiedNameWithIndexScopes != fullyQualifiedNameWithIndexScopes
-    } yield node
-
-    val firstScatterOrIf = ancestry.collectFirst({
-      case s: Scatter with GraphNode => s
-      case i: If with GraphNode => i
-    })
-
-    (referencedNodes ++ firstScatterOrIf.toSeq).toSet
-  }
-
-  lazy val downstream: Set[GraphNode] = {
-    for {
-      node <- namespace.descendants.collect({ 
-        case n: GraphNode if n.fullyQualifiedName != fullyQualifiedName => n 
-      })
-      if node.upstream.contains(this)
-    } yield node
-  }
+  final val upstreamReferences = collection.variableReferences
 
   override def toString: String = s"[Scatter fqn=$fullyQualifiedName, item=$item, collection=${collection.toWdlString}]"
 }

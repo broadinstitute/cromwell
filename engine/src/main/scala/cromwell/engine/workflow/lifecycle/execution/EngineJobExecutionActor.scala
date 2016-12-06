@@ -399,7 +399,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
-      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _, executionEvents) => saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
+      case SucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: JobOutputs, _, executionEvents) =>
         eventList ++= executionEvents
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(jobKey: BackendJobDescriptorKey) =>

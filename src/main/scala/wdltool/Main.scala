@@ -3,8 +3,9 @@ package wdltool
 import java.nio.file.Paths
 
 import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl4s.{AstTools, WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl4s._
 import spray.json._
+
 
 import scala.util.{Failure, Success, Try}
 
@@ -33,6 +34,7 @@ object Main extends App {
       case Some(x) if x == Actions.Highlight => highlight(args.tail)
       case Some(x) if x == Actions.Inputs => inputs(args.tail)
       case Some(x) if x == Actions.Parse => parse(args.tail)
+      case Some(x) if x == Actions.Graph => graph(args.tail)
       case _ => BadUsageTermination
     }
   }
@@ -72,6 +74,23 @@ object Main extends App {
     }
   }
 
+  def graph(args: Seq[String]): Termination = {
+    continueIf(args.length == 1 || (args.length == 2 && args.head.equals("--all"))) {
+
+      val (file, allNodesMode) =
+        if (args.size == 1) (args.head, false)
+        else (args(1), true)
+
+      val workflowDigraph = GraphPrint.generateWorkflowDigraph(file, allNodesMode)
+
+      val result = s"""|digraph ${workflowDigraph.workflowName} {
+                       |  ${workflowDigraph.digraph.mkString(System.lineSeparator + "  ")}
+                       |}
+                       |"""
+      SuccessfulTermination(result.stripMargin)
+    }
+  }
+
   private[this] def continueIf(valid: => Boolean)(block: => Termination): Termination = if (valid) block else BadUsageTermination
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
@@ -88,7 +107,7 @@ object Main extends App {
   } yield action
 
   object Actions extends Enumeration {
-    val Parse, Validate, Highlight, Inputs = Value
+    val Parse, Validate, Highlight, Inputs, Graph = Value
   }
 
   val UsageMessage = """
@@ -119,7 +138,14 @@ object Main extends App {
                        |  abstract syntax tree if it is valid, and a syntax error
                        |  otherwise.  Note that higher-level AST checks are not done
                        |  via this sub-command and the 'validate' subcommand should
-                       |  be used for full validation
+                       |  be used for full validation.
+                       |graph [--all] <WDL file>
+                       |
+                       |  Reads a WDL file against the grammar and prints out a
+                       |  .dot of the DAG if it is valid, and a syntax error
+                       |  otherwise.
+                       |  Use [--all] to show all graph nodes in the WDL spec,
+                       |  even the non-executable nodes.
                      """.stripMargin
 
   val termination = dispatchCommand(args)

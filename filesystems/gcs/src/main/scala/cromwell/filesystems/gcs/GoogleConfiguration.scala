@@ -8,10 +8,11 @@ import cats.syntax.validated._
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.Config
 import cromwell.filesystems.gcs.auth._
-import lenthall.config.ConfigValidationException
-import lenthall.config.ValidatedConfig._
-import cromwell.core.ErrorOr._
+import lenthall.exception.MessageAggregation
+import lenthall.validation.ErrorOr._
+import lenthall.validation.Validation._
 import org.slf4j.LoggerFactory
+import net.ceedubs.ficus.Ficus._
 
 final case class GoogleConfiguration private (applicationName: String, authsByName: Map[String, GoogleAuthMode]) {
 
@@ -29,31 +30,35 @@ object GoogleConfiguration {
   import scala.collection.JavaConverters._
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
+  case class GoogleConfigurationException(errorMessages: List[String]) extends MessageAggregation {
+    override val exceptionContext = "Google configuration"
+  }
+
   val GoogleScopes = List(
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
     StorageScopes.DEVSTORAGE_READ_WRITE,
     "https://www.googleapis.com/auth/genomics",
     "https://www.googleapis.com/auth/compute"
   ).asJava
-
+  
   def apply(config: Config): GoogleConfiguration = {
 
     val googleConfig = config.getConfig("google")
 
-    val appName = googleConfig.validateString("application-name")
+    val appName = validate { googleConfig.as[String]("application-name") }
 
     def buildAuth(authConfig: Config): ErrorOr[GoogleAuthMode] = {
 
-      def serviceAccountAuth(authConfig: Config, name: String) = authConfig validateAny {
-        cfg => ServiceAccountMode(name, cfg.getString("service-account-id"), cfg.getString("pem-file"), GoogleScopes)
+      def serviceAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
+        ServiceAccountMode(name, authConfig.as[String]("service-account-id"), authConfig.as[String]("pem-file"), GoogleScopes)
       }
 
-      def userAccountAuth(authConfig: Config, name: String) = authConfig validateAny {
-        cfg => UserMode(name, cfg.getString("user"), cfg.getString("secrets-file"), cfg.getString("data-store-dir"), GoogleScopes)
+      def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] =  validate {
+        UserMode(name, authConfig.as[String]("user"), authConfig.as[String]("secrets-file"), authConfig.as[String]("data-store-dir"), GoogleScopes)
       }
 
-      def refreshTokenAuth(authConfig: Config, name: String) = authConfig validateAny {
-        cfg => RefreshTokenMode(name, cfg.getString("client-id"), cfg.getString("client-secret"), GoogleScopes)
+      def refreshTokenAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
+        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"), GoogleScopes)
       }
 
       def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
@@ -69,7 +74,7 @@ object GoogleConfiguration {
       }
     }
 
-    val listOfErrorOrAuths: List[ErrorOr[GoogleAuthMode]] = googleConfig.getConfigList("auths").asScala.toList map buildAuth
+    val listOfErrorOrAuths: List[ErrorOr[GoogleAuthMode]] = googleConfig.as[List[Config]]("auths") map buildAuth
     val errorOrAuthList: ErrorOr[List[GoogleAuthMode]] = listOfErrorOrAuths.sequence[ErrorOr, GoogleAuthMode]
 
     def uniqueAuthNames(list: List[GoogleAuthMode]): ErrorOr[Unit] = {
@@ -90,7 +95,7 @@ object GoogleConfiguration {
       case Invalid(f) =>
         val errorMessages = f.toList.mkString(", ")
         log.error(errorMessages)
-        throw new ConfigValidationException("Google", errorMessages)
+        throw new GoogleConfigurationException(f.toList)
     }
   }
 }

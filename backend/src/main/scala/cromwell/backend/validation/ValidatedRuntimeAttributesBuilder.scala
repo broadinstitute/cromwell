@@ -4,7 +4,7 @@ import cats.data.Validated._
 import cats.instances.list._
 import cromwell.backend.RuntimeAttributeDefinition
 import lenthall.exception.MessageAggregation
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.values.WdlValue
 

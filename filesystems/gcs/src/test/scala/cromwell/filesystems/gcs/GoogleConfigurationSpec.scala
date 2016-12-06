@@ -2,8 +2,8 @@ package cromwell.filesystems.gcs
 
 import better.files.File
 import com.typesafe.config.{ConfigException, ConfigFactory}
+import cromwell.filesystems.gcs.GoogleConfiguration.GoogleConfigurationException
 import cromwell.filesystems.gcs.auth.{ApplicationDefaultMode, RefreshTokenMode, ServiceAccountMode, UserMode}
-import lenthall.config.ConfigValidationException
 import org.scalatest.{FlatSpec, Matchers}
 
 
@@ -90,7 +90,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[ConfigValidationException] shouldBe thrownBy {
+    a[GoogleConfigurationException] shouldBe thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(applessGoogleConfig))
     }
   }
@@ -110,7 +110,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[ConfigValidationException] shouldBe thrownBy {
+    a[GoogleConfigurationException] shouldBe thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(unsupported))
     }
 
@@ -167,7 +167,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[ConfigException.Missing] shouldBe thrownBy {
+    a[GoogleConfigurationException] shouldBe thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInRefreshTokenMode))
     }
 
@@ -188,7 +188,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[ConfigException.Missing] shouldBe thrownBy {
+    a[GoogleConfigurationException] shouldBe thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInUserMode))
     }
 
@@ -208,7 +208,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    a[ConfigException.Missing] shouldBe thrownBy {
+    a[GoogleConfigurationException] shouldBe thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInServiceAccountMode))
     }
   }

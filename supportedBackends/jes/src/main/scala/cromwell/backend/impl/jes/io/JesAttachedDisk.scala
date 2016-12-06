@@ -6,8 +6,8 @@ import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.google.api.services.genomics.model.Disk
-import cromwell.core.ErrorOr._
-import wdl4s.ExceptionWithErrors
+import lenthall.validation.ErrorOr._
+import lenthall.exception.MessageAggregation
 import wdl4s.values._
 
 import scala.util.Try
@@ -36,9 +36,9 @@ object JesAttachedDisk {
     Try(validation match {
       case Valid(localDisk) => localDisk
       case Invalid(nels) =>
-        throw new UnsupportedOperationException with ExceptionWithErrors {
-          val message = ""
-          val errors = nels
+        throw new UnsupportedOperationException with MessageAggregation {
+          val exceptionContext = ""
+          val errorMessages = nels.toList
         }
     })
   }

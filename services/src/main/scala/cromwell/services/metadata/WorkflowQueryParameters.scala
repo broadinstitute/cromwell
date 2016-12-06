@@ -7,7 +7,7 @@ import cats.syntax.cartesian._
 import cats.syntax.validated._
 import cromwell.core.WorkflowId
 import cromwell.services.metadata.WorkflowQueryKey._
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 
 
 case class WorkflowQueryParameters private(statuses: Set[String],

@@ -7,7 +7,7 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.pattern.ThrowableProxyConverter
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.LayoutBase
-import cromwell.util.TerminalUtil
+import lenthall.util.TerminalUtil
 
 object TerminalLayout {
   val Converter = new ThrowableProxyConverter

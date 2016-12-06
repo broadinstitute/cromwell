@@ -9,7 +9,7 @@ import cats.syntax.validated._
 import cromwell.core.{WorkflowSourceFilesWithoutImports, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip}
 import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 
 import scala.util.{Failure, Success, Try}
 

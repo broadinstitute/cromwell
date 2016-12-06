@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.core._
 import cromwell.core.path.PathFactory
-import cromwell.util.TryUtil
+import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.values._

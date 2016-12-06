@@ -9,9 +9,8 @@ import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.backend.validation._
-import cromwell.core._
 import lenthall.exception.MessageAggregation
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values._

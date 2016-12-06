@@ -3,11 +3,11 @@ package cromwell.backend.impl.spark
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.{WorkflowId, WorkflowOptions}
+import lenthall.util.TryUtil
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
 import wdl4s.WdlExpression._
 import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, _}
 

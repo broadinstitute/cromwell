@@ -11,8 +11,8 @@ import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
+import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
-import wdl4s.util.TryUtil
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger

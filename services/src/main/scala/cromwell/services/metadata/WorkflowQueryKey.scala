@@ -6,7 +6,7 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.core.{WorkflowId, WorkflowState}
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 
 import scala.util.{Success, Try}
 

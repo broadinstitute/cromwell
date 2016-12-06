@@ -4,12 +4,12 @@ import cromwell.backend.{BackendSpec, MemorySize}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.WorkflowOptions
+import lenthall.util.TryUtil
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json._
 import wdl4s.WdlExpression._
 import wdl4s._
 import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {

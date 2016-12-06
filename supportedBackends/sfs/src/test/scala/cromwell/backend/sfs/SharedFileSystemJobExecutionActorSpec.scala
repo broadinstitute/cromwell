@@ -14,11 +14,11 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
 import wdl4s.types._
-import wdl4s.util.AggregatedException
 import wdl4s.values._
 
 import scala.concurrent.duration._
@@ -261,7 +261,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   it should "fail post processing if an output file is not found" in {
     val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey],
-      AggregatedException(Seq.empty, "Could not process output, file not found"), Option(0))
+      AggregatedException("Could not process output, file not found:", Seq.empty), Option(0))
     val workflow = TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), emptyBackendConfig, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)

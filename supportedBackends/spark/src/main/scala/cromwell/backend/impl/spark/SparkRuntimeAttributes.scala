@@ -8,7 +8,7 @@ import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 import lenthall.exception.MessageAggregation
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
 import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}

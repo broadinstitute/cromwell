@@ -1,8 +1,9 @@
 package cromwell.webservice
 
+import lenthall.exception.MessageAggregation
 import spray.json._
+import wdl4s.FullyQualifiedName
 import wdl4s.values.WdlValue
-import wdl4s.{ExceptionWithErrors, FullyQualifiedName}
 
 
 case class WorkflowStatusResponse(id: String, status: String)
@@ -21,9 +22,9 @@ object APIResponse {
 
   private def constructFailureResponse(status: String, ex: Throwable) ={
     ex match {
-      case exceptionWithErrors: ExceptionWithErrors =>
-        FailureResponse(status, exceptionWithErrors.message,
-          Option(JsArray(exceptionWithErrors.errors.toList.map(JsString(_)).toVector)))
+      case exceptionWithErrors: MessageAggregation =>
+        FailureResponse(status, exceptionWithErrors.getMessage,
+          Option(JsArray(exceptionWithErrors.errorMessages.toList.map(JsString(_)).toVector)))
       case e: Throwable => FailureResponse(status, e.getMessage, None)
     }
   }

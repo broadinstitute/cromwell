@@ -80,7 +80,7 @@ class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
 
     val defaults = workflowOptionsDefault(workflowOptions, coercionMap)
     defaults.isFailure shouldBe true
-    defaults.failed.get.getMessage shouldBe s": RuntimeException: Could not parse JsonValue ${map("str")} to valid WdlValue for runtime attribute str"
+    defaults.failed.get.getMessage shouldBe s"Failed to coerce default runtime options:\nCould not parse JsonValue ${map("str")} to valid WdlValue for runtime attribute str"
   }
 
   it should "fold default values" in {

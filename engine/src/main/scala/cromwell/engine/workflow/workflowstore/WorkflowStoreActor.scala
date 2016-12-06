@@ -12,8 +12,8 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, PutMetadataAction}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import lenthall.util.TryUtil
 import org.apache.commons.lang3.exception.ExceptionUtils
-import wdl4s.util.TryUtil
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}

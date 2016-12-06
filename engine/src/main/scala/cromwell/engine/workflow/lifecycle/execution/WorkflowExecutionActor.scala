@@ -17,9 +17,10 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{appl
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, MetadataPutFailed}
-import cromwell.util.{StopAndLogSupervisor, TryUtil}
+import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
+import lenthall.util.TryUtil
 import net.ceedubs.ficus.Ficus._
 import wdl4s.values.{WdlArray, WdlValue}
 import wdl4s.{Scope, _}

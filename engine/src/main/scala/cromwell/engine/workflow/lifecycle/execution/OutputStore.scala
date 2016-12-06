@@ -4,8 +4,8 @@ import cromwell.core.ExecutionIndex._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
+import lenthall.util.TryUtil
 import wdl4s.types.{WdlArrayType, WdlType}
-import wdl4s.util.TryUtil
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
 import wdl4s.{Call, Declaration, GraphNode, Scope}
 

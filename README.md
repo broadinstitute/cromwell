@@ -163,8 +163,7 @@ run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
 
   -version
 
-  Returns the version of Cromwell engine being used and the
-  version of Wdl4S being utilized.
+  Returns the version of the Cromwell engine.
 
 ```
 
@@ -293,7 +292,7 @@ Start a server on port 8000, the API for the server is described in the [REST AP
 
 ## version
 
-Returns the version of Cromwell and the version of Wdl4S being consumed.
+Returns the version of Cromwell engine.
 
 # Getting Started with WDL
 
@@ -3149,8 +3148,7 @@ Response:
 "content-type": "application/json; charset=UTF-8"
 
 {
-  "cromwell": 23-8be799a-SNAP,
-  "wdl4s": 0.7
+  "cromwell": 23-8be799a-SNAP
 }
 ```
 

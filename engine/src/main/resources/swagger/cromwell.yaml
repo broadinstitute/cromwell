@@ -848,6 +848,3 @@ definitions:
       cromwell:
         type: string
         description: The version of the Cromwell Engine
-      wdl4s:
-        type: string
-        description: The version of the Wdl4S beign used by Cromwell

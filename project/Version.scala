@@ -24,7 +24,6 @@ object Version {
     val contents =
       s"""|version {
           |  cromwell: "${version.value}"
-          |  wdl4s: "${Dependencies.wdl4sV}"
           |}
           |""".stripMargin
     IO.write(file, contents)

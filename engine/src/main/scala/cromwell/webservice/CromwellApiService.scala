@@ -282,8 +282,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     }
 
   def versionResponse(versionConf: Config) = JsObject(Map(
-    "cromwell" -> versionConf.getString("cromwell").toJson,
-    "wdl4s" -> versionConf.getString("wdl4s").toJson
+    "cromwell" -> versionConf.getString("cromwell").toJson
   ))
 
   def backendRoute =

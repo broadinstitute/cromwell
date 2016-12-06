@@ -122,8 +122,7 @@ object Main extends App {
         |
         |-version
         |
-        |   Returns the version of Cromwell engine being used and the
-        |   version of Wdl4S being utilized.
+        |   Returns the version of the Cromwell engine.
         |
       """.stripMargin)
 
@@ -134,8 +133,7 @@ object Main extends App {
     val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
     println(
       s"""
-         |cromwell: ${versionConf.getString("cromwell")},
-         |   wdl4s: ${versionConf.getString("wdl4s")}
+         |cromwell: ${versionConf.getString("cromwell")}
        """.stripMargin
     )
     System.exit(1)

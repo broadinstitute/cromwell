@@ -28,13 +28,14 @@ object JesAttributes {
     "project",
     "root",
     "maximum-polling-interval",
-    "compute-service-account",
+    "genomics.compute-service-account",
     "dockerhub",
     "genomics",
     "filesystems",
     "genomics.auth",
     "genomics.endpoint-url",
-    "filesystems.gcs.auth"
+    "filesystems.gcs.auth",
+    "genomics-api-queries-per-100-seconds"
   )
 
   private val context = "Jes"

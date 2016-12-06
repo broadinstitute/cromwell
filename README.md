@@ -20,6 +20,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
+  * [version](#version)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
   * [Workflow Submission](#workflow-submission)
@@ -159,6 +160,12 @@ run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
 
   Starts a web server on port 8000.  See the web server
   documentation for more details about the API endpoints.
+
+  -version
+
+  Returns the version of Cromwell engine being used and the
+  version of Wdl4S being utilized.
+
 ```
 
 ## run
@@ -283,6 +290,10 @@ $ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
 ## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
+
+## version
+
+Returns the version of Cromwell and the version of Wdl4S being consumed.
 
 # Getting Started with WDL
 
@@ -3138,7 +3149,7 @@ Response:
 "content-type": "application/json; charset=UTF-8"
 
 {
-  "cromwell": 23,
+  "cromwell": 23-8be799a-SNAP,
   "wdl4s": 0.7
 }
 ```

@@ -21,6 +21,7 @@ object Main extends App {
 
   CommandLine match {
     case UsageAndExit => usageAndExit()
+    case VersionAndExit => versionAndExit()
     case RunServer => waitAndExit(CromwellServer.run(CromwellSystem), CromwellSystem)
     case r: RunSingle => runWorkflow(r)
   }
@@ -118,8 +119,25 @@ object Main extends App {
         |
         |  Starts a web server on port 8000.  See the web server
         |  documentation for more details about the API endpoints.
+        |
+        |-version
+        |
+        |   Returns the version of Cromwell engine being used and the
+        |   version of Wdl4S being utilized.
+        |
       """.stripMargin)
 
+    System.exit(1)
+  }
+
+  def versionAndExit(): Unit = {
+    val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+    println(
+      s"""
+         |cromwell: ${versionConf.getString("cromwell")},
+         |   wdl4s: ${versionConf.getString("wdl4s")}
+       """.stripMargin
+    )
     System.exit(1)
   }
 }

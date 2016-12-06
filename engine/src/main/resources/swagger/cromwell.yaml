@@ -615,7 +615,6 @@ securityDefinitions:
       openid: open id authorization
 definitions:
   WorkflowSubmitResponse:
-    description: ''
     required:
       - id
       - status
@@ -627,7 +626,7 @@ definitions:
         type: string
         description: The status of the workflow
   WorkflowAbortResponse:
-    description: ''
+
     required:
       - id
       - status
@@ -639,7 +638,6 @@ definitions:
         type: string
         description: The status of the workflow
   WorkflowStatusResponse:
-    description: ''
     required:
       - id
       - status
@@ -651,7 +649,7 @@ definitions:
         type: string
         description: The status of the workflow
   WorkflowMetadataResponse:
-    description: 'Workflow and call level metadata'
+    description: Workflow and call level metadata
     required:
       - id
       - status
@@ -686,7 +684,7 @@ definitions:
       failures:
         $ref: '#/definitions/FailureMessage'
   CallMetadata:
-    description: 'Call level metadata'
+    description: Call level metadata
     required:
       - inputs
       - executionStatus
@@ -729,7 +727,7 @@ definitions:
         type: object
         description: Paths to backend specific logs for this call
   FailureMessage:
-    description: 'Failure messages'
+    description: Failure messages
     required:
       - failure
       - timestamp
@@ -817,7 +815,6 @@ definitions:
         format: date-time
         description: Workflow end datetime
   BackendResponse:
-    description: ''
     required:
       - supportedBackends
       - defaultBackend
@@ -831,7 +828,7 @@ definitions:
         type: string
         description: The default backend of this server
   StatsResponse:
-    description: 'Provides engine level statistics for things running inside the system'
+    description: Provides engine level statistics for things running inside the system
     required:
       - workflows
       - jobs
@@ -843,7 +840,7 @@ definitions:
         type: integer
         description: The number of currently running jobs
   VersionResponse:
-    description: 'Provides the version of the engine running inside the system'
+    description: Returns the version of Cromwell
     properties:
       cromwell:
         type: string

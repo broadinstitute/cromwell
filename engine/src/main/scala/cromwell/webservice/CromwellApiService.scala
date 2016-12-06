@@ -275,7 +275,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("engine" / Segment / "version") { version =>
       get {
         complete {
-          val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+          lazy val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
           versionResponse(versionConf)
         }
       }

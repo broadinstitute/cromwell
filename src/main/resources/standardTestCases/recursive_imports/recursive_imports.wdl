@@ -7,6 +7,7 @@ task join {
   Int wcCount
   command {
     expr ${wcCount} / ${grepCount}
+    sleep 2
   }
   output {
     Int proportion = read_int(stdout())

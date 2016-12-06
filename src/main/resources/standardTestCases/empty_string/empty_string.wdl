@@ -1,6 +1,7 @@
 task hello {
   command {
     echo "Hello!"
+    sleep 2
   }
   output {
     String empty = ""
@@ -14,6 +15,7 @@ task goodbye {
   String emptyInputString
   command {
     echo "${emptyInputString}"
+    sleep 2
   }
   output {
     String empty = read_string(stdout())

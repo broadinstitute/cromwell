@@ -2,6 +2,7 @@ task t {
     String i
     command {
         echo "${i}"
+        sleep 2
     }
     runtime {
         docker: "ubuntu:latest"

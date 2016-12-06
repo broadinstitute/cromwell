@@ -26,10 +26,12 @@ Arguments:
     -c    If supplied, the config file to pass to Cromwell
     -t    Refresh Token that can be passed into the appropriate options file
     -e    If supplied, will exclude tests with this tag
+    -p    If supplied, number of tests to be run in parallel. 16 is the default
 "
 
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
+TEST_THREAD_COUNT=16
 
 while getopts ":hb:r:c:p:j:t:e:" option; do
     case "$option" in
@@ -47,6 +49,8 @@ while getopts ":hb:r:c:p:j:t:e:" option; do
         j) CROMWELL_JAR="${OPTARG}"
             ;;
         t) REFRESH_TOKEN=-Dcentaur.optionalToken="${OPTARG}"
+            ;;
+        p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
         e) EXCLUDE_TAG="${OPTARG}"
             ;;
@@ -112,13 +116,17 @@ fi
 cd centaur
 TEST_STATUS="failed"
 
+sbt test:compile
+CP=$(sbt "export test:dependency-classpath" --error)
+
 if [[ -n ${EXCLUDE_TAG} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG} tests"
-    TEST_COMMAND="sbt ${REFRESH_TOKEN} \"test-only -- -l ${EXCLUDE_TAG}\""
+    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.11/test-classes -oD -PS${TEST_THREAD_COUNT} -l ${EXCLUDE_TAG}"
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="sbt ${REFRESH_TOKEN} test"
+    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.11/test-classes -oD -PS${TEST_THREAD_COUNT}"
 fi
+
 
 eval "${TEST_COMMAND} >> ${CENTAUR_LOG} 2>&1"
 

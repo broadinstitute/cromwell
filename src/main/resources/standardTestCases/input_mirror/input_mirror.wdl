@@ -1,6 +1,7 @@
 task mkFile {
     command {
         echo "The sixth sheikh's sheep is sick"
+        sleep 2
     }
     output {
         File sick_sheep = stdout()

@@ -3,6 +3,7 @@ task printArray {
 
   command {
     echo "${sep='"; echo "' array}"
+    sleep 2
   }
   output {
     String o = read_string(stdout())

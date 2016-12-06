@@ -2,6 +2,7 @@ task a {
   command {
     echo "12"
     >&2 echo "200"
+    sleep 2
   }
   output {
     File out = stdout()
@@ -14,6 +15,7 @@ task b {
   File in_file
   command {
     cat ${in_file}
+    sleep 2
   }
   output {
     Int out = read_int(stdout())

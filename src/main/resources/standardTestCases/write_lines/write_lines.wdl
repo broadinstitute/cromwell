@@ -5,6 +5,7 @@ task f2a {
 
   command {
     cat ${i}
+    sleep 2
   }
 
   output {
@@ -18,6 +19,7 @@ task a2f {
 
   command {
     cat ${write_lines(strings)}
+    sleep 2
   }
 
   output {

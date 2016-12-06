@@ -8,6 +8,7 @@ task output_filename_interpolation {
         echo a > ${outputMain}
         echo b > ${outputMain + "." + outputSuffix}
         echo c > ${outputPrefix}/${outputMain}.${outputSuffix}
+        sleep 2
     }
 
     output {

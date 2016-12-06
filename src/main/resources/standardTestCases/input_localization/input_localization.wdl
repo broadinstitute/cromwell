@@ -2,6 +2,7 @@ task make_files {
   command {
     echo "content" > file1
     echo "content" > file2
+    sleep 2
   }
 
   output {
@@ -13,6 +14,7 @@ task localize {
     Array[File] array
     command {
         ls -1 "$(dirname ${array[0]})" | wc -l | tr -d '[[:space:]]'
+        sleep 2
     }
 
     output {
@@ -22,7 +24,10 @@ task localize {
 
 task echo_int {
   Int int
-  command {echo ${int} > out }
+  command {
+    echo ${int} > out
+    sleep 2
+  }
   output {File out = "out"}
 }
 
@@ -30,6 +35,7 @@ task localize_with_docker {
     Array[File] array
     command {
         ls -1 "$(dirname ${array[0]})" | wc -l | tr -d '[[:space:]]'
+        sleep 2
     }
     output {
         String ls = read_string(stdout())
@@ -39,7 +45,10 @@ task localize_with_docker {
 
 task echo_int_with_docker {
   Int int
-  command {echo ${int} > out }
+  command {
+    echo ${int} > out
+    sleep 2
+  }
   output {File out = "out"}
   runtime { docker: "ubuntu:latest" }
 }

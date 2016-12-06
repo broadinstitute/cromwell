@@ -2,6 +2,7 @@ task hey {
   String what
   command {
     echo "Hey ${what}!"
+    sleep 2
   }
   output {
     String lyrics = read_string(stdout())

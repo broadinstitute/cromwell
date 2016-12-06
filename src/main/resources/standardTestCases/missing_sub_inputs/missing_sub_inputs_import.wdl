@@ -3,6 +3,7 @@ task head {
 
   command {
      head ${inputFile}
+     sleep 2
   }
   output {
     String headOut = read_string(stdout())

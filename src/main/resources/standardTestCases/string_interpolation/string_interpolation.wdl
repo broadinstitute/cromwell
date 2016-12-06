@@ -6,6 +6,7 @@ task echo {
   command {
     echo "${greeting}" > ${out}.txt
     echo "${ one + 1 }" > ${one+1}.txt
+    sleep 2
   }
   output {
     String a_string = read_string("${out}.txt")

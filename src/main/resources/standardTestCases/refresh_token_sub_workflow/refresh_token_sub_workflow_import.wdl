@@ -3,6 +3,7 @@ task hello {
   String addressee = read_string(iFile)
   command {
     echo "Hello ${addressee}!"
+    sleep 2
   }
   output {
     String salutation = read_string(stdout())

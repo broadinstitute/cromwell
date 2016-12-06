@@ -15,15 +15,8 @@ metadata {
   "outputs.sub_workflow_interactions_hello_count": 4
   "outputs.sub_workflow_interactions_hello_salutation": "Hello Sub Workflow World!"
   
-  "outputs.out.0": "Hello 0!"
-  "outputs.out.1": "Hello 2!"
-  "outputs.out.2": "Hello 4!"
   "outputs.out2": "Hello I'm an output!"
-  "outputs.out3.0": "Hello I'm an output!"
-  "outputs.out3.1": "Hello I'm an output!"
-  "outputs.out3.2": "Hello I'm an output!"
   "outputs.out4.0": 0
   "outputs.out4.1": 2
   "outputs.out4.2": 4
-  "outputs.out6": "0\n2\n4\n6\n8\n10\n12\n14\n16\n18\n20\n0\n2\n4\n6\n8\n10\n12\n14\n16\n18\n20\n22\n0\n2\n4\n6\n8\n10\n12\n14\n16\n18\n20\n22\n24"
 }

@@ -2,6 +2,7 @@
 task make_a_file {
   command {
     echo "hey look here's a file" > a_file
+    sleep 2
   }
   output {
     File a_file = "a_file"
@@ -14,6 +15,7 @@ task size {
 
   command {
     echo "this file is 22 bytes" > created_file
+    sleep 2
   }
 
   output {

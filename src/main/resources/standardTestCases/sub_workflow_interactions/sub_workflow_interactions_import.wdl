@@ -2,6 +2,7 @@ task countTo {
     Int value
     command {
         seq 0 1 ${value}
+        sleep 2
     }
     runtime {
           docker: "ubuntu:latest"
@@ -15,6 +16,7 @@ task filterEvens {
     File numbers
     command {
         grep '[02468]$' ${numbers} > evens
+        sleep 2
     }
     runtime {
           docker: "ubuntu:latest"

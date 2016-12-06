@@ -1,6 +1,7 @@
 task prepare {
  command <<<
     python3 -c "print('one\ntwo\nthree\nfour')"
+    sleep 2
   >>>
   output {
     Array[String] array = read_lines(stdout())
@@ -14,6 +15,7 @@ task analysis {
   String str
   command <<<
     python3 -c "print('_${str}_')" > a.txt
+    sleep 2
   >>>
   output {
     File out = "a.txt"
@@ -27,6 +29,7 @@ task gather {
   Array[File] array
   command <<<
     cat ${sep=' ' array}
+    sleep 2
   >>>
   output {
     String str = read_string(stdout())

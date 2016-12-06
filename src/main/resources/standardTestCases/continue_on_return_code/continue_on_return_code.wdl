@@ -52,6 +52,7 @@ task finisher {
     String in3
     command <<<
        cat ${in1} && echo ${in2} && wc -l <<< "${in3}"
+       sleep 2
     >>>
     output {
         String finished = read_string(stdout())

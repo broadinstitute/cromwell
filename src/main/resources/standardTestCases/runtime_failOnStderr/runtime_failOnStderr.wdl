@@ -1,6 +1,7 @@
 task failOnStderr {
     command <<<
         echo "OH NO!" >&2
+        sleep 2
     >>>
     output {
         String ohno = read_string(stderr())

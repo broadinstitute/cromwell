@@ -2,6 +2,7 @@ task goodbye {
   String addressee
   command {
     echo "Goodbye ${addressee}!"
+    sleep 2
   }
   output {
     String farewell = read_string(stdout())

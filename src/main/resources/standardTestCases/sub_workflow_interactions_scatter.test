@@ -1,0 +1,21 @@
+name: sub_workflow_interactions_scatter
+testFormat: workflowsuccess
+ignore: false
+
+files {
+  wdl: sub_workflow_interactions_scatter/sub_workflow_interactions_scatter.wdl
+  imports: [
+    sub_workflow_interactions/sub_workflow_interactions_import.wdl
+  ]
+}
+
+metadata {
+  workflowName: sub_workflow_interactions_scatter
+  status: Succeeded
+  
+  "outputs.out.0": "Hello 0!"
+  "outputs.out.1": "Hello 2!"
+  "outputs.out3.0": "Hello I'm an output!"
+  "outputs.out3.1": "Hello I'm an output!"
+  "outputs.out6": "0\n2\n0\n2\n4"
+}

@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.actor.{Actor, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import MetadataWatchActor._
@@ -28,7 +29,7 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
 
 object MetadataWatchActor {
 
-  def props(promise: Promise[Unit], matchers: Matcher*): Props = Props(MetadataWatchActor(promise, matchers: _*))
+  def props(promise: Promise[Unit], matchers: Matcher*): Props = Props(MetadataWatchActor(promise, matchers: _*)).withDispatcher(EngineDispatcher)
 
   trait Matcher {
     def matches(events: Traversable[MetadataEvent]): Boolean

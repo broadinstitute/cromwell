@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Ter
 import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.Run
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
+import cromwell.core.Dispatcher.BackendDispatcher
 
 import scala.collection.immutable.Queue
 
@@ -99,7 +100,7 @@ class JesApiQueryManager(val qps: Int) extends Actor with ActorLogging {
 
 object JesApiQueryManager {
 
-  def props(qps: Int): Props = Props(new JesApiQueryManager(qps))
+  def props(qps: Int): Props = Props(new JesApiQueryManager(qps)).withDispatcher(BackendDispatcher)
 
   /**
     * Poll the job represented by the Run.

@@ -5,6 +5,7 @@ import akka.event.Logging
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core._
+import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
@@ -16,7 +17,7 @@ import spray.httpx.SprayJsonSupport._
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
-    Props(new CromwellApiHandler(requestHandlerActor))
+    Props(new CromwellApiHandler(requestHandlerActor)).withDispatcher(ApiDispatcher)
   }
 
   sealed trait ApiHandlerMessage

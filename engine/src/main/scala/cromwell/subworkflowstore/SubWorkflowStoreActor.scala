@@ -1,6 +1,7 @@
 package cromwell.subworkflowstore
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -68,5 +69,5 @@ object SubWorkflowStoreActor {
   
   def props(database: SubWorkflowStore) = Props(
     new SubWorkflowStoreActor(database)
-  )
+  ).withDispatcher(EngineDispatcher)
 }

@@ -3,6 +3,7 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
+import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
@@ -21,7 +22,7 @@ object MetadataSummaryRefreshActor {
   case object MetadataSummarySuccess extends MetadataSummaryActorMessage
   final case class MetadataSummaryFailure(t: Throwable) extends MetadataSummaryActorMessage
 
-  def props() = Props(new MetadataSummaryRefreshActor())
+  def props() = Props(new MetadataSummaryRefreshActor()).withDispatcher(ServiceDispatcher)
 
   sealed trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState

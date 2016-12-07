@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashResult
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
@@ -59,7 +60,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
 }
 
 object CallCacheReadActor {
-  def props(callCache: CallCache): Props = Props(new CallCacheReadActor(callCache))
+  def props(callCache: CallCache): Props = Props(new CallCacheReadActor(callCache)).withDispatcher(EngineDispatcher)
 
   private[CallCacheReadActor] case class RequestTuple(requester: ActorRef, hashes: CallCacheHashes)
 

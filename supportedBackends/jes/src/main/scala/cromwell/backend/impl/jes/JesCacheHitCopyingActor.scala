@@ -3,6 +3,7 @@ package cromwell.backend.impl.jes
 import java.nio.file.Path
 
 import akka.actor.{ActorRef, Props}
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.backend.callcaching.CacheHitDuplicating
 import cromwell.backend.{BackendCacheHitCopyingActor, BackendJobDescriptor}
 import cromwell.core.path.PathCopier
@@ -28,6 +29,6 @@ object JesCacheHitCopyingActor {
             jesConfiguration: JesConfiguration,
             initializationData: JesBackendInitializationData,
             serviceRegistryActor: ActorRef): Props = {
-    Props(new JesCacheHitCopyingActor(jobDescriptor, jesConfiguration, initializationData, serviceRegistryActor))
+    Props(new JesCacheHitCopyingActor(jobDescriptor, jesConfiguration, initializationData, serviceRegistryActor)).withDispatcher(BackendDispatcher)
   }
 }

@@ -3,6 +3,7 @@ package cromwell.engine.workflow.tokens
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import cromwell.core.JobExecutionToken
 import JobExecutionToken._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.TokenPool.TokenPoolPop
 
@@ -100,7 +101,7 @@ class JobExecutionTokenDispenserActor extends Actor with ActorLogging {
 
 object JobExecutionTokenDispenserActor {
 
-  def props = Props(new JobExecutionTokenDispenserActor)
+  def props = Props(new JobExecutionTokenDispenserActor).withDispatcher(EngineDispatcher)
 
   case class JobExecutionTokenRequest(jobExecutionTokenType: JobExecutionTokenType)
   case class JobExecutionTokenReturn(jobExecutionToken: JobExecutionToken)

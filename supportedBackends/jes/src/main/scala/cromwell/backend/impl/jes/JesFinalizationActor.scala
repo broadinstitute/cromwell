@@ -6,6 +6,7 @@ import akka.actor.Props
 import better.files._
 import cats.instances.future._
 import cats.syntax.functor._
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.backend.{BackendWorkflowDescriptor, BackendWorkflowFinalizationActor, JobExecutionMap}
 import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.IoDispatcher
@@ -18,7 +19,12 @@ import scala.language.postfixOps
 object JesFinalizationActor {
   def props(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], jesConfiguration: JesConfiguration,
             jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs, initializationData: Option[JesBackendInitializationData]) = {
-    Props(new JesFinalizationActor(workflowDescriptor, calls, jesConfiguration, jobExecutionMap, workflowOutputs, initializationData))
+    Props(new JesFinalizationActor(workflowDescriptor,
+      calls,
+      jesConfiguration,
+      jobExecutionMap,
+      workflowOutputs,
+      initializationData)).withDispatcher(BackendDispatcher)
   }
 }
 

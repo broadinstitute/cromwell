@@ -1,13 +1,14 @@
 package cromwell.services.metadata.impl
 
 import akka.actor.{Actor, ActorLogging, Props}
+import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, MetadataPutFailed, PutMetadataAction}
 
 import scala.util.{Failure, Success}
 
 object WriteMetadataActor {
-  def props() = Props(new WriteMetadataActor())
+  def props() = Props(new WriteMetadataActor()).withDispatcher(ServiceDispatcher)
 }
 
 class WriteMetadataActor extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {

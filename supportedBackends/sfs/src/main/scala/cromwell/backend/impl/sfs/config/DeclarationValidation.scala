@@ -33,15 +33,18 @@ object DeclarationValidation {
         new MemoryDeclarationValidation(declaration)
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
-        val validator: PrimitiveRuntimeAttributesValidation[_] = declaration.wdlType match {
-          case WdlBooleanType => new BooleanRuntimeAttributesValidation(declaration.unqualifiedName)
-          case WdlFloatType => new FloatRuntimeAttributesValidation(declaration.unqualifiedName)
-          case WdlIntegerType => new IntRuntimeAttributesValidation(declaration.unqualifiedName)
-          case WdlStringType => new StringRuntimeAttributesValidation(declaration.unqualifiedName)
-          case other => throw new RuntimeException(s"Unsupported config runtime attribute $other ${declaration.unqualifiedName}")
-        }
-        new DeclarationValidation(declaration, validator)
+        val validatedRuntimeAttr = validator(declaration.wdlType, declaration.unqualifiedName)
+        new DeclarationValidation(declaration, validatedRuntimeAttr)
     }
+  }
+
+  private def validator(wdlType: WdlType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_] = wdlType match {
+    case WdlBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
+    case WdlFloatType => new FloatRuntimeAttributesValidation(unqualifiedName)
+    case WdlIntegerType => new IntRuntimeAttributesValidation(unqualifiedName)
+    case WdlStringType => new StringRuntimeAttributesValidation(unqualifiedName)
+    case WdlOptionalType(x) => validator(x, unqualifiedName)
+    case other => throw new RuntimeException(s"Unsupported config runtime attribute $other $unqualifiedName")
   }
 }
 

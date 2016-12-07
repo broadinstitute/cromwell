@@ -7,3 +7,10 @@ cromwell-test-executions
 cromwell-workflow-logs
 cromwell-test-workflow-logs
 native
+.classpath
+.project
+.settings
+.cache*
+f1
+f2
+f3

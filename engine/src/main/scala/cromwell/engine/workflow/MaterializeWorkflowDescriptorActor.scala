@@ -185,7 +185,7 @@ class MaterializeWorkflowDescriptorActor() extends Actor with LazyLogging {
       call => CromwellRuntimeAttributes.validateKeys(call.task.runtimeAttributes.attrs.keySet, backendType)
     }) match {
       case Success(validatedRuntimeAttrs) => validatedRuntimeAttrs.successNel
-      case Failure(reason) => "Failed to validate runtime attributes.".failureNel
+      case Failure(reason) => s"${reason}".failureNel
     }
   }
 }

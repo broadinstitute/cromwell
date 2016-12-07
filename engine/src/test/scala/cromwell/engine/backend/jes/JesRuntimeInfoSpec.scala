@@ -13,11 +13,13 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
-      cpu = 2L,
+      cpu = 2,
       // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
       preemptible = 1,
       disks = disks,
       memoryGB = 4,
+      queue = Some("workq"),
+      walltime = "24:00:00",
       bootDiskSizeGb = CromwellRuntimeAttributes.defaults.bootDiskSizeGb)
 
     val runtimeInfo = PreemptibleJesRuntimeInfo("command", attributes)
@@ -36,11 +38,13 @@ class JesRuntimeInfoSpec extends FlatSpec with Matchers {
       zones = zones,
       failOnStderr = true,
       continueOnReturnCode = ContinueOnReturnCodeFlag(false),
-      cpu = 2L,
+      cpu = 2,
       // NOTE: This value is irrelevant for this test as it is not sufficient to determine if a Call should be started with a preemptible VM or not
       preemptible = 3,
       disks = disks,
       memoryGB = 4,
+      queue = Some("workq"),
+      walltime = "24:00:00",
       bootDiskSizeGb = CromwellRuntimeAttributes.defaults.bootDiskSizeGb)
 
     val runtimeInfo = NonPreemptibleJesRuntimeInfo("command", attributes)

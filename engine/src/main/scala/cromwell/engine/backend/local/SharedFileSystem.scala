@@ -87,6 +87,7 @@ object SharedFileSystem {
     }
   }
 
+
   val sharedFsFileHasher: FileHasher = { wdlFile: WdlFile => SymbolHash(ScalaFile(wdlFile.value).md5) }
 }
 

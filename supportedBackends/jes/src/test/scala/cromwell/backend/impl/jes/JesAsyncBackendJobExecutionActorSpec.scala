@@ -15,6 +15,7 @@ import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.core.logging.JobLogger
+import cromwell.core.path.PathImplicits._
 import cromwell.core.{WorkflowId, WorkflowOptions, _}
 import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
@@ -593,13 +594,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesBackend = testActorRef.underlyingActor
 
     jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stdout.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stdout.toRealString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
     jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stderr.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stderr.toRealString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
     jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath.toRealString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
@@ -624,13 +625,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesBackend = testActorRef.underlyingActor
 
     jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stdout.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stdout.toRealString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stdout.log"
     jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stderr.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stderr.toRealString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
     jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath.toRealString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 

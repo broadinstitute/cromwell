@@ -8,6 +8,7 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.PathImplicits._
 
 import scala.util.Try
 
@@ -61,7 +62,7 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   lazy val jesAttributes = jesConfiguration.jesAttributes
   lazy val monitoringScript: Option[JesInput] = {
     jesCallPaths.monitoringPath map { path =>
-      JesFileInput(s"$MonitoringParamName-in", path.toUri.toString,
+      JesFileInput(s"$MonitoringParamName-in", path.toRealString,
         JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
     }
   }

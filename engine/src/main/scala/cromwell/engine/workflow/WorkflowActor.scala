@@ -23,6 +23,8 @@ import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import wdl4s.{LocallyQualifiedName => _}
 
+import scala.util.Failure
+
 object WorkflowActor {
 
   /**
@@ -315,7 +317,10 @@ class WorkflowActor(val workflowId: WorkflowId,
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
             case Some(destinationDir) =>
               workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
-            case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile()
+            case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
+              case Failure(f) => log.error(f, "Failed to delete workflow log")
+              case _ =>
+            }
             case _ =>
           }
         }

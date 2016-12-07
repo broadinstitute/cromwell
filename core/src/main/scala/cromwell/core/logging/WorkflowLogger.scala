@@ -14,6 +14,8 @@ import net.ceedubs.ficus.Ficus._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.util.Try
+
 trait WorkflowLogging extends ActorLogging { this: Actor =>
   def workflowIdForLogging: WorkflowId
 
@@ -109,7 +111,7 @@ class WorkflowLogger(loggerName: String,
 
   override def getName = loggerName
 
-  def deleteLogFile() = workflowLogPath foreach { File(_).delete(swallowIOExceptions = false) }
+  def deleteLogFile() = Try { workflowLogPath foreach { File(_).delete(swallowIOExceptions = false) } }
 
   import WorkflowLogger._
 

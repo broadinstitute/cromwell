@@ -8,6 +8,7 @@ import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
 import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.core.path.PathImplicits._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry, CallCachingHashEntry, CallCachingSimpletonEntry}
@@ -53,7 +54,7 @@ class CallCache(database: CallCachingSqlDatabase) {
 
     val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.toUri.toString)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.toRealString)
       }
     }
 

@@ -37,7 +37,9 @@ class RetryableFileSystemProviderProxy[T <: FileSystemProvider](delegate: T, ret
     new FileSystemProxy(delegate.newFileSystem(uri, env), this)
   }
   override def getScheme: String = delegate.getScheme
-  override def getFileSystem(uri: URI): FileSystem = delegate.getFileSystem(uri)
+  override def getFileSystem(uri: URI): FileSystem = {
+    new FileSystemProxy(delegate.getFileSystem(uri), this)
+  }
   override def getFileStore(path: Path): FileStore = delegate.getFileStore(path)
 
   /* retried operations */

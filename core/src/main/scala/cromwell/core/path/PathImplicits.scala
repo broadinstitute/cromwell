@@ -11,5 +11,7 @@ object PathImplicits {
     def untailed = UntailedWriter(path)
 
     def tailed(tailedSize: Int) = TailedWriter(path, tailedSize)
+
+    def toRealString: String = java.net.URLDecoder.decode(path.toUri.toString, "UTF-8")
   }
 }

@@ -33,6 +33,10 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
     CromwellCommandLine(List("run", "bork", "bork", "bork", "bork", "bork", "blerg"))
   }
 
+  it should "VersionAndExit when the `-version` flag is passed" in {
+    CromwellCommandLine(List("-version")) shouldBe VersionAndExit
+  }
+
   it should "RunSingle when supplying wdl and inputs" in {
     CromwellCommandLine(List("run", ThreeStepWithoutOptions.wdl, ThreeStepWithoutOptions.inputs)) shouldBe a [RunSingle]
   }

@@ -1,8 +1,8 @@
 package cromwell.webservice
 
 import akka.actor._
-
 import cats.data.NonEmptyList
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.{WorkflowId, WorkflowOptionsJson, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
@@ -58,7 +58,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
 
   private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -270,6 +270,20 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           perRequest(requestContext, CromwellApiHandler.props(workflowManagerActor), CromwellApiHandler.ApiHandlerEngineStats)
       }
     }
+
+  def versionRoute =
+    path("engine" / Segment / "version") { version =>
+      get {
+        complete {
+          lazy val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+          versionResponse(versionConf)
+        }
+      }
+    }
+
+  def versionResponse(versionConf: Config) = JsObject(Map(
+    "cromwell" -> versionConf.getString("cromwell").toJson
+  ))
 
   def backendRoute =
     path("workflows" / Segment / "backends") { version =>

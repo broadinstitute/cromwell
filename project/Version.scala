@@ -19,6 +19,19 @@ object Version {
       shellPrompt in ThisBuild := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), cromwellVersion) }
     )
 
+  val writeVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
+    val file = (resourceManaged in Compile).value / "cromwell-version.conf"
+    val contents =
+      s"""|version {
+          |  cromwell: "${version.value}"
+          |}
+          |""".stripMargin
+    IO.write(file, contents)
+    Seq(file)
+  }
+
+  val versionConfCompileSettings = List(resourceGenerators in Compile <+= writeVersionConf)
+
   private def makeVersion(versionProperty: String,
                           baseVersion: Option[String],
                           headCommit: Option[String]): String = {

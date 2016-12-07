@@ -586,6 +586,26 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/engine/{version}/version':
+    get:
+      summary: Returns the version of the Cromwell Engine
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+      tags:
+        - Engine
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
+      security:
+        - google_oauth:
+            - openid
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -595,7 +615,6 @@ securityDefinitions:
       openid: open id authorization
 definitions:
   WorkflowSubmitResponse:
-    description: ''
     required:
       - id
       - status
@@ -607,7 +626,7 @@ definitions:
         type: string
         description: The status of the workflow
   WorkflowAbortResponse:
-    description: ''
+
     required:
       - id
       - status
@@ -619,7 +638,6 @@ definitions:
         type: string
         description: The status of the workflow
   WorkflowStatusResponse:
-    description: ''
     required:
       - id
       - status
@@ -631,7 +649,7 @@ definitions:
         type: string
         description: The status of the workflow
   WorkflowMetadataResponse:
-    description: 'Workflow and call level metadata'
+    description: Workflow and call level metadata
     required:
       - id
       - status
@@ -666,7 +684,7 @@ definitions:
       failures:
         $ref: '#/definitions/FailureMessage'
   CallMetadata:
-    description: 'Call level metadata'
+    description: Call level metadata
     required:
       - inputs
       - executionStatus
@@ -709,7 +727,7 @@ definitions:
         type: object
         description: Paths to backend specific logs for this call
   FailureMessage:
-    description: 'Failure messages'
+    description: Failure messages
     required:
       - failure
       - timestamp
@@ -797,7 +815,6 @@ definitions:
         format: date-time
         description: Workflow end datetime
   BackendResponse:
-    description: ''
     required:
       - supportedBackends
       - defaultBackend
@@ -811,7 +828,7 @@ definitions:
         type: string
         description: The default backend of this server
   StatsResponse:
-    description: 'Provides engine level statistics for things running inside the system'
+    description: Provides engine level statistics for things running inside the system
     required:
       - workflows
       - jobs
@@ -822,3 +839,9 @@ definitions:
       jobs:
         type: integer
         description: The number of currently running jobs
+  VersionResponse:
+    description: Returns the version of Cromwell
+    properties:
+      cromwell:
+        type: string
+        description: The version of the Cromwell Engine

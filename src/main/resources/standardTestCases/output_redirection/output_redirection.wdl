@@ -10,6 +10,8 @@ task output_redirection {
         echo "should be on stderr" >&2
         # Write to stderr but redirect to stdout:
         ./writeToStderr.sh 2>&1
+
+        sleep 2
     }
     output {
         String stdout = read_string(stdout())

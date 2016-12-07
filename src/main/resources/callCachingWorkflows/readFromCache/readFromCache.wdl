@@ -1,6 +1,7 @@
 task echo {
   command {
     echo "Peter Piper picked a peck of pickled peppers"
+    sleep 2
   }
   output {
     File out = stdout()
@@ -13,6 +14,7 @@ task find {
   File in_file
   command {
     grep '${match}' ${in_file} | wc -l
+    sleep 2
   }
   output {
     Int count = read_int(stdout())

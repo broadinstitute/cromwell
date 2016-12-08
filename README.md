@@ -2324,6 +2324,7 @@ contain one workflow submission response for each input, respectively.
 * `workflowOptions` - *Optional* JSON file containing options for this
 workflow execution.  See the [run](#run) CLI sub-command for some more
 information about this.
+* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements. Applied equally to all workflowInput sets.
 
 cURL:
 

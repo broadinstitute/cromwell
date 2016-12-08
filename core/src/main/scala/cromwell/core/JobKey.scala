@@ -1,9 +1,9 @@
 package cromwell.core
 
-import wdl4s.Scope
+import wdl4s.{GraphNode, Scope}
 
 trait JobKey {
-  def scope: Scope
+  def scope: Scope with GraphNode
   def index: Option[Int]
   def attempt: Int
   def tag: String

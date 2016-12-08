@@ -21,6 +21,7 @@ object Main extends App {
 
   CommandLine match {
     case UsageAndExit => usageAndExit()
+    case VersionAndExit => versionAndExit()
     case RunServer => waitAndExit(CromwellServer.run(CromwellSystem), CromwellSystem)
     case r: RunSingle => runWorkflow(r)
   }
@@ -99,7 +100,7 @@ object Main extends App {
         |
         |Actions:
         |run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
-        |  [<OUTPUT workflow metadata>] [<Directory of WDL Files>]
+        |  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
         |
         |  Given a WDL file and JSON file containing the value of the
         |  workflow inputs, this will run the workflow locally and
@@ -118,8 +119,23 @@ object Main extends App {
         |
         |  Starts a web server on port 8000.  See the web server
         |  documentation for more details about the API endpoints.
+        |
+        |-version
+        |
+        |   Returns the version of the Cromwell engine.
+        |
       """.stripMargin)
 
+    System.exit(1)
+  }
+
+  def versionAndExit(): Unit = {
+    val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+    println(
+      s"""
+         |cromwell: ${versionConf.getString("cromwell")}
+       """.stripMargin
+    )
     System.exit(1)
   }
 }

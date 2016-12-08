@@ -1,12 +1,12 @@
 package cromwell.subworkflowstore
 
 import cromwell.CromwellTestKitSpec
-import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFiles}
+import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.services.SingletonServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.{Scope, TaskCall, WdlExpression}
+import wdl4s.{TaskCall, WdlExpression}
 import cromwell.core.ExecutionIndex._
 
 import scala.concurrent.duration._
@@ -38,13 +38,13 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
       val call = mock[TaskCall]
       call.fullyQualifiedName returns "foo.bar"
       val jobKey = new JobKey {
-        override def scope: Scope = call
+        override def scope = call
         override def index: Option[Int] = None
         override def attempt: Int = 0
         override def tag: String = "foobar"
       }
 
-      workflowStoreService ! SubmitWorkflow(WorkflowSourceFiles("", "{}", "{}"))
+      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports("", "{}", "{}"))
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 
       // Query for non existing sub workflow

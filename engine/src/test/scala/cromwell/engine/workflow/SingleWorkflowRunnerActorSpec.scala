@@ -71,7 +71,8 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
       callCacheReadActor,
       jobTokenDispenserActor,
       BackendSingletonCollection(Map.empty),
-      abortJobsOnTerminate = false)
+      abortJobsOnTerminate = false,
+      serverMode = false)
     system.actorOf(Props(new WorkflowManagerActor(params)), "WorkflowManagerActor")
   }
   

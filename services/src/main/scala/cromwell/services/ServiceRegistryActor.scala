@@ -2,6 +2,7 @@ package cromwell.services
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
+import cromwell.core.Dispatcher.ServiceDispatcher
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import net.ceedubs.ficus.Ficus._
 import scala.collection.JavaConverters._
@@ -13,12 +14,12 @@ object ServiceRegistryActor {
     def serviceName: String
   }
 
-  def props(config: Config) = Props(new ServiceRegistryActor(serviceNameToPropsMap(config)))
+  def props(config: Config) = Props(new ServiceRegistryActor(serviceNameToPropsMap(config))).withDispatcher(ServiceDispatcher)
 
   // To enable testing, this lets us override a config value with a Props of our choice:
   def props(config: Config, overrides: Map[String, Props]) = {
     val fromConfig = serviceNameToPropsMap(config).filterNot { case (name: String, _: Props) => overrides.keys.toList.contains(name) }
-    Props(new ServiceRegistryActor(fromConfig ++ overrides))
+    Props(new ServiceRegistryActor(fromConfig ++ overrides)).withDispatcher(ServiceDispatcher)
   }
 
   def serviceNameToPropsMap(globalConfig: Config): Map[String, Props] = {

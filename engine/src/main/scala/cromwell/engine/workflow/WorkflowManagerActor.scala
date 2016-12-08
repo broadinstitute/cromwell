@@ -47,10 +47,11 @@ object WorkflowManagerActor {
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
-            abortJobsOnTerminate: Boolean): Props = {
+            abortJobsOnTerminate: Boolean,
+            serverMode: Boolean): Props = {
     val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, serviceRegistryActor,
       workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection,
-      abortJobsOnTerminate)
+      abortJobsOnTerminate, serverMode)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
@@ -91,7 +92,8 @@ case class WorkflowManagerActorParams(config: Config,
                                       callCacheReadActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
-                                      abortJobsOnTerminate: Boolean)
+                                      abortJobsOnTerminate: Boolean,
+                                      serverMode: Boolean)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
@@ -285,7 +287,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.serviceRegistryActor,
       params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.jobTokenDispenserActor,
-      params.backendSingletonCollection)
+      params.backendSingletonCollection, params.serverMode)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

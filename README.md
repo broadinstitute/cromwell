@@ -20,6 +20,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
+  * [version](#version)
 * [Getting Started with WDL](#getting-started-with-wdl)
 * [Configuring Cromwell](#configuring-cromwell)
   * [Workflow Submission](#workflow-submission)
@@ -68,7 +69,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [Configuring Call Caching](#configuring-call-caching)
   * [Call Caching Workflow Options](#call-caching-workflow-options)
   * [Local Filesystem Options](#local-filesystem-options)
-* [Sub Workflows](#sub-workflows)  
+* [Imports](#imports)
+* [Sub Workflows](#sub-workflows)
+* [Meta blocks](#meta-blocks)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
@@ -83,6 +86,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
   * [GET /api/engine/:version/stats](#get-apiengineversionstats)
+  * [GET /api/engine/:version/version](#get-apiengineversionversion)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -130,26 +134,37 @@ See the [migration document](MIGRATION.md) for more details.
 Run the JAR file with no arguments to get the usage message:
 
 ```
+
+
 $ java -jar cromwell.jar
 java -jar cromwell.jar <action> <parameters>
 
 Actions:
-run <WDL file> [<JSON inputs file> [<JSON workflow options>
-  [<OUTPUT workflow metadata>]]]
+run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
+  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
   print out the outputs in JSON format.  The workflow
   options file specifies some runtime configuration for the
   workflow (see README for details).  The workflow metadata
-  output is an optional file path to output the metadata.
-  Use a single dash ("-") to skip optional files. Ex:
-    run noinputs.wdl - - metadata.json
+  output is an optional file path to output the metadata. The
+  directory of WDL files is optional. However, it is required
+  if the primary workflow imports workflows that are outside
+  of the root directory of the Cromwell project.
 
-server
+  Use a single dash ("-") to skip optional files. Ex:
+    run noinputs.wdl - - metadata.json -
+
+  server
 
   Starts a web server on port 8000.  See the web server
   documentation for more details about the API endpoints.
+
+  -version
+
+  Returns the version of the Cromwell engine.
+
 ```
 
 ## run
@@ -275,6 +290,10 @@ $ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
+## version
+
+Returns the version of Cromwell engine.
+
 # Getting Started with WDL
 
 For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl#getting-started-with-wdl)
@@ -331,17 +350,14 @@ Then, edit the configuration file `database` stanza, as follows:
 
 ```
 database {
-  config = main.mysql
 
-  main {
-    mysql {
-      db.url = "jdbc:mysql://localhost:3306/cromwell"
-      db.user = "root"
-      db.password = ""
-      db.driver = "com.mysql.jdbc.Driver"
-      db.connectionTimeout = 5000 # NOTE: The default 1000ms is often too short for production mysql use
-      driver = "slick.driver.MySQLDriver$"
-    }
+  driver = "slick.driver.MySQLDriver$"
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://host/cromwell"
+    user = "user"
+    password = "pass"
+    connectionTimeout = 5000
   }
 
   test {
@@ -1112,6 +1128,7 @@ backend {
       config {
         project = "my-project"
         root = "gs://my-bucket"
+        genomics-api-queries-per-100-seconds = 1000
         .
         .
         .
@@ -1120,6 +1137,8 @@ backend {
   ]
 }
 ```
+
+If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with JES.
 
 ### Configuring Authentication
 
@@ -1643,6 +1662,20 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
         }
       }
 ```
+# Imports
+
+Import statements inside of a WDL file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
+
+In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [run](#run).
+
+For example, given a workflow `wf.wdl` and an imports directory `WdlImports.zip`, a sample command would be:
+```
+java -jar cromwell.jar wf.wdl wf.inputs - - WdlImports.zip
+```
+
+In Server Mode, you pass in a zip file using the parameter `wdlDependencies` via the [POST /api/workflows/:version](#post-apiworkflowsversion) endpoint.
+
+
 # Sub Workflows
 
 WDL allows the execution of an entire workflow as a step in a larger workflow (see WDL SPEC for more details), which is what will be referred to as a sub workflow going forward.
@@ -2115,7 +2148,18 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
 * `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowInputs_2` - *Optional* JSON file containing the inputs.
+* `workflowInputs_3` - *Optional* JSON file containing the inputs.
+* `workflowInputs_4` - *Optional* JSON file containing the inputs.
+* `workflowInputs_5` - *Optional* JSON file containing the inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
+* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements.
+
+Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
+Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+
+Additionally, although Swagger has a limit of 5 JSON input files, the REST endpoint itself can accept an unlimited number of JSON input files.
+
 
 cURL:
 
@@ -3079,6 +3123,32 @@ Response:
 {
   "workflows": 3,
   "jobs": 10
+}
+```
+
+## GET /api/engine/:version/version
+
+This endpoint returns the version of the Cromwell engine.
+
+cURL:
+```
+$ curl http://localhost:8000/api/engine/v1/version
+```
+
+HTTPie:
+```
+$ http http://localhost:8000/api/engine/v1/version
+```
+
+Response:
+```
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
+
+{
+  "cromwell": 23-8be799a-SNAP
 }
 ```
 

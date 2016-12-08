@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -197,12 +198,7 @@ case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorR
       MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson))
     )
 
-    val wfImportEvent = sourceFiles match {
-      case w: WorkflowSourceFilesWithImports => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue(w.importsFile.pathAsString))
-      case w: WorkflowSourceFiles => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports), MetadataValue("None"))
-    }
-
-    serviceRegistryActor ! PutMetadataAction(submissionEvents :+ wfImportEvent)
+    serviceRegistryActor ! PutMetadataAction(submissionEvents)
   }
 }
 
@@ -243,6 +239,6 @@ object WorkflowStoreActor {
   final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreActorResponse
 
   def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
-    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor))
+    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)
   }
 }

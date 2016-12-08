@@ -3,6 +3,7 @@
 ## 23
 
 * The `meta` and `parameter_meta` blocks are now valid within `workflow` blocks, not just `task`
+* The JES backend configuration now has an option `genomics-api-queries-per-100-seconds` to help tune the rate of batch polling against the JES servers. Users with quotas larger than default should make sure to set this value.
 * Added an option `call-caching.invalidate-bad-cache-results` (default: `true`). If true, Cromwell will invalidate cached results which have failed to copy as part of a cache hit.
 * Timing diagrams and metadata now receive more fine grained workflow states between submission and Running.
 * Support for the Pair WDL type (e.g. `Pair[Int, File] floo = (3, "gs://blar/blaz/qlux.txt")`)
@@ -12,7 +13,111 @@
   * `transpose: (Array[Array[X]]) => Array[Array[X]]` compute the matrix transpose for a 2D array. Assumes each inner array has the same length.
 * By default, `system.abort-jobs-on-terminate` is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
 * Enable WDL imports when running in Single Workflow Runner Mode.
+* Support for sub workflows (see [Annex A](#annex-a---workflow-outputs))
+* Enable WDL imports when running in Single Workflow Runner Mode as well as Server Mode
+* Support for WDL imports through an additional imports.zip parameter
 * Support for sub workflows
+* Corrected file globbing in JES to correctly report all generated files. Additionally, file globbing in JES now uses bash-style glob syntax instead of python style glob syntax
+* Support declarations as graph nodes
+* Added the ability to override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`. More details can be found in the README.md
+* Fix bugs related to the behavior of Cromwell in Single Workflow Runner Mode. Cromwell will now exit once a workflow completes in Single Workflow Runner Mode. Additionally, when restarting Cromwell in Single Workflow Runner Mode, Cromwell will no longer restart incomplete workflows from a previous session.
+
+### Annex A - Workflow outputs
+    
+The WDL specification has changed regarding [workflow outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs) to accommodate sub workflows.
+This change is backward compatible in terms of runnable WDLs (WDL files using the deprecated workflow outputs syntax will still run the same). 
+The only visible change lies in the metadata (as well as the console output in single workflow mode, when workflow outputs are printed out at the end of a successful workflow).
+
+TL;DR Unless you are parsing or manipulating the "key" by which workflow outputs are referenced in the metadata (and/or the console output for single workflow mode), you can skip the following explanation.
+
+*Metadata Response*
+```
+{
+  ...
+  outputs {
+    "task_output_1": "hello",
+    "task_output_2": "world"
+            ^
+       If you don't manipulate this part of the metadata, then skip this section
+  }
+}
+```
+
+In order to maintain backward compatibility, workflow outputs expressed with the deprecated syntax are "expanded" to the new syntax. Here is an example:
+
+```
+task t {
+    command {
+        #do something
+    }
+    output {
+        String out1 = "hello"
+        String out2 = "world"
+    }
+}
+```
+
+```
+    workflow old_syntax {
+        call t
+        output {
+            t.*
+        }
+    }
+```
+
+```
+    workflow new_syntax {
+        call t
+        output {
+            String wf_out1 = t.out1
+            String wf_out2 = t.out2
+        }
+    }
+```
+
+The new syntax allows for type checking of the outputs as well as expressions. It also allows for explicitly naming to the outputs.
+The old syntax doesn't give the ability to name workflow outputs. For consistency reasons, Cromwell will generate a "new syntax" workflow output for each task output, and name them.
+Their name will be generated using their FQN, which would give 
+
+```
+output {
+   String w.t.out1 = t.out1
+   String w.t.out2 = t.out2
+}
+```
+        
+However as the FQN separator is `.`, the name itself cannot contain any `.`. 
+For that reason, `.` are replaced with `_` :
+
+*Old syntax expanded to new syntax*
+```
+output {
+   String w_t_out1 = t.out1
+   String w_t_out2 = t.out2
+}
+```
+
+The consequence is that the workflow outputs section of the metadata for `old_syntax` would previously look like 
+ 
+ ```
+    outputs {
+        "w.t.out1": "hello",
+        "w.t.out2": "hello"
+    }
+ ```
+ 
+but it will now look like 
+
+```
+    outputs {
+        "w_t_out1": "hello",
+        "w_t_out2": "hello"
+    }
+```
+
+The same applies for the console output of a workflow run in single workflow mode.
+
 
 ## 0.22
 

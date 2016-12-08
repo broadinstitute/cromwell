@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
 import akka.actor.{Actor, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreActor.{JobStoreReaderCommand, JobStoreWriterCommand}
 import wdl4s.TaskOutput
@@ -50,5 +51,5 @@ object JobStoreActor {
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
 
-  def props(database: JobStore) = Props(new JobStoreActor(database))
+  def props(database: JobStore) = Props(new JobStoreActor(database)).withDispatcher(EngineDispatcher)
 }

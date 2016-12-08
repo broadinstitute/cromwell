@@ -72,7 +72,7 @@ object SharedFileSystem extends StrictLogging {
   }
 
   private def logOnFailure(action: Try[Unit], actionLabel: String): Try[Unit] = {
-    if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}", action.failed.get)
+    if (action.isFailure) logger.warn(s"Localization via $actionLabel has failed: ${action.failed.get.getMessage}")
     action
   }
 

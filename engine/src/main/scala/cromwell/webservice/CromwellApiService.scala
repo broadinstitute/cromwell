@@ -1,10 +1,9 @@
 package cromwell.webservice
 
 import akka.actor._
-import java.lang.Throwable
-
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowSourceFiles}
+import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.{WorkflowId, WorkflowOptionsJson, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
@@ -15,6 +14,7 @@ import spray.http._
 import spray.httpx.SprayJsonSupport._
 import spray.json._
 import spray.routing._
+import wdl4s.{WdlJson, WdlSource}
 
 import scala.util.{Failure, Success, Try}
 
@@ -53,12 +53,12 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       perRequest(requestContext, metadataBuilderProps, message)
   }
 
-  private def failBadRequest(exception: Exception, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
-    complete((statusCode, APIResponse.fail(exception).toJson.prettyPrint))
+  private def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
+    complete((statusCode, APIResponse.fail(t).toJson.prettyPrint))
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
 
   private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -127,18 +127,70 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
+  case class PartialWorkflowSources(wdlSource: Option[WdlSource], workflowInputs: Seq[WdlJson], workflowInputsAux: Map[Int, WdlJson], workflowOptions: Option[WorkflowOptionsJson], zippedImports: Option[Array[Byte]])
+  object PartialWorkflowSources {
+    private def workflowInputs(bodyPart: BodyPart): Seq[WdlJson] = {
+      import spray.json._
+      bodyPart.entity.data.asString.parseJson match {
+        case JsArray(Seq(x, xs@_*)) => (List(x) ++ xs).map(_.compactPrint)
+        case JsArray(_) => Seq.empty
+        case v: JsValue => Seq(v.compactPrint)
+      }
+    }
+
+    def partialSourcesToSourceCollections(partialSources: Try[PartialWorkflowSources], allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
+      partialSources flatMap {
+        case PartialWorkflowSources(Some(wdlSource), workflowInputs, workflowInputsAux, workflowOptions, wdlDependencies) =>
+          //The order of addition allows for the expected override of colliding keys.
+          val sortedInputAuxes = workflowInputsAux.toSeq.sortBy(_._1).map(x => Option(x._2))
+          val wfInputs: Try[Seq[WdlJson]] = if (workflowInputs.isEmpty) {
+            if (allowNoInputs) Success(Seq("{}")) else Failure(new IllegalArgumentException("No inputs were provided"))
+          } else Success(workflowInputs map { workflowInputSet =>
+            mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString
+          })
+          wfInputs.map(_.map(x => WorkflowSourceFilesCollection(wdlSource, x, workflowOptions.getOrElse("{}"), wdlDependencies)))
+        case other => Failure(new IllegalArgumentException(s"Incomplete workflow submission: $other"))
+      }
+    }
+
+    def fromSubmitRoute(formData: MultipartFormData, allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
+      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources(None, Seq.empty, Map.empty, None, None)) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
+        if (bodyPart.name.contains("wdlSource")) {
+          partialSources.copy(wdlSource = Some(bodyPart.entity.data.asString))
+        } else if (bodyPart.name.contains("workflowInputs")) {
+          partialSources.copy(workflowInputs = workflowInputs(bodyPart))
+        } else if (bodyPart.name.forall(_.startsWith("workflowInputs_"))) {
+          val index = bodyPart.name.get.stripPrefix("workflowInputs_").toInt
+          partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> bodyPart.entity.data.asString))
+        } else if (bodyPart.name.contains("workflowOptions")) {
+          partialSources.copy(workflowOptions = Some(bodyPart.entity.data.asString))
+        } else if (bodyPart.name.contains("wdlDependencies")) {
+          partialSources.copy(zippedImports = Some(bodyPart.entity.data.toByteArray))
+        } else {
+          throw new IllegalArgumentException(s"Unexpected body part name: ${bodyPart.name.getOrElse("None")}")
+        }
+      })
+      partialSourcesToSourceCollections(partialSources, allowNoInputs)
+    }
+  }
+
   def submitRoute =
     path("workflows" / Segment) { version =>
       post {
-        formFields("wdlSource", "workflowInputs".?, "workflowInputs_2".?, "workflowInputs_3".?,
-          "workflowInputs_4".?, "workflowInputs_5".?, "workflowOptions".?) {
-          (wdlSource, workflowInputs, workflowInputs_2, workflowInputs_3, workflowInputs_4, workflowInputs_5, workflowOptions) =>
-          requestContext =>
-            //The order of addition allows for the expected override of colliding keys.
-            val wfInputs = mergeMaps(Seq(workflowInputs, workflowInputs_2, workflowInputs_3, workflowInputs_4, workflowInputs_5)).toString
-
-            val workflowSourceFiles = WorkflowSourceFiles(wdlSource, wfInputs, workflowOptions.getOrElse("{}"))
-            perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles))
+        entity(as[MultipartFormData]) { formData =>
+          requestContext => {
+            PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = true) match {
+              case Success(workflowSourceFiles) if workflowSourceFiles.size == 1 =>
+                perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles.head))
+              case Success(workflowSourceFiles) =>
+                failBadRequest(new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint."))
+              case Failure(t) =>
+                System.err.println(t)
+                t.printStackTrace(System.err)
+                failBadRequest(t)
+            }
+            ()
+          }
         }
       }
     }
@@ -146,19 +198,18 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def submitBatchRoute =
     path("workflows" / Segment / "batch") { version =>
       post {
-        formFields("wdlSource", "workflowInputs", "workflowOptions".?) {
-          (wdlSource, workflowInputs, workflowOptions) =>
-            requestContext =>
-              import spray.json._
-              workflowInputs.parseJson match {
-                case JsArray(Seq(x, xs@_*)) =>
-                  val nelInputses = NonEmptyList.of(x, xs: _*)
-                  val sources = nelInputses.map(inputs => WorkflowSourceFiles(wdlSource, inputs.compactPrint, workflowOptions.getOrElse("{}")))
-                  perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(sources))
-                case JsArray(_) => failBadRequest(new RuntimeException("Nothing was submitted"))
-                case _ => reject
-              }
-              ()
+        entity(as[MultipartFormData]) { formData =>
+          requestContext => {
+            PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = false) match {
+              case Success(workflowSourceFiles) =>
+                perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)))
+              case Failure(t) =>
+                System.err.println(t)
+                t.printStackTrace(System.err)
+                failBadRequest(t)
+            }
+            ()
+          }
         }
       }
     }
@@ -192,7 +243,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
             case _ => Success(false)
           }
         }
-        
+
         (includeKeysOption, excludeKeysOption, expandSubWorkflowsOption) match {
           case (Some(_), Some(_), _) =>
             failBadRequest(new IllegalArgumentException("includeKey and excludeKey may not be specified together"))
@@ -219,6 +270,20 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           perRequest(requestContext, CromwellApiHandler.props(workflowManagerActor), CromwellApiHandler.ApiHandlerEngineStats)
       }
     }
+
+  def versionRoute =
+    path("engine" / Segment / "version") { version =>
+      get {
+        complete {
+          lazy val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+          versionResponse(versionConf)
+        }
+      }
+    }
+
+  def versionResponse(versionConf: Config) = JsObject(Map(
+    "cromwell" -> versionConf.getString("cromwell").toJson
+  ))
 
   def backendRoute =
     path("workflows" / Segment / "backends") { version =>

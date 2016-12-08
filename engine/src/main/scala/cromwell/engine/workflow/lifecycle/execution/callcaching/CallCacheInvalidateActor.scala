@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -27,7 +28,7 @@ class CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId
 
 object CallCacheInvalidateActor {
   def props(callCache: CallCache, cacheId: CallCachingEntryId) = {
-    Props(new CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId))
+    Props(new CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId)).withDispatcher(EngineDispatcher)
   }
 }
 

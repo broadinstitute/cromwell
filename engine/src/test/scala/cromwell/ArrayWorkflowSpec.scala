@@ -5,7 +5,7 @@ import java.nio.file.Files
 import akka.testkit._
 import better.files._
 import cromwell.util.SampleWdl
-import wdl4s.WdlNamespaceWithWorkflow
+import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 import wdl4s.expression.NoFunctions
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
@@ -13,7 +13,7 @@ import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
 class ArrayWorkflowSpec extends CromwellTestKitSpec {
   val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
-  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""))
+  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""), Seq.empty[ImportResolver])
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
 
   "A task which contains a parameter " should {

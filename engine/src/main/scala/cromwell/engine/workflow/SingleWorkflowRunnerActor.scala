@@ -10,6 +10,7 @@ import cats.instances.try_._
 import cats.syntax.functor._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
@@ -34,6 +35,8 @@ import scala.util.{Failure, Try}
  */
 class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])
   extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
+
+  override val serverMode = false
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
@@ -146,15 +149,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
     stay()
   }
 
-  private def cleanUpTempFiles = source match {
-    case w: WorkflowSourceFilesWithImports => w.importsFile.delete(swallowIOExceptions = true)
-    case w: WorkflowSourceFiles => //
-  }
-
   private def issueReply(data: TerminalSwraData) = {
-
-    cleanUpTempFiles
-
     data match {
       case s: SucceededSwraData => issueSuccessReply(s.replyTo)
       case f: FailedSwraData => issueFailureReply(f.replyTo, f.failure)
@@ -201,7 +196,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 
 object SingleWorkflowRunnerActor {
   def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path]): Props = {
-    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile))
+    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait RunnerMessage

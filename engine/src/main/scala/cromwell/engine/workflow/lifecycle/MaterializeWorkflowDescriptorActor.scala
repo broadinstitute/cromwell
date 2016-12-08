@@ -1,6 +1,9 @@
 package cromwell.engine.workflow.lifecycle
 
+import java.nio.file.Files
+
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import better.files.File
 import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.cartesian._
@@ -19,7 +22,7 @@ import cromwell.core.path.PathBuilder
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
-import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.MetadataService.{PutMetadataAction, _}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.core.ErrorOr._
 import net.ceedubs.ficus.Ficus._
@@ -41,8 +44,8 @@ object MaterializeWorkflowDescriptorActor {
   // exception if not initialized yet.
   def cromwellBackends = CromwellBackends.instance.get
 
-  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends): Props = {
-    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends, importLocalFilesystem: Boolean): Props = {
+    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem)).withDispatcher(EngineDispatcher)
   }
 
   /*
@@ -109,7 +112,10 @@ object MaterializeWorkflowDescriptorActor {
   }
 }
 
-class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val workflowIdForLogging: WorkflowId, cromwellBackends: => CromwellBackends) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
+class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
+                                         val workflowIdForLogging: WorkflowId,
+                                         cromwellBackends: => CromwellBackends,
+                                         importLocalFilesystem: Boolean) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
@@ -299,11 +305,76 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef, val wor
     }
   }
 
+  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[File] = {
+
+    def makeZipFile(contents: Array[Byte]): Try[File] = Try {
+      val dependenciesPath = Files.createTempFile("", ".zip")
+      Files.write(dependenciesPath, contents)
+    }
+
+    def unZipFile(f: File) = Try {
+      val unzippedFile = f.unzip()
+      val unzippedFileContents = unzippedFile.toJava.listFiles().head
+
+      if (unzippedFileContents.isDirectory) File(unzippedFileContents.getPath)
+      else unzippedFile
+    }
+
+    val importsFile = for {
+      zipFile <- makeZipFile(zipContents)
+      unzipped <- unZipFile(zipFile)
+      _ <- Try(zipFile.delete(swallowIOExceptions = true))
+    } yield unzipped
+
+    importsFile match {
+      case Success(unzippedDirectory: File) => unzippedDirectory.validNel
+      case Failure(t) => t.getMessage.invalidNel
+    }
+  }
+
+  private def validateNamespaceWithImports(w: WorkflowSourceFilesWithDependenciesZip): ErrorOr[WdlNamespaceWithWorkflow] = {
+    def getMetadatae(importsDir: File, prefix: String = ""): Seq[(String, File)] = {
+      importsDir.children.toSeq flatMap {
+        case f: File if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
+        case f: File if f.name.endsWith(".wdl") => Seq((prefix + f.name, f))
+        case _ => Seq.empty
+      }
+    }
+
+    def writeMetadatae(importsDir: File) = {
+      import scala.collection.JavaConverters._
+
+      val wfImportEvents = getMetadatae(importsDir) map { case (name: String, f: File) =>
+        val contents = Files.readAllLines(f.path).asScala.mkString(System.lineSeparator())
+        MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports, name), MetadataValue(contents))
+      }
+      serviceRegistryActor ! PutMetadataAction(wfImportEvents)
+    }
+
+    validateImportsDirectory(w.importsZip) flatMap { importsDir =>
+      writeMetadatae(importsDir)
+      val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
+        List(WdlNamespace.directoryResolver(importsDir), WdlNamespace.fileResolver)
+      } else {
+        List(WdlNamespace.directoryResolver(importsDir))
+      }
+      val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
+      importsDir.delete(swallowIOExceptions = true)
+      results.validNel
+    }
+  }
+
   private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
     try {
       source match {
-        case w: WorkflowSourceFilesWithImports => WdlNamespaceWithWorkflow.load(w.wdlSource, w.importsFile).validNel
-        case w: WorkflowSourceFiles => WdlNamespaceWithWorkflow.load(w.wdlSource).validNel
+        case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
+        case w: WorkflowSourceFilesWithoutImports =>
+          val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
+            List(WdlNamespace.fileResolver)
+          } else {
+            List.empty
+          }
+          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).validNel
       }
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel

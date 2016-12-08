@@ -5,6 +5,7 @@ import java.util.concurrent.TimeoutException
 import akka.actor.Props
 import akka.util.Timeout
 import com.typesafe.config.Config
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
 import lenthall.spray.SprayCanHttpService._
@@ -53,6 +54,7 @@ object CromwellServer {
 class CromwellServerActor(config: Config) extends CromwellRootActor with CromwellApiService with SwaggerService {
   implicit def executionContext = actorRefFactory.dispatcher
 
+  override val serverMode = true
   override val abortJobsOnTerminate = false
 
   override def actorRefFactory = context
@@ -75,6 +77,6 @@ class CromwellServerActor(config: Config) extends CromwellRootActor with Cromwel
 
 object CromwellServerActor {
   def props(config: Config): Props = {
-    Props(new CromwellServerActor(config))
+    Props(new CromwellServerActor(config)).withDispatcher(EngineDispatcher)
   }
 }

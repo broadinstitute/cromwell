@@ -8,7 +8,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
-import cromwell.core.path.PathFactory
+import cromwell.core.path.{PathBuilder, PathFactory}
 import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
@@ -141,9 +141,10 @@ object WorkflowActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
-            backendSingletonCollection: BackendSingletonCollection): Props = {
+            backendSingletonCollection: BackendSingletonCollection,
+            serverMode: Boolean): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection)).withDispatcher(EngineDispatcher)
+      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -160,7 +161,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
-                    backendSingletonCollection: BackendSingletonCollection)
+                    backendSingletonCollection: BackendSingletonCollection,
+                    serverMode: Boolean)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper {
 
   implicit val ec = context.dispatcher
@@ -174,10 +176,9 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId),
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
-
       actor ! MaterializeWorkflowDescriptorCommand(workflowSources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)
@@ -298,16 +299,26 @@ class WorkflowActor(val workflowId: WorkflowId,
 
       // Copy/Delete workflow logs
       if (WorkflowLogger.isEnabled) {
-        stateData.workflowDescriptor foreach { wd =>
-          wd.getWorkflowOption(FinalWorkflowLogDir) match {
+        /*
+          * The submitted workflow options have been previously validated by the CromwellApiHandler. These are
+          * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
+          * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
+          */
+        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(workflowSources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
+        def bruteForcePathBuilders: List[PathBuilder] = EngineFilesystems(context.system).pathBuildersForWorkflow(bruteForceWorkflowOptions)
+
+        val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
+          case Some(wd) => (wd.backendDescriptor.workflowOptions, wd.pathBuilders)
+          case None => (bruteForceWorkflowOptions, bruteForcePathBuilders)
+        }
+
+        workflowOptions.get(FinalWorkflowLogDir).toOption match {
             case Some(destinationDir) =>
-              workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(wd.id, PathFactory.buildPath(destinationDir, wd.pathBuilders))
+              workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
             case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile()
             case _ =>
           }
         }
-      }
-
       context stop self
   }
 
@@ -332,6 +343,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                                failures: Option[List[Throwable]]) = {
     val finalizationActor = makeFinalizationActor(workflowDescriptor, jobExecutionMap, workflowOutputs)
     finalizationActor ! StartFinalizationCommand
-    goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint(stateName, failures))
+    goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint (stateName, failures))
   }
+
 }

@@ -2,6 +2,7 @@ package cromwell.services.keyvalue.impl
 
 import akka.actor.Props
 import com.typesafe.config.Config
+import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.SingletonServicesStore
 import cromwell.services.keyvalue.KeyValueServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor._
@@ -9,7 +10,7 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import scala.concurrent.Future
 
 object SqlKeyValueServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig))
+  def props(serviceConfig: Config, globalConfig: Config) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig)).withDispatcher(ServiceDispatcher)
 }
 
 case class SqlKeyValueServiceActor(override val serviceConfig: Config, override val globalConfig: Config)

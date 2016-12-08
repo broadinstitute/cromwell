@@ -5,9 +5,10 @@ import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
+import wdl4s.values.WdlValue
 import wdl4s.{GraphNode, Scope}
 
 object WorkflowExecutionDiff {
@@ -15,7 +16,7 @@ object WorkflowExecutionDiff {
 }
 /** Data differential between current execution data, and updates performed in a method that needs to be merged. */
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
-                                       engineJobExecutionActorAdditions: Map[ActorRef, BackendJobDescriptorKey] = Map.empty) {
+                                       engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty) {
   def containsNewEntry = executionStoreChanges.exists(_._2 == NotStarted)
 }
 
@@ -36,7 +37,7 @@ object WorkflowExecutionActorData {
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
                                       executionStore: ExecutionStore,
                                       backendJobExecutionActors: Map[JobKey, ActorRef],
-                                      engineJobExecutionActors: Map[ActorRef, BackendJobDescriptorKey],
+                                      engineCallExecutionActors: Map[ActorRef, JobKey],
                                       subWorkflowExecutionActors: Map[SubWorkflowKey, ActorRef],
                                       downstreamExecutionMap: JobExecutionMap,
                                       outputStore: OutputStore) {
@@ -49,7 +50,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       case swKey: SubWorkflowKey => (backendJobExecutionActors, subWorkflowExecutionActors - swKey)
       case _ => (backendJobExecutionActors, subWorkflowExecutionActors)
     }
-    
+
     this.copy(
       executionStore = executionStore.add(Map(jobKey -> Done)),
       backendJobExecutionActors = newJobExecutionActors,
@@ -58,13 +59,24 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     )
   }
 
+  def declarationEvaluationSuccess(declarationKey: DeclarationKey, value: WdlValue) = {
+    val outputStoreKey = OutputCallKey(declarationKey.scope, declarationKey.index)
+    val outputStoreValue = OutputEntry(declarationKey.scope.unqualifiedName, value.wdlType, Option(value))
+    this.copy(
+      executionStore = executionStore.add(Map(declarationKey -> Done)),
+      outputStore = outputStore.add(Map(outputStoreKey -> List(outputStoreValue)))
+    )
+  }
+
+  def executionFailed(jobKey: JobKey) = mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed)))
+
   /** Add the outputs for the specified `JobKey` to the symbol cache. */
   private def updateSymbolStoreEntry(jobKey: JobKey, outputs: CallOutputs) = {
     val newOutputEntries = outputs map {
       case (name, value) => OutputEntry(name, value.wdlValue.wdlType, Option(value.wdlValue))
     }
 
-    Map(OutputCallKey(jobKey.scope, jobKey.index) -> newOutputEntries)
+    Map(OutputCallKey(jobKey.scope, jobKey.index) -> newOutputEntries.toList)
   }
 
   /** Checks if the workflow is completed by scanning through the executionStore.
@@ -97,7 +109,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def removeEngineJobExecutionActor(actorRef: ActorRef) = {
-    this.copy(engineJobExecutionActors = engineJobExecutionActors - actorRef)
+    this.copy(engineCallExecutionActors = engineCallExecutionActors - actorRef)
   }
 
   def addCallExecutionActor(jobKey: JobKey, actor: Option[ActorRef]): WorkflowExecutionActorData = actor match {
@@ -117,7 +129,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       case _ => this
     }
   }
-  
+
   def addExecutions(jobExecutionMap: JobExecutionMap): WorkflowExecutionActorData = {
     this.copy(downstreamExecutionMap = downstreamExecutionMap ++ jobExecutionMap)
   }
@@ -138,7 +150,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
     this.copy(
       executionStore = executionStore.add(diff.executionStoreChanges),
-      engineJobExecutionActors = engineJobExecutionActors ++ diff.engineJobExecutionActorAdditions)
+      engineCallExecutionActors = engineCallExecutionActors ++ diff.engineJobExecutionActorAdditions)
   }
 
   def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {

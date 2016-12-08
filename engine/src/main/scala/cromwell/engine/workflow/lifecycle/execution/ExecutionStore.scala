@@ -4,20 +4,21 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.ExecutionStoreEntry
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{CollectorKey, ScatterKey, SubWorkflowKey}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
 import wdl4s._
 
 
 object ExecutionStore {
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus])
   type ExecutionStoreEntry = (JobKey, ExecutionStatus)
-  def apply(workflow: Workflow) = {
+  def apply(workflow: Workflow, workflowCoercedInputs: WorkflowCoercedInputs) = {
     // Only add direct children to the store, the rest is dynamically created when necessary
     val keys = workflow.children map {
       case call: TaskCall => Option(BackendJobDescriptorKey(call, None, 1))
       case call: WorkflowCall => Option(SubWorkflowKey(call, None, 1))
       case scatter: Scatter => Option(ScatterKey(scatter))
-      case _ => None // FIXME there are other types of scopes now (Declarations, Ifs) Figure out what to do with those
+      case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
+      case _ => None // Ifs will need to be added here when supported
     }
 
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap)
@@ -42,19 +43,15 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
 
   def findShardEntries(key: CollectorKey): List[ExecutionStoreEntry] = store.toList filter {
     case (k: CallKey, v) => k.scope == key.scope && k.isShard
+    case (k: DeclarationKey, v) => k.scope == key.scope && k.isShard
     case _ => false
   }
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
-    val upstream = key.scope match {
-      case node: GraphNode => node.upstream collect {
-        // Only scatters and calls are in the execution store for now (not declarations)
-        // However declarations are nodes so they can be an upstream dependency
-        // We don't want to look for those in the execution store (yet ?) since upstreamEntry would return None
-        case n: Call => upstreamEntry(key, n)
-        case n: Scatter => upstreamEntry(key, n)
-      }
-      case _ => Set.empty
+    val upstream = key.scope.upstream collect {
+      case n: Call => upstreamEntry(key, n)
+      case n: Scatter => upstreamEntry(key, n)
+      case n: Declaration => upstreamEntry(key, n)
     }
 
     val downstream: List[(JobKey, ExecutionStatus)] = key match {

@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction, RefreshSummary, ValidateWorkflowIdAndExecute}
@@ -20,7 +21,7 @@ object MetadataServiceActor {
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 
-  def props(serviceConfig: Config, globalConfig: Config) = Props(MetadataServiceActor(serviceConfig, globalConfig))
+  def props(serviceConfig: Config, globalConfig: Config) = Props(MetadataServiceActor(serviceConfig, globalConfig)).withDispatcher(ServiceDispatcher)
 }
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)

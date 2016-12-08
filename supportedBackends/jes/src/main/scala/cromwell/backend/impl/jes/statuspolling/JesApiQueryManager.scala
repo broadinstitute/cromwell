@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Ter
 import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.Run
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
+import cromwell.core.Dispatcher.BackendDispatcher
 
 import scala.collection.immutable.Queue
 
@@ -11,7 +12,7 @@ import scala.collection.immutable.Queue
   * Currently, just holds a set of JES status poll requests until a PollingActor pulls the work.
   * TODO: Could eventually move all of the JES queries into a single work-pulling model.
   */
-class JesApiQueryManager extends Actor with ActorLogging {
+class JesApiQueryManager(val qps: Int) extends Actor with ActorLogging {
 
   // workQueue is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var workQueue: Queue[JesStatusPollQuery] = Queue.empty
@@ -19,7 +20,7 @@ class JesApiQueryManager extends Actor with ActorLogging {
 
   // If the statusPoller dies, we want to stop it and handle the termination ourselves.
   override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
-  private def statusPollerProps = JesPollingActor.props(self)
+  private def statusPollerProps = JesPollingActor.props(self, qps)
 
   // statusPoller is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var statusPoller: ActorRef = _
@@ -99,7 +100,7 @@ class JesApiQueryManager extends Actor with ActorLogging {
 
 object JesApiQueryManager {
 
-  def props: Props = Props(new JesApiQueryManager)
+  def props(qps: Int): Props = Props(new JesApiQueryManager(qps)).withDispatcher(BackendDispatcher)
 
   /**
     * Poll the job represented by the Run.

@@ -7,9 +7,10 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.Run
+import cromwell.backend.impl.jes.{JesAttributes, Run}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesPollingWorkBatch, JesStatusPollQuery, NoWorkToDo}
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
+import cromwell.core.Dispatcher.BackendDispatcher
 
 import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -19,12 +20,11 @@ import scala.concurrent.duration._
 /**
   * Polls JES for status. Pipes the results back (so expect either a RunStatus or a akka.actor.Status.Failure).
   */
-class JesPollingActor(pollingManager: ActorRef) extends Actor with ActorLogging {
+class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor with ActorLogging {
+  // The interval to delay between submitting each batch
+  lazy val batchInterval = determineBatchInterval(determineEffectiveQps(qps))
+  log.debug("JES batch polling interval is {}", batchInterval)
 
-  // We want to query at just under our fixed JES QPS limit of 20 per second. That should hopefully allow some room at the edges
-  // for things like new calls, etc.
-  val MaxBatchSize = 100
-  val BatchInterval = 5.5.seconds
   self ! NoWorkToDo // Starts the check-for-work cycle
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -109,13 +109,43 @@ class JesPollingActor(pollingManager: ActorRef) extends Actor with ActorLogging 
     * Warning: Only use this from inside a receive method.
     */
   private def scheduleCheckForWork(): Unit = {
-    context.system.scheduler.scheduleOnce(BatchInterval) { pollingManager ! JesApiQueryManager.RequestJesPollingWork(MaxBatchSize) }
+    context.system.scheduler.scheduleOnce(batchInterval) { pollingManager ! JesApiQueryManager.RequestJesPollingWork(MaxBatchSize) }
     ()
+  }
+
+  /**
+    * We don't want to allow non-positive QPS values. Catch these instances and replace them with a sensible default.
+    * Here we're using the default value coming from JES itself
+    */
+  private def determineEffectiveQps(qps: Int): Int = {
+    if (qps > 0) qps
+    else {
+      val defaultQps = JesAttributes.GenomicsApiDefaultQps
+      log.warning("Supplied QPS for Google Genomics API was not positive, value was {} using {} instead", qps, defaultQps)
+      defaultQps
+    }
   }
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef) = Props(new JesPollingActor(pollingManager))
+  def props(pollingManager: ActorRef, qps: Int) = Props(new JesPollingActor(pollingManager, qps)).withDispatcher(BackendDispatcher)
+
+  // The Batch API limits us to 100 at a time
+  val MaxBatchSize = 100
+
+  /**
+    * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
+    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
+    * calls, etc.
+    *
+    * Forcing the minimum value to be 1 second, for now it seems unlikely to matter and it makes testing a bit
+    * easier
+    */
+  def determineBatchInterval(qps: Int): FiniteDuration = {
+    val maxInterval = MaxBatchSize / qps.toDouble // Force this to be floating point in case the value is < 1
+    val interval = Math.max(maxInterval * 0.9, 1)
+    interval.seconds
+  }
 
   final case class JesPollFailed(e: GoogleJsonError, responseHeaders: HttpHeaders)
 }

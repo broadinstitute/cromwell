@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, Props}
 import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.services.genomics.Genomics
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.backend.impl.jes.JesInitializationActor._
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
@@ -31,7 +32,7 @@ object JesInitializationActor {
             calls: Set[TaskCall],
             jesConfiguration: JesConfiguration,
             serviceRegistryActor: ActorRef): Props =
-    Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor: ActorRef))
+    Props(new JesInitializationActor(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor: ActorRef)).withDispatcher(BackendDispatcher)
 }
 
 class JesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,

@@ -1,8 +1,9 @@
 package wdl4s.values
 
+import lenthall.util.TryUtil
 import wdl4s.TsvSerializable
 import wdl4s.types.{WdlAnyType, WdlMapType, WdlPrimitiveType, WdlType}
-import wdl4s.util.{FileUtil, TryUtil}
+import wdl4s.util.FileUtil
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}

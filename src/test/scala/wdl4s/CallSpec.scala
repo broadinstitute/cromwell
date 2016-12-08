@@ -1,7 +1,8 @@
 package wdl4s
 
 import org.scalatest.{Matchers, WordSpec}
-import wdl4s.expression.NoFunctions
+import wdl4s.exception.ValidationException
+import wdl4s.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
 import wdl4s.values._
 
@@ -63,8 +64,7 @@ class CallSpec extends WordSpec with Matchers {
     val exception = the[ValidationException] thrownBy {
       callT.evaluateTaskInputs(Map.empty, NoFunctions)
     }
-
-    exception.getMessage shouldBe "Input evaluation for Call w.t failed.\nVariable 's1' not found\nVariable 's2' not found"
+    exception.getMessage shouldBe "Input evaluation for Call w.t failed.:\ns1:\n\tCould not find s1 in input section of call w.t\ns2:\n\tCould not find s2 in input section of call w.t"
   }
   
   "find workflows" in {
@@ -112,6 +112,60 @@ class CallSpec extends WordSpec with Matchers {
     val ns = WdlNamespaceWithWorkflow.load(wdl, importResolver = (uri: String) => subWorkflow)
     ns.workflow.workflowCalls.size shouldBe 1
     ns.workflow.taskCalls.size shouldBe 1
+  }
+  
+  "bubble up evaluation exception" in {
+    val wdl =
+      """
+        |task hello {
+        |  String addressee
+        |  command {
+        |    echo "Hello ${addressee}!"
+        |  }
+        |  runtime {
+        |      docker: "ubuntu:latest"
+        |    }
+        |  output {
+        |    String salutation = read_string(stdout())
+        |  }
+        |}
+        |
+        |workflow wf_hello {
+        |  File wf_hello_input
+        |  File wf_hello_input2
+        |  String read = read_string(wf_hello_input)
+        |  String read2 = read_string(wf_hello_input2)
+        |  
+        |  call hello {input: addressee = read_string(wf_hello_input) }
+        |  call hello as hello2 {input: addressee = read }
+        |  
+        |  output {
+        |    String salutation = hello.salutation
+        |  }
+        |}""".stripMargin
+    
+    
+    val functionsWithRead = new PureStandardLibraryFunctionsLike {
+      override def readFile(path: String): String = {
+        import better.files._
+        File(path).contentAsString
+      }
+    }
+
+    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty)
+    val exception = intercept[ValidationException] {
+        ns.workflow.findCallByName("hello2").get.evaluateTaskInputs(Map("wf_hello.wf_hello_input" -> WdlFile("/do/not/exist")), functionsWithRead)
+    }
+    exception.getMessage shouldBe "Input evaluation for Call wf_hello.hello2 failed.:\naddressee:\n\tFile not found /do/not/exist"
+
+    val staticEvaluation = ns.staticDeclarationsRecursive(Map(
+      "wf_hello.wf_hello_input" -> WdlFile("/do/not/exist"),
+      "wf_hello.wf_hello_input2" -> WdlFile("/do/not/exist2")
+    ), functionsWithRead)
+    
+    staticEvaluation.isFailure shouldBe true
+    val exception2 = staticEvaluation.failed.get
+    exception2.getMessage shouldBe "Could not evaluate workflow declarations:\nwf_hello.read:\n\tFile not found /do/not/exist\nwf_hello.read2:\n\tFile not found /do/not/exist2"
   }
 
 }

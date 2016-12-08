@@ -2,6 +2,7 @@ package wdl4s.command
 
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s._
+import wdl4s.exception.VariableNotFoundException
 import wdl4s.expression.WdlFunctions
 import wdl4s.values._
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}

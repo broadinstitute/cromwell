@@ -1,7 +1,7 @@
 package wdl4s
 
-import cats.data.NonEmptyList
 import wdl4s.AstTools.EnhancedAstNode
+import wdl4s.exception.{ValidationException, VariableLookupException, VariableNotFoundException}
 import wdl4s.expression.WdlFunctions
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wdl4s.types.WdlOptionalType
@@ -148,9 +148,9 @@ sealed abstract class Call(val alias: Option[String],
     }
     
     if (errors.nonEmpty) {
-      val errorsMessage = errors map { _._2.failed.get.getMessage }
-      throw new ValidationException(
-        s"Input evaluation for Call $fullyQualifiedName failed.", NonEmptyList.fromListUnsafe(errorsMessage.toList)
+      val throwables = errors.toList map { _._2.failed.get }
+      throw ValidationException(
+        s"Input evaluation for Call $fullyQualifiedName failed.", throwables
       )
     }
 
@@ -183,12 +183,12 @@ sealed abstract class Call(val alias: Option[String],
 
       val declarationLookup = for {
         declaration <- declarationsWithMatchingName
-        inputsLookup <- Try(inputs.getOrElse(declaration.fullyQualifiedName, throw new Exception(s"No input for ${declaration.fullyQualifiedName}")))
+        inputsLookup <- Try(inputs.getOrElse(declaration.fullyQualifiedName, throw VariableNotFoundException(s"No input for ${declaration.fullyQualifiedName}")))
       } yield inputsLookup
 
       val declarationExprLookup = for {
         declaration <- declarationsWithMatchingName
-        declarationExpr <- Try(declaration.expression.getOrElse(throw new Exception(s"No expression defined for declaration ${declaration.fullyQualifiedName}")))
+        declarationExpr <- Try(declaration.expression.getOrElse(throw VariableNotFoundException(s"No expression defined for declaration ${declaration.fullyQualifiedName}")))
         evaluatedExpr <- declarationExpr.evaluate(lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo), wdlFunctions)
       } yield evaluatedExpr
 
@@ -201,9 +201,18 @@ sealed abstract class Call(val alias: Option[String],
 
       resolutions.collectFirst({ case s: Success[WdlValue] => s}) match {
         case Some(Success(value)) => value
-        case None => throw new VariableNotFoundException(name)
+        case None =>
+          resolutions.toList.flatMap({
+            case Failure(ex: VariableNotFoundException) => None
+            case Failure(ex) => Option(ex) // Only take failures that are not VariableNotFoundExceptions
+            case _ => None
+          }) match {
+            case Nil => throw VariableNotFoundException(name)
+            case exs => throw new VariableLookupException(name, exs)
+          }
       }
     }
+    
     lookup
   }
 }

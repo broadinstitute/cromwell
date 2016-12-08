@@ -1,10 +1,10 @@
 package wdl4s
 
+import lenthall.util.TryUtil
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl4s.expression.WdlFunctions
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
-import wdl4s.types.{WdlArrayType, WdlType}
-import wdl4s.util.TryUtil
+import wdl4s.types.WdlType
 import wdl4s.values.WdlValue
 
 import scala.language.postfixOps

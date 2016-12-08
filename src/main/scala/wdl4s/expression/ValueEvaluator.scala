@@ -1,12 +1,12 @@
 package wdl4s.expression
 
+import lenthall.util.TryUtil
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.WdlExpression._
 import wdl4s.types._
 import wdl4s.values.{WdlValue, _}
 import wdl4s.{WdlExpression, WdlExpressionException, WdlNamespace}
 import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
-import wdl4s.util.TryUtil
 
 import scala.util.{Failure, Success, Try}
 

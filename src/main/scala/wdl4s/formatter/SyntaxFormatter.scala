@@ -1,11 +1,11 @@
 package wdl4s.formatter
 
+import lenthall.util.TerminalUtil
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s._
 import wdl4s.command.StringCommandPart
 import wdl4s.types.WdlType
 import wdl4s.parser.WdlParser.{Ast, AstList, AstNode}
-import wdl4s.util.TerminalUtil
 
 import scala.collection.JavaConverters._
 

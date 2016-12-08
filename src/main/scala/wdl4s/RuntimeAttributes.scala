@@ -1,17 +1,10 @@
 package wdl4s
 
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.{NoFunctions, WdlFunctions, WdlStandardLibraryFunctionsType}
-import wdl4s.parser.MemoryUnit
-import wdl4s.parser.WdlParser.{Ast, AstList, SyntaxError}
-import wdl4s.types.{WdlIntegerType, WdlStringType}
-import wdl4s.util.TryUtil
-import wdl4s.values._
+import wdl4s.parser.WdlParser.{Ast, AstList}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 
 case class RuntimeAttributes(attrs: Map[String, WdlExpression])
 

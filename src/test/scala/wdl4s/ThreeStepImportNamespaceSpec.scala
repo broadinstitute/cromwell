@@ -2,6 +2,7 @@ package wdl4s
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.exception.ValidationException
 
 class ThreeStepImportNamespaceSpec extends FlatSpec with Matchers {
   val psTaskWdl = """

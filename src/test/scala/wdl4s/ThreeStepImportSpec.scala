@@ -1,6 +1,7 @@
 package wdl4s
 
 import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.exception.ValidationException
 
 class ThreeStepImportSpec extends FlatSpec with Matchers {
   val psTaskWdl = """

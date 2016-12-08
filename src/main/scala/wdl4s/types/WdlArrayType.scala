@@ -1,7 +1,7 @@
 package wdl4s.types
 
+import lenthall.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
-import wdl4s.util.TryUtil
 import spray.json.JsArray
 
 import scala.util.{Failure, Success}

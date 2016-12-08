@@ -25,7 +25,14 @@ versionWithGit ++ versionSettings
 
 val sprayJsonV = "1.3.2"
 
+val lenthallV = "0.20-7f708c7-SNAP"
+
+resolvers ++= List(
+  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/"
+)
+
 libraryDependencies ++= Seq(
+  "org.broadinstitute" %% "lenthall" % lenthallV,
   "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
   "io.spray" %% "spray-json" % sprayJsonV,
   /*

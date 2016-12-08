@@ -2,11 +2,12 @@ package wdl4s
 
 import java.util.regex.Pattern
 
+import lenthall.util.TryUtil
 import wdl4s.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl4s.command.{CommandPart, ParameterCommandPart, StringCommandPart}
-import wdl4s.expression.{WdlStandardLibraryFunctions, WdlFunctions}
+import wdl4s.expression.{WdlFunctions, WdlStandardLibraryFunctions}
 import wdl4s.parser.WdlParser._
-import wdl4s.util.{TryUtil, StringUtil}
+import wdl4s.util.StringUtil
 import wdl4s.values.{WdlFile, WdlValue}
 
 import scala.collection.JavaConverters._

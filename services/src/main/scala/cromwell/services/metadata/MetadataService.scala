@@ -110,7 +110,11 @@ object MetadataService {
       } else {
         valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       }
-    case WdlOptionalValue(_, Some(optionalValue)) => wdlValueToMetadataEvents(metadataKey, optionalValue)
+    case WdlOptionalValue(_, Some(value)) =>
+      wdlValueToMetadataEvents(metadataKey, value)
+    case WdlPair(left, right) =>
+      wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
+        wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

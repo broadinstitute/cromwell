@@ -7,7 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.Colle
 import lenthall.util.TryUtil
 import wdl4s.types.{WdlArrayType, WdlType}
 import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
-import wdl4s.{Call, Declaration, GraphNode, Scope}
+import wdl4s._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -19,6 +19,9 @@ object OutputStore {
 }
 
 case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
+
+  override def toString = store.map { case (k, l) => s"$k -> ${l.mkString(" ")}" } mkString System.lineSeparator
+
   def add(values: Map[OutputCallKey, List[OutputEntry]]) = this.copy(store = store ++ values)
 
   def fetchNodeOutputEntries(node: GraphNode, index: ExecutionIndex): Try[WdlValue] = {
@@ -55,7 +58,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     }
   }
   
-  def collectCall(call: Call, sortedShards: Seq[JobKey]) = Try {
+  def collectCall(call: Call, scatter: Scatter, sortedShards: Seq[JobKey]) = Try {
     val shardsOutputs = sortedShards map { e =>
       fetchNodeOutputEntries(call, e.index) map {
         case callOutputs: WdlCallOutputsObject => callOutputs.outputs
@@ -66,19 +69,20 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     call.outputs map { taskOutput =>
       val wdlValues = shardsOutputs.map(
         _.getOrElse(taskOutput.unqualifiedName, throw new RuntimeException(s"Could not retrieve output ${taskOutput.unqualifiedName}")))
-      val arrayOfValues = new WdlArray(WdlArrayType(taskOutput.wdlType), wdlValues)
+      val arrayType = taskOutput.relativeWdlType(scatter).asInstanceOf[WdlArrayType]
+      val arrayOfValues = new WdlArray(arrayType, wdlValues)
       taskOutput.unqualifiedName -> JobOutput(arrayOfValues)
     } toMap
   }
   
-  def collectDeclaration(declaration: Declaration, sortedShards: Seq[JobKey]) = Try {
+  def collectDeclaration(declaration: Declaration, scatter: Scatter, sortedShards: Seq[JobKey]) = Try {
     val shardsOutputs = sortedShards map { e =>
       fetchNodeOutputEntries(declaration, e.index) getOrElse {
         throw new RuntimeException(s"Could not retrieve output for shard ${e.scope} #${e.index}")
       }
     }
-    
-    Map(declaration.unqualifiedName -> JobOutput(WdlArray(WdlArrayType(declaration.wdlType), shardsOutputs)))
+    val arrayType = declaration.relativeWdlType(scatter).asInstanceOf[WdlArrayType]
+    Map(declaration.unqualifiedName -> JobOutput(WdlArray(arrayType, shardsOutputs)))
   }
 
   /**
@@ -90,8 +94,8 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     lazy val sortedShards = shards.toSeq sortBy { _.index.fromIndex }
     
     collector.scope match {
-      case call: Call => collectCall(call, sortedShards)
-      case declaration: Declaration => collectDeclaration(declaration, sortedShards)
+      case call: Call => collectCall(call, collector.scatter, sortedShards)
+      case declaration: Declaration => collectDeclaration(declaration, collector.scatter, sortedShards)
       case other => Failure(new RuntimeException(s"Cannot retrieve outputs for ${other.fullyQualifiedName}")) 
     }
   }

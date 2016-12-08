@@ -30,19 +30,19 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
     }
   }
 
-  private def writeToTsv(params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
+  private def writeToTsv(functionName: String, params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
     for {
-      singleArgument <- extractSingleArgument(params)
+      singleArgument <- extractSingleArgument(functionName, params)
       downcast <- Try(wdlClass.cast(singleArgument))
       tsvSerialized <- downcast.tsvSerialize
       file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
     } yield file
   }
 
-  override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  override def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlMap])
-  override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlObject])
-  override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
+  override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_lines", params, classOf[WdlArray])
+  override def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_map", params, classOf[WdlMap])
+  override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_object", params, classOf[WdlObject])
+  override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_objects", params, classOf[WdlArray])
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_tsv", params, classOf[WdlArray])
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_json() not implemented yet"))
 }

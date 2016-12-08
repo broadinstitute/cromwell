@@ -138,19 +138,28 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
     }
 
     "gracefully handle malformed WDL" in {
-      val expectedError = "Input evaluation for Call test1.summary failed.: Variable 'bfile' not found"
+      val expectedError = "Variable 'bfile' not found"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()
       probe watch workflowActor
       workflowActor ! StartWorkflowCommand
-      Await.result(promise.future, TestExecutionTimeout)
+      try {
+        Await.result(promise.future, TestExecutionTimeout)
+      } catch {
+        case e: Throwable =>
+          val info = failureMatcher.nearMissInformation
+          val errorString =
+            if (info.nonEmpty) "We had a near miss: " + info.mkString(", ")
+            else s"The expected key was never seen. We saw: [\n  ${failureMatcher.fullEventList.map(e => s"${e.key} -> ${e.value}").mkString("\n  ")}\n]."
+          fail(s"We didn't see the expected error message '$expectedError' within $TestExecutionTimeout. $errorString}")
+      }
       probe.expectTerminated(workflowActor, AwaitAlmostNothing)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
         case x: WorkflowFailedResponse =>
           x.workflowId should be(workflowId)
           x.reasons.size should be(1)
-          x.reasons.head.getMessage.contains("Input evaluation for Call test1.summary failed.:\nVariable 'bfile' not found") should be(true)
+          x.reasons.head.getMessage.contains(expectedError) should be(true)
       }
     }
   }

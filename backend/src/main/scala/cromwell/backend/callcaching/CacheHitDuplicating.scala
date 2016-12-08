@@ -48,7 +48,7 @@ trait CacheHitDuplicating {
   protected def destinationJobDetritusPaths: Map[String, Path]
 
   // Usually implemented by a subclass of JobCachingActorHelper
-  protected def metadataKeyValues: Map[String, Any]
+  protected def startMetadataKeyValues: Map[String, Any]
 
   private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
     sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).get recover {
@@ -98,7 +98,8 @@ trait CacheHitDuplicating {
     val destinationJobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons)
 
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
-    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
+    serviceRegistryActor.putMetadata(
+      jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
 
     JobSucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
   }

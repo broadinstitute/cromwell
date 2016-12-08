@@ -1,10 +1,11 @@
-package cromwell.backend.sfs
+package cromwell.backend.standard
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{Future, Promise}
@@ -19,15 +20,23 @@ import scala.concurrent.{Future, Promise}
   *
   * Thus there are no vars, and the context switches during "receive", once the asynchronous actor has been created.
   *
-  * @param jobDescriptor           The job to execute.
-  * @param configurationDescriptor The configuration.
-  * @param asyncPropsCreator       A function that can create the specific asynchronous backend.
+  * The backend synchronous actor is a proxy for an asynchronous actor that does the actual heavy lifting.
+  *
+  * - Synchronous params contain the class of the asynchronous actor.
+  * - Synchronous actor creates `Promise` that it will wait for.
+  * - Synchronous actor passes the `Promise` into a `StandardAsyncExecutionActorParams`.
+  * - Synchronous actor creates a `Props` using the asynchronous class plus asynchronous params.
+  * - Synchronous actor creates an asynchronous actor using the `Props`.
+  * - Synchronous actor waits for the `Promise` to complete.
+  * - Asynchronous actor runs.
+  * - Asynchronous actor completes the promise with a success or failure.
   */
-class SharedFileSystemJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                                        override val configurationDescriptor: BackendConfigurationDescriptor,
-                                        serviceRegistryActor: ActorRef,
-                                        asyncPropsCreator: Promise[BackendJobExecutionResponse] => Props)
-  extends BackendJobExecutionActor {
+class StandardSyncExecutionActor(standardParams: StandardSyncExecutionActorParams) extends BackendJobExecutionActor {
+
+  override val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
+  override val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
+  val jobIdKey: String = standardParams.jobIdKey
+  val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
   context.become(startup orElse super.receive)
 
@@ -43,9 +52,9 @@ class SharedFileSystemJobExecutionActor(override val jobDescriptor: BackendJobDe
     case abortResponse: AbortedResponse =>
       context.parent ! abortResponse
       context.stop(self)
-    case KvPair(key, id@Some(jobId)) if key.key == SharedFileSystemJob.JobIdKey =>
+    case KvPair(key, Some(jobId)) if key.key == jobIdKey =>
       // Successful operation ID lookup during recover.
-      executor ! Recover(SharedFileSystemJob(jobId))
+      executor ! Recover(StandardAsyncJob(jobId))
     case KvKeyLookupFailed(_) =>
       // Missed operation ID lookup during recover, fall back to execute.
       executor ! Execute
@@ -63,23 +72,49 @@ class SharedFileSystemJobExecutionActor(override val jobDescriptor: BackendJobDe
   private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
 
   override def execute: Future[BackendJobExecutionResponse] = {
-    val executorRef = context.actorOf(asyncPropsCreator(completionPromise), "SharedFileSystemAsyncJobExecutionActor")
+    val executorRef = createAsyncRef()
     context.become(running(executorRef) orElse super.receive)
     executorRef ! Execute
     completionPromise.future
   }
 
   override def recover: Future[BackendJobExecutionResponse] = {
-    val executorRef = context.actorOf(asyncPropsCreator(completionPromise), "SharedFileSystemAsyncJobExecutionActor")
+    val executorRef = createAsyncRef()
     context.become(running(executorRef) orElse super.receive)
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
-    val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, SharedFileSystemJob.JobIdKey))
+    val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey))
     serviceRegistryActor ! kvGet
     completionPromise.future
   }
 
-  override def abort() = {
+  def createAsyncParams(): StandardAsyncExecutionActorParams = {
+    DefaultStandardAsyncExecutionActorParams(
+      standardParams.jobIdKey,
+      standardParams.serviceRegistryActor,
+      standardParams.jobDescriptor,
+      standardParams.configurationDescriptor,
+      standardParams.backendInitializationDataOption,
+      completionPromise
+    )
+  }
+
+  def createAsyncProps(): Props = {
+    val asyncParams = createAsyncParams()
+    Props(standardParams.asyncJobExecutionActorClass, asyncParams)
+  }
+
+  def createAsyncRefName(): String = {
+    standardParams.asyncJobExecutionActorClass.getSimpleName
+  }
+
+  def createAsyncRef(): ActorRef = {
+    val props = createAsyncProps().withDispatcher(Dispatcher.BackendDispatcher)
+    val name = createAsyncRefName()
+    context.actorOf(props, name)
+  }
+
+  override def abort(): Unit = {
     throw new NotImplementedError("Abort is implemented via a custom receive of the message AbortJobCommand.")
   }
 }

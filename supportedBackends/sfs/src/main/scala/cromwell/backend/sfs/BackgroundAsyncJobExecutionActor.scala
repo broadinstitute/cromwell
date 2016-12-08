@@ -3,6 +3,7 @@ package cromwell.backend.sfs
 import java.nio.file.Path
 
 import better.files._
+import cromwell.backend.standard.StandardAsyncJob
 import cromwell.backend.sfs.SharedFileSystem._
 
 trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecutionActor {
@@ -49,22 +50,22 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     ()
   }
 
-  override def getJob(exitValue: Int, stdout: Path, stderr: Path) = {
+  override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob = {
     val pid = File(stdout).contentAsString.stripLineEnd
-    SharedFileSystemJob(pid)
+    StandardAsyncJob(pid)
   }
 
-  override def checkAliveArgs(job: SharedFileSystemJob) = {
+  override def checkAliveArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     SharedFileSystemCommand("ps", job.jobId)
   }
 
-  override def killArgs(job: SharedFileSystemJob) = {
+  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     val killScript = pathPlusSuffix(jobPaths.script, "kill")
     writeKillScript(killScript, job)
     SharedFileSystemCommand("/bin/bash", killScript)
   }
 
-  private def writeKillScript(killScript: File, job: SharedFileSystemJob): Unit = {
+  private def writeKillScript(killScript: File, job: StandardAsyncJob): Unit = {
     /*
     Use pgrep to find the children of a process, and recursively kill the children before killing the parent.
      */

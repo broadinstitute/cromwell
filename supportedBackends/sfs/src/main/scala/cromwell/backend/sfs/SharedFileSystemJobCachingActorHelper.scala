@@ -7,6 +7,7 @@ import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.io.{JobPathsWithDocker, WorkflowPathsBackendInitializationData}
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.PathBuilder
 import net.ceedubs.ficus.Ficus._
 
 trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
@@ -19,7 +20,7 @@ trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
   lazy val jobPaths =
     new JobPathsWithDocker(jobDescriptor.key, jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
 
-  lazy val initializationData = BackendInitializationData.
+  lazy val initializationData: SharedFileSystemBackendInitializationData = BackendInitializationData.
     as[SharedFileSystemBackendInitializationData](backendInitializationDataOption)
 
   lazy val validatedRuntimeAttributes: ValidatedRuntimeAttributes = {
@@ -27,7 +28,7 @@ trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
     builder.build(jobDescriptor.runtimeAttributes, jobLogger)
   }
 
-  lazy val metadataKeyValues: Map[String, Any] = {
+  def startMetadataKeyValues: Map[String, Any] = {
     val runtimeAttributesMetadata = RuntimeAttributesValidation.extract(validatedRuntimeAttributes) map {
       case (key, value) => (s"runtimeAttributes:$key", value)
     }
@@ -37,8 +38,10 @@ trait SharedFileSystemJobCachingActorHelper extends JobCachingActorHelper {
   }
 
   lazy val sharedFileSystem = new SharedFileSystem {
-    override val pathBuilders = WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
-    override lazy val sharedFileSystemConfig = {
+    override val pathBuilders: List[PathBuilder] = {
+      WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
+    }
+    override lazy val sharedFileSystemConfig: Config = {
       configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local").getOrElse(ConfigFactory.empty())
     }
   }

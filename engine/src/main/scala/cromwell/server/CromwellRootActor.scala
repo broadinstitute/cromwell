@@ -78,9 +78,7 @@ import net.ceedubs.ficus.Ficus._
     * of Cromwell by passing a Throwable to the guardian.
     */
   override val supervisorStrategy = OneForOneStrategy() {
-    case actorInitializationException: ActorInitializationException => throw new RuntimeException(
-      s"Unable to create actor for ActorRef ${actorInitializationException.getActor}",
-      actorInitializationException.getCause)
+    case actorInitializationException: ActorInitializationException => Escalate
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

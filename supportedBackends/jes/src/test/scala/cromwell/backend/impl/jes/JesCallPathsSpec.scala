@@ -2,6 +2,7 @@ package cromwell.backend.impl.jes
 
 import cromwell.backend.BackendSpec
 import cromwell.core.TestKitSuite
+import cromwell.core.path.PathImplicits._
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -32,13 +33,13 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
     val callPaths = JesJobPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
-    callPaths.returnCode.toUri.toString should
+    callPaths.returnCode.toRealString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-rc.txt")
-    callPaths.stdout.toUri.toString should
+    callPaths.stdout.toRealString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
-    callPaths.stderr.toUri.toString should
+    callPaths.stderr.toRealString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
-    callPaths.jesLogPath.toUri.toString should
+    callPaths.jesLogPath.toRealString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
 
@@ -48,7 +49,7 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
     val callPaths = JesJobPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
-    callPaths.callContext.root.toUri.toString should
+    callPaths.callContext.root.toRealString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should be("hello-stdout.log")
     callPaths.callContext.stderr should be("hello-stderr.log")

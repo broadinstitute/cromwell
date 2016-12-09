@@ -6,6 +6,7 @@ import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
 import cromwell.core.path.PathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.core.path.PathImplicits._
 import wdl4s.expression.{PureStandardLibraryFunctionsLike, WdlStandardLibraryFunctions}
 import wdl4s.values._
 
@@ -24,11 +25,11 @@ class JesExpressionFunctions(override val pathBuilders: List[PathBuilder], conte
   override def glob(path: String, pattern: String): Seq[String] = {
     val name = globName(pattern)
     val listFile = context.root.resolve(s"$name.list").toRealPath()
-    Files.readAllLines(listFile).asScala map { fileName => context.root.resolve(s"$name/$fileName").toUri.toString }
+    Files.readAllLines(listFile).asScala map { fileName => context.root.resolve(s"$name/$fileName").toRealString }
   }
 
   override def preMapping(str: String): String = if (!GcsPathBuilder.isValidGcsUrl(str)) {
-    context.root.resolve(str.stripPrefix("/")).toUri.toString
+    context.root.resolve(str.stripPrefix("/")).toRealString
   } else str
 
   override def stdout(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stdout))

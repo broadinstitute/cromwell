@@ -7,6 +7,7 @@ import cromwell.backend.BackendCacheHitCopyingActor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.PathCopier
+import cromwell.core.path.PathImplicits._
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
 
@@ -66,7 +67,7 @@ trait CacheHitDuplicating {
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
         duplicate(sourcePath, destinationPath)
-        WdlValueSimpleton(key, WdlFile(destinationPath.toUri.toString))
+        WdlValueSimpleton(key, WdlFile(destinationPath.toRealString))
       case wdlValueSimpleton => wdlValueSimpleton
     }
   }

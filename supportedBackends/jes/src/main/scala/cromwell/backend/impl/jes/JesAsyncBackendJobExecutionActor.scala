@@ -25,6 +25,7 @@ import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
+import cromwell.core.path.PathImplicits._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata._
 import wdl4s._
@@ -101,9 +102,9 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val cmdInput =
-    JesFileInput(ExecParamName, jesCallPaths.script.toUri.toString, Paths.get(jesCallPaths.scriptFilename), workingDisk)
+    JesFileInput(ExecParamName, jesCallPaths.script.toRealString, Paths.get(jesCallPaths.scriptFilename), workingDisk)
   private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
-  private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toUri.toString, Paths.get(returnCodeFilename), workingDisk)
+  private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toRealString, Paths.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
   private lazy val returnCodeContents = Try(File(returnCodeGcsPath).contentAsString)
@@ -129,14 +130,14 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.toUri.toString))
+      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.toRealString))
     else None
   }
 
   private lazy val callContext = CallContext(
     callRootPath,
-    jesStdoutFile.toUri.toString,
-    jesStderrFile.toUri.toString
+    jesStdoutFile.toRealString,
+    jesStderrFile.toRealString
   )
 
   private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
@@ -233,7 +234,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   }
 
   private def generateJesSingleFileOutputs(wdlFile: WdlSingleFile): JesFileOutput = {
-    val destination = callRootPath.resolve(wdlFile.value.stripPrefix("/")).toUri.toString
+    val destination = callRootPath.resolve(wdlFile.value.stripPrefix("/")).toRealString
     val (relpath, disk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
     JesFileOutput(makeSafeJesReferenceName(wdlFile.value), destination, relpath, disk)
   }
@@ -242,8 +243,8 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
     val globName = callEngineFunctions.globName(wdlFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
-    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).toUri.toString
-    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).toUri.toString
+    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).toRealString
+    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).toRealString
 
     val (_, globDirectoryDisk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
 
@@ -318,7 +319,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       runIdForResumption,
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
-      callRootPath = callRootPath.toUri.toString,
+      callRootPath = callRootPath.toRealString,
       commandLine = jesCommandLine,
       logFileName = jesLogFilename,
       jesParameters,

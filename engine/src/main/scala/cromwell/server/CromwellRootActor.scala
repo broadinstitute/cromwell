@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrat
 import akka.event.Logging
 import akka.routing.RoundRobinPool
 import com.typesafe.config.ConfigFactory
+import cromwell.engine.EngineStatsActor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
@@ -15,6 +16,9 @@ import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
 import net.ceedubs.ficus.Ficus._
+
+import scala.concurrent.duration._
+
 /**
   * An actor which serves as the lord protector for the rest of Cromwell, allowing us to have more fine grain
   * control on top level supervision, etc.
@@ -31,6 +35,9 @@ import net.ceedubs.ficus.Ficus._
   private val logger = Logging(context.system, this)
   private val config = ConfigFactory.load()
   val serverMode: Boolean
+  private lazy val statLogInterval = if (!serverMode) {
+    FiniteDuration(config.getOrElse("engine.execution-log-interval", 60L), SECONDS)
+  } else Duration.Zero
 
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
   lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
@@ -60,13 +67,15 @@ import net.ceedubs.ficus.Ficus._
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
   lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
+  
+  lazy val statsActor = context.actorOf(EngineStatsActor.props(statLogInterval))
 
   def abortJobsOnTerminate: Boolean
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
       workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor,
-      jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
+      jobExecutionTokenDispenserActor, statsActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
     "WorkflowManagerActor")
 
   override def receive = {

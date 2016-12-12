@@ -18,10 +18,11 @@ object WorkflowExecutionDiff {
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
                                        engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty) {
   def containsNewEntry = executionStoreChanges.exists(_._2 == NotStarted)
+  def backendJobChanges = executionStoreChanges.collect({ case (k: BackendJobDescriptorKey, v) => k -> v })
 }
 
 object WorkflowExecutionActorData {
-  def empty(workflowDescriptor: EngineWorkflowDescriptor) = {
+  def empty(workflowDescriptor: EngineWorkflowDescriptor, statsActor: ActorRef) = {
     new WorkflowExecutionActorData(
       workflowDescriptor,
       ExecutionStore.empty,
@@ -29,7 +30,8 @@ object WorkflowExecutionActorData {
       Map.empty,
       Map.empty,
       Map.empty,
-      OutputStore.empty
+      OutputStore.empty,
+      statsActor
     )
   }
 }
@@ -40,7 +42,8 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       engineCallExecutionActors: Map[ActorRef, JobKey],
                                       subWorkflowExecutionActors: Map[SubWorkflowKey, ActorRef],
                                       downstreamExecutionMap: JobExecutionMap,
-                                      outputStore: OutputStore) {
+                                      outputStore: OutputStore,
+                                      statsActor: ActorRef) {
 
   val expressionLanguageFunctions = new WdlFunctions(workflowDescriptor.pathBuilders)
 
@@ -51,8 +54,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       case _ => (backendJobExecutionActors, subWorkflowExecutionActors)
     }
 
-    this.copy(
-      executionStore = executionStore.add(Map(jobKey -> Done)),
+    mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> Done))).copy(
       backendJobExecutionActors = newJobExecutionActors,
       subWorkflowExecutionActors = newSubWorkflowExecutionActors,
       outputStore = outputStore.add(updateSymbolStoreEntry(jobKey, outputs))
@@ -148,6 +150,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
+    statsActor ! diff
     this.copy(
       executionStore = executionStore.add(diff.executionStoreChanges),
       engineCallExecutionActors = engineCallExecutionActors ++ diff.engineJobExecutionActorAdditions)

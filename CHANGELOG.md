@@ -1,5 +1,29 @@
 # Cromwell Change Log
 
+## 24
+
+* The format of the API response for the stats endpoint has slightly changed and now gives the status of jobs belonging to running workflows:
+```
+{
+  "workflows": {
+    "Running": 1
+  },
+  "jobs": {
+    "Done": 5,
+    "Running": 2
+  }
+}
+```
+The single workflow runner also prints out the status of the jobs periodically.
+```
+[Job Execution]
+|Status |Count|
+|-------|-----|
+|Running|1    |
+```
+
+The logging interval duration in seconds can be set in the configuration : `engine.execution-log-interval`. Defaults to 60 seconds. Set to 0 to disable.
+
 ## 23
 
 * The `meta` and `parameter_meta` blocks are now valid within `workflow` blocks, not just `task`

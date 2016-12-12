@@ -13,7 +13,6 @@ import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -46,12 +45,13 @@ object WorkflowManagerActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            statsActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             abortJobsOnTerminate: Boolean,
             serverMode: Boolean): Props = {
     val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection,
-      abortJobsOnTerminate, serverMode)
+      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor,
+      statsActor, backendSingletonCollection, abortJobsOnTerminate, serverMode)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
@@ -91,6 +91,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       subWorkflowStoreActor: ActorRef,
                                       callCacheReadActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
+                                      statsActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
                                       abortJobsOnTerminate: Boolean,
                                       serverMode: Boolean)
@@ -252,10 +253,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)
       // This is minorly bad. The JobStore would never rid itself of this workflow's entries. Unlikely to be a big deal
       stay()
-    case Event(EngineStatsCommand, data) =>
-      val sndr = sender()
-      context.actorOf(EngineStatsActor.props(data.workflows.values.toList, sndr), s"EngineStatsActor-${sndr.hashCode()}")
-      stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, data) =>
       log.warning(s"$tag Unhandled message: $unhandled")
@@ -287,7 +284,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.serviceRegistryActor,
       params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.jobTokenDispenserActor,
-      params.backendSingletonCollection, params.serverMode)
+      params.statsActor, params.backendSingletonCollection, params.serverMode)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

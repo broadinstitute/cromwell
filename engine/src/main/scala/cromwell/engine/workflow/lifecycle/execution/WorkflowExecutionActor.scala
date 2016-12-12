@@ -18,7 +18,6 @@ import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, Eng
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, MetadataPutFailed}
 import cromwell.util.{StopAndLogSupervisor, TryUtil}
-import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import net.ceedubs.ficus.Ficus._
 import wdl4s.values.{WdlArray, WdlValue}
@@ -34,6 +33,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
                                   subWorkflowStoreActor: ActorRef,
                                   callCacheReadActor: ActorRef,
                                   jobTokenDispenserActor: ActorRef,
+                                  statsActor: ActorRef,
                                   backendSingletonCollection: BackendSingletonCollection,
                                   initializationData: AllBackendInitializationData,
                                   restarting: Boolean)
@@ -67,12 +67,15 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       engineCallExecutionActors = Map.empty,
       subWorkflowExecutionActors = Map.empty,
       downstreamExecutionMap = Map.empty,
-      outputStore = OutputStore.empty
+      outputStore = OutputStore.empty,
+      statsActor
     )
   )
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, stateData) =>
+      // Update the stats engine with the initial state of the execution store
+      statsActor ! WorkflowExecutionDiff(stateData.executionStore.store, Map.empty)
       val data = startRunnableScopes(stateData)
       goto(WorkflowExecutionInProgressState) using data
   }
@@ -201,10 +204,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       } else {
         goto(WorkflowExecutionAbortedState)
       }
-    case Event(EngineStatsActor.JobCountQuery, data) =>
-      sender ! EngineStatsActor.JobCount(data.backendJobExecutionActors.size)
-      data.subWorkflowExecutionActors.values foreach { _ forward EngineStatsActor.JobCountQuery }
-      stay()
     case unhandledMessage =>
       workflowLogger.warn(s"$tag received an unhandled message: ${unhandledMessage.event} in state: $stateName")
       stay()
@@ -418,7 +417,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     val sweaRef = context.actorOf(
       SubWorkflowExecutionActor.props(key, data, backendFactories, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting),
+        callCacheReadActor, jobTokenDispenserActor, statsActor, backendSingletonCollection, initializationData, restarting),
       s"SubWorkflowExecutionActor-${key.tag}"
     )
 
@@ -617,10 +616,11 @@ object WorkflowExecutionActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            statsActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
     Props(WorkflowExecutionActor(workflowDescriptor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-      callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
+      callCacheReadActor, jobTokenDispenserActor, statsActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 }

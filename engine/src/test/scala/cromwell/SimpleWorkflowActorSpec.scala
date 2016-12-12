@@ -8,6 +8,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
 import cromwell.core.{WorkflowId, WorkflowSourceFilesWithoutImports}
+import cromwell.engine.EngineStatsActor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -46,6 +47,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
         subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props),
+        statsActor = system.actorOf(EngineStatsActor.props()),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true),
       supervisor = supervisor.ref,

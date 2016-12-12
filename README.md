@@ -3102,7 +3102,7 @@ Server: spray-can/1.3.3
 
 ## GET /api/engine/:version/stats
 
-This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
+This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of jobs belonging to running workflows with their respective status. 
 
 cURL:
 ```
@@ -3122,8 +3122,13 @@ Response:
 "content-type": "application/json; charset=UTF-8"
 
 {
-  "workflows": 3,
-  "jobs": 10
+  "workflows": {
+    "Running": 1
+  },
+  "jobs": {
+    "Done": 5,
+    "Running": 2
+  }
 }
 ```
 

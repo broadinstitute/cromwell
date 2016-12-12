@@ -71,6 +71,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val callCacheHitCopyingProbe = TestProbe()
   val jobPreparationProbe = TestProbe()
   val jobTokenDispenserProbe = TestProbe()
+  val statsActor = TestProbe()
 
   def buildFactory() = new BackendLifecycleActorFactory {
 
@@ -108,7 +109,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       jobPreparationProbe = jobPreparationProbe,
       replyTo = replyToProbe.ref,
       jobDescriptorKey = jobDescriptorKey,
-      executionData = WorkflowExecutionActorData.empty(descriptor),
+      executionData = WorkflowExecutionActorData.empty(descriptor, statsActor.ref),
       factory = factory,
       initializationData = None,
       restarting = restarting,

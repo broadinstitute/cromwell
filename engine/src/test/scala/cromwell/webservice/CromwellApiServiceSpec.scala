@@ -70,6 +70,7 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
   override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
+  override val statsActor = actorRefFactory.actorOf(Props.empty)
 
   val version = "v1"
 

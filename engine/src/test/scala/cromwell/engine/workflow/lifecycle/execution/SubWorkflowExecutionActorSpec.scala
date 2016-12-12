@@ -55,18 +55,19 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val subKey = SubWorkflowKey(subWorkflowCall, None, 1)
   
   val awaitTimeout: FiniteDuration = 10 seconds
-
+  val statsActor = TestProbe().ref
   def buildEWEA(restart: Boolean = false) = {
     new TestFSMRef[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData, SubWorkflowExecutionActor](system, Props(
       new SubWorkflowExecutionActor(
         subKey,
-        WorkflowExecutionActorData.empty(parentWorkflowDescriptor),
+        WorkflowExecutionActorData.empty(parentWorkflowDescriptor, statsActor),
         Map.empty,
         serviceRegistryProbe.ref,
         jobStoreProbe.ref,
         subWorkflowStoreProbe.ref,
         callCacheReadActorProbe.ref,
         jobTokenDispenserProbe.ref,
+        statsActor,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
         restart

@@ -6,7 +6,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core._
 import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.engine.workflow.WorkflowManagerActor
+import cromwell.engine.EngineStatsActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.webservice.PerRequest.RequestComplete
@@ -50,7 +50,7 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
   private def error(t: Throwable)(f: Throwable => RequestComplete[_]): Unit = context.parent ! f(t)
 
   override def receive = {
-    case ApiHandlerEngineStats => requestHandlerActor ! WorkflowManagerActor.EngineStatsCommand
+    case ApiHandlerEngineStats => requestHandlerActor ! EngineStatsActor.StatsQuery
     case stats: EngineStatsActor.EngineStats => context.parent ! RequestComplete((StatusCodes.OK, stats))
     case ApiHandlerWorkflowAbort(id, manager) => requestHandlerActor ! WorkflowStoreActor.AbortWorkflow(id, manager)
     case WorkflowStoreActor.WorkflowAborted(id) =>

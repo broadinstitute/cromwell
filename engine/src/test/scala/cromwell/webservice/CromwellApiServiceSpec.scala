@@ -258,6 +258,23 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
+  it should "return 400 for an unrecognized form data request parameter " in {
+    val bodyParts: Map[String, BodyPart] = Map("incorrectParameter" -> BodyPart(HelloWorld.wdlSource()))
+    Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
+      submitRoute ~>
+      check {
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "Unexpected body part name: incorrectParameter"
+              |}""".stripMargin) {
+          responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
   it should "succesfully merge and override multiple input files" in {
 
     val input1 = Map("wf.a1" -> "hello", "wf.a2" -> "world").toJson.toString
@@ -290,6 +307,25 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
           responseAs[String]
         }
         assertResult(StatusCodes.OK) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 for an submission with no inputs" in {
+    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()))
+
+    Post(s"/workflows/$version/batch", MultipartFormData(bodyParts)) ~>
+      submitBatchRoute ~>
+      check {
+        assertResult(
+          s"""{
+              |  "status": "fail",
+              |  "message": "No inputs were provided"
+              |}""".stripMargin) {
+          responseAs[String]
+        }
+        assertResult(StatusCodes.BadRequest) {
           status
         }
       }
@@ -615,6 +651,16 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
 
   it should "return 400 bad request for a bad query format body" in {
     Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":["Succeeded"]}]""")) ~>
+      sealRoute(queryPostRoute) ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 bad request for a incorrect submission" in {
+    Post(s"/workflows/$version", HttpEntity(ContentTypes.`application/json`, """[{"status":["Succeeded"]}]""")) ~>
       sealRoute(queryPostRoute) ~>
       check {
         assertResult(StatusCodes.BadRequest) {

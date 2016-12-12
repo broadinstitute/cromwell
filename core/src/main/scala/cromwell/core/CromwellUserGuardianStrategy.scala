@@ -1,4 +1,4 @@
-package cromwell.server
+package cromwell.core
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorInitializationException, OneForOneStrategy, SupervisorStrategy, SupervisorStrategyConfigurator}

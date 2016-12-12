@@ -658,15 +658,5 @@ class CromwellApiServiceSpec extends FlatSpec with CromwellApiService with Scala
         }
       }
   }
-
-  it should "return 400 bad request for a incorrect submission" in {
-    Post(s"/workflows/$version", HttpEntity(ContentTypes.`application/json`, """[{"status":["Succeeded"]}]""")) ~>
-      sealRoute(queryPostRoute) ~>
-      check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
-      }
-  }
 }
 

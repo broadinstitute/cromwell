@@ -83,12 +83,9 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     * If complete, this will return Some(finalStatus).  Otherwise, returns None */
   def workflowCompletionStatus: Option[ExecutionStatus] = {
     // `List`ify the `prerequisiteScopes` to avoid expensive hashing of `Scope`s when assembling the result.
-    def upstream(scope: GraphNode): List[Scope] = {
-      val directUpstream: List[Scope with GraphNode] = scope.upstream.toList
-      directUpstream ++ directUpstream.flatMap(upstream)
-    }
-    def upstreamFailed(scope: Scope) = scope match {
-      case node: GraphNode => upstream(node) filter { s =>
+
+    def upstreamFailed(scope: Scope): List[GraphNode] = scope match {
+      case node: GraphNode => node.upstreamAncestry.toList filter { s =>
         executionStore.store.exists({ case (key, status) => status == Failed && key.scope == s })
       }
     }

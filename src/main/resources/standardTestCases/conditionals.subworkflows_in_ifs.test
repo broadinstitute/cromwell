@@ -1,0 +1,18 @@
+name: subworkflows_in_ifs
+testFormat: workflowsuccess
+tags: [ conditionals ]
+
+files {
+  wdl: conditionals_tests/subworkflows_in_ifs/subworkflows_in_ifs.wdl
+    imports: [
+      conditionals_tests/subworkflows_in_ifs/subworkflow.wdl
+    ]
+}
+
+metadata {
+  workflowName: subworkflows_in_ifs
+  "outputs.tjs.0": "1"
+  "outputs.tjs.1": "2"
+  "outputs.tjs.2": "3"
+  "outputs.fjs": "null"
+}

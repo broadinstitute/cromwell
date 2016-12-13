@@ -1,0 +1,13 @@
+name: ifs_upstream_and_downstream
+testFormat: workflowsuccess
+tags: [ conditionals ]
+
+files {
+  wdl: conditionals_tests/ifs_upstream_and_downstream/ifs_upstream_and_downstream.wdl
+}
+
+metadata {
+  workflowName: ifs_upstream_and_downstream
+  "outputs.ifs_upstream_and_downstream_downstream_vrai": "ceci n'est pas une pipe"
+  "outputs.ifs_upstream_and_downstream_downstream_faux": ""
+}

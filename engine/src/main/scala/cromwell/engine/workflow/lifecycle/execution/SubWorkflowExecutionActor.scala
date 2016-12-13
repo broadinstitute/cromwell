@@ -24,6 +24,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 subWorkflowStoreActor: ActorRef,
                                 callCacheReadActor: ActorRef,
                                 jobTokenDispenserActor: ActorRef,
+                                statsActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
                                 restarting: Boolean) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
@@ -154,6 +155,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       subWorkflowStoreActor,
       callCacheReadActor,
       jobTokenDispenserActor,
+      statsActor,
       backendSingletonCollection,
       initializationData,
       restarting
@@ -256,6 +258,7 @@ object SubWorkflowExecutionActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            statsActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean) = {
@@ -268,6 +271,7 @@ object SubWorkflowExecutionActor {
       subWorkflowStoreActor,
       callCacheReadActor,
       jobTokenDispenserActor,
+      statsActor,
       backendSingletonCollection,
       initializationData,
       restarting)

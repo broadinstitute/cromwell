@@ -28,6 +28,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   val workflowManagerActor: ActorRef
   val workflowStoreActor: ActorRef
   val serviceRegistryActor: ActorRef
+  val statsActor: ActorRef
 
   def toMap(someInput: Option[String]): Map[String, JsValue] = {
     import spray.json._
@@ -261,7 +262,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("engine" / Segment / "stats") { version =>
       get {
         requestContext =>
-          perRequest(requestContext, CromwellApiHandler.props(workflowManagerActor), CromwellApiHandler.ApiHandlerEngineStats)
+          perRequest(requestContext, CromwellApiHandler.props(statsActor), CromwellApiHandler.ApiHandlerEngineStats)
       }
     }
 

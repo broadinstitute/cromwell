@@ -10,7 +10,8 @@ import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
-import cromwell.core.{WorkflowSourceFilesCollection}
+import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.engine.EngineStatsActor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -59,6 +60,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
+  private val statsActor = system.actorOf(EngineStatsActor.props())
 
 
   def workflowManagerActor(): ActorRef = {
@@ -70,6 +72,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
       subWorkflowStore,
       callCacheReadActor,
       jobTokenDispenserActor,
+      statsActor,
       BackendSingletonCollection(Map.empty),
       abortJobsOnTerminate = false,
       serverMode = false)

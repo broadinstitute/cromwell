@@ -20,7 +20,6 @@ import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, Wor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
-import cromwell.webservice.EngineStatsActor
 import wdl4s.{LocallyQualifiedName => _}
 
 import scala.util.Failure
@@ -42,6 +41,7 @@ object WorkflowActor {
   case class WorkflowAbortedResponse(workflowId: WorkflowId) extends WorkflowActorResponse
   case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable]) extends Exception with WorkflowActorResponse
 
+  case class WorkflowStateTransition(workflowId: WorkflowId, workflowState: WorkflowState)
   /**
     * States for the WorkflowActor FSM
     */
@@ -143,10 +143,11 @@ object WorkflowActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            statsActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
+      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, statsActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -163,6 +164,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
+                    statsActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper {
@@ -213,6 +215,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         subWorkflowStoreActor,
         callCacheReadActor,
         jobTokenDispenserActor,
+        statsActor,
         backendSingletonCollection,
         initializationData,
         restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
@@ -225,19 +228,14 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   when(ExecutingWorkflowState) {
-    case Event(WorkflowExecutionSucceededResponse(jobKeys, outputs),
+    case Event(response @ WorkflowExecutionSucceededResponse(jobKeys, outputs),
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+      statsActor ! response
       finalizeWorkflow(data, workflowDescriptor, jobKeys, outputs, None)
-    case Event(WorkflowExecutionFailedResponse(jobKeys, failures),
+    case Event(response @ WorkflowExecutionFailedResponse(jobKeys, failures),
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+      statsActor ! response
       finalizeWorkflow(data, workflowDescriptor, jobKeys, Map.empty, Option(List(failures)))
-    case Event(msg @ EngineStatsActor.JobCountQuery, data) =>
-      data.currentLifecycleStateActor match {
-        case Some(a) => a forward msg
-        case None => sender ! EngineStatsActor.NoJobs // This should be impossible, but if somehow here it's technically correct
-      }
-
-      stay()
   }
 
   when(FinalizingWorkflowState) {
@@ -248,7 +246,11 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   when(WorkflowAbortingState) {
-    case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(response: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+      response match {
+        case executionResponse: WorkflowExecutionActorResponse => statsActor ! executionResponse
+        case _ =>
+      }
       finalizeWorkflow(data, workflowDescriptor, Map.empty, Map.empty, failures = None)
     case _ => stay()
   }
@@ -267,9 +269,6 @@ class WorkflowActor(val workflowId: WorkflowId,
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)
-    case Event(EngineStatsActor.JobCountQuery, _) =>
-      sender ! EngineStatsActor.NoJobs
-      stay()
     case unhandledMessage =>
       workflowLogger.warn(s"received an unhandled message $unhandledMessage in state $stateName")
       stay
@@ -278,6 +277,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   onTransition {
     case fromState -> toState =>
       workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
+      statsActor ! WorkflowStateTransition(workflowId, toState.workflowState)
       // This updates the workflow status
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)

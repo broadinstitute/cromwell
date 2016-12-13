@@ -35,8 +35,13 @@ object ServiceRegistryActor {
     val className = serviceStanza.as[Option[String]]("class").getOrElse(
       throw new IllegalArgumentException(s"Invalid configuration for service $serviceName: missing 'class' definition")
     )
-
-    Props.create(Class.forName(className), serviceConfigStanza, globalConfig)
+    try {
+      Props.create(Class.forName(className), serviceConfigStanza, globalConfig)
+    } catch {
+      case e: ClassNotFoundException => throw new RuntimeException(
+        s"Class $className for service $serviceName cannot be found in the class path.", e
+      )
+    }
   }
 }
 

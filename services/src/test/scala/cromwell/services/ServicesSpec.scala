@@ -21,6 +21,7 @@ object ServicesSpec {
       |    debug {
       |       receive = on
       |    }
+      |    guardian-supervisor-strategy = "akka.actor.DefaultSupervisorStrategy"
       |  }
       |  dispatchers {
       |    # A dispatcher for actors performing blocking io operations

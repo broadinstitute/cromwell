@@ -124,8 +124,12 @@ class ServiceRegistryActorSpec extends TestKitSuite("service-registry-actor-spec
     val probe = buildProbeForInitializationException(ConfigFactory.parseString(missingService))
     probe.expectMsgPF(AwaitTimeout) {
       case e: ActorInitializationException =>
-        e.getCause shouldBe a [ClassNotFoundException]
-        e.getCause.getMessage shouldBe "cromwell.services.FooWhoServiceActor"
+        // The class not found exception is wrapped in a Runtime Exception giving the name of the faulty service
+        val cause = e.getCause
+        cause shouldBe a [RuntimeException] 
+        val classNotFound = cause.getCause
+        classNotFound shouldBe a [ClassNotFoundException]
+        classNotFound.getMessage shouldBe "cromwell.services.FooWhoServiceActor"
     }
   }
 

@@ -1,0 +1,3 @@
+{
+    "missing_input_failure.wf_hello_input": "gs://nonexistingbucket/path/doesnt/exist"
+}

@@ -1,0 +1,14 @@
+name: missing_input_failure
+testFormat: workflowfailure
+backends: [Jes]
+
+files {
+  wdl: missing_input_failure/missing_input_failure.wdl
+  inputs: missing_input_failure/missing_input_failure.inputs
+}
+
+metadata {
+    workflowName: missing_input_failure
+    status: Failed
+    "failures.0.message": "Input evaluation for Call missing_input_failure.hello failed.: addressee:\n\tFile not found gs://nonexistingbucket/path/doesnt/exist"
+}

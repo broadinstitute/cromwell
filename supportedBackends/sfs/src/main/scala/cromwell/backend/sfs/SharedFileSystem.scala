@@ -1,5 +1,6 @@
 package cromwell.backend.sfs
 
+import java.io.FileNotFoundException
 import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
@@ -7,7 +8,6 @@ import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
-import cromwell.core._
 import cromwell.core.path.PathFactory
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
@@ -62,6 +62,7 @@ object SharedFileSystem extends StrictLogging {
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
+      else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
       else {
         val action = Try {
           executionPath.parent.createDirectories()
@@ -76,11 +77,12 @@ object SharedFileSystem extends StrictLogging {
     action
   }
 
-  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]) = {
+  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
     import cromwell.util.FileUtil._
 
-    strategies.map(_ (source.followSymlinks, dest)).find(_.isSuccess) getOrElse {
-      Failure(new UnsupportedOperationException(s"Could not $description $source -> $dest"))
+    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymlinks, dest))
+    attempts.find(_.isSuccess) getOrElse {
+      TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
   }
 
@@ -194,9 +196,7 @@ trait SharedFileSystem extends PathFactory {
       case (declaration, value) => localizeFunction(value) map { declaration -> _ }
     }
 
-    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recover {
-      case e => throw new CromwellFatalException(e)
-    }
+    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap)
   }
 
   /**

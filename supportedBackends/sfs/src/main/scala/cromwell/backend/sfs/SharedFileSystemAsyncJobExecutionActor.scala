@@ -6,9 +6,9 @@ import akka.actor.{Actor, ActorLogging}
 import better.files._
 import cromwell.backend._
 import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.io.WorkflowPathsBackendInitializationData
 import cromwell.backend.sfs.SharedFileSystem._
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.WorkflowId

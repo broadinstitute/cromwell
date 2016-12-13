@@ -2,8 +2,8 @@ package cromwell.backend.sfs
 
 import akka.actor.{ActorRef, Props}
 import cats.data.Validated.{Invalid, Valid}
-import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
+import cromwell.backend._
+import cromwell.backend.standard.StandardLifecycleActorFactory
 import cromwell.core.Dispatcher
 import cromwell.core.Dispatcher._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
@@ -13,14 +13,14 @@ import net.ceedubs.ficus.Ficus._
 import wdl4s.TaskCall
 import wdl4s.expression.WdlStandardLibraryFunctions
 
-import scala.concurrent.Promise
-
 /**
   * A factory that can be extended for any shared file system implementation.
   *
   * See the SharedFileSystemAsyncJobExecutionActor for more info.
   */
-trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActorFactory {
+trait SharedFileSystemBackendLifecycleActorFactory extends StandardLifecycleActorFactory {
+
+  override def jobIdKey: String = SharedFileSystemJob.JobIdKey
 
   /**
     * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
@@ -31,6 +31,7 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
         case Valid(auth) => GcsPathBuilderFactory(auth)
         case Invalid(error) => throw new MessageAggregation {
           override def exceptionContext: String = "Failed to parse gcs auth configuration"
+
           override def errorMessages: Traversable[String] = error.toList
         }
       }
@@ -40,49 +41,18 @@ trait SharedFileSystemBackendLifecycleActorFactory extends BackendLifecycleActor
   lazy val pathBuilderFactories: List[PathBuilderFactory] = List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
 
   /**
-    * Config values for the backend, and a pointer to the global config.
-    *
-    * This is the single parameter passed into each factory during creation.
-    *
-    * @return The backend configuration.
-    */
-  def configurationDescriptor: BackendConfigurationDescriptor
-
-  /**
     * Returns the initialization class, or by default uses the `SharedFileSystemInitializationActor`.
     *
     * @return the initialization class.
     */
   def initializationActorClass: Class[_ <: SharedFileSystemInitializationActor] =
-  classOf[SharedFileSystemInitializationActor]
-
-  /**
-    * Returns the main engine for async execution.
-    *
-    * @return the main engine for async execution.
-    */
-  def asyncJobExecutionActorClass: Class[_ <: SharedFileSystemAsyncJobExecutionActor]
+    classOf[SharedFileSystemInitializationActor]
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
-                                                serviceRegistryActor: ActorRef) = {
+                                                serviceRegistryActor: ActorRef): Option[Props] = {
     val params = SharedFileSystemInitializationActorParams(serviceRegistryActor, workflowDescriptor,
       configurationDescriptor, calls, pathBuilderFactories)
     Option(Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher))
-  }
-
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      initializationDataOption: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef,
-                                      backendSingletonActor: Option[ActorRef]) = {
-    def propsCreator(completionPromise: Promise[BackendJobExecutionResponse]): Props = {
-      val params = SharedFileSystemAsyncJobExecutionActorParams(serviceRegistryActor, jobDescriptor,
-        configurationDescriptor, completionPromise, initializationDataOption)
-      Props(asyncJobExecutionActorClass, params).withDispatcher(Dispatcher.BackendDispatcher)
-    }
-
-    Props(new SharedFileSystemJobExecutionActor(
-      jobDescriptor, configurationDescriptor, serviceRegistryActor, propsCreator)
-    ).withDispatcher(Dispatcher.BackendDispatcher)
   }
 
   override def cacheHitCopyingActorProps = Option(cacheHitCopyingActorInner _)

@@ -88,7 +88,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
 
   import JesAsyncBackendJobExecutionActor._
 
-  override val pollingActor = jesBackendSingletonActor
+  override val pollingActor: ActorRef = jesBackendSingletonActor
 
   override lazy val pollBackOff = SimpleExponentialBackoff(
     initialInterval = 30 seconds, maxInterval = jesAttributes.maxPollingInterval seconds, multiplier = 1.1)
@@ -96,11 +96,11 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
-  override lazy val workflowDescriptor = jobDescriptor.workflowDescriptor
+  override lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
 
   private lazy val call = jobDescriptor.key.call
 
-  override lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
+  override lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val cmdInput =
     JesFileInput(ExecParamName, jesCallPaths.script.toRealString, Paths.get(jesCallPaths.scriptFilename), workingDisk)
   private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
@@ -419,7 +419,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
       // just use the state names.
       val prevStateName = previousStatus map { _.toString } getOrElse "-"
       jobLogger.info(s"$tag Status change from $prevStateName to $status")
-      tellMetadata(Map("backendStatus" -> status))
+      tellMetadata(Map(CallMetadataKeys.BackendStatus -> status))
     }
 
     status match {
@@ -440,7 +440,7 @@ class JesAsyncBackendJobExecutionActor(override val jobDescriptor: BackendJobDes
   /**
     * Fire and forget start info to the metadata service
     */
-  private def tellStartMetadata() = tellMetadata(metadataKeyValues)
+  private def tellStartMetadata() = tellMetadata(startMetadataKeyValues)
 
   /**
     * Fire and forget info to the metadata service

@@ -178,18 +178,15 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment) { version =>
       post {
         entity(as[MultipartFormData]) { formData =>
-          requestContext => {
-            PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = true) match {
-              case Success(workflowSourceFiles) if workflowSourceFiles.size == 1 =>
+          PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = true) match {
+            case Success(workflowSourceFiles) if workflowSourceFiles.size == 1 =>
+              requestContext => {
                 perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles.head))
-              case Success(workflowSourceFiles) =>
-                failBadRequest(new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint."))
-              case Failure(t) =>
-                System.err.println(t)
-                t.printStackTrace(System.err)
-                failBadRequest(t)
-            }
-            ()
+              }
+            case Success(workflowSourceFiles) =>
+              failBadRequest(new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint."))
+            case Failure(t) =>
+              failBadRequest(t)
           }
         }
       }
@@ -199,16 +196,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / "batch") { version =>
       post {
         entity(as[MultipartFormData]) { formData =>
-          requestContext => {
-            PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = false) match {
-              case Success(workflowSourceFiles) =>
+          PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = false) match {
+            case Success(workflowSourceFiles) =>
+              requestContext => {
                 perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)))
-              case Failure(t) =>
-                System.err.println(t)
-                t.printStackTrace(System.err)
-                failBadRequest(t)
-            }
-            ()
+              }
+            case Failure(t) =>
+              failBadRequest(t)
           }
         }
       }

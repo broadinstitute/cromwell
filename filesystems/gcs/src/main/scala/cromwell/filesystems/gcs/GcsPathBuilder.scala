@@ -30,8 +30,8 @@ object GcsPathBuilder {
     checkArgument(
       uri.getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME),
       "Cloud Storage URIs must have '%s' scheme: %s",
-      CloudStorageFileSystem.URI_SCHEME,
-      uri
+      CloudStorageFileSystem.URI_SCHEME: Any,
+      uri: Any
     )
     checkNotNull(uri.getHost, s"%s does not have a host", uri)
   }

@@ -115,7 +115,8 @@ object Dependencies {
     "com.typesafe" % "config" % "1.3.0",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
-    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
+    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+    "com.google.guava" % "guava" % "20.0"
   ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies

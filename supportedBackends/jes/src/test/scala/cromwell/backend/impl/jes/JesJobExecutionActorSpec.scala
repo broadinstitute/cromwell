@@ -31,8 +31,10 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
 
     val parent = TestProbe()
     val deathwatch = TestProbe()
+    val params = JesSyncExecutionActorParams(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor,
+      jesBackendSingletonActor)
     val testJJEA = TestActorRef[TestJesJobExecutionActor](
-      props = Props(new TestJesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor, jesBackendSingletonActor, Props(new ConstructorFailingJABJEA))),
+      props = Props(new TestJesJobExecutionActor(params, Props(new ConstructorFailingJABJEA))),
       supervisor = parent.ref)
     deathwatch watch testJJEA
 
@@ -43,8 +45,8 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     testJJEA.tell(msg = ExecuteJobCommand, sender = parent.ref)
 
     parent.expectMsgPF(max = TimeoutDuration) {
-      case JobFailedNonRetryableResponse(jobKey, e, errorCode) =>
-        e.getMessage should be("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+      case JobFailedNonRetryableResponse(_, throwable, _) =>
+        throwable.getMessage should be("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.")
     }
   }
 
@@ -58,8 +60,10 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     val parent = TestProbe()
     val deathwatch = TestProbe()
     val jabjeaConstructionPromise = Promise[ActorRef]()
+    val params = JesSyncExecutionActorParams(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor,
+      jesBackendSingletonActor)
     val testJJEA = TestActorRef[TestJesJobExecutionActor](
-      props = Props(new TestJesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor, jesBackendSingletonActor, Props(new ControllableFailingJabjea(jabjeaConstructionPromise)))),
+      props = Props(new TestJesJobExecutionActor(params, Props(new ControllableFailingJabjea(jabjeaConstructionPromise)))),
       supervisor = parent.ref)
     deathwatch watch testJJEA
 
@@ -75,18 +79,14 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     jabjeaConstructionPromise.future foreach { _ ! JabjeaExplode }
 
     parent.expectMsgPF(max = TimeoutDuration) {
-      case JobFailedNonRetryableResponse(jobKey, e, errorCode) =>
-        e.getMessage should be("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+      case JobFailedNonRetryableResponse(_, throwable, _) =>
+        throwable.getMessage should be("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.")
     }
   }
 }
 
-class TestJesJobExecutionActor(jobDescriptor: BackendJobDescriptor,
-                               jesWorkflowInfo: JesConfiguration,
-                               initializationData: JesBackendInitializationData,
-                               serviceRegistryActor: ActorRef,
-                               jesBackendSingletonActor: Option[ActorRef],
-                               fakeJabjeaProps: Props) extends JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor, jesBackendSingletonActor) {
+class TestJesJobExecutionActor(jesParams: JesSyncExecutionActorParams,
+                               fakeJabjeaProps: Props) extends JesJobExecutionActor(jesParams) {
   override def jabjeaProps: Props = fakeJabjeaProps
 }
 
@@ -96,12 +96,12 @@ class ConstructorFailingJABJEA extends ControllableFailingJabjea(Promise[ActorRe
 }
 
 class ControllableFailingJabjea(constructionPromise: Promise[ActorRef]) extends Actor {
-  def explode() = {
+  def explode(): Unit = {
     val boom = 1 == 1
     if (boom) throw new RuntimeException("Test Exception! Don't panic if this appears during a test run!")
   }
   constructionPromise.trySuccess(self)
-  override def receive = {
+  override def receive: Receive = {
     case JabjeaExplode => explode()
   }
 }

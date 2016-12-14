@@ -35,10 +35,12 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
   def retryable: Boolean
 
-  private def withRetry[A](work: () => Future[A], backoff: SimpleExponentialBackoff): Future[A] = {
-    def isFatal(t: Throwable) = t.isInstanceOf[CromwellFatalException]
+  def isFatal(throwable: Throwable): Boolean = throwable.isInstanceOf[CromwellFatalException]
 
-    Retry.withRetry(work, isTransient = !isFatal(_), isFatal = isFatal, backoff = backoff)(context.system)
+  def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
+
+  private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
+    Retry.withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)
   }
 
   private def robustExecuteOrRecover(mode: ExecutionMode) = {
@@ -74,7 +76,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       // -Ywarn-value-discard
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
       ()
-    case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)) =>
+    case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, _)) =>
       completionPromise.success(JobSucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents))
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>

@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import akka.actor.{Actor, ActorRef}
 import better.files._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.core.logging.JobLogging
@@ -30,8 +30,6 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   def workflowDescriptor: BackendWorkflowDescriptor
 
   def getPath(str: String): Try[Path] = jesCallPaths.getPath(str)
-
-  override lazy val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
 
   lazy val jesCallPaths: JesJobPaths = {
     val workflowPaths = if (workflowDescriptor.breadCrumbs.isEmpty) {
@@ -71,7 +69,7 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   }
 
   // Implements CacheHitDuplicating.startMetadataKeyValues
-  lazy val startMetadataKeyValues: Map[String, Any] = {
+  def startMetadataKeyValues: Map[String, Any] = {
     val runtimeAttributesMetadata: Map[String, Any] = runtimeAttributes.asMap map {
       case (key, value) => s"runtimeAttributes:$key" -> value
     }

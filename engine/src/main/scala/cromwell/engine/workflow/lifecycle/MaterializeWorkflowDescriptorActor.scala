@@ -4,6 +4,7 @@ import java.nio.file.Files
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import better.files.File
+import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.cartesian._
@@ -24,7 +25,8 @@ import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, _}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import cromwell.core.ErrorOr._
+import lenthall.exception.MessageAggregation
+import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json.{JsObject, _}
 import wdl4s._
@@ -133,9 +135,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           goto(MaterializationSuccessfulState)
         case Invalid(error) =>
           sender() ! MaterializeWorkflowDescriptorFailureResponse(
-            new IllegalArgumentException with ExceptionWithErrors {
-              val message = s"Workflow input processing failed."
-              val errors = error
+            new IllegalArgumentException with MessageAggregation {
+              val exceptionContext = s"Workflow input processing failed"
+              val errorMessages = error.toList
             })
           goto(MaterializationFailedState)
       }
@@ -393,7 +395,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                     namespace: WdlNamespaceWithWorkflow): ErrorOr[WorkflowCoercedInputs] = {
     namespace.coerceRawInputs(rawInputs) match {
       case Success(r) => r.validNel
-      case Failure(e: ExceptionWithErrors) => Invalid(e.errors)
+      case Failure(e: MessageAggregation) if e.errorMessages.nonEmpty => Invalid(NonEmptyList.fromListUnsafe(e.errorMessages.toList))
       case Failure(e) => e.getMessage.invalidNel
     }
   }

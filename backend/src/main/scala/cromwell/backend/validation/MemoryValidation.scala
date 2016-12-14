@@ -2,7 +2,7 @@ package cromwell.backend.validation
 
 import cats.syntax.validated._
 import cromwell.backend.MemorySize
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlInteger, WdlString}

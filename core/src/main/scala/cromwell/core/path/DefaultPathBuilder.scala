@@ -15,7 +15,9 @@ case object DefaultPathBuilder extends PathBuilder {
     val uri = URI.create(pathAsString)
     val host = Option(uri.getHost) getOrElse ""
     val path = Option(uri.getPath) getOrElse ""
-
-    FileSystems.getDefault.getPath(host, path)
+    Option(uri.getScheme) match {
+      case Some("file") | None => FileSystems.getDefault.getPath(host, path)
+      case _ => throw new RuntimeException(s"Cannot build a local path from $pathAsString")
+    }
   }
 }

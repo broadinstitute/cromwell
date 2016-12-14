@@ -15,11 +15,11 @@ import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
+import lenthall.util.TryUtil
 import org.apache.commons.codec.digest.DigestUtils
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType}
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlArray
 
 import scala.concurrent.{Future, Promise}

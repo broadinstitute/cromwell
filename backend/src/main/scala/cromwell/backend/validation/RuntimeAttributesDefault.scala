@@ -3,8 +3,8 @@ package cromwell.backend.validation
 import cats.data.ValidatedNel
 import cats.syntax.validated._
 import cromwell.core.{EvaluatedRuntimeAttributes, OptionNotFoundException, WorkflowOptions}
+import lenthall.util.TryUtil
 import wdl4s.types.WdlType
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 import scala.util.{Failure, Try}
@@ -20,7 +20,7 @@ object RuntimeAttributesDefault {
             Failure(new RuntimeException(s"Could not parse JsonValue $v to valid WdlValue for runtime attribute $k"))
           }
           k -> maybeTriedValue
-      })
+      }, "Failed to coerce default runtime options")
     } recover {
       case _: OptionNotFoundException => Map.empty[String, WdlValue]
     }

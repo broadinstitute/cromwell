@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, DeadLetterSuppression}
 import cats.data.NonEmptyList
 import cromwell.core.{JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import lenthall.exception.ThrowableAggregation
 import wdl4s.values._
 
 
@@ -114,9 +115,14 @@ object MetadataService {
   }
 
   def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable): List[MetadataEvent] = {
-    val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
-    val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
-    message ++ cause
+    t match {
+      case aggregation: ThrowableAggregation =>
+        aggregation.errorMessages.toList map { message => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(s"${aggregation.exceptionContext}: $message")) }
+      case other =>
+        val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
+        val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
+        message ++ cause
+    }
   }
 }
 

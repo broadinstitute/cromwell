@@ -1,8 +1,8 @@
 package cromwell.core
 
 import com.typesafe.config.ConfigFactory
+import lenthall.util.TryUtil
 import spray.json._
-import wdl4s.util.TryUtil
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}

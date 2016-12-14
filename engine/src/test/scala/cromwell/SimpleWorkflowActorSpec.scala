@@ -138,7 +138,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
     }
 
     "gracefully handle malformed WDL" in {
-      val expectedError = "Input evaluation for Call test1.summary failed.\nVariable 'bfile' not found"
+      val expectedError = "Input evaluation for Call test1.summary failed.: Variable 'bfile' not found"
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.CoercionNotDefined, SampleWdl.CoercionNotDefined.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()
@@ -150,7 +150,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
         case x: WorkflowFailedResponse =>
           x.workflowId should be(workflowId)
           x.reasons.size should be(1)
-          x.reasons.head.getMessage.contains(expectedError) should be(true)
+          x.reasons.head.getMessage.contains("Input evaluation for Call test1.summary failed.:\nVariable 'bfile' not found") should be(true)
       }
     }
   }

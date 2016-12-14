@@ -3,7 +3,7 @@ package cromwell.backend.validation
 import cats.syntax.validated._
 import wdl4s.expression.PureStandardLibraryFunctions
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.WdlExpression
 import wdl4s.WdlExpression._

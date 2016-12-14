@@ -130,6 +130,10 @@ grammar {
       r'>=' -> :gteq
       r'>' -> :gt
       r'!' -> :not
+      enum {
+        python: r'\?'
+        java: "\\?"
+      } -> :qmark
 
       # Literals
       enum {

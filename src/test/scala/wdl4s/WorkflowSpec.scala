@@ -51,6 +51,7 @@ class WorkflowSpec extends WordSpec with Matchers {
         | String workflow_input
         | String workflow_input2 = "workflow_input2"
         | Array[Int] r = [1, 2]
+        | String? optionalValue = "optional"
         |
         | call main_task                               # task call
         | call main_task as main_task2                 # aliased task call
@@ -299,6 +300,7 @@ class WorkflowSpec extends WordSpec with Matchers {
         String o13 = o1 + " " + o3                          # simple expression
         
         Array[String] o14 = main_task_in_scatter.task_o1    # task in scatter
+        String? o15 = optionalValue                         # optional value
        */
 
       WorkflowOutputTestCase(
@@ -392,6 +394,12 @@ class WorkflowSpec extends WordSpec with Matchers {
         "Array[String] o14 = main_task_in_scatter.task_o1",
         Seq(WorkflowOutputExpectation("main_workflow.o14", WdlArrayType(WdlStringType), "main_task_in_scatter.task_o1")),
         Map("o14" -> WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("MainTaskOutputString"))))
+      ),
+      WorkflowOutputTestCase(
+        "optional value",
+        "String? o15 = optionalValue",
+        Seq(WorkflowOutputExpectation("main_workflow.o15", WdlOptionalType(WdlStringType), "optionalValue")),
+        Map("o15" -> WdlOptionalValue(WdlString("optional")))
       ),
       
       /* LEGACY SYNTAX FOLLOWED BY NEW SYNTAX */

@@ -12,8 +12,10 @@ case object DefaultPathBuilder extends PathBuilder {
   override def name = "Default"
   override def build(pathAsString: String): Try[Path] = Try {
     val uri = URI.create(pathAsString.replaceAll(" ", "%20"))
+    val host = Option(uri.getHost) getOrElse ""
+    val path = Option(uri.getPath) getOrElse ""
     Option(uri.getScheme) match {
-      case Some("file") | None => FileSystems.getDefault.getPath(pathAsString)
+      case Some("file") | None => FileSystems.getDefault.getPath(host, path)
       case _ => throw new RuntimeException(s"Cannot build a local path from $pathAsString")
     }
   }

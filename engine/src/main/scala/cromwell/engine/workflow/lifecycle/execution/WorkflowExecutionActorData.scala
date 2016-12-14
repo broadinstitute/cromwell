@@ -7,7 +7,6 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import wdl4s.values.WdlValue
 import wdl4s.{GraphNode, Scope}
 
@@ -132,19 +131,6 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   def addExecutions(jobExecutionMap: JobExecutionMap): WorkflowExecutionActorData = {
     this.copy(downstreamExecutionMap = downstreamExecutionMap ++ jobExecutionMap)
-  }
-
-  def outputsJson(): String = {
-    // Printing the final outputs, temporarily here until SingleWorkflowManagerActor is made in-sync with the shadow mode
-    import WdlValueJsonFormatter._
-    import spray.json._
-    val workflowOutputs = outputStore.store collect {
-      case (key, outputs) if key.index.isEmpty => outputs map { output =>
-        s"${key.call.fullyQualifiedName}.${output.name}" -> (output.wdlValue map { _.valueString } getOrElse "N/A")
-      }
-    }
-
-    "Workflow complete. Final Outputs: \n" + workflowOutputs.flatten.toMap.toJson.prettyPrint
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {

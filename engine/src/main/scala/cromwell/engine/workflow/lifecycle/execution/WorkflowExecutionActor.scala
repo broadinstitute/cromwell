@@ -22,7 +22,8 @@ import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
 import net.ceedubs.ficus.Ficus._
-import wdl4s.values.{WdlArray, WdlValue}
+import org.apache.commons.lang3.StringUtils
+import wdl4s.values.{WdlArray, WdlString, WdlValue}
 import wdl4s.{Scope, _}
 
 import scala.annotation.tailrec
@@ -254,9 +255,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
   
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
+    import WorkflowExecutionActor.EnhancedWorkflowOutputs
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
-    
+
      val (response, finalState) = workflowDescriptor.workflow.evaluateOutputs(
       workflowDescriptor.knownValues,
       data.expressionLanguageFunctions,
@@ -264,7 +266,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     ) map { workflowOutputs =>
        workflowLogger.info(
          s"""Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs:
-             |${workflowOutputs.toJson.prettyPrint}""".stripMargin
+             |${workflowOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
        )
        pushWorkflowOutputMetadata(workflowOutputs)
        (WorkflowExecutionSucceededResponse(data.jobExecutionMap, workflowOutputs mapValues JobOutput.apply), WorkflowExecutionSuccessfulState)
@@ -623,5 +625,16 @@ object WorkflowExecutionActor {
             restarting: Boolean): Props = {
     Props(WorkflowExecutionActor(workflowDescriptor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
       callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
+  }
+
+  implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WdlValue]) extends AnyVal {
+    def maxStringLength = 1000
+
+    def stripLarge = outputs map { case (k, v) =>
+      val wdlString = v.toWdlString
+
+      if (wdlString.length > maxStringLength) (k, WdlString(StringUtils.abbreviate(wdlString, maxStringLength)))
+      else (k, v)
+    }
   }
 }

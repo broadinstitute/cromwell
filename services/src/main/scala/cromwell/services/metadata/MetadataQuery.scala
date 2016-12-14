@@ -1,9 +1,11 @@
 package cromwell.services.metadata
 
+import java.nio.file.Path
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
+import cromwell.core.path.PathImplicits._
 import org.slf4j.LoggerFactory
 import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlValue}
 
@@ -44,6 +46,7 @@ object MetadataValue {
       case _: Int | Long => new MetadataValue(value.toString, MetadataInt)
       case _: Double | Float => new MetadataValue(value.toString, MetadataNumber)
       case _: Boolean => new MetadataValue(value.toString, MetadataBoolean)
+      case path: Path => new MetadataValue(path.toRealString, MetadataString)
       case _ => new MetadataValue(value.toString, MetadataString)
     }
   }

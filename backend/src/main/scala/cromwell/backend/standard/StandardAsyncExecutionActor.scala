@@ -153,10 +153,23 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
   /**
     * Returns the run status for the job.
     *
-    * @param pendingJob The running job.
+    * @param handle The handle of the running job.
     * @return The status of the job.
     */
-  def pollStatus(pendingJob: StandardAsyncJob): StandardAsyncRunStatus
+  def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunStatus = {
+    throw new NotImplementedError(s"pollStatus nor pollStatusAsync not implemented by $getClass")
+  }
+
+  /**
+    * Returns the async run status for the job.
+    *
+    * @param handle The handle of the running job.
+    * @return The status of the job.
+    */
+  def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)
+                     (implicit ec: ExecutionContext): Future[StandardAsyncRunStatus] = {
+    Future.fromTry(Try(pollStatus(handle)))
+  }
 
   /**
     * Adds custom behavior invoked when polling fails due to some exception. By default adds nothing.
@@ -267,9 +280,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
     FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), None)
   }
 
-  context.become(basicReceiveBehavior(None) orElse super.receive)
+  context.become(standardReceiveBehavior(None) orElse receive)
 
-  def basicReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
+  def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
       jobIdOption foreach { jobId =>
         Try(tryAbort(jobId)) match {
@@ -298,7 +311,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
           tellKvJobId(handle.pendingJob)
           jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
-          context.become(basicReceiveBehavior(Option(handle.pendingJob)) orElse super.receive)
+          context.become(standardReceiveBehavior(Option(handle.pendingJob)) orElse receive)
         case _ => /* ignore */
       }
       result
@@ -310,21 +323,22 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
   }
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    Future.fromTry(Try {
-      previous match {
-        case handle: PendingExecutionHandle[
-          StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
+    previous match {
+      case handle: PendingExecutionHandle[
+        StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
 
-          jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
-          Try(pollStatus(handle.pendingJob)) match {
-            case Success(backendRunStatus) => handlePollSuccess(handle, backendRunStatus)
-            case Failure(throwable) => handlePollFailure(handle, throwable)
-          }
-        case f: FailedNonRetryableExecutionHandle => f
-        case s: SuccessfulExecutionHandle => s
-        case badHandle => throw new IllegalArgumentException(s"Unexpected execution handle: $badHandle")
-      }
-    })
+        jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
+        pollStatusAsync(handle) map {
+          backendRunStatus =>
+            handlePollSuccess(handle, backendRunStatus)
+        } recover {
+          case throwable =>
+            handlePollFailure(handle, throwable)
+        }
+      case successful: SuccessfulExecutionHandle => Future.successful(successful)
+      case failed: FailedNonRetryableExecutionHandle => Future.successful(failed)
+      case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
+    }
   }
 
   /**

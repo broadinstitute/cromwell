@@ -1,6 +1,7 @@
 package cromwell.backend.standard
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.SupervisorStrategy.{Decider, Stop}
+import akka.actor.{ActorRef, OneForOneStrategy, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
@@ -31,7 +32,8 @@ import scala.concurrent.{Future, Promise}
   * - Asynchronous actor runs.
   * - Asynchronous actor completes the promise with a success or failure.
   */
-class StandardSyncExecutionActor(standardParams: StandardSyncExecutionActorParams) extends BackendJobExecutionActor {
+class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorParams)
+  extends BackendJobExecutionActor {
 
   override val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
@@ -69,7 +71,7 @@ class StandardSyncExecutionActor(standardParams: StandardSyncExecutionActorParam
     *
     * Still not sure why the AsyncBackendJobExecutionActor doesn't wait for an Akka message instead of using Scala promises.
     */
-  private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
+  lazy val completionPromise: Promise[BackendJobExecutionResponse] = Promise[BackendJobExecutionResponse]()
 
   override def execute: Future[BackendJobExecutionResponse] = {
     val executorRef = createAsyncRef()
@@ -117,4 +119,14 @@ class StandardSyncExecutionActor(standardParams: StandardSyncExecutionActorParam
   override def abort(): Unit = {
     throw new NotImplementedError("Abort is implemented via a custom receive of the message AbortJobCommand.")
   }
+
+  // Supervision strategy: if the async actor throws an exception, stop the actor and fail the job.
+  def jobFailingDecider: Decider = {
+    case exception: Exception =>
+      completionPromise.tryFailure(
+        new RuntimeException(s"${createAsyncRefName()} failed and didn't catch its exception.", exception))
+      Stop
+  }
+
+  override val supervisorStrategy: OneForOneStrategy = OneForOneStrategy()(jobFailingDecider)
 }

@@ -226,9 +226,9 @@ mv $rcTmpPath $rcPath
     ()
   }
 
-  override def remoteStdErrPath: Path = File(jobPaths.stderr).path
+  override def remoteStdErrPath: Path = jobPaths.stderr
 
-  override def remoteReturnCodePath: Path = File(jobPaths.returnCode).path
+  override def remoteReturnCodePath: Path = jobPaths.returnCode
 
   override def continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
     ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
@@ -236,7 +236,7 @@ mv $rcTmpPath $rcPath
   override def failOnStdErr: Boolean = RuntimeAttributesValidation.extract(
     FailOnStderrValidation.instance, validatedRuntimeAttributes)
 
-  def pollStatus(pendingJob: StandardAsyncJob): StandardAsyncRunStatus = {
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
     SharedFileSystemRunStatus(File(jobPaths.returnCode).exists)
   }
 

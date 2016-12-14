@@ -17,12 +17,14 @@ case object WdlFileType extends WdlPrimitiveType {
 
   override def add(rhs: WdlType): Try[WdlType] = rhs match {
     case WdlStringType => Success(WdlFileType)
+    case WdlOptionalType(memberType) => add(memberType)
     case _ => invalid(s"$this + $rhs")
   }
 
   override def equals(rhs: WdlType): Try[WdlType] = rhs match {
     case WdlFileType => Success(WdlBooleanType)
     case WdlStringType => Success(WdlBooleanType)
+    case WdlOptionalType(memberType) => equals(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 }

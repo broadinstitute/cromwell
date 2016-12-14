@@ -1,6 +1,8 @@
 package wdl4s.types
 import wdl4s.values.{WdlOptionalValue, WdlValue}
 
+import scala.util.{Success, Try}
+
 case class WdlOptionalType(memberType: WdlType) extends WdlType {
   /**
     * Method to be overridden by implementation classes defining a partial function
@@ -30,6 +32,20 @@ case class WdlOptionalType(memberType: WdlType) extends WdlType {
 
     case _ => false
   }
+
+  override def add(rhs: WdlType): Try[WdlType] = memberType.add(rhs)
+  override def subtract(rhs: WdlType): Try[WdlType] = memberType.subtract(rhs)
+  override def multiply(rhs: WdlType): Try[WdlType] = memberType.multiply(rhs)
+  override def divide(rhs: WdlType): Try[WdlType] = memberType.divide(rhs)
+  override def mod(rhs: WdlType): Try[WdlType] = memberType.mod(rhs)
+  override def equals(rhs: WdlType): Try[WdlType] = memberType.equals(rhs)
+  override def lessThan(rhs: WdlType): Try[WdlType] = memberType.lessThan(rhs)
+  override def greaterThan(rhs: WdlType): Try[WdlType] = memberType.greaterThan(rhs)
+  override def or(rhs: WdlType): Try[WdlType] = memberType.or(rhs)
+  override def and(rhs: WdlType): Try[WdlType] = memberType.and(rhs)
+  override def not: Try[WdlType] = memberType.not
+  override def unaryPlus: Try[WdlType] = memberType.unaryPlus
+  override def unaryMinus: Try[WdlType] = memberType.unaryMinus
 
   override def toWdlString: String = memberType.toWdlString + "?"
 }

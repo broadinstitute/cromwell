@@ -5,6 +5,7 @@ import wdl4s.types._
 import wdl4s.values._
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.exception.VariableNotFoundException
 
 import scala.util.{Failure, Success, Try}
 
@@ -31,6 +32,20 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     case "etc_s" => WdlString("/etc")
     case "sudoers_f" => WdlFile("/sudoers")
     case "sudoers_s" => WdlString("/sudoers")
+    case "f" => WdlFloat(0.5F)  
+    case "t" => WdlBoolean(true)  
+    case "someIntAsString" => WdlOptionalValue(WdlString("1"))  
+    case "someFloatAsString" => WdlOptionalValue(WdlString("0.5"))  
+    case "someStr" => WdlOptionalValue(WdlString("someStr"))
+    case "someInt" => WdlOptionalValue(WdlInteger(1))
+    case "someBoolean" => WdlOptionalValue(WdlBoolean(false))
+    case "someFloat" => WdlOptionalValue(WdlFloat(0.5F))
+    case "someFile" => WdlOptionalValue(WdlFile("file"))
+    case "noneStr" => WdlOptionalValue.none(WdlStringType)
+    case "noneInt" => WdlOptionalValue.none(WdlIntegerType)
+    case "noneBool" => WdlOptionalValue.none(WdlBooleanType)
+    case "noneFloat" => WdlOptionalValue.none(WdlFloatType)
+    case "noneFile" => WdlOptionalValue.none(WdlFileType)
   }
 
 
@@ -355,7 +370,87 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     (""" "a\nb" """, WdlString("a\nb")),
     (""" "a\nb\t" """, WdlString("a\nb\t")),
     (""" "a\n\"b\t\"" """, WdlString("a\n\"b\t\"")),
-    (""" "be \u266f or be \u266e, just don't be \u266d" """, WdlString("be \u266f or be \u266e, just don't be \u266d"))
+    (""" "be \u266f or be \u266e, just don't be \u266d" """, WdlString("be \u266f or be \u266e, just don't be \u266d")),
+    
+    // Optional types
+      // String
+    ("s + someStr", WdlString("ssomeStr")),
+    ("s + someInt", WdlString("s1")),
+    ("s + someFloat", WdlString("s0.5")),
+    ("s + someFile", WdlString("sfile")),
+    ("s == someStr", WdlBoolean(false)),
+    ("s < someStr", WdlBoolean(true)),
+    ("s > someStr", WdlBoolean(false)),
+    
+    ("someStr + s", WdlString("someStrs")),
+    ("someInt + s", WdlString("1s")),
+    ("someFloat + s", WdlString("0.5s")),
+    ("someFile + s", WdlFile("files")),
+    ("someStr == s", WdlBoolean(false)),
+    ("someStr < s", WdlBoolean(false)),
+    ("someStr > s", WdlBoolean(true)),
+
+      // Integer
+    ("a + someIntAsString", WdlString("11")),
+    ("a + someInt", WdlInteger(2)),
+    ("a * someInt", WdlInteger(1)),
+    ("a / someInt", WdlInteger(1)),
+    ("a == someInt", WdlBoolean(true)),
+    ("a > someInt", WdlBoolean(false)),
+    ("a < someInt", WdlBoolean(false)),
+    
+    ("someIntAsString + a", WdlString("11")),
+    ("someInt + a", WdlInteger(2)),
+    ("someInt * a", WdlInteger(1)),
+    ("someInt / a", WdlInteger(1)),
+    ("someInt == a", WdlBoolean(true)),
+    ("someInt > a", WdlBoolean(false)),
+    ("someInt < a", WdlBoolean(false)),
+    
+    ("-someInt", WdlInteger(-1)),
+    ("+someInt", WdlInteger(1)),
+
+      // Float
+    ("f + someFloatAsString", WdlString("0.50.5")),
+    ("f + someFloat", WdlFloat(1)),
+    ("f * someFloat", WdlFloat(0.25)),
+    ("f / someFloat", WdlFloat(1)),
+    ("f == someFloat", WdlBoolean(true)),
+    ("f > someFloat", WdlBoolean(false)),
+    ("f < someFloat", WdlBoolean(false)),
+
+    ("someFloatAsString + f", WdlString("0.50.5")),
+    ("someFloat + f", WdlFloat(1)),
+    ("someFloat * f", WdlFloat(0.25)),
+    ("someFloat / f", WdlFloat(1)),
+    ("someFloat == f", WdlBoolean(true)),
+    ("someFloat > f", WdlBoolean(false)),
+    ("someFloat < f", WdlBoolean(false)),
+
+    ("-someFloat", WdlFloat(-0.5)),
+    ("+someFloat", WdlFloat(0.5)),
+      
+      // Boolean
+    ("t == someBoolean", WdlBoolean(false)),
+    ("t > someBoolean", WdlBoolean(true)),
+    ("t < someBoolean", WdlBoolean(false)),
+    ("t && someBoolean", WdlBoolean(false)),
+    ("t || someBoolean", WdlBoolean(true)),
+
+    ("someBoolean == t", WdlBoolean(false)),
+    ("someBoolean > t", WdlBoolean(false)),
+    ("someBoolean < t", WdlBoolean(true)),
+    ("someBoolean && t", WdlBoolean(false)),
+    ("someBoolean || t", WdlBoolean(true)),
+    
+    ("!someBoolean", WdlBoolean(true)),
+    
+      // File
+    ("etc_f + someStr", WdlFile("/etcsomeStr")),
+    ("etc_f == someStr", WdlBoolean(false)),
+    ("etc_f == someFile", WdlBoolean(false)),
+    
+    ("someFile == etc_f", WdlBoolean(false))
   )
 
   val badIdentifierExpressions = Table(
@@ -408,5 +503,11 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     WdlString("a\nb").toWdlString shouldEqual "\"a\\nb\""
     WdlString("a\nb\t").toWdlString shouldEqual "\"a\\nb\\t\""
     WdlString("be \u266f or be \u266e, just don't be \u266d").toWdlString shouldEqual "\"be \\u266F or be \\u266E, just don't be \\u266D\""
+  }
+
+  "Optional values" should "fail with VariableNotFound if they're None" in {
+    val hello = WdlString("hello ")
+    val noneWorld = WdlOptionalValue.none(WdlStringType)
+    hello.add(noneWorld) shouldBe Failure(VariableNotFoundException(noneWorld.toString))
   }
 }

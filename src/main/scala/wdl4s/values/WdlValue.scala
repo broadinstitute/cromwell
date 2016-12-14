@@ -1,6 +1,7 @@
 package wdl4s.values
 
 import wdl4s.WdlExpressionException
+import wdl4s.exception.VariableNotFoundException
 import wdl4s.types.WdlType
 
 import scala.collection.immutable.TreeMap
@@ -10,6 +11,12 @@ import scala.util.{Failure, Try}
 trait WdlValue {
   val wdlType: WdlType
   def invalid(operation: String) = Failure(new WdlExpressionException(s"Cannot perform operation: $operation"))
+  def emptyValue(value: WdlOptionalValue) = Failure(VariableNotFoundException(value.toString))
+  def evaluateIfDefined[A <: WdlValue](optionalValue: WdlOptionalValue, operation: WdlValue => Try[A]): Try[A] = optionalValue match {
+    case WdlOptionalValue(_, Some(v)) => operation(v)
+    case _ => emptyValue(optionalValue)
+  }
+  
   def add(rhs: WdlValue): Try[WdlValue] = invalid(s"$this + $rhs")
   def subtract(rhs: WdlValue): Try[WdlValue] = invalid(s"$this - $rhs")
   def multiply(rhs: WdlValue): Try[WdlValue] = invalid(s"$this * $rhs")

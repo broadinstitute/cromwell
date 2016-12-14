@@ -22,6 +22,7 @@ case object WdlBooleanType extends WdlPrimitiveType {
 
   private def comparisonOperator(rhs: WdlType, symbol: String): Try[WdlType] = rhs match {
     case WdlBooleanType => Success(WdlBooleanType)
+    case WdlOptionalType(memberType) => comparisonOperator(memberType, symbol)
     case _ => invalid(s"$this $symbol $rhs")
   }
 

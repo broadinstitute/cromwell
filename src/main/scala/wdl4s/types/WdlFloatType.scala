@@ -22,17 +22,20 @@ case object WdlFloatType extends WdlPrimitiveType {
   private def binaryOperator(rhs: WdlType, symbol: String): Try[WdlType] = rhs match {
     case WdlIntegerType => Success(WdlFloatType)
     case WdlFloatType => Success(WdlFloatType)
+    case WdlOptionalType(memberType) => binaryOperator(memberType, symbol)
     case _ => invalid(s"$this $symbol $rhs")
   }
 
   private def comparisonOperator(rhs: WdlType, symbol: String): Try[WdlType] = rhs match {
     case WdlIntegerType => Success(WdlBooleanType)
     case WdlFloatType => Success(WdlBooleanType)
+    case WdlOptionalType(memberType) => comparisonOperator(memberType, symbol)
     case _ => invalid(s"$this $symbol $rhs")
   }
 
   override def add(rhs: WdlType): Try[WdlType] = rhs match {
     case WdlStringType => Success(WdlStringType)
+    case WdlOptionalType(memberType) => add(memberType)
     case t => binaryOperator(t, "+")
   }
 

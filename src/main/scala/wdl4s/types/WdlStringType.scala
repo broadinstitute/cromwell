@@ -1,7 +1,7 @@
 package wdl4s.types
 
-import wdl4s.values.{WdlFile, WdlFloat, WdlInteger, WdlPrimitive, WdlString}
 import spray.json.JsString
+import wdl4s.values.{WdlFile, WdlPrimitive, WdlString}
 
 import scala.util.{Success, Try}
 
@@ -18,11 +18,13 @@ case object WdlStringType extends WdlPrimitiveType {
 
   private def comparisonOperator(rhs: WdlType, symbol: String): Try[WdlType] = rhs match {
     case WdlStringType => Success(WdlBooleanType)
+    case WdlOptionalType(memberType) => comparisonOperator(memberType, symbol)
     case _ => invalid(s"$this $symbol $rhs")
   }
 
   override def add(rhs: WdlType): Try[WdlType] = rhs match {
     case WdlStringType | WdlIntegerType | WdlFloatType | WdlFileType => Success(WdlStringType)
+    case WdlOptionalType(memberType) => add(memberType)
     case _ => invalid(s"$this + $rhs")
   }
 

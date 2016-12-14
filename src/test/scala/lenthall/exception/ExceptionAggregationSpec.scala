@@ -1,6 +1,6 @@
 package lenthall.exception
 
-import java.io.{FileNotFoundException, PrintStream, PrintWriter}
+import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -19,9 +19,13 @@ class ExceptionAggregationSpec extends FlatSpecLike with Matchers{
         |didn't work either""".stripMargin
   }
 
+  "AggregatedMessageException" should "aggregate empty messages" in {
+    val aggregatedMessageException = AggregatedMessageException("Bouuhhh", Traversable.empty)
+    aggregatedMessageException.getMessage shouldBe "Bouuhhh"
+  }
+
   "ThrowableAggregation" should "aggregate throwables" in {
     val fakeStackTrace1 = Array(new StackTraceElement("SomeClass", "Some method", "Some file", 5))
-    val fakeStackTrace2 = Array(new StackTraceElement("SomeOtherClass", "Some other method", "Some other file", 12))
 
     val exception1 = new RuntimeException("What is wrong with you ?")
     exception1.setStackTrace(fakeStackTrace1)

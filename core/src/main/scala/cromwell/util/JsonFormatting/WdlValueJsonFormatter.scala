@@ -18,6 +18,8 @@ object WdlValueJsonFormatter extends DefaultJsonProtocol {
       case m: WdlMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case e: WdlExpression => JsString(e.toWdlString)
       case q: WdlPair => new JsObject(Map("left" -> write(q.left), "right" -> write(q.right)))
+      case WdlOptionalValue(_, Some(opt)) => write(opt)
+      case WdlOptionalValue(_, None) => JsString("null")
     }
 
     // NOTE: This assumes a map's keys are strings. Since we're coming from JSON this is fine.

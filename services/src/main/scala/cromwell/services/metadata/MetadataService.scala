@@ -110,6 +110,7 @@ object MetadataService {
       } else {
         valueMap.toList flatMap { case (key, value) => wdlValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       }
+    case WdlOptionalValue(_, Some(optionalValue)) => wdlValueToMetadataEvents(metadataKey, optionalValue)
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

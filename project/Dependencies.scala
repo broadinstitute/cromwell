@@ -12,7 +12,7 @@ object Dependencies {
   - http://doc.akka.io/docs/akka/2.4/scala/http/common/json-support.html#akka-http-spray-json
    */
   lazy val sprayJsonV = "1.3.2"
-  lazy val akkaV = "2.4.12"
+  lazy val akkaV = "2.4.14"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.20.0"

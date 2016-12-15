@@ -1,0 +1,24 @@
+name: aliased_subworkflows
+testFormat: workflowsuccess
+tags: [import, subworkflow, alias]
+
+files {
+  wdl: aliased_subworkflows/aliased_subworkflows.wdl
+  imports: [
+    aliased_subworkflows/subworkflow.wdl
+  ]
+}
+
+metadata {
+  workflowName: aliased_subworkflows
+  status: Succeeded
+  "outputs.initial.0": "0"
+  "outputs.initial.1": "1"
+  "outputs.initial.2": "2"
+  "outputs.intermediate.0": "1"
+  "outputs.intermediate.1": "2"
+  "outputs.intermediate.2": "3"
+  "outputs.result.0": "2"
+  "outputs.result.1": "3"
+  "outputs.result.2": "4"
+}

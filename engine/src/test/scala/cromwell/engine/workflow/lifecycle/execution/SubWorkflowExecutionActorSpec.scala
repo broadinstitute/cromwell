@@ -42,7 +42,6 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     mock[WdlNamespaceWithWorkflow],
     parentBackendDescriptor,
     Map.empty,
-    Map.empty,
     ContinueWhilePossible,
     List.empty,
     CallCachingOff
@@ -140,7 +139,6 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     val subWorkflowDescriptor = EngineWorkflowDescriptor(
       mock[WdlNamespaceWithWorkflow],
       subBackendDescriptor,
-      Map.empty,
       Map.empty,
       ContinueWhilePossible,
       List.empty,

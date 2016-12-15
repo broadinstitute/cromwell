@@ -8,7 +8,6 @@ import wdl4s._
 
 final case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
                                           backendDescriptor: BackendWorkflowDescriptor,
-                                          workflowInputs: WorkflowCoercedInputs,
                                           backendAssignments: Map[TaskCall, String],
                                           failureMode: WorkflowFailureMode,
                                           pathBuilders: List[PathBuilder],
@@ -20,9 +19,10 @@ final case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
     case None => this
   }
   
-  val id = backendDescriptor.id
+  lazy val id = backendDescriptor.id
   lazy val workflow = backendDescriptor.workflow
   lazy val name = workflow.unqualifiedName
-  val inputs = backendDescriptor.inputs
+  lazy val knownDeclarations = backendDescriptor.knownValues
+  
   def getWorkflowOption(key: WorkflowOption) = backendDescriptor.getWorkflowOption(key)
 }

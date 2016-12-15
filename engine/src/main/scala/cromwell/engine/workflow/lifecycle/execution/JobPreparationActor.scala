@@ -39,7 +39,7 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
       } getOrElse Map.empty[Scatter, Int]
 
       call.evaluateTaskInputs(
-        workflowDescriptor.backendDescriptor.inputs,
+        workflowDescriptor.backendDescriptor.knownValues,
         expressionLanguageFunctions,
         outputStore.fetchNodeOutputEntries,
         scatterMap
@@ -87,7 +87,7 @@ final case class SubWorkflowPreparationActor(executionData: WorkflowExecutionAct
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
       workflow = key.scope.calledWorkflow,
-      inputs = workflowDescriptor.inputs ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      knownValues = workflowDescriptor.knownDeclarations ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
       breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, key)
     )
     val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))

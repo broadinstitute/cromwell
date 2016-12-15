@@ -63,7 +63,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     WorkflowExecutionPendingState,
     WorkflowExecutionActorData(
       workflowDescriptor,
-      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow, workflowDescriptor.inputs),
+      executionStore = ExecutionStore(workflowDescriptor.backendDescriptor.workflow, workflowDescriptor.knownDeclarations),
       backendJobExecutionActors = Map.empty,
       engineCallExecutionActors = Map.empty,
       subWorkflowExecutionActors = Map.empty,
@@ -258,7 +258,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import spray.json._
     
      val (response, finalState) = workflowDescriptor.workflow.evaluateOutputs(
-      workflowDescriptor.inputs,
+      workflowDescriptor.knownDeclarations,
       data.expressionLanguageFunctions,
       data.outputStore.fetchNodeOutputEntries
     ) map { workflowOutputs =>
@@ -374,7 +374,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     } getOrElse Map.empty[Scatter, Int]
 
     val lookup = declaration.scope.lookupFunction(
-      workflowDescriptor.workflowInputs,
+      workflowDescriptor.knownDeclarations,
       data.expressionLanguageFunctions,
       data.outputStore.fetchNodeOutputEntries,
       scatterMap
@@ -433,13 +433,13 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     val lookup = scatterKey.scope.lookupFunction(
-      workflowDescriptor.workflowInputs,
+      workflowDescriptor.knownDeclarations,
       data.expressionLanguageFunctions,
       data.outputStore.fetchNodeOutputEntries
     )
 
     scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
-      case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.inputs) + (scatterKey -> ExecutionStatus.Done))
+      case a: WdlArray => WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.knownDeclarations) + (scatterKey -> ExecutionStatus.Done))
       case v: WdlValue => throw new RuntimeException("Scatter collection must evaluate to an array")
     }
   }

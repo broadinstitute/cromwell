@@ -236,7 +236,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedInputs)
       backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions)
-    } yield EngineWorkflowDescriptor(namespace, backendDescriptor, coercedInputs, backendAssignments, failureMode, pathBuilders, callCachingMode)
+    } yield EngineWorkflowDescriptor(namespace, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 
   private def pushWfInputsToMetadataService(workflowInputs: WorkflowCoercedInputs): Unit = {

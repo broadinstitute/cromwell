@@ -62,7 +62,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
     val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
+    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
@@ -76,7 +76,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
     val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
-    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
+    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)

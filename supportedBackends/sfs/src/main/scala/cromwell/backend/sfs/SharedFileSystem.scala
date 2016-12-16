@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.io.FileNotFoundException
+import java.io.{FileNotFoundException, IOException}
 import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
@@ -8,6 +8,7 @@ import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
+import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.PathFactory
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
@@ -196,7 +197,9 @@ trait SharedFileSystem extends PathFactory {
       case (declaration, value) => localizeFunction(value) map { declaration -> _ }
     }
 
-    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap)
+    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recoverWith {
+      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+    }
   }
 
   /**

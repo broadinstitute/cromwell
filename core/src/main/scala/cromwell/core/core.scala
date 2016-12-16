@@ -14,7 +14,7 @@ trait CromwellFatalExceptionMarker { this: Throwable => }
 object CromwellFatalException {
   // Don't wrap if it's already a fatal exception
   def apply(throwable: Throwable) = throwable match {
-    case e: CromwellFatalException => e
+    case e: CromwellFatalExceptionMarker => e
     case e => new CromwellFatalException(e)
   }
   def unapply(e: CromwellFatalException): Option[Throwable] = Option(e.exception)

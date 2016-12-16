@@ -103,9 +103,9 @@ trait CallMetadataHelper {
       val now = OffsetDateTime.now.withOffsetSameInstant(offset)
       val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
       val tailedEventList = eventList :+ lastEvent
-      val events = tailedEventList.sliding(2).zipWithIndex flatMap {
-        case (Seq(eventCurrent, eventNext), index) =>
-          val eventKey = s"executionEvents[$index]"
+      val events = tailedEventList.sliding(2) flatMap {
+        case Seq(eventCurrent, eventNext) =>
+          val eventKey = s"executionEvents[$randomNumberString]"
           List(
             metadataEvent(s"$eventKey:description", eventCurrent.name),
             metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),

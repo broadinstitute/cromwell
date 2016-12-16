@@ -22,7 +22,7 @@ final case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
   lazy val id = backendDescriptor.id
   lazy val workflow = backendDescriptor.workflow
   lazy val name = workflow.unqualifiedName
-  lazy val knownDeclarations = backendDescriptor.knownValues
+  lazy val knownValues = backendDescriptor.knownValues
   
   def getWorkflowOption(key: WorkflowOption) = backendDescriptor.getWorkflowOption(key)
 }

@@ -87,7 +87,7 @@ final case class SubWorkflowPreparationActor(executionData: WorkflowExecutionAct
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
       workflow = key.scope.calledWorkflow,
-      knownValues = workflowDescriptor.knownDeclarations ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      knownValues = workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
       breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, key)
     )
     val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))

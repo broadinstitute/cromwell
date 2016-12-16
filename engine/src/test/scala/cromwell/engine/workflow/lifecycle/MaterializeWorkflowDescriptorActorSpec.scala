@@ -64,7 +64,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
             wfDesc.id shouldBe workflowId
             wfDesc.name shouldBe "wf_hello"
             wfDesc.namespace.tasks.size shouldBe 1
-            wfDesc.knownDeclarations.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
+            wfDesc.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
             wfDesc.backendDescriptor.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None

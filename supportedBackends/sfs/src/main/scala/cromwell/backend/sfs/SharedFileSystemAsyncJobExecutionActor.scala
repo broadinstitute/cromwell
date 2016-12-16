@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileAlreadyExistsException, Path}
+import java.nio.file.{FileAlreadyExistsException, Path, Paths}
 
 import akka.actor.{Actor, ActorLogging}
 import better.files._
@@ -14,8 +14,8 @@ import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.WorkflowId
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
-import wdl4s.{Call, EvaluatedTaskInputs}
+import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
+import wdl4s.EvaluatedTaskInputs
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -112,16 +112,16 @@ trait SharedFileSystemAsyncJobExecutionActor
   def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
 
   lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
-  lazy val call: Call = jobDescriptor.key.call
+  lazy val call = jobDescriptor.key.call
   lazy val pathBuilders: List[PathBuilder] = WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
-  lazy val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
+  private[sfs] lazy val backendEngineFunctions = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
   override lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
   override lazy val jobTag: String = jobDescriptor.key.tag
 
   lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined
 
-  override lazy val commandLineFunctions: SharedFileSystemExpressionFunctions = callEngineFunction
+  override lazy val commandLineFunctions: SharedFileSystemExpressionFunctions = backendEngineFunctions
 
   override lazy val commandLinePreProcessor: (EvaluatedTaskInputs) => Try[EvaluatedTaskInputs] =
     sharedFileSystem.localizeInputs(jobPaths.callInputsRoot, isDockerRun)
@@ -137,7 +137,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     jobLogger.info(s"`$script`")
     File(jobPaths.callExecutionRoot).createDirectories()
     val cwd = if (isDockerRun) jobPaths.callExecutionDockerRoot else jobPaths.callExecutionRoot
-    writeScript(script, cwd)
+    writeScript(script, cwd, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
     jobLogger.info(s"command: $processArgs")
     val runner = makeProcessRunner()
     val exitValue = runner.run()
@@ -167,9 +167,24 @@ trait SharedFileSystemAsyncJobExecutionActor
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
-  private def writeScript(instantiatedCommand: String, cwd: Path) = {
+  private def writeScript(instantiatedCommand: String, cwd: Path, globFiles: Set[WdlGlobFile]) = {
     val rcPath = if (isDockerRun) jobPaths.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
     val rcTmpPath = s"$rcPath.tmp"
+
+    def globManipulation(globFile: WdlGlobFile) = {
+
+      val globDir = backendEngineFunctions.globName(globFile.value)
+      val globDirectory = Paths.get(s"$globDir/")
+      val globList = Paths.get(s"$globDir.list")
+
+      s"""
+         |mkdir $globDirectory
+         |ln ${globFile.value} $globDirectory
+         |ls -1 $globDirectory > $globList
+      """.stripMargin
+    }
+
+    val globManipulations = globFiles.map(globManipulation).mkString("\n")
 
     val scriptBody = s"""
 
@@ -179,6 +194,10 @@ trait SharedFileSystemAsyncJobExecutionActor
  $instantiatedCommand
 )
 echo $$? > $rcTmpPath
+(
+cd $cwd
+$globManipulations
+)
 mv $rcTmpPath $rcPath
 
 """.trim + "\n"
@@ -247,7 +266,7 @@ mv $rcTmpPath $rcPath
   override def handleExecutionSuccess(runStatus: StandardAsyncRunStatus, handle: StandardAsyncPendingExecutionHandle,
                                       returnCode: Int): ExecutionHandle = {
     val outputsTry =
-      OutputEvaluator.evaluateOutputs(jobDescriptor, callEngineFunction, sharedFileSystem.outputMapper(jobPaths))
+      OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, sharedFileSystem.outputMapper(jobPaths))
     outputsTry match {
       case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, Seq.empty)
       case Failure(throwable) => FailedNonRetryableExecutionHandle(throwable, Option(returnCode))

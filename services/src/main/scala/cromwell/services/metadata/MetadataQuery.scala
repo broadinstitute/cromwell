@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import cromwell.core.path.PathImplicits._
 import org.slf4j.LoggerFactory
-import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlValue}
+import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
@@ -37,11 +37,12 @@ case object MetadataNumber extends MetadataType { override val typeName = "numbe
 case object MetadataBoolean extends MetadataType { override val typeName = "boolean" }
 
 object MetadataValue {
-  def apply(value: Any) = {
+  def apply(value: Any): MetadataValue = {
     Option(value).getOrElse("") match {
       case WdlInteger(i) => new MetadataValue(i.toString, MetadataInt)
       case WdlFloat(f) => new MetadataValue(f.toString, MetadataNumber)
       case WdlBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
+      case WdlOptionalValue(_, Some(o)) => apply(o)
       case value: WdlValue => new MetadataValue(value.valueString, MetadataString)
       case _: Int | Long => new MetadataValue(value.toString, MetadataInt)
       case _: Double | Float => new MetadataValue(value.toString, MetadataNumber)

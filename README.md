@@ -552,6 +552,9 @@ backend {
       config {
         project = "my-cromwell-workflows"
         root = "gs://my-cromwell-workflows-bucket"
+        
+        # CURRENTLY, the default zone is hard-coded as "us-central1-b"
+        
         maximum-polling-interval = 600
         dockerhub {
           # account = ""
@@ -1699,7 +1702,8 @@ Valid keys and their meanings:
     * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
     * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
-
+    * Note that the google compute engine "zone" is hard-coded, but it can be adjusted using runtime options in the task descriptions.  If you wish to use more than one zone, you will need to specify so in the tasks for now.
+    
 # Call Caching
 
 Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will **copy the results** of the previous job instead of re-running it.

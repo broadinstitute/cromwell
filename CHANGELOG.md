@@ -1,5 +1,9 @@
 # Cromwell Change Log
 
+## 24
+
+* When emitting workflow outputs to the Cromwell log only the first 1000 characters per output will be printed
+
 ## 23
 
 * The `meta` and `parameter_meta` blocks are now valid within `workflow` blocks, not just `task`

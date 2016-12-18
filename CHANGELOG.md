@@ -3,6 +3,7 @@
 ## 25
 
 * Cromwell now applies default labels automatically to JES pipeline runs.
+* Added ability to override the default zone(s) used by JES via the config structure by setting `genomics.default-zones` in the JES configuration
 
 ## 24
 

@@ -34,4 +34,5 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val dockerCredentials = DockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined
   val qps = jesAttributes.qps
+  val defaultZones = jesAttributes.defaultZones
 }

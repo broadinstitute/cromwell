@@ -47,4 +47,6 @@ case object WdlAnyType extends WdlType {
         throw new UnsupportedOperationException(s"Could not coerce $any into a WDL type")
       ).get
   }
+
+  override final def isCoerceableFrom(otherType: WdlType): Boolean = true
 }

@@ -5,7 +5,7 @@
   "param_test.d": [],
   "param_test.e": [],
   "param_test.f": [],
-  "wf.param_test": [],
+  "wf.param_test": ["wf.param_test.a", "wf.param_test.b", "wf.param_test.c", "wf.param_test.d", "wf.param_test.e", "wf.param_test.f"],
   "wf.param_test.a": [],
   "wf.param_test.b": [],
   "wf.param_test.c": [],

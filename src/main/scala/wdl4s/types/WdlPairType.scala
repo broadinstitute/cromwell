@@ -6,6 +6,7 @@ case class WdlPairType(leftType: WdlType, rightType: WdlType) extends WdlType {
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {
     case WdlPairType(otherType1, otherType2) => leftType.isCoerceableFrom(otherType1) && rightType.isCoerceableFrom(otherType2)
+    case _ => false
   }
 
   /**

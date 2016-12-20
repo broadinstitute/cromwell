@@ -1,0 +1,15 @@
+{
+  "summary": "Task",
+  "summary.bfile": "Declaration",
+  "summary.hwe": "TaskOutput",
+  "summary.imiss": "TaskOutput",
+  "summary.lmiss": "TaskOutput",
+  "summary.log": "TaskOutput",
+  "test1": "Workflow",
+  "test1.summary": "TaskCall",
+  "test1.summary.bfile": "Declaration",
+  "test1.summary.hwe": "CallOutput",
+  "test1.summary.imiss": "CallOutput",
+  "test1.summary.lmiss": "CallOutput",
+  "test1.summary.log": "CallOutput"
+}

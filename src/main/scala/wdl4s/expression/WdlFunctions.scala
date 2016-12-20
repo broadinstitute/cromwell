@@ -16,8 +16,8 @@ trait WdlFunctions[T] {
     * Extract a single `WdlValue` from the specified `Seq`, returning `Failure` if the parameters
     * represent something other than a single `WdlValue`.
     */
-  def extractSingleArgument(params: Seq[Try[T]]): Try[T] = {
-    if (params.length != 1) Failure(new UnsupportedOperationException("Expected one argument, got " + params.length))
+  def extractSingleArgument(functionName: String, params: Seq[Try[T]]): Try[T] = {
+    if (params.length != 1) Failure(new UnsupportedOperationException(s"Expected one argument for $functionName, got ${params.length}"))
     else params.head
   }
 

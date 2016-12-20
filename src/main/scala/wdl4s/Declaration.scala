@@ -2,7 +2,7 @@ package wdl4s
 
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.parser.WdlParser.{Ast, AstNode}
-import wdl4s.types.{WdlArrayType, WdlType}
+import wdl4s.types.{WdlArrayType, WdlOptionalType, WdlType}
 
 object DeclarationInterface {
   /**
@@ -25,9 +25,11 @@ object DeclarationInterface {
     */
   def relativeWdlType(from: Scope, target: DeclarationInterface, wdlType: WdlType): WdlType = {
     target.closestCommonAncestor(from) map { ancestor =>
-      target.ancestrySafe.takeWhile(_ != ancestor).collect({
-        case s: Scatter => s
-      }).foldLeft(wdlType)((acc, _) => WdlArrayType(acc))
+      target.ancestrySafe.takeWhile(_ != ancestor).foldLeft(wdlType){
+        case (acc, scatter: Scatter) => WdlArrayType(acc)
+        case (acc, _: If) => WdlOptionalType(acc)
+        case (acc, _) => acc
+      }
     } getOrElse wdlType
   }
 }
@@ -47,7 +49,7 @@ object DeclarationInterface {
   *
   * Both the definition of test_file and wf_string are declarations
   */
-trait DeclarationInterface extends GraphNode {
+trait DeclarationInterface extends GraphNodeWithUpstreamReferences {
   def wdlType: WdlType
   def expression: Option[WdlExpression]
   def ast: Ast
@@ -69,23 +71,7 @@ trait DeclarationInterface extends GraphNode {
     s"${wdlType.toWdlString} $unqualifiedName$expr"
   }
 
-  lazy val upstream: Set[GraphNode] = {
-    val nodes = for {
-      expr <- expression.toSeq
-      variable <- expr.variableReferences
-      node <- resolveVariable(variable.sourceString)
-    } yield node
-    nodes.toSet
-  }
-
-  lazy val downstream: Set[GraphNode] = {
-    for {
-      node <- namespace.descendants.collect({ 
-        case n: GraphNode if n.fullyQualifiedName != fullyQualifiedName => n 
-      })
-      if node.upstream.contains(this)
-    } yield node
-  }
+  final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences)
 
   override def toString: String = {
     s"[Declaration type=${wdlType.toWdlString} name=$unqualifiedName expr=${expression.map(_.toWdlString)}]"

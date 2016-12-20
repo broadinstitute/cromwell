@@ -49,7 +49,7 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
       val evaluatedElements = a.getAttribute("values").astListAsVector map evaluate
       for {
         elements <- TryUtil.sequence(evaluatedElements)
-        subtype <- WdlType.homogeneousTypeFromTypes(elements)
+        subtype = WdlType.homogeneousTypeFromTypes(elements)
       } yield WdlArrayType(subtype)
     case a: Ast if a.isTupleLiteral => tupleAstToWdlType(a)
     case a: Ast if a.isMapLiteral =>
@@ -65,10 +65,9 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
           val message = failures.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
           Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
         case (successes, _) =>
-          for {
-            keyType <- WdlType.homogeneousTypeFromTypes(evaluatedMap map { case (k, v) => k.get})
-            valueType <- WdlType.homogeneousTypeFromTypes(evaluatedMap map { case (k, v) => v.get})
-          } yield WdlMapType(keyType, valueType)
+          val keyType = WdlType.homogeneousTypeFromTypes(evaluatedMap map { case (k, v) => k.get} )
+          val valueType = WdlType.homogeneousTypeFromTypes(evaluatedMap map { case (k, v) => v.get} )
+          Success(WdlMapType(keyType, valueType))
       }
     case a: Ast if a.isMemberAccess =>
       a.getAttribute("rhs") match {

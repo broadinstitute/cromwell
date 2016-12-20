@@ -6,8 +6,8 @@
   "w.a0.o": ["w.a0"],
   "w.a1": [],
   "w.a1.o": ["w.a1"],
-  "w.b": ["w.ints"],
-  "w.b.ints": ["w.b"],
-  "w.b.o": ["w.b"],
+  "w.b": ["w.a0", "w.a1", "w.ints"],
+  "w.b.ints": ["w.a0", "w.a1", "w.b", "w.ints"],
+  "w.b.o": ["w.a0", "w.a1", "w.b", "w.ints"],
   "w.ints": ["w.a0", "w.a1"]
 }

@@ -1,6 +1,6 @@
 package wdl4s.types
 
-import wdl4s.values.{WdlArray, WdlInteger, WdlString}
+import wdl4s.values.{WdlArray, WdlInteger, WdlOptionalValue, WdlString}
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsArray, JsNumber}
@@ -94,9 +94,9 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
       case _: SyntaxError => // expected
     }
   }
-  it should "detect invalid array construction if there are mixed types" in {
+  it should "detect invalid array construction if there are uncoerceable types" in {
     try {
-      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("foo"), WdlInteger(2)))
+      WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("foo"), WdlOptionalValue(WdlStringType, None)))
       fail("Invalid array initialization should have failed")
     } catch {
       case _: UnsupportedOperationException => // expected

@@ -5,10 +5,13 @@
   "ns2.cgrep.pattern": [],
   "ns3.wc.count": [],
   "ns3.wc.in_file": [],
-  "three_step.a1": ["three_step.a2", "three_step.wc"],
-  "three_step.a2": [],
+  "three_step.a1": ["three_step.a1.procs", "three_step.a2", "three_step.wc"],
+  "three_step.a1.procs": [],
+  "three_step.a2": ["three_step.a2.count", "three_step.a2.in_file", "three_step.a2.pattern"],
+  "three_step.a2.count": [],
   "three_step.a2.in_file": [],
   "three_step.a2.pattern": [],
-  "three_step.wc": [],
+  "three_step.wc": ["three_step.wc.count", "three_step.wc.in_file"],
+  "three_step.wc.count": [],
   "three_step.wc.in_file": []
 }

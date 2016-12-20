@@ -18,9 +18,8 @@ object WdlMap {
       case _ =>
         val mapCoerced = coerced map { case (k, v) => k.get -> v.get }
 
-        // Yes, throw an exception if keyType or valueType can't be determined
-        val keyType = WdlType.homogeneousTypeFromValues(mapCoerced map { case (k, v) => k }).get
-        val valueType = WdlType.homogeneousTypeFromValues(mapCoerced map { case (k, v) => v }).get
+        val keyType = WdlType.homogeneousTypeFromValues(mapCoerced map { case (k, v) => k })
+        val valueType = WdlType.homogeneousTypeFromValues(mapCoerced map { case (k, v) => v })
 
         WdlMap(WdlMapType(keyType, valueType), mapCoerced)
     }

@@ -1,0 +1,15 @@
+{
+  "inner.i": [],
+  "inner.out": [],
+  "outer.matrix": [],
+  "outer.tsv": [],
+  "w.$scatter_0": ["w.array"],
+  "w.$scatter_1": ["w.$scatter_0", "w.array"],
+  "w.array": [],
+  "w.inner": ["w.$scatter_0", "w.$scatter_1", "w.array"],
+  "w.inner.i": ["w.$scatter_0", "w.$scatter_1", "w.array", "w.inner"],
+  "w.inner.out": ["w.$scatter_0", "w.$scatter_1", "w.array", "w.inner"],
+  "w.outer": ["w.$scatter_0", "w.$scatter_1", "w.array", "w.inner"],
+  "w.outer.matrix": ["w.$scatter_0", "w.$scatter_1", "w.array", "w.inner", "w.outer"],
+  "w.outer.tsv": ["w.$scatter_0", "w.$scatter_1", "w.array", "w.inner", "w.outer"]
+}

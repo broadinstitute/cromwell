@@ -9,6 +9,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
 import wdl4s._
+import wdl4s.exception.VariableLookupException
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
@@ -35,7 +36,7 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
       val call = callKey.scope
       val scatterMap = callKey.index flatMap { i =>
         // Will need update for nested scatters
-        call.upstream collectFirst { case s: Scatter => Map(s -> i) }
+        call.upstreamAncestry collectFirst { case s: Scatter => Map(s -> i) }
       } getOrElse Map.empty[Scatter, Int]
 
       call.evaluateTaskInputs(
@@ -44,6 +45,8 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
         outputStore.fetchNodeOutputEntries,
         scatterMap
       )
+    } recoverWith {
+      case t: Throwable => Failure(new VariableLookupException(s"Couldn't resolve all inputs for ${callKey.scope.fullyQualifiedName} at index ${callKey.index}.", List(t)))
     }
   }
 }

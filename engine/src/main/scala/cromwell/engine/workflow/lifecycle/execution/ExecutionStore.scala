@@ -17,6 +17,7 @@ object ExecutionStore {
       case call: TaskCall => Option(BackendJobDescriptorKey(call, None, 1))
       case call: WorkflowCall => Option(SubWorkflowKey(call, None, 1))
       case scatter: Scatter => Option(ScatterKey(scatter))
+      case conditional: If => Option(ConditionalKey(conditional, None))
       case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
       case _ => None // Ifs will need to be added here when supported
     }
@@ -26,6 +27,9 @@ object ExecutionStore {
 }
 
 case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
+
+  override def toString = store.map { case (j, s) => s"$j -> $s" } mkString(System.lineSeparator())
+
   def add(values: Map[JobKey, ExecutionStatus]) = this.copy(store = store ++ values)
 
   // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
@@ -47,6 +51,28 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
     case _ => false
   }
 
+  // Just used to decide whether a collector can be run. In case the shard entries haven't been populated into the
+  // execution store yet.
+  case class TempJobKey(scope: Scope with GraphNode, index: Option[Int]) extends JobKey {
+    // If these are ever used, we've done something wrong...
+    override def attempt: Int = ???
+    override def tag: String = ???
+  }
+  def emulateShardEntries(key: CollectorKey): List[JobKey] = {
+    (0 until key.scatterWidth).toList flatMap { i => key.scope match {
+      case c: Call => List(TempJobKey(c, Option(i)))
+      case d: Declaration => List(TempJobKey(d, Option(i)))
+      case _ => throw new RuntimeException("Don't collect that.")
+    }}
+  }
+
+
+//    store.toList filter {
+//    case (k: CallKey, v) => k.scope == key.scope && k.isShard
+//    case (k: DeclarationKey, v) => k.scope == key.scope && k.isShard
+//    case _ => false
+//  }
+
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     val upstream = key.scope.upstream collect {
       case n: Call => upstreamEntry(key, n)
@@ -54,8 +80,8 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       case n: Declaration => upstreamEntry(key, n)
     }
 
-    val downstream: List[(JobKey, ExecutionStatus)] = key match {
-      case collector: CollectorKey => findShardEntries(collector)
+    val downstream: List[JobKey] = key match {
+      case collector: CollectorKey => emulateShardEntries(collector)
       case _ => Nil
     }
 
@@ -65,11 +91,11 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       * of the scatter block.
       */
     def isDone(e: JobKey): Boolean = store exists {
-      case (k, s) => k.scope.fullyQualifiedName == e.scope.fullyQualifiedName && k.index == e.index && s == ExecutionStatus.Done
+      case (k, s) => k.scope.fullyQualifiedName == e.scope.fullyQualifiedName && k.index == e.index && s.isDoneOrBypassed
     }
 
-    val dependencies = upstream.flatten ++ downstream
-    val dependenciesResolved = dependencies forall { case (k, _) => isDone(k) }
+    val dependencies = upstream.flatten.map(_._1) ++ downstream
+    val dependenciesResolved = dependencies forall { isDone }
 
     /*
       * We need to make sure that all prerequisiteScopes have been resolved to some entry before going forward.

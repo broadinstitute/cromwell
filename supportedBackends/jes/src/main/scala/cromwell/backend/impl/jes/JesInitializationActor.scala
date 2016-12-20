@@ -40,7 +40,7 @@ case class JesInitializationActorParams
 }
 
 class JesInitializationActor(jesParams: JesInitializationActorParams)
-  extends StandardInitializationActor {
+  extends StandardInitializationActor with JesAsyncIo {
 
   override val standardParams: StandardInitializationActorParams = jesParams
 
@@ -77,7 +77,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toUri}")
-      Future(path.writeAsJson(content)).void.recoverWith {
+      writeAsJson(path, content).void.recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
       } void
     } getOrElse Future.successful(())

@@ -1,12 +1,15 @@
 package cromwell
 
 import akka.actor.{Actor, Props}
+import better.files.File
+import cromwell.MetadataWatchActor._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
+import cromwell.services.io.promise.{ReadAsStringCommandPromise, SizeCommandPromise}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
-import MetadataWatchActor._
+import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 
 import scala.concurrent.Promise
+import scala.util.Try
 
 // This actor stands in for the service registry and watches for metadata messages that match the optional `matcher`.
 // If there is no predicate then use `ignoringBehavior` which ignores all messages.  This is here because there is no
@@ -23,7 +26,13 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
         ()
       }
     case PutMetadataAction(_) => // Superfluous message. Ignore
-    case _ => throw new Exception("Invalid message to MetadataWatchActor")
+    case command: ReadAsStringCommandPromise => 
+      command.promise.complete(Try(File(command.file).contentAsString))
+      ()
+    case command: SizeCommandPromise => 
+      command.promise.complete(Try(File(command.file).size))
+      ()
+    case message => throw new Exception(s"Invalid message to MetadataWatchActor $message")
   }
 }
 

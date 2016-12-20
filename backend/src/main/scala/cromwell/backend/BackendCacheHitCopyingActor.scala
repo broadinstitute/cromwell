@@ -15,11 +15,11 @@ object BackendCacheHitCopyingActor {
 
 trait BackendCacheHitCopyingActor extends Actor with ActorLogging with BackendJobLifecycleActor {
 
-  def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int]): BackendJobExecutionResponse
+  def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int]): Future[BackendJobExecutionResponse]
 
   def receive: Receive = LoggingReceive {
     case CopyOutputsCommand(simpletons, jobDetritus, returnCode) =>
-      performActionThenRespond(Future(copyCachedOutputs(simpletons, jobDetritus, returnCode)), onFailure = cachingFailed, andThen = context stop self)
+      performActionThenRespond(copyCachedOutputs(simpletons, jobDetritus, returnCode), onFailure = cachingFailed, andThen = context stop self)
     case AbortJobCommand =>
       abort()
       context.parent ! AbortedResponse(jobDescriptor.key)

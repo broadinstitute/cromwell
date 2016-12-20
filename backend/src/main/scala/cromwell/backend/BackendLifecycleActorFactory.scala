@@ -38,6 +38,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      calls: Set[TaskCall],
+                                     serviceRegistryActor: ActorRef,
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None

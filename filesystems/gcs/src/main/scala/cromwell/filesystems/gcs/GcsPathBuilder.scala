@@ -2,9 +2,7 @@ package cromwell.filesystems.gcs
 
 import java.net.URI
 import java.nio.file.Path
-import java.nio.file.spi.FileSystemProvider
 
-import akka.actor.ActorSystem
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.cloud.RetryParams
@@ -13,8 +11,7 @@ import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudSto
 import com.google.common.base.Preconditions._
 import com.google.common.net.UrlEscapers
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.proxy.{PathProxy, RetryableFileSystemProviderProxy}
-import cromwell.core.path.{CustomRetryParams, PathBuilder}
+import cromwell.core.path.PathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
@@ -61,9 +58,8 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
   // The CloudStorageFileSystemProvider constructor is not public. Currently the only way to obtain one is through a CloudStorageFileSystem
   // Moreover at this point we can use the same provider for all operations as we have usable credentials
   // In order to avoid recreating a provider with every getPath call, create a dummy FileSystem just to get its provider
-  protected val _provider = CloudStorageFileSystem.forBucket("dummy", cloudStorageConfiguration, storageOptions).provider()
+  private val provider = CloudStorageFileSystem.forBucket("dummy", cloudStorageConfiguration, storageOptions).provider()
 
-  protected def provider: FileSystemProvider = _provider
   /*
    * The StorageService already contains a StorageRpc object that contains a com.google.api.services.storage.Storage object
    * However it is not accessible from StorageService.
@@ -73,9 +69,6 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
   def getHash(path: Path): Try[String] = {
     path match {
       case gcsPath: CloudStoragePath => Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
-      case proxy: PathProxy =>
-        val gcsPath = proxy.unbox(classOf[CloudStoragePath]).get
-        Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
       case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
     }
   }
@@ -89,16 +82,4 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
   }
 
   override def name: String = "Gcs"
-}
-
-class RetryableGcsPathBuilder(authMode: GoogleAuthMode,
-                              googleRetryParams: RetryParams,
-                              customRetryParams: CustomRetryParams,
-                              cloudStorageConfiguration: CloudStorageConfiguration,
-                              options: WorkflowOptions)(implicit actorSystem: ActorSystem)
-  extends GcsPathBuilder(authMode, googleRetryParams, cloudStorageConfiguration, options) {
-
-  override protected def provider = new RetryableFileSystemProviderProxy(_provider, customRetryParams)
-
-  override def getHash(path: Path) = provider.withRetry(() => super.getHash(path))
 }

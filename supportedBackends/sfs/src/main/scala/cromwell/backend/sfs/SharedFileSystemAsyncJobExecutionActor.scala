@@ -15,6 +15,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -123,7 +124,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override lazy val commandLineValueMapper: (WdlValue) => WdlValue = toUnixPath(isDockerRun)
 
-  override def execute(): ExecutionHandle = {
+  override def execute(): Future[ExecutionHandle] = {
     val script = instantiatedCommand
     jobLogger.info(s"`$script`")
     File(jobPaths.callExecutionRoot).createDirectories()
@@ -133,11 +134,11 @@ trait SharedFileSystemAsyncJobExecutionActor
     val runner = makeProcessRunner()
     val exitValue = runner.run()
     if (exitValue != 0) {
-      FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
-        s"Check the stderr file for possible errors: ${runner.stderrPath}"))
+      Future.successful(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
+        s"Check the stderr file for possible errors: ${runner.stderrPath}")))
     } else {
       val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
-      PendingExecutionHandle(jobDescriptor, runningJob, None, None)
+      Future.successful(PendingExecutionHandle(jobDescriptor, runningJob, None, None))
     }
   }
 
@@ -194,17 +195,17 @@ trait SharedFileSystemAsyncJobExecutionActor
     File(jobPaths.script).write(scriptBody)
   }
 
-  override def recover(job: StandardAsyncJob): ExecutionHandle = {
+  override def recover(job: StandardAsyncJob): Future[ExecutionHandle] = {
     // To avoid race conditions, check for the rc file after checking if the job is alive.
     if (isAlive(job) || File(jobPaths.returnCode).exists) {
       // If we're done, we'll get to the rc during the next poll.
       // Or if we're still running, return pending also.
       jobLogger.info(s"Recovering using job id: ${job.jobId}")
-      PendingExecutionHandle(jobDescriptor, job, None, None)
+      Future.successful(PendingExecutionHandle(jobDescriptor, job, None, None))
     } else {
       // Could start executeScript(), but for now fail because we shouldn't be in this state.
-      FailedNonRetryableExecutionHandle(new RuntimeException(
-        s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None)
+      Future.successful(FailedNonRetryableExecutionHandle(new RuntimeException(
+        s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None))
     }
   }
 

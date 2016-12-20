@@ -11,6 +11,7 @@ import cromwell.core.path.PathImplicits._
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
 
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.Try
 
@@ -29,7 +30,7 @@ trait CacheHitDuplicating {
     * @param source      Source path.
     * @param destination Destination path.
     */
-  protected def duplicate(source: Path, destination: Path): Unit
+  protected def duplicate(source: Path, destination: Path): Future[Unit]
 
   /**
     * Returns an absolute path to the file.
@@ -61,46 +62,45 @@ trait CacheHitDuplicating {
     * After copying files, return the simpletons substituting the destination file paths.
     */
   private def copySimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton],
-                             sourceCallRootPath: Path): Seq[WdlValueSimpleton] = {
-    wdlValueSimpletons map {
+                             sourceCallRootPath: Path): Future[Seq[WdlValueSimpleton]] = {
+    val futureCopy = wdlValueSimpletons map {
       case WdlValueSimpleton(key, wdlFile: WdlFile) =>
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
-        duplicate(sourcePath, destinationPath)
-        WdlValueSimpleton(key, WdlFile(destinationPath.toRealString))
-      case wdlValueSimpleton => wdlValueSimpleton
+        duplicate(sourcePath, destinationPath) map { _ => WdlValueSimpleton(key, WdlFile(destinationPath.toRealString)) }
+      case wdlValueSimpleton => Future.successful(wdlValueSimpleton)
     }
+    Future.sequence(futureCopy)
   }
 
-  private def copyDetritus(sourceJobDetritusFiles: Map[String, String]): Map[String, Path] = {
+  private def copyDetritus(sourceJobDetritusFiles: Map[String, String]): Future[Map[String, Path]] = {
     val sourceKeys = sourceJobDetritusFiles.keySet
     val destinationKeys = destinationJobDetritusPaths.keySet
     val fileKeys = sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
 
-    val destinationJobDetritusFiles = fileKeys map { fileKey =>
+    val destinationJobDetritusFilesFuture = fileKeys map { fileKey =>
       val sourcePath = getPath(sourceJobDetritusFiles(fileKey)).get
       val destinationPath = destinationJobDetritusPaths(fileKey)
-      duplicate(sourcePath, destinationPath)
-      (fileKey, destinationPath)
+      duplicate(sourcePath, destinationPath) map { _ => (fileKey, destinationPath) }
     }
 
-    destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath)
+    Future.sequence(destinationJobDetritusFilesFuture) map { destinationJobDetritusFiles =>
+      destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath)
+    }
   }
 
   override def copyCachedOutputs(wdlValueSimpletons: Seq[WdlValueSimpleton],
                                  sourceJobDetritusFiles: Map[String, String],
-                                 returnCodeOption: Option[Int]): BackendJobExecutionResponse = {
+                                 returnCodeOption: Option[Int]): Future[BackendJobExecutionResponse] = {
     val sourceCallRootPath = lookupSourceCallRootPath(sourceJobDetritusFiles)
-
-    val destinationSimpletons = copySimpletons(wdlValueSimpletons, sourceCallRootPath)
-    val destinationJobDetritusFiles = copyDetritus(sourceJobDetritusFiles)
-
-    val destinationJobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons)
-
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
-    serviceRegistryActor.putMetadata(
-      jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
-
-    JobSucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
+    
+    for {
+      destinationSimpletons <- copySimpletons(wdlValueSimpletons, sourceCallRootPath)
+      destinationJobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons)
+      destinationJobDetritusFiles <- copyDetritus(sourceJobDetritusFiles)
+      _ = serviceRegistryActor.putMetadata(
+        jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
+    } yield JobSucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
   }
 }

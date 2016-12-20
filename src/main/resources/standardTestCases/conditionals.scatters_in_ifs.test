@@ -1,0 +1,15 @@
+name: scatters_in_ifs
+testFormat: workflowsuccess
+tags: [ conditionals ]
+
+files {
+  wdl: conditionals_tests/scatters_in_ifs/scatters_in_ifs.wdl
+}
+
+metadata {
+  workflowName: scatters_in_ifs
+  "outputs.inTruth.0": "0"
+  "outputs.inTruth.1": "1"
+  "outputs.inTruth.2": "2"
+  "outputs.inLies": "null"
+}

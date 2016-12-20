@@ -1,0 +1,13 @@
+name: simple_if
+testFormat: workflowsuccess
+tags: [ conditionals ]
+
+files {
+  wdl: conditionals_tests/simple_if/simple_if.wdl
+}
+
+metadata {
+  workflowName: simple_if
+  "outputs.simple_if_runMeTrue_s": "done"
+  "outputs.simple_if_runMeFalse_s": "null"
+}

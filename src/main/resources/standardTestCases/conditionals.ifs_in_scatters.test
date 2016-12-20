@@ -1,0 +1,16 @@
+name: ifs_in_scatters
+testFormat: workflowsuccess
+tags: [ conditionals ]
+
+files {
+  wdl: conditionals_tests/ifs_in_scatters/ifs_in_scatters.wdl
+}
+
+metadata {
+  workflowName: ifs_in_scatters
+  "outputs.mirrors.0": "null"
+  "outputs.mirrors.1": "2"
+  "outputs.mirrors.2": "null"
+  "outputs.mirrors.3": "4"
+  "outputs.mirrors.4": "null"
+}

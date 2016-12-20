@@ -10,5 +10,5 @@ files {
 metadata {
     workflowName: missing_input_failure
     status: Failed
-    "failures.0.message": "Input evaluation for Call missing_input_failure.hello failed.: addressee:\n\tFile not found gs://nonexistingbucket/path/doesnt/exist"
+    "failures.0.message": "Couldn't resolve all inputs for missing_input_failure.hello at index None.: Input evaluation for Call missing_input_failure.hello failed.:\n\taddressee:\n\tFile not found gs://nonexistingbucket/path/doesnt/exist"
 }

@@ -1,0 +1,15 @@
+name: declarations_in_ifs
+testFormat: workflowsuccess
+tags: [ conditionals ]
+
+files {
+  wdl: conditionals_tests/declarations_in_ifs/declarations_in_ifs.wdl
+}
+
+metadata {
+  workflowName: declarations_in_ifs
+  "outputs.singles.0": "5"
+  "outputs.singles.1": "null"
+  "outputs.doubles.0": "10"
+  "outputs.doubles.1": "null"
+}

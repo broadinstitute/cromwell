@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
-import cromwell.core.CromwellFatalException
+import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.services.metadata.MetadataService.MetadataServiceResponse
 
@@ -35,7 +35,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
   def retryable: Boolean
 
-  def isFatal(throwable: Throwable): Boolean = throwable.isInstanceOf[CromwellFatalException]
+  def isFatal(throwable: Throwable): Boolean = throwable.isInstanceOf[CromwellFatalExceptionMarker]
 
   def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
 

@@ -317,7 +317,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
       result
     } recoverWith {
       case exception: Exception =>
-        jobLogger.error(s"Error attempting to $mode: ${exception.getMessage}", exception)
+        jobLogger.error(s"Error attempting to $mode", exception)
         Failure(exception)
     })
   }

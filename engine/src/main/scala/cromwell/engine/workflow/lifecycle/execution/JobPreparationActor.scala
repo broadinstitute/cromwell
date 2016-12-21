@@ -36,7 +36,7 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
       val call = callKey.scope
       val scatterMap = callKey.index flatMap { i =>
         // Will need update for nested scatters
-        call.upstreamAncestry collectFirst { case s: Scatter => Map(s -> i) }
+        call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
       } getOrElse Map.empty[Scatter, Int]
 
       call.evaluateTaskInputs(

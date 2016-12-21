@@ -31,7 +31,9 @@ task increment {
 
     sleep 2
   }
-
+  runtime {
+    docker: "ubuntu:latest"
+  }
   output {
     Int o = read_int(stdout())
   }
@@ -46,7 +48,9 @@ task sum {
 
     sleep 2
   }
-
+  runtime {
+    docker: "ubuntu:latest"
+  }
   output {
     Int o = read_int(stdout())
   }

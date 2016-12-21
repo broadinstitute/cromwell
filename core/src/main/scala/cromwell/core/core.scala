@@ -8,7 +8,7 @@ import wdl4s.values.WdlValue
 
 case class CallContext(root: Path, stdout: String, stderr: String)
 case class JobOutput(wdlValue: WdlValue)
-// Marker trait
+/**  Marker trait for Cromwell exceptions that are to be treated as fatal (non-retryable) */
 trait CromwellFatalExceptionMarker { this: Throwable => }
 
 object CromwellFatalException {

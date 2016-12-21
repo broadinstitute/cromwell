@@ -4,8 +4,9 @@ import java.nio.file.Files
 
 import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.path.DefaultPathBuilder
 import cromwell.backend.BackendSpec
+import cromwell.core.CromwellFatalExceptionMarker
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -77,6 +78,20 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
 
   it should "localize a file via symbolic link" in {
     localizationTest(softLinkLocalization, docker = false, symlink = true)
+  }
+  
+  it should "throw a fatal exception if localization fails" in {
+    val callDir = File.newTemporaryDirectory("SharedFileSystem")
+    val orig = File("/made/up/origin")
+
+    val inputs = fqnMapToDeclarationMap(Map("input" -> WdlFile(orig.pathAsString)))
+    val sharedFS = new SharedFileSystem {
+      override val pathBuilders = localPathBuilder
+      override val sharedFileSystemConfig = defaultLocalization
+    }
+    val result = sharedFS.localizeInputs(callDir.path, docker = false)(inputs)
+    result.isFailure shouldBe true
+    result.failed.get.isInstanceOf[CromwellFatalExceptionMarker] shouldBe true
   }
 
   private[this] def countLinks(file: File): Int = Files.getAttribute(file.path, "unix:nlink").asInstanceOf[Int]

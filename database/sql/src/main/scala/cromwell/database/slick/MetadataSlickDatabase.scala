@@ -15,7 +15,7 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
 
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = dataAccess.metadataEntryIdsAutoInc ++= metadataEntries
+    val action = DBIO.seq(metadataEntries.grouped(2000).map(dataAccess.metadataEntries ++= _).toSeq:_*)
     runTransaction(action).map(_ => ())
   }
 

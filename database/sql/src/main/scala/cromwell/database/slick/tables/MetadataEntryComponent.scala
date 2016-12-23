@@ -57,7 +57,7 @@ trait MetadataEntryComponent {
       (workflowExecutionUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
   }
 
-  protected val metadataEntries = TableQuery[MetadataEntries]
+  val metadataEntries = TableQuery[MetadataEntries]
 
   val metadataEntryIdsAutoInc = metadataEntries returning metadataEntries.map(_.metadataEntryId)
 

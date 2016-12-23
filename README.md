@@ -465,7 +465,7 @@ database {
   driver = "slick.driver.MySQLDriver$"
   db {
     driver = "com.mysql.jdbc.Driver"
-    url = "jdbc:mysql://host/cromwell"
+    url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
     connectionTimeout = 5000

@@ -97,6 +97,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       standardParams.jobDescriptor,
       standardParams.configurationDescriptor,
       standardParams.backendInitializationDataOption,
+      standardParams.backendSingletonActorOption,
       completionPromise
     )
   }

@@ -1,59 +1,57 @@
 package cromwell.backend.sfs
 
-import akka.actor.ActorRef
 import better.files._
-import cromwell.backend.io.{WorkflowPaths, WorkflowPathsBackendInitializationData}
-import cromwell.backend.validation.RuntimeAttributesDefault
+import cats.data.Validated.{Invalid, Valid}
+import cromwell.backend.BackendInitializationData
+import cromwell.backend.io.WorkflowPaths
+import cromwell.backend.standard.{DefaultInitializationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardInitializationData}
 import cromwell.backend.wfs.WorkflowPathBuilder
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.WorkflowOptions
-import cromwell.core.path.PathBuilderFactory
-import wdl4s.TaskCall
-import wdl4s.values.WdlValue
+import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
+import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
+import lenthall.exception.MessageAggregation
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 import scala.util.Try
-
-case class SharedFileSystemInitializationActorParams
-(
-  serviceRegistryActor: ActorRef,
-  workflowDescriptor: BackendWorkflowDescriptor,
-  configurationDescriptor: BackendConfigurationDescriptor,
-  calls: Set[TaskCall],
-  pathBuilderFactories: List[PathBuilderFactory]
-)
-
-class SharedFileSystemBackendInitializationData
-(
-  val workflowPaths: WorkflowPaths,
-  val runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder)
-  extends WorkflowPathsBackendInitializationData
 
 /**
   * Initializes a shared file system actor factory and creates initialization data to pass to the execution actors.
   *
   * @param params Initialization parameters.
   */
-class SharedFileSystemInitializationActor(params: SharedFileSystemInitializationActorParams)
-  extends BackendWorkflowInitializationActor {
+class SharedFileSystemInitializationActor(params: DefaultInitializationActorParams)
+  extends StandardInitializationActor {
 
-  override lazy val workflowDescriptor: BackendWorkflowDescriptor = params.workflowDescriptor
-  override lazy val configurationDescriptor: BackendConfigurationDescriptor = params.configurationDescriptor
-  override lazy val calls: Set[TaskCall] = params.calls
-  override lazy val serviceRegistryActor: ActorRef = params.serviceRegistryActor
+  override val standardParams: StandardInitializationActorParams = params
 
-  def runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder =
-    SharedFileSystemValidatedRuntimeAttributesBuilder.default
+  /**
+    * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
+    */
+  lazy val gcsPathBuilderFactory: Option[GcsPathBuilderFactory] = {
+    configurationDescriptor.backendConfig.as[Option[String]]("filesystems.gcs.auth") map { configAuth =>
+      GoogleConfiguration(configurationDescriptor.globalConfig).auth(configAuth) match {
+        case Valid(auth) => GcsPathBuilderFactory(auth)
+        case Invalid(error) => throw new MessageAggregation {
+          override def exceptionContext: String = "Failed to parse gcs auth configuration"
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = {
-    runtimeAttributesBuilder.validations.map(validation =>
-      validation.key -> validation.validateOptionalExpression _
-    ).toMap
+          override def errorMessages: Traversable[String] = error.toList
+        }
+      }
+    }
   }
 
-  val pathBuilders = params.pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
+  lazy val pathBuilderFactories: List[PathBuilderFactory] =
+    List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
 
-  val workflowPaths = WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders)
+  lazy val pathBuilders: List[PathBuilder] =
+    pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
+
+  val workflowPaths: WorkflowPaths =
+    WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders)
+
+  def initializationData: StandardInitializationData = {
+    new StandardInitializationData(workflowPaths, runtimeAttributesBuilder)
+  }
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {
@@ -61,32 +59,5 @@ class SharedFileSystemInitializationActor(params: SharedFileSystemInitialization
       File(workflowPaths.workflowRoot).createDirectories()
       Option(initializationData)
     })
-  }
-
-  def initializationData: SharedFileSystemBackendInitializationData = {
-    new SharedFileSystemBackendInitializationData(workflowPaths, runtimeAttributesBuilder)
-  }
-
-  /**
-    * Log a warning if there are non-supported runtime attributes defined for the call.
-    */
-  override def validate(): Future[Unit] = {
-    Future.fromTry(Try {
-      calls foreach { call =>
-        val runtimeAttributeKeys = call.task.runtimeAttributes.attrs.keys.toList
-        val notSupportedAttributes = runtimeAttributesBuilder.unsupportedKeys(runtimeAttributeKeys).toList
-
-        if (notSupportedAttributes.nonEmpty) {
-          val notSupportedAttrString = notSupportedAttributes mkString ", "
-          workflowLogger.warn(
-            s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
-              s"Unsupported attributes will not be part of jobs executions.")
-        }
-      }
-    })
-  }
-
-  override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
-    RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.validations.map(v => v.key -> v.coercion).toMap)
   }
 }

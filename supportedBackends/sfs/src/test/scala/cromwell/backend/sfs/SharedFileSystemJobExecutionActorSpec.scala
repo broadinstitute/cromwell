@@ -10,6 +10,7 @@ import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
+import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec, RuntimeAttributeDefinition}
 import cromwell.core.Tags._
 import cromwell.core._
@@ -29,7 +30,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   behavior of "SharedFileSystemJobExecutionActor"
 
   lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    SharedFileSystemValidatedRuntimeAttributesBuilder.default.definitions.toSet
+    StandardValidatedRuntimeAttributesBuilder.default.definitions.toSet
 
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = Map(
@@ -183,7 +184,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
-    val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemJob.JobIdKey)
+    val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
     val kvPair = KvPair(scopedKey, Option(pid))
 
     backendRef ! kvPair

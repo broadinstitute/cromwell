@@ -4,6 +4,7 @@ import akka.actor.Props
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import cromwell.backend.BackendSpec._
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
+import cromwell.backend.standard.DefaultInitializationActorParams
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
@@ -14,9 +15,9 @@ import scala.concurrent.duration._
 
 class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSystemInitializationActorSpec")
   with WordSpecLike with Matchers with ImplicitSender {
-  val Timeout = 5.second.dilated
+  val Timeout: FiniteDuration = 5.second.dilated
 
-  val HelloWorld =
+  val HelloWorld: String =
     s"""
       |task hello {
       |  String addressee = "you"
@@ -37,7 +38,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
 
   private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
                           conf: BackendConfigurationDescriptor) = {
-    val params = SharedFileSystemInitializationActorParams(emptyActor, workflowDescriptor, conf, calls, List.empty)
+    val params = DefaultInitializationActorParams(workflowDescriptor, calls, emptyActor, conf)
     val props = Props(new SharedFileSystemInitializationActor(params))
     system.actorOf(props, "SharedFileSystemInitializationActor")
   }
@@ -49,7 +50,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
         val conf = emptyBackendConfig
         val backend = getActorRef(workflowDescriptor, workflowDescriptor.workflow.taskCalls, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
-          "Unsupported attributes will not be part of jobs executions."
+          "Unsupported attributes will not be part of job executions."
         EventFilter.warning(pattern = escapePattern(pattern), occurrences = 1) intercept {
           backend ! Initialize
         }

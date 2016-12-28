@@ -63,10 +63,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       case (inputName, f: WdlSingleFile) => TaskParameter(
         inputName,
         None,
-        tesPaths.storageInput(f.value),
-        tesPaths.toContainerPath(f).toString,
-        "file",
-        false
+        tesPaths.storageInput(f.valueString),
+        tesPaths.toContainerPath(f).valueString,
+        "File",
+        Some(false)
       )
     }
 
@@ -84,8 +84,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
         None,
         tesPaths.storagePath(path),
         tesPaths.containerOutput(path),
-        "file",
-        false
+        "File",
+        Some(false)
       )
     }
 
@@ -112,7 +112,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val resources = Resources(
     runtimeAttributes.cpu,
     runtimeAttributes.memory.to(MemoryUnit.GB).amount.toInt,
-    false,
+    Some(false),
     Some(volumes),
     None
   )
@@ -155,7 +155,8 @@ object TesTask {
       path match {
         case file: WdlFile => {
           val localPath = Paths.get(file.valueString).toAbsolutePath
-          WdlFile(containerInput(localPath.toString))
+          val containerPath = containerInput(localPath.toString)
+          WdlFile(containerPath)
         }
         case array: WdlArray => WdlArray(array.wdlType, array.value map toContainerPath)
         case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toContainerPath)
@@ -173,7 +174,7 @@ object TesTask {
     }
 
     def containerInput(path: String): String = {
-      jobPaths.callDockerRoot.resolve("inputs").resolve(path).toString
+      jobPaths.callDockerRoot.resolve("inputs").toString + path
     }
 
     // Given an output path, return a path localized to the container file system
@@ -200,10 +201,10 @@ object TesTask {
 }
 
 
-final case class TesTaskMessage(name: String,
-                                description: String,
-                                projectId: String,
-                                taskId: String,
+final case class TesTaskMessage(name: Option[String],
+                                description: Option[String],
+                                projectId: Option[String],
+                                taskID: String,
                                 inputs: Option[Seq[TaskParameter]],
                                 outputs: Option[Seq[TaskParameter]],
                                 resources: Resources,
@@ -221,11 +222,11 @@ final case class TaskParameter(name: String,
                                location: String,
                                path: String,
                                `class`: String,
-                               create: Boolean)
+                               create: Option[Boolean])
 
 final case class Resources(minimumCpuCores: Int,
                            minimumRamGb: Int,
-                           preemptible: Boolean,
+                           preemptible: Option[Boolean],
                            volumes: Option[Seq[Volume]],
                            zones: Option[Seq[String]])
 

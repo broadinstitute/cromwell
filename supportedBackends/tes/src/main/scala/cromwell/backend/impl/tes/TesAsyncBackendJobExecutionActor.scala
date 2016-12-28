@@ -50,7 +50,7 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
       case handle: TesPendingExecutionHandle =>
-        jobLogger.debug(s"Polling TES Job ${handle.job.jobId}")
+        jobLogger.debug(s"Polling TES Job ${handle.job.jobID}")
         updateExecutionHandle(handle)
       case f: FailedNonRetryableExecutionHandle => f.future
       case s: SuccessfulExecutionHandle => s.future
@@ -62,7 +62,7 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
 
     def successfulResponse(response: TesGetResponse): ExecutionHandle = {
       if (response.state contains "Complete") {
-        jobLogger.info(s"Job ${oldHandle.job.jobId} is complete")
+        jobLogger.info(s"Job ${oldHandle.job.jobID} is complete")
         // FIXME: blah
         SuccessfulExecutionHandle(
           Map.empty,
@@ -77,7 +77,7 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
     }
 
     pipeline[TesGetResponse]
-      .apply(Get(s"$tesEndpoint/${oldHandle.job.jobId}"))
+      .apply(Get(s"$tesEndpoint/${oldHandle.job.jobID}"))
       .map(successfulResponse)
       .recover(failedTesResponse)
   }
@@ -96,9 +96,9 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
 
     val task = TesTask(jobDescriptor, configurationDescriptor)
     val taskMessage = TesTaskMessage(
-      task.name,
-      task.project,
-      task.description,
+      Some(task.name),
+      Some(task.description),
+      Some(task.project),
       task.taskId,
       Some(task.inputs),
       Some(task.outputs),
@@ -134,5 +134,5 @@ object TesAsyncBackendJobExecutionActor {
     override val result = NonRetryableExecution(new IllegalStateException("TesPendingExecutionHandle cannot yield a result"))
   }
 
-  final case class TesJob(jobId: String)
+  final case class TesJob(jobID: String)
 }

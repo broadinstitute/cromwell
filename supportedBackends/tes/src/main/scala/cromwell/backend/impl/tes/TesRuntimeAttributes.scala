@@ -63,6 +63,7 @@ object TesRuntimeAttributes {
     }
   }
 
+
   private def validateDockerWorkingDir(dockerWorkingDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     dockerWorkingDir match {
       case Some(WdlString(s)) => Some(s).validNel

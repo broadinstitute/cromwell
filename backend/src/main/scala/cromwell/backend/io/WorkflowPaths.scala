@@ -7,7 +7,6 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions.FinalCallLogsDir
 import cromwell.core.path.{DefaultPathBuilder, PathFactory}
 import net.ceedubs.ficus.Ficus._
-
 import scala.util.Try
 
 object WorkflowPaths {

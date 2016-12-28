@@ -130,6 +130,10 @@ object Dependencies {
     "org.mongodb" %% "casbah" % "3.0.0"
   )
 
+  val tesBackendDependencies = List(
+    "io.spray" %% "spray-client" % sprayV
+  ) ++ sprayServerDependencies
+
   val sparkBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV
   ) ++ sprayServerDependencies

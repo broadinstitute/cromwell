@@ -8,16 +8,20 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogging
 import cromwell.core.retry.SimpleExponentialBackoff
 import TesResponseJsonFormatter._
+import better.files.File
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.core._
 import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.http.HttpRequest
 import spray.httpx.unmarshalling._
 import net.ceedubs.ficus.Ficus._
+import wdl4s.values.WdlSingleFile
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
+import scala.util.Try
 
 final case class TesAsyncBackendJobExecutionActor(override val workflowId: WorkflowId,
                                                   override val jobDescriptor: BackendJobDescriptor,
@@ -45,6 +49,9 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
   )
   override lazy val retryable = false
 
+  private val workflowDescriptor = jobDescriptor.workflowDescriptor
+  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
+
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
   override protected implicit def ec: ExecutionContext = context.dispatcher
@@ -60,18 +67,32 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
     }
   }
 
+  private def outputMapper(outputs: Seq[TaskParameter]): Map[String, JobOutput] = {
+    outputs.map {
+        f => {
+          val localPath = f.location.stripPrefix("file://")
+          val outputKey = f.name
+          outputKey -> JobOutput(WdlSingleFile(localPath))
+        }
+      }.toMap
+  }
+
   private def updateExecutionHandle(oldHandle: TesPendingExecutionHandle): Future[ExecutionHandle] = {
 
     def successfulResponse(response: TesGetResponse): ExecutionHandle = {
       if (response.state contains "Complete") {
         jobLogger.info(s"Job ${oldHandle.job.jobID} is complete")
-        // FIXME: blah
+        // TODO remove `.get` and handle errors
+        val outputs = outputMapper(response.task.get.outputs.get)
+        // TODO error handling for Try statement
+        val returnCode = {
+          Try(File(outputs("rc").wdlValue.valueString).contentAsString).map(_.trim.toInt)
+        }
         SuccessfulExecutionHandle(
-          Map.empty,
-          0,
-          Map.empty,
-          Seq.empty,
-          None
+          outputs.asInstanceOf[CallOutputs],
+          returnCode.get,
+          jobPaths.detritusPaths,
+          Seq.empty
         )
       } else {
         oldHandle
@@ -96,12 +117,12 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
-    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger)
+    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, jobPaths)
     val taskMessage = TesTaskMessage(
       Some(task.name),
       Some(task.description),
       Some(task.project),
-      task.taskId,
+      task.taskID,
       Some(task.inputs),
       Some(task.outputs),
       task.resources,

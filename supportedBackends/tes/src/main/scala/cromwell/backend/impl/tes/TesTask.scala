@@ -11,17 +11,16 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
 import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
-import scala.util.Try
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
-                         jobLogger: JobLogger) {
+                         jobLogger: JobLogger,
+                         jobPaths: JobPathsWithDocker) {
 
   import TesTask._
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val pathBuilders = List(DefaultPathBuilder)
-  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
 
   private val runtimeAttributes = {
@@ -35,9 +34,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
   private val workflowName = workflowDescriptor.workflow.unqualifiedName
-  val name = jobDescriptor.call.fullyQualifiedName
+  private val fullyQualifiedTaskName = jobDescriptor.call.fullyQualifiedName
+  val name = fullyQualifiedTaskName
   val description = jobDescriptor.toString
-  val taskId = jobDescriptor.toString
+  val taskID = jobDescriptor.toString
 
   // TODO validate "project" field of workflowOptions
   val project = {
@@ -84,8 +84,8 @@ mv $rcTmpPath $rcPath
   writeScript(commandString)
 
   private val commandScript = TaskParameter(
-    name + ".commandScript",
-    None,
+    "commandScript",
+    Some(fullyQualifiedTaskName + ".commandScript"),
     tesPaths.storageInput(jobPaths.script.toString),
     jobPaths.callExecutionDockerRoot.resolve("script").toString,
     "File",
@@ -98,8 +98,8 @@ mv $rcTmpPath $rcPath
     .flatMap(flattenWdlValueMap)
     .map {
       case (inputName, f: WdlSingleFile) => TaskParameter(
-        workflowName + "." + inputName,
-        None,
+        inputName,
+        Some(workflowName + "." + inputName),
         tesPaths.storageInput(f.valueString),
         tesPaths.toContainerPath(f).valueString,
         "File",
@@ -107,19 +107,20 @@ mv $rcTmpPath $rcPath
       )
     } ++ Seq(commandScript)
 
+  // TODO add TES logs to standard outputs
   private val standardOutputs = Seq("rc", "stdout", "stderr").map {
     f => TaskParameter(
-      name + "." + f,
-      None,
+      f,
+      Some(fullyQualifiedTaskName + "." + f),
       tesPaths.storageOutput(f),
-      tesPaths.containerExec(f),
+      tesPaths.containerOutput(f),
       "File",
       Some(false)
     )
   }
 
   val outputs = OutputEvaluator
-    .evaluateOutputs(jobDescriptor, callEngineFunction, mapOutputs)
+    .evaluateOutputs(jobDescriptor, callEngineFunction)
     // TODO remove this .get and handle error appropriately
     .get
     .toSeq
@@ -128,8 +129,8 @@ mv $rcTmpPath $rcPath
     .map {
       // TODO handle globs
       case (outputName, WdlSingleFile(path)) => TaskParameter(
-        name + "." + outputName,
-        None,
+        outputName,
+        Some(fullyQualifiedTaskName + "." + outputName),
         tesPaths.storageOutput(path),
         tesPaths.containerOutput(path),
         "File",
@@ -167,7 +168,6 @@ mv $rcTmpPath $rcPath
 
   val dockerExecutor = Seq(DockerExecutor(
     runtimeAttributes.dockerImage.get,
-    // TODO command shouldn't be wrapped in a subshell
     Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     tesPaths.containerExec("stdout"),
@@ -243,9 +243,9 @@ object TesTask {
   // Utility for converting a WdValue representing an output file path to a WdlValue with
   // a path localized to ____?
   // TODO this is a placeholder for now, until I can fill in the blank
-  private def mapOutputs(value: WdlValue) = Try {
-    value
-  }
+  //private def mapOutputs(value: WdlValue) = Try {
+  //  value
+  //}
 }
 
 

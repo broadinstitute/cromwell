@@ -62,7 +62,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     * as some extra shell code for monitoring jobs
     */
   private def writeScript(instantiatedCommand: String) = {
-    val rcPath = jobPaths.toDockerPath(jobPaths.returnCode)
+    val rcPath = tesPaths.containerExec("rc")
     val rcTmpPath = s"$rcPath.tmp"
 
     val scriptBody = s"""
@@ -107,6 +107,17 @@ mv $rcTmpPath $rcPath
       )
     } ++ Seq(commandScript)
 
+  private val standardOutputs = Seq("rc", "stdout", "stderr").map {
+    f => TaskParameter(
+      name + "." + f,
+      None,
+      tesPaths.storageOutput(f),
+      tesPaths.containerExec(f),
+      "File",
+      Some(false)
+    )
+  }
+
   val outputs = OutputEvaluator
     .evaluateOutputs(jobDescriptor, callEngineFunction, mapOutputs)
     // TODO remove this .get and handle error appropriately
@@ -117,14 +128,14 @@ mv $rcTmpPath $rcPath
     .map {
       // TODO handle globs
       case (outputName, WdlSingleFile(path)) => TaskParameter(
-        outputName,
+        name + "." + outputName,
         None,
         tesPaths.storageOutput(path),
         tesPaths.containerOutput(path),
         "File",
         Some(false)
       )
-    }
+    } ++ standardOutputs
 
   val workingDirVolume = runtimeAttributes
     .dockerWorkingDir

@@ -114,7 +114,6 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       .map(successfulResponse)
       .recover(failedTesResponse)
   }
-
 }
 
 object TesAsyncBackendJobExecutionActor {

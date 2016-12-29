@@ -5,7 +5,6 @@ import cromwell.backend.impl.tes.TesRuntimeAttributes._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowOptions
 import wdl4s.TaskCall
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlPrimitiveType, WdlStringType}
@@ -30,7 +29,7 @@ object TesInitializationActor {
             calls: Set[TaskCall],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
-    Props(new TesInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor)).withDispatcher(BackendDispatcher)
+    Props(new TesInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
 }
 
 class TesInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
@@ -45,8 +44,7 @@ class TesInitializationActor(override val workflowDescriptor: BackendWorkflowDes
   }
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = Map(
-    DockerKey               -> wdlTypePredicate(valueRequired = true, WdlStringType.isCoerceableFrom),
-    // DockerKey               -> optional(WdlStringType),
+    DockerKey               -> optional(WdlStringType),
     DockerWorkingDirKey     -> optional(WdlStringType),
     FailOnStderrKey         -> optional(WdlBooleanType),
     ContinueOnReturnCodeKey -> continueOnReturnCodePredicate(valueRequired = false),

@@ -260,7 +260,7 @@ final case class TesTaskMessage(name: Option[String],
 
 final case class DockerExecutor(imageName: String,
                                 cmd: Seq[String],
-                                workDir: Option[String],
+                                workdir: Option[String],
                                 stdout: String,
                                 stderr: String,
                                 stdin: Option[String])

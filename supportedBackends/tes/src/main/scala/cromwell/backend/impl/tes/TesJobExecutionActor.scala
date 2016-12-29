@@ -4,6 +4,8 @@ import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
+import cromwell.core.Dispatcher._
+
 import scala.concurrent.{Future, Promise}
 
 final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
@@ -35,6 +37,6 @@ final case class TesJobExecutionActor(override val jobDescriptor: BackendJobDesc
 
 object TesJobExecutionActor {
   def props(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor): Props = {
-    Props(new TesJobExecutionActor(jobDescriptor, configurationDescriptor))
+    Props(new TesJobExecutionActor(jobDescriptor, configurationDescriptor)).withDispatcher(BackendDispatcher)
   }
 }

@@ -1,20 +1,21 @@
 package cromwell.backend.impl.tes
 
 import java.nio.file.Paths
-
+import better.files.File
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
 import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
-
 import scala.util.Try
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
-                         configurationDescriptor: BackendConfigurationDescriptor) {
+                         configurationDescriptor: BackendConfigurationDescriptor,
+                         jobLogger: JobLogger) {
 
   import TesTask._
 
@@ -33,6 +34,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
+  private val workflowName = workflowDescriptor.workflow.unqualifiedName
   val name = jobDescriptor.call.fullyQualifiedName
   val description = jobDescriptor.toString
   val taskId = jobDescriptor.toString
@@ -43,7 +45,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     workflowDescriptor.workflowOptions.getOrElse("project", workflowName)
   }
 
-  val command = jobDescriptor
+  val commandString = jobDescriptor
     .key
     .call
     .task
@@ -55,20 +57,55 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // TODO remove this .get and handle error appropriately
     .get
 
-   val inputs = jobDescriptor
+  /**
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
+  private def writeScript(instantiatedCommand: String) = {
+    val rcPath = jobPaths.toDockerPath(jobPaths.returnCode)
+    val rcTmpPath = s"$rcPath.tmp"
+
+    val scriptBody = s"""
+
+#!/bin/sh
+(
+ $instantiatedCommand
+)
+echo $$? > $rcTmpPath
+mv $rcTmpPath $rcPath
+
+""".trim + "\n"
+
+    File(jobPaths.script).write(scriptBody)
+  }
+
+  File(jobPaths.callExecutionRoot).createDirectories()
+  jobLogger.info(s"`\n$commandString`")
+  writeScript(commandString)
+
+  private val commandScript = TaskParameter(
+    name + ".commandScript",
+    None,
+    tesPaths.storageInput(jobPaths.script.toString),
+    jobPaths.callExecutionDockerRoot.resolve("script").toString,
+    "File",
+    Some(false)
+  )
+
+  val inputs = jobDescriptor
     .fullyQualifiedInputs
     .toSeq
     .flatMap(flattenWdlValueMap)
     .map {
       case (inputName, f: WdlSingleFile) => TaskParameter(
-        inputName,
+        workflowName + "." + inputName,
         None,
         tesPaths.storageInput(f.valueString),
         tesPaths.toContainerPath(f).valueString,
         "File",
         Some(false)
       )
-    }
+    } ++ Seq(commandScript)
 
   val outputs = OutputEvaluator
     .evaluateOutputs(jobDescriptor, callEngineFunction, mapOutputs)
@@ -82,7 +119,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       case (outputName, WdlSingleFile(path)) => TaskParameter(
         outputName,
         None,
-        tesPaths.storagePath(path),
+        tesPaths.storageOutput(path),
         tesPaths.containerOutput(path),
         "File",
         Some(false)
@@ -120,7 +157,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val dockerExecutor = Seq(DockerExecutor(
     runtimeAttributes.dockerImage.get,
     // TODO command shouldn't be wrapped in a subshell
-    Seq("/bin/bash", "-c", command),
+    Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     tesPaths.containerExec("stdout"),
     tesPaths.containerExec("stderr"),
@@ -169,7 +206,7 @@ object TesTask {
     def storageInput(path: String): String = prefixScheme(path)
 
     // Given an output path, return a path localized to the storage file system
-    def storagePath(path: String): String = {
+    def storageOutput(path: String): String = {
       prefixScheme(jobPaths.callExecutionRoot.resolve(path).toString)
     }
 

@@ -42,7 +42,7 @@ object TesRuntimeAttributes {
   def apply(attrs: Map[String, WdlValue], options: WorkflowOptions): TesRuntimeAttributes = {
     // Fail now if some workflow options are specified but can't be parsed correctly
     val defaultFromOptions = workflowOptionsDefault(options, coercionMap).get
-    val withDefaultValues = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
+    val withDefaultValues  = withDefaults(attrs, List(defaultFromOptions, staticDefaults))
 
     val docker               = validateDocker(withDefaultValues.get(DockerKey), noValueFoundFor(DockerKey))
     val dockerWorkingDir     = validateDockerWorkingDir(withDefaultValues.get(DockerWorkingDirKey), None.validNel)
@@ -62,7 +62,6 @@ object TesRuntimeAttributes {
       }
     }
   }
-
 
   private def validateDockerWorkingDir(dockerWorkingDir: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
     dockerWorkingDir match {

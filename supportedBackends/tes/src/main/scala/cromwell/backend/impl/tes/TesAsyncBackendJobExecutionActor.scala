@@ -47,6 +47,8 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
 
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
+  override protected implicit def ec: ExecutionContext = context.dispatcher
+
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
       case handle: TesPendingExecutionHandle =>
@@ -94,7 +96,7 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       }
     }
 
-    val task = TesTask(jobDescriptor, configurationDescriptor)
+    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger)
     val taskMessage = TesTaskMessage(
       Some(task.name),
       Some(task.description),
@@ -113,7 +115,6 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       .recover(failedTesResponse)
   }
 
-  override protected implicit def ec: ExecutionContext = context.dispatcher
 }
 
 object TesAsyncBackendJobExecutionActor {

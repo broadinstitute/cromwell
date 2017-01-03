@@ -3,6 +3,7 @@
 ## 24
 
 * When emitting workflow outputs to the Cromwell log only the first 1000 characters per output will be printed
+* Added support for conditional (`if`) statements.
 
 ## 23
 

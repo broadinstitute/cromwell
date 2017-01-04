@@ -2,7 +2,7 @@
 
 ## 25
 
-
+* Cromwell now applies default labels automatically to JES pipeline runs.
 
 ## 24
 

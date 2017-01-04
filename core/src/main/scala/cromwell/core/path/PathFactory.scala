@@ -54,4 +54,6 @@ object PathFactory {
                 pathBuilders: List[PathBuilder],
                 preMapping: String => String = identity[String],
                 postMapping: Path => Path = identity[Path]): File = File(buildPath(string, pathBuilders, preMapping, postMapping))
+
+  def pathPlusSuffix(path: File, suffix: String): File = path.sibling(s"${path.name}.$suffix")
 }

@@ -1,21 +1,21 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileAlreadyExistsException, Path, Paths}
+import java.nio.file.{FileAlreadyExistsException, Path}
 
 import akka.actor.{Actor, ActorLogging}
 import better.files._
 import cromwell.backend._
 import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
 import cromwell.backend.io.WorkflowPathsBackendInitializationData
-import cromwell.backend.sfs.SharedFileSystem._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.WorkflowId
+import cromwell.core.path.PathFactory._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
 import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
-import wdl4s.EvaluatedTaskInputs
+import wdl4s.{EvaluatedTaskInputs, TaskCall}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -112,7 +112,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
 
   lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
-  lazy val call = jobDescriptor.key.call
+  lazy val call: TaskCall = jobDescriptor.key.call
   lazy val pathBuilders: List[PathBuilder] = WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
   private[sfs] lazy val backendEngineFunctions = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
   override lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
@@ -169,38 +169,36 @@ trait SharedFileSystemAsyncJobExecutionActor
     */
   private def writeScript(instantiatedCommand: String, cwd: Path, globFiles: Set[WdlGlobFile]) = {
     val rcPath = if (isDockerRun) jobPaths.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
-    val rcTmpPath = s"$rcPath.tmp"
+    val rcTmpPath = pathPlusSuffix(rcPath, "tmp").path
 
     def globManipulation(globFile: WdlGlobFile) = {
 
+      // TODO: Move glob list and directory generation into trait GlobFunctions? There is already a globPath using callContext
       val globDir = backendEngineFunctions.globName(globFile.value)
-      val globDirectory = Paths.get(s"$globDir/")
-      val globList = Paths.get(s"$globDir.list")
+      val globDirectory = File(cwd)./(globDir)
+      val globList = File(cwd)./(s"$globDir.list")
 
-      s"""
-         |mkdir $globDirectory
-         |ln ${globFile.value} $globDirectory
-         |ls -1 $globDirectory > $globList
-      """.stripMargin
+      s"""|mkdir $globDirectory
+          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+          |ls -1 $globDirectory > $globList
+          |""".stripMargin
     }
 
     val globManipulations = globFiles.map(globManipulation).mkString("\n")
 
-    val scriptBody = s"""
-
-#!/bin/sh
-(
- cd $cwd
- $instantiatedCommand
-)
-echo $$? > $rcTmpPath
-(
-cd $cwd
-$globManipulations
-)
-mv $rcTmpPath $rcPath
-
-""".trim + "\n"
+    val scriptBody =
+      s"""|#!/bin/sh
+          |(
+          |cd $cwd
+          |INSTANTIATED_COMMAND
+          |)
+          |echo $$? > $rcTmpPath
+          |(
+          |cd $cwd
+          |$globManipulations
+          |)
+          |mv $rcTmpPath $rcPath
+          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
 
     File(jobPaths.script).write(scriptBody)
   }

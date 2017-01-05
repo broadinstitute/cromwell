@@ -61,6 +61,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
     override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
     override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError())
+    override def length(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
     override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
     override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
     override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())

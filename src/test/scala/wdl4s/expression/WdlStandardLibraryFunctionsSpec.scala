@@ -57,6 +57,7 @@ case object TestableFunctions extends WdlStandardLibraryFunctions {
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedException("")
   override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = throw new NotImplementedException("")
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = throw new NotImplementedException("")
+  override def length(params: Seq[Try[WdlValue]]): Try[WdlInteger] = throw new NotImplementedException("")
   override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = throw new NotImplementedException("")
   override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedException("")
   override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedException("")

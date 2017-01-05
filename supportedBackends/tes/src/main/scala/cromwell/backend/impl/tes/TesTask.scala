@@ -37,7 +37,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val fullyQualifiedTaskName = jobDescriptor.call.fullyQualifiedName
   val name = fullyQualifiedTaskName
   val description = jobDescriptor.toString
-  val taskID = jobDescriptor.toString
 
   // TODO validate "project" field of workflowOptions
   val project = {
@@ -252,7 +251,6 @@ object TesTask {
 final case class TesTaskMessage(name: Option[String],
                                 description: Option[String],
                                 projectId: Option[String],
-                                taskID: String,
                                 inputs: Option[Seq[TaskParameter]],
                                 outputs: Option[Seq[TaskParameter]],
                                 resources: Resources,

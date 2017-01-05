@@ -122,7 +122,6 @@ final case class TesAsyncBackendJobExecutionActor(override val workflowId: Workf
       Some(task.name),
       Some(task.description),
       Some(task.project),
-      task.taskID,
       Some(task.inputs),
       Some(task.outputs),
       task.resources,

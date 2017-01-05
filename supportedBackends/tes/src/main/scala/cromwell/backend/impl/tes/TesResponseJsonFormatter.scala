@@ -17,7 +17,7 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
   implicit val resourcesFormat       = jsonFormat5(Resources)
   implicit val taskParameterFormat   = jsonFormat6(TaskParameter)
   implicit val dockerExecutorFormat  = jsonFormat6(DockerExecutor)
-  implicit val tesTaskMessageFormat  = jsonFormat8(TesTaskMessage)
+  implicit val tesTaskMessageFormat  = jsonFormat7(TesTaskMessage)
   implicit val tesPostResponseFormat = jsonFormat1(TesPostResponse)
   implicit val tesGetResponseFormat  = jsonFormat4(TesGetResponse)
 }

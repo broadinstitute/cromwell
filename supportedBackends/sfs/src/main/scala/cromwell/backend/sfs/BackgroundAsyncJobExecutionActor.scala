@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import better.files._
 import cromwell.backend.standard.StandardAsyncJob
-import cromwell.backend.sfs.SharedFileSystem._
+import cromwell.core.path.PathFactory._
 
 trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecutionActor {
 

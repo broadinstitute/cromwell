@@ -2,15 +2,14 @@ package cromwell.backend.sfs
 
 import java.nio.file.Path
 
-import cromwell.backend.io.{JobPaths, JobPathsWithDocker, WorkflowPathsBackendInitializationData}
+import cromwell.backend.io._
 import cromwell.backend.wdl._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend._
 import cromwell.core.CallContext
 import cromwell.core.path.PathBuilder
 import wdl4s.expression.PureStandardLibraryFunctionsLike
-import wdl4s.values.{WdlFile, WdlValue}
+import wdl4s.values._
 
-import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 object SharedFileSystemExpressionFunctions {
@@ -57,15 +56,12 @@ object SharedFileSystemExpressionFunctions {
 
 class SharedFileSystemExpressionFunctions(override val pathBuilders: List[PathBuilder],
                                           context: CallContext
-                                 ) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions {
+                                 ) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions with GlobFunctions {
   import SharedFileSystemExpressionFunctions._
-  import better.files._
+
+  def callContext: CallContext = context
 
   override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
-  override def globPath(glob: String) = context.root.toString
-  override def glob(path: String, pattern: String): Seq[String] = {
-    File(context.root).glob(s"**/$pattern") map { _.pathAsString } toSeq
-  }
 
   override val writeDirectory = context.root
 

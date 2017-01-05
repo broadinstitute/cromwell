@@ -4,9 +4,9 @@ import java.nio.file.Path
 
 import better.files._
 import cromwell.backend.impl.sfs.config.ConfigConstants._
-import cromwell.backend.sfs.SharedFileSystem._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core.path.PathFactory._
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.WdlString

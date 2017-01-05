@@ -14,14 +14,17 @@ There are two ways to invoke the intergration tests:
 ## Tags
 
 All tests are tagged with their name and their TESTFORMAT, and also any custom tags specified in the `.test` file.
+
+Tag names are all lower case, so a test named "tagFoo" has a tag "tagfoo".
+
 To run only those tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "test-only * -- -n tagFoo"
+sbt "test-only * -- -n tagfoo"
 ```
 
 Or to instead exclude all tests which have been tagged with a specified tag `tagFoo`:
 ```
-sbt "test-only * -- -l tagFoo"
+sbt "test-only * -- -l tagfoo"
 ```
 
 # Adding custom tests

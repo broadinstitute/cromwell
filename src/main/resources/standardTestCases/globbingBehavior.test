@@ -1,0 +1,24 @@
+name: globbingBehavior
+testFormat: workflowsuccess
+
+files {
+  wdl: globbingBehavior/globbingBehavior.wdl
+}
+
+metadata {
+  workflowName: globbingBehavior
+  status: Succeeded
+  "outputs.callDirectory_contents.0": "how"
+  "outputs.callDirectory_contents.1": "what"
+  "outputs.callDirectory_contents.2": "why"
+  "outputs.easyGlob_contents.0": "easiest glob job ever!"
+  "outputs.specificDirectory_contents.0": "buh-bye"
+  "outputs.specificDirectory_contents.1": "hullo"
+  "outputs.strInterpolation_contents.0": "buh-bye"
+  "outputs.strInterpolation_contents.1": "hullo"
+  "outputs.origFileContents_contents.0": "updated file"
+  "outputs.symLinkContents_contents.0": "updated file"
+  "outputs.symLinkContents_contents.1": "updated file"
+  "outputs.hardLinkContents_contents.0": "updated file"
+  "outputs.hardLinkContents_contents.1": "updated file"
+}

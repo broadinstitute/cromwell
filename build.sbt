@@ -10,7 +10,7 @@ scalaVersion := "2.11.8"
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
-  git.baseVersion := "0.8",
+  git.baseVersion := "0.9",
 
   // Shorten the git commit hash
   git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) },

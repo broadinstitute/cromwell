@@ -3,6 +3,7 @@ package cromwell.backend.callcaching
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.event.LoggingAdapter
 import cromwell.backend.BackendInitializationData
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.JobKey
 import cromwell.core.callcaching._
 import wdl4s.values.WdlFile
@@ -28,7 +29,7 @@ class FileHashingActor(workerFunction: Option[FileHashingFunction]) extends Acto
 }
 
 object FileHashingActor {
-  def props(workerFunction: Option[FileHashingFunction]): Props = Props(new FileHashingActor(workerFunction))
+  def props(workerFunction: Option[FileHashingFunction]): Props = Props(new FileHashingActor(workerFunction)).withDispatcher(BackendDispatcher)
 
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
 

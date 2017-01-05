@@ -7,7 +7,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: String, config: Config) {
-  def asBackendLifecycleActorFactory: BackendLifecycleActorFactory = {
+  def asBackendLifecycleActorFactory: Try[BackendLifecycleActorFactory] = Try {
     Class.forName(lifecycleActorFactoryClass)
          .getConstructor(classOf[String], classOf[BackendConfigurationDescriptor])
          .newInstance(name, asBackendConfigurationDescriptor)

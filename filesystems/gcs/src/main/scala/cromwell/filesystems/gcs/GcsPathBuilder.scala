@@ -11,9 +11,11 @@ import com.google.cloud.RetryParams
 import com.google.cloud.storage.StorageOptions
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.common.base.Preconditions._
+import com.google.common.net.UrlEscapers
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.proxy.{PathProxy, RetryableFileSystemProviderProxy}
 import cromwell.core.path.{CustomRetryParams, PathBuilder}
+import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
 import scala.util.{Failure, Try}
@@ -28,19 +30,21 @@ object GcsPathBuilder {
     checkArgument(
       uri.getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME),
       "Cloud Storage URIs must have '%s' scheme: %s",
-      CloudStorageFileSystem.URI_SCHEME,
-      uri
+      CloudStorageFileSystem.URI_SCHEME: Any,
+      uri: Any
     )
     checkNotNull(uri.getHost, s"%s does not have a host", uri)
   }
 
   def isValidGcsUrl(str: String): Boolean = {
-    Try(checkValid(URI.create(str))).isSuccess
+    Try(checkValid(getUri(str))).isSuccess
   }
 
   def isGcsPath(path: Path): Boolean = {
     path.getFileSystem.provider().getScheme == CloudStorageFileSystem.URI_SCHEME
   }
+
+  def getUri(string: String) = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
 }
 
 class GcsPathBuilder(authMode: GoogleAuthMode,
@@ -78,7 +82,7 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
 
   def build(string: String): Try[Path] = {
     Try {
-      val uri = URI.create(string)
+      val uri = getUri(string)
       GcsPathBuilder.checkValid(uri)
       provider.getPath(uri)
     }

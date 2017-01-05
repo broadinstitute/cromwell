@@ -10,6 +10,7 @@ import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.{JesAttributes, Run}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesPollingWorkBatch, JesStatusPollQuery, NoWorkToDo}
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
+import cromwell.core.Dispatcher.BackendDispatcher
 
 import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -127,7 +128,7 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor 
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef, qps: Int) = Props(new JesPollingActor(pollingManager, qps))
+  def props(pollingManager: ActorRef, qps: Int) = Props(new JesPollingActor(pollingManager, qps)).withDispatcher(BackendDispatcher)
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100

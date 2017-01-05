@@ -4,7 +4,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.{WorkflowId, WorkflowOptions}
-import wdl4s.util.AggregatedException
+import lenthall.exception.AggregatedException
 import org.scalatest.Matchers
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -62,7 +62,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
     val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
+    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
@@ -76,7 +76,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
     val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, attempt)
-    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.inputs)
+    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
@@ -104,7 +104,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   private def concatenateCauseMessages(t: Throwable): String = t match {
     case null => ""
-    case ae: AggregatedException => ae.getMessage + ae.exceptions.map(concatenateCauseMessages(_)).mkString + concatenateCauseMessages(ae.getCause)
+    case ae: AggregatedException => ae.getMessage + " " + ae.throwables.map(innerT => concatenateCauseMessages(innerT.getCause)).mkString("\n")
     case other: Throwable => other.getMessage + concatenateCauseMessages(t.getCause)
   }
 

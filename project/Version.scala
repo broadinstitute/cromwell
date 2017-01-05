@@ -4,7 +4,7 @@ import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "23"
+  val cromwellVersion = "24"
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
@@ -18,6 +18,19 @@ object Version {
           headCommit = git.gitHeadCommit.value),
       shellPrompt in ThisBuild := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), cromwellVersion) }
     )
+
+  val writeVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
+    val file = (resourceManaged in Compile).value / "cromwell-version.conf"
+    val contents =
+      s"""|version {
+          |  cromwell: "${version.value}"
+          |}
+          |""".stripMargin
+    IO.write(file, contents)
+    Seq(file)
+  }
+
+  val versionConfCompileSettings = List(resourceGenerators in Compile <+= writeVersionConf)
 
   private def makeVersion(versionProperty: String,
                           baseVersion: Option[String],

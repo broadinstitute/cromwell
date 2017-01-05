@@ -7,7 +7,6 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import wdl4s.values.WdlValue
 import wdl4s.{GraphNode, Scope}
 
@@ -17,7 +16,7 @@ object WorkflowExecutionDiff {
 /** Data differential between current execution data, and updates performed in a method that needs to be merged. */
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
                                        engineJobExecutionActorAdditions: Map[ActorRef, JobKey] = Map.empty) {
-  def containsNewEntry = executionStoreChanges.exists(_._2 == NotStarted)
+  def containsNewEntry = executionStoreChanges.exists(esc => esc._2 == NotStarted)
 }
 
 object WorkflowExecutionActorData {
@@ -83,12 +82,9 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     * If complete, this will return Some(finalStatus).  Otherwise, returns None */
   def workflowCompletionStatus: Option[ExecutionStatus] = {
     // `List`ify the `prerequisiteScopes` to avoid expensive hashing of `Scope`s when assembling the result.
-    def upstream(scope: GraphNode): List[Scope] = {
-      val directUpstream: List[Scope with GraphNode] = scope.upstream.toList
-      directUpstream ++ directUpstream.flatMap(upstream)
-    }
-    def upstreamFailed(scope: Scope) = scope match {
-      case node: GraphNode => upstream(node) filter { s =>
+
+    def upstreamFailed(scope: Scope): List[GraphNode] = scope match {
+      case node: GraphNode => node.upstreamAncestry.toList filter { s =>
         executionStore.store.exists({ case (key, status) => status == Failed && key.scope == s })
       }
     }
@@ -132,19 +128,6 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   def addExecutions(jobExecutionMap: JobExecutionMap): WorkflowExecutionActorData = {
     this.copy(downstreamExecutionMap = downstreamExecutionMap ++ jobExecutionMap)
-  }
-
-  def outputsJson(): String = {
-    // Printing the final outputs, temporarily here until SingleWorkflowManagerActor is made in-sync with the shadow mode
-    import WdlValueJsonFormatter._
-    import spray.json._
-    val workflowOutputs = outputStore.store collect {
-      case (key, outputs) if key.index.isEmpty => outputs map { output =>
-        s"${key.call.fullyQualifiedName}.${output.name}" -> (output.wdlValue map { _.valueString } getOrElse "N/A")
-      }
-    }
-
-    "Workflow complete. Final Outputs: \n" + workflowOutputs.flatten.toMap.toJson.prettyPrint
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {

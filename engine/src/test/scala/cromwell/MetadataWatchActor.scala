@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.actor.{Actor, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import MetadataWatchActor._
@@ -28,13 +29,19 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
 
 object MetadataWatchActor {
 
-  def props(promise: Promise[Unit], matchers: Matcher*): Props = Props(MetadataWatchActor(promise, matchers: _*))
+  def props(promise: Promise[Unit], matchers: Matcher*): Props = Props(MetadataWatchActor(promise, matchers: _*)).withDispatcher(EngineDispatcher)
 
   trait Matcher {
-    def matches(events: Traversable[MetadataEvent]): Boolean
+    private var _fullEventList: List[MetadataEvent] = List.empty
+    final def matches(events: Traversable[MetadataEvent]): Boolean = {
+      _fullEventList ++= events
+      _matches(events)
+    }
+    def _matches(events: Traversable[MetadataEvent]): Boolean
     private var _nearMisses: List[String] = List.empty
-    protected def addNearMissInfo(miss: String) = _nearMisses :+= miss
+    private def addNearMissInfo(miss: String) = _nearMisses :+= miss
     def nearMissInformation = _nearMisses
+    def fullEventList = _fullEventList
 
     def checkMetadataValueContains(key: String, actual: MetadataValue, expected: String): Boolean = {
       val result = actual.value.contains(expected)
@@ -49,14 +56,14 @@ object MetadataWatchActor {
   }
 
   final case class JobKeyMetadataKeyAndValueContainStringMatcher(jobKeyCheck: Option[MetadataJobKey] => Boolean, key: String, value: String) extends Matcher {
-    def matches(events: Traversable[MetadataEvent]): Boolean = {
+    def _matches(events: Traversable[MetadataEvent]): Boolean = {
       events.exists(e => e.key.key.contains(key) && jobKeyCheck(e.key.jobKey) && e.value.exists { v => v.valueType == MetadataString && checkMetadataValueContains(e.key.key, v, value) })
     }
   }
 
   abstract class KeyMatchesRegexAndValueContainsStringMatcher(keyTemplate: String, value: String) extends Matcher {
     val templateRegex = keyTemplate.r
-    def matches(events: Traversable[MetadataEvent]): Boolean = {
+    def _matches(events: Traversable[MetadataEvent]): Boolean = {
       events.exists(e => templateRegex.findFirstIn(e.key.key).isDefined &&
         e.value.exists { v => checkMetadataValueContains(e.key.key, v, value) })
     }

@@ -1,5 +1,6 @@
 package cromwell.backend.sfs
 
+import java.io.{FileNotFoundException, IOException}
 import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
@@ -7,9 +8,10 @@ import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
-import cromwell.core._
+import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.PathFactory
-import cromwell.util.TryUtil
+import cromwell.core.path.PathFactory._
+import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.values._
@@ -22,7 +24,7 @@ object SharedFileSystem extends StrictLogging {
   import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
-    def toPair = name -> value
+    def toPair: (String, Try[WdlValue]) = name -> value
   }
 
   object AttemptedLookupResult {
@@ -46,7 +48,7 @@ object SharedFileSystem extends StrictLogging {
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     val action = Try {
       executionPath.parent.createDirectories()
-      val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
+      val executionTmpPath = pathPlusSuffix(executionPath, "tmp")
       originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
     }.void
     logOnFailure(action, "copy")
@@ -62,6 +64,7 @@ object SharedFileSystem extends StrictLogging {
 
   private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
+      else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
       else {
         val action = Try {
           executionPath.parent.createDirectories()
@@ -76,15 +79,14 @@ object SharedFileSystem extends StrictLogging {
     action
   }
 
-  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]) = {
+  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
     import cromwell.util.FileUtil._
 
-    strategies.map(_ (source.followSymlinks, dest)).find(_.isSuccess) getOrElse {
-      Failure(new UnsupportedOperationException(s"Could not $description $source -> $dest"))
+    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymlinks, dest))
+    attempts.find(_.isSuccess) getOrElse {
+      TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
   }
-
-  def pathPlusSuffix(path: File, suffix: String) = path.sibling(s"${path.name}.$suffix")
 }
 
 trait SharedFileSystem extends PathFactory {
@@ -95,12 +97,12 @@ trait SharedFileSystem extends PathFactory {
 
   lazy val DefaultStrategies = Seq("hard-link", "soft-link", "copy")
 
-  lazy val LocalizationStrategies = getConfigStrategies("localization")
-  lazy val Localizers = createStrategies(LocalizationStrategies, docker = false)
-  lazy val DockerLocalizers = createStrategies(LocalizationStrategies, docker = true)
+  lazy val LocalizationStrategies: Seq[String] = getConfigStrategies("localization")
+  lazy val Localizers: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategies, docker = false)
+  lazy val DockerLocalizers: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategies, docker = true)
 
-  lazy val CachingStrategies = getConfigStrategies("caching.duplication-strategy")
-  lazy val Cachers = createStrategies(CachingStrategies, docker = false)
+  lazy val CachingStrategies: Seq[String] = getConfigStrategies("caching.duplication-strategy")
+  lazy val Cachers: Seq[DuplicationStrategy] = createStrategies(CachingStrategies, docker = false)
 
   private def getConfigStrategies(configPath: String): Seq[String] = {
     if (sharedFileSystemConfig.hasPath(configPath)) {
@@ -130,7 +132,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
-    val wdlPath = Paths.get(pathString)
+    val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
     callRoot.resolve(wdlPath).toAbsolutePath
   }
 
@@ -194,8 +196,8 @@ trait SharedFileSystem extends PathFactory {
       case (declaration, value) => localizeFunction(value) map { declaration -> _ }
     }
 
-    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recover {
-      case e => throw new CromwellFatalException(e)
+    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recoverWith {
+      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
     }
   }
 

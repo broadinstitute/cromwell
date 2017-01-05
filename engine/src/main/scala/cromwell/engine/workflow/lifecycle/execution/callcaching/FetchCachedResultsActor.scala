@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.Simpletons._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 
@@ -10,7 +11,7 @@ import scala.util.{Failure, Success}
 
 object FetchCachedResultsActor {
   def props(callCachingEntryId: CallCachingEntryId, replyTo: ActorRef, callCache: CallCache): Props =
-    Props(new FetchCachedResultsActor(callCachingEntryId, replyTo, callCache))
+    Props(new FetchCachedResultsActor(callCachingEntryId, replyTo, callCache)).withDispatcher(EngineDispatcher)
 
   sealed trait CachedResultResponse
   case class CachedOutputLookupFailed(callCachingEntryId: CallCachingEntryId, failure: Throwable) extends CachedResultResponse

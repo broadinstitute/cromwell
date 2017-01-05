@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 24
+
+* When emitting workflow outputs to the Cromwell log only the first 1000 characters per output will be printed
+* Added support for conditional (`if`) statements.
+* Globs for Shared File System (SFS) backends, such as local or SGE, now use bash globbing instead of Java globbing, consistent with the JES backend.
+
 ## 23
 
 * The `meta` and `parameter_meta` blocks are now valid within `workflow` blocks, not just `task`

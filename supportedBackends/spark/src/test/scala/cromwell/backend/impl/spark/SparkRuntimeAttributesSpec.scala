@@ -3,11 +3,11 @@ package cromwell.backend.impl.spark
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
 import cromwell.core.{WorkflowId, WorkflowOptions}
+import lenthall.util.TryUtil
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsValue}
 import wdl4s.WdlExpression._
 import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 import wdl4s.{Call, _}
 
@@ -100,7 +100,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
 
     def createLookup(call: Call): ScopedLookupFunction = {
-      val knownInputs = workflowDescriptor.inputs
+      val knownInputs = workflowDescriptor.knownValues
       call.lookupFunction(knownInputs, NoFunctions)
     }
 

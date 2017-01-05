@@ -2,12 +2,14 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.{Actor, ActorRef, Props}
 import cromwell.backend._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{CallKey, JobKey, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
 import wdl4s._
+import wdl4s.exception.VariableLookupException
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue
 
@@ -34,15 +36,17 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
       val call = callKey.scope
       val scatterMap = callKey.index flatMap { i =>
         // Will need update for nested scatters
-        call.upstream collectFirst { case s: Scatter => Map(s -> i) }
+        call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
       } getOrElse Map.empty[Scatter, Int]
 
       call.evaluateTaskInputs(
-        workflowDescriptor.backendDescriptor.inputs,
+        workflowDescriptor.backendDescriptor.knownValues,
         expressionLanguageFunctions,
         outputStore.fetchNodeOutputEntries,
         scatterMap
       )
+    } recoverWith {
+      case t: Throwable => Failure(new VariableLookupException(s"Couldn't resolve all inputs for ${callKey.scope.fullyQualifiedName} at index ${callKey.index}.", List(t)))
     }
   }
 }
@@ -86,7 +90,7 @@ final case class SubWorkflowPreparationActor(executionData: WorkflowExecutionAct
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
       workflow = key.scope.calledWorkflow,
-      inputs = workflowDescriptor.inputs ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      knownValues = workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
       breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, key)
     )
     val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))
@@ -115,7 +119,12 @@ object JobPreparationActor {
             backendSingletonActor: Option[ActorRef]) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new JobPreparationActor(executionData, jobKey, factory, initializationData, serviceRegistryActor, backendSingletonActor))
+    Props(new JobPreparationActor(executionData,
+      jobKey,
+      factory,
+      initializationData,
+      serviceRegistryActor,
+      backendSingletonActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -125,6 +134,6 @@ object SubWorkflowPreparationActor {
             subWorkflowId: WorkflowId) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new SubWorkflowPreparationActor(executionData, key, subWorkflowId))
+    Props(new SubWorkflowPreparationActor(executionData, key, subWorkflowId)).withDispatcher(EngineDispatcher)
   }
 }

@@ -4,12 +4,12 @@ import cromwell.backend.{BackendSpec, MemorySize}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.core.WorkflowOptions
+import lenthall.util.TryUtil
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json._
 import wdl4s.WdlExpression._
 import wdl4s._
 import wdl4s.expression.NoFunctions
-import wdl4s.util.TryUtil
 import wdl4s.values.WdlValue
 
 class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
@@ -291,7 +291,7 @@ class HtCondorRuntimeAttributesSpec extends WordSpecLike with Matchers {
     val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
 
     def createLookup(call: Call): ScopedLookupFunction = {
-      val knownInputs = workflowDescriptor.inputs
+      val knownInputs = workflowDescriptor.knownValues
       call.lookupFunction(knownInputs, NoFunctions)
     }
 

@@ -1,17 +1,20 @@
 package cromwell.backend.impl.jes
 
-import java.net.URL
+import java.net.{URI, URL}
 
-import cats.data._
 import cats.data.Validated._
 import cats.syntax.cartesian._
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigValue}
 import cromwell.backend.impl.jes.authentication.JesAuths
-import cromwell.core.ErrorOr._
 import cromwell.filesystems.gcs.GoogleConfiguration
-import lenthall.config.ValidatedConfig._
+import lenthall.validation.Validation._
+import lenthall.exception.MessageAggregation
+import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
-import wdl4s.ExceptionWithErrors
+import net.ceedubs.ficus.readers.{StringReader, ValueReader}
+import org.slf4j.LoggerFactory
+
+import scala.collection.JavaConversions._
 
 case class JesAttributes(project: String,
                          computeServiceAccount: String,
@@ -22,33 +25,39 @@ case class JesAttributes(project: String,
                          qps: Int)
 
 object JesAttributes {
+  lazy val Logger = LoggerFactory.getLogger("JesAttributes") 
+  
   val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
     "project",
     "root",
     "maximum-polling-interval",
-    "compute-service-account",
+    "genomics.compute-service-account",
     "dockerhub",
     "genomics",
     "filesystems",
     "genomics.auth",
     "genomics.endpoint-url",
-    "filesystems.gcs.auth"
+    "filesystems.gcs.auth",
+    "genomics-api-queries-per-100-seconds"
   )
 
   private val context = "Jes"
 
+  implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
+  
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
-    backendConfig.warnNotRecognized(jesKeys, context)
+    val configKeys = backendConfig.entrySet().toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
+    warnNotRecognized(configKeys, jesKeys, context, Logger)
 
-    val project: ValidatedNel[String, String] = backendConfig.validateString("project")
-    val executionBucket: ValidatedNel[String, String] = backendConfig.validateString("root")
-    val endpointUrl: ErrorOr[URL] = backendConfig.validateURL("genomics.endpoint-url")
+    val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
+    val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
+    val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
-    val genomicsAuthName: ErrorOr[String] = backendConfig.validateString("genomics.auth")
-    val gcsFilesystemAuthName: ErrorOr[String] = backendConfig.validateString("filesystems.gcs.auth")
+    val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
+    val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
 
     val qps = backendConfig.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(GenomicsApiDefaultQps) / 100
 
@@ -61,9 +70,9 @@ object JesAttributes {
     } match {
       case Valid(r) => r
       case Invalid(f) =>
-        throw new IllegalArgumentException with ExceptionWithErrors {
-          override val message = "Jes Configuration is not valid: Errors"
-          override val errors = f
+        throw new IllegalArgumentException with MessageAggregation {
+          override val exceptionContext = "Jes Configuration is not valid: Errors"
+          override val errorMessages = f.toList
         }
     }
   }

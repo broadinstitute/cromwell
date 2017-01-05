@@ -5,14 +5,15 @@ import java.time.OffsetDateTime
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, PutMetadataAction}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import lenthall.util.TryUtil
 import org.apache.commons.lang3.exception.ExceptionUtils
-import wdl4s.util.TryUtil
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -238,6 +239,6 @@ object WorkflowStoreActor {
   final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreActorResponse
 
   def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
-    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor))
+    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)
   }
 }

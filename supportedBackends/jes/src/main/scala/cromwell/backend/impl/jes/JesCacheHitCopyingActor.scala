@@ -3,8 +3,9 @@ package cromwell.backend.impl.jes
 import java.nio.file.Path
 
 import akka.actor.{ActorRef, Props}
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.backend.callcaching.CacheHitDuplicating
-import cromwell.backend.{BackendCacheHitCopyingActor, BackendJobDescriptor}
+import cromwell.backend.{BackendCacheHitCopyingActor, BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.path.PathCopier
 import cromwell.core.logging.JobLogging
 
@@ -13,13 +14,15 @@ case class JesCacheHitCopyingActor(override val jobDescriptor: BackendJobDescrip
                                    initializationData: JesBackendInitializationData,
                                    serviceRegistryActor: ActorRef)
   extends BackendCacheHitCopyingActor with CacheHitDuplicating with JesJobCachingActorHelper with JobLogging {
-  override protected def duplicate(source: Path, destination: Path) = PathCopier.copy(source, destination).get
+  override protected def duplicate(source: Path, destination: Path): Unit = PathCopier.copy(source, destination).get
 
-  override protected def destinationCallRootPath = jesCallPaths.callExecutionRoot
+  override protected lazy val destinationCallRootPath: Path = jesCallPaths.callExecutionRoot
 
-  override protected def destinationJobDetritusPaths = jesCallPaths.detritusPaths
+  override protected lazy val destinationJobDetritusPaths: Map[String, Path] = jesCallPaths.detritusPaths
   
-  override val workflowDescriptor = jobDescriptor.workflowDescriptor
+  override val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
+
+  override lazy val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
 }
 
 object JesCacheHitCopyingActor {
@@ -28,6 +31,6 @@ object JesCacheHitCopyingActor {
             jesConfiguration: JesConfiguration,
             initializationData: JesBackendInitializationData,
             serviceRegistryActor: ActorRef): Props = {
-    Props(new JesCacheHitCopyingActor(jobDescriptor, jesConfiguration, initializationData, serviceRegistryActor))
+    Props(new JesCacheHitCopyingActor(jobDescriptor, jesConfiguration, initializationData, serviceRegistryActor)).withDispatcher(BackendDispatcher)
   }
 }

@@ -14,9 +14,11 @@ import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExec
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
+import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogger
+import cromwell.core.path.PathImplicits._
 import cromwell.core.{WorkflowId, WorkflowOptions, _}
-import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -35,13 +37,13 @@ import scala.util.{Success, Try}
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
 
-  val mockPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
+  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
 
   import JesTestConfig._
 
-  implicit val Timeout = 5.seconds.dilated
+  implicit val Timeout: FiniteDuration = 5.seconds.dilated
 
-  val YoSup =
+  val YoSup: String =
     s"""
       |task sup {
       |  String addressee
@@ -68,7 +70,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
 
-  val TestableJesExpressionFunctions = {
+  val TestableJesExpressionFunctions: JesExpressionFunctions = {
     new JesExpressionFunctions(List(mockPathBuilder), TestableCallContext)
   }
 
@@ -77,25 +79,39 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     JesBackendInitializationData(workflowPaths, null)
   }
 
-  class TestableJesJobExecutionActor(jobDescriptor: BackendJobDescriptor,
-                                     promise: Promise[BackendJobExecutionResponse],
-                                     jesConfiguration: JesConfiguration,
-                                     functions: JesExpressionFunctions = TestableJesExpressionFunctions,
-                                     jesSingletonActor: ActorRef = emptyActor)
-    extends JesAsyncBackendJobExecutionActor(jobDescriptor, promise, jesConfiguration, buildInitializationData(jobDescriptor, jesConfiguration), emptyActor, jesSingletonActor) {
+  class TestableJesJobExecutionActor(jesParams: JesAsyncExecutionActorParams, functions: JesExpressionFunctions)
+    extends JesAsyncBackendJobExecutionActor(jesParams) {
+
+    def this(jobDescriptor: BackendJobDescriptor,
+             promise: Promise[BackendJobExecutionResponse],
+             jesConfiguration: JesConfiguration,
+             functions: JesExpressionFunctions = TestableJesExpressionFunctions,
+             jesSingletonActor: ActorRef = emptyActor) = {
+      this(
+        JesAsyncExecutionActorParams(
+          jobDescriptor,
+          jesConfiguration,
+          buildInitializationData(jobDescriptor, jesConfiguration),
+          emptyActor,
+          Option(jesSingletonActor),
+          promise
+        ),
+        functions
+      )
+    }
 
     override lazy val jobLogger = new JobLogger("TestLogger", workflowId, jobTag, akkaLogger = Option(log)) {
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
 
-    override lazy val callEngineFunctions = functions
+    override lazy val backendEngineFunctions: JesExpressionFunctions = functions
   }
 
   private val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
   private val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
 
-  val DockerAndDiskRuntime =
+  val DockerAndDiskRuntime: String =
     """
       |runtime {
       |  docker: "ubuntu:latest"
@@ -124,7 +140,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     // Mock/stub out the bits that would reach out to JES.
     val run = mock[Run]
-    val handle = JesPendingExecutionHandle(jobDescriptor, Set.empty, run, None)
+    val handle = new JesPendingExecutionHandle(jobDescriptor, StandardAsyncJob(run.runId), Option(run), None)
 
     class ExecuteOrRecoverActor extends TestableJesJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
@@ -593,13 +609,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesBackend = testActorRef.underlyingActor
 
     jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stdout.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stdout.toRealString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
     jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stderr.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stderr.toRealString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
     jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath.toRealString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
@@ -624,13 +640,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesBackend = testActorRef.underlyingActor
 
     jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stdout.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stdout.toRealString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stdout.log"
     jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stderr.toUri.toString shouldBe
+    jesBackend.jesCallPaths.stderr.toRealString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
     jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.jesLogPath.toUri.toString shouldBe
+    jesBackend.jesCallPaths.jesLogPath.toRealString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 

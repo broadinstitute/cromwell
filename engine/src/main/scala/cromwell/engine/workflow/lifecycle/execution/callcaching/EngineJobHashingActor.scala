@@ -5,6 +5,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultLookupFailure, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
@@ -191,7 +192,7 @@ object EngineJobHashingActor {
       callCacheReadActor = callCacheReadActor,
       runtimeAttributeDefinitions = runtimeAttributeDefinitions,
       backendName = backendName,
-      activity = activity))
+      activity = activity)).withDispatcher(EngineDispatcher)
 
   private[callcaching] case class EJHAInitialHashingResults(hashes: Set[HashResult]) extends SuccessfulHashResultMessage
   private[callcaching] case object CheckWhetherAllHashesAreKnown

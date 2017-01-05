@@ -1,8 +1,8 @@
 package cromwell.webservice
 
 import akka.actor._
-
 import cats.data.NonEmptyList
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.{WorkflowId, WorkflowOptionsJson, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
@@ -58,7 +58,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
 
   private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -178,18 +178,15 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment) { version =>
       post {
         entity(as[MultipartFormData]) { formData =>
-          requestContext => {
-            PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = true) match {
-              case Success(workflowSourceFiles) if workflowSourceFiles.size == 1 =>
+          PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = true) match {
+            case Success(workflowSourceFiles) if workflowSourceFiles.size == 1 =>
+              requestContext => {
                 perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmit(workflowSourceFiles.head))
-              case Success(workflowSourceFiles) =>
-                failBadRequest(new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint."))
-              case Failure(t) =>
-                System.err.println(t)
-                t.printStackTrace(System.err)
-                failBadRequest(t)
-            }
-            ()
+              }
+            case Success(workflowSourceFiles) =>
+              failBadRequest(new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint."))
+            case Failure(t) =>
+              failBadRequest(t)
           }
         }
       }
@@ -199,16 +196,13 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / "batch") { version =>
       post {
         entity(as[MultipartFormData]) { formData =>
-          requestContext => {
-            PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = false) match {
-              case Success(workflowSourceFiles) =>
+          PartialWorkflowSources.fromSubmitRoute(formData, allowNoInputs = false) match {
+            case Success(workflowSourceFiles) =>
+              requestContext => {
                 perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowSubmitBatch(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)))
-              case Failure(t) =>
-                System.err.println(t)
-                t.printStackTrace(System.err)
-                failBadRequest(t)
-            }
-            ()
+              }
+            case Failure(t) =>
+              failBadRequest(t)
           }
         }
       }
@@ -270,6 +264,20 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           perRequest(requestContext, CromwellApiHandler.props(workflowManagerActor), CromwellApiHandler.ApiHandlerEngineStats)
       }
     }
+
+  def versionRoute =
+    path("engine" / Segment / "version") { version =>
+      get {
+        complete {
+          lazy val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+          versionResponse(versionConf)
+        }
+      }
+    }
+
+  def versionResponse(versionConf: Config) = JsObject(Map(
+    "cromwell" -> versionConf.getString("cromwell").toJson
+  ))
 
   def backendRoute =
     path("workflows" / Segment / "backends") { version =>

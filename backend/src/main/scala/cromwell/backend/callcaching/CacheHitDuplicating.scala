@@ -7,6 +7,7 @@ import cromwell.backend.BackendCacheHitCopyingActor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.PathCopier
+import cromwell.core.path.PathImplicits._
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
 
@@ -47,7 +48,7 @@ trait CacheHitDuplicating {
   protected def destinationJobDetritusPaths: Map[String, Path]
 
   // Usually implemented by a subclass of JobCachingActorHelper
-  protected def metadataKeyValues: Map[String, Any]
+  protected def startMetadataKeyValues: Map[String, Any]
 
   private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
     sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).get recover {
@@ -66,7 +67,7 @@ trait CacheHitDuplicating {
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
         duplicate(sourcePath, destinationPath)
-        WdlValueSimpleton(key, WdlFile(destinationPath.toUri.toString))
+        WdlValueSimpleton(key, WdlFile(destinationPath.toRealString))
       case wdlValueSimpleton => wdlValueSimpleton
     }
   }
@@ -97,7 +98,8 @@ trait CacheHitDuplicating {
     val destinationJobOutputs = WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons)
 
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
-    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
+    serviceRegistryActor.putMetadata(
+      jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
 
     JobSucceededResponse(jobDescriptor.key, returnCodeOption, destinationJobOutputs, Option(destinationJobDetritusFiles), Seq.empty)
   }

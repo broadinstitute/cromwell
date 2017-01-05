@@ -5,8 +5,7 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.backend.validation.RuntimeAttributesValidation._
-import cromwell.core._
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 

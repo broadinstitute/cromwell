@@ -9,13 +9,14 @@ import cats.syntax.validated._
 import cromwell.core.{WorkflowSourceFilesWithoutImports, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip}
 import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
-import cromwell.core.ErrorOr._
+import lenthall.validation.ErrorOr._
 
 import scala.util.{Failure, Success, Try}
 
 sealed abstract class CromwellCommandLine
 case object UsageAndExit extends CromwellCommandLine
 case object RunServer extends CromwellCommandLine
+case object VersionAndExit extends CromwellCommandLine
 final case class RunSingle(wdlPath: Path,
                            sourceFiles: WorkflowSourceFilesCollection,
                            inputsPath: Option[Path],
@@ -27,6 +28,7 @@ object CromwellCommandLine {
     args.headOption match {
       case Some("server") if args.size == 1 => RunServer
       case Some("run") if args.size >= 2 && args.size <= 6 => RunSingle(args.tail)
+      case Some("-version") if args.size == 1 => VersionAndExit
       case _ => UsageAndExit
     }
   }

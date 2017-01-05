@@ -4,8 +4,9 @@ import java.nio.file.Path
 
 import better.files._
 import cromwell.backend.impl.sfs.config.ConfigConstants._
-import cromwell.backend.sfs.SharedFileSystem._
 import cromwell.backend.sfs._
+import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core.path.PathFactory._
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.WdlString
@@ -19,10 +20,7 @@ import wdl4s.values.WdlString
   */
 sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecutionActor {
 
-  lazy val configInitializationData: ConfigInitializationData = params.backendInitializationDataOption match {
-    case Some(data: ConfigInitializationData) => data
-    case other => throw new RuntimeException(s"Unable to get config initialization data from $other")
-  }
+  lazy val configInitializationData: ConfigInitializationData = backendInitializationDataAs[ConfigInitializationData]
 
   /**
     * Returns the arguments for submitting the job, either with or without docker.
@@ -110,18 +108,18 @@ $command
 /**
   * Submits a job and sends it to the background via "&". Saves the unix PID for status or killing later.
   *
-  * @param params Params for running a shared file system job.
+  * @param standardParams Params for running a shared file system job.
   */
-class BackgroundConfigAsyncJobExecutionActor(override val params: SharedFileSystemAsyncJobExecutionActorParams)
+class BackgroundConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends ConfigAsyncJobExecutionActor with BackgroundAsyncJobExecutionActor
 
 /**
   * Submits a job and returns relatively quickly. The job-id-regex is then used to read the job id for status or killing
   * later.
   *
-  * @param params Params for running a shared file system job.
+  * @param standardParams Params for running a shared file system job.
   */
-class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSystemAsyncJobExecutionActorParams)
+class DispatchedConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends ConfigAsyncJobExecutionActor {
 
   /**
@@ -132,11 +130,11 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
     * @param stderr    The stderr from dispatching the job.
     * @return The wrapped job id.
     */
-  override def getJob(exitValue: Int, stdout: Path, stderr: Path): SharedFileSystemJob = {
+  override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob = {
     val jobIdRegex = configurationDescriptor.backendConfig.getString(JobIdRegexConfig).r
     val output = File(stdout).contentAsString.stripLineEnd
     output match {
-      case jobIdRegex(jobId) => SharedFileSystemJob(jobId)
+      case jobIdRegex(jobId) => StandardAsyncJob(jobId)
       case _ =>
         throw new RuntimeException("Could not find job ID from stdout file. " +
           s"Check the stderr file for possible errors: $stderr")
@@ -149,7 +147,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
     * @param job The job to check.
     * @return A command that checks if the job is alive.
     */
-  override def checkAliveArgs(job: SharedFileSystemJob): SharedFileSystemCommand = {
+  override def checkAliveArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     jobScriptArgs(job, "check", CheckAliveTask)
   }
 
@@ -159,7 +157,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
     * @param job The job id to kill.
     * @return A command that may be used to kill the job.
     */
-  override def killArgs(job: SharedFileSystemJob): SharedFileSystemCommand = {
+  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     jobScriptArgs(job, "kill", KillTask)
   }
 
@@ -171,7 +169,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val params: SharedFileSyst
     * @param task   The config task that defines the command.
     * @return A runnable command.
     */
-  private def jobScriptArgs(job: SharedFileSystemJob, suffix: String, task: String): SharedFileSystemCommand = {
+  private def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String): SharedFileSystemCommand = {
     val script = pathPlusSuffix(jobPaths.script, suffix)
     writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)))
     SharedFileSystemCommand("/bin/bash", script)

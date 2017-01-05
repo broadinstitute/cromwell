@@ -5,8 +5,8 @@ import java.net.URL
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags._
 import cromwell.filesystems.gcs.GoogleConfiguration
+import lenthall.exception.MessageAggregation
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.ExceptionWithErrors
 
 class JesAttributesSpec extends FlatSpec with Matchers {
 
@@ -58,18 +58,18 @@ class JesAttributesSpec extends FlatSpec with Matchers {
 
     val googleConfig = GoogleConfiguration(JesGlobalConfig)
 
-    val exception = intercept[IllegalArgumentException with ExceptionWithErrors] {
+    val exception = intercept[IllegalArgumentException with MessageAggregation] {
       JesAttributes(googleConfig, nakedConfig)
     }
-    val errorsList = exception.errors.toList
-    errorsList should contain("Could not find key: project")
-    errorsList should contain("Could not find key: root")
-    errorsList should contain("Could not find key: genomics.auth")
-    errorsList should contain("Could not find key: filesystems.gcs.auth")
-    errorsList should contain("no protocol: myEndpoint")
+    val errorsList = exception.errorMessages.toList
+    errorsList should contain("No configuration setting found for key 'project'")
+    errorsList should contain("No configuration setting found for key 'root'")
+    errorsList should contain("No configuration setting found for key 'genomics.auth'")
+    errorsList should contain("No configuration setting found for key 'filesystems'")
+    errorsList should contain("URI is not absolute")
   }
 
-  def configString(preemptible: String = "", genomics: String = "") =
+  def configString(preemptible: String = "", genomics: String = ""): String =
     s"""
       |{
       |   project = "myProject"

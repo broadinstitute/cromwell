@@ -8,6 +8,7 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.PathImplicits._
 
 import scala.util.Try
 
@@ -17,8 +18,8 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   val ExecParamName = "exec"
   val MonitoringParamName = "monitoring"
 
-  val JesMonitoringScript = JesWorkingDisk.MountPoint.resolve("monitoring.sh")
-  val JesMonitoringLogFile = JesWorkingDisk.MountPoint.resolve("monitoring.log")
+  val JesMonitoringScript: Path = JesWorkingDisk.MountPoint.resolve("monitoring.sh")
+  val JesMonitoringLogFile: Path = JesWorkingDisk.MountPoint.resolve("monitoring.log")
 
   def jesConfiguration: JesConfiguration
 
@@ -30,9 +31,7 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
 
   def getPath(str: String): Try[Path] = jesCallPaths.getPath(str)
 
-  override lazy val configurationDescriptor = jesConfiguration.configurationDescriptor
-
-  lazy val jesCallPaths = {
+  lazy val jesCallPaths: JesJobPaths = {
     val workflowPaths = if (workflowDescriptor.breadCrumbs.isEmpty) {
       initializationData.workflowPaths
     } else {
@@ -44,33 +43,33 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
 
   lazy val runtimeAttributes = JesRuntimeAttributes(jobDescriptor.runtimeAttributes, jobLogger)
 
-  lazy val retryable = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
+  lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
 
   lazy val callRootPath: Path = jesCallPaths.callExecutionRoot
-  lazy val returnCodeFilename = jesCallPaths.returnCodeFilename
-  lazy val returnCodeGcsPath = jesCallPaths.returnCode
-  lazy val jesStdoutFile = jesCallPaths.stdout
-  lazy val jesStderrFile = jesCallPaths.stderr
-  lazy val jesLogFilename = jesCallPaths.jesLogFilename
-  lazy val defaultMonitoringOutputPath = callRootPath.resolve(JesMonitoringLogFile)
+  lazy val returnCodeFilename: String = jesCallPaths.returnCodeFilename
+  lazy val returnCodeGcsPath: Path = jesCallPaths.returnCode
+  lazy val jesStdoutFile: Path = jesCallPaths.stdout
+  lazy val jesStderrFile: Path = jesCallPaths.stderr
+  lazy val jesLogFilename: String = jesCallPaths.jesLogFilename
+  lazy val defaultMonitoringOutputPath: Path = callRootPath.resolve(JesMonitoringLogFile)
 
-  lazy val maxPreemption = runtimeAttributes.preemptible
+  lazy val maxPreemption: Int = runtimeAttributes.preemptible
   lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
 
-  lazy val jesAttributes = jesConfiguration.jesAttributes
+  lazy val jesAttributes: JesAttributes = jesConfiguration.jesAttributes
   lazy val monitoringScript: Option[JesInput] = {
     jesCallPaths.monitoringPath map { path =>
-      JesFileInput(s"$MonitoringParamName-in", path.toUri.toString,
+      JesFileInput(s"$MonitoringParamName-in", path.toRealString,
         JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
     }
   }
-  lazy val monitoringOutput = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
+  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
     defaultMonitoringOutputPath.toString, File(JesMonitoringLogFile).path, workingDisk)
   }
 
-  // Implements CacheHitDuplicating.metadataKeyValues
-  lazy val metadataKeyValues: Map[String, Any] = {
+  // Implements CacheHitDuplicating.startMetadataKeyValues
+  def startMetadataKeyValues: Map[String, Any] = {
     val runtimeAttributesMetadata: Map[String, Any] = runtimeAttributes.asMap map {
       case (key, value) => s"runtimeAttributes:$key" -> value
     }

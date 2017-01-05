@@ -14,11 +14,11 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, OptionValues}
+import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
 import wdl4s.types._
-import wdl4s.util.AggregatedException
 import wdl4s.values._
 
 import scala.concurrent.duration._
@@ -28,9 +28,10 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   behavior of "SharedFileSystemJobExecutionActor"
 
-  lazy val runtimeAttributeDefinitions = SharedFileSystemValidatedRuntimeAttributesBuilder.default.definitions.toSet
+  lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
+    SharedFileSystemValidatedRuntimeAttributesBuilder.default.definitions.toSet
 
-  def executeSpec(docker: Boolean) = {
+  def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = Map(
       "salutation" -> JobOutput(WdlString("Hello you !"))
     )
@@ -51,13 +52,14 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   it should "send back an execution failure if the task fails" in {
-    val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], new Exception(""), Option(1))
+    val expectedResponse =
+      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], new RuntimeException(""), Option(1))
     val workflow = TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), emptyBackendConfig, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
   }
 
-  def localizationSpec(docker: Boolean) = {
+  def localizationSpec(docker: Boolean): Assertion = {
     def templateConf(localizers: String) = BackendConfigurationDescriptor(
       ConfigFactory.parseString(
         s"""{
@@ -150,7 +152,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     }
   }
 
-  def recoverSpec(completed: Boolean, writeReturnCode: Boolean = true) = {
+  def recoverSpec(completed: Boolean, writeReturnCode: Boolean = true): Assertion = {
     val workflowDescriptor = buildWorkflowDescriptor(HelloWorld)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backendRef = createBackendRef(jobDescriptor, emptyBackendConfig)
@@ -259,7 +261,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   it should "fail post processing if an output file is not found" in {
     val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey],
-      AggregatedException(Seq.empty, "Could not process output, file not found"), Option(0))
+      AggregatedException("Could not process output, file not found:", Seq.empty), Option(0))
     val workflow = TestWorkflow(buildWorkflowDescriptor(MissingOutputProcess), emptyBackendConfig, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)

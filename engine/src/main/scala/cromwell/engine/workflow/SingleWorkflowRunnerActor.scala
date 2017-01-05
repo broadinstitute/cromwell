@@ -10,6 +10,7 @@ import cats.instances.try_._
 import cats.syntax.functor._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core._
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
@@ -195,7 +196,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 
 object SingleWorkflowRunnerActor {
   def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path]): Props = {
-    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile))
+    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait RunnerMessage

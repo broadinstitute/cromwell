@@ -33,9 +33,9 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
 object BackendWorkflowDescriptor {
   def apply(id: WorkflowId,
             workflow: Workflow,
-            inputs: Map[FullyQualifiedName, WdlValue],
+            knownValues: Map[FullyQualifiedName, WdlValue],
             workflowOptions: WorkflowOptions) = {
-    new BackendWorkflowDescriptor(id, workflow, inputs, workflowOptions, List.empty)
+    new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, List.empty)
   }
 }
 
@@ -44,7 +44,7 @@ object BackendWorkflowDescriptor {
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
                                      workflow: Workflow,
-                                     inputs: Map[FullyQualifiedName, WdlValue],
+                                     knownValues: Map[FullyQualifiedName, WdlValue],
                                      workflowOptions: WorkflowOptions,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {
   

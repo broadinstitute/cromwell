@@ -46,7 +46,7 @@ object PathFactory {
                 postMapping: Path => Path = identity[Path]): Path = {
     pathBuilders.toStream map { _.build(preMapping(string)) } collectFirst { case Success(p) => postMapping(p) } getOrElse {
       val pathBuilderNames: String = pathBuilders map { _.name } mkString ", "
-      throw new PathParsingException(s"Could not find suitable filesystem among $pathBuilderNames to parse $string.")
+      throw PathParsingException(s"Could not find suitable filesystem among $pathBuilderNames to parse $string.")
     }
   }
 
@@ -54,4 +54,6 @@ object PathFactory {
                 pathBuilders: List[PathBuilder],
                 preMapping: String => String = identity[String],
                 postMapping: Path => Path = identity[Path]): File = File(buildPath(string, pathBuilders, preMapping, postMapping))
+
+  def pathPlusSuffix(path: File, suffix: String): File = path.sibling(s"${path.name}.$suffix")
 }

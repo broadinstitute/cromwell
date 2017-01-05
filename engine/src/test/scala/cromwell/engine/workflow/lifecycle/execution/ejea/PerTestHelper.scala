@@ -101,7 +101,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                (implicit startingState: EngineJobExecutionActorState): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = {
 
     val factory: BackendLifecycleActorFactory = buildFactory()
-    val descriptor = EngineWorkflowDescriptor(mock[WdlNamespaceWithWorkflow], backendWorkflowDescriptor, Map.empty, null, null, null, callCachingMode)
+    val descriptor = EngineWorkflowDescriptor(mock[WdlNamespaceWithWorkflow], backendWorkflowDescriptor, null, null, null, callCachingMode)
 
     val myBrandNewEjea = new TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea](system, Props(new MockEjea(
       helper = this,

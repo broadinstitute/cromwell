@@ -1,6 +1,7 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.{Actor, ActorLogging, Props}
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 
@@ -16,5 +17,5 @@ final case class JesBackendSingletonActor(qps: Int) extends Actor with ActorLogg
 }
 
 object JesBackendSingletonActor {
-  def props(qps: Int): Props = Props(JesBackendSingletonActor(qps))
+  def props(qps: Int): Props = Props(JesBackendSingletonActor(qps)).withDispatcher(BackendDispatcher)
 }

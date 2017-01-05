@@ -10,17 +10,27 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object Main extends App {
   val CommandLine = CromwellCommandLine(args)
   initLogging(CommandLine)
 
   lazy val Log = LoggerFactory.getLogger("cromwell")
-  lazy val CromwellSystem = new CromwellSystem {}
+  lazy val CromwellSystem: CromwellSystem = Try {
+    new CromwellSystem {}
+  } recoverWith {
+    case t: Throwable =>
+      Log.error("Failed to instantiate Cromwell System. Shutting down Cromwell.")
+      Log.error(t.getMessage)
+      System.exit(1)
+      Failure(t)
+  } get
 
   CommandLine match {
     case UsageAndExit => usageAndExit()
+    case VersionAndExit => versionAndExit()
     case RunServer => waitAndExit(CromwellServer.run(CromwellSystem), CromwellSystem)
     case r: RunSingle => runWorkflow(r)
   }
@@ -118,8 +128,23 @@ object Main extends App {
         |
         |  Starts a web server on port 8000.  See the web server
         |  documentation for more details about the API endpoints.
+        |
+        |-version
+        |
+        |   Returns the version of the Cromwell engine.
+        |
       """.stripMargin)
 
+    System.exit(1)
+  }
+
+  def versionAndExit(): Unit = {
+    val versionConf = ConfigFactory.load("cromwell-version.conf").getConfig("version")
+    println(
+      s"""
+         |cromwell: ${versionConf.getString("cromwell")}
+       """.stripMargin
+    )
     System.exit(1)
   }
 }

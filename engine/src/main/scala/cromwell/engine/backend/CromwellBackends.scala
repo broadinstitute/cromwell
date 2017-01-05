@@ -1,6 +1,7 @@
 package cromwell.engine.backend
 
 import cromwell.backend.BackendLifecycleActorFactory
+import lenthall.util.TryUtil
 
 import scala.util.{Failure, Success, Try}
 
@@ -9,7 +10,8 @@ import scala.util.{Failure, Success, Try}
   */
 case class CromwellBackends(backendEntries: List[BackendConfigurationEntry]) {
 
-  val backendLifecycleActorFactories = backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory).toMap
+  // Raise the exception here if some backend factories failed to instantiate
+  val backendLifecycleActorFactories = TryUtil.sequenceMap(backendEntries.map(e => e.name -> e.asBackendLifecycleActorFactory).toMap).get
 
   def backendLifecycleActorFactoryByName(backendName: String): Try[BackendLifecycleActorFactory] = {
     backendLifecycleActorFactories.get(backendName) match {

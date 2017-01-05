@@ -16,15 +16,15 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     * Asserts that the parameter list contains a single parameter which will be interpreted
     * as a File and attempts to read the contents of that file
     */
-  private def readContentsFromSingleFileParameter(params: Seq[Try[WdlValue]]): Try[String] = {
+  private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WdlValue]]): Try[String] = {
     for {
-      singleArgument <- extractSingleArgument(params)
+      singleArgument <- extractSingleArgument(functionName, params)
       string = fileContentsToString(singleArgument.valueString)
     } yield string
   }
 
-  private def extractObjects(params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] = for {
-    contents <- readContentsFromSingleFileParameter(params)
+  private def extractObjects(functionName: String, params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] = for {
+    contents <- readContentsFromSingleFileParameter(functionName, params)
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
@@ -35,38 +35,38 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     */
   override def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
-      contents <- readContentsFromSingleFileParameter(params)
+      contents <- readContentsFromSingleFileParameter("read_lines", params)
       lines = contents.split("\n")
     } yield WdlArray(WdlArrayType(WdlStringType), lines map WdlString)
   }
 
   override def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
     for {
-      contents <- readContentsFromSingleFileParameter(params)
+      contents <- readContentsFromSingleFileParameter("read_map", params)
       wdlMap <- WdlMap.fromTsv(contents)
     } yield wdlMap
   }
 
   override def read_object(params: Seq[Try[WdlValue]]): Try[WdlObject] = {
-    extractObjects(params) map {
+    extractObjects("read_object", params) map {
       case array if array.length == 1 => array.head
       case _ => throw new IllegalArgumentException("read_object yields an Object and thus can only read 2-rows TSV files. Try using read_objects instead.")
     }
   }
 
-  override def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects(params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
+  override def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects("read_objects", params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
 
   /**
     * Try to read a string from the file referenced by the specified `WdlValue`.
     */
-  override def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter(params).map(s => WdlString(s.trim))
+  override def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter("read_string", params).map(s => WdlString(s.trim))
 
   /**
     * Read a file in TSV format into an Array[Array[String]]
     */
   override def read_tsv(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
-      contents <- readContentsFromSingleFileParameter(params)
+      contents <- readContentsFromSingleFileParameter("read_tsv", params)
       wdlArray = WdlArray.fromTsv(contents)
     } yield wdlArray
   }
@@ -106,7 +106,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
 
   override def glob(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
-      singleArgument <- extractSingleArgument(params)
+      singleArgument <- extractSingleArgument("glob", params)
       globVal = singleArgument.valueString
       files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }

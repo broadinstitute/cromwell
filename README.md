@@ -20,7 +20,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Command Line Usage](#command-line-usage)
   * [run](#run)
   * [server](#server)
+  * [version](#version)
 * [Getting Started with WDL](#getting-started-with-wdl)
+  * [WDL Support](#wdl-support)
 * [Configuring Cromwell](#configuring-cromwell)
   * [Workflow Submission](#workflow-submission)
   * [Database](#database)
@@ -85,6 +87,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
   * [GET /api/engine/:version/stats](#get-apiengineversionstats)
+  * [GET /api/engine/:version/version](#get-apiengineversionversion)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -158,6 +161,11 @@ run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
 
   Starts a web server on port 8000.  See the web server
   documentation for more details about the API endpoints.
+
+  -version
+
+  Returns the version of the Cromwell engine.
+
 ```
 
 ## run
@@ -283,9 +291,116 @@ $ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
 
+## version
+
+Returns the version of Cromwell engine.
+
 # Getting Started with WDL
 
 For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl#getting-started-with-wdl)
+
+## WDL Support
+
+:pig2: Cromwell supports the following subset of WDL features:
+
+* [Language Specification](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#language-specification)
+  * [Whitespace, Strings, Identifiers, Constants](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#whitespace-strings-identifiers-constants)
+  * [Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#types)
+  * [Fully Qualified Names & Namespaced Identifiers](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#fully-qualified-names--namespaced-identifiers)
+  * [Declarations](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#declarations)
+  * [Expressions](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#expressions)
+  * [Operator Precedence Table](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#operator-precedence-table)
+  * [Member Access](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#member-access)
+  * [Map and Array Indexing](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#map-and-array-indexing)
+  * [Function Calls](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#function-calls)
+  * [Array Literals](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#array-literals)
+  * [Map Literals](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#map-literals)
+* [Document](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#document)
+* [Task Definition](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#task-definition)
+  * [Sections](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#sections)
+  * [Command Section](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#command-section)
+    * [Command Parts](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#command-parts)
+    * [Command Part Options](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#command-part-options)
+      * [sep](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#sep)
+      * [true and false](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#true-and-false)
+      * [default](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#default)
+    * [Alternative heredoc syntax](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#alternative-heredoc-syntax)
+    * [Stripping Leading Whitespace](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#stripping-leading-whitespace)
+  * [Outputs Section](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs-section)
+  * [String Interpolation](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#string-interpolation)
+  * [Runtime Section](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#runtime-section)
+    * [docker](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#docker)
+    * [memory](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#memory)
+  * [Parameter Metadata Section](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#parameter-metadata-section)
+  * [Metadata Section](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#metadata-section)
+* [Workflow Definition](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#workflow-definition)
+  * [Call Statement](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#call-statement)
+    * [Sub Workflows](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#sub-workflows)
+  * [Scatter](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#scatter)
+  * [Parameter Metadata](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#parameter-metadata)
+  * [Metadata](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#metadata)
+  * [Outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs)
+* [Namespaces](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#namespaces)
+* [Scope](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#scope)
+* [Optional Parameters & Type Constraints](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#optional-parameters--type-constraints)
+  * [Prepending a String to an Optional Parameter](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#prepending-a-string-to-an-optional-parameter)
+* [Scatter / Gather](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#scatter--gather)
+* [Variable Resolution](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#variable-resolution)
+  * [Task-Level Resolution](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#task-level-resolution)
+  * [Workflow-Level Resolution](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#workflow-level-resolution)
+* [Computing Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#computing-inputs)
+  * [Task Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#task-inputs)
+  * [Workflow Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#workflow-inputs)
+  * [Specifying Workflow Inputs in JSON](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#specifying-workflow-inputs-in-json)
+* [Type Coercion](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#type-coercion)
+* [Standard Library](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#standard-library)
+  * [File stdout()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-stdout)
+  * [File stderr()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-stderr)
+  * [Array\[String\] read_lines(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-read_linesstringfile)
+  * [Array\[Array\[String\]\] read_tsv(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayarraystring-read_tsvstringfile)
+  * [Map\[String, String\] read_map(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#mapstring-string-read_mapstringfile)
+  * [Object read_object(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-read_objectstringfile)
+  * [Array\[Object\] read_objects(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayobject-read_objectsstringfile)
+  * [Int read_int(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#int-read_intstringfile)
+  * [String read_string(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#string-read_stringstringfile)
+  * [Float read_float(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#float-read_floatstringfile)
+  * [Boolean read_boolean(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#boolean-read_booleanstringfile)
+  * [File write_lines(Array\[String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_linesarraystring)
+  * [File write_tsv(Array\[Array\[String\]\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_tsvarrayarraystring)
+  * [File write_map(Map\[String, String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_mapmapstring-string)
+  * [File write_object(Object)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_objectobject)
+  * [File write_objects(Array\[Object\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_objectsarrayobject)
+  * [Float size(File, \[String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#float-sizefile-string)
+  * [String sub(String, String, String)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#string-substring-string-string)
+  * [Array\[Int\] range(Int)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayint-rangeint)
+  * [Array\[Array\[X\]\] transpose(Array\[Array\[X\]\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayarrayx-transposearrayarrayx)
+  * [Pair(X,Y) zip(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-zipxy)
+  * [Pair(X,Y) cross(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-crossxy)
+* [Data Types & Serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#data-types--serialization)
+  * [Serialization of Task Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#serialization-of-task-inputs)
+    * [Primitive Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#primitive-types)
+    * [Compound Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#compound-types)
+      * [Array serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#array-serialization)
+        * [Array serialization by expansion](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#array-serialization-by-expansion)
+        * [Array serialization using write_lines()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#array-serialization-using-write_lines)
+      * [Map serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#map-serialization)
+        * [Map serialization using write_map()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#map-serialization-using-write_map)
+      * [Object serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-serialization)
+        * [Object serialization using write_object()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-serialization-using-write_object)
+      * [Array\[Object\] serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayobject-serialization)
+        * [Array\[Object\] serialization using write_objects()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayobject-serialization-using-write_objects)
+  * [De-serialization of Task Outputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#de-serialization-of-task-outputs)
+    * [Primitive Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#primitive-types)
+    * [Compound Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#compound-types)
+      * [Array deserialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#array-deserialization)
+        * [Array deserialization using read_lines()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#array-deserialization-using-read_lines)
+      * [Map deserialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#map-deserialization)
+        * [Map deserialization using read_map()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#map-deserialization-using-read_map)
+      * [Object deserialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-deserialization)
+        * [Object deserialization using read_object()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-deserialization-using-read_object)
+      * [Array\[Object\] deserialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayobject-deserialization)
+        * [Object deserialization using read_objects()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-deserialization-using-read_objects)
+
 
 # Configuring Cromwell
 
@@ -2313,6 +2428,7 @@ contain one workflow submission response for each input, respectively.
 * `workflowOptions` - *Optional* JSON file containing options for this
 workflow execution.  See the [run](#run) CLI sub-command for some more
 information about this.
+* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements. Applied equally to all workflowInput sets.
 
 cURL:
 
@@ -3112,6 +3228,32 @@ Response:
 {
   "workflows": 3,
   "jobs": 10
+}
+```
+
+## GET /api/engine/:version/version
+
+This endpoint returns the version of the Cromwell engine.
+
+cURL:
+```
+$ curl http://localhost:8000/api/engine/v1/version
+```
+
+HTTPie:
+```
+$ http http://localhost:8000/api/engine/v1/version
+```
+
+Response:
+```
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
+
+{
+  "cromwell": 23-8be799a-SNAP
 }
 ```
 

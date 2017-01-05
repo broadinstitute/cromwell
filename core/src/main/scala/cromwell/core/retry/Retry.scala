@@ -35,7 +35,7 @@ object Retry {
 
     if (maxRetries.forall(_ > 0)) {
       f() recoverWith {
-        case throwable if isFatal(throwable) => Future.failed(new CromwellFatalException(throwable))
+        case throwable if isFatal(throwable) => Future.failed(CromwellFatalException(throwable))
         case throwable if !isFatal(throwable) =>
           val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
           after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal))

@@ -1,109 +1,61 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.SupervisorStrategy.{Decider, Stop}
-import akka.actor.{ActorRef, OneForOneStrategy, Props}
-import akka.event.LoggingReceive
-import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
-import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import akka.actor.{ActorRef, Props}
 import cromwell.backend._
-import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
-import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesJobId
-import cromwell.backend.impl.jes.JesJobExecutionActor._
-import cromwell.services.keyvalue.KeyValueServiceActor._
-import org.slf4j.LoggerFactory
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
+import cromwell.core.Dispatcher.BackendDispatcher
 
-import scala.concurrent.{Future, Promise}
+/** A default implementation of the sync params. */
+case class JesSyncExecutionActorParams
+(
+  override val jobDescriptor: BackendJobDescriptor,
+  jesConfiguration: JesConfiguration,
+  jesBackendInitializationData: JesBackendInitializationData,
+  override val serviceRegistryActor: ActorRef,
+  jesBackendSingletonActorOption: Option[ActorRef]
+) extends StandardSyncExecutionActorParams {
+  override val jobIdKey: String = JesJobExecutionActor.JesOperationIdKey
+  override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] = classOf[Nothing]
+  override val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
+  override val backendInitializationDataOption: Option[BackendInitializationData] = Option(jesBackendInitializationData)
+}
 
 object JesJobExecutionActor {
-  val logger = LoggerFactory.getLogger("JesBackend")
-
   def props(jobDescriptor: BackendJobDescriptor,
             jesWorkflowInfo: JesConfiguration,
             initializationData: JesBackendInitializationData,
             serviceRegistryActor: ActorRef,
             jesBackendSingletonActor: Option[ActorRef]): Props = {
-    Props(new JesJobExecutionActor(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor, jesBackendSingletonActor))
+    val params = JesSyncExecutionActorParams(
+      jobDescriptor,
+      jesWorkflowInfo,
+      initializationData,
+      serviceRegistryActor,
+      jesBackendSingletonActor)
+    Props(new JesJobExecutionActor(params)).withDispatcher(BackendDispatcher)
   }
 
   val JesOperationIdKey = "__jes_operation_id"
 }
 
-case class JesJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
-                                jesConfiguration: JesConfiguration,
-                                initializationData: JesBackendInitializationData,
-                                serviceRegistryActor: ActorRef,
-                                jesBackendSingletonActorOption: Option[ActorRef])
-  extends BackendJobExecutionActor {
+case class JesJobExecutionActor(jesParams: JesSyncExecutionActorParams)
+  extends StandardSyncExecutionActor(jesParams) {
 
-  val jesBackendSingletonActor = jesBackendSingletonActorOption.getOrElse(throw new RuntimeException("JES Backend actor cannot exist without the JES backend singleton actor"))
+  override def createAsyncRefName(): String = "JesAsyncBackendJobExecutionActor"
 
-  private def jesReceiveBehavior: Receive = LoggingReceive {
-    case AbortJobCommand =>
-      executor.foreach(_ ! AbortJobCommand)
-    case abortResponse: AbortedResponse =>
-      context.parent ! abortResponse
-      context.stop(self)
-    case KvPair(key, id @ Some(operationId)) if key.key == JesOperationIdKey =>
-      // Successful operation ID lookup during recover.
-      executor foreach { _ ! Recover(JesJobId(operationId))}
-    case KvKeyLookupFailed(_) =>
-      // Missed operation ID lookup during recover, fall back to execute.
-      executor foreach { _ ! Execute }
-    case KvFailure(_, e) =>
-      // Failed operation ID lookup during recover, crash and let the supervisor deal with it.
-      completionPromise.tryFailure(e)
-      throw new RuntimeException("Failure attempting to look up JES operation ID for key " + jobDescriptor.key, e)
+  override def createAsyncProps(): Props = jabjeaProps
+
+  private[jes] def jabjeaProps = {
+    Props(
+      new JesAsyncBackendJobExecutionActor(
+        JesAsyncExecutionActorParams(
+          jesParams.jobDescriptor,
+          jesParams.jesConfiguration,
+          jesParams.jesBackendInitializationData,
+          jesParams.serviceRegistryActor,
+          jesParams.jesBackendSingletonActorOption,
+          completionPromise)
+      )
+    )
   }
-
-  override def receive = jesReceiveBehavior orElse super.receive
-
-  override val configurationDescriptor = jesConfiguration.configurationDescriptor
-
-  private lazy val completionPromise = Promise[BackendJobExecutionResponse]()
-
-  private var executor: Option[ActorRef] = None
-
-  private[jes] def jabjeaProps = JesAsyncBackendJobExecutionActor.props(jobDescriptor,
-    completionPromise,
-    jesConfiguration,
-    initializationData,
-    serviceRegistryActor,
-    jesBackendSingletonActor)
-
-  private def launchExecutor: Future[Unit] = Future {
-    val executionProps = jabjeaProps
-    val executorRef = context.actorOf(executionProps, "JesAsyncBackendJobExecutionActor")
-    executor = Option(executorRef)
-    ()
-  }
-
-  override def recover: Future[BackendJobExecutionResponse] = {
-    import JesJobExecutionActor._
-
-    for {
-      _ <- launchExecutor
-      _ = serviceRegistryActor ! KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id,
-        KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt),
-        JesOperationIdKey))
-      c <- completionPromise.future
-    } yield c
-  }
-
-  override def execute: Future[BackendJobExecutionResponse] = {
-    for {
-      _ <- launchExecutor
-      _ = executor foreach { _ ! Execute }
-      c <- completionPromise.future
-    } yield c
-  }
-
-  override def abort(): Unit = {}
-
-  // Supervision strategy: if the JABJEA throws an exception, stop the actor and fail the job.
-  def jobFailingDecider: Decider = {
-    case e: Exception =>
-      completionPromise.tryFailure(new RuntimeException("JesAsyncBackendJobExecutionActor failed and didn't catch its exception.", e))
-      Stop
-  }
-  override val supervisorStrategy = OneForOneStrategy()(jobFailingDecider)
 }

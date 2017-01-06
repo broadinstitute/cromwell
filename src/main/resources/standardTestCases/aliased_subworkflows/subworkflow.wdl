@@ -6,6 +6,9 @@ task increment {
   output {
     Int j = read_int(stdout())
   }
+  runtime {
+    docker: "ubuntu:latest"
+  }
 }
 
 workflow subwf {

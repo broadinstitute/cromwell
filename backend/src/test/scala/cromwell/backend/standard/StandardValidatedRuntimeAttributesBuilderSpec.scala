@@ -1,4 +1,4 @@
-package cromwell.backend.sfs
+package cromwell.backend.standard
 
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.validation.RuntimeAttributesKeys._
@@ -10,9 +10,9 @@ import org.specs2.mock.Mockito
 import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
 import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
-class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Matchers with Mockito {
+class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Matchers with Mockito {
 
-  val HelloWorld =
+  val HelloWorld: String =
     s"""
       |task hello {
       |  String addressee = "you"
@@ -37,7 +37,7 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
     FailOnStderrKey -> false,
     ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(0)))
 
-  def workflowOptionsWithDefaultRuntimeAttributes(defaults: Map[String, JsValue]) = {
+  def workflowOptionsWithDefaultRuntimeAttributes(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map("default_runtime_attributes" -> JsObject(defaults))))
   }
 
@@ -75,7 +75,18 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       message should include("Unrecognized runtime attribute keys: docker")
     }
 
-    "log a warning and fail to validate an invalid Docker entry" in {
+    "log a warning and validate an invalid Docker entry" in {
+      /*
+      NOTE: The behavior used to be: when present, a "docker" runtime attribute would always be validated to ensure that
+      the value of the runtime attribute was a String-- even if the actual runtime attribute was unsupported by the
+      backend! NOW, if the backend doesn't support docker, and the runtime attributes contain say as an invalid integer,
+      say `{ docker: 1 }`, the validation will now succeed. If we want to change this, the git history contains a
+      concept of validated-yet-still-unsupported attributes. One could use this behavior to validate other standard
+      attributes such as CPU, Memory, etc.-- checking their syntax even when they are unsupported by the current
+      backend.
+
+      https://github.com/broadinstitute/cromwell/blob/a4a952de33f6d1ef646be51d298c3d613a8cce5f/supportedBackends/sfs/src/main/scala/cromwell/backend/sfs/SharedFileSystemValidatedRuntimeAttributesBuilder.scala
+       */
       val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = Map("docker" -> WdlInteger(1))
       val mockWarnings = new MockWarnings
@@ -129,7 +140,7 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
       */
     class MockWarnings() {
       var warnings: Seq[String] = Seq.empty
-      val mockLogger = mock[Logger]
+      val mockLogger: Logger = mock[Logger]
       mockLogger.warn(anyString).answers { result =>
         result match {
           case message: String =>
@@ -139,8 +150,8 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
     }
   }
 
-  val defaultLogger = LoggerFactory.getLogger(classOf[SharedFileSystemValidatedRuntimeAttributesBuilderSpec])
-  val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])
+  val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
 
   private def assertRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue],
                                                         expectedRuntimeAttributes: Map[String, Any],
@@ -149,9 +160,9 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
                                                         logger: Logger = defaultLogger): Unit = {
 
     val builder = if (includeDockerSupport) {
-      SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
+      StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
     } else {
-      SharedFileSystemValidatedRuntimeAttributesBuilder.default
+      StandardValidatedRuntimeAttributesBuilder.default
     }
     val runtimeAttributeDefinitions = builder.definitions.toSet
     val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
@@ -178,9 +189,9 @@ class SharedFileSystemValidatedRuntimeAttributesBuilderSpec extends WordSpecLike
                                                     logger: Logger = defaultLogger): Unit = {
     val thrown = the[RuntimeException] thrownBy {
       val builder = if (supportsDocker) {
-        SharedFileSystemValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
+        StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
       } else {
-        SharedFileSystemValidatedRuntimeAttributesBuilder.default
+        StandardValidatedRuntimeAttributesBuilder.default
       }
       val runtimeAttributeDefinitions = builder.definitions.toSet
       val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _

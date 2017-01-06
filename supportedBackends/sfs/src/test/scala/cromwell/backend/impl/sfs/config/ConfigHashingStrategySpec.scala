@@ -7,7 +7,7 @@ import better.files._
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.io.WorkflowPaths
-import cromwell.backend.sfs.SharedFileSystemBackendInitializationData
+import cromwell.backend.standard.StandardInitializationData
 import cromwell.core.path.DefaultPathBuilder
 import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -49,7 +49,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val workflowPaths = mock[WorkflowPaths]
     workflowPaths.pathBuilders returns List(DefaultPathBuilder)
 
-    val initData = mock[SharedFileSystemBackendInitializationData]
+    val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
 
     request.file returns WdlFile(requestFile.pathAsString)

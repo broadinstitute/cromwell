@@ -22,11 +22,11 @@ import scala.concurrent.duration._
 
 class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpec") with FlatSpecLike with Matchers
   with ImplicitSender with Mockito {
-  val Timeout = 5.second.dilated
+  val Timeout: FiniteDuration = 5.second.dilated
 
   import BackendSpec._
 
-  val HelloWorld =
+  val HelloWorld: String =
     s"""
       |task hello {
       |  String addressee = "you"
@@ -45,7 +45,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |}
     """.stripMargin
 
-  val globalConfig = ConfigFactory.parseString(
+  val globalConfig: Config = ConfigFactory.parseString(
     """
       |google {
       |
@@ -66,7 +66,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |}
       | """.stripMargin)
 
-  val backendConfigTemplate =
+  val backendConfigTemplate: String =
     """
       |  // Google project
       |  project = "my-cromwell-workflows"
@@ -96,7 +96,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |[DOCKERHUBCONFIG]
       |""".stripMargin
 
-  val refreshTokenConfigTemplate =
+  val refreshTokenConfigTemplate: String =
     """
       |  // Google project
       |  project = "my-cromwell-workflows"
@@ -124,9 +124,9 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |  }
       |""".stripMargin
 
-  val backendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
+  val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
 
-  val dockerBackendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
+  val dockerBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
     """
       |dockerhub {
       |  account = "my@docker.account"
@@ -136,7 +136,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   val defaultBackendConfig = BackendConfigurationDescriptor(backendConfig, globalConfig)
 
-  val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
+  val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
     system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf), emptyActor))
@@ -151,7 +151,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
         defaultBackendConfig)
       val eventPattern =
-        "Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."
+        "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
       EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
         backend ! Initialize
       }

@@ -1,7 +1,5 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import better.files.File
@@ -9,7 +7,7 @@ import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExe
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
-import cromwell.backend.validation.{ContinueOnReturnCode, ContinueOnReturnCodeFlag}
+import cromwell.backend.validation._
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
 import cromwell.services.keyvalue.KeyValueServiceActor._
@@ -31,7 +29,7 @@ import scala.util.{Failure, Success, Try}
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
+trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   val SIGTERM = 143
@@ -48,26 +46,23 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
     PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus]
 
   /** Standard set of parameters passed to the backend. */
-  val standardParams: StandardAsyncExecutionActorParams
-
-  override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
+  def standardParams: StandardAsyncExecutionActorParams
 
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
   override lazy val completionPromise: Promise[BackendJobExecutionResponse] = standardParams.completionPromise
 
   /** Backend initialization data created by the a factory initializer. */
-  lazy val backendInitializationDataOption: Option[BackendInitializationData] =
+  override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
     standardParams.backendInitializationDataOption
 
-  /** Typed backend initialization. */
-  def backendInitializationDataAs[A <: BackendInitializationData]: A =
-    BackendInitializationData.as[A](backendInitializationDataOption)
+  /** @see [[StandardAsyncExecutionActorParams.serviceRegistryActor]] */
+  override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
-  /** @see [[StandardJobExecutionActorParams.serviceRegistryActor]] */
-  lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
+  /** @see [[StandardAsyncExecutionActorParams.jobDescriptor]] */
+  override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
 
-  /** @see [[StandardJobExecutionActorParams.jobIdKey]] */
+  /** @see [[StandardAsyncExecutionActorParams.jobIdKey]] */
   def jobIdKey: String = standardParams.jobIdKey
 
   /** @see [[Command.instantiate]] */
@@ -91,48 +86,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
     *
     * @return True if a non-empty `remoteStdErrPath` should fail the job.
     */
-  def failOnStdErr: Boolean = false
-
-  /**
-    * Returns the path to the standard error output of the job. Only needs to be implemented if `failOnStdErr` is
-    * returning `true`.
-    *
-    * @return The path to the standard error output.
-    */
-  def remoteStdErrPath: Path = {
-    throw new NotImplementedError(s"failOnStdErr returned true but remote path not implemented by $getClass")
-  }
-
-  /**
-    * Returns the path to the return code output of the job. Must be implemented unless `returnCodeContents` is
-    * overridden not to use this method.
-    *
-    * @return The path to the return code output.
-    */
-  def remoteReturnCodePath: Path = {
-    throw new NotImplementedError(s"remoteReturnCodePath returned true but remote path not implemented by $getClass")
-  }
-
-  /**
-    * Returns the contents of the return code file.
-    *
-    * @return The contents of the return code file.
-    */
-  def returnCodeContents: String = File(remoteReturnCodePath).contentAsString
+  lazy val failOnStdErr: Boolean = RuntimeAttributesValidation.extract(
+    FailOnStderrValidation.instance, validatedRuntimeAttributes)
 
   /**
     * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
     *
     * @return the behavior for continuing on the return code.
     */
-  def continueOnReturnCode: ContinueOnReturnCode = ContinueOnReturnCodeFlag(false)
-
-  /**
-    * Returns the metadata key values to store before executing a job.
-    *
-    * @return the metadata key values to store before executing a job.
-    */
-  def startMetadataKeyValues: Map[String, Any] = Map.empty
+  lazy val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
+    ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
   /**
     * Execute the job specified in the params. Should return a `StandardAsyncPendingExecutionHandle`, or a
@@ -410,8 +373,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
     try {
       if (isSuccess(status)) {
 
-        lazy val stderrLength: Long = File(remoteStdErrPath).size
-        lazy val returnCode: Try[Int] = Try(returnCodeContents).map(_.trim.toInt)
+        lazy val stderrLength: Long = File(jobPaths.stderr).size
+        lazy val returnCode: Try[Int] = Try(File(jobPaths.returnCode).contentAsString).map(_.trim.toInt)
         status match {
           case _ if failOnStdErr && stderrLength.intValue > 0 =>
             // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB

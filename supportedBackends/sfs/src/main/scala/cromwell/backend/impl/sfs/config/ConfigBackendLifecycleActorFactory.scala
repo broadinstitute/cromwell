@@ -4,10 +4,11 @@ import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
+import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, RuntimeAttributeDefinition}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import net.ceedubs.ficus.Ficus._
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
   * Builds a backend by reading the job control from the config.
@@ -17,14 +18,14 @@ import org.slf4j.LoggerFactory
 class ConfigBackendLifecycleActorFactory(name: String, val configurationDescriptor: BackendConfigurationDescriptor)
   extends SharedFileSystemBackendLifecycleActorFactory {
 
-  lazy val logger = LoggerFactory.getLogger(getClass)
-  lazy val hashingStrategy = {
+  lazy val logger: Logger = LoggerFactory.getLogger(getClass)
+  lazy val hashingStrategy: ConfigHashingStrategy = {
     configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
   }
 
-  override def initializationActorClass = classOf[ConfigInitializationActor]
+  override def initializationActorClass: Class[ConfigInitializationActor] = classOf[ConfigInitializationActor]
 
-  override def asyncJobExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
+  override def asyncExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
     val runInBackground = configurationDescriptor.backendConfig.as[Option[Boolean]](RunInBackgroundConfig).getOrElse(false)
     if (runInBackground)
       classOf[BackgroundConfigAsyncJobExecutionActor]
@@ -35,7 +36,7 @@ class ConfigBackendLifecycleActorFactory(name: String, val configurationDescript
   override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
   Set[RuntimeAttributeDefinition] = {
     val initializationData = BackendInitializationData.
-      as[SharedFileSystemBackendInitializationData](initializationDataOption)
+      as[StandardInitializationData](initializationDataOption)
 
     initializationData.runtimeAttributesBuilder.definitions.toSet
   }

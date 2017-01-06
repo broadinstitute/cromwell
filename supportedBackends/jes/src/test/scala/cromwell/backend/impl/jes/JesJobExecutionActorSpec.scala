@@ -1,17 +1,16 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit._
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
+import cromwell.backend.impl.jes.ControllableFailingJabjea.JabjeaExplode
+import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
 import cromwell.core.TestKitSuite
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
-import akka.testkit._
-import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
-import cromwell.backend.impl.jes.ControllableFailingJabjea.JabjeaExplode
-
 import scala.concurrent.{ExecutionContext, Promise}
 
 class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") with FlatSpecLike with Matchers with Mockito {
@@ -29,10 +28,13 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     val serviceRegistryActor = system.actorOf(Props.empty)
     val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
 
+    initializationData.jesConfiguration returns jesWorkflowInfo
+
     val parent = TestProbe()
     val deathwatch = TestProbe()
-    val params = JesSyncExecutionActorParams(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor,
-      jesBackendSingletonActor)
+    val params = DefaultStandardSyncExecutionActorParams(JesAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor,
+      jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
+      classOf[JesAsyncBackendJobExecutionActor])
     val testJJEA = TestActorRef[TestJesJobExecutionActor](
       props = Props(new TestJesJobExecutionActor(params, Props(new ConstructorFailingJABJEA))),
       supervisor = parent.ref)
@@ -57,11 +59,14 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     val serviceRegistryActor = system.actorOf(Props.empty)
     val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
 
+    initializationData.jesConfiguration returns jesWorkflowInfo
+
     val parent = TestProbe()
     val deathwatch = TestProbe()
     val jabjeaConstructionPromise = Promise[ActorRef]()
-    val params = JesSyncExecutionActorParams(jobDescriptor, jesWorkflowInfo, initializationData, serviceRegistryActor,
-      jesBackendSingletonActor)
+    val params = DefaultStandardSyncExecutionActorParams(JesAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor,
+      jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
+      classOf[JesAsyncBackendJobExecutionActor])
     val testJJEA = TestActorRef[TestJesJobExecutionActor](
       props = Props(new TestJesJobExecutionActor(params, Props(new ControllableFailingJabjea(jabjeaConstructionPromise)))),
       supervisor = parent.ref)
@@ -85,9 +90,9 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
   }
 }
 
-class TestJesJobExecutionActor(jesParams: JesSyncExecutionActorParams,
-                               fakeJabjeaProps: Props) extends JesJobExecutionActor(jesParams) {
-  override def jabjeaProps: Props = fakeJabjeaProps
+class TestJesJobExecutionActor(params: StandardSyncExecutionActorParams,
+                               fakeJabjeaProps: Props) extends StandardSyncExecutionActor(params) {
+  override def createAsyncProps(): Props = fakeJabjeaProps
 }
 
 class ConstructorFailingJABJEA extends ControllableFailingJabjea(Promise[ActorRef]()) {

@@ -11,14 +11,15 @@ import lenthall.exception.MessageAggregation
 import wdl4s.values._
 
 import scala.util.Try
+import scala.util.matching.Regex
 
 
 object JesAttachedDisk {
   val Identifier = "[a-zA-Z0-9-_]+"
   val Directory = """/[^\s]+"""
   val Integer = "[1-9][0-9]*"
-  val WorkingDiskPattern = s"""${JesWorkingDisk.Name}\\s+($Integer)\\s+($Identifier)""".r
-  val MountedDiskPattern = s"""($Directory)\\s+($Integer)\\s+($Identifier)""".r
+  val WorkingDiskPattern: Regex = s"""${JesWorkingDisk.Name}\\s+($Integer)\\s+($Identifier)""".r
+  val MountedDiskPattern: Regex = s"""($Directory)\\s+($Integer)\\s+($Identifier)""".r
 
   def parse(s: String): Try[JesAttachedDisk] = {
     val validation: ErrorOr[JesAttachedDisk] = s match {
@@ -38,7 +39,7 @@ object JesAttachedDisk {
       case Invalid(nels) =>
         throw new UnsupportedOperationException with MessageAggregation {
           val exceptionContext = ""
-          val errorMessages = nels.toList
+          val errorMessages: List[String] = nels.toList
         }
     })
   }
@@ -81,8 +82,9 @@ case class JesEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path
 }
 
 object JesWorkingDisk {
-  val MountPoint = Paths.get("/cromwell_root")
+  val MountPoint: Path = Paths.get("/cromwell_root")
   val Name = "local-disk"
+  val Default = JesWorkingDisk(DiskType.SSD, 10)
 }
 
 case class JesWorkingDisk(diskType: DiskType, sizeGb: Int) extends JesAttachedDisk {

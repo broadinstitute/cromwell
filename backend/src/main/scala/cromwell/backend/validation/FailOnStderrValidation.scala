@@ -1,10 +1,6 @@
 package cromwell.backend.validation
 
-import cats.syntax.validated._
-import wdl4s.types.{WdlBooleanType, WdlStringType}
-import wdl4s.values.{WdlBoolean, WdlString}
-
-import scala.util.Try
+import wdl4s.values.WdlBoolean
 
 /**
   * Validates the "failOnStderr" runtime attribute as a Boolean or a String 'true' or 'false', returning the value as a
@@ -15,35 +11,14 @@ import scala.util.Try
   * The default returns `false` when no attribute is specified.
   */
 object FailOnStderrValidation {
-  val key = RuntimeAttributesKeys.FailOnStderrKey
-
-  lazy val instance = new FailOnStderrValidation
-
-  lazy val default = instance.withDefault(WdlBoolean(false))
-
-  lazy val optional = default.optional
-
-  private[validation] val missingMessage =
-    s"Expecting $key runtime attribute to be a Boolean or a String with values of 'true' or 'false'"
+  lazy val instance: RuntimeAttributesValidation[Boolean] = new FailOnStderrValidation
+  lazy val default: RuntimeAttributesValidation[Boolean] = instance.withDefault(WdlBoolean(false))
+  lazy val optional: OptionalRuntimeAttributesValidation[Boolean] = default.optional
 }
 
-class FailOnStderrValidation extends RuntimeAttributesValidation[Boolean] {
+class FailOnStderrValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.FailOnStderrKey) {
+  override protected def usedInCallCaching: Boolean = true
 
-  import FailOnStderrValidation._
-
-  override def key = RuntimeAttributesKeys.FailOnStderrKey
-
-  override def coercion = Seq(WdlBooleanType, WdlStringType)
-
-  override protected def validateValue = {
-    case WdlBoolean(value) => value.validNel
-    case WdlString(value) if Try(value.toBoolean).isSuccess => value.toBoolean.validNel
-  }
-
-  override def validateExpression = {
-    case _: WdlBoolean => true
-    case WdlString(value) if Try(value.toBoolean).isSuccess => true
-  }
-
-  override protected def failureMessage = missingMessage
+  override protected def missingValueMessage: String =
+    s"Expecting $key runtime attribute to be a Boolean or a String with values of 'true' or 'false'"
 }

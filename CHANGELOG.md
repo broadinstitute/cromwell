@@ -3,6 +3,8 @@
 ## 25
 
 
+* Added support for new WDL functions:
+  * `length: (Array[X]) => Integer` - report the length of the specified array 
 
 ## 24
 

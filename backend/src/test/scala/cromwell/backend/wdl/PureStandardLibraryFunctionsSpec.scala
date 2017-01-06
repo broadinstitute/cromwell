@@ -27,4 +27,15 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
     PureStandardLibraryFunctions.transpose(Seq(Success(inArray))) should be(Success(expectedResult))
   }
 
+  behavior of "length"
+
+  it should "get the right answers" in {
+
+    val two = WdlArray(WdlArrayType(WdlIntegerType), List(WdlInteger(1), WdlInteger(2)))
+    PureStandardLibraryFunctions.length(Seq(Success(two))) should be(Success(WdlInteger(2)))
+
+    val empty = WdlArray(WdlArrayType(WdlIntegerType), List.empty)
+    PureStandardLibraryFunctions.length(Seq(Success(empty))) should be(Success(WdlInteger(0)))
+  }
+
 }

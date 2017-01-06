@@ -17,20 +17,21 @@ trait WorkflowPaths extends PathFactory {
   def workflowDescriptor: BackendWorkflowDescriptor
   def config: Config
   
-  protected lazy val executionRootString = config.as[Option[String]]("root").getOrElse("cromwell-executions")
+  protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse("cromwell-executions")
   
   def getPath(url: String): Try[Path] = Try(PathFactory.buildPath(url, pathBuilders))
   
   // Rebuild potential intermediate call directories in case of a sub workflow
-  protected def workflowPathBuilder(root: Path) = {
+  protected def workflowPathBuilder(root: Path): Path = {
     workflowDescriptor.breadCrumbs.foldLeft(root)((acc, breadCrumb) => {
       breadCrumb.toPath(acc)
     }).resolve(workflowDescriptor.workflow.unqualifiedName).resolve(workflowDescriptor.id.toString + "/")
   }
 
-  lazy val executionRoot = PathFactory.buildPath(executionRootString, pathBuilders).toAbsolutePath
-  lazy val workflowRoot = workflowPathBuilder(executionRoot)
-  lazy val finalCallLogsPath = workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map getPath map { _.get }
+  lazy val executionRoot: Path = PathFactory.buildPath(executionRootString, pathBuilders).toAbsolutePath
+  lazy val workflowRoot: Path = workflowPathBuilder(executionRoot)
+  lazy val finalCallLogsPath: Option[Path] =
+    workflowDescriptor.getWorkflowOption(FinalCallLogsDir) map getPath map { _.get }
 
   def toJobPaths(jobKey: BackendJobDescriptorKey): JobPaths
 }

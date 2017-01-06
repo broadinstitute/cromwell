@@ -18,6 +18,7 @@ import cromwell.backend.validation.ContinueOnReturnCode
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core._
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.PathFactory._
 import cromwell.core.path.PathImplicits._
 import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -87,7 +88,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
   override lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
 
-  private lazy val call = jobDescriptor.key.call
+  lazy val call: TaskCall = jobDescriptor.key.call
 
   override lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val cmdInput =
@@ -119,7 +120,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
     jesStderrFile.toRealString
   )
 
-  private[jes] lazy val callEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
+  private[jes] lazy val backendEngineFunctions = new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), callContext)
 
   /**
     * Takes two arrays of remote and local WDL File paths and generates the necessary JesInputs.
@@ -151,7 +152,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
 
-    val writeFunctionFiles = call.task.evaluateFilesFromCommand(jobDescriptor.fullyQualifiedInputs, callEngineFunctions) map {
+    val writeFunctionFiles = call.task.evaluateFilesFromCommand(jobDescriptor.fullyQualifiedInputs, backendEngineFunctions) map {
       case (expression, file) =>  expression.toWdlString.md5SumShort -> Seq(file)
     }
 
@@ -192,13 +193,6 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
-  private[jes] def findGlobOutputs(jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
-    val globOutputs = (call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) map relativeLocalizationPath) collect {
-      case glob: WdlGlobFile => glob
-    }
-    globOutputs.distinct.toSet
-  }
-
   private[jes] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[JesFileOutput] = {
     val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) map relativeLocalizationPath
 
@@ -219,7 +213,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
   }
 
   private def generateJesGlobFileOutputs(wdlFile: WdlGlobFile): List[JesFileOutput] = {
-    val globName = callEngineFunctions.globName(wdlFile.value)
+    val globName = backendEngineFunctions.globName(wdlFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
     val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).toRealString
@@ -244,7 +238,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
   override lazy val continueOnReturnCode: ContinueOnReturnCode = runtimeAttributes.continueOnReturnCode
 
-  override lazy val commandLineFunctions: WdlFunctions[WdlValue] = callEngineFunctions
+  override lazy val commandLineFunctions: WdlFunctions[WdlValue] = backendEngineFunctions
 
   override lazy val commandLinePreProcessor: (EvaluatedTaskInputs) => Try[EvaluatedTaskInputs] = mapGcsValues
 
@@ -263,36 +257,39 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
     val tmpDir = File(JesWorkingDisk.MountPoint)./("tmp").path
     val rcPath = File(JesWorkingDisk.MountPoint)./(returnCodeFilename).path
+    val rcTmpPath = pathPlusSuffix(rcPath, "tmp").path
 
     def globManipulation(globFile: WdlGlobFile) = {
 
-      val globDir = callEngineFunctions.globName(globFile.value)
+      val globDir = backendEngineFunctions.globName(globFile.value)
       val (_, disk) = relativePathAndAttachedDisk(globFile.value, runtimeAttributes.disks)
-      val globDirectory = Paths.get(s"${disk.mountPoint.toAbsolutePath}/$globDir/")
-      val globList = Paths.get(s"${disk.mountPoint.toAbsolutePath}/$globDir.list")
+      val globDirectory = File(disk.mountPoint)./(globDir)
+      val globList = File(disk.mountPoint)./(s"$globDir.list")
 
-      s"""
-        |mkdir $globDirectory
-        |ln ${globFile.value} $globDirectory
-        |ls -1 $globDirectory > $globList
-      """.stripMargin
+      s"""|mkdir $globDirectory
+          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+          |ls -1 $globDirectory > $globList
+          |""".stripMargin
     }
 
     val globManipulations = globFiles.map(globManipulation).mkString("\n")
 
     val fileContent =
-      s"""
-         |#!/bin/bash
-         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpDir
-         |export TMPDIR=$tmpDir
-         |$monitoring
-         |(
-         |cd ${JesWorkingDisk.MountPoint}
-         |$command
-         |$globManipulations
-         |)
-         |echo $$? > $rcPath
-       """.stripMargin.trim
+      s"""|#!/bin/bash
+          |export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpDir
+          |export TMPDIR=$tmpDir
+          |$monitoring
+          |(
+          |cd ${JesWorkingDisk.MountPoint}
+          |INSTANTIATED_COMMAND
+          |)
+          |echo $$? > $rcTmpPath
+          |(
+          |cd ${JesWorkingDisk.MountPoint}
+          |$globManipulations
+          |)
+          |mv $rcTmpPath $rcPath
+          |""".stripMargin.replace("INSTANTIATED_COMMAND", command)
 
     File(jesCallPaths.script).write(fileContent)
     ()
@@ -348,7 +345,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
         val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
 
-        uploadCommandScript(command, withMonitoring, findGlobOutputs(jobDescriptor))
+        uploadCommandScript(command, withMonitoring, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
         val run = createJesRun(jesParameters, runIdForResumption)
         PendingExecutionHandle(jobDescriptor, StandardAsyncJob(run.runId), Option(run), previousStatus = None)
       case Failure(e) => FailedNonRetryableExecutionHandle(e)
@@ -401,7 +398,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
     OutputEvaluator.evaluateOutputs(
       jobDescriptor,
-      callEngineFunctions,
+      backendEngineFunctions,
       (wdlValueToSuccess _).compose(wdlValueToGcsPath(generateJesOutputs(jobDescriptor)))
     )
   }

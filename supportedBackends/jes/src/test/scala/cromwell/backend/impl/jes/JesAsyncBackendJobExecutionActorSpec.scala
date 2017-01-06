@@ -105,7 +105,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
 
-    override lazy val callEngineFunctions: JesExpressionFunctions = functions
+    override lazy val backendEngineFunctions: JesExpressionFunctions = functions
   }
 
   private val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)

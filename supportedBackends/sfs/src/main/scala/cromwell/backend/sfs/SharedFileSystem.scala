@@ -10,6 +10,7 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.PathFactory
+import cromwell.core.path.PathFactory._
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.types.{WdlArrayType, WdlMapType}
@@ -23,7 +24,7 @@ object SharedFileSystem extends StrictLogging {
   import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
-    def toPair = name -> value
+    def toPair: (String, Try[WdlValue]) = name -> value
   }
 
   object AttemptedLookupResult {
@@ -47,7 +48,7 @@ object SharedFileSystem extends StrictLogging {
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     val action = Try {
       executionPath.parent.createDirectories()
-      val executionTmpPath = pathPlusSuffix(executionPath, ".tmp")
+      val executionTmpPath = pathPlusSuffix(executionPath, "tmp")
       originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
     }.void
     logOnFailure(action, "copy")
@@ -86,8 +87,6 @@ object SharedFileSystem extends StrictLogging {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
   }
-
-  def pathPlusSuffix(path: File, suffix: String) = path.sibling(s"${path.name}.$suffix")
 }
 
 trait SharedFileSystem extends PathFactory {
@@ -98,12 +97,12 @@ trait SharedFileSystem extends PathFactory {
 
   lazy val DefaultStrategies = Seq("hard-link", "soft-link", "copy")
 
-  lazy val LocalizationStrategies = getConfigStrategies("localization")
-  lazy val Localizers = createStrategies(LocalizationStrategies, docker = false)
-  lazy val DockerLocalizers = createStrategies(LocalizationStrategies, docker = true)
+  lazy val LocalizationStrategies: Seq[String] = getConfigStrategies("localization")
+  lazy val Localizers: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategies, docker = false)
+  lazy val DockerLocalizers: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategies, docker = true)
 
-  lazy val CachingStrategies = getConfigStrategies("caching.duplication-strategy")
-  lazy val Cachers = createStrategies(CachingStrategies, docker = false)
+  lazy val CachingStrategies: Seq[String] = getConfigStrategies("caching.duplication-strategy")
+  lazy val Cachers: Seq[DuplicationStrategy] = createStrategies(CachingStrategies, docker = false)
 
   private def getConfigStrategies(configPath: String): Seq[String] = {
     if (sharedFileSystemConfig.hasPath(configPath)) {
@@ -133,7 +132,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
-    val wdlPath = Paths.get(pathString)
+    val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
     callRoot.resolve(wdlPath).toAbsolutePath
   }
 

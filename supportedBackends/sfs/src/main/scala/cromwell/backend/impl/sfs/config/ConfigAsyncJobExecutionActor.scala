@@ -83,7 +83,7 @@ $command
   private lazy val dockerInputs: WorkflowCoercedInputs = {
     if (isDockerRun) {
       Map(
-        DockerCwdInput -> WdlString(jobPaths.callDockerRoot.toString)
+        DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.toString)
       )
     } else {
       Map.empty

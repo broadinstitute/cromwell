@@ -12,19 +12,22 @@ import scala.language.existentials
   */
 trait StandardJobExecutionActorParams {
   /** The service registry actor for key/value and metadata. */
-  val serviceRegistryActor: ActorRef
+  def serviceRegistryActor: ActorRef
 
   /** The descriptor of this job. */
-  val jobDescriptor: BackendJobDescriptor
+  def jobDescriptor: BackendJobDescriptor
 
   /** The global and backend configuration. */
-  val configurationDescriptor: BackendConfigurationDescriptor
+  def configurationDescriptor: BackendConfigurationDescriptor
 
   /** Any backend initialization data. */
-  val backendInitializationDataOption: Option[BackendInitializationData]
+  def backendInitializationDataOption: Option[BackendInitializationData]
 
   /** The key for this job. */
-  val jobIdKey: String
+  def jobIdKey: String
+
+  /** The singleton actor. */
+  def backendSingletonActorOption: Option[ActorRef]
 }
 
 /**
@@ -36,7 +39,7 @@ trait StandardSyncExecutionActorParams extends StandardJobExecutionActorParams {
     *
     * @see [[StandardSyncExecutionActor]]
     */
-  val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
+  def asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
 }
 
 /** A default implementation of the sync params. */
@@ -47,6 +50,7 @@ case class DefaultStandardSyncExecutionActorParams
   override val jobDescriptor: BackendJobDescriptor,
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
+  override val backendSingletonActorOption: Option[ActorRef],
   override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
 ) extends StandardSyncExecutionActorParams
 
@@ -55,7 +59,7 @@ case class DefaultStandardSyncExecutionActorParams
   */
 trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
   /** The promise that will be completed when the async run is complete. */
-  val completionPromise: Promise[BackendJobExecutionResponse]
+  def completionPromise: Promise[BackendJobExecutionResponse]
 }
 
 /** A default implementation of the async params. */
@@ -66,5 +70,6 @@ case class DefaultStandardAsyncExecutionActorParams
   override val jobDescriptor: BackendJobDescriptor,
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
+  override val backendSingletonActorOption: Option[ActorRef],
   override val completionPromise: Promise[BackendJobExecutionResponse]
 ) extends StandardAsyncExecutionActorParams

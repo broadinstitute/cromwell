@@ -14,21 +14,21 @@ import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExec
 import cromwell.backend.impl.jes.RunStatus.Failed
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
-import cromwell.backend.standard.StandardAsyncJob
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.PathImplicits._
-import cromwell.core.{WorkflowId, WorkflowOptions, _}
-import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
+import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
+import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
-import wdl4s.{LocallyQualifiedName, FullyQualifiedName => _, _}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -76,11 +76,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
     val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
-    JesBackendInitializationData(workflowPaths, null)
+    JesBackendInitializationData(workflowPaths, configuration, null)
   }
 
-  class TestableJesJobExecutionActor(jesParams: JesAsyncExecutionActorParams, functions: JesExpressionFunctions)
-    extends JesAsyncBackendJobExecutionActor(jesParams) {
+  class TestableJesJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: JesExpressionFunctions)
+    extends JesAsyncBackendJobExecutionActor(params) {
 
     def this(jobDescriptor: BackendJobDescriptor,
              promise: Promise[BackendJobExecutionResponse],
@@ -88,11 +88,12 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
              functions: JesExpressionFunctions = TestableJesExpressionFunctions,
              jesSingletonActor: ActorRef = emptyActor) = {
       this(
-        JesAsyncExecutionActorParams(
-          jobDescriptor,
-          jesConfiguration,
-          buildInitializationData(jobDescriptor, jesConfiguration),
+        DefaultStandardAsyncExecutionActorParams(
+          JesAsyncBackendJobExecutionActor.JesOperationIdKey,
           emptyActor,
+          jobDescriptor,
+          jesConfiguration.configurationDescriptor,
+          Option(buildInitializationData(jobDescriptor, jesConfiguration)),
           Option(jesSingletonActor),
           promise
         ),

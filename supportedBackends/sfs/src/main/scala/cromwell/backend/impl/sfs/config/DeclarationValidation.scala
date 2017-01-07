@@ -26,8 +26,9 @@ object DeclarationValidation {
   def fromDeclaration(declaration: Declaration): DeclarationValidation = {
     declaration.unqualifiedName match {
       // Docker and CPU are special keys understood by cromwell.
-      case DockerValidation.key => new DeclarationValidation(declaration, DockerValidation.instance)
-      case CpuValidation.key => new DeclarationValidation(declaration, CpuValidation.default)
+      case name if name == DockerValidation.instance.key =>
+        new DeclarationValidation(declaration, DockerValidation.instance)
+      case name if name == CpuValidation.instance.key => new DeclarationValidation(declaration, CpuValidation.default)
       // See MemoryDeclarationValidation for more info
       case name if MemoryDeclarationValidation.isMemoryDeclaration(name) =>
         new MemoryDeclarationValidation(declaration)
@@ -38,13 +39,15 @@ object DeclarationValidation {
     }
   }
 
-  private def validator(wdlType: WdlType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_] = wdlType match {
-    case WdlBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
-    case WdlFloatType => new FloatRuntimeAttributesValidation(unqualifiedName)
-    case WdlIntegerType => new IntRuntimeAttributesValidation(unqualifiedName)
-    case WdlStringType => new StringRuntimeAttributesValidation(unqualifiedName)
-    case WdlOptionalType(x) => validator(x, unqualifiedName)
-    case other => throw new RuntimeException(s"Unsupported config runtime attribute $other $unqualifiedName")
+  private def validator(wdlType: WdlType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_, _] = {
+    wdlType match {
+      case WdlBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
+      case WdlFloatType => new FloatRuntimeAttributesValidation(unqualifiedName)
+      case WdlIntegerType => new IntRuntimeAttributesValidation(unqualifiedName)
+      case WdlStringType => new StringRuntimeAttributesValidation(unqualifiedName)
+      case WdlOptionalType(x) => validator(x, unqualifiedName)
+      case other => throw new RuntimeException(s"Unsupported config runtime attribute $other $unqualifiedName")
+    }
   }
 }
 
@@ -55,7 +58,7 @@ object DeclarationValidation {
   * @param instanceValidation A basic instance validation for the declaration.
   */
 class DeclarationValidation(declaration: Declaration, instanceValidation: RuntimeAttributesValidation[_]) {
-  val key = declaration.unqualifiedName
+  val key: String = declaration.unqualifiedName
 
   /**
     * Creates a validation, by adding on defaults if they're specified in the declaration, and then making the
@@ -142,7 +145,8 @@ class MemoryDeclarationValidation(declaration: Declaration)
     * @param wdlExpression The declaration expression to retrieve the default.
     * @return The new validation.
     */
-  override protected def default(validation: RuntimeAttributesValidation[_], wdlExpression: WdlExpression) = {
+  override protected def default(validation: RuntimeAttributesValidation[_],
+                                 wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
     val wdlValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
     val amount: Double = wdlValue match {
       case WdlInteger(value) => value.toDouble

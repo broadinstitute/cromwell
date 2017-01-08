@@ -19,6 +19,7 @@ import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.PathImplicits._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
+import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -37,7 +38,10 @@ import scala.util.{Success, Try}
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
 
-  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
+  lazy val mockPathBuilder: GcsPathBuilder = {
+    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
+    GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
+  }
 
   import JesTestConfig._
 
@@ -68,9 +72,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
+  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, "out", "err")
 
-  val TestableJesExpressionFunctions: JesExpressionFunctions = {
+  lazy val TestableJesExpressionFunctions: JesExpressionFunctions = {
     new JesExpressionFunctions(List(mockPathBuilder), TestableCallContext)
   }
 
@@ -676,6 +680,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def makeRuntimeAttributes(job: TaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
-    RuntimeAttributeDefinition.addDefaultsToAttributes(JesBackendLifecycleActorFactory.staticRuntimeAttributeDefinitions, NoOptions)(evaluatedAttributes.get) // Fine to throw the exception if this "get" fails. This is a test after all!
+    RuntimeAttributeDefinition.addDefaultsToAttributes(
+      JesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)
   }
 }

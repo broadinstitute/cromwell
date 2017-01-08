@@ -11,7 +11,6 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 
 case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
-  import JesBackendLifecycleActorFactory._
 
   override def initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[JesInitializationActor]
 
@@ -45,30 +44,18 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
       initializationDataOption)
   }
 
-  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
-  Set[RuntimeAttributeDefinition] = staticRuntimeAttributeDefinitions
-
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                            jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
+                                           initializationDataOption: Option[BackendInitializationData]
+                                          ): WdlStandardLibraryFunctions = {
+    val initializationData = BackendInitializationData.
+      as[JesBackendInitializationData](initializationDataOption)
 
-    val jesCallPaths = initializationData.toJes.get.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
+    val jesCallPaths = initializationData.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
     new JesExpressionFunctions(List(jesCallPaths.gcsPathBuilder), jesCallPaths.callContext)
   }
 
   override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(JesBackendFileHashing.getCrc32c))
-}
-
-object JesBackendLifecycleActorFactory {
-  implicit class Jessify(val genericInitializationData: Option[BackendInitializationData]) {
-    // This leaves the result in an `Option` as finalization will be called even if initialization has failed, and if
-    // initialization fails there won't be any initialization data.  The various `.get`s that occur below are in instances
-    // where the workflow has successfully gotten past initialization and the JES initialization data is defined.
-    def toJes: Option[JesBackendInitializationData] = genericInitializationData collectFirst { case d: JesBackendInitializationData => d }
-  }
-
-  val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    JesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet
 }

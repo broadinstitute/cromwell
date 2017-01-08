@@ -11,7 +11,7 @@ import cromwell.core.Tags.IntegrationTest
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.filesystems.gcs.auth.{RefreshTokenMode, SimpleClientSecrets}
+import cromwell.filesystems.gcs.auth.{GoogleAuthModeSpec, RefreshTokenMode, SimpleClientSecrets}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -145,6 +145,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   behavior of "JesInitializationActor"
 
   it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
+    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
+
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")

@@ -3,6 +3,7 @@ package cromwell.backend.impl.jes
 import cromwell.backend.BackendSpec
 import cromwell.core.TestKitSuite
 import cromwell.core.path.PathImplicits._
+import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import cromwell.util.SampleWdl
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -14,6 +15,8 @@ class JesWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers 
   behavior of "JesWorkflowPaths"
 
   it should "map the correct paths" in {
+    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
+
     val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource())
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 

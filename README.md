@@ -53,8 +53,6 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
       * [Refresh Token](#refresh-token)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
-    * [Labelling Runs](#labelling-runs)
-      * [Label Escaping and Padding](#label-escaping-and-padding)
 * [Runtime Attributes](#runtime-attributes)
   * [Specifying Default Values](#specifying-default-values)
   * [continueOnReturnCode](#continueonreturncode)
@@ -68,6 +66,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [preemptible](#preemptible)
 * [Logging](#logging)
 * [Workflow Options](#workflow-options)
+* [Labels](#labels)
+  * [Custom Labels File](#custom-labels-file)
+  * [Label Format](#label-format)
 * [Call Caching](#call-caching)
   * [Configuring Call Caching](#configuring-call-caching)
   * [Call Caching Workflow Options](#call-caching-workflow-options)
@@ -144,7 +145,7 @@ java -jar cromwell.jar <action> <parameters>
 
 Actions:
 run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
-  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
+  [<OUTPUT workflow metadata>] [<Zip of WDL Files>] [<JSON labels file>]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
@@ -288,6 +289,8 @@ The command to run this WDL, without needing any inputs, workflow options or met
 ```
 $ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
 ```
+
+The sixth optional parameter is a path to a labels file. See [Labels](#labels) for information and the expected format.
 
 ## server
 
@@ -1386,28 +1389,6 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 
 The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
 
-### Labelling Runs
-
-Every call to JES from a Cromwell instance will be automatically labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
-
-| Key | Value | Example | Notes |
-|-----|-------|---------|-------|
-| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-escaping-and-padding), we prefix with 'cromwell-' |
-| cromwell-workflow-name | The name of the root workflow | my-root-workflow | See [format](#label-escaping-and-padding). |
-| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only if the task is called in a subworkflow, otherwise 'n-a'. See also [format](#label-escaping-and-padding). |
-| wdl-task-name | The name of the WDL task | my-task | See [format](#label-escaping-and-padding). |
-| wdl-call-name | The name of the WDL call of this job | my-call | Different from 'wdl-task-name' if it was called with an alias. See also [format](#label-escaping-and-padding). |
-
-#### Label Escaping and Padding
-
-To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. For this reason, Cromwell will modify workflow/task/call names and custom labels as follows:
-
-- Any capital letters are lowercased.
-- Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
-- If the start character does not match `[a-z]` then prefix with `x--`
-- If the final character does not match `[a-z0-9]` then suffix with `--x`
-- If the string is too long, only take the first 30 and last 30 characters and add `---` between them.
-
 # Runtime Attributes
 
 Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.
@@ -1724,6 +1705,41 @@ Valid keys and their meanings:
     * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
     * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+
+# Labels
+
+Every call in Cromwell is labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
+
+| Key | Value | Example | Notes |
+|-----|-------|---------|-------|
+| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
+| cromwell-workflow-name | The name of the root workflow | my-root-workflow | |
+| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
+| wdl-task-name | The name of the WDL task | my-task | |
+| wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
+
+## Custom Labels File
+
+Custom labels can also be applied to every call in a workflow by specifying a custom labels file when the workflow is submitted. This file should be in JSON format and contain a set of fields: `"label-key": "label-value" `. For example:
+```
+{
+  "label-key-1": "label-value-1",
+  "label-key-2": "label-value-2",
+  "label-key-3": "label-value-3"
+}
+```
+
+## Label Format
+
+To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. 
+
+For custom labels, Cromwell will reject any request which is made containing invalid label strings. For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
+
+- Any capital letters are lowercased.
+- Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
+- If the start character does not match `[a-z]` then prefix with `x--`
+- If the final character does not match `[a-z0-9]` then suffix with `--x`
+- If the string is too long, only take the first 30 and last 30 characters and add `---` between them.
 
 # Call Caching
 
@@ -2277,11 +2293,9 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
 * `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
-* `workflowInputs_2` - *Optional* JSON file containing the inputs.
-* `workflowInputs_3` - *Optional* JSON file containing the inputs.
-* `workflowInputs_4` - *Optional* JSON file containing the inputs.
-* `workflowInputs_5` - *Optional* JSON file containing the inputs.
+* `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
+* `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](#labels) for the expected format.
 * `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements.
 
 Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.

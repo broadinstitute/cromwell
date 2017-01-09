@@ -326,11 +326,12 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
   def runWdl(sampleWdl: SampleWdl,
              runtime: String = "",
              workflowOptions: String = "{}",
+             customLabels: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = DefaultConfig,
              patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val rootActor = buildCromwellRootActor(config)
-    val sources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
+    val sources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions, customLabels)
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
     eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)

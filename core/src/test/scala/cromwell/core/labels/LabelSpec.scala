@@ -1,5 +1,6 @@
-package cromwell.backend.impl.jes.labels
+package cromwell.core.labels
 
+import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 
 class LabelSpec extends FlatSpec with Matchers {
@@ -29,13 +30,16 @@ class LabelSpec extends FlatSpec with Matchers {
 
   goodLabelStrings foreach { label =>
     it should s"validate the good label string '$label'" in {
-      Label.validate(label) should be(true)
+      Label.validateName(label) should be(Valid(label))
     }
   }
 
   badLabelConversions foreach { case (label: String, conversion: String) =>
     it should s"not validate the bad label string '$label'" in {
-      Label.validate(label) should be(false)
+      Label.validateName(label) match {
+        case Invalid(_) => // Good!
+        case Valid(_) => fail(s"Label validation succeeded but should have failed.")
+      }
     }
 
     it should s"convert the bad label string '$label' into the safe label string '$conversion'" in {

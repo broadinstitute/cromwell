@@ -5,6 +5,7 @@ import akka.actor._
 import akka.event.Logging
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.backend.async.KnownJobFailureException
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
@@ -301,7 +302,11 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]) = {
-    reasons map { reason =>
+    import cromwell.core.path.PathImplicits._
+    reasons map {
+      case reason: KnownJobFailureException =>
+        reason.getMessage + "\n" + s"Check the content of stderr for potential additional information: ${reason.stderrPath.toRealString}"
+      case reason =>
       reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
     } mkString "\n"
   }

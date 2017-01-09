@@ -5,16 +5,16 @@ import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.core.path.CustomRetryParams
 import cromwell.core.path.proxy.RetryableFileSystemProviderProxy
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.auth.GoogleAuthMode
+import cromwell.filesystems.gcs.auth.{GoogleAuthMode, GoogleAuthModeSpec}
 import org.scalatest.{FlatSpecLike, Matchers}
 
 class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
-  implicit val as = system
-
   behavior of "GcsPathBuilderSpec"
 
   it should "create a path with a retryable provider" in {
+    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
+
     val retryablePathBuilder = new RetryableGcsPathBuilder(
       GoogleAuthMode.NoAuthMode,
       RetryParams.defaultInstance(),

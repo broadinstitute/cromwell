@@ -190,7 +190,8 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   }
 
   private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], expectedRuntimeAttributes: JesRuntimeAttributes, workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(JesBackendLifecycleActorFactory.staticRuntimeAttributeDefinitions, workflowOptions) _
+    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
+      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
       assert(JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
     } catch {
@@ -200,7 +201,8 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   }
 
   private def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String, workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(JesBackendLifecycleActorFactory.staticRuntimeAttributeDefinitions, workflowOptions) _
+    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
+      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
       JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER)
       fail("A RuntimeException was expected.")
@@ -211,4 +213,6 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
+    JesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet
 }

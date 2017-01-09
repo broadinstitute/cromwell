@@ -10,29 +10,29 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
-
-  val config = ConfigFactory.empty()
-  val actor = system.actorOf(MetadataServiceActor.props(config, config))
-
-  val workflowId = WorkflowId.randomId()
-
-  /*
-  Simple store / retrieve
-   */
-
-  val key1 = MetadataKey(workflowId, None, "key1")
-  val key2 = MetadataKey(workflowId, None, "key2")
-  val supJob = MetadataJobKey("sup.sup", None, 1)
-  val key3 = MetadataKey(workflowId, Option(supJob), "dog")
-  val moment = OffsetDateTime.now
-
-  val event1_1 = MetadataEvent(key1, Option(MetadataValue("value1")), moment)
-  val event1_2 = MetadataEvent(key1, Option(MetadataValue("value2")), moment)
-  val event2_1 = MetadataEvent(key2, Option(MetadataValue("value1")), moment)
-  val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment)
-  val event3_2 = MetadataEvent(key3, None, moment)
-
   "MetadataServiceActor" should {
+
+    val config = ConfigFactory.empty()
+    val actor = system.actorOf(MetadataServiceActor.props(config, config))
+
+    val workflowId = WorkflowId.randomId()
+
+    /*
+    Simple store / retrieve
+     */
+
+    val key1 = MetadataKey(workflowId, None, "key1")
+    val key2 = MetadataKey(workflowId, None, "key2")
+    val supJob = MetadataJobKey("sup.sup", None, 1)
+    val key3 = MetadataKey(workflowId, Option(supJob), "dog")
+    val moment = OffsetDateTime.now
+
+    val event1_1 = MetadataEvent(key1, Option(MetadataValue("value1")), moment)
+    val event1_2 = MetadataEvent(key1, Option(MetadataValue("value2")), moment)
+    val event2_1 = MetadataEvent(key2, Option(MetadataValue("value1")), moment)
+    val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment)
+    val event3_2 = MetadataEvent(key3, None, moment)
+
     "Store values for different keys" in {
       val putAction1 = PutMetadataAction(event1_1)
       val putAction2 = PutMetadataAction(event1_2)
@@ -72,5 +72,25 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 
       } yield ()).futureValue
     }
+
+    "store and retrieve null values" in {
+      val metadataWorkflowId = WorkflowId.randomId()
+      val metadataKey = MetadataKey(metadataWorkflowId, None, "nullTestKey")
+      val metadataValue = MetadataValue(null)
+      val metadataEvent = MetadataEvent(metadataKey, Option(metadataValue), moment)
+
+      val putMetadataAction = PutMetadataAction(metadataEvent)
+
+      val metadataQuery = MetadataQuery.forKey(metadataKey)
+
+      (for {
+        putResponse <- (actor ? putMetadataAction).mapTo[MetadataServiceResponse]
+        _ = putResponse shouldBe MetadataPutAcknowledgement(putMetadataAction)
+
+        queryResponse <- (actor ? GetMetadataQueryAction(metadataQuery)).mapTo[MetadataServiceResponse]
+        _ = queryResponse shouldBe MetadataLookupResponse(metadataQuery, Seq(metadataEvent))
+      } yield ()).futureValue
+    }
+
   }
 }

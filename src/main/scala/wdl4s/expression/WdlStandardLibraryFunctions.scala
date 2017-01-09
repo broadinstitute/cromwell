@@ -100,6 +100,20 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     extractExactlyOneArg.flatMap(validateAndExpand).flatMap(transpose)
   }
 
+  def length(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
+    def extractArguments: Try[WdlValue] = params.size match {
+      case 1 => params.head
+      case n => Failure(new IllegalArgumentException(s"Invalid number of parameters for engine function length(): $n. length() takes exactly 1 parameter."))
+    }
+
+    def arrayLength(value: WdlValue): Try[WdlInteger] = value match {
+      case WdlArray(_, arrayValues) => Success(WdlInteger(arrayValues.length))
+      case bad => Failure(new UnsupportedOperationException(s"length() expects one parameter of type Array but got one parameter of type ${bad.wdlType.toWdlString}"))
+    }
+
+    extractArguments flatMap arrayLength
+  }
+
   def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     def extractAndValidateArguments = params.size match {
       case 1 => validateArguments(params.head)
@@ -276,6 +290,12 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def write_json(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
   def size(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFloatType)
+  def length(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(t @ WdlArrayType(_)) :: Nil => Success(WdlIntegerType)
+    case _ =>
+      val badArgs = params.mkString(", ")
+      Failure(new Exception(s"Unexpected length() arguments.  length() takes one parameter of type Array but got: $badArgs"))
+  }
   def sub(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
   def range(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlIntegerType))
   def transpose(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
@@ -310,6 +330,7 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError())
+  override def length(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
   override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
   override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
   override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())

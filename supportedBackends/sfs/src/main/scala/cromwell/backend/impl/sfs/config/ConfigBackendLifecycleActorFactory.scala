@@ -1,11 +1,10 @@
 package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.Config
+import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
-import cromwell.backend.standard.StandardInitializationData
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, RuntimeAttributeDefinition}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
@@ -31,14 +30,6 @@ class ConfigBackendLifecycleActorFactory(name: String, val configurationDescript
       classOf[BackgroundConfigAsyncJobExecutionActor]
     else
       classOf[DispatchedConfigAsyncJobExecutionActor]
-  }
-
-  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
-  Set[RuntimeAttributeDefinition] = {
-    val initializationData = BackendInitializationData.
-      as[StandardInitializationData](initializationDataOption)
-
-    initializationData.runtimeAttributesBuilder.definitions.toSet
   }
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = {

@@ -144,4 +144,11 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     initializationData.get.asInstanceOf[StandardInitializationData].workflowPaths.workflowRoot
   }
 
+  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
+  Set[RuntimeAttributeDefinition] = {
+    val initializationData = BackendInitializationData.
+      as[StandardInitializationData](initializationDataOption)
+
+    initializationData.runtimeAttributesBuilder.definitions.toSet
+  }
 }

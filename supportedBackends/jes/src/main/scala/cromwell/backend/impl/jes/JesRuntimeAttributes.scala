@@ -86,8 +86,9 @@ object JesRuntimeAttributes {
     val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation, validatedRuntimeAttributes)
     val disks: Seq[JesAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation, validatedRuntimeAttributes)
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
-    val failOnStderr = RuntimeAttributesValidation.extract(FailOnStderrValidation.default, validatedRuntimeAttributes)
-    val continueOnReturnCode =
+    val failOnStderr: Boolean =
+      RuntimeAttributesValidation.extract(FailOnStderrValidation.default, validatedRuntimeAttributes)
+    val continueOnReturnCode: ContinueOnReturnCode =
       RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.default, validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation, validatedRuntimeAttributes)
 

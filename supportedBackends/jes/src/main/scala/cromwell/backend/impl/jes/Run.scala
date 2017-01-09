@@ -8,6 +8,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
+import cromwell.backend.impl.jes.labels.Labels
 import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
@@ -59,6 +60,26 @@ object Run {
       resources.setDisks(disksWithoutMountPoint.asJava)
     }
 
+    lazy val labels: Labels = {
+
+      val hasSubworkflow = workflow.workflow.equals(workflow.rootWorkflow)
+
+      val subWorkflowName = if (hasSubworkflow) workflow.workflow.unqualifiedName else "n-a"
+      val subWorkflowLabels = Labels("cromwell-sub-workflow-name" -> subWorkflowName)
+
+      val rootWorkflowLabels = Labels(
+        "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
+        "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName
+      )
+
+      val callLabels = Labels(
+        "wdl-call-name" -> jobDescriptor.call.unqualifiedName,
+        "wdl-task-name" -> jobDescriptor.call.task.name
+      )
+
+      rootWorkflowLabels ++ subWorkflowLabels ++ callLabels
+    }
+
     def runPipeline: String = {
       val svcAccount = new ServiceAccount().setEmail(computeServiceAccount).setScopes(GenomicsScopes)
       val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
@@ -68,6 +89,8 @@ object Run {
 
       rpargs.setOutputs(jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.debug(s"Outputs:\n${stringifyMap(rpargs.getOutputs.asScala.toMap)}")
+
+      rpargs.setLabels(labels.asJesLabels)
 
       val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 

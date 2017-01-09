@@ -15,7 +15,7 @@ object Dependencies {
   lazy val akkaV = "2.4.14"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.22.0"
-  lazy val googleGenomicsServicesApiV = "1.20.0"
+  lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.16.0"
   lazy val catsV = "0.7.2"
 
@@ -80,7 +80,7 @@ object Dependencies {
   )
 
   private val googleCloudDependencies = List(
-    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleGenomicsServicesApiV),
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
     "com.google.cloud" % "google-cloud-nio" % "0.3.0"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")

@@ -53,6 +53,8 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
       * [Refresh Token](#refresh-token)
     * [Docker](#docker)
     * [Monitoring](#monitoring)
+    * [Labelling Runs](#labelling-runs)
+      * [Label Escaping and Padding](#label-escaping-and-padding)
 * [Runtime Attributes](#runtime-attributes)
   * [Specifying Default Values](#specifying-default-values)
   * [continueOnReturnCode](#continueonreturncode)
@@ -1382,6 +1384,28 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 ```
 
 The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
+
+### Labelling Runs
+
+Every call to JES from a Cromwell instance will be automatically labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
+
+| Key | Value | Example | Notes |
+|-----|-------|---------|-------|
+| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-escaping-and-padding), we prefix with 'cromwell-' |
+| cromwell-workflow-name | The name of the root workflow | my-root-workflow | See [format](#label-escaping-and-padding). |
+| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only if the task is called in a subworkflow, otherwise 'n-a'. See also [format](#label-escaping-and-padding). |
+| wdl-task-name | The name of the WDL task | my-task | See [format](#label-escaping-and-padding). |
+| wdl-call-name | The name of the WDL call of this job | my-call | Different from 'wdl-task-name' if it was called with an alias. See also [format](#label-escaping-and-padding). |
+
+#### Label Escaping and Padding
+
+To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. For this reason, Cromwell will modify workflow/task/call names and custom labels as follows:
+
+- Any capital letters are lowercased.
+- Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
+- If the start character does not match `[a-z]` then prefix with `x--`
+- If the final character does not match `[a-z0-9]` then suffix with `--x`
+- If the string is too long, only take the first 30 and last 30 characters and add `---` between them.
 
 # Runtime Attributes
 

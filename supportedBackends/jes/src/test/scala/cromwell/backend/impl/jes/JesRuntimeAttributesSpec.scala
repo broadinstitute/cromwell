@@ -1,5 +1,6 @@
 package cromwell.backend.impl.jes
 
+import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
@@ -20,8 +21,9 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     )))
   }
 
-  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-b"), 0, 10, MemorySize(2, MemoryUnit.GB),
-    Seq(JesWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false, ContinueOnReturnCodeSet(Set(0)), false)
+  val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-b", "us-central1-a"), 0, 10,
+    MemorySize(2, MemoryUnit.GB), Seq(JesWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {
 
@@ -189,11 +191,16 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     }
   }
 
-  private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue], expectedRuntimeAttributes: JesRuntimeAttributes, workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+  private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue],
+                                                           expectedRuntimeAttributes: JesRuntimeAttributes,
+                                                           workflowOptions: WorkflowOptions = emptyWorkflowOptions,
+                                                           defaultZones: NonEmptyList[String] = defaultZones): Unit = {
     val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      assert(JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER) == expectedRuntimeAttributes)
+      val actualRuntimeAttributes =
+        JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER, jesConfiguration)
+      assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
@@ -204,7 +211,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER)
+      JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER, jesConfiguration)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
@@ -213,6 +220,12 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  private val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
+  private val jesConfiguration = {
+    val config = mock[JesConfiguration]
+    config.defaultZones returns defaultZones
+    config
+  }
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    JesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet
+    JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration).definitions.toSet
 }

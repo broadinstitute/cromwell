@@ -1,5 +1,6 @@
 package cromwell.backend.impl.jes
 
+import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
@@ -27,7 +28,6 @@ object JesRuntimeAttributes {
   private val MemoryDefaultValue = "2 GB"
 
   val ZonesKey = "zones"
-  private val ZoneDefaultValue = "us-central1-b"
 
   val PreemptibleKey = "preemptible"
   private val PreemptibleDefaultValue = 0
@@ -46,8 +46,8 @@ object JesRuntimeAttributes {
   private val disksValidation: RuntimeAttributesValidation[Seq[JesAttachedDisk]] =
     DisksValidation.withDefault(WdlString(DisksDefaultValue))
 
-  private val zonesValidation: RuntimeAttributesValidation[Vector[String]] =
-    ZonesValidation.withDefault(WdlString(ZoneDefaultValue))
+  private def zonesValidation(defaultZones: NonEmptyList[String]): RuntimeAttributesValidation[Vector[String]] =
+    ZonesValidation.withDefault(WdlString(defaultZones.toList.mkString(" ")))
 
   private val preemptibleValidation: RuntimeAttributesValidation[Int] =
     new IntRuntimeAttributesValidation(JesRuntimeAttributes.PreemptibleKey)
@@ -66,11 +66,11 @@ object JesRuntimeAttributes {
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
-  val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
+  def runtimeAttributesBuilder(jesConfiguration: JesConfiguration): StandardValidatedRuntimeAttributesBuilder =
     StandardValidatedRuntimeAttributesBuilder.default.withValidation(
       cpuValidation,
       disksValidation,
-      zonesValidation,
+      zonesValidation(jesConfiguration.defaultZones),
       preemptibleValidation,
       memoryValidation,
       bootDiskSizeValidation,
@@ -80,7 +80,7 @@ object JesRuntimeAttributes {
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes): JesRuntimeAttributes = {
     val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation, validatedRuntimeAttributes)
-    val zones: Vector[String] = RuntimeAttributesValidation.extract(zonesValidation, validatedRuntimeAttributes)
+    val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation, validatedRuntimeAttributes)
     val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation, validatedRuntimeAttributes)
     val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation, validatedRuntimeAttributes)
@@ -107,8 +107,9 @@ object JesRuntimeAttributes {
   }
 
   // NOTE: Currently only used by test specs
-  private[jes] def apply(attrs: Map[String, WdlValue], logger: Logger): JesRuntimeAttributes = {
-    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder
+  private[jes] def apply(attrs: Map[String, WdlValue], logger: Logger,
+                         jesConfiguration: JesConfiguration): JesRuntimeAttributes = {
+    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(attrs, logger)
     apply(validatedRuntimeAttributes)
   }

@@ -80,7 +80,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
     val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
-    JesBackendInitializationData(workflowPaths, configuration, null)
+    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(configuration)
+    JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null)
   }
 
   class TestableJesJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: JesExpressionFunctions)
@@ -114,6 +115,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   private val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
+  private val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
   private val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
 
   val DockerAndDiskRuntime: String =
@@ -681,6 +683,6 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   private def makeRuntimeAttributes(job: TaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
-      JesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)
+      runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)
   }
 }

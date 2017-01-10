@@ -1610,7 +1610,7 @@ runtime {
 }
 ```
 
-Defaults to "us-central1-b"
+Defaults to the configuration setting `genomics.default-zones` in the JES configuration block which in turn defaults to using `us-central1-b`
 
 ## docker
 

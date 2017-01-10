@@ -21,7 +21,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     workflowPaths.workflowRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe
-      s"/root/wf_hello/$id"
+      s"/cromwell-executions/wf_hello/$id"
   }
 
   "WorkflowPaths" should "provide correct paths for a sub workflow" in {
@@ -59,6 +59,6 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     
     val workflowPaths = new WorkflowPathsWithDocker(subWd, backendConfig)
     workflowPaths.workflowRoot.toString shouldBe File(s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId").pathAsString
-    workflowPaths.dockerWorkflowRoot.toString shouldBe s"/root/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
+    workflowPaths.dockerWorkflowRoot.toString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
   }
 }

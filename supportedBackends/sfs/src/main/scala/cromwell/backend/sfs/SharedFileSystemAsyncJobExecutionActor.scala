@@ -9,6 +9,7 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob, StandardInitializationData}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -126,7 +127,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   override def execute(): ExecutionHandle = {
     val script = instantiatedCommand
     jobLogger.info(s"`$script`")
-    File(jobPaths.callExecutionRoot).createDirectories()
+    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
     val cwd = if (isDockerRun) jobPathsWithDocker.callExecutionDockerRoot else jobPaths.callExecutionRoot
     writeScript(script, cwd, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
     jobLogger.info(s"command: $processArgs")
@@ -179,6 +180,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
     val scriptBody =
       s"""|#!/bin/sh
+          |umask 0000
           |(
           |cd $cwd
           |INSTANTIATED_COMMAND

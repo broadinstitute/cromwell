@@ -51,13 +51,13 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     jobPaths.callExecutionRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
     jobPaths.callDockerRoot.toString shouldBe
-      File(s"/root/wf_hello/$id/call-hello").pathAsString
+      File(s"/cromwell-executions/wf_hello/$id/call-hello").pathAsString
     jobPaths.callExecutionDockerRoot.toString shouldBe
-      File(s"/root/wf_hello/$id/call-hello/execution").pathAsString
+      File(s"/cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
     jobPaths.toDockerPath(Paths.get(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/stdout")).toString shouldBe
-      File(s"/root/wf_hello/$id/call-hello/execution/stdout").pathAsString
-    jobPaths.toDockerPath(Paths.get("/root/dock/path")).toString shouldBe
-      File("/root/dock/path").pathAsString
+      File(s"/cromwell-executions/wf_hello/$id/call-hello/execution/stdout").pathAsString
+    jobPaths.toDockerPath(Paths.get("/cromwell-executions/dock/path")).toString shouldBe
+      File("/cromwell-executions/dock/path").pathAsString
 
     val jobKeySharded = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = new JobPathsWithDocker(jobKeySharded, wd, backendConfig)

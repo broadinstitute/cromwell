@@ -2,11 +2,13 @@ package cromwell.backend.wdl
 
 import java.nio.file.Path
 
+import cromwell.core.path.FileImplicits._
 import wdl4s.TsvSerializable
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.types._
 import wdl4s.values._
 
+import scala.language.existentials
 import scala.util.{Failure, Try}
 
 trait WriteFunctions { this: WdlStandardLibraryFunctions =>
@@ -17,7 +19,7 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
     */
   def writeDirectory: Path
 
-  private lazy val _writeDirectory = File(writeDirectory).createDirectories()
+  private lazy val _writeDirectory = File(writeDirectory).createPermissionedDirectories()
 
   def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = throw new NotImplementedError("This method is not used anywhere and should be removed")
 

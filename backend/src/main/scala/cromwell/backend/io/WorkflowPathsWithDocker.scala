@@ -7,7 +7,7 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.PathBuilder
 
 object WorkflowPathsWithDocker {
-  val DockerRoot: Path = Paths.get("/root")
+  val DockerRoot: Path = Paths.get("/cromwell-executions")
 }
 
 class WorkflowPathsWithDocker(val workflowDescriptor: BackendWorkflowDescriptor, val config: Config, val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {

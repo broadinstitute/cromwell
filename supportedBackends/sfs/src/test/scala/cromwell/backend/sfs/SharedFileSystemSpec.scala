@@ -7,6 +7,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendSpec
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.path.FileImplicits._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -33,7 +34,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.drop(1))
     orig.touch()
     if (fileAlreadyExists) {
-      dest.parent.createDirectories()
+      dest.parent.createPermissionedDirectories()
       dest.touch()
     }
 

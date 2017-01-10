@@ -1,7 +1,8 @@
-import wdl4s.expression.PureStandardLibraryFunctions
-import wdl4s.types.{WdlArrayType, WdlIntegerType}
-import wdl4s.values.{WdlArray, WdlInteger}
+package wdl4s.expression
+
 import org.scalatest.{FlatSpec, Matchers}
+import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.values.{WdlArray, WdlInteger, WdlString}
 
 import scala.util.Success
 
@@ -35,4 +36,21 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
     PureStandardLibraryFunctions.length(Seq(Success(empty))) should be(Success(WdlInteger(0)))
   }
 
+  behavior of "prefix"
+
+  it should "prefix things correctly" in {
+
+    val strings = List("foo", "bar", "baz")
+    val stringWdlValues = WdlArray(WdlArrayType(WdlStringType), strings map WdlString.apply)
+    val stringsExpectation = WdlArray(WdlArrayType(WdlStringType), strings map { f => WdlString("-f " + f) } )
+    PureStandardLibraryFunctions.prefix(Seq(Success(WdlString("-f ")), Success(stringWdlValues))) should be(Success(stringsExpectation))
+
+    val noStringWdlValues = WdlArray(WdlArrayType(WdlStringType), List.empty)
+    PureStandardLibraryFunctions.prefix(Seq(Success(WdlString("-f ")), Success(noStringWdlValues))) should be(Success(WdlArray(WdlArrayType(WdlStringType), Seq.empty)))
+
+    val integers = List(1, 2, 3)
+    val integerWdlValues = WdlArray(WdlArrayType(WdlIntegerType), integers map { i => WdlInteger.apply(Integer.valueOf(i)) })
+    val integersExpectation = WdlArray(WdlArrayType(WdlStringType), integers map { i => WdlString("-f " + i)})
+    PureStandardLibraryFunctions.prefix(Seq(Success(WdlString("-f ")), Success(integerWdlValues))) should be(Success(integersExpectation))
+  }
 }

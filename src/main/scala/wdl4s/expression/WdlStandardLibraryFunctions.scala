@@ -1,5 +1,7 @@
 package wdl4s.expression
 
+import cats.instances.try_._
+import cats.syntax.cartesian._
 import wdl4s.types._
 import wdl4s.values._
 import wdl4s.{TsvSerializable, WdlExpressionException}
@@ -112,6 +114,23 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     }
 
     extractArguments flatMap arrayLength
+  }
+
+  def prefix(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
+    def extractTwoArguments: Try[(WdlValue, WdlValue)] = params.size match {
+      case 2 => (params.head |@| params.tail.head) map { (_, _) }
+      case n => Failure(new UnsupportedOperationException(s"prefix() expects two parameters but got $n"))
+    }
+
+    val makePrefixedString = (prefixString: WdlValue, elements: WdlValue) => (prefixString, elements) match {
+      case (WdlString(p), WdlArray(WdlArrayType(etype), es)) if etype.isInstanceOf[WdlPrimitiveType] =>
+        val result = es map { e => WdlString(p + e.valueString) }
+        Success(WdlArray(WdlArrayType(WdlStringType), result))
+      case (x, y) =>
+        Failure(new UnsupportedOperationException(s"The function prefix expect arguments (String, Array[X]) where X is a primitive type, but got (${prefixString.wdlType.toWdlString}, ${elements.wdlType.toWdlString})"))
+    }
+
+    extractTwoArguments flatMap makePrefixedString.tupled
   }
 
   def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = {

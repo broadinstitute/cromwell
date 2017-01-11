@@ -399,8 +399,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           case (_, _, Success(rc)) if !continueOnReturnCode.continueFor(rc) =>
             FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, jobPaths.stderr), returnCodeAsInt.toOption)
             // Otherwise -> Succeed
-          case _ => 
-            handleExecutionSuccess(status, oldHandle, returnCodeAsInt.get)
+          case (_, _, Success(rc)) => 
+            handleExecutionSuccess(status, oldHandle, rc)
         }
 
       } else {

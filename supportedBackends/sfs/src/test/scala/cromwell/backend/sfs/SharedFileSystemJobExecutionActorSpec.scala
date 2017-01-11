@@ -7,6 +7,7 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend.async.WrongReturnCode
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
@@ -54,7 +55,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse =
-      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], new RuntimeException(""), Option(1))
+      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, Paths.get("")), Option(1))
     val workflow = TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), emptyBackendConfig, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)

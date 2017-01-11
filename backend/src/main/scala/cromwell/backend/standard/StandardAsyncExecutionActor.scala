@@ -6,7 +6,7 @@ import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
@@ -375,26 +375,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
         lazy val stderrLength: Long = File(jobPaths.stderr).size
         lazy val returnCode: Try[Int] = Try(File(jobPaths.returnCode).contentAsString).map(_.trim.toInt)
-        status match {
-          case _ if failOnStdErr && stderrLength.intValue > 0 =>
-            // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
-            FailedNonRetryableExecutionHandle(new RuntimeException(
-              s"execution failed: stderr has length $stderrLength"), returnCode.toOption)
-          case _ if returnCode.isFailure =>
-            val exception = returnCode.failed.get
-            jobLogger.warn(s"could not download return code file, retrying", exception)
-            // Return handle to try again.
-            oldHandle
-          case _ if returnCode.isFailure =>
-            FailedNonRetryableExecutionHandle(new RuntimeException(
-              s"execution failed: could not parse return code as integer", returnCode.failed.get))
-          case _ if isAbort(returnCode.get) =>
-            AbortedExecutionHandle
-          case _ if !continueOnReturnCode.continueFor(returnCode.get) =>
-            val message = s"Call ${jobDescriptor.key.tag}: return code was ${returnCode.get}"
-            FailedNonRetryableExecutionHandle(new RuntimeException(message), returnCode.toOption)
-          case _ =>
-            handleExecutionSuccess(status, oldHandle, returnCode.get)
+        if (failOnStdErr && stderrLength.intValue > 0) {
+          // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
+          FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrLength, jobPaths.stderr), returnCode.toOption)
+        } else if (returnCode.isFailure) {
+          val exception = returnCode.failed.get
+          FailedNonRetryableExecutionHandle(new RuntimeException(
+            s"execution failed: could not download or parse return code as integer", exception))
+        } else if (isAbort(returnCode.get)) {
+          AbortedExecutionHandle
+        } else if (!continueOnReturnCode.continueFor(returnCode.get)) {
+          FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCode.get, jobPaths.stderr), returnCode.toOption)
+        } else {
+          handleExecutionSuccess(status, oldHandle, returnCode.get)
         }
 
       } else {

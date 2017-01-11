@@ -119,7 +119,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
     }
 
     "fail when a call fails" in {
-      val expectedError = "Call wf_goodbye.goodbye:NA:1: return code was 1"
+      val expectedError = "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details." 
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()

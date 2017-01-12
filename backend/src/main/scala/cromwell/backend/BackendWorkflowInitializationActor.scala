@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
+import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
 import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -129,13 +130,13 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
             val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
             attributeName -> ((value, validator(value)))
           } collect {
-            case (name, (value, false)) => s"Task ${task.name} has an invalid runtime attribute $name = ${value map { _.valueString} getOrElse "!! NOT FOUND !!"}"
+            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
           }
         }
 
         calls map { _.task } flatMap badRuntimeAttrsForTask match {
           case errors if errors.isEmpty => Future.successful(())
-          case errors => Future.failed(new IllegalArgumentException(errors.mkString(". ")))
+          case errors => Future.failed(RuntimeAttributeValidationFailures(errors.toList))
         }
       case Failure(t) => Future.failed(t)
     }

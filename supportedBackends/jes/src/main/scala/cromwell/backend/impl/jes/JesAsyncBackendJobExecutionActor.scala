@@ -258,7 +258,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           |mv $rcTmpPath $rcPath
           |""".stripMargin.replace("INSTANTIATED_COMMAND", command)
 
-    File(jesCallPaths.script).write(fileContent)
+    jesCallPaths.script.writeAsText(fileContent)
     ()
   }
 
@@ -405,7 +405,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     errorMessage.substring(0, errorMessage.indexOf(':')).toInt
   }
 
-  private def preempted(errorCode: Int, errorMessage: List[String]): Boolean = {
+  private def preempted(errorCode: Int, errorMessage: Option[String]): Boolean = {
     def isPreemptionCode(code: Int) = code == 13 || code == 14
 
     try {
@@ -418,7 +418,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def handleExecutionFailure(runStatus: RunStatus,
-                                      handle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
+                                      handle: StandardAsyncPendingExecutionHandle,
+                                      returnCode: Option[Int]): ExecutionHandle = {
     val failed = runStatus match {
       case failedStatus: RunStatus.Failed => failedStatus
       case unknown =>
@@ -442,19 +443,16 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
-        FailedRetryableExecutionHandle(e, None)
+        FailedRetryableExecutionHandle(e, returnCode)
       } else {
         val e = PreemptedException(
           s"""$preemptedMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
-        FailedRetryableExecutionHandle(e, None)
+        FailedRetryableExecutionHandle(e, returnCode)
       }
     } else {
-      val id = workflowDescriptor.id
-      val name = jobDescriptor.call.unqualifiedName
-      val message = if (errorMessage.isEmpty) "null" else errorMessage.mkString(", ")
-      val exception = new RuntimeException(s"Task $id:$name failed: error code $errorCode. Message: $message")
-      FailedNonRetryableExecutionHandle(exception, None)
+      val exception = failed.toFailure(jobPaths.jobKey.tag, Option(jobPaths.stderr))
+      FailedNonRetryableExecutionHandle(exception, returnCode)
     }
   }
 

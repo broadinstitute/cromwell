@@ -15,6 +15,7 @@ import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStore
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.EngineStatsActor
+import lenthall.exception.ThrowableAggregation
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -301,11 +302,14 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher)
   }
 
-  private def expandFailureReasons(reasons: Seq[Throwable]) = {
+  private def expandFailureReasons(reasons: Seq[Throwable]): String = {
     import cromwell.core.path.PathImplicits._
+    
     reasons map {
+      case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        reason.getMessage + "\n" + s"Check the content of stderr for potential additional information: ${reason.stderrPath.toRealString}"
+        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.toRealString}" } getOrElse ""
+        reason.getMessage + stderrMessage
       case reason =>
       reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
     } mkString "\n"

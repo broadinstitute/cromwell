@@ -2,6 +2,7 @@
 
 ## 25
 
+* Moved the config value `services.MetadataService.metadata-summary-refresh-interval` to `services.MetadataService.config.metadata-summary-refresh-interval`
 * Cromwell now applies default labels automatically to JES pipeline runs.
 * Added ability to override the default zone(s) used by JES via the config structure by setting `genomics.default-zones` in the JES configuration
 * Added support for new WDL functions:

@@ -375,7 +375,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
         lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
         lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
-        lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.toInt)
+        lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
         
         (stderrLength, returnCodeAsString, returnCodeAsInt) match {
             // Failed to get stderr size -> Retry

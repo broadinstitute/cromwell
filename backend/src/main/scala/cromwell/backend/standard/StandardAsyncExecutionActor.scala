@@ -6,7 +6,7 @@ import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
@@ -373,21 +373,34 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     try {
       if (isSuccess(status)) {
 
-        lazy val stderrLength: Long = File(jobPaths.stderr).size
-        lazy val returnCode: Try[Int] = Try(File(jobPaths.returnCode).contentAsString).map(_.trim.toInt)
-        if (failOnStdErr && stderrLength.intValue > 0) {
-          // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
-          FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrLength, jobPaths.stderr), returnCode.toOption)
-        } else if (returnCode.isFailure) {
-          val exception = returnCode.failed.get
-          FailedNonRetryableExecutionHandle(new RuntimeException(
-            s"execution failed: could not download or parse return code as integer", exception))
-        } else if (isAbort(returnCode.get)) {
-          AbortedExecutionHandle
-        } else if (!continueOnReturnCode.continueFor(returnCode.get)) {
-          FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCode.get, jobPaths.stderr), returnCode.toOption)
-        } else {
-          handleExecutionSuccess(status, oldHandle, returnCode.get)
+        lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
+        lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
+        lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
+        
+        (stderrLength, returnCodeAsString, returnCodeAsInt) match {
+            // Failed to get stderr size -> Retry
+          case (Failure(exception), _, _) =>
+            jobLogger.warn(s"could not get stderr file size, retrying", exception)
+            oldHandle
+            // Failed to get return code content -> Retry
+          case (_, Failure(exception), _) =>
+            jobLogger.warn(s"could not download return code file, retrying", exception)
+            oldHandle
+            // Failed to convert return code content to Int -> Fail
+          case (_, _, Failure(exception)) =>
+            FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, jobPaths.stderr))
+            // Stderr is not empty and failOnStdErr is true -> Fail
+          case (Success(length), _, _) if failOnStdErr && length.intValue > 0 =>
+            FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, length, jobPaths.stderr), returnCodeAsInt.toOption)
+            // Return code is abort code -> Abort
+          case (_, _, Success(rc)) if isAbort(rc) =>
+            AbortedExecutionHandle
+            // Return code is not valid -> Fail
+          case (_, _, Success(rc)) if !continueOnReturnCode.continueFor(rc) =>
+            FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, jobPaths.stderr), returnCodeAsInt.toOption)
+            // Otherwise -> Succeed
+          case (_, _, Success(rc)) => 
+            handleExecutionSuccess(status, oldHandle, rc)
         }
 
       } else {

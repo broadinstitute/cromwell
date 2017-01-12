@@ -38,6 +38,8 @@ object JesAttributes {
     "maximum-polling-interval",
     "genomics.compute-service-account",
     "dockerhub",
+    "dockerhub.account",
+    "dockerhub.token",
     "genomics",
     "filesystems",
     "genomics.auth",

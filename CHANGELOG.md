@@ -6,6 +6,8 @@
 * Added ability to override the default zone(s) used by JES via the config structure by setting `genomics.default-zones` in the JES configuration
 * Added support for new WDL functions:
   * `length: (Array[X]) => Integer` - report the length of the specified array 
+* The cromwell server TCP binding timeout is now configurable via the config key `webservice.timeout`, defaulted to the
+  previous value `5s` (five seconds) via the reference.conf.
 
 ## 24
 

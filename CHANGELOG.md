@@ -9,6 +9,10 @@
   * `length: (Array[X]) => Integer` - report the length of the specified array 
 * The cromwell server TCP binding timeout is now configurable via the config key `webservice.timeout`, defaulted to the
   previous value `5s` (five seconds) via the reference.conf.
+  * `length: (Array[X]) => Integer` - report the length of the specified array.
+
+### Database schema changes
+* Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.
 
 ## 24
 

@@ -73,12 +73,8 @@ object Main extends App {
     implicit val actorSystem = CromwellSystem.actorSystem
 
     Log.info(s"RUN sub-command")
-    Log.info(s"  WDL file: ${commandLine.wdlPath}")
-    commandLine.inputsPath foreach { i => Log.info(s"  Inputs: $i") }
-    commandLine.optionsPath foreach { o => Log.info(s"  Workflow Options: $o") }
-    commandLine.metadataPath foreach { m => Log.info(s"  Workflow Metadata Output: $m") }
-
-    val runnerProps = SingleWorkflowRunnerActor.props(commandLine.sourceFiles, commandLine.metadataPath)
+    commandLine.paths.logMe(Log)
+    val runnerProps = SingleWorkflowRunnerActor.props(commandLine.sourceFiles, commandLine.paths.metadataPath)
 
     val runner = CromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
@@ -109,7 +105,7 @@ object Main extends App {
         |
         |Actions:
         |run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
-        |  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
+        |  [<OUTPUT workflow metadata>] [<Zip of WDL Files>] [<JSON labels file>]
         |
         |  Given a WDL file and JSON file containing the value of the
         |  workflow inputs, this will run the workflow locally and

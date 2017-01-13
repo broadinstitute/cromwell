@@ -127,34 +127,41 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
-  case class PartialWorkflowSources(wdlSource: Option[WdlSource], workflowInputs: Seq[WdlJson], workflowInputsAux: Map[Int, WdlJson], workflowOptions: Option[WorkflowOptionsJson], zippedImports: Option[Array[Byte]])
+  case class PartialWorkflowSources
+  (
+    wdlSource: Option[WdlSource],
+    workflowInputs: Vector[WdlJson],
+    workflowInputsAux: Map[Int, WdlJson],
+    workflowOptions: Option[WorkflowOptionsJson],
+    customLabels: Option[WdlJson],
+    zippedImports: Option[Array[Byte]])
   object PartialWorkflowSources {
-    private def workflowInputs(bodyPart: BodyPart): Seq[WdlJson] = {
+    private def workflowInputs(bodyPart: BodyPart): Vector[WdlJson] = {
       import spray.json._
       bodyPart.entity.data.asString.parseJson match {
-        case JsArray(Seq(x, xs@_*)) => (List(x) ++ xs).map(_.compactPrint)
-        case JsArray(_) => Seq.empty
-        case v: JsValue => Seq(v.compactPrint)
+        case JsArray(Seq(x, xs@_*)) => (Vector(x) ++ xs).map(_.compactPrint)
+        case JsArray(_) => Vector.empty
+        case v: JsValue => Vector(v.compactPrint)
       }
     }
 
     def partialSourcesToSourceCollections(partialSources: Try[PartialWorkflowSources], allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
       partialSources flatMap {
-        case PartialWorkflowSources(Some(wdlSource), workflowInputs, workflowInputsAux, workflowOptions, wdlDependencies) =>
+        case PartialWorkflowSources(Some(wdlSource), workflowInputs, workflowInputsAux, workflowOptions, labels, wdlDependencies) =>
           //The order of addition allows for the expected override of colliding keys.
           val sortedInputAuxes = workflowInputsAux.toSeq.sortBy(_._1).map(x => Option(x._2))
           val wfInputs: Try[Seq[WdlJson]] = if (workflowInputs.isEmpty) {
-            if (allowNoInputs) Success(Seq("{}")) else Failure(new IllegalArgumentException("No inputs were provided"))
+            if (allowNoInputs) Success(Vector("{}")) else Failure(new IllegalArgumentException("No inputs were provided"))
           } else Success(workflowInputs map { workflowInputSet =>
             mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString
           })
-          wfInputs.map(_.map(x => WorkflowSourceFilesCollection(wdlSource, x, workflowOptions.getOrElse("{}"), wdlDependencies)))
+          wfInputs.map(_.map(x => WorkflowSourceFilesCollection(wdlSource, x, workflowOptions.getOrElse("{}"), labels.getOrElse("{}"), wdlDependencies)))
         case other => Failure(new IllegalArgumentException(s"Incomplete workflow submission: $other"))
       }
     }
 
     def fromSubmitRoute(formData: MultipartFormData, allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources(None, Seq.empty, Map.empty, None, None)) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
+      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources(None, Vector.empty, Map.empty, None, None, None)) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
         if (bodyPart.name.contains("wdlSource")) {
           partialSources.copy(wdlSource = Some(bodyPart.entity.data.asString))
         } else if (bodyPart.name.contains("workflowInputs")) {
@@ -166,6 +173,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           partialSources.copy(workflowOptions = Some(bodyPart.entity.data.asString))
         } else if (bodyPart.name.contains("wdlDependencies")) {
           partialSources.copy(zippedImports = Some(bodyPart.entity.data.toByteArray))
+        } else if (bodyPart.name.contains("customLabels")) {
+          partialSources.copy(customLabels = Some(bodyPart.entity.data.asString))
         } else {
           throw new IllegalArgumentException(s"Unexpected body part name: ${bodyPart.name.getOrElse("None")}")
         }

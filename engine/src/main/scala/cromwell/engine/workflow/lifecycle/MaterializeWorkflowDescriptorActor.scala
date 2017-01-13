@@ -7,10 +7,10 @@ import better.files.File
 import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
+import cats.instances.vector._
 import cats.syntax.cartesian._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cromwell.core._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -18,6 +18,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
 import cromwell.core.callcaching._
+import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.PathBuilder
 import cromwell.engine._
@@ -171,12 +172,13 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation = validateNamespace(sourceFiles)
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
-    (namespaceValidation |@| workflowOptionsValidation) map {
-      (_, _)
-    } flatMap { case (namespace, workflowOptions) =>
+    val labelsValidation = validateLabels(sourceFiles.labelsJson)
+    (namespaceValidation |@| workflowOptionsValidation |@| labelsValidation) map {
+      (_, _, _)
+    } flatMap { case (namespace, workflowOptions, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       val pathBuilders = EngineFilesystems(context.system).pathBuildersForWorkflow(workflowOptions)
-      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, pathBuilders)
+      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)
     }
   }
 
@@ -192,18 +194,20 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       sourceFiles: WorkflowSourceFilesCollection,
                                       namespace: WdlNamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
+                                      labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val defaultBackendName = conf.as[Option[String]]("backend.default")
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
+
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(namespace.taskCalls, workflowOptions, defaultBackendName)
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
 
-    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) map {
+    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation) map {
       (_, _, _, _)
     } flatMap { case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
-      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, pathBuilders, callCachingMode)
+      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, labels, failureMode, pathBuilders, callCachingMode)
     }
   }
 
@@ -212,6 +216,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       rawInputs: Map[String, JsValue],
                                       backendAssignments: Map[TaskCall, String],
                                       workflowOptions: WorkflowOptions,
+                                      labels: Labels,
                                       failureMode: WorkflowFailureMode,
                                       pathBuilders: List[PathBuilder],
                                       callCachingMode: CallCachingMode): ErrorOr[EngineWorkflowDescriptor] = {
@@ -235,7 +240,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ = pushWfInputsToMetadataService(coercedInputs)
       evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedInputs)
-      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions)
+      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions, labels)
     } yield EngineWorkflowDescriptor(namespace, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 
@@ -388,6 +393,24 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case Success(JsObject(inputs)) => inputs.validNel
       case Failure(reason: Throwable) => s"Workflow contains invalid inputs JSON: ${reason.getMessage}".invalidNel
       case _ => s"Workflow inputs JSON cannot be parsed to JsObject: $json".invalidNel
+    }
+  }
+
+  private def validateLabels(json: WdlJson): ErrorOr[Labels] = {
+
+    def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
+      val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
+        case (key, JsString(s)) => Label.validateLabel(key, s)
+        case (key, other) => s"Invalid label '$key: $other': Labels must be strings, and must match the regex ${Label.LabelRegexPattern}".invalidNel
+      }
+
+      vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }
+    }
+
+    Try(json.parseJson) match {
+      case Success(JsObject(inputs)) => toLabels(inputs)
+      case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
+      case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
     }
   }
 

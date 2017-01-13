@@ -14,8 +14,8 @@ import scala.language.postfixOps
 
 trait SampleWdl extends TestFileUtil {
   def wdlSource(runtime: String = ""): WdlSource
-  def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}") =
-    WorkflowSourceFilesWithoutImports(wdlSource(runtime), wdlJson, workflowOptions)
+  def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}", labels: String = "{}") =
+    WorkflowSourceFilesWithoutImports(wdlSource = wdlSource(runtime), inputsJson = wdlJson, workflowOptionsJson = workflowOptions, labelsJson = labels)
   val rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")

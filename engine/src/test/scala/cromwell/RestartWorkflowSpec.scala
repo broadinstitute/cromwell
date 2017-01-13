@@ -18,7 +18,8 @@ class RestartWorkflowSpec extends CromwellTestKitSpec with WorkflowDescriptorBui
                 |}
               """.stripMargin,
     inputsJson="{}",
-    workflowOptionsJson="{}"
+    workflowOptionsJson="{}",
+    labelsJson="{}"
   )
 
   "RestartWorkflowSpec" should {

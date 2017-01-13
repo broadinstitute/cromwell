@@ -11,5 +11,6 @@ case class WorkflowStoreEntry
   workflowState: String,
   submissionTime: Timestamp,
   importsZipFile: Option[Blob],
+  customLabels: Clob,
   workflowStoreEntryId: Option[Int] = None
 )

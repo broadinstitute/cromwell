@@ -52,7 +52,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   call.parent_=(workflow)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
-  val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null)
+  val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
   val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputDeclarations = Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[TaskOutput])] = NothingYet

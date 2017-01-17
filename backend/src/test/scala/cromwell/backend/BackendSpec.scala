@@ -52,7 +52,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions)
+    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions).get // .get is ok because this is a test
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)

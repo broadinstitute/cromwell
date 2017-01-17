@@ -3,6 +3,7 @@ package cromwell.backend.callcaching
 import java.nio.file.Path
 
 import akka.actor.ActorRef
+import cats.implicits._
 import cromwell.backend.BackendCacheHitCopyingActor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend.io.JobPaths
@@ -70,7 +71,8 @@ trait CacheHitDuplicating {
         duplicate(sourcePath, destinationPath) map { _ => WdlValueSimpleton(key, WdlFile(destinationPath.toRealString)) }
       case wdlValueSimpleton => Future.successful(wdlValueSimpleton)
     }
-    Future.sequence(futureCopy)
+    
+    futureCopy.toList.sequence[Future[WdlValueSimpleton], WdlValueSimpleton]
   }
 
   private def copyDetritus(sourceJobDetritusFiles: Map[String, String]): Future[Map[String, Path]] = {
@@ -84,7 +86,7 @@ trait CacheHitDuplicating {
       duplicate(sourcePath, destinationPath) map { _ => (fileKey, destinationPath) }
     }
 
-    Future.sequence(destinationJobDetritusFilesFuture) map { destinationJobDetritusFiles =>
+    destinationJobDetritusFilesFuture.toList.sequence[Future[(String, Path)], (String, Path)] map { destinationJobDetritusFiles =>
       destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath)
     }
   }

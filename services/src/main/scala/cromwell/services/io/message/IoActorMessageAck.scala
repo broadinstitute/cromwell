@@ -18,17 +18,17 @@ sealed trait IoActorMessageAck[T] {
   /**
     * @return Success(value) in case of success or Failure(exception) in case of failure
     */
-  def toOption: Try[T]
+  def toTry: Try[T]
 }
 
 case class IoSuccess[T](command: IoActorCommand[T], result: T) extends IoActorMessageAck[T] {
-  override def toOption = Success(result)
+  override def toTry = Success(result)
 }
 
 case class IoRetried[T](command: IoActorCommand[T], failure: Throwable) extends IoActorMessageAck[T] {
-  override def toOption = Failure(failure)
+  override def toTry = Failure(failure)
 }
 
 case class IoFailure[T](command: IoActorCommand[T], failure: Throwable) extends IoActorMessageAck[T] {
-  override def toOption = Failure(failure)
+  override def toTry = Failure(failure)
 }

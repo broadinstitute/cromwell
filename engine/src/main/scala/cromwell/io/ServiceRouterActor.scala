@@ -14,11 +14,11 @@ import net.ceedubs.ficus.Ficus._
   * Wrapper for the IO router actor.
   * This is a sub optimal level of indirection as messages could directly be directed to the router
   * instead of having to go through this actor.
-  * The reason is that the Io Actor is under the umbrella of the service registry which instantiates its services generically using reflexion,
+  * The reason is that the Io Actor is under the umbrella of the service registry which instantiates its services generically using reflection,
   * which can't work for a router actor.
   * Was the router IoActor to become a first class citizen, this wrapper should be removed.
   */
-class NioServiceRouterActor(serviceConfig: Config, globalConfig: Config) extends Actor {
+class ServiceRouterActor(serviceConfig: Config, globalConfig: Config) extends Actor {
   private val routerSupervisorStrategy = OneForOneStrategy() {
     case e: ActorInitializationException => Escalate
     // If an IO exception escapes the routee for some reason - try to restart it
@@ -42,7 +42,7 @@ class NioServiceRouterActor(serviceConfig: Config, globalConfig: Config) extends
     case command: IoActorCommand[_] => router forward command
   }
 
-  object NioServiceRouterActor {
-    def props(serviceConfig: Config, globalConfig: Config) = Props(new NioServiceRouterActor(serviceConfig, globalConfig)).withDispatcher(ioDispatcher)
+  object ServiceRouterActor {
+    def props(serviceConfig: Config, globalConfig: Config) = Props(new ServiceRouterActor(serviceConfig, globalConfig)).withDispatcher(ioDispatcher)
   }
 }

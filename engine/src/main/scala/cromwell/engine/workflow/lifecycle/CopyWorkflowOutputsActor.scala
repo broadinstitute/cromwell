@@ -27,7 +27,8 @@ object CopyWorkflowOutputsActor {
 class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
                                initializationData: AllBackendInitializationData, override val serviceRegistryActor: ActorRef)
   extends EngineWorkflowFinalizationActor with PathFactory with AsyncIo {
-
+  import cats.implicits._
+  
   override val pathBuilders = workflowDescriptor.pathBuilders
   implicit val ec = context.dispatcher
 
@@ -45,7 +46,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
         }
     }
     
-    Future.sequence(asyncCopies) map { _ => () }
+    asyncCopies.toList.sequence[Future[Unit], Unit].void
   }
 
   private def findFiles(values: Seq[WdlValue]): Seq[WdlSingleFile] = {

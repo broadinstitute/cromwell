@@ -3,6 +3,7 @@ package cromwell.backend.impl.jes
 import java.nio.file.Path
 
 import akka.actor.ActorRef
+import cats.implicits._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
 import cromwell.backend.{BackendWorkflowDescriptor, JobExecutionMap, _}
 import cromwell.core.CallOutputs
@@ -86,7 +87,7 @@ class JesFinalizationActor(jesParams: JesFinalizationActorParams)
           val destinationPath = PathCopier.getDestinationFilePath(paths.executionRoot, sourceFilePath, callLogsDirPath)
           copy(sourceFilePath, destinationPath)
         }
-        Future.sequence(logAsyncCopies) map { _ => () }
+        Future.sequence(logAsyncCopies).void
       case None => Future.successful(())
     }
   }

@@ -1,5 +1,6 @@
 package cromwell.database.sql
 
+import cats.data.OptionT
 import cromwell.database.sql.joins.JobStoreJoin
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -10,7 +11,7 @@ trait JobStoreSqlDatabase {
   def addJobStores(jobStoreJoins: Seq[JobStoreJoin])(implicit ec: ExecutionContext): Future[Unit]
 
   def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int, jobScatterAttempt: Int)
-                    (implicit ec: ExecutionContext): Future[Option[JobStoreJoin]]
+                    (implicit ec: ExecutionContext): OptionT[Future, JobStoreJoin]
 
   def removeJobStores(workflowExecutionUuids: Seq[String])(implicit ec: ExecutionContext): Future[Seq[Int]]
 }

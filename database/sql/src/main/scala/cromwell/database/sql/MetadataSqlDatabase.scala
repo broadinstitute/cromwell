@@ -2,7 +2,7 @@ package cromwell.database.sql
 
 import java.sql.Timestamp
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, OptionT}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -69,7 +69,7 @@ trait MetadataSqlDatabase {
                                       => WorkflowMetadataSummaryEntry)
                                    (implicit ec: ExecutionContext): Future[Long]
 
-  def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
+  def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): OptionT[Future, String]
 
   def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
                              workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],

@@ -1,5 +1,6 @@
 package cromwell.jobstore
 
+import cats.instances.future._
 import cromwell.Simpletons._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.WorkflowId
@@ -11,6 +12,7 @@ import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import wdl4s.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
   override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])(implicit ec: ExecutionContext): Future[Unit] = {
@@ -54,9 +56,8 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
   }
 
   override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[TaskOutput])(implicit ec: ExecutionContext): Future[Option[JobResult]] = {
-    sqlDatabase.queryJobStores(jobStoreKey.workflowId.toString, jobStoreKey.callFqn, jobStoreKey.index.fromIndex,
-      jobStoreKey.attempt) map {
-      _ map { case JobStoreJoin(entry, simpletonEntries) =>
+    sqlDatabase.queryJobStores(jobStoreKey.workflowId.toString, jobStoreKey.callFqn, jobStoreKey.index.fromIndex, jobStoreKey.attempt) map {
+      case JobStoreJoin(entry, simpletonEntries) =>
         entry match {
           case JobStoreEntry(_, _, _, _, true, returnCode, None, None, _) =>
             val simpletons = simpletonEntries map toSimpleton
@@ -67,7 +68,6 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           case bad =>
             throw new Exception(s"Invalid contents of JobStore table: $bad")
         }
-      }
-    }
+    } value
   }
 }

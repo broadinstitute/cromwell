@@ -37,7 +37,7 @@ import scala.util.{Success, Try}
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
 
-  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
+  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(WorkflowOptions.empty)
 
   import JesTestConfig._
 

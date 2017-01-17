@@ -53,10 +53,16 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
                      options: WorkflowOptions) extends PathBuilder {
   authMode.validate(options)
 
-  protected val storageOptions = StorageOptions.builder()
-    .authCredentials(authMode.authCredentials(options))
-    .retryParams(retryParams)
-    .build()
+  protected val storageOptionsBuilder = StorageOptions.builder()
+                                  .authCredentials(authMode.authCredentials(options))
+                                  .retryParams(retryParams)
+
+  // Grab the google project from Workflow Options if specified and set
+  // that to be the project used by the StorageOptions Builder
+  options.get("google_project") map storageOptionsBuilder.projectId
+
+
+  protected val storageOptions = storageOptionsBuilder.build()
 
   // The CloudStorageFileSystemProvider constructor is not public. Currently the only way to obtain one is through a CloudStorageFileSystem
   // Moreover at this point we can use the same provider for all operations as we have usable credentials
@@ -79,6 +85,8 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
       case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
     }
   }
+
+  def getProjectId = storageOptions.projectId()
 
   def build(string: String): Try[Path] = {
     Try {

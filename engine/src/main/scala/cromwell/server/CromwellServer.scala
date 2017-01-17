@@ -31,7 +31,7 @@ object CromwellServer {
 
     val interface = webserviceConf.getString("interface")
     val port = webserviceConf.getInt("port")
-    val timeout = webserviceConf.as[FiniteDuration]("timeout")
+    val timeout = webserviceConf.as[FiniteDuration]("binding-timeout")
     val futureBind = service.bind(interface, port)(implicitly, timeout, actorSystem, implicitly)
     futureBind andThen {
       case Success(_) =>

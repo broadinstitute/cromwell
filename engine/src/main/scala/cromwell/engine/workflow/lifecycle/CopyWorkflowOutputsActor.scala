@@ -46,7 +46,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
         }
     }
     
-    asyncCopies.toList.sequence[Future[Unit], Unit].void
+    asyncCopies.toList.sequence[Future, Unit].void
   }
 
   private def findFiles(values: Seq[WdlValue]): Seq[WdlSingleFile] = {

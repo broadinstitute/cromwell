@@ -72,7 +72,7 @@ trait CacheHitDuplicating {
       case wdlValueSimpleton => Future.successful(wdlValueSimpleton)
     }
     
-    futureCopy.toList.sequence[Future[WdlValueSimpleton], WdlValueSimpleton]
+    futureCopy.toList.sequence[Future, WdlValueSimpleton]
   }
 
   private def copyDetritus(sourceJobDetritusFiles: Map[String, String]): Future[Map[String, Path]] = {
@@ -86,7 +86,7 @@ trait CacheHitDuplicating {
       duplicate(sourcePath, destinationPath) map { _ => (fileKey, destinationPath) }
     }
 
-    destinationJobDetritusFilesFuture.toList.sequence[Future[(String, Path)], (String, Path)] map { destinationJobDetritusFiles =>
+    destinationJobDetritusFilesFuture.toList.sequence[Future, (String, Path)] map { destinationJobDetritusFiles =>
       destinationJobDetritusFiles.toMap + (JobPaths.CallRootPathKey -> destinationCallRootPath)
     }
   }

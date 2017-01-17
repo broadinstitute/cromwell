@@ -24,6 +24,12 @@ case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValu
   if (typesUsedInValue.size > 1 && !value.forall(v => wdlType.memberType.isCoerceableFrom(v.wdlType))) {
     throw new UnsupportedOperationException(s"Cannot construct ${wdlType.memberType.toWdlString} array with mixed type: ${value.map(_.wdlType).toSet.mkString(", ")}")
   }
+  if (wdlType == WdlMaybeEmptyArrayType.EmptyArrayType && value.nonEmpty) {
+    throw new UnsupportedOperationException(s"An Array[Void] must be empty but instead has value: ${value.mkString(", ")}")
+  }
+  if (nonEmpty && value.isEmpty) {
+    throw new UnsupportedOperationException(s"An ${wdlType.toWdlString} contain at least one element")
+  }
 
   override def toWdlString: String = s"[${value.map(_.toWdlString).mkString(", ")}]"
   override def toString = toWdlString

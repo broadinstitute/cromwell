@@ -36,7 +36,7 @@ object ex7 {
 
     ns.taskCalls.find( _.unqualifiedName == "a") foreach { call =>
       val wdlFunctions: CustomFunctions = new CustomFunctions
-      val evaluatedInputs = call.evaluateTaskInputs(inputs, wdlFunctions)
+      val evaluatedInputs = call.evaluateTaskInputs(inputs, wdlFunctions).get
       println(call.task.instantiateCommand(evaluatedInputs, wdlFunctions).get)
     }
   }

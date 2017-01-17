@@ -12,7 +12,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
       case r:WdlFloat => Success(WdlFloat(value + r.value))
       case r:WdlInteger => Success(WdlFloat(value + r.value))
       case r:WdlString => Success(WdlString(value + r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, add)
+      case r: WdlOptionalValue => evaluateIfDefined("+", r, add)
       case _ => invalid(s"$this + $rhs")
     }
   }
@@ -20,7 +20,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
     rhs match {
       case r:WdlFloat => Success(WdlFloat(value - r.value))
       case r:WdlInteger => Success(WdlFloat(value - r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, subtract)
+      case r: WdlOptionalValue => evaluateIfDefined("-", r, subtract)
       case _ => invalid(s"$this - $rhs")
     }
   }
@@ -28,7 +28,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
     rhs match {
       case r:WdlFloat => Success(WdlFloat(value * r.value))
       case r:WdlInteger => Success(WdlFloat(value * r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, multiply)
+      case r: WdlOptionalValue => evaluateIfDefined("*", r, multiply)
       case _ => invalid(s"$this * $rhs")
     }
   }
@@ -38,7 +38,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
       case r:WdlFloat => Success(WdlFloat(value / r.value))
       case r:WdlInteger if r.value == 0 => Failure(new WdlExpressionException("Divide by zero"))
       case r:WdlInteger => Success(WdlFloat(value / r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, divide)
+      case r: WdlOptionalValue => evaluateIfDefined("/", r, divide)
       case _ => invalid(s"$this / $rhs")
     }
   }
@@ -48,7 +48,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
       case r:WdlFloat => Success(WdlFloat(value % r.value))
       case r:WdlInteger if r.value == 0 => Failure(new WdlExpressionException("Divide by zero"))
       case r:WdlInteger => Success(WdlFloat(value % r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, mod)
+      case r: WdlOptionalValue => evaluateIfDefined("%", r, mod)
       case _ => invalid(s"$this % $rhs")
     }
   }
@@ -56,7 +56,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
     rhs match {
       case r:WdlFloat => Success(WdlBoolean(value == r.value))
       case r:WdlInteger => Success(WdlBoolean(value == r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, equals)
+      case r: WdlOptionalValue => evaluateIfDefined("==", r, equals)
       case _ => invalid(s"$this == $rhs")
     }
   }
@@ -64,7 +64,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
     rhs match {
       case r:WdlFloat => Success(WdlBoolean(value < r.value))
       case r:WdlInteger => Success(WdlBoolean(value < r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, lessThan)
+      case r: WdlOptionalValue => evaluateIfDefined("<", r, lessThan)
       case _ => invalid(s"$this < $rhs")
     }
   }
@@ -72,7 +72,7 @@ case class WdlFloat(value: Double) extends WdlPrimitive {
     rhs match {
       case r:WdlFloat => Success(WdlBoolean(value > r.value))
       case r:WdlInteger => Success(WdlBoolean(value > r.value))
-      case r: WdlOptionalValue => evaluateIfDefined(r, greaterThan)
+      case r: WdlOptionalValue => evaluateIfDefined(">", r, greaterThan)
       case _ => invalid(s"$this > $rhs")
     }
   }

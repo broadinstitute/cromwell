@@ -12,25 +12,25 @@ case class WdlString(value: String) extends WdlPrimitive {
     case r: WdlInteger => Success(WdlString(value + r.value))
     case r: WdlFloat => Success(WdlString(value + r.value))
     case r: WdlFile => Success(WdlString(value + r.value))
-    case r: WdlOptionalValue => evaluateIfDefined(r, add)
+    case r: WdlOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WdlValue): Try[WdlBoolean] = rhs match {
     case r: WdlString => Success(WdlBoolean(value == r.value))
-    case r: WdlOptionalValue => evaluateIfDefined(r, equals)
+    case r: WdlOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
 
   override def lessThan(rhs: WdlValue): Try[WdlBoolean] = rhs match {
     case r: WdlString => Success(WdlBoolean(value < r.value))
-    case r: WdlOptionalValue => evaluateIfDefined(r, lessThan)
+    case r: WdlOptionalValue => evaluateIfDefined("<", r, lessThan)
     case _ => invalid(s"$value < $rhs")
   }
 
   override def greaterThan(rhs: WdlValue): Try[WdlBoolean] = rhs match {
     case r: WdlString => Success(WdlBoolean(value > r.value))
-    case r: WdlOptionalValue => evaluateIfDefined(r, greaterThan)
+    case r: WdlOptionalValue => evaluateIfDefined(">", r, greaterThan)
     case _ => invalid(s"$value > $rhs")
   }
 

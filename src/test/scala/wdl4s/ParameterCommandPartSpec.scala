@@ -2,9 +2,10 @@ package wdl4s
 
 import better.files._
 import wdl4s.command.ParameterCommandPart
-import wdl4s.expression.NoFunctions
+import wdl4s.expression.{NoFunctions, PureStandardLibraryFunctions}
 import wdl4s.parser.WdlParser.SyntaxError
-import wdl4s.values.WdlString
+import wdl4s.types.WdlStringType
+import wdl4s.values.{WdlOptionalValue, WdlString}
 
 import scala.util.{Failure, Success, Try}
 
@@ -76,8 +77,9 @@ class ParameterCommandPartSpec extends WdlTest {
         """.stripMargin
       
       val ns = WdlNamespace.loadUsingSource(wdl, None, None)
-      val command = ns.findTask("t").get.instantiateCommand(Map.empty, NoFunctions)
-      command shouldBe Success("echo")
+      val task = ns.findTask("t").get
+      val command = task.instantiateCommand(Map(task.declarations.head -> WdlOptionalValue.none(WdlStringType)), NoFunctions)
+      command.get shouldBe "echo"
     }
   }
 }

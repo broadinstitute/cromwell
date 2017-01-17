@@ -100,7 +100,7 @@ object WdlType {
 
   def homogeneousTypeFromTypes(types: Iterable[WdlType]): WdlType = {
     types.toSet match {
-      case s if s.isEmpty => WdlAnyType
+      case s if s.isEmpty => WdlNothingType
       case s if s.size == 1 => s.head
       case _ => lowestCommonSubtype(types)
     }

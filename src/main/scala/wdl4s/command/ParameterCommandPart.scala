@@ -2,11 +2,11 @@ package wdl4s.command
 
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s._
-import wdl4s.exception.VariableNotFoundException
+import wdl4s.exception.{OptionalNotSuppliedException, VariableNotFoundException}
 import wdl4s.expression.WdlFunctions
 import wdl4s.values._
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
-import wdl4s.types.{WdlOptionalType, WdlPrimitiveType, WdlType}
+import wdl4s.types.WdlOptionalType
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -33,22 +33,23 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
 
   override def instantiate(declarations: Seq[Declaration], inputsMap: EvaluatedTaskInputs, functions: WdlFunctions[WdlValue], valueMapper: (WdlValue) => WdlValue): String = {
     val inputs = inputsMap map { case (d, v) => d.unqualifiedName -> v }
-    val lookup = (s: String) => inputs.getOrElse(s, throw VariableNotFoundException(s))
+
+    // This is a safety net.
+    // In Cromwell's production code, optional declarations are always passed to instantiate, as WdlOptionalValue.none(type) if necessary.
+    def lookupDeclaration(s: String) = declarations.collectFirst {
+      // The backtick syntax (`s`) allows us to equality-check 's' against the match/case result:
+      case Declaration(wdlType: WdlOptionalType, `s`, _, _, _) => wdlType.none
+    } getOrElse { throw VariableNotFoundException(s) }
+
+    val lookup = (s: String) => inputs.getOrElse(s, lookupDeclaration(s))
 
     val value = expression.evaluate(lookup, functions) match {
       case Success(v) => v match {
-        case WdlOptionalValue(memberType, opt) => opt.getOrElse(defaultString(memberType))
+        case WdlOptionalValue(memberType, opt) => opt.getOrElse(defaultString)
         case _ => v
       }
-      case Failure(f) => f match {
-        case v: VariableNotFoundException => declarations.find(_.unqualifiedName == v.variable) match {
-          /* Allow an expression to fail evaluation if one of the variables that it requires is optional (the type has ? after it, e.g. String?) */
-          case Some(d) if d.wdlType.isInstanceOf[WdlOptionalType] => defaultString(d.wdlType.asInstanceOf[WdlOptionalType].memberType)
-          case Some(d) => throw new UnsupportedOperationException(s"Parameter ${v.variable} is required, but no value is specified")
-          case None => throw new UnsupportedOperationException(s"Could not find declaration for ${v.variable}")
-        }
-        case e => throw new UnsupportedOperationException(s"Could not evaluate expression: ${expression.toWdlString}", e)
-      }
+      case Failure(OptionalNotSuppliedException(_)) => defaultString
+      case Failure(f) => throw new UnsupportedOperationException(s"Could not evaluate expression: ${expression.toWdlString}", f)
     }
 
     valueMapper(value) match {
@@ -60,10 +61,9 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
     }
   }
 
-  private def defaultString(wdlType: WdlType) = {
+  private def defaultString = {
     if (attributes.contains("default")) {
-      if (wdlType.isInstanceOf[WdlPrimitiveType]) WdlString(attributes.get("default").head)
-      else throw new UnsupportedOperationException(s"String interpolation 'default's can only be used for primitive types. Try setting the default in the declaration instead")
+      WdlString(attributes.get("default").head)
     } else {
       WdlString("")
     }

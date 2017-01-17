@@ -48,4 +48,6 @@ case class WdlOptionalType(memberType: WdlType) extends WdlType {
   override def unaryMinus: Try[WdlType] = memberType.unaryMinus
 
   override def toWdlString: String = memberType.toWdlString + "?"
+
+  def none = WdlOptionalValue.none(memberType)
 }

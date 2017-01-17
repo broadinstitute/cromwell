@@ -171,15 +171,15 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     } yield WdlString(pattern.r.replaceAllIn(str, replace))
   }
 
+  private val SelectFirstEmptyInput = Failure(new IllegalArgumentException("select_first failed. The input array was empty."))
   def select_first(params: Seq[Try[WdlValue]]): Try[WdlValue] = extractSingleArgument("select_first", params) flatMap {
     case WdlArray(WdlArrayType(WdlOptionalType(memberType)), arrayValue) =>
-      (arrayValue collectFirst {
+      if (arrayValue.isEmpty) SelectFirstEmptyInput else (arrayValue collectFirst {
         case WdlOptionalValue(_, Some(wdlValue)) => wdlValue
-        case wdlValue if memberType.isCoerceableFrom(wdlValue.wdlType) => memberType.coerceRawValue(wdlValue).get
-      })
-        .map(Success(_))
-        .getOrElse(Failure(new IllegalArgumentException("select_first failed. All provided values were empty.")))
-    case other => Failure(new IllegalArgumentException(s"select_first must take an array of optional values but got ${other.wdlType.toWdlString}: ${other.toWdlString}"))
+        case wdlValue if memberType.isCoerceableFrom(wdlValue.wdlType) =>
+          memberType.coerceRawValue(wdlValue).get}).map(Success(_)).getOrElse(Failure(new IllegalArgumentException("select_first failed. All provided values were empty.")))
+    case allValid @ WdlArray(WdlArrayType(_), arrayValue) => if (arrayValue.isEmpty) SelectFirstEmptyInput else Success(arrayValue.head)
+    case other => Failure(new IllegalArgumentException(s"select_first must take an array but got ${other.wdlType.toWdlString}: ${other.toWdlString}"))
   }
 
   def select_all(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractSingleArgument("select_all", params) flatMap {
@@ -188,7 +188,8 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
         case WdlOptionalValue(_, Some(wdlValue)) => wdlValue
         case wdlValue if memberType.isCoerceableFrom(wdlValue.wdlType) => memberType.coerceRawValue(wdlValue).get
       }))
-    case other => Failure(new IllegalArgumentException("select_all must take an array of optional values but got: " + other.toWdlString))
+    case allValid @ WdlArray(WdlArrayType(_), _) => Success(allValid)
+    case other => Failure(new IllegalArgumentException("select_all must take an array but got: " + other.toWdlString))
   }
 
   def zip(params: Seq[Try[WdlValue]]): Try[WdlArray] = {

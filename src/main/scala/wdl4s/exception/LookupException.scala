@@ -1,14 +1,23 @@
 package wdl4s.exception
 
 import lenthall.exception.ThrowableAggregation
-import wdl4s.GraphNode
+import wdl4s.{Declaration, GraphNode}
+import wdl4s.types.WdlType
 
 sealed trait LookupException { this: Exception => }
+
+final case class OptionalNotSuppliedException(operationName: String) extends Exception(s"Sorry! Operation $operationName is not supported on empty optional values. You might resolve this using select_first([optional, default]) to guarantee that you have a filled value.")
 
 /**
   * When a variable does not reference any known scope in the namespace.
   */
-final case class VariableNotFoundException(variable: String) extends Exception(s"Variable '$variable' not found") with LookupException
+sealed abstract case class VariableNotFoundException(variable: String, quoteName: Boolean = true) extends Exception(s"Variable $variable not found") with LookupException
+
+object VariableNotFoundException {
+  def apply(variable: String): VariableNotFoundException = new VariableNotFoundException(s"'$variable'") {}
+  def apply(variable: String, variableType: WdlType): VariableNotFoundException= new VariableNotFoundException(s"'$variable': ${variableType.toWdlString}") {}
+  def apply(declaration: Declaration): VariableNotFoundException = VariableNotFoundException.apply(declaration.fullyQualifiedName, declaration.wdlType)
+}
 
 /**
   * When an unexpected exception occurred while attempting to resolve a variable.

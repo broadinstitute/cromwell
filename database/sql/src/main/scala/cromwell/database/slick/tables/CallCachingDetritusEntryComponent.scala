@@ -1,5 +1,7 @@
 package cromwell.database.slick.tables
 
+import java.sql.Clob
+
 import cromwell.database.sql.tables.CallCachingDetritusEntry
 
 trait CallCachingDetritusEntryComponent {
@@ -14,7 +16,7 @@ trait CallCachingDetritusEntryComponent {
 
     def detritusKey = column[String]("DETRITUS_KEY")
 
-    def detritusValue = column[String]("DETRITUS_VALUE")
+    def detritusValue = column[Clob]("DETRITUS_VALUE")
 
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 

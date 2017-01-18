@@ -6,7 +6,7 @@ import cromwell.backend.impl.jes.io._
 import cromwell.core.DockerConfiguration
 import cromwell.core.path.CustomRetryParams
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.gcs.{GoogleConfiguration, RetryableGcsPathBuilderFactory}
+import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -29,7 +29,7 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val jesAttributes = JesAttributes(googleConfig, configurationDescriptor.backendConfig)
   val jesAuths = jesAttributes.auths
   val jesComputeServiceAccount = jesAttributes.computeServiceAccount
-  val gcsPathBuilderFactory = RetryableGcsPathBuilderFactory(jesAuths.gcs, customRetryParams = JesConfiguration.GcsRetryParams)
+  val gcsPathBuilderFactory = GcsPathBuilderFactory(jesAuths.gcs)
   val genomicsFactory = GenomicsFactory(googleConfig.applicationName, jesAuths.genomics, jesAttributes.endpointUrl)
   val dockerCredentials = DockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined

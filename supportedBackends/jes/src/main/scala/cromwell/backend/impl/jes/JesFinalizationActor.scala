@@ -2,23 +2,22 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import better.files._
-import cats.instances.future._
-import cats.syntax.functor._
-import cromwell.backend._
+import akka.actor.ActorRef
+import cats.implicits._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
+import cromwell.backend.{BackendWorkflowDescriptor, JobExecutionMap, _}
 import cromwell.core.CallOutputs
-import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.path.PathCopier
+import cromwell.services.io.AsyncIo
 import wdl4s.TaskCall
 
 import scala.concurrent.Future
-import scala.language.postfixOps
 
 case class JesFinalizationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   calls: Set[TaskCall],
+  serviceRegistryActor: ActorRef,
   jesConfiguration: JesConfiguration,
   jobExecutionMap: JobExecutionMap,
   workflowOutputs: CallOutputs,
@@ -28,7 +27,7 @@ case class JesFinalizationActorParams
 }
 
 class JesFinalizationActor(jesParams: JesFinalizationActorParams)
-  extends StandardFinalizationActor {
+  extends StandardFinalizationActor with AsyncIo {
 
   override val standardParams: StandardFinalizationActorParams = jesParams
 
@@ -37,8 +36,6 @@ class JesFinalizationActor(jesParams: JesFinalizationActorParams)
   private val workflowPaths = initializationDataOption.map {
     _.asInstanceOf[JesBackendInitializationData].workflowPaths
   }
-
-  private val iOExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
 
   override def afterAll(): Future[Unit] = {
     for {
@@ -50,27 +47,25 @@ class JesFinalizationActor(jesParams: JesFinalizationActorParams)
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths)) => Future { File(paths.gcsAuthFilePath).delete(false) } void
+      case (true, Some(paths)) => delete(paths.gcsAuthFilePath, swallowIOExceptions = false)
       case _ => Future.successful(())
     }
   }
 
   private def copyCallOutputs(): Future[Unit] = {
     /*
-    NOTE: Only using one thread pool slot here to upload all the files for all the calls.
-    Using the io-dispatcher defined in application.conf because this might take a while.
-    One could also use Future.sequence to flood the dispatcher, or even create a separate jes final call specific thread
-    pool for parallel uploads.
-
-    Measure and optimize as necessary. Will likely need retry code at some level as well.
+    NOTE: All copies are sent in parallel to the ioActor. 
+    We still wait for all of them to be complete before returning the Future (see Future.sequence)
+    We could make this even more async and have an actor waiting for all the futures to come back.
+    Or even better create a dedicated actor and use the ack based version of the Io messages.
      */
     workflowPaths match {
-      case Some(paths) => Future(paths.finalCallLogsPath foreach copyCallOutputs)(iOExecutionContext)
+      case Some(paths) => paths.finalCallLogsPath map copyCallOutputs getOrElse Future.successful(())
       case _ => Future.successful(())
     }
   }
 
-  private def copyCallOutputs(callLogsPath: Path): Unit = {
+  private def copyCallOutputs(callLogsPath: Path): Future[Unit] = {
     copyLogs(callLogsPath, logPaths)
   }
 
@@ -85,10 +80,15 @@ class JesFinalizationActor(jesParams: JesFinalizationActorParams)
     }
   }
 
-  private def copyLogs(callLogsDirPath: Path, logPaths: Seq[Path]): Unit = {
+  private def copyLogs(callLogsDirPath: Path, logPaths: Seq[Path]): Future[Unit] = {
     workflowPaths match {
-      case Some(paths) => logPaths.foreach(PathCopier.copy(paths.executionRoot, _, callLogsDirPath))
-      case None =>
+      case Some(paths) => 
+        val logAsyncCopies = logPaths map { sourceFilePath =>
+          val destinationPath = PathCopier.getDestinationFilePath(paths.executionRoot, sourceFilePath, callLogsDirPath)
+          copy(sourceFilePath, destinationPath)
+        }
+        Future.sequence(logAsyncCopies).void
+      case None => Future.successful(())
     }
   }
 }

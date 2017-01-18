@@ -13,6 +13,7 @@ import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl
 import cromwell._
+import cromwell.services.io.IoService
 import org.scalatest.BeforeAndAfter
 
 import scala.concurrent.duration._
@@ -51,7 +52,12 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with BeforeAndAfter
         MetadataWatchActor.JobKeyMetadataKeyAndValueContainStringMatcher(metadataKeyAttemptChecker(3), "executionStatus", "Done")
       )
       val metadataWatcherProps = Props(MetadataWatchActor(metadataSuccessPromise, requiredMetadataMatchers: _*))
-      val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load(), overrides = Map(MetadataService.MetadataServiceName -> metadataWatcherProps)))
+      val serviceRegistryActor = system.actorOf(ServiceRegistryActor.props(ConfigFactory.load(), 
+        overrides = Map(
+          MetadataService.MetadataServiceName -> metadataWatcherProps,
+          IoService.serviceName -> metadataWatcherProps
+        ))
+      )
       val jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props)
       val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
       val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)

@@ -338,7 +338,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs) = {
-    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, jobExecutionMap, workflowOutputs, stateData.initializationData), name = s"WorkflowFinalizationActor")
+    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, serviceRegistryActor, jobExecutionMap, workflowOutputs, stateData.initializationData), name = s"WorkflowFinalizationActor")
   }
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.

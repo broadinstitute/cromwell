@@ -1,6 +1,6 @@
 package cromwell.backend
 
-import akka.actor.ActorLogging
+import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowFinalizationActor._
@@ -26,6 +26,7 @@ object BackendWorkflowFinalizationActor {
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
 trait BackendWorkflowFinalizationActor extends BackendWorkflowLifecycleActor with ActorLogging {
+  val serviceRegistryActor: ActorRef
 
   def receive: Receive = LoggingReceive {
     case Finalize => performActionThenRespond(afterAll map { _ => FinalizationSuccess }, onFailure = FinalizationFailed)

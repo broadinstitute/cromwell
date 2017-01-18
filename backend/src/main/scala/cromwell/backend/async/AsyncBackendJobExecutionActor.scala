@@ -38,7 +38,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   def isFatal(throwable: Throwable): Boolean = throwable.isInstanceOf[CromwellFatalExceptionMarker]
 
   def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
-
+  
   private def withRetry[A](work: () => Future[A], backOff: SimpleExponentialBackoff): Future[A] = {
     Retry.withRetry(work, isTransient = isTransient, isFatal = isFatal, backoff = backOff)(context.system)
   }

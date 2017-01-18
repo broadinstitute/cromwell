@@ -6,7 +6,7 @@ import com.google.cloud.RetryParams
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.{CustomRetryParams, PathBuilderFactory}
+import cromwell.core.path.PathBuilderFactory
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 import net.ceedubs.ficus.Ficus._
 
@@ -34,15 +34,4 @@ case class GcsPathBuilderFactory(authMode: GoogleAuthMode,
   extends PathBuilderFactory {
 
   def withOptions(options: WorkflowOptions)(implicit actorSystem: ActorSystem) = new GcsPathBuilder(authMode, retryParams, cloudStorageConfiguration, options)
-}
-
-case class RetryableGcsPathBuilderFactory(authMode: GoogleAuthMode,
-                                          googleRetryParams: RetryParams = GcsPathBuilderFactory.DefaultRetryParams,
-                                          customRetryParams: CustomRetryParams = CustomRetryParams.Default,
-                                          cloudStorageConfiguration: CloudStorageConfiguration = GcsPathBuilderFactory.DefaultCloudStorageConfiguration)
-
-
-  extends PathBuilderFactory {
-
-  def withOptions(options: WorkflowOptions)(implicit actorSystem: ActorSystem) = new RetryableGcsPathBuilder(authMode, googleRetryParams, customRetryParams, cloudStorageConfiguration, options)
 }

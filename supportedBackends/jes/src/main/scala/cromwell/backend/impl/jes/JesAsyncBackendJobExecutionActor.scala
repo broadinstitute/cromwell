@@ -17,7 +17,6 @@ import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core._
 import cromwell.core.path.PathFactory._
 import cromwell.core.path.PathImplicits._
-import cromwell.core.path.proxy.PathProxy
 import cromwell.core.retry.SimpleExponentialBackoff
 import wdl4s._
 import wdl4s.expression.{NoFunctions, WdlFunctions}
@@ -215,7 +214,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def commandLineValueMapper: (WdlValue) => WdlValue = gcsPathToLocal
 
-  private def uploadCommandScript(command: String, withMonitoring: Boolean, globFiles: Set[WdlGlobFile]): Unit = {
+  private def uploadCommandScript(command: String, withMonitoring: Boolean, globFiles: Set[WdlGlobFile]): Future[Unit] = {
     val monitoring = if (withMonitoring) {
       s"""|touch $JesMonitoringLogFile
           |chmod u+x $JesMonitoringScript
@@ -258,8 +257,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           |mv $rcTmpPath $rcPath
           |""".stripMargin.replace("INSTANTIATED_COMMAND", command)
 
-    File(jesCallPaths.script).write(fileContent)
-    ()
+    write(jesCallPaths.script, fileContent)
   }
 
   private def googleProject(descriptor: BackendWorkflowDescriptor): String = {
@@ -297,11 +295,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def isTransient(throwable: Throwable): Boolean = isTransientJesException(throwable)
 
-  override def execute(): ExecutionHandle = {
+  override def execute(): Future[ExecutionHandle] = {
     runWithJes(None)
   }
 
-  protected def runWithJes(runIdForResumption: Option[String]): ExecutionHandle = {
+  protected def runWithJes(runIdForResumption: Option[String]): Future[ExecutionHandle] = {
     // Force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     Try(runtimeAttributes) match {
       case Success(_) =>
@@ -312,10 +310,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
         val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
 
-        uploadCommandScript(command, withMonitoring, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
-        val run = createJesRun(jesParameters, runIdForResumption)
-        PendingExecutionHandle(jobDescriptor, StandardAsyncJob(run.runId), Option(run), previousStatus = None)
-      case Failure(e) => FailedNonRetryableExecutionHandle(e)
+        uploadCommandScript(command, withMonitoring, backendEngineFunctions.findGlobOutputs(call, jobDescriptor)) map { _ =>
+          val run = createJesRun(jesParameters, runIdForResumption)
+          PendingExecutionHandle(jobDescriptor, StandardAsyncJob(run.runId), Option(run), previousStatus = None)
+        }
+      case Failure(e) => Future.successful(FailedNonRetryableExecutionHandle(e))
     }
   }
 
@@ -461,7 +460,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   // TODO: Adapter for left over test code. Not used by main.
   private[jes] def executionResult(status: TerminalRunStatus, handle: JesPendingExecutionHandle)
                                   (implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    Future.fromTry(Try(handleExecutionResult(status, handle)))
+    handleExecutionResult(status, handle)
   }
 
   /**
@@ -490,10 +489,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         getPath(wdlFile.valueString) match {
           case Success(gcsPath: CloudStoragePath) =>
             WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
-          case Success(proxy: PathProxy) =>
-            proxy.unbox(classOf[CloudStoragePath]) map { gcsPath =>
-              WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
-            } getOrElse wdlValue
           case _ => wdlValue
         }
       case wdlArray: WdlArray => wdlArray map gcsPathToLocal

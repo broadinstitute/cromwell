@@ -117,20 +117,20 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
-                                              jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
-                                              initializationData: Option[BackendInitializationData]): Option[Props] = {
+                                              serviceRegistryActor: ActorRef, jobExecutionMap: JobExecutionMap,
+                                              workflowOutputs: CallOutputs, initializationData: Option[BackendInitializationData]): Option[Props] = {
     finalizationActorClassOption map { finalizationActorClass =>
-      val params = workflowFinalizationActorParams(workflowDescriptor, calls, jobExecutionMap, workflowOutputs,
+      val params = workflowFinalizationActorParams(workflowDescriptor, calls, serviceRegistryActor, jobExecutionMap, workflowOutputs,
         initializationData)
       Props(finalizationActorClass, params).withDispatcher(BackendDispatcher)
     }
   }
 
   def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
-                                      jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
-                                      initializationDataOption: Option[BackendInitializationData]):
+                                      serviceRegistryActor: ActorRef, jobExecutionMap: JobExecutionMap,
+                                      workflowOutputs: CallOutputs, initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {
-    DefaultStandardFinalizationActorParams(workflowDescriptor, calls, jobExecutionMap, workflowOutputs,
+    DefaultStandardFinalizationActorParams(workflowDescriptor, calls, serviceRegistryActor, jobExecutionMap, workflowOutputs,
       initializationDataOption, configurationDescriptor)
   }
 

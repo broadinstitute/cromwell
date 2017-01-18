@@ -2,7 +2,6 @@ package cromwell.backend.standard
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
@@ -10,6 +9,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.services.io.AsyncIo
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import wdl4s._
@@ -29,7 +29,7 @@ import scala.util.{Failure, Success, Try}
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper {
+trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIo {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   val SIGTERM = 143
@@ -80,7 +80,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** A tag that may be used for logging. */
   lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
-
+  
   /**
     * When returns true, the `remoteStdErrPath` will be read. If contents of that path are non-empty, the job will fail.
     *
@@ -103,7 +103,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @return the execution handle for the job.
     */
-  def execute(): ExecutionHandle
+  def execute(): Future[ExecutionHandle]
 
   /**
     * Recovers the specified job id, or starts a new job. The default implementation simply calls execute().
@@ -111,7 +111,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param jobId The previously recorded job id.
     * @return the execution handle for the job.
     */
-  def recover(jobId: StandardAsyncJob): ExecutionHandle = execute()
+  def recover(jobId: StandardAsyncJob): Future[ExecutionHandle] = execute()
 
   /**
     * Returns the run status for the job.
@@ -243,46 +243,59 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), None)
   }
 
-  context.become(standardReceiveBehavior(None) orElse receive)
+  context.become(standardReceiveBehavior(None, abortReady = false) orElse receive)
 
-  def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
+  /**
+    * @param abortReady will be true as soon as the execution handle is available and jobIdOption had a chance to be set to Some value.
+    */
+  def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob], abortReady: Boolean): Receive = LoggingReceive {
     case AbortJobCommand =>
+      (jobIdOption, abortReady) match {
+          // If we got a jobId, then we can abort so no need to check abortReady
+        case (Some(jobId), _) =>
+          Try(tryAbort(jobId)) match {
+            case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, jobId)
+            case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, jobId, ex.getMessage)
+          }
+          postAbort()
+          // If we don't have a job id but we're not ready to abort yet, re-submit the abort message
+        case (None, false) => self ! AbortJobCommand
+        case _ => postAbort()
+      }
       jobIdOption foreach { jobId =>
         Try(tryAbort(jobId)) match {
           case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, jobId)
           case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, jobId, ex.getMessage)
         }
       }
-      postAbort()
     case KvPutSuccess(_) => // expected after the KvPut for the operation ID
   }
 
   override def retryable = false
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    Future.fromTry(Try {
-      val result = mode match {
-        case Recover(jobId: StandardAsyncJob@unchecked) =>
-          recover(jobId)
-        case _ =>
-          tellMetadata(startMetadataKeyValues)
-          execute()
-      }
-      result match {
-        case handle: PendingExecutionHandle[
-          StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
-          tellKvJobId(handle.pendingJob)
-          jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
-          tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
-          context.become(standardReceiveBehavior(Option(handle.pendingJob)) orElse receive)
-        case _ => /* ignore */
-      }
-      result
-    } recoverWith {
-      case exception: Exception =>
-        jobLogger.error(s"Error attempting to $mode", exception)
-        Failure(exception)
-    })
+    val result = mode match {
+      case Recover(jobId: StandardAsyncJob@unchecked) =>
+        recover(jobId)
+      case _ =>
+        tellMetadata(startMetadataKeyValues)
+        execute()
+    }
+    result onComplete {
+      case Success(handle: PendingExecutionHandle[
+        StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked]) =>
+        tellKvJobId(handle.pendingJob)
+        jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
+        tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
+        context.become(standardReceiveBehavior(Option(handle.pendingJob), abortReady = true) orElse receive)
+      case Failure(exception) => 
+        jobLogger.error(s"Error attempting to $mode: ${exception.getMessage}", exception)
+        context.become(standardReceiveBehavior(None, abortReady = true) orElse receive)
+      case _ =>
+        context.become(standardReceiveBehavior(None, abortReady = true) orElse receive)
+    }
+    
+    result
   }
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
@@ -291,7 +304,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
 
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
-        pollStatusAsync(handle) map {
+        pollStatusAsync(handle) flatMap {
           backendRunStatus =>
             handlePollSuccess(handle, backendRunStatus)
         } recover {
@@ -312,7 +325,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The updated execution handle.
     */
   def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle,
-                        status: StandardAsyncRunStatus): ExecutionHandle = {
+                        status: StandardAsyncRunStatus): Future[ExecutionHandle] = {
     val previousStatus = oldHandle.previousStatus
     if (!(previousStatus contains status)) {
       /*
@@ -331,7 +344,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         val metadata = getTerminalMetadata(status)
         tellMetadata(metadata)
         handleExecutionResult(status, oldHandle)
-      case s => oldHandle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+      case s => Future.successful(oldHandle.copy(previousStatus = Option(s))) // Copy the current handle with updated previous status.
     }
   }
 
@@ -369,49 +382,47 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The updated execution handle.
     */
   def handleExecutionResult(status: StandardAsyncRunStatus,
-                            oldHandle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
-    try {
-      if (isSuccess(status)) {
+                            oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
-        lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
-        lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
-        lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
-        
-        (stderrLength, returnCodeAsString, returnCodeAsInt) match {
-            // Failed to get stderr size -> Retry
-          case (Failure(exception), _, _) =>
-            jobLogger.warn(s"could not get stderr file size, retrying", exception)
-            oldHandle
-            // Failed to get return code content -> Retry
-          case (_, Failure(exception), _) =>
-            jobLogger.warn(s"could not download return code file, retrying", exception)
-            oldHandle
-            // Failed to convert return code content to Int -> Fail
-          case (_, _, Failure(exception)) =>
-            FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, jobPaths.stderr))
-            // Stderr is not empty and failOnStdErr is true -> Fail
-          case (Success(length), _, _) if failOnStdErr && length.intValue > 0 =>
-            FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, length, jobPaths.stderr), returnCodeAsInt.toOption)
-            // Return code is abort code -> Abort
-          case (_, _, Success(rc)) if isAbort(rc) =>
-            AbortedExecutionHandle
-            // Return code is not valid -> Fail
-          case (_, _, Success(rc)) if !continueOnReturnCode.continueFor(rc) =>
-            FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, jobPaths.stderr), returnCodeAsInt.toOption)
-            // Otherwise -> Succeed
-          case (_, _, Success(rc)) => 
-            handleExecutionSuccess(status, oldHandle, rc)
-        }
+    if (isSuccess(status)) {
+      val returnCode: Future[String] = read(jobPaths.returnCode)
+      val stderrSize: Future[Long] = size(jobPaths.stderr)
 
-      } else {
-        handleExecutionFailure(status, oldHandle)
+      returnCode onFailure {
+        case exception => jobLogger.warn(s"could not download return code file, retrying", exception)
       }
-    } catch {
-      case e: Exception =>
-        jobLogger.warn("Caught exception processing job result, retrying", e)
-        // Return the original handle to try again.
-        oldHandle
-    }
+
+      stderrSize onFailure {
+        case exception => jobLogger.warn(s"could not get stderr file size, retrying", exception)
+      }
+
+      val returnCodeAndStderrSize = for {
+        rc <- returnCode
+        size <- stderrSize
+      } yield (size, rc, Try(rc.trim.toInt))
+
+      returnCodeAndStderrSize map {
+        case (_, rc, Failure(e)) =>
+          FailedNonRetryableExecutionHandle(
+            ReturnCodeIsNotAnInt(jobDescriptor.key.tag, rc, jobPaths.stderr)
+          )
+        case (length, _, rcAsInt) if failOnStdErr && length.intValue > 0 =>
+          FailedNonRetryableExecutionHandle(
+            StderrNonEmpty(jobDescriptor.key.tag, length, jobPaths.stderr), rcAsInt.toOption
+          )
+        case (_, _, Success(rcAsInt)) if isAbort(rcAsInt) =>
+          AbortedExecutionHandle
+        case (_, _, Success(rcAsInt)) if !continueOnReturnCode.continueFor(rcAsInt) =>
+          FailedNonRetryableExecutionHandle(
+            WrongReturnCode(jobDescriptor.key.tag, rcAsInt, jobPaths.stderr), Option(rcAsInt)
+          )
+        case (_, _, Success(rcAsInt)) =>
+          handleExecutionSuccess(status, oldHandle, rcAsInt)
+      } recover {
+        case e => oldHandle
+      }
+      
+    } else Future.successful(handleExecutionFailure(status, oldHandle))
   }
 
   /**

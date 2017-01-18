@@ -32,16 +32,17 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
     JesInitializationActorParams(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor)
   }
 
-  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
-                                              jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
-                                              initializationDataOption: Option[BackendInitializationData]):
-  StandardFinalizationActorParams = {
+  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
+                                              calls: Set[TaskCall],
+                                              serviceRegistryActor: ActorRef,
+                                              jobExecutionMap: JobExecutionMap,
+                                              workflowOutputs: CallOutputs,
+                                              initializationDataOption: Option[BackendInitializationData]): StandardFinalizationActorParams = {
     // The `JesInitializationActor` will only return a non-`Empty` `JesBackendInitializationData` from a successful `beforeAll`
     // invocation.  HOWEVER, the finalization actor is created regardless of whether workflow initialization was successful
     // or not.  So the finalization actor must be able to handle an empty `JesBackendInitializationData` option, and there is no
     // `.get` on the initialization data as there is with the execution or cache hit copying actor methods.
-    JesFinalizationActorParams(workflowDescriptor, calls, jesConfiguration, jobExecutionMap, workflowOutputs,
-      initializationDataOption)
+    JesFinalizationActorParams(workflowDescriptor, calls, serviceRegistryActor, jesConfiguration, jobExecutionMap, workflowOutputs, initializationDataOption)
   }
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,

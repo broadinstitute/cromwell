@@ -9,6 +9,7 @@ import better.files._
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogger
+import cromwell.services.io.AsyncIo
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
@@ -25,14 +26,15 @@ object CopyWorkflowLogsActor {
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
 // Which could be used for other copying work (outputs, call logs..)
-class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
+class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef)
     extends Actor
-    with ActorLogging {
+    with ActorLogging
+    with AsyncIo {
 
   def copyAndClean(src: Path, dest: Path) = {
     File(dest).parent.createDirectories()
 
-    File(src).copyTo(dest, overwrite = true)
+    copy(src, dest)
     if (WorkflowLogger.isTemporary) {
       File(src).delete()
     }

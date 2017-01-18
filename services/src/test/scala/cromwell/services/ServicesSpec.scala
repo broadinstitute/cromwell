@@ -55,6 +55,7 @@ object ServicesSpec {
       |
       |    # Note that without further configuration, backend actors run on the default dispatcher
       |  }
+      |  
       |  test {
       |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
       |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts

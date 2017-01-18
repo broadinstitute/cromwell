@@ -10,7 +10,7 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilder
 import cromwell.core.path.PathImplicits._
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, RetryableGcsPathBuilder}
+import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -31,7 +31,7 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root)
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
-  val gcsPathBuilder: RetryableGcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
+  val gcsPathBuilder: GcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
 
   def getHash(gcsUrl: Path): Try[String] = gcsPathBuilder.getHash(gcsUrl)
 

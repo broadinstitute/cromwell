@@ -124,7 +124,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   val tag = self.path.name
 
-  val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
+  val iOExecutionContext = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   startWith(ReadyToMaterializeState, MaterializeWorkflowDescriptorActorData())
 

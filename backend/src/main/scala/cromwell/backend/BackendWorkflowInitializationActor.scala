@@ -128,7 +128,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
         def badRuntimeAttrsForTask(task: Task) = {
           runtimeAttributeValidators map { case (attributeName, validator) =>
             val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
-            attributeName -> (value, validator(value))
+            attributeName -> ((value, validator(value)))
           } collect {
             case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
           }

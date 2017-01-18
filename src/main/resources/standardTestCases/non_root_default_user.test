@@ -1,0 +1,12 @@
+name: non_root_default_user
+testFormat: workflowsuccess
+
+files {
+  wdl: non_root_default_user/non_root_default_user.wdl
+}
+
+metadata {
+  workflowName: woot
+  status: Succeeded
+  "outputs.notrootHome": "/home/notroot"
+}

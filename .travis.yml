@@ -17,7 +17,7 @@ before_cache:
   - find $HOME/.sbt -name "*.lock" -delete
 env:
   global:
-    - CENTAUR_BRANCH=develop
+    - CENTAUR_BRANCH=3d1531fe9fb3ff0981076198847de202d242eb0f
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt

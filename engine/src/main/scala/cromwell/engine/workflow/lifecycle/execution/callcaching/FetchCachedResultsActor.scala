@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.Simpletons._
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -30,7 +31,7 @@ class FetchCachedResultsActor(cacheResultId: CallCachingEntryId, replyTo: ActorR
       case Success(Some(result)) =>
         val simpletons = result.callCachingSimpletonEntries map toSimpleton
         val jobDetritusFiles = result.callCachingDetritusEntries map { jobDetritusEntry =>
-          jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue
+          jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue.toString
         }
         val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
                                     result.callCachingEntry.callFullyQualifiedName,

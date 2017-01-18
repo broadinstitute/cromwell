@@ -3,10 +3,13 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
+    <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
+    <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+
     <changeSet author="rmunshi" id="embiggen_call_caching_detritus_entry">
         <modifyDataType tableName="CALL_CACHING_DETRITUS_ENTRY"
                         columnName="DETRITUS_VALUE"
-                        newDataType="LONGTEXT"/>
+                        newDataType="${clob.type}"/>
         <comment>
             The Call Caching Detritus Entry version of the embiggener.
         </comment>

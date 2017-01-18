@@ -422,9 +422,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                                       returnCode: Option[Int]): ExecutionHandle = {
     val failed = runStatus match {
       case failedStatus: RunStatus.Failed => failedStatus
-      case unknown =>
-        throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed. Instead got $unknown")
+      case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed. Instead got $unknown")
     }
+    
     val errorCode = failed.errorCode
     val errorMessage = failed.errorMessage
 

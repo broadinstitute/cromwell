@@ -1,0 +1,19 @@
+version: '2'
+services:
+  cromwell:
+    build: 
+      context: ./compose/cromwell
+    volumes:
+      - ./cromwell-executions:/app-setup/cromwell-executions
+    links:
+      - mysql-db
+    ports:
+      - "8000:8000"
+  mysql-db:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ROOT_PASSWORD=cromwell
+      - MYSQL_DATABASE=cromwell_db
+    volumes:
+      - ./compose/mysql:/docker-entrypoint-initdb.d
+

@@ -1,0 +1,9 @@
+version: '2'
+services:
+  cromwell:
+    volumes:
+      - $HOME/.config/gcloud:/application-default
+      - ./jes-cromwell/jes-config:/app-config
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/application-default/application_default_credentials.json
+

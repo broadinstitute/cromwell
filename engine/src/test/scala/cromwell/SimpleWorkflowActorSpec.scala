@@ -34,7 +34,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
                                  matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
-    val workflowSources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(), rawInputsOverride, "{}")
+    val workflowSources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(), rawInputsOverride, "{}", "{}")
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
@@ -119,7 +119,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
     }
 
     "fail when a call fails" in {
-      val expectedError = "Call wf_goodbye.goodbye:NA:1: return code was 1"
+      val expectedError = "Job wf_goodbye.goodbye:NA:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details." 
       val failureMatcher = FailureMatcher(expectedError)
       val TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise) = buildWorkflowActor(SampleWdl.GoodbyeWorld, SampleWdl.GoodbyeWorld.wdlJson, workflowId, failureMatcher)
       val probe = TestProbe()

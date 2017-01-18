@@ -44,10 +44,10 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
 
   override val standardParams: StandardInitializationActorParams = jesParams
 
-  override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
-    JesRuntimeAttributes.runtimeAttributesBuilder
-
   private val jesConfiguration = jesParams.jesConfiguration
+
+  override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
+    JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
 
   private[jes] lazy val refreshTokenAuth: Option[JesAuthInformation] = {
     for {
@@ -70,7 +70,7 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
       workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
       _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
       _ = publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-    } yield Option(JesBackendInitializationData(workflowPaths, jesConfiguration, genomics))
+    } yield Option(JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, jesConfiguration, genomics))
   }
 
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {

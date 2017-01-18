@@ -6,7 +6,7 @@ import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
@@ -373,28 +373,34 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     try {
       if (isSuccess(status)) {
 
-        lazy val stderrLength: Long = File(jobPaths.stderr).size
-        lazy val returnCode: Try[Int] = Try(File(jobPaths.returnCode).contentAsString).map(_.trim.toInt)
-        status match {
-          case _ if failOnStdErr && stderrLength.intValue > 0 =>
-            // returnCode will be None if it couldn't be downloaded/parsed, which will yield a null in the DB
-            FailedNonRetryableExecutionHandle(new RuntimeException(
-              s"execution failed: stderr has length $stderrLength"), returnCode.toOption)
-          case _ if returnCode.isFailure =>
-            val exception = returnCode.failed.get
-            jobLogger.warn(s"could not download return code file, retrying", exception)
-            // Return handle to try again.
+        lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
+        lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
+        lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
+        
+        (stderrLength, returnCodeAsString, returnCodeAsInt) match {
+            // Failed to get stderr size -> Retry
+          case (Failure(exception), _, _) =>
+            jobLogger.warn(s"could not get stderr file size, retrying", exception)
             oldHandle
-          case _ if returnCode.isFailure =>
-            FailedNonRetryableExecutionHandle(new RuntimeException(
-              s"execution failed: could not parse return code as integer", returnCode.failed.get))
-          case _ if isAbort(returnCode.get) =>
+            // Failed to get return code content -> Retry
+          case (_, Failure(exception), _) =>
+            jobLogger.warn(s"could not download return code file, retrying", exception)
+            oldHandle
+            // Failed to convert return code content to Int -> Fail
+          case (_, _, Failure(exception)) =>
+            FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, jobPaths.stderr))
+            // Stderr is not empty and failOnStdErr is true -> Fail
+          case (Success(length), _, _) if failOnStdErr && length.intValue > 0 =>
+            FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, length, jobPaths.stderr), returnCodeAsInt.toOption)
+            // Return code is abort code -> Abort
+          case (_, _, Success(rc)) if isAbort(rc) =>
             AbortedExecutionHandle
-          case _ if !continueOnReturnCode.continueFor(returnCode.get) =>
-            val message = s"Call ${jobDescriptor.key.tag}: return code was ${returnCode.get}"
-            FailedNonRetryableExecutionHandle(new RuntimeException(message), returnCode.toOption)
-          case _ =>
-            handleExecutionSuccess(status, oldHandle, returnCode.get)
+            // Return code is not valid -> Fail
+          case (_, _, Success(rc)) if !continueOnReturnCode.continueFor(rc) =>
+            FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, jobPaths.stderr), returnCodeAsInt.toOption)
+            // Otherwise -> Succeed
+          case (_, _, Success(rc)) => 
+            handleExecutionSuccess(status, oldHandle, rc)
         }
 
       } else {

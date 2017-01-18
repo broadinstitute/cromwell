@@ -2,7 +2,16 @@
 
 ## 25
 
+* Moved the config value `services.MetadataService.metadata-summary-refresh-interval` to `services.MetadataService.config.metadata-summary-refresh-interval`
+* Cromwell now applies default labels automatically to JES pipeline runs.
+* Added ability to override the default zone(s) used by JES via the config structure by setting `genomics.default-zones` in the JES configuration
+* Added support for new WDL functions:
+  * `length: (Array[X]) => Integer` - report the length of the specified array 
+* The cromwell server TCP binding timeout is now configurable via the config key `webservice.binding-timeout`, defaulted
+  to the previous value `5s` (five seconds) via the reference.conf.
 
+### Database schema changes
+* Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.
 
 ## 24
 
@@ -23,6 +32,7 @@
   * `transpose: (Array[Array[X]]) => Array[Array[X]]` compute the matrix transpose for a 2D array. Assumes each inner array has the same length.
 * By default, `system.abort-jobs-on-terminate` is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
 * Enable WDL imports when running in Single Workflow Runner Mode.
+* Both batch and non-batch REST workflow submissions now require a multipart/form-data encoded body.
 * Support for sub workflows (see [Annex A](#annex-a---workflow-outputs))
 * Enable WDL imports when running in Single Workflow Runner Mode as well as Server Mode
 * Support for WDL imports through an additional imports.zip parameter

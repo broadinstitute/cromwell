@@ -4,6 +4,7 @@ import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec
+import cromwell.core.labels.{Label, Labels}
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
@@ -38,6 +39,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
     """.stripMargin)
   val unstructuredFile = "fubar badness!"
   val validOptionsFile =""" { "write_to_cache": "true" } """
+  val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2" }"""
+  val badCustomLabelsFile="""{ "Label1": "valu£1", "--label2": "valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue" }"""
 
   val validInputsJson = HelloWorld.rawInputs.toJson.toString()
   val wdlSourceWithDocker = HelloWorld.wdlSource(""" runtime { docker: "ubuntu:latest" } """)
@@ -55,7 +58,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
   "MaterializeWorkflowDescriptorActor" should {
     "accept valid WDL, inputs and options files" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, validInputsJson, validOptionsFile)
+      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, validInputsJson, validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -68,6 +71,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
             wfDesc.backendDescriptor.knownValues.head shouldBe (("wf_hello.hello.addressee", WdlString("world")))
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
+            wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2")
             // Default backend assignment is "Local":
             wfDesc.backendAssignments foreach {
               case (call, assignment) if call.task.name.equals("hello") => assignment shouldBe "Local"
@@ -106,7 +110,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
           |}
         """.stripMargin
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", defaultDocker)
+      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", defaultDocker, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -153,7 +157,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
 
       // Run the test:
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, cromwellBackends, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", "{}")
+      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", "{}", validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
       within(Timeout) {
@@ -188,7 +192,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
         """.stripMargin
 
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", "{}")
+      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", "{}", "{}")
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
       within(Timeout) {
@@ -207,7 +211,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
 
     "reject an invalid WDL source" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(unstructuredFile, validInputsJson, validOptionsFile)
+      val sources = WorkflowSourceFilesWithoutImports(unstructuredFile, validInputsJson, validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -231,7 +235,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
           |# no workflow foo { ... } block!!
         """.stripMargin
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(noWorkflowWdl, validInputsJson, validOptionsFile)
+      val sources = WorkflowSourceFilesWithoutImports(noWorkflowWdl, validInputsJson, validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -256,7 +260,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
           |workflow foo {  }
         """.stripMargin
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val badWdlSources = WorkflowSourceFilesWithoutImports(noWorkflowWdl, validInputsJson, validOptionsFile)
+      val badWdlSources = WorkflowSourceFilesWithoutImports(noWorkflowWdl, validInputsJson, validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badWdlSources, minimumConf)
 
       within(Timeout) {
@@ -275,7 +279,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
 
     "reject an invalid options file" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, validInputsJson, unstructuredFile)
+      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, validInputsJson, unstructuredFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -291,9 +295,52 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
       system.stop(materializeWfActor)
     }
 
+    "reject an unstructured labels file" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
+      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, validInputsJson, validOptionsFile, unstructuredFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith(
+              """Workflow input processing failed:
+                |Workflow contains invalid labels JSON: Unexpected character 'u'""".stripMargin)
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
+
+    "reject invalid labels" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
+      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, validInputsJson, validOptionsFile, badCustomLabelsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should be(
+              s"""Workflow input processing failed:
+                |Invalid label: Label1 did not match the regex ${Label.LabelRegexPattern}
+                |Invalid label: valu£1 did not match the regex ${Label.LabelRegexPattern}
+                |Invalid label: --label2 did not match the regex ${Label.LabelRegexPattern}
+                |Invalid label: valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue was 65 characters. The maximum is 63""".stripMargin)
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown =>
+            fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
+
     "reject an invalid workflow inputs file" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, unstructuredFile, validOptionsFile)
+      val sources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, unstructuredFile, validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -312,7 +359,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
     "reject requests if any required inputs are missing" in {
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
       val noInputsJson = "{}"
-      val badOptionsSources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, noInputsJson, validOptionsFile)
+      val badOptionsSources = WorkflowSourceFilesWithoutImports(wdlSourceNoDocker, noInputsJson, validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf)
 
       within(Timeout) {
@@ -338,7 +385,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitSpec with Be
           |}
         """.stripMargin
       val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", validOptionsFile)
+      val sources = WorkflowSourceFilesWithoutImports(wdl, "{}", validOptionsFile, validCustomLabelsFile)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {

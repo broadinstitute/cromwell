@@ -16,6 +16,7 @@ import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
+import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.PathImplicits._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
@@ -80,7 +81,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
     val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
-    JesBackendInitializationData(workflowPaths, configuration, null)
+    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(configuration)
+    JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null)
   }
 
   class TestableJesJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: JesExpressionFunctions)
@@ -114,6 +116,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   private val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
+  private val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
   private val workingDisk = JesWorkingDisk(DiskType.SSD, 200)
 
   val DockerAndDiskRuntime: String =
@@ -129,7 +132,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"), Seq.empty[ImportResolver]).workflow,
       Inputs,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val job = workflowDescriptor.workflow.taskCalls.head
@@ -303,7 +307,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", ""), Seq.empty[ImportResolver]).workflow,
       inputs,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val call = workflowDescriptor.workflow.taskCalls.head
@@ -357,7 +362,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val job = workflowDescriptor.workflow.taskCalls.head
@@ -396,7 +402,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[TaskCall]
@@ -457,7 +464,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val job = workflowDescriptor.workflow.taskCalls.head
@@ -485,7 +493,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       inputs,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val job = workflowDescriptor.workflow.taskCalls.head
@@ -529,7 +538,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val call = workflowDescriptor.workflow.taskCalls.head
@@ -557,7 +567,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
-      WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get
+      WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get,
+      Labels.empty
     )
 
     val job = workflowDescriptor.workflow.taskCalls.head
@@ -578,7 +589,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
-      NoOptions
+      NoOptions,
+      Labels.empty
     )
 
     val job = workflowDescriptor.workflow.taskCalls.head
@@ -599,7 +611,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WdlNamespaceWithWorkflow.load(
         SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
-      WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get
+      WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
+      Labels.empty
     )
 
     val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[TaskCall]
@@ -630,7 +643,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       WdlNamespaceWithWorkflow.load(
         new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).wdlSource, Seq.empty[ImportResolver]).workflow,
       Map.empty,
-      WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get
+      WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
+      Labels.empty
     )
 
     val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[TaskCall]
@@ -681,6 +695,6 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   private def makeRuntimeAttributes(job: TaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
-      JesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)
+      runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)
   }
 }

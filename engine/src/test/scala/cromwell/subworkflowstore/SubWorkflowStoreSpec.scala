@@ -44,7 +44,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
         override def tag: String = "foobar"
       }
 
-      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports("", "{}", "{}"))
+      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports("", "{}", "{}", "{}"))
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 
       // Query for non existing sub workflow

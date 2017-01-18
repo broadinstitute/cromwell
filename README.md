@@ -734,7 +734,7 @@ cd <container_call_root>
 echo $? > rc
 ```
 
-`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/root/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
+`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/cromwell-executions/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
 
 When running without docker, the subprocess command that the local backend will launch is:
 

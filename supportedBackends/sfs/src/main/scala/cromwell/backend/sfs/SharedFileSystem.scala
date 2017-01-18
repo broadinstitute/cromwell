@@ -9,6 +9,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.core.CromwellFatalExceptionMarker
+import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory
 import cromwell.core.path.PathFactory._
 import lenthall.util.TryUtil
@@ -47,7 +48,7 @@ object SharedFileSystem extends StrictLogging {
 
   private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
     val action = Try {
-      executionPath.parent.createDirectories()
+      executionPath.parent.createPermissionedDirectories()
       val executionTmpPath = pathPlusSuffix(executionPath, "tmp")
       originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
     }.void
@@ -56,7 +57,7 @@ object SharedFileSystem extends StrictLogging {
 
   private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
     val action = Try {
-      executionPath.parent.createDirectories()
+      executionPath.parent.createPermissionedDirectories()
       executionPath.linkTo(originalPath, symbolic = false)
     }.void
     logOnFailure(action, "hard link")
@@ -67,7 +68,7 @@ object SharedFileSystem extends StrictLogging {
       else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
       else {
         val action = Try {
-          executionPath.parent.createDirectories()
+          executionPath.parent.createPermissionedDirectories()
           executionPath.linkTo(originalPath, symbolic = true)
         }.void
         logOnFailure(action, "symbolic link")

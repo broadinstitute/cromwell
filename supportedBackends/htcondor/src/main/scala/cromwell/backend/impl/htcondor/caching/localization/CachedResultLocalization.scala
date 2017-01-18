@@ -3,6 +3,7 @@ package cromwell.backend.impl.htcondor.caching.localization
 import java.nio.file.{Files, Path, Paths}
 
 import better.files.File
+import cromwell.core.path.FileImplicits._
 import cromwell.core.{JobOutput, _}
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.values.{WdlArray, WdlSingleFile, WdlValue}
@@ -11,7 +12,7 @@ trait CachedResultLocalization {
   private[localization] def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Path = {
     if (File(originalPath).isDirectory) throw new UnsupportedOperationException("Cannot localize directory with symbolic links.")
     else {
-      File(executionPath).parent.createDirectories()
+      File(executionPath).parent.createPermissionedDirectories()
       Files.createSymbolicLink(executionPath, originalPath.toAbsolutePath)
     }
   }

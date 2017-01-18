@@ -12,9 +12,10 @@ import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec, RuntimeAttributeDefinition}
+import cromwell.backend._
 import cromwell.core.Tags._
 import cromwell.core._
+import cromwell.core.path.FileImplicits._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -161,7 +162,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val backend = backendRef.underlyingActor
 
     val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, ConfigFactory.empty)
-    File(jobPaths.callExecutionRoot).createDirectories()
+    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
     File(jobPaths.stdout).write("Hello stubby ! ")
     File(jobPaths.stderr).touch()
 

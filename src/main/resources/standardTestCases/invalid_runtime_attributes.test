@@ -7,5 +7,5 @@ files {
 }
 
 metadata {
-    "failures.0.message": "Task invalid_runtime_attributes has an invalid runtime attribute continueOnReturnCode = \"oops\""
+    "failures.0.message": "Runtime validation failed: Task invalid_runtime_attributes has an invalid runtime attribute continueOnReturnCode = \"oops\""
 }

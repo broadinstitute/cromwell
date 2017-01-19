@@ -131,7 +131,7 @@ object Main extends App {
         |
       """.stripMargin)
 
-    System.exit(1)
+    System.exit(0)
   }
 
   def versionAndExit(): Unit = {
@@ -141,6 +141,6 @@ object Main extends App {
          |cromwell: ${versionConf.getString("cromwell")}
        """.stripMargin
     )
-    System.exit(1)
+    System.exit(0)
   }
 }

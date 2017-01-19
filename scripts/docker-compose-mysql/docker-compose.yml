@@ -4,11 +4,12 @@ services:
     build: 
       context: ./compose/cromwell
     volumes:
-      - ./cromwell-executions:/app-setup/cromwell-executions
+      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
+    command: ["/wait-for-it/wait-for-it.sh mysql-db:3306 -t 120 -- java -Dconfig.file=/app-config/application.conf -jar /app/cromwell.jar server"]
     links:
       - mysql-db
     ports:
-      - "8000:8000"
+      - "8800:8000"
   mysql-db:
     image: "mysql:5.7"
     environment:
@@ -16,4 +17,5 @@ services:
       - MYSQL_DATABASE=cromwell_db
     volumes:
       - ./compose/mysql:/docker-entrypoint-initdb.d
-
+    ports:
+      - "3307:3306"

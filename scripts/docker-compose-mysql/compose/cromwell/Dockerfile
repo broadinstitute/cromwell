@@ -1,14 +1,9 @@
 FROM broadinstitute/cromwell:25
 
-RUN apt-get update
-RUN apt-get --assume-yes dist-upgrade
-RUN apt-get --assume-yes install mysql-client
+RUN git clone https://github.com/vishnubob/wait-for-it.git
+RUN mkdir cromwell-working-dir
+WORKDIR cromwell-working-dir
 
-COPY ./app-setup /app-setup
 COPY ./app-config /app-config
 
-WORKDIR /app-setup
-
-RUN chmod u+x robustStart.sh
-
-ENTRYPOINT ["/app-setup/robustStart.sh", "java -Dconfig.file=/app-config/application.conf -jar /app/cromwell.jar server"]
+ENTRYPOINT ["/bin/sh", "-c"]

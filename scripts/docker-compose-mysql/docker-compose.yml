@@ -16,6 +16,7 @@ services:
       - MYSQL_ROOT_PASSWORD=cromwell
       - MYSQL_DATABASE=cromwell_db
     volumes:
-      - ./compose/mysql:/docker-entrypoint-initdb.d
+      - ./compose/mysql/init:/docker-entrypoint-initdb.d
+      - ./compose/mysql/data:/var/lib/mysql
     ports:
       - "3307:3306"

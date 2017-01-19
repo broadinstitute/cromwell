@@ -1,4 +1,4 @@
-FROM broadinstitute/cromwell:25
+FROM broadinstitute/cromwell:24
 
 RUN git clone https://github.com/vishnubob/wait-for-it.git
 RUN mkdir cromwell-working-dir

@@ -310,10 +310,16 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
   def size(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFloatType)
   def length(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
-    case Success(t @ WdlArrayType(_)) :: Nil => Success(WdlIntegerType)
+    case Success(WdlArrayType(_)) :: Nil => Success(WdlIntegerType)
     case _ =>
       val badArgs = params.mkString(", ")
-      Failure(new Exception(s"Unexpected length() arguments.  length() takes one parameter of type Array but got: $badArgs"))
+      Failure(new Exception(s"Unexpected arguments to function `length`.  `length` takes a parameter of type Array but got: $badArgs"))
+  }
+  def prefix(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(WdlStringType) :: Success(WdlArrayType(_: WdlPrimitiveType)) :: Nil => Success(WdlArrayType(WdlStringType))
+    case _ =>
+      val badArgs = params.mkString(", ")
+      Failure(new Exception(s"Unexpected arguments to function `prefix`.  `prefix` takes parameters of type String and Array[<primitive>] but got: $badArgs"))
   }
   def sub(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
   def range(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlIntegerType))

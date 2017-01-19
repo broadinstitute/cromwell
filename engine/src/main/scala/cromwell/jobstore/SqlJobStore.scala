@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
 import cromwell.Simpletons._
+import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._
 import cromwell.core.WorkflowId
 import cromwell.core.simpleton.WdlValueBuilder
@@ -63,7 +64,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
             val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
             JobResultSuccess(returnCode, jobOutputs)
           case JobStoreEntry(_, _, _, _, false, returnCode, Some(exceptionMessage), Some(retryable), _) =>
-            JobResultFailure(returnCode, new Exception(exceptionMessage), retryable)
+            JobResultFailure(returnCode, JobAlreadyFailedInJobStore(jobStoreKey.tag, exceptionMessage), retryable)
           case bad =>
             throw new Exception(s"Invalid contents of JobStore table: $bad")
         }

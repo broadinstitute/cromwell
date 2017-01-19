@@ -19,7 +19,9 @@ import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean)
+case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
+  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
+}
 
 object SharedFileSystemAsyncJobExecutionActor {
   val JobIdKey = "sfs_job_id"

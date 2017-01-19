@@ -24,7 +24,9 @@ object SharedFileSystemJob {
   val JobIdKey = "sfs_job_id"
 }
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean)
+case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
+  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
+}
 
 /**
   * Runs a job on a shared backend, with the ability to (abstractly) submit asynchronously, then poll, kill, etc.

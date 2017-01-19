@@ -1,5 +1,6 @@
 package cromwell.backend.async
 
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor._
@@ -35,7 +36,15 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
   def retryable: Boolean
 
-  def isFatal(throwable: Throwable): Boolean = throwable.isInstanceOf[CromwellFatalExceptionMarker]
+  // The scala package object (scala/package.scala) contains a neat list of runtime errors that are always going to be fatal.
+  // We also consider any Error as fatal, and include the CromwellFatalExceptionMarker so we can mark our own fatal exceptions.
+  def isFatal(throwable: Throwable): Boolean = throwable match {
+    case _: Error => true
+    case _: RuntimeException => true
+    case _: InterruptedException => true
+    case _: CromwellFatalExceptionMarker => true
+    case _ => false
+  }
 
   def isTransient(throwable: Throwable): Boolean = !isFatal(throwable)
 

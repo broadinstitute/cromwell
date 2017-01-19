@@ -185,14 +185,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
   }
 
   /**
-    * Maps the status to a status string that should be stored in the metadata.
-    *
-    * @param runStatus The run status.
-    * @return Some() string that should be stored, or None if nothing should be stored in the metadata.
-    */
-  def statusString(runStatus: StandardAsyncRunStatus): Option[String] = None
-
-  /**
     * Returns true when a job is complete, either successfully or unsuccessfully.
     *
     * @param runStatus The run status.
@@ -358,9 +350,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor {
        */
       val prevStateName = previousStatus.map(_.toString).getOrElse("-")
       jobLogger.info(s"$tag Status change from $prevStateName to $status")
-      statusString(status) foreach { statusMetadata =>
-        tellMetadata(Map(CallMetadataKeys.BackendStatus -> statusMetadata))
-      }
+      tellMetadata(Map(CallMetadataKeys.BackendStatus -> status))
     }
 
     status match {

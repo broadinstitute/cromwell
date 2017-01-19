@@ -20,7 +20,7 @@ Then run `docker-compose -f docker-compose.yml -f jes-cromwell/docker-compose.ym
 To run cromwell in the background, add `-d` at the end of the command:
 `docker-compose up -d`
 
-To then see the logs for a specific service, run `docker-compose logs <service> -f`. 
-For example `docker-compose logs cromwell -f`.
+To then see the logs for a specific service, run `docker-compose logs -f <service>`. 
+For example `docker-compose logs -f cromwell`.
 
 For more information about docker compose: [Docker compose doc](https://docs.docker.com/compose/)

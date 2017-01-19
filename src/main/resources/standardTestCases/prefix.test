@@ -1,0 +1,12 @@
+name: prefix
+testFormat: workflowsuccess
+
+files {
+  wdl: prefix/prefix.wdl
+}
+
+metadata {
+  workflowName: prefix
+  status: Succeeded
+  "outputs.out": "-e k1=v1 -e k2=v2 -e k3=v3"
+}

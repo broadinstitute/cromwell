@@ -1,0 +1,14 @@
+name: length
+testFormat: workflowsuccess
+
+files {
+  wdl: length/length.wdl
+}
+
+metadata {
+  workflowName: length
+  status: Succeeded
+  "outputs.someStringsLength": 3
+  "outputs.someIntsLength": 3
+  "outputs.noFilesLength": 0
+}

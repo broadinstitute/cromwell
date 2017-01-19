@@ -141,7 +141,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
       inputs should have size numInputs
       call.get("executionStatus").toStringValue should be("Done")
       call.get("backend").toStringValue should be("Local")
-      call.get("backendStatus") should be(empty)
+      call.get("backendStatus").toStringValue should be("Done")
       call.get("outputs").toFields should have size numOutputs
       val callStart = call.get("start").toOffsetDateTime
       callStart should be >= workflowStart
@@ -212,7 +212,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
       inputs should have size 0
       call.get("executionStatus").toStringValue should be("Failed")
       call.get("backend").toStringValue should be("Local")
-      call.get("backendStatus") should be(empty)
+      call.get("backendStatus").toStringValue should be("Done")
       call.get("outputs") shouldBe empty
       val callStart = call.get("start").toOffsetDateTime
       callStart should be >= workflowStart

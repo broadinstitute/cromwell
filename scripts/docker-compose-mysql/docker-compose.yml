@@ -9,7 +9,7 @@ services:
     links:
       - mysql-db
     ports:
-      - "8800:8000"
+      - "80:8000"
   mysql-db:
     image: "mysql:5.7"
     environment:

@@ -1,9 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.Simpletons._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.database.sql.SqlConverters._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 
 import scala.concurrent.ExecutionContext
@@ -30,7 +32,7 @@ class FetchCachedResultsActor(cacheResultId: CallCachingEntryId, replyTo: ActorR
       case Success(Some(result)) =>
         val simpletons = result.callCachingSimpletonEntries map toSimpleton
         val jobDetritusFiles = result.callCachingDetritusEntries map { jobDetritusEntry =>
-          jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue
+          jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue.toRawString
         }
         val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
                                     result.callCachingEntry.callFullyQualifiedName,

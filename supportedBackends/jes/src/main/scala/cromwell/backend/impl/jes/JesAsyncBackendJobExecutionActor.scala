@@ -405,11 +405,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     errorMessage.substring(0, errorMessage.indexOf(':')).toInt
   }
 
-  private def preempted(errorCode: Int, errorMessage: Option[String]): Boolean = {
+  private def preempted(errorCode: Int, errorMessage: String): Boolean = {
     def isPreemptionCode(code: Int) = code == 13 || code == 14
 
     try {
-      errorCode == 10 && errorMessage.exists(e => isPreemptionCode(extractErrorCodeFromErrorMessage(e))) && preemptible
+      errorCode == 10 && isPreemptionCode(extractErrorCodeFromErrorMessage(errorMessage)) && preemptible
     } catch {
       case _: NumberFormatException | _: StringIndexOutOfBoundsException =>
         jobLogger.warn(s"Unable to parse JES error code from error messages: [{}], assuming this was not a preempted VM.", errorMessage.mkString(", "))
@@ -420,39 +420,43 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def handleExecutionFailure(runStatus: RunStatus,
                                       handle: StandardAsyncPendingExecutionHandle,
                                       returnCode: Option[Int]): ExecutionHandle = {
+    import lenthall.numeric.IntegerUtil._
+
     val failed = runStatus match {
       case failedStatus: RunStatus.Failed => failedStatus
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed. Instead got $unknown")
     }
+
+    // In the event that the error isn't caught by the special cases, this will be used
+    def nonRetryableException = {
+      val exception = failed.toFailure(jobPaths.jobKey.tag, Option(jobPaths.stderr))
+      FailedNonRetryableExecutionHandle(exception, returnCode)
+    }
     
     val errorCode = failed.errorCode
-    val errorMessage = failed.errorMessage
-
-    import lenthall.numeric.IntegerUtil._
-
     val taskName = s"${workflowDescriptor.id}:${call.unqualifiedName}"
     val attempt = jobDescriptor.key.attempt
 
-    if (errorMessage.exists(_.contains("Operation canceled at")))  {
-      AbortedExecutionHandle
-    } else if (preempted(errorCode, errorMessage)) {
-      val preemptedMsg = s"Task $taskName was preempted for the ${attempt.toOrdinal} time."
-
-      if (attempt < maxPreemption) {
-        val e = PreemptedException(
-          s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption).
-             |Error code $errorCode. Message: $errorMessage""".stripMargin
-        )
-        FailedRetryableExecutionHandle(e, returnCode)
-      } else {
-        val e = PreemptedException(
-          s"""$preemptedMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM.
-             |Error code $errorCode. Message: $errorMessage)""".stripMargin)
-        FailedRetryableExecutionHandle(e, returnCode)
-      }
-    } else {
-      val exception = failed.toFailure(jobPaths.jobKey.tag, Option(jobPaths.stderr))
-      FailedNonRetryableExecutionHandle(exception, returnCode)
+    failed.errorMessage match {
+      case Some(errorMessage) =>
+        if (errorMessage.contains("Operation canceled at"))  {
+          AbortedExecutionHandle
+        } else if (preempted(errorCode, errorMessage)) {
+          val preemptedMsg = s"Task $taskName was preempted for the ${attempt.toOrdinal} time."
+          if (attempt < maxPreemption) {
+            val e = PreemptedException(
+              s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption).
+                 |Error code $errorCode. Message: $errorMessage""".stripMargin
+            )
+            FailedRetryableExecutionHandle(e, returnCode)
+          } else {
+            val e = PreemptedException(
+              s"""$preemptedMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM.
+                 |Error code $errorCode. Message: $errorMessage)""".stripMargin)
+            FailedRetryableExecutionHandle(e, returnCode)
+          }
+        } else { nonRetryableException }
+      case None => nonRetryableException
     }
   }
 

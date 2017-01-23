@@ -7,6 +7,7 @@ task pfx {
   output {
     String out = read_string(stdout())
   }
+  runtime { docker: "ubuntu:latest" }
 }
 
 workflow prefix {

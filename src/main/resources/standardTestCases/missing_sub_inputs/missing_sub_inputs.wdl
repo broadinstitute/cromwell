@@ -12,6 +12,7 @@ task tail {
    output {
      String tailOut = read_string(stdout())
    }
+   runtime { docker: "ubuntu:latest" }
 }
 
 workflow missing_inputs {

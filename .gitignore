@@ -1,6 +1,13 @@
-.idea
-log
-target
-.artifactory
-project
+# common scala config
+*~
 .DS_Store
+.artifactory
+.idea/*
+!/.idea/inspectionProfiles/
+.idea/inspectionProfiles/*
+!/.idea/inspectionProfiles/Project_Default.xml
+target
+
+# custom config
+log
+project

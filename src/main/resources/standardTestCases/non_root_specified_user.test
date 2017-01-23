@@ -1,0 +1,14 @@
+name: non_root_specified_user
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files {
+  wdl: non_root_specified_user/non_root_specified_user.wdl
+}
+
+metadata {
+  workflowName: woot
+  status: Succeeded
+  "outputs.nobodyHome": "/nonexistent"
+}

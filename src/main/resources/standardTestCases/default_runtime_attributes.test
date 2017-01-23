@@ -10,5 +10,5 @@ metadata {
   workflowName: wf_default_runtime_attributes
   status: Succeeded
   "calls.wf_default_runtime_attributes.default_runtime_attributes.executionStatus": Done
-  "outputs.wf_default_runtime_attributes_default_runtime_attributes_ohno": "OH NO!"
+  "outputs.wf_default_runtime_attributes.default_runtime_attributes.ohno": "OH NO!"
 }

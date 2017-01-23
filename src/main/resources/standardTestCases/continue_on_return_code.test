@@ -8,7 +8,7 @@ files {
 metadata {
   workflowName: runtime_continueOnRC
   status: Succeeded
-  "outputs.runtime_continueOnRC_finisher_finished": "OH NO!\nOH NO!\n1"
+  "outputs.runtime_continueOnRC.finisher.finished": "OH NO!\nOH NO!\n1"
 
   "calls.runtime_continueOnRC.continueOnRC1.returnCode": 1
   "calls.runtime_continueOnRC.continueOnRC2.returnCode": 12

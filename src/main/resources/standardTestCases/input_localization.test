@@ -14,9 +14,9 @@ files {
 metadata {
   workflowName: wf
   status: Succeeded
-  "outputs.wf_fromDifferentDirectories_with_docker_ls": "1",
-  "outputs.wf_fromSameDirectory_ls": "2",
-  "outputs.wf_fromSameDirectory_with_docker_ls": "2",
-  "outputs.wf_fromDifferentDirectories_ls": "1"
+  "outputs.wf.fromDifferentDirectories_with_docker.ls": "1",
+  "outputs.wf.fromSameDirectory.ls": "2",
+  "outputs.wf.fromSameDirectory_with_docker.ls": "2",
+  "outputs.wf.fromDifferentDirectories.ls": "1"
 }
 

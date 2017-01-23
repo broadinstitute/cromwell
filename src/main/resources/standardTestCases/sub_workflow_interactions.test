@@ -12,8 +12,8 @@ files {
 metadata {
   workflowName: sub_workflow_interactions
   status: Succeeded
-  "outputs.sub_workflow_interactions_hello_count": 4
-  "outputs.sub_workflow_interactions_hello_salutation": "Hello Sub Workflow World!"
+  "outputs.sub_workflow_interactions.hello.count": 4
+  "outputs.sub_workflow_interactions.hello.salutation": "Hello Sub Workflow World!"
   
   "outputs.out2": "Hello I'm an output!"
   "outputs.out4.0": 0

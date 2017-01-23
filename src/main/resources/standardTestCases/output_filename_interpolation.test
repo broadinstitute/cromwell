@@ -8,7 +8,7 @@ files {
 metadata {
   workflowName: output_filename_interpolation_wf
   status: Succeeded
-  "outputs.output_filename_interpolation_wf_output_filename_interpolation_a": "a"
-  "outputs.output_filename_interpolation_wf_output_filename_interpolation_b": "b"
-  "outputs.output_filename_interpolation_wf_output_filename_interpolation_c": "c"
+  "outputs.output_filename_interpolation_wf.output_filename_interpolation.a": "a"
+  "outputs.output_filename_interpolation_wf.output_filename_interpolation.b": "b"
+  "outputs.output_filename_interpolation_wf.output_filename_interpolation.c": "c"
 }

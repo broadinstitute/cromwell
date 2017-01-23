@@ -9,20 +9,8 @@ task lens {
   runtime { docker: "ubuntu:latest" }
 }
 
-task void {
-  command {}
-  output {
-    String out = ""
-  }
-  runtime {
-    docker: "ubuntu:latest"
-  }
-}
-
 workflow length {
-  # Hack to create an empty Array
-  if (false) { call void }
-  Array[String] empty = select_all([void.out])
+  Array[String] empty = []
 
   call lens
 

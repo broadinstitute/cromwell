@@ -12,7 +12,7 @@ files {
 metadata {
   workflowName: array_literal_locations
   status: Succeeded
-  "outputs.array_literal_locations_array_literal_locations_i_out": "0:1:2"
-  "outputs.array_literal_locations_array_literal_locations_ii_0_out": "0"
-  "outputs.array_literal_locations_array_literal_locations_ii_1_out": "1"
+  "outputs.array_literal_locations.array_literal_locations_i.out": "0:1:2"
+  "outputs.array_literal_locations.array_literal_locations_ii.0.out": "0"
+  "outputs.array_literal_locations.array_literal_locations_ii.1.out": "1"
 }

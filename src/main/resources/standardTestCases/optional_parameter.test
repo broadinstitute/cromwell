@@ -11,7 +11,7 @@ files {
 metadata {
   workflowName: default
   status: Succeeded
-  "outputs.default_hello_no_value_greeting": "hello default value"
-  "outputs.default_hello_greeting": "hello alice"
-  "outputs.default_hello_no_default_greeting": "hello"
+  "outputs.default.hello_no_value.greeting": "hello default value"
+  "outputs.default.hello.greeting": "hello alice"
+  "outputs.default.hello_no_default.greeting": "hello"
 }

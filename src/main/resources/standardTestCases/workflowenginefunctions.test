@@ -6,5 +6,5 @@ files {
 }
 
 metadata {
-  "outputs.workflowEngineFunctions_printArray_o": "0\n1\n2\n3\n4\n5\n6\n7\n8\n9"
+  "outputs.workflowEngineFunctions.printArray.o": "0\n1\n2\n3\n4\n5\n6\n7\n8\n9"
 }

@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
+import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.impl.jes.authentication.GcsLocalizing
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Tags.IntegrationTest
@@ -173,9 +174,9 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       expectMsgPF() {
         case InitializationFailed(failure) =>
           failure match {
-            case exception: IllegalArgumentException =>
-              if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
-                fail("Exception message does not contains 'Runtime attribute validation failed'.")
+            case exception: RuntimeAttributeValidationFailures =>
+              if (!exception.getMessage.equals("Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
+                fail("Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'.")
           }
       }
     }

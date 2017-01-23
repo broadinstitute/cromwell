@@ -382,6 +382,7 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
   * [Pair(X,Y) zip(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-zipxy)
   * [Pair(X,Y) cross(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-crossxy)
   * [Integer length(Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#integer-lengtharrayx)
+  * [Array\[String\] prefix(String, Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-prefixstring-arrayx)
 * [Data Types & Serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#data-types--serialization)
   * [Serialization of Task Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#serialization-of-task-inputs)
     * [Primitive Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#primitive-types)
@@ -734,7 +735,7 @@ cd <container_call_root>
 echo $? > rc
 ```
 
-`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/root/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
+`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/cromwell-executions/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
 
 When running without docker, the subprocess command that the local backend will launch is:
 

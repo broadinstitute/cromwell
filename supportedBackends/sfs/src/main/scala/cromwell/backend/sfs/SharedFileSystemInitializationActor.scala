@@ -13,7 +13,7 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 import scala.util.Try
-
+import cromwell.core.path.FileImplicits._
 /**
   * Initializes a shared file system actor factory and creates initialization data to pass to the execution actors.
   *
@@ -56,7 +56,7 @@ class SharedFileSystemInitializationActor(params: DefaultInitializationActorPara
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {
       publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-      File(workflowPaths.workflowRoot).createDirectories()
+      File(workflowPaths.workflowRoot).createPermissionedDirectories()
       Option(initializationData)
     })
   }

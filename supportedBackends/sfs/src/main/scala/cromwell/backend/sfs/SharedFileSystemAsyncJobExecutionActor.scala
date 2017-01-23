@@ -9,6 +9,7 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob, StandardInitializationData}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -18,7 +19,9 @@ import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean)
+case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
+  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
+}
 
 object SharedFileSystemAsyncJobExecutionActor {
   val JobIdKey = "sfs_job_id"
@@ -126,7 +129,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   override def execute(): ExecutionHandle = {
     val script = instantiatedCommand
     jobLogger.info(s"`$script`")
-    File(jobPaths.callExecutionRoot).createDirectories()
+    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
     val cwd = if (isDockerRun) jobPathsWithDocker.callExecutionDockerRoot else jobPaths.callExecutionRoot
     writeScript(script, cwd, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
     jobLogger.info(s"command: $processArgs")
@@ -179,6 +182,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
     val scriptBody =
       s"""|#!/bin/sh
+          |umask 0000
           |(
           |cd $cwd
           |INSTANTIATED_COMMAND

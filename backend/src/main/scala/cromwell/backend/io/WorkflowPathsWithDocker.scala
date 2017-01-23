@@ -5,6 +5,7 @@ import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{PathBuilder, PathFactory}
 import net.ceedubs.ficus.Ficus._
+import cromwell.core.path.PathBuilder
 
 class WorkflowPathsWithDocker(val workflowDescriptor: BackendWorkflowDescriptor, val config: Config, val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
 

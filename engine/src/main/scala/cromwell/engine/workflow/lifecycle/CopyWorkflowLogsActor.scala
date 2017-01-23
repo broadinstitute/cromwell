@@ -9,6 +9,7 @@ import better.files._
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogger
+import cromwell.core.path.FileImplicits._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
@@ -30,7 +31,7 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
     with ActorLogging {
 
   def copyAndClean(src: Path, dest: Path) = {
-    File(dest).parent.createDirectories()
+    File(dest).parent.createPermissionedDirectories()
 
     File(src).copyTo(dest, overwrite = true)
     if (WorkflowLogger.isTemporary) {

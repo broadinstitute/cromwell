@@ -127,7 +127,7 @@ object Run {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
         case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, eventList, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running

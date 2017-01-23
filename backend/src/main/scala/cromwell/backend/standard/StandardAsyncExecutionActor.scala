@@ -1,5 +1,7 @@
 package cromwell.backend.standard
 
+import java.nio.file.Path
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import better.files.File
@@ -148,14 +150,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /**
-    * Maps the status to a status string that should be stored in the metadata.
-    *
-    * @param runStatus The run status.
-    * @return Some() string that should be stored, or None if nothing should be stored in the metadata.
-    */
-  def statusString(runStatus: StandardAsyncRunStatus): Option[String] = None
-
-  /**
     * Returns true when a job is complete, either successfully or unsuccessfully.
     *
     * @param runStatus The run status.
@@ -239,8 +233,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The execution handle.
     */
   def handleExecutionFailure(runStatus: StandardAsyncRunStatus,
-                             handle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
-    FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), None)
+                             handle: StandardAsyncPendingExecutionHandle,
+                             returnCode: Option[Int]): ExecutionHandle = {
+    FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), returnCode)
   }
 
   context.become(standardReceiveBehavior(None) orElse receive)
@@ -321,9 +316,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
        */
       val prevStateName = previousStatus.map(_.toString).getOrElse("-")
       jobLogger.info(s"$tag Status change from $prevStateName to $status")
-      statusString(status) foreach { statusMetadata =>
-        tellMetadata(Map(CallMetadataKeys.BackendStatus -> statusMetadata))
-      }
+      tellMetadata(Map(CallMetadataKeys.BackendStatus -> status))
     }
 
     status match {
@@ -371,12 +364,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def handleExecutionResult(status: StandardAsyncRunStatus,
                             oldHandle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
     try {
-      if (isSuccess(status)) {
 
+      lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
+      lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
+      lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
+      
+      if (isSuccess(status)) {
         lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
-        lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
-        lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
-        
         (stderrLength, returnCodeAsString, returnCodeAsInt) match {
             // Failed to get stderr size -> Retry
           case (Failure(exception), _, _) =>
@@ -388,23 +382,22 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
             oldHandle
             // Failed to convert return code content to Int -> Fail
           case (_, _, Failure(exception)) =>
-            FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, jobPaths.stderr))
+            FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, stderrAsOption))
             // Stderr is not empty and failOnStdErr is true -> Fail
           case (Success(length), _, _) if failOnStdErr && length.intValue > 0 =>
-            FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, length, jobPaths.stderr), returnCodeAsInt.toOption)
+            FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, length, stderrAsOption), returnCodeAsInt.toOption)
             // Return code is abort code -> Abort
           case (_, _, Success(rc)) if isAbort(rc) =>
             AbortedExecutionHandle
             // Return code is not valid -> Fail
           case (_, _, Success(rc)) if !continueOnReturnCode.continueFor(rc) =>
-            FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, jobPaths.stderr), returnCodeAsInt.toOption)
+            FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, stderrAsOption), returnCodeAsInt.toOption)
             // Otherwise -> Succeed
           case (_, _, Success(rc)) => 
             handleExecutionSuccess(status, oldHandle, rc)
         }
-
       } else {
-        handleExecutionFailure(status, oldHandle)
+        handleExecutionFailure(status, oldHandle, returnCodeAsInt.toOption)
       }
     } catch {
       case e: Exception =>

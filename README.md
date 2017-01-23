@@ -382,6 +382,7 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
   * [Pair(X,Y) zip(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-zipxy)
   * [Pair(X,Y) cross(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-crossxy)
   * [Integer length(Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#integer-lengtharrayx)
+  * [Array\[String\] prefix(String, Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-prefixstring-arrayx)
 * [Data Types & Serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#data-types--serialization)
   * [Serialization of Task Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#serialization-of-task-inputs)
     * [Primitive Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#primitive-types)

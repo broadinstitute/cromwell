@@ -10,5 +10,5 @@ metadata {
   status: Succeeded
   "outputs.someStringsLength": 3
   "outputs.someIntsLength": 3
-  "outputs.noFilesLength": 0
+  "outputs.emptyLength": 0
 }

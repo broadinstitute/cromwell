@@ -5,7 +5,7 @@ import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.WdlExpression._
 import wdl4s.types._
 import wdl4s.values.{WdlValue, _}
-import wdl4s.{WdlExpression, WdlExpressionException, WdlNamespace}
+import wdl4s._
 import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
 
 import scala.util.{Failure, Success, Try}
@@ -113,7 +113,30 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
               case o: WdlObjectLike =>
                 o.value.get(rhs.getSourceString) match {
                   case Some(v:WdlValue) => Success(v)
-                  case None => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString}"))
+                  case None =>
+                    o match {
+                        // o is a CallOutputsObject which means we failed to find an output value for rhs
+                        // Give a specific error message based on the type of Callable
+                      case callOutputObject: WdlCallOutputsObject => 
+                        callOutputObject.call match {
+                          case workflowCall: WorkflowCall => 
+                            Failure(new WdlExpressionException(
+                              s"""${rhs.getSourceString} is not declared as an output of the sub workflow ${workflowCall.calledWorkflow.fullyQualifiedName}.
+                                 |If you want to use workflow ${workflowCall.calledWorkflow.fullyQualifiedName} as a sub workflow, make sure that its output section is up to date with the latest syntax.
+                                 |See the WDL specification for how to write outputs: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs""".stripMargin
+                            ))
+                          case taskCall: TaskCall => 
+                            Failure(new WdlExpressionException(
+                              s"""${rhs.getSourceString} is not declared as an output of the task ${taskCall.task.fullyQualifiedName}.
+                                 |Make sure to declare it as an output to be able to use it in the workflow.""".stripMargin
+                            ))
+                          case unknownCall => 
+                            Failure(new WdlExpressionException(
+                              s"Could not find key ${rhs.getSourceString} in Call ${unknownCall.fullyQualifiedName} of unknown type."
+                            ))
+                        }
+                      case _ => Failure(new WdlExpressionException(s"Could not find key ${rhs.getSourceString} in WdlObject"))
+                    }
                 }
               case array: WdlArray if array.wdlType == WdlArrayType(WdlObjectType) =>
                 /**

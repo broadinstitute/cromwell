@@ -173,8 +173,8 @@ object WdlNamespace {
     load(wdlSource, resource.getOrElse("string"), importResolver.getOrElse(Seq(fileResolver)), None)
   }
 
-  private def load(wdlSource: WdlSource, resource: String, importResolver: Seq[ImportResolver], importedAs: Option[String]): WdlNamespace = {
-    WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, importedAs, root = true)
+  private def load(wdlSource: WdlSource, resource: String, importResolver: Seq[ImportResolver], importedAs: Option[String], root: Boolean = true): WdlNamespace = {
+    WdlNamespace(AstTools.getAst(wdlSource, resource), wdlSource, importResolver, importedAs, root = root)
   }
 
 
@@ -206,7 +206,7 @@ object WdlNamespace {
     val namespaces: Seq[WdlNamespace] = for {
       imp <- imports
       source = tryResolve(imp.uri, importResolvers, List.empty)
-    } yield WdlNamespace.load(source, imp.uri, importResolvers, Option(imp.namespaceName))
+    } yield WdlNamespace.load(source, imp.uri, importResolvers, Option(imp.namespaceName), root = false)
 
     /**
       * Map of Terminal -> WDL Source Code so the syntax error formatter can show line numbers
@@ -341,13 +341,22 @@ object WdlNamespace {
     val callInputSectionErrors = namespace.descendants.collect({ case c: TaskCall => c }).flatMap(
       validateCallInputSection(_, wdlSyntaxErrorFormatter)
     )
+    
+    val workflowOutputErrors = workflows flatMap { _.workflowCalls map { _.calledWorkflow } } collect {
+      case calledWorkflow if calledWorkflow.workflowOutputWildcards.nonEmpty => 
+        new SyntaxError(
+          s"""Workflow ${calledWorkflow.unqualifiedName} is used as a sub workflow but has outputs declared with a deprecated syntax not compatible with sub workflows.
+             |To use this workflow as a sub workflow please update the workflow outputs section to the latest WDL specification.
+             |See https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#outputs""".stripMargin
+        )
+    }
 
     val declarationErrors = for {
       descendant <- namespace.descendants
       declaration <- getDecls(descendant)
       error <- validateDeclaration(declaration, wdlSyntaxErrorFormatter)
     } yield error
-
+    
     def scopeNameAndTerminal(scope: Scope): (String, Terminal) = {
       scope match {
         case ns: WdlNamespace => ("Namespace", imports.find(_.uri == ns.resource).get.namespaceTerminal)
@@ -389,7 +398,7 @@ object WdlNamespace {
       if !task.declarations.map(_.unqualifiedName).contains(variable.getSourceString)
     } yield new SyntaxError(wdlSyntaxErrorFormatter.commandExpressionContainsInvalidVariableReference(task.ast.getAttribute("name").asInstanceOf[Terminal], variable))
 
-    val all = declarationErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
+    val all = workflowOutputErrors ++ declarationErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
 
     all.toSeq.sortWith({ case (l, r) => l.getMessage < r.getMessage }) match {
       case s: Seq[SyntaxError] if s.nonEmpty => throw s.head

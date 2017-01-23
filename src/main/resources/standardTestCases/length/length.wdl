@@ -7,6 +7,7 @@ task lens {
     Array[Int] someInts = [1, 2, 3]
     Array[File] noFiles = glob("*.no.such.file.txt")
   }
+  runtime { docker: "ubuntu:latest" }
 }
 
 workflow length {

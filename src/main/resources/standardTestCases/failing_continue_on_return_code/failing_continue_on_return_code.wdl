@@ -5,7 +5,10 @@ task A {
   output {
     Int A_out = read_int(stdout())
   }
- runtime { continueOnReturnCode: false }
+  runtime {
+    continueOnReturnCode: false
+    docker: "ubuntu:latest"
+  }
 }
 
 task B {
@@ -13,6 +16,9 @@ task B {
   command {
     echo ${B_in}
     sleep 2
+  }
+  runtime {
+    docker: "ubuntu:latest"
   }
 }
 

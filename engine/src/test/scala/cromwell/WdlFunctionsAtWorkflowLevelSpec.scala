@@ -19,8 +19,8 @@ class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestKitSpec {
         sampleWdl = SampleWdl.WdlFunctionsAtWorkflowLevel,
         eventFilter = EventFilter.info(pattern = "Starting calls: w.a", occurrences = 1),
         expectedOutputs = Map(
-          "w_a_x" -> WdlString("one two three four five"),
-          "w_a_y" -> outputMap
+          "w.a.x" -> WdlString("one two three four five"),
+          "w.a.y" -> outputMap
         )
       )
     }

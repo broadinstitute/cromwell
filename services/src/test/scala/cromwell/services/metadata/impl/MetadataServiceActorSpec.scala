@@ -10,10 +10,9 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
-  "MetadataServiceActor" should {
-
-    val config = ConfigFactory.empty()
-    val actor = system.actorOf(MetadataServiceActor.props(config, config))
+  import MetadataServiceActorSpec.Config
+  val config = ConfigFactory.parseString(Config)
+  val actor = system.actorOf(MetadataServiceActor.props(config, config))
 
     val workflowId = WorkflowId.randomId()
 
@@ -33,21 +32,15 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
     val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment)
     val event3_2 = MetadataEvent(key3, None, moment)
 
-    "Store values for different keys" in {
+  "MetadataServiceActor" should {
+    "Store values for different keys and then retrieve those values" in {
       val putAction1 = PutMetadataAction(event1_1)
       val putAction2 = PutMetadataAction(event1_2)
       val putAction3 = PutMetadataAction(event2_1, event3_1, event3_2)
-      (for {
-        response1 <- (actor ? putAction1).mapTo[MetadataServiceResponse]
-        response2 <- (actor ? putAction2).mapTo[MetadataServiceResponse]
-        response3 <- (actor ? putAction3).mapTo[MetadataServiceResponse]
-        _ = response1 shouldBe MetadataPutAcknowledgement(putAction1)
-        _ = response2 shouldBe MetadataPutAcknowledgement(putAction2)
-        _ = response3 shouldBe MetadataPutAcknowledgement(putAction3)
-      } yield ()).futureValue
-    }
+      actor ! putAction1
+      actor ! putAction2
+      actor ! putAction3
 
-    "Retrieve the correct values for different keys" in {
       val query1 = MetadataQuery.forKey(key1)
       val query2 = MetadataQuery.forKey(key2)
       val query3 = MetadataQuery.forKey(key3)
@@ -72,25 +65,13 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 
       } yield ()).futureValue
     }
-
-    "store and retrieve null values" in {
-      val metadataWorkflowId = WorkflowId.randomId()
-      val metadataKey = MetadataKey(metadataWorkflowId, None, "nullTestKey")
-      val metadataValue = MetadataValue(null)
-      val metadataEvent = MetadataEvent(metadataKey, Option(metadataValue), moment)
-
-      val putMetadataAction = PutMetadataAction(metadataEvent)
-
-      val metadataQuery = MetadataQuery.forKey(metadataKey)
-
-      (for {
-        putResponse <- (actor ? putMetadataAction).mapTo[MetadataServiceResponse]
-        _ = putResponse shouldBe MetadataPutAcknowledgement(putMetadataAction)
-
-        queryResponse <- (actor ? GetMetadataQueryAction(metadataQuery)).mapTo[MetadataServiceResponse]
-        _ = queryResponse shouldBe MetadataLookupResponse(metadataQuery, Seq(metadataEvent))
-      } yield ()).futureValue
-    }
-
   }
+}
+
+object MetadataServiceActorSpec {
+  val Config =
+    """
+      |services.MetadataService.db-batch-size = 3
+      |services.MetadataService.db-flush-rate = 100 millis
+    """.stripMargin
 }

@@ -13,7 +13,7 @@ import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
@@ -56,7 +56,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
   }
 
   when (SubmittedWorkflow) {
-    case Event(WorkflowStoreActor.WorkflowSubmittedToStore(id), SubmittedSwraData(replyTo)) =>
+    case Event(WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id), SubmittedSwraData(replyTo)) =>
       log.info(s"$Tag: Workflow submitted UUID($id)")
       // Since we only have a single workflow, force the WorkflowManagerActor's hand in case the polling rate is long
       workflowManagerActor ! RetrieveNewWorkflows
@@ -103,7 +103,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 
   whenUnhandled {
     // Handle failures for all failure responses generically.
-    case Event(r: WorkflowStoreActor.WorkflowAbortFailed, data) => failAndFinish(r.reason, data)
+    case Event(r: WorkflowStoreEngineActor.WorkflowAbortFailed, data) => failAndFinish(r.reason, data)
     case Event(Failure(e), data) => failAndFinish(e, data)
     case Event(Status.Failure(e), data) => failAndFinish(e, data)
     case Event(RequestComplete((_, snap)), data) => failAndFinish(new RuntimeException(s"Unexpected API completion message: $snap"), data)

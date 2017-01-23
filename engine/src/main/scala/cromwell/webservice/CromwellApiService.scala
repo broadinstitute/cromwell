@@ -25,9 +25,9 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {
-  val workflowManagerActor: ActorRef
-  val workflowStoreActor: ActorRef
-  val serviceRegistryActor: ActorRef
+  def workflowManagerActor: ActorRef
+  def workflowStoreActor: ActorRef
+  def serviceRegistryActor: ActorRef
 
   def toMap(someInput: Option[String]): Map[String, JsValue] = {
     import spray.json._
@@ -53,14 +53,19 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       perRequest(requestContext, metadataBuilderProps, message)
   }
 
-  private def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
+  def handleQueryMetadataRequest(parameters: Seq[(String, String)]): Route = {
+    requestContext =>
+      perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameters))
+  }
+
+  protected def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
     complete((statusCode, APIResponse.fail(t).toJson.prettyPrint))
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
     workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
 
-  private def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
+  protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
       // The submitted value is malformed as a UUID and therefore not possibly recognized.
       override def onMalformed(possibleWorkflowId: String): Unit = {
@@ -102,8 +107,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / "query") { version =>
       parameterSeq { parameters =>
         get {
-          requestContext =>
-            perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameters))
+          handleQueryMetadataRequest(parameters)
         }
       }
     }
@@ -112,8 +116,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     path("workflows" / Segment / "query") { version =>
       entity(as[Seq[Map[String, String]]]) { parameterMap =>
         post {
-          requestContext =>
-            perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameterMap.flatMap(_.toSeq)))
+          handleQueryMetadataRequest(parameterMap.flatMap(_.toSeq))
         }
       }
     }

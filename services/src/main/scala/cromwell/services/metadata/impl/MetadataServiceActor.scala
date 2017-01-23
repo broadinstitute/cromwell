@@ -11,7 +11,9 @@ import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import net.ceedubs.ficus.Ficus._
-import scala.concurrent.duration.{Duration, FiniteDuration}
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object MetadataServiceActor {
@@ -30,7 +32,10 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   private val summaryActor: Option[ActorRef] = buildSummaryActor
 
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
-  val writeActor = context.actorOf(WriteMetadataActor.props(), "write-metadata-actor")
+
+  val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("services.MetadataService.db-flush-rate").getOrElse(5 seconds)
+  val dbBatchSize = serviceConfig.as[Option[Int]]("services.MetadataService.db-batch-size").getOrElse(1)
+  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate), "write-metadata-actor")
   implicit val ec = context.dispatcher
 
   summaryActor foreach { _ => self ! RefreshSummary }

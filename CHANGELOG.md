@@ -15,6 +15,7 @@
 * Cromwell's Config (Shared Filesystem) backend now supports invocation of commands which run in a Docker image as a non-root user.
   The non-root user could either be the default user for a given Docker image (e.g. specified in a Dockerfile via a `USER` directive),
   or the Config backend could pass an optional `"-u username"` as part of the `submit-docker` command.
+* For MySQL users, a massive scalability improvement via batched DB writing of internal metadata events. Note that one must add `rewriteBatchedStatements=true` to their JDBC URL in their config in order to take advantage of this
 
 ### Database schema changes
 * Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.

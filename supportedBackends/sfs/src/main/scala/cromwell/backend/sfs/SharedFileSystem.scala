@@ -8,13 +8,13 @@ import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
+import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory
 import cromwell.core.path.PathFactory._
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
-import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -138,18 +138,15 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
-    wdlValue match {
+    WdlFileMapper.mapWdlFiles(mapJobWdlFile(job))(wdlValue)
+  }
+
+  def mapJobWdlFile(job: JobPaths)(wdlFile: WdlFile): WdlFile = {
+    wdlFile match {
       case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
-        Failure(new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}"))
-      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, file.valueString).pathAsString))
-      case array: WdlArray =>
-        val mappedArray = array.value map outputMapper(job)
-        TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
-      case map: WdlMap =>
-        val mappedMap = map.value mapValues outputMapper(job)
-        TryUtil.sequenceMap(mappedMap) map { WdlMap(map.wdlType, _) }
-      case other => Success(other)
+        throw new RuntimeException("Could not process output, file not found: " +
+          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
+      case _ => WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, wdlFile.valueString).pathAsString)
     }
   }
 
@@ -162,6 +159,15 @@ trait SharedFileSystem extends PathFactory {
    * been performed for this `Backend` implementation.
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: EvaluatedTaskInputs): Try[EvaluatedTaskInputs] = {
+    TryUtil.sequenceMap(
+      inputs mapValues WdlFileMapper.mapWdlFiles(localizeWdlFile(inputsRoot, docker)),
+      "Failures during localization"
+    ) recoverWith {
+      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+    }
+  }
+
+  def localizeWdlFile(inputsRoot: Path, docker: Boolean)(value: WdlFile): WdlFile = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
     // Use URI to identify protocol scheme and strip it out
@@ -192,71 +198,23 @@ trait SharedFileSystem extends PathFactory {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    val localizeFunction = localizeWdlValue(toCallPath, strategies.toStream) _
-    val localizedValues = inputs.toSeq map {
-      case (declaration, value) => localizeFunction(value) map { declaration -> _ }
-    }
-
-    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recoverWith {
-      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
-    }
+    localizeWdlFile(toCallPath _, strategies.toStream)(value)
   }
 
   /**
-   * Try to localize a WdlValue if it is or contains one or more WdlFiles.
-   *
-   * @param toDestPath function specifying how to generate the destination path from the source path
-   * @param strategies strategies to use for localization
-   * @param wdlValue WdlValue to localize
-   * @return localized wdlValue
-   */
-  private def localizeWdlValue(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
-                              (wdlValue: WdlValue): Try[WdlValue] = {
-
-    def adjustArray(t: WdlArrayType, inputArray: Seq[WdlValue]): Try[WdlArray] = {
-      val tryAdjust = inputArray map localizeWdlValue(toDestPath, strategies)
-
-      TryUtil.sequence(tryAdjust, s"Failed to localize files in input Array ${wdlValue.valueString}") map { adjusted =>
-        new WdlArray(t, adjusted)
-      }
+    * Try to localize a WdlFile.
+    *
+    * @param toDestPath function specifying how to generate the destination path from the source path
+    * @param strategies strategies to use for localization
+    * @param wdlFile WdlFile to localize
+    * @return localized wdl file
+    */
+  private def localizeWdlFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
+                             (wdlFile: WdlFile): WdlFile = {
+    val path = wdlFile.value
+    val result = toDestPath(path) flatMap {
+      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.toString) }
     }
-
-    def adjustMap(t: WdlMapType, inputMap: Map[WdlValue, WdlValue]): Try[WdlMap] = {
-      val tryAdjust = inputMap mapValues { localizeWdlValue(toDestPath, strategies) }
-
-      TryUtil.sequenceMap(tryAdjust, s"Failed to localize files in input Map ${wdlValue.valueString}") map { adjusted =>
-        new WdlMap(t, adjusted)
-      }
-    }
-
-    def adjustPair(p: WdlPair): Try[WdlPair] = {
-      for {
-        l <- localizeWdlValue(toDestPath, strategies)(p.left)
-        r <- localizeWdlValue(toDestPath, strategies)(p.right)
-      } yield WdlPair(l, r)
-    }
-
-    def adjustOptional(v: WdlOptionalValue): Try[WdlOptionalValue] = {
-      v.value map localizeWdlValue(toDestPath, strategies) match {
-        case Some(Success(adjusted)) => Success(WdlOptionalValue(v.innerType, Option(adjusted)))
-        case Some(Failure(t)) => Failure(t)
-        case None => Success(v)
-      }
-    }
-
-    def adjustFile(path: String) = {
-      toDestPath(path) flatMap {
-        case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.toString) }
-      }
-    }
-
-    wdlValue match {
-      case wdlFile: WdlFile => adjustFile(wdlFile.value)
-      case WdlArray(t, values) => adjustArray(t, values)
-      case WdlMap(t, values) => adjustMap(t, values)
-      case pair: WdlPair => adjustPair(pair)
-      case opt: WdlOptionalValue => adjustOptional(opt)
-      case x => Success(x)
-    }
+    result.get
   }
 }

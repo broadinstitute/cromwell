@@ -10,7 +10,7 @@ import akka.util.Timeout
 import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
-import cromwell.core.{WorkflowSourceFilesCollection}
+import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -23,7 +23,7 @@ import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util._
 
 /**
@@ -242,7 +242,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
       within(TimeoutDuration) {
         val runner = createRunnerActor(outputFile = Option(metadataDir.path))
         waitForErrorWithException(s"Specified metadata path is a directory, should be a file: $metadataDir") {
-          val futureResult = runner ? RunWorkflow
+          val futureResult = runner.ask(RunWorkflow)(30.seconds, implicitly)
           Await.ready(futureResult, Duration.Inf)
           futureResult.value.get match {
             case Success(_) =>

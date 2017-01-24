@@ -1,21 +1,23 @@
 package cromwell.backend.standard
 
 import cromwell.backend.BackendInitializationData
-import cromwell.backend.io.WorkflowPaths
-import cromwell.core.path.PathBuilder
+import cromwell.backend.io.{JobPaths, WorkflowPaths}
 
 class StandardInitializationData
 (
   val workflowPaths: WorkflowPaths,
-  val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder
-) extends BackendInitializationData
+  val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
+  val standardExpressionFunctionsClass: Class[_ <: StandardExpressionFunctions]
+) extends BackendInitializationData {
 
-object StandardInitializationData {
-  def workflowPaths(initializationDataOption: Option[BackendInitializationData]): WorkflowPaths = {
-    BackendInitializationData.as[StandardInitializationData](initializationDataOption).workflowPaths
-  }
+  /* TODO: This could (should?) be monadic instead of reflection. */
+  private lazy val standardExpressionFunctionsConstructor =
+    standardExpressionFunctionsClass.getConstructor(classOf[StandardExpressionFunctionsParams])
 
-  def pathBuilders(initializationDataOption: Option[BackendInitializationData]): List[PathBuilder] = {
-    workflowPaths(initializationDataOption).pathBuilders
+  def expressionFunctions(jobPaths: JobPaths): StandardExpressionFunctions = {
+    val pathBuilders = jobPaths.asInstanceOf[WorkflowPaths].pathBuilders
+    val callContext = jobPaths.callContext
+    val standardParams = DefaultStandardExpressionFunctionsParams(pathBuilders, callContext)
+    standardExpressionFunctionsConstructor.newInstance(standardParams)
   }
 }

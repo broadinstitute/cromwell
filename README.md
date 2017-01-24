@@ -477,6 +477,8 @@ database {
 }
 ```
 
+By default batch inserts will be processed in blocks of 2000. To modify this value add the field `insert-batch-size` to the `database` stanza.
+
 ## SIGINT abort handler
 
 For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option

@@ -100,6 +100,8 @@ class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlData
     actionThreadPool, database.executor.executionContext.reportFailure
   )
 
+  protected[this] lazy val insertBatchSize = databaseConfig.as[Option[Int]]("insert-batch-size").getOrElse(2000)
+
   protected[this] lazy val useSlickUpserts =
     dataAccess.driver.capabilities.contains(JdbcProfile.capabilities.insertOrUpdate)
 

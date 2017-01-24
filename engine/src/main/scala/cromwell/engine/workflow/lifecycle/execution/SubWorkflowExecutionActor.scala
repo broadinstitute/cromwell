@@ -94,10 +94,6 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command")
       stay()
-    case Event(MetadataPutFailed(action, error), _) =>
-      jobLogger.warn(s"Put failed for Metadata action $action", error)
-      stay()
-    case Event(MetadataPutAcknowledgement(_), _) => stay()
   }
 
   onTransition {

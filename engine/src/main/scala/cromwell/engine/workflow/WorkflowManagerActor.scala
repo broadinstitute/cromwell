@@ -13,7 +13,6 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
-import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import net.ceedubs.ficus.Ficus._
@@ -243,10 +242,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
-    case Event(MetadataPutFailed(action, error), _) =>
-      log.warning(s"$tag Put failed for Metadata action $action : ${error.getMessage}")
-      stay()
-    case Event(MetadataPutAcknowledgement(_), _) => stay()
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest

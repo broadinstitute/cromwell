@@ -18,7 +18,6 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import wdl4s.{LocallyQualifiedName => _}
@@ -259,11 +258,6 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowSucceededState) { FSM.NullFunction }
 
   whenUnhandled {
-    case Event(MetadataPutFailed(action, error), _) =>
-      // Do something useful here??
-      workflowLogger.warn(s"Put failed for Metadata action $action : ${error.getMessage}")
-      stay
-    case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)

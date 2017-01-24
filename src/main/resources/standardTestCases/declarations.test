@@ -11,6 +11,6 @@ files {
 metadata {
   workflowName: two_step
   status: Succeeded
-  "outputs.two_step_cgrep_count": 1
-  "outputs.two_step_cgrep_str": "foobar"
+  "outputs.two_step.cgrep.count": 1
+  "outputs.two_step.cgrep.str": "foobar"
 }

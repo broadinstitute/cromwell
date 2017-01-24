@@ -6,6 +6,6 @@ files {
 }
 
 metadata {
-  "outputs.filepassing_consumeFile_contents":    "small file contents"
-  "outputs.filepassing_consumeFile_contentsAlt": "small file contents"
+  "outputs.filepassing.consumeFile.contents":    "small file contents"
+  "outputs.filepassing.consumeFile.contentsAlt": "small file contents"
 }

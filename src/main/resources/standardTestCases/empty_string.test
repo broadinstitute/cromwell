@@ -8,6 +8,6 @@ files {
 metadata {
   workflowName: wf_hello
   status: Succeeded
-  "outputs.wf_hello_hello_empty" : ""
-  "outputs.wf_hello_goodbye_empty": ""
+  "outputs.wf_hello.hello.empty" : ""
+  "outputs.wf_hello.goodbye.empty": ""
 }

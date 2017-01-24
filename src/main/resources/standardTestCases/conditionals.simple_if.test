@@ -8,6 +8,6 @@ files {
 
 metadata {
   workflowName: simple_if
-  "outputs.simple_if_runMeTrue_s": "done"
-  "outputs.simple_if_runMeFalse_s": "null"
+  "outputs.simple_if.runMeTrue.s": "done"
+  "outputs.simple_if.runMeFalse.s": "null"
 }

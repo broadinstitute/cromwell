@@ -12,7 +12,7 @@ files {
 metadata {
   workflowName: wdl_function_locations
   status: Succeeded
-  "outputs.wdl_function_locations_wdl_function_locations_i_out": "0:1:2"
-  "outputs.wdl_function_locations_wdl_function_locations_ii_0_out": "0"
-  "outputs.wdl_function_locations_wdl_function_locations_ii_1_out": "1"
+  "outputs.wdl_function_locations.wdl_function_locations_i.out": "0:1:2"
+  "outputs.wdl_function_locations.wdl_function_locations_ii.0.out": "0"
+  "outputs.wdl_function_locations.wdl_function_locations_ii.1.out": "1"
 }

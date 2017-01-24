@@ -6,5 +6,5 @@ files {
 }
 
 metadata {
-    "outputs.dontglobinputs_length_size" = 2
+    "outputs.dontglobinputs.length.size" = 2
 }

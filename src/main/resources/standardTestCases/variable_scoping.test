@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: scoping_wf
   status: Succeeded
-  "outputs.scoping_wf_scoping_task_out": "10 and 20"
+  "outputs.scoping_wf.scoping_task.out": "10 and 20"
 }

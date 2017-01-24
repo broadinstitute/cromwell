@@ -11,6 +11,6 @@ metadata {
   status: Succeeded
   "calls.wf_hello.hello.executionStatus": Done
   "calls.wf_hello.hello.runtimeAttributes.docker": "ubuntu:latest"
-  "outputs.wf_hello_hello_salutation": "Hello m'Lord!"
+  "outputs.wf_hello.hello.salutation": "Hello m'Lord!"
   "inputs.wf_hello.hello.addressee": "m'Lord"
 }

@@ -13,9 +13,9 @@ class WorkflowOutputsSpec extends CromwellTestKitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "three_step_ps_procs" -> AnyValueIsFine,
-          "three_step_cgrep_count" -> AnyValueIsFine,
-          "three_step_wc_count" -> AnyValueIsFine
+          "three_step.ps.procs" -> AnyValueIsFine,
+          "three_step.cgrep.count" -> AnyValueIsFine,
+          "three_step.wc.count" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )
@@ -27,8 +27,8 @@ class WorkflowOutputsSpec extends CromwellTestKitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "three_step_cgrep_count" -> AnyValueIsFine,
-          "three_step_wc_count" -> AnyValueIsFine
+          "three_step.cgrep.count" -> AnyValueIsFine,
+          "three_step.wc.count" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )
@@ -40,8 +40,8 @@ class WorkflowOutputsSpec extends CromwellTestKitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "scatter0_outside_scatter_out" -> AnyValueIsFine,
-          "scatter0_inside_scatter_out" -> AnyValueIsFine
+          "scatter0.outside_scatter.out" -> AnyValueIsFine,
+          "scatter0.inside_scatter.out" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )
@@ -53,7 +53,7 @@ class WorkflowOutputsSpec extends CromwellTestKitSpec {
         eventFilter = EventFilter.info(pattern = s"is in a terminal state: WorkflowSucceededState", occurrences = 1),
         runtime = "",
         expectedOutputs = Map(
-          "scatter0_inside_scatter_out" -> AnyValueIsFine
+          "scatter0.inside_scatter.out" -> AnyValueIsFine
         ),
         allowOtherOutputs = false
       )

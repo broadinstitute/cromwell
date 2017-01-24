@@ -1,8 +1,9 @@
 package cromwell.backend.impl.tes
 
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
+
 import better.files.File
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
@@ -52,27 +53,44 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
-  private def writeScript(instantiatedCommand: String) = {
+  private def writeScript(instantiatedCommand: String, globFiles: Set[WdlGlobFile]) = {
+    val cwd = tesPaths.containerExecDir
     val rcPath = tesPaths.containerExec("rc")
     val rcTmpPath = s"$rcPath.tmp"
+    def globManipulation(globFile: WdlGlobFile) = {
 
-    val scriptBody = s"""
+      val globDir = callEngineFunction.globName(globFile.value)
+      val globDirectory = File(cwd)./(globDir)
+      val globList = File(cwd)./(s"$globDir.list")
 
-#!/bin/sh
-(
- $instantiatedCommand
-)
-echo $$? > $rcTmpPath
-mv $rcTmpPath $rcPath
+      s"""|mkdir $globDirectory
+          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+          |ls -1 $globDirectory > $globList
+          |""".stripMargin
+    }
 
-""".trim + "\n"
+    val globManipulations = globFiles.map(globManipulation).mkString("\n")
+
+    val scriptBody =
+      s"""|#!/bin/sh
+          |umask 0000
+          |(
+          |cd $cwd
+          |INSTANTIATED_COMMAND
+          |)
+          |echo $$? > $rcTmpPath
+          |(
+          |cd $cwd
+          |$globManipulations
+          |)
+          |mv $rcTmpPath $rcPath
+          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
 
     File(jobPaths.script).write(scriptBody)
   }
 
-  File(jobPaths.callExecutionRoot).createDirectories()
   jobLogger.info(s"`\n$commandString`")
-  writeScript(commandString)
+  writeScript(commandString, callEngineFunction.findGlobOutputs(jobDescriptor.call, jobDescriptor))
 
   private val commandScript = TaskParameter(
     "commandScript",
@@ -221,10 +239,18 @@ object TesTask {
     // TODO this could be used to create a separate directory for outputs e.g.
     // callDockerRoot.resolve("outputs").resolve(name).toString
 
+
+    // Return a path localized to the container's execution directory
+    def containerExecDir: Path = {
+      runtimeAttributes.dockerWorkingDir match {
+        case Some(path) => Paths.get(path)
+        case _ => jobPaths.callExecutionDockerRoot
+      }
+    }
+
     // Given an file name, return a path localized to the container's execution directory
-    def containerExec(name: String): String = runtimeAttributes.dockerWorkingDir match {
-      case Some(path) => Paths.get(path).resolve(name).toString
-      case _ => jobPaths.callExecutionDockerRoot.resolve(name).toString
+    def containerExec(name: String): String = {
+      containerExecDir.resolve(name).toString
     }
 
     // The path to the workflow root directory, localized to the container's file system

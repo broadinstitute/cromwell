@@ -16,6 +16,7 @@ import spray.http.HttpRequest
 import spray.httpx.unmarshalling._
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory.pathPlusSuffix
 import cromwell.core.path.{PathBuilder, PathFactory}
 import lenthall.util.TryUtil
@@ -75,6 +76,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def execute(): ExecutionHandle = {
+    // create call exec dir
+    File(tesJobPaths.callExecutionRoot).createPermissionedDirectories()
     val taskMessage = createTaskMessage()
 
     val submitTask = pipeline[TesPostResponse]
@@ -86,7 +89,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
   }
 
-  override def tryAbort(job: StandardAsyncJob): TesRunStatus = {
+  override def tryAbort(job: StandardAsyncJob): Unit = {
 
     val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
     returnCodeTmp.write(s"$SIGTERM\n")
@@ -107,17 +110,25 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ()
   }
 
+  override def requestsAbortAndDiesImmediately: Boolean = true
+
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): TesRunStatus = {
-    val pollTask = pipeline[TesGetResponse]
-      .apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}"))
+    val pollTask = pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}"))
+
     val response = Await.result(pollTask, 5.seconds)
     val state = response.state.get
-
     if (state contains "Complete") {
       jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
-      TesRunStatus(isTerminal=true)
+      TesRunStatus(isTerminal = true)
     } else {
-      TesRunStatus(isTerminal=false)
+      TesRunStatus(isTerminal = false)
+    }
+  }
+
+  override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
+    case (oldHandle: StandardAsyncPendingExecutionHandle@unchecked, e: Exception) => {
+      jobLogger.error(s"$tag TES Job ${oldHandle.pendingJob.jobId} has not been found, failing call")
+      FailedNonRetryableExecutionHandle(e)
     }
   }
 

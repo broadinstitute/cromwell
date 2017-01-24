@@ -10,7 +10,6 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import WorkflowStoreEngineActor._
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.services.metadata.MetadataService.MetadataPutAcknowledgement
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -54,8 +53,6 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
   }
 
   whenUnhandled {
-    case Event(MetadataPutAcknowledgement(_), _) =>
-      stay // Ignored
     case Event(msg, _) =>
       log.warning("Unexpected message to WorkflowStoreActor in state {} with data {}: {}", stateName, stateData, msg)
       stay

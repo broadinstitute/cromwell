@@ -23,14 +23,14 @@ trait WorkflowStoreEntryComponent {
 
     def customLabels = column[Clob]("CUSTOM_LABELS")
 
-    def workflowState = column[String]("WORKFLOW_STATE")
+    def workflowState = column[String]("WORKFLOW_STATE", O.Length(15))
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
-    def importsZipFile = column[Option[Blob]]("IMPORTS_ZIP")
+    def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
     override def * = (workflowExecutionUuid, workflowDefinition, workflowInputs, workflowOptions, workflowState,
-      submissionTime, importsZipFile, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+      submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 

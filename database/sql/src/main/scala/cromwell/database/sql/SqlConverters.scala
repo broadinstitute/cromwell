@@ -1,8 +1,8 @@
 package cromwell.database.sql
 
-import java.sql.{Clob, Timestamp}
+import java.sql.{Blob, Clob, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}
-import javax.sql.rowset.serial.SerialClob
+import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 
 object SqlConverters {
 
@@ -20,12 +20,19 @@ object SqlConverters {
 
   implicit class ClobToRawString(val clob: Clob) extends AnyVal {
     def toRawString: String = clob.getSubString(1, clob.length.toInt) // yes, it starts at 1
+
+    def parseSystemTimestamp: Timestamp = OffsetDateTime.parse(toRawString).toSystemTimestamp
   }
 
   implicit class StringToClob(val str: String) extends AnyVal {
     def toClob: Clob = new SerialClob(str.toCharArray)
-
-    def toNonEmptyClob: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
   }
 
+  implicit class BlobToBytes(val blob: Blob) extends AnyVal {
+    def toBytes: Array[Byte] = blob.getBytes(1, blob.length.toInt) // yes, it starts at 1
+  }
+
+  implicit class StringToBlob(val bytes: Array[Byte]) extends AnyVal {
+    def toBlob: Blob = new SerialBlob(bytes)
+  }
 }

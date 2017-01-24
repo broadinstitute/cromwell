@@ -10,7 +10,7 @@ case class WorkflowStoreEntry
   workflowOptions: Clob,
   workflowState: String,
   submissionTime: Timestamp,
-  importsZipFile: Option[Blob],
+  importsZip: Option[Blob],
   customLabels: Clob,
   workflowStoreEntryId: Option[Int] = None
 )

@@ -1,16 +1,15 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
-import javax.sql.rowset.serial.SerialBlob
 
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import net.ceedubs.ficus.Ficus._
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -58,7 +57,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowStoreEntry.workflowInputs.toRawString,
       workflowStoreEntry.workflowOptions.toRawString,
       workflowStoreEntry.customLabels.toRawString,
-      workflowStoreEntry.importsZipFile.map(b => b.getBytes(1, b.length.asInstanceOf[Int]))
+      workflowStoreEntry.importsZip.map(_.toBytes)
     )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
@@ -75,7 +74,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       customLabels = workflowSourceFiles.labelsJson.toClob,
       workflowState = WorkflowStoreState.Submitted.toString,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
-      importsZipFile = workflowSourceFiles.importsZipFileOption.map(new SerialBlob(_))
+      importsZip = workflowSourceFiles.importsZipFileOption.map(_.toBlob)
     )
   }
 

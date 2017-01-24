@@ -1,5 +1,7 @@
 package cromwell.database.slick.tables
 
+import java.sql.Clob
+
 import cromwell.database.sql.tables.JobStoreSimpletonEntry
 import slick.model.ForeignKeyAction.Cascade
 
@@ -14,7 +16,7 @@ trait JobStoreSimpletonEntryComponent {
 
     def simpletonKey = column[String]("SIMPLETON_KEY")
 
-    def simpletonValue = column[String]("SIMPLETON_VALUE")
+    def simpletonValue = column[Clob]("SIMPLETON_VALUE")
 
     def wdlType = column[String]("WDL_TYPE")
 
@@ -23,7 +25,7 @@ trait JobStoreSimpletonEntryComponent {
     override def * = (simpletonKey, simpletonValue, wdlType, jobStoreEntryId.?, jobStoreSimpletonEntryId.?) <>
       (JobStoreSimpletonEntry.tupled, JobStoreSimpletonEntry.unapply)
 
-    def fkJobStoreResultSimpletonJobStoreEntryId = foreignKey("FK_JOB_STORE_RESULT_SIMPLETON_JOB_STORE_ENTRY_ID",
+    def fkJobStoreSimpletonEntryJobStoreEntryId = foreignKey("FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID",
       jobStoreEntryId, jobStoreEntries)(_.jobStoreEntryId, onDelete = Cascade)
 
     def ucJobStoreSimpletonEntryJseiSk =

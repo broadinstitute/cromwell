@@ -24,8 +24,8 @@ trait CallCachingHashEntryComponent {
     def fkCallCachingHashEntryCallCachingEntryId = foreignKey("FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID",
       callCachingEntryId, callCachingEntries)(_.callCachingEntryId)
 
-    def ucCallCachingHashEntryCcei =
-      index("UC_CALL_CACHING_HASH_ENTRY_CCEI", (callCachingEntryId, hashKey), unique = true)
+    def ucCallCachingHashEntryCceiHk =
+      index("UC_CALL_CACHING_HASH_ENTRY_CCEI_HK", (callCachingEntryId, hashKey), unique = true)
   }
 
   protected val callCachingHashEntries = TableQuery[CallCachingHashEntries]

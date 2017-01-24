@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="kshakir" id="standardize_column_names_patches">
+        <comment>
+            Columns now all match standardized naming.
+            FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID must be dropped and re-added so that
+            UC_CALL_CACHING_HASH_ENTRY_CCEI may be renamed.
+        </comment>
+        <dropForeignKeyConstraint baseTableName="CALL_CACHING_HASH_ENTRY"
+                                  constraintName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"/>
+        <dropForeignKeyConstraint baseTableName="JOB_STORE_SIMPLETON_ENTRY"
+                                  constraintName="FK_JOB_STORE_RESULT_SIMPLETON_JOB_STORE_ENTRY_ID"/>
+        <dropForeignKeyConstraint baseTableName="SUB_WORKFLOW_STORE_ENTRY"
+                                  constraintName="FK_SUB_WORKFLOW_STORE_ROOT_WORKFLOW_ID_WORKFLOW_STORE_ENTRY_ID"/>
+
+        <dropUniqueConstraint tableName="CALL_CACHING_ENTRY"
+                              constraintName="UC_CALL_CACHING_ENTRY_WEU_CQFN_JI"/>
+        <dropUniqueConstraint tableName="CALL_CACHING_HASH_ENTRY"
+                              constraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI"/>
+
+        <addUniqueConstraint
+                tableName="CALL_CACHING_ENTRY"
+                constraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX"/>
+        <addUniqueConstraint
+                tableName="CALL_CACHING_HASH_ENTRY"
+                constraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK"
+                columnNames="CALL_CACHING_ENTRY_ID, HASH_KEY"/>
+
+        <addForeignKeyConstraint constraintName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
+                                 baseTableName="CALL_CACHING_HASH_ENTRY"
+                                 baseColumnNames="CALL_CACHING_ENTRY_ID"
+                                 referencedTableName="CALL_CACHING_ENTRY"
+                                 referencedColumnNames="CALL_CACHING_ENTRY_ID"/>
+        <addForeignKeyConstraint constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID" onDelete="CASCADE"
+                                 baseTableName="JOB_STORE_SIMPLETON_ENTRY"
+                                 baseColumnNames="JOB_STORE_ENTRY_ID"
+                                 referencedTableName="JOB_STORE_ENTRY"
+                                 referencedColumnNames="JOB_STORE_ENTRY_ID"/>
+        <addForeignKeyConstraint constraintName="FK_SUB_WORKFLOW_STORE_ENTRY_ROOT_WORKFLOW_ID" onDelete="CASCADE"
+                                 baseTableName="SUB_WORKFLOW_STORE_ENTRY"
+                                 baseColumnNames="ROOT_WORKFLOW_ID"
+                                 referencedTableName="WORKFLOW_STORE_ENTRY"
+                                 referencedColumnNames="WORKFLOW_STORE_ENTRY_ID"/>
+    </changeSet>
+
+    <changeSet author="kshakir" id="hsqldb_longvarchar_to_longtext" dbms="hsqldb">
+        <comment>
+            HSQLDB can handle longtext just fine. Instead of using very wide varchars, use clob.
+        </comment>
+        <modifyDataType newDataType="LONGTEXT" tableName="CALL_CACHING_DETRITUS_ENTRY" columnName="DETRITUS_VALUE"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="CALL_CACHING_SIMPLETON_ENTRY" columnName="SIMPLETON_VALUE"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="JOB_STORE_ENTRY" columnName="EXCEPTION_MESSAGE"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="JOB_STORE_SIMPLETON_ENTRY" columnName="SIMPLETON_VALUE"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="WORKFLOW_STORE_ENTRY" columnName="CUSTOM_LABELS"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_DEFINITION"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_INPUTS"/>
+        <modifyDataType newDataType="LONGTEXT" tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_OPTIONS"/>
+    </changeSet>
+
+</databaseChangeLog>

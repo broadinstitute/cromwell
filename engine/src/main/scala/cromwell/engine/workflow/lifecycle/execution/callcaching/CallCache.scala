@@ -7,8 +7,8 @@ import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
-import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.core.path.PathImplicits._
+import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
@@ -49,7 +49,7 @@ class CallCache(database: CallCachingSqlDatabase) {
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
         case WdlValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.wdlType.toWdlString)
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClob, wdlPrimitive.wdlType.toWdlString)
       }
     }
 

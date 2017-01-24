@@ -1,6 +1,6 @@
 package cromwell.database.sql.tables
 
-import java.sql.Timestamp
+import java.sql.{Clob, Timestamp}
 
 case class MetadataEntry
 (
@@ -9,7 +9,7 @@ case class MetadataEntry
   jobIndex: Option[Int],
   jobAttempt: Option[Int],
   metadataKey: String,
-  metadataValue: Option[String],
+  metadataValue: Option[Clob],
   metadataValueType: Option[String],
   metadataTimestamp: Timestamp,
   metadataEntryId: Option[Long] = None

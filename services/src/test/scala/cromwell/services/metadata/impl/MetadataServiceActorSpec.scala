@@ -8,6 +8,10 @@ import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import org.scalatest.concurrent.Eventually._
+import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
+
+import scala.concurrent.duration._
 
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   import MetadataServiceActorSpec.Config
@@ -47,23 +51,25 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
       val query4 = MetadataQuery.forWorkflow(workflowId)
       val query5 = MetadataQuery.forJob(workflowId, supJob)
 
-      (for {
-        response1 <- (actor ? GetMetadataQueryAction(query1)).mapTo[MetadataServiceResponse]
-        _ = response1 shouldBe MetadataLookupResponse(query1, Seq(event1_1, event1_2))
+      eventually(Timeout(10.seconds), Interval(2.seconds)) {
+        (for {
+          response1 <- (actor ? GetMetadataQueryAction(query1)).mapTo[MetadataServiceResponse]
+          _ = response1 shouldBe MetadataLookupResponse(query1, Seq(event1_1, event1_2))
 
-        response2 <- (actor ? GetMetadataQueryAction(query2)).mapTo[MetadataServiceResponse]
-        _ = response2 shouldBe MetadataLookupResponse(query2, Seq(event2_1))
+          response2 <- (actor ? GetMetadataQueryAction(query2)).mapTo[MetadataServiceResponse]
+          _ = response2 shouldBe MetadataLookupResponse(query2, Seq(event2_1))
 
-        response3 <- (actor ? GetMetadataQueryAction(query3)).mapTo[MetadataServiceResponse]
-        _ = response3 shouldBe MetadataLookupResponse(query3, Seq(event3_1, event3_2))
+          response3 <- (actor ? GetMetadataQueryAction(query3)).mapTo[MetadataServiceResponse]
+          _ = response3 shouldBe MetadataLookupResponse(query3, Seq(event3_1, event3_2))
 
-        response4 <- (actor ? GetMetadataQueryAction(query4)).mapTo[MetadataServiceResponse]
-        _ = response4 shouldBe MetadataLookupResponse(query4, Seq(event1_1, event1_2, event2_1, event3_1, event3_2))
+          response4 <- (actor ? GetMetadataQueryAction(query4)).mapTo[MetadataServiceResponse]
+          _ = response4 shouldBe MetadataLookupResponse(query4, Seq(event1_1, event1_2, event2_1, event3_1, event3_2))
 
-        response5 <- (actor ? GetMetadataQueryAction(query5)).mapTo[MetadataServiceResponse]
-        _ = response5 shouldBe MetadataLookupResponse(query5, Seq(event3_1, event3_2))
+          response5 <- (actor ? GetMetadataQueryAction(query5)).mapTo[MetadataServiceResponse]
+          _ = response5 shouldBe MetadataLookupResponse(query5, Seq(event3_1, event3_2))
 
-      } yield ()).futureValue
+        } yield ()).futureValue
+      }
     }
   }
 }

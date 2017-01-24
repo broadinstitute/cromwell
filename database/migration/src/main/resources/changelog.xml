@@ -56,6 +56,7 @@
     <include file="changesets/workflow_store_imports_file.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_store_labels_file.xml" relativeToChangelogFile="true" />
     <include file="changesets/embiggen_detritus_value.xml" relativeToChangelogFile="true" />
+    <include file="changesets/standardize_column_names_patches.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

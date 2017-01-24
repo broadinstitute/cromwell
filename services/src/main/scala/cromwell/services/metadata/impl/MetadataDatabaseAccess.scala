@@ -1,7 +1,5 @@
 package cromwell.services.metadata.impl
 
-import java.time.OffsetDateTime
-
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.syntax.semigroup._
@@ -43,12 +41,12 @@ object MetadataDatabaseAccess {
     def toSummary: WorkflowMetadataSummaryEntry = {
       val base = baseSummary(metadatum.workflowExecutionUuid)
       metadatum.metadataKey match {
-        case WorkflowMetadataKeys.Name => base.copy(workflowName = metadatum.metadataValue)
-        case WorkflowMetadataKeys.Status => base.copy(workflowStatus = metadatum.metadataValue)
+        case WorkflowMetadataKeys.Name => base.copy(workflowName = metadatum.metadataValue.map(_.toRawString))
+        case WorkflowMetadataKeys.Status => base.copy(workflowStatus = metadatum.metadataValue.map(_.toRawString))
         case WorkflowMetadataKeys.StartTime =>
-          base.copy(startTimestamp = metadatum.metadataValue map OffsetDateTime.parse map { _.toSystemTimestamp })
+          base.copy(startTimestamp = metadatum.metadataValue.map(_.parseSystemTimestamp))
         case WorkflowMetadataKeys.EndTime =>
-          base.copy(endTimestamp = metadatum.metadataValue map OffsetDateTime.parse map { _.toSystemTimestamp })
+          base.copy(endTimestamp = metadatum.metadataValue.map(_.parseSystemTimestamp))
       }
     }
   }
@@ -78,7 +76,8 @@ trait MetadataDatabaseAccess {
       val value = metadataEvent.value map { _.value }
       val valueType = metadataEvent.value map { _.valueType.typeName }
       val jobKey = key.jobKey map { jk => (jk.callFqn, jk.index, jk.attempt) }
-      MetadataEntry(workflowUuid, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3), key.key, value, valueType, timestamp)
+      MetadataEntry(workflowUuid, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3),
+        key.key, value.map(_.toClob), valueType, timestamp)
     }
     databaseInterface.addMetadataEntries(metadata)
   }
@@ -95,7 +94,7 @@ trait MetadataDatabaseAccess {
       val value =  for {
         mValue <- m.metadataValue
         mType <- m.metadataValueType
-      } yield MetadataValue(mValue, MetadataType.fromString(mType))
+      } yield MetadataValue(mValue.toRawString, MetadataType.fromString(mType))
 
       MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
     }

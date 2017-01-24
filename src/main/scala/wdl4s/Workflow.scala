@@ -133,7 +133,7 @@ case class Workflow(unqualifiedName: String,
         throw new RuntimeException(s"output ${output.fullyQualifiedName} has no parent Scope") 
       }
       
-      new WorkflowOutput(output.locallyQualifiedName(this), wdlType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
+      new WorkflowOutput(locallyQualifiedName, wdlType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
     }
 
     def toWorkflowOutputs(scope: Scope) = {

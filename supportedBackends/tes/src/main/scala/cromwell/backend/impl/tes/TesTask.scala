@@ -9,27 +9,19 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
-import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
                          jobLogger: JobLogger,
-                         jobPaths: JobPathsWithDocker) {
+                         jobPaths: JobPathsWithDocker,
+                         runtimeAttributes: TesRuntimeAttributes) {
 
   import TesTask._
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val pathBuilders = List(DefaultPathBuilder)
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
-
-  private val runtimeAttributes = {
-    val lookup = jobDescriptor.fullyQualifiedInputs.apply _
-    val evaluateAttrs = jobDescriptor.key.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
-  }
 
   private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
@@ -166,7 +158,7 @@ mv $rcTmpPath $rcPath
   )
 
   val dockerExecutor = Seq(DockerExecutor(
-    runtimeAttributes.dockerImage.get,
+    runtimeAttributes.dockerImage,
     Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     tesPaths.containerExec("stdout"),
@@ -232,19 +224,12 @@ object TesTask {
     // Given an file name, return a path localized to the container's execution directory
     def containerExec(name: String): String = runtimeAttributes.dockerWorkingDir match {
       case Some(path) => Paths.get(path).resolve(name).toString
-      case None => jobPaths.callExecutionDockerRoot.resolve(name).toString
+      case _ => jobPaths.callExecutionDockerRoot.resolve(name).toString
     }
 
     // The path to the workflow root directory, localized to the container's file system
     val containerWorkflowRoot = jobPaths.dockerWorkflowRoot.toString
   }
-
-  // Utility for converting a WdValue representing an output file path to a WdlValue with
-  // a path localized to ____?
-  // TODO this is a placeholder for now, until I can fill in the blank
-  //private def mapOutputs(value: WdlValue) = Try {
-  //  value
-  //}
 }
 
 

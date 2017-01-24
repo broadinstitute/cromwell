@@ -1,9 +1,10 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.MemorySize
+import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
+import org.slf4j.helpers.NOPLogger
 import spray.json._
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
@@ -30,19 +31,17 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
        |}
     """.stripMargin
 
-  val emptyWorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
-
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
-    Some("ubuntu:latest"),
+    "ubuntu:latest",
     None,
     false,
     1,
-    MemorySize(1, MemoryUnit.GB),
-    MemorySize(1, MemoryUnit.GB)
+    MemorySize(2, MemoryUnit.GB),
+    MemorySize(2, MemoryUnit.GB)
   )
 
-  val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = Some("ubuntu:latest"))
+  val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = "ubuntu:latest")
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
     WorkflowOptions(JsObject(Map(
@@ -59,7 +58,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(dockerImage = Option("ubuntu:latest"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(dockerImage = "ubuntu:latest")
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -133,23 +132,37 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       expectedDefaultsPlusUbuntuDocker
     )
   }
-  private def assertSuccess(runtimeAttributes: Map[String, WdlValue], expectedRuntimeAttributes: TesRuntimeAttributes): Unit = {
+  private def assertSuccess(runtimeAttributes: Map[String, WdlValue],
+                            expectedRuntimeAttributes: TesRuntimeAttributes,
+                            workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+
+    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
+      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      assert(TesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions) == expectedRuntimeAttributes)
+      val actualRuntimeAttributes = TesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER)
+      assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
     }
     ()
   }
 
-  private def assertFailure(runtimeAttributes: Map[String, WdlValue], exMsg: String): Unit = {
+  private def assertFailure(runtimeAttributes: Map[String, WdlValue],
+                            exMsg: String,
+                            workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
+      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      TesRuntimeAttributes(runtimeAttributes, emptyWorkflowOptions)
+      TesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
     }
     ()
   }
+
+  private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
+    TesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet
 
 }

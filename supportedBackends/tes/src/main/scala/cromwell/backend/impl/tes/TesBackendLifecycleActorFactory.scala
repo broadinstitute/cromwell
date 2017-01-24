@@ -1,24 +1,24 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.ActorRef
 import cromwell.backend._
-import cromwell.core.Dispatcher._
+import cromwell.backend.standard._
 import wdl4s.TaskCall
 
-case class TesBackendLifecycleActorFactory(name: String,
-                                           configurationDescriptor: BackendConfigurationDescriptor)
-  extends BackendLifecycleActorFactory {
+case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
+  extends StandardLifecycleActorFactory {
 
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                calls: Set[TaskCall],
-                                                serviceRegistryActor: ActorRef): Option[Props] = {
-    Option(TesInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor).withDispatcher(BackendDispatcher))
-  }
+  override def initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[TesInitializationActor]
 
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef,
-                                      backendSingletonActor: Option[ActorRef]): Props = {
-    TesJobExecutionActor.props(jobDescriptor, configurationDescriptor).withDispatcher(BackendDispatcher)
+  override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
+    classOf[TesAsyncBackendJobExecutionActor]
+
+  override def jobIdKey: String = TesAsyncBackendJobExecutionActor.JobIdKey
+
+  val tesConfiguration = new TesConfiguration(configurationDescriptor)
+
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
+                                                 serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
+    TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
   }
 }

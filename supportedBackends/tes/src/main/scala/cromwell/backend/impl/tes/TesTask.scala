@@ -104,7 +104,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     } ++ Seq(commandScript)
 
   // TODO add TES logs to standard outputs
-  private val standardOutputs = Seq("rc", "stdout", "stderr").map {
+  val standardOutputs = Seq("rc", "stdout", "stderr").map {
     f =>
       TaskParameter(
         f,
@@ -123,13 +123,18 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .toSeq
     .map { case (k, v) => (k, v.wdlValue) }
     .flatMap(flattenWdlValueMap)
+    .filter{
+      case (_: String, _: WdlSingleFile) => true
+      case (s: String, _) => s != "stdout"
+      case _ => false
+    }
     .map {
       // TODO handle globs
-      case (outputName, WdlSingleFile(path)) => TaskParameter(
+      case (outputName, f) => TaskParameter(
         outputName,
         Some(fullyQualifiedTaskName + "." + outputName),
-        tesPaths.storageOutput(path),
-        tesPaths.containerOutput(path),
+        tesPaths.storageOutput(f.valueString),
+        tesPaths.containerOutput(f.valueString),
         "File",
         Some(false)
       )
@@ -181,7 +186,7 @@ object TesTask {
       case (name, array: WdlArray) => array.value.zipWithIndex.flatMap {
         case (v: WdlValue, i: Int) => flattenWdlValueMap((name + "-" + i, v))
       }
-      case (name, map: WdlMap) => {
+      case (_, map: WdlMap) => {
         map.value.toSeq flatMap {
           case (name: WdlValue, item: WdlValue) => {
             flattenWdlValueMap((name + name.valueString, item))
@@ -219,7 +224,7 @@ object TesTask {
     }
 
     def containerInput(path: String): String = {
-      jobPaths.callDockerRoot.resolve("inputs").toString + path
+      jobPaths.callDockerRoot.resolve("inputs").toString + cleanPathForContainer(Paths.get(path))
     }
 
     // Given an output path, return a path localized to the container file system
@@ -239,13 +244,32 @@ object TesTask {
 
     // Given an file name, return a path localized to the container's execution directory
     def containerExec(name: String): String = {
-      containerExecDir.resolve(name).toString
+      containerExecDir.resolve(cleanPathForContainer(Paths.get(name))).toString
     }
 
     // The path to the workflow root directory, localized to the container's file system
     val containerWorkflowRoot = jobPaths.dockerWorkflowRoot.toString
-  }
 
+    def cleanPathForContainer(path: Path): String = {
+      path.toAbsolutePath match {
+        case p if p.startsWith(jobPaths.executionRoot) => {
+          /* For example:
+            *
+            * p = /abs/path/to/cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
+            * localExecutionRoot = /abs/path/to/cromwell-executions
+            * subpath = three-step/f00ba4/call-ps/stdout.txt
+            *
+            * return value = /root/three-step/f00ba4/call-ps/stdout.txt
+            *
+            * TODO: this assumes that p.startsWith(localExecutionRoot)
+            */
+          val subpath = p.subpath(jobPaths.executionRoot.getNameCount, p.getNameCount)
+          subpath.toString
+        }
+        case _ => path.toString
+      }
+    }
+  }
 }
 
 

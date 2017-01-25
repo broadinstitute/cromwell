@@ -117,15 +117,38 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertFailure(runtimeAttributes, "Expecting cpu runtime attribute to be an Integer")
     }
 
-    "validate a valid memory entry" in assertSuccess(
-      Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("1 GB")),
-      expectedDefaultsPlusUbuntuDocker.copy(memory = MemorySize.parse("1 GB").get)
-    )
+    "validate a valid memory entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("1 GB"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize.parse("1 GB").get)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
 
-    "fail to validate an invalid memory entry" in assertFailure(
-      Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("blah")),
-      "Expecting memory runtime attribute to be an Integer or String with format '8 GB'"
-    )
+    "fail to validate an invalid memory entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("blah"))
+      assertFailure(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+    }
+
+    "validate a valid disks entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "disk" -> WdlString("1 GB"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disk = MemorySize.parse("1 GB").get)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid disks entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "disk" -> WdlString("blah"))
+      assertFailure(runtimeAttributes, "Expecting disk runtime attribute to be an Integer or String with format '8 GB'")
+    }
+
+    "validate a valid dockerWorkingDir entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "dockerWorkingDir" -> WdlString("/tmp"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(dockerWorkingDir = Some("/tmp"))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid dockerWorkingDir entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "dockerWorkingDir" -> WdlInteger(1))
+      assertFailure(runtimeAttributes, "Expecting dockerWorkingDir runtime attribute to be a String")
+    }
 
     "use reasonable default values" in assertSuccess(
       Map("docker" -> WdlString("ubuntu:latest")),

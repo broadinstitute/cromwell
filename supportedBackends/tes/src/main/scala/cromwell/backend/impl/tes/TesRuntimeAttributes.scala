@@ -6,6 +6,7 @@ import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import lenthall.validation.ErrorOr.ErrorOr
 import org.slf4j.Logger
+import wdl4s.parser.MemoryUnit
 import wdl4s.values.{WdlInteger, WdlString, WdlValue}
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
@@ -95,10 +96,46 @@ object DiskSizeValidation {
 
   def withDefaultDiskSize(memorySize: MemorySize): RuntimeAttributesValidation[MemorySize] =
     instance.withDefault(WdlInteger(memorySize.bytes.toInt))
+
+  private val wrongAmountFormat =
+    s"Expecting ${TesRuntimeAttributes.DiskSizeKey} runtime attribute value greater than 0 but got %s"
+  private val wrongTypeFormat =
+    s"Expecting ${TesRuntimeAttributes.DiskSizeKey} runtime attribute to be an Integer or String with format '8 GB'." +
+      s" Exception: %s"
+
+  def validateDiskSizeString(wdlString: WdlString): ErrorOr[MemorySize] =
+    validateDiskSizeString(wdlString.value)
+
+  def validateDiskSizeString(value: String): ErrorOr[MemorySize] = {
+    MemorySize.parse(value) match {
+      case scala.util.Success(memorySize: MemorySize) if memorySize.amount > 0 =>
+        memorySize.to(MemoryUnit.GB).validNel
+      case scala.util.Success(memorySize: MemorySize) =>
+        wrongAmountFormat.format(memorySize.amount).invalidNel
+      case scala.util.Failure(throwable) =>
+        wrongTypeFormat.format(throwable.getMessage).invalidNel
+    }
+  }
+
+  def validateDiskSizeInteger(wdlInteger: WdlInteger): ErrorOr[MemorySize] =
+    validateDiskSizeInteger(wdlInteger.value)
+
+  def validateDiskSizeInteger(value: Int): ErrorOr[MemorySize] = {
+    if (value <= 0)
+      wrongAmountFormat.format(value).invalidNel
+    else
+      MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
+  }
 }
 
 class DiskSizeValidation extends MemoryValidation {
   override def key = TesRuntimeAttributes.DiskSizeKey
+
+  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[MemorySize]] = {
+    case WdlInteger(value) => DiskSizeValidation.validateDiskSizeInteger(value)
+    case WdlString(value) => DiskSizeValidation.validateDiskSizeString(value)
+  }
+  override def missingValueMessage: String = DiskSizeValidation.wrongTypeFormat.format("Not supported WDL type value")
 }
 
 

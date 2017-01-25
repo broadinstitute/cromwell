@@ -2,24 +2,24 @@ package cromwell.backend.impl.tes
 
 import java.nio.file.{FileAlreadyExistsException, Path}
 
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
-import cromwell.backend.BackendJobLifecycleActor
-import cromwell.core.retry.SimpleExponentialBackoff
-import TesResponseJsonFormatter._
 import better.files.File
+import cromwell.backend.BackendJobLifecycleActor
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardInitializationData}
-import spray.httpx.SprayJsonSupport._
-import spray.client.pipelining._
-import spray.http.HttpRequest
-import spray.httpx.unmarshalling._
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory.pathPlusSuffix
 import cromwell.core.path.{PathBuilder, PathFactory}
+import cromwell.core.retry.SimpleExponentialBackoff
 import lenthall.util.TryUtil
+import spray.client.pipelining._
+import spray.http.HttpRequest
+import spray.httpx.SprayJsonSupport._
+import spray.httpx.unmarshalling._
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -33,7 +33,7 @@ object TesAsyncBackendJobExecutionActor {
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends BackendJobLifecycleActor with StandardAsyncExecutionActor  with TesJobCachingActorHelper {
+  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with TesJobCachingActorHelper {
 
   override type StandardAsyncRunInfo = Any
 
@@ -81,7 +81,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val taskMessage = createTaskMessage()
 
     val submitTask = pipeline[TesPostResponse]
-            .apply(Post(tesEndpoint, taskMessage))
+      .apply(Post(tesEndpoint, taskMessage))
 
     val response = Await.result(submitTask, 15.seconds)
     val jobID = response.value.get
@@ -150,10 +150,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, file.valueString).pathAsString))
       case array: WdlArray =>
         val mappedArray = array.value map outputMapper(job)
-        TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
+        TryUtil.sequence(mappedArray) map {
+          WdlArray(array.wdlType, _)
+        }
       case map: WdlMap =>
         val mappedMap = map.value mapValues outputMapper(job)
-        TryUtil.sequenceMap(mappedMap) map { WdlMap(map.wdlType, _) }
+        TryUtil.sequenceMap(mappedMap) map {
+          WdlMap(map.wdlType, _)
+        }
       case other => Success(other)
     }
   }

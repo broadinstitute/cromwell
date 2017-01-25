@@ -3,14 +3,14 @@ package cromwell.backend.impl.tes
 import java.nio.file.{Path, Paths}
 
 import better.files.File
-import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
 import wdl4s.parser.MemoryUnit
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
@@ -53,23 +53,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
-  private def writeScript(instantiatedCommand: String, globFiles: Set[WdlGlobFile]) = {
+  def writeScript(instantiatedCommand: String) = {
     val cwd = tesPaths.containerExecDir
     val rcPath = tesPaths.containerExec("rc")
     val rcTmpPath = s"$rcPath.tmp"
-    def globManipulation(globFile: WdlGlobFile) = {
-
-      val globDir = callEngineFunction.globName(globFile.value)
-      val globDirectory = File(cwd)./(globDir)
-      val globList = File(cwd)./(s"$globDir.list")
-
-      s"""|mkdir $globDirectory
-          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
-          |ls -1 $globDirectory > $globList
-          |""".stripMargin
-    }
-
-    val globManipulations = globFiles.map(globManipulation).mkString("\n")
 
     val scriptBody =
       s"""|#!/bin/sh
@@ -79,10 +66,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           |INSTANTIATED_COMMAND
           |)
           |echo $$? > $rcTmpPath
-          |(
-          |cd $cwd
-          |$globManipulations
-          |)
           |mv $rcTmpPath $rcPath
           |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
 
@@ -90,7 +73,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   jobLogger.info(s"`\n$commandString`")
-  writeScript(commandString, callEngineFunction.findGlobOutputs(jobDescriptor.call, jobDescriptor))
+  writeScript(commandString)
 
   private val commandScript = TaskParameter(
     "commandScript",
@@ -106,7 +89,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .toSeq
     .flatMap(flattenWdlValueMap)
     .map {
-      case (inputName, f: WdlSingleFile) => TaskParameter(
+      case (inputName: String, f: WdlFile) => TaskParameter(
         inputName,
         Some(workflowName + "." + inputName),
         tesPaths.storageInput(f.valueString),
@@ -118,14 +101,15 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   // TODO add TES logs to standard outputs
   private val standardOutputs = Seq("rc", "stdout", "stderr").map {
-    f => TaskParameter(
-      f,
-      Some(fullyQualifiedTaskName + "." + f),
-      tesPaths.storageOutput(f),
-      tesPaths.containerOutput(f),
-      "File",
-      Some(false)
-    )
+    f =>
+      TaskParameter(
+        f,
+        Some(fullyQualifiedTaskName + "." + f),
+        tesPaths.storageOutput(f),
+        tesPaths.containerOutput(f),
+        "File",
+        Some(false)
+      )
   }
 
   val outputs = OutputEvaluator
@@ -236,6 +220,7 @@ object TesTask {
 
     // Given an output path, return a path localized to the container file system
     def containerOutput(path: String): String = containerExec(path)
+
     // TODO this could be used to create a separate directory for outputs e.g.
     // callDockerRoot.resolve("outputs").resolve(name).toString
 
@@ -256,6 +241,7 @@ object TesTask {
     // The path to the workflow root directory, localized to the container's file system
     val containerWorkflowRoot = jobPaths.dockerWorkflowRoot.toString
   }
+
 }
 
 

@@ -7,8 +7,8 @@ import cromwell.backend.standard._
 import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
 import cromwell.core.path.FileImplicits._
+import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
 import wdl4s.TaskCall
 
 import scala.concurrent.Future

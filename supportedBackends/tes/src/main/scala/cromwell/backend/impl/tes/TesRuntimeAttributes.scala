@@ -6,7 +6,7 @@ import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import lenthall.validation.ErrorOr.ErrorOr
 import org.slf4j.Logger
-import wdl4s.values.{WdlString, WdlValue}
+import wdl4s.values.{WdlInteger, WdlString, WdlValue}
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
@@ -22,17 +22,17 @@ object TesRuntimeAttributes {
 
   private val MemoryDefaultValue = "2 GB"
 
-  val DiskKey = "disk"
-  private val DiskDefaultValue = "2 GB"
+  val DiskSizeKey = "disk"
+  private val DiskSizeDefaultValue = "2 GB"
 
   private val cpuValidation: RuntimeAttributesValidation[Int] = CpuValidation.default
 
   private val diskSizeValidation: RuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.withDefaultMemory(MemorySize.parse(DiskDefaultValue).get)
+    DiskSizeValidation.withDefaultDiskSize(MemorySize.parse(DiskSizeDefaultValue).get)
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
-  private val dockerWorkingDirValidation: RuntimeAttributesValidation[String] = DockerWorkingDirValidation.instance
+  private val dockerWorkingDirValidation: OptionalRuntimeAttributesValidation[String] = DockerWorkingDirValidation.optional
 
   private val memoryValidation: RuntimeAttributesValidation[MemorySize] =
     MemoryValidation.withDefaultMemory(MemorySize.parse(MemoryDefaultValue).get)
@@ -48,7 +48,7 @@ object TesRuntimeAttributes {
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes): TesRuntimeAttributes = {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
-    val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation, validatedRuntimeAttributes)
+    val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
     val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation, validatedRuntimeAttributes)
     val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation, validatedRuntimeAttributes)
     val disk: MemorySize = RuntimeAttributesValidation.extract(diskSizeValidation, validatedRuntimeAttributes)
@@ -83,9 +83,22 @@ object DockerWorkingDirValidation {
 }
 
 class DockerWorkingDirValidation extends StringRuntimeAttributesValidation(TesRuntimeAttributes.DockerWorkingDirKey) {
-  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an String"
-
+  // NOTE: Docker's current test specs don't like WdlInteger, etc. auto converted to WdlString.
   override protected def validateValue: PartialFunction[WdlValue, ErrorOr[String]] = {
     case WdlString(value) => value.validNel
   }
 }
+
+object DiskSizeValidation {
+  lazy val instance: RuntimeAttributesValidation[MemorySize] = new DiskSizeValidation
+  lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
+
+  def withDefaultDiskSize(memorySize: MemorySize): RuntimeAttributesValidation[MemorySize] =
+    instance.withDefault(WdlInteger(memorySize.bytes.toInt))
+}
+
+class DiskSizeValidation extends MemoryValidation {
+  override def key = TesRuntimeAttributes.DiskSizeKey
+}
+
+

@@ -84,12 +84,16 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     Some(false)
   )
 
-  val inputs = jobDescriptor
+  val inputs: Seq[TaskParameter] = jobDescriptor
     .fullyQualifiedInputs
     .toSeq
     .flatMap(flattenWdlValueMap)
+    .filter{
+        case (_: String, _: WdlSingleFile) => true
+        case _ => false
+    }
     .map {
-      case (inputName: String, f: WdlFile) => TaskParameter(
+      case (inputName, f) => TaskParameter(
         inputName,
         Some(workflowName + "." + inputName),
         tesPaths.storageInput(f.valueString),

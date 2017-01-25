@@ -3,7 +3,7 @@ package cromwell.database.migration.liquibase
 import liquibase.database.Database
 import liquibase.diff.{DiffResult, Difference, ObjectDifferences}
 import liquibase.structure.DatabaseObject
-import liquibase.structure.core.{DataType, Index}
+import liquibase.structure.core.DataType
 
 import scala.collection.JavaConverters._
 
@@ -24,30 +24,7 @@ object DiffResultFilter {
   /**
     * The standard type filters to ignore, including interchangeable types.
     */
-  val StandardTypeFilters: Seq[DiffFilter] =
-    Seq(isReordered, isTypeSimilar("CLOB", "VARCHAR"), isTypeSimilar("TINYINT", "BOOLEAN"))
-
-  /**
-    * Removes all unique index differences.
-    *
-    * When searching for unique indexes, liquibase seems to get confused in locating the unique indexes within the
-    * database objects. This leads to false positive differences. The error messages look like:
-    *
-    * [info] - should have the same liquibase and slick schema *** FAILED ***
-    * [info]   {SYS_IDX_10267 on SGE_JOB(EXECUTION_ID)=liquibase.diff.ObjectDifferences@4ad0de69,
-    * SYS_IDX_UK_JJ_EXECUTION_UUID_10194 unique  on JES_JOB(EXECUTION_ID)=liquibase.diff.ObjectDifferences@56873b89,
-    * SYS_IDX_10259 on LOCAL_JOB(EXECUTION_ID)=liquibase.diff.ObjectDifferences@62e10bdf, SYS_IDX_10224 on
-    * WORKFLOW_EXECUTION_AUX(WORKFLOW_EXECUTION_ID)=liquibase.diff.ObjectDifferences@2a0b9461} was not empty
-    * (SlickDataAccessSpec.scala)
-    *
-    * When diving down into the `ObjectDifferences`, each is an instance of either:
-    *
-    * - unique changed from 'true' to 'false'
-    * - unique changed from 'false' to 'true'
-    */
-  val UniqueIndexFilter: DiffFilter = { (_, _, databaseObject, difference) =>
-    difference.getField == "unique" && databaseObject.isInstanceOf[Index]
-  }
+  val StandardTypeFilters: Seq[DiffFilter] = Seq(isReordered, isVarchar255, isTypeSimilar("TINYINT", "BOOLEAN"))
 
   /**
     * Filters diff results using an object filter and changed object filters. Filters that return false are removed.
@@ -104,6 +81,28 @@ object DiffResultFilter {
   }
 
   /**
+    * Checks if the difference is due to the schemas being created with our default varchar(255).
+    *
+    * @param referenceDatabase  The reference database.
+    * @param comparisonDatabase The comparison database.
+    * @param databaseObject     The database object.
+    * @param difference         The difference reported.
+    * @return True if the object is actually the same with slightly different column widths.
+    */
+  def isVarchar255(referenceDatabase: Database, comparisonDatabase: Database,
+                   databaseObject: DatabaseObject, difference: Difference): Boolean = {
+    val compared = difference.getComparedValue
+    val referenced = difference.getReferenceValue
+    compared.isInstanceOf[DataType] && referenced.isInstanceOf[DataType] && {
+      val comparedDataType = compared.asInstanceOf[DataType]
+      val referencedDataType = referenced.asInstanceOf[DataType]
+      comparedDataType.getTypeName == "VARCHAR" && referencedDataType.getTypeName == "VARCHAR" &&
+        // Our liquibase copypasta defaults VARCHAR to 255. Slick without a value defaults to 254
+        (comparedDataType.getColumnSize + referencedDataType.getColumnSize == 255 + 254)
+    }
+  }
+
+  /**
     * Checks if the difference is due to the schemas being created with different but still similar types.
     *
     * Returns true if the type names are both found in the list, or if the types are the same name.
@@ -121,10 +120,9 @@ object DiffResultFilter {
     val compared = difference.getComparedValue
     val referenced = difference.getReferenceValue
     compared.isInstanceOf[DataType] && referenced.isInstanceOf[DataType] && {
-      val comparedType = compared.asInstanceOf[DataType].getTypeName
-      val referencedType = referenced.asInstanceOf[DataType].getTypeName
-      comparedType == referencedType ||
-        (similarTypes.contains(comparedType.toUpperCase) && similarTypes.contains(referencedType.toUpperCase))
+      val comparedType = compared.asInstanceOf[DataType].getTypeName.toUpperCase
+      val referencedType = referenced.asInstanceOf[DataType].getTypeName.toUpperCase
+      similarTypes.contains(comparedType) && similarTypes.contains(referencedType.toUpperCase)
     }
   }
 

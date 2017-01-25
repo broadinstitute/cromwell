@@ -26,10 +26,10 @@ trait SubWorkflowStoreEntryComponent {
 
     override def * = (rootWorkflowId.?, parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt, subWorkflowExecutionUuid, subWorkflowStoreEntryId.?) <> (SubWorkflowStoreEntry.tupled, SubWorkflowStoreEntry.unapply)
 
-    def ucSubWorkflowStoreEntryPweuCfqnJiJa = index("UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA",
+    def ucSubWorkflowStoreEntryPweuCfqnCiCa = index("UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA",
       (parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt), unique = true)
 
-    def fkSubWorkflowStoreRootWorkflowStoreEntryId = foreignKey("FK_SUB_WORKFLOW_STORE_ROOT_WORKFLOW_ID_WORKFLOW_STORE_ENTRY_ID",
+    def fkSubWorkflowStoreEntryRootWorkflowId = foreignKey("FK_SUB_WORKFLOW_STORE_ENTRY_ROOT_WORKFLOW_ID",
       rootWorkflowId, workflowStoreEntries)(_.workflowStoreEntryId, onDelete = Cascade)
 
     def ixSubWorkflowStoreEntryPweu = index("IX_SUB_WORKFLOW_STORE_ENTRY_PWEU", parentWorkflowExecutionUuid, unique = false)

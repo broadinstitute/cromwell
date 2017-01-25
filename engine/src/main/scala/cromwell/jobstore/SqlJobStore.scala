@@ -12,6 +12,7 @@ import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import wdl4s.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
+import cromwell.database.sql.SqlConverters._
 
 class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
   override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])(implicit ec: ExecutionContext): Future[Unit] = {
@@ -36,7 +37,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
         val jobStoreResultSimpletons =
           jobOutputs.mapValues(_.wdlValue).simplify.map {
             wdlValueSimpleton => JobStoreSimpletonEntry(
-              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString,
+              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString.toClob,
               wdlValueSimpleton.simpletonValue.wdlType.toWdlString)
           }
         JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
@@ -48,7 +49,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           key.attempt,
           jobSuccessful = false,
           returnCode,
-          Option(throwable.getMessage),
+          Option(throwable.getMessage.toClob),
           Option(retryable))
         JobStoreJoin(entry, Seq.empty)
     }
@@ -64,7 +65,8 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
             val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
             JobResultSuccess(returnCode, jobOutputs)
           case JobStoreEntry(_, _, _, _, false, returnCode, Some(exceptionMessage), Some(retryable), _) =>
-            JobResultFailure(returnCode, JobAlreadyFailedInJobStore(jobStoreKey.tag, exceptionMessage), retryable)
+            JobResultFailure(returnCode, JobAlreadyFailedInJobStore(jobStoreKey.tag, exceptionMessage.toRawString),
+              retryable)
           case bad =>
             throw new Exception(s"Invalid contents of JobStore table: $bad")
         }

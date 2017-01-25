@@ -8,7 +8,7 @@ import cromwell.core._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
@@ -53,9 +53,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
     case ApiHandlerEngineStats => requestHandlerActor ! WorkflowManagerActor.EngineStatsCommand
     case stats: EngineStatsActor.EngineStats => context.parent ! RequestComplete((StatusCodes.OK, stats))
     case ApiHandlerWorkflowAbort(id, manager) => requestHandlerActor ! WorkflowStoreActor.AbortWorkflow(id, manager)
-    case WorkflowStoreActor.WorkflowAborted(id) =>
+    case WorkflowStoreEngineActor.WorkflowAborted(id) =>
       context.parent ! RequestComplete((StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-    case WorkflowStoreActor.WorkflowAbortFailed(_, e) =>
+    case WorkflowStoreEngineActor.WorkflowAbortFailed(_, e) =>
       error(e) {
         case _: IllegalStateException => RequestComplete((StatusCodes.Forbidden, APIResponse.error(e)))
         case _: WorkflowNotFoundException => RequestComplete((StatusCodes.NotFound, APIResponse.error(e)))
@@ -64,14 +64,14 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
 
     case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowStoreActor.SubmitWorkflow(source)
 
-    case WorkflowStoreActor.WorkflowSubmittedToStore(id) =>
+    case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id) =>
       context.parent ! RequestComplete((StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString)))
 
     case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor !
       WorkflowStoreActor.BatchSubmitWorkflows(sources.map(x => WorkflowSourceFilesCollection(x.wdlSource, x.inputsJson, x.workflowOptionsJson, x.labelsJson, x.importsZipFileOption)))
 
 
-    case WorkflowStoreActor.WorkflowsBatchSubmittedToStore(ids) =>
+    case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(ids) =>
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
       context.parent ! RequestComplete((StatusCodes.OK, responses.toList))
   }

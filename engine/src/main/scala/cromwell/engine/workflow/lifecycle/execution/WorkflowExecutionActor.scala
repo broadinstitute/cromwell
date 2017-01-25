@@ -16,7 +16,6 @@ import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
-import cromwell.services.metadata.MetadataService.{MetadataPutAcknowledgement, MetadataPutFailed}
 import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
@@ -191,11 +190,6 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   whenUnhandled {
     case Event(Terminated(actorRef), stateData) => handleTerminated(actorRef) using stateData.removeEngineJobExecutionActor(actorRef)
-    case Event(MetadataPutFailed(action, error), _) =>
-      // Do something useful here??
-      workflowLogger.warn(s"$tag Put failed for Metadata action $action", error)
-      stay()
-    case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
       if (stateData.hasRunningActors) {
         log.info(s"$tag: Abort received. " +

@@ -187,7 +187,7 @@ case class Workflow(unqualifiedName: String,
       val workflowOutput = output -> coerced
 
       outputMap + workflowOutput
-    }) map { case (k, v) => k.unqualifiedName -> v }
+    }) map { case (k, v) => k.locallyQualifiedName(this) -> v }
 
     TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate workflow outputs.\n")
   }

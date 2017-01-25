@@ -10,6 +10,7 @@ import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
+import cromwell.core.path.FileImplicits._
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
@@ -116,7 +117,7 @@ class WorkflowLogger(loggerName: String,
   import WorkflowLogger._
 
   lazy val workflowLogPath = workflowLogConfiguration.map(workflowLogConfigurationActual =>
-    File(workflowLogConfigurationActual.dir).createDirectories() / s"workflow.$workflowId.log").map(_.path)
+    File(workflowLogConfigurationActual.dir).createPermissionedDirectories() / s"workflow.$workflowId.log").map(_.path)
 
   lazy val fileLogger = workflowLogPath match {
     case Some(path) => makeFileLogger(path, Level.toLevel(sys.props.getOrElse("LOG_LEVEL", "debug")))

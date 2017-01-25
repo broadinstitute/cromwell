@@ -6,6 +6,7 @@ import java.nio.file.Path
 import better.files._
 
 import scala.util.{Failure, Try}
+import FileImplicits._
 
 object PathCopier {
 
@@ -44,7 +45,7 @@ object PathCopier {
     * Copies from source to destination. NOTE: Copies are not atomic, and may create a partial copy.
     */
   def copy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
-    Option(File(destinationFilePath).parent).foreach(_.createDirectories())
+    Option(File(destinationFilePath).parent).foreach(_.createPermissionedDirectories())
     Try {
       File(sourceFilePath).copyTo(destinationFilePath, overwrite = true)
 

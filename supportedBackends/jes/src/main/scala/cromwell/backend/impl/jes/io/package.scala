@@ -12,6 +12,10 @@ package object io {
     def writeAsJson(content: String): File = {
       Files.write(path, content.getBytes, CloudStorageOptions.withMimeType("application/json"))
     }
+
+    def writeAsText(content: String): File = {
+      Files.write(path, content.getBytes, CloudStorageOptions.withMimeType("text/plain"))
+    }
   }
 
   private [jes] def isFatalJesException(t: Throwable): Boolean = t match {

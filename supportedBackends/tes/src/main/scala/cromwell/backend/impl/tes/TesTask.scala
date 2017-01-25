@@ -1,35 +1,28 @@
 package cromwell.backend.impl.tes
 
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
+
 import better.files.File
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
-import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
                          jobLogger: JobLogger,
-                         jobPaths: JobPathsWithDocker) {
+                         jobPaths: JobPathsWithDocker,
+                         runtimeAttributes: TesRuntimeAttributes) {
 
   import TesTask._
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val pathBuilders = List(DefaultPathBuilder)
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
-
-  private val runtimeAttributes = {
-    val lookup = jobDescriptor.fullyQualifiedInputs.apply _
-    val evaluateAttrs = jobDescriptor.key.call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    TesRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
-  }
 
   private val tesPaths = new TesPaths(jobPaths, runtimeAttributes)
 
@@ -60,25 +53,25 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
-  private def writeScript(instantiatedCommand: String) = {
+  def writeScript(instantiatedCommand: String) = {
+    val cwd = tesPaths.containerExecDir
     val rcPath = tesPaths.containerExec("rc")
     val rcTmpPath = s"$rcPath.tmp"
 
-    val scriptBody = s"""
-
-#!/bin/sh
-(
- $instantiatedCommand
-)
-echo $$? > $rcTmpPath
-mv $rcTmpPath $rcPath
-
-""".trim + "\n"
+    val scriptBody =
+      s"""|#!/bin/sh
+          |umask 0000
+          |(
+          |cd $cwd
+          |INSTANTIATED_COMMAND
+          |)
+          |echo $$? > $rcTmpPath
+          |mv $rcTmpPath $rcPath
+          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
 
     File(jobPaths.script).write(scriptBody)
   }
 
-  File(jobPaths.callExecutionRoot).createDirectories()
   jobLogger.info(s"`\n$commandString`")
   writeScript(commandString)
 
@@ -96,7 +89,7 @@ mv $rcTmpPath $rcPath
     .toSeq
     .flatMap(flattenWdlValueMap)
     .map {
-      case (inputName, f: WdlSingleFile) => TaskParameter(
+      case (inputName: String, f: WdlFile) => TaskParameter(
         inputName,
         Some(workflowName + "." + inputName),
         tesPaths.storageInput(f.valueString),
@@ -108,14 +101,15 @@ mv $rcTmpPath $rcPath
 
   // TODO add TES logs to standard outputs
   private val standardOutputs = Seq("rc", "stdout", "stderr").map {
-    f => TaskParameter(
-      f,
-      Some(fullyQualifiedTaskName + "." + f),
-      tesPaths.storageOutput(f),
-      tesPaths.containerOutput(f),
-      "File",
-      Some(false)
-    )
+    f =>
+      TaskParameter(
+        f,
+        Some(fullyQualifiedTaskName + "." + f),
+        tesPaths.storageOutput(f),
+        tesPaths.containerOutput(f),
+        "File",
+        Some(false)
+      )
   }
 
   val outputs = OutputEvaluator
@@ -166,7 +160,7 @@ mv $rcTmpPath $rcPath
   )
 
   val dockerExecutor = Seq(DockerExecutor(
-    runtimeAttributes.dockerImage.get,
+    runtimeAttributes.dockerImage,
     Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     tesPaths.containerExec("stdout"),
@@ -226,25 +220,28 @@ object TesTask {
 
     // Given an output path, return a path localized to the container file system
     def containerOutput(path: String): String = containerExec(path)
+
     // TODO this could be used to create a separate directory for outputs e.g.
     // callDockerRoot.resolve("outputs").resolve(name).toString
 
+
+    // Return a path localized to the container's execution directory
+    def containerExecDir: Path = {
+      runtimeAttributes.dockerWorkingDir match {
+        case Some(path) => Paths.get(path)
+        case _ => jobPaths.callExecutionDockerRoot
+      }
+    }
+
     // Given an file name, return a path localized to the container's execution directory
-    def containerExec(name: String): String = runtimeAttributes.dockerWorkingDir match {
-      case Some(path) => Paths.get(path).resolve(name).toString
-      case None => jobPaths.callExecutionDockerRoot.resolve(name).toString
+    def containerExec(name: String): String = {
+      containerExecDir.resolve(name).toString
     }
 
     // The path to the workflow root directory, localized to the container's file system
     val containerWorkflowRoot = jobPaths.dockerWorkflowRoot.toString
   }
 
-  // Utility for converting a WdValue representing an output file path to a WdlValue with
-  // a path localized to ____?
-  // TODO this is a placeholder for now, until I can fill in the blank
-  //private def mapOutputs(value: WdlValue) = Try {
-  //  value
-  //}
 }
 
 

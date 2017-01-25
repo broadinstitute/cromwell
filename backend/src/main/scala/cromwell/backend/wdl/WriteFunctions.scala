@@ -2,10 +2,13 @@ package cromwell.backend.wdl
 
 import java.nio.file.Path
 
+import cromwell.core.path.FileImplicits._
 import wdl4s.TsvSerializable
 import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.types._
 import wdl4s.values._
 
+import scala.language.existentials
 import scala.util.{Failure, Try}
 
 trait WriteFunctions { this: WdlStandardLibraryFunctions =>
@@ -16,7 +19,7 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
     */
   def writeDirectory: Path
 
-  private lazy val _writeDirectory = File(writeDirectory).createDirectories()
+  private lazy val _writeDirectory = File(writeDirectory).createPermissionedDirectories()
 
   def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = throw new NotImplementedError("This method is not used anywhere and should be removed")
 
@@ -30,19 +33,26 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
     }
   }
 
-  private def writeToTsv(functionName: String, params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
+  private def writeToTsv[A <: WdlValue with TsvSerializable](functionName: String, params: Seq[Try[WdlValue]], defaultIfOptionalEmpty: A): Try[WdlFile] = {
+    val wdlClass = defaultIfOptionalEmpty.getClass
+    def castOrDefault(wdlValue: WdlValue): A = wdlValue match {
+      case WdlOptionalValue(_, None) => defaultIfOptionalEmpty
+      case WdlOptionalValue(_, Some(v)) => wdlClass.cast(v)
+      case _ => wdlClass.cast(wdlValue)
+    }
+
     for {
       singleArgument <- extractSingleArgument(functionName, params)
-      downcast <- Try(wdlClass.cast(singleArgument))
+      downcast <- Try(castOrDefault(singleArgument))
       tsvSerialized <- downcast.tsvSerialize
       file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
     } yield file
   }
 
-  override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_lines", params, classOf[WdlArray])
-  override def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_map", params, classOf[WdlMap])
-  override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_object", params, classOf[WdlObject])
-  override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_objects", params, classOf[WdlArray])
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_tsv", params, classOf[WdlArray])
+  override def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_lines", params, WdlArray(WdlArrayType(WdlStringType), List.empty[WdlValue]))
+  override def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_map", params, WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty[WdlValue, WdlValue]))
+  override def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_object", params, WdlObject(Map.empty[String, WdlValue]))
+  override def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_objects", params, WdlArray(WdlArrayType(WdlObjectType), List.empty[WdlObject]))
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_tsv", params, WdlArray(WdlArrayType(WdlStringType), List.empty[WdlValue]))
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_json() not implemented yet"))
 }

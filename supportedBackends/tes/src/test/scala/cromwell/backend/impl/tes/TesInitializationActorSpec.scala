@@ -36,10 +36,10 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
        |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor,
-                          calls: Set[TaskCall],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
                           conf: BackendConfigurationDescriptor) = {
-    val props = Props(new TesInitializationActor(workflowDescriptor, calls, conf, emptyActor))
+    val params = TesInitializationActorParams(workflowDescriptor, calls, new TesConfiguration(conf), emptyActor)
+    val props = Props(new TesInitializationActor(params))
     system.actorOf(props, "TesInitializationActor")
   }
 

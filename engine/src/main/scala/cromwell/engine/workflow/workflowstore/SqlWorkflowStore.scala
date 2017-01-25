@@ -57,6 +57,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowStoreEntry.workflowDefinition.toRawString,
       workflowStoreEntry.workflowInputs.toRawString,
       workflowStoreEntry.workflowOptions.toRawString,
+      workflowStoreEntry.customLabels.toRawString,
       workflowStoreEntry.importsZipFile.map(b => b.getBytes(1, b.length.asInstanceOf[Int]))
     )
     WorkflowToStart(
@@ -67,13 +68,14 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowStoreEntry = {
     WorkflowStoreEntry(
-      WorkflowId.randomId().toString,
-      workflowSourceFiles.wdlSource.toClob,
-      workflowSourceFiles.inputsJson.toClob,
-      workflowSourceFiles.workflowOptionsJson.toClob,
-      WorkflowStoreState.Submitted.toString,
-      OffsetDateTime.now.toSystemTimestamp,
-      workflowSourceFiles.importsZipFileOption.map(new SerialBlob(_))
+      workflowExecutionUuid = WorkflowId.randomId().toString,
+      workflowDefinition = workflowSourceFiles.wdlSource.toClob,
+      workflowInputs = workflowSourceFiles.inputsJson.toClob,
+      workflowOptions = workflowSourceFiles.workflowOptionsJson.toClob,
+      customLabels = workflowSourceFiles.labelsJson.toClob,
+      workflowState = WorkflowStoreState.Submitted.toString,
+      submissionTime = OffsetDateTime.now.toSystemTimestamp,
+      importsZipFile = workflowSourceFiles.importsZipFileOption.map(new SerialBlob(_))
     )
   }
 

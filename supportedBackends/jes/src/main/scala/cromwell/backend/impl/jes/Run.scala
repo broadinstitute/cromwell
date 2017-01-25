@@ -8,6 +8,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
+import cromwell.core.labels.Labels
 import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
@@ -59,6 +60,27 @@ object Run {
       resources.setDisks(disksWithoutMountPoint.asJava)
     }
 
+    lazy val labels: Labels = {
+
+      val subWorkflow = workflow.workflow
+      val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
+        Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
+      else
+        Labels.empty
+
+      val alias = jobDescriptor.call.unqualifiedName
+      val aliasLabels = if (!alias.equals(jobDescriptor.call.task.name))
+        Labels("wdl-call-alias" -> alias)
+      else
+        Labels.empty
+
+      Labels(
+        "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
+        "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
+        "wdl-task-name" -> jobDescriptor.call.task.name
+      ) ++ subWorkflowLabels ++ aliasLabels ++ jobDescriptor.workflowDescriptor.customLabels
+    }
+
     def runPipeline: String = {
       val svcAccount = new ServiceAccount().setEmail(computeServiceAccount).setScopes(GenomicsScopes)
       val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
@@ -68,6 +90,8 @@ object Run {
 
       rpargs.setOutputs(jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
       logger.debug(s"Outputs:\n${stringifyMap(rpargs.getOutputs.asScala.toMap)}")
+
+      rpargs.setLabels(labels.asJesLabels)
 
       val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 
@@ -103,7 +127,7 @@ object Run {
       // If there's an error, generate a Failed status. Otherwise, we were successful!
       Option(op.getError) match {
         case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage).toList, eventList, machineType, zone, instanceName)
+        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
       }
     } else if (op.hasStarted) {
       Running

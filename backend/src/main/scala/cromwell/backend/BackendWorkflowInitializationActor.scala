@@ -4,13 +4,15 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
-import wdl4s.expression.PureStandardLibraryFunctions
+import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
+import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import wdl4s.types._
-import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 import wdl4s._
+import wdl4s.expression.PureStandardLibraryFunctions
+import wdl4s.types._
+import wdl4s.values.WdlValue
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -34,7 +36,7 @@ object BackendWorkflowInitializationActor {
   * Workflow-level actor for executing, recovering and aborting jobs.
   */
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
-  val serviceRegistryActor: ActorRef
+  def serviceRegistryActor: ActorRef
 
   def calls: Set[TaskCall]
 
@@ -67,26 +69,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * return `true` in both cases.
     */
   protected def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
-    def isInteger(s: String) = s.forall(_.isDigit) && !s.isEmpty
-
-    def validateValue(wdlValue: WdlValue) = wdlValue match {
-      case WdlInteger(_) => true
-      case WdlString(_) => isInteger(wdlValue.valueString)
-      case WdlArray(WdlArrayType(WdlIntegerType), _) => true
-      case WdlArray(WdlArrayType(WdlStringType), elements) => elements forall { x => isInteger(x.valueString) }
-      case WdlBoolean(_) => true
-      case _ => false
-    }
-
-    wdlExpressionMaybe match {
-      case None => !valueRequired
-      case Some(wdlExpression: WdlExpression) =>
-        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) match {
-          case Success(wdlValue) => validateValue(wdlValue)
-          case Failure(throwable) => true // If we can't evaluate it, we'll let it pass for now...
-        }
-      case Some(wdlValue) => validateValue(wdlValue)
-    }
+    ContinueOnReturnCodeValidation.default.validateOptionalExpression(wdlExpressionMaybe)
   }
 
   protected def runtimeAttributeValidators: Map[String, Option[WdlValue] => Boolean]
@@ -94,7 +77,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   // FIXME: If a workflow executes jobs using multiple backends,
   // each backend will try to write its own workflow root and override any previous one.
   // They should be structured differently or at least be prefixed by the backend name
-  protected def publishWorkflowRoot(workflowRoot: String) = {
+  protected def publishWorkflowRoot(workflowRoot: String): Unit = {
     serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowDescriptor.id, None, WorkflowMetadataKeys.WorkflowRoot), MetadataValue(workflowRoot)))
   }
 
@@ -147,13 +130,13 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
             val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
             attributeName -> ((value, validator(value)))
           } collect {
-            case (name, (value, false)) => s"Task ${task.name} has an invalid runtime attribute $name = ${value map { _.valueString} getOrElse "!! NOT FOUND !!"}"
+            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
           }
         }
 
         calls map { _.task } flatMap badRuntimeAttrsForTask match {
           case errors if errors.isEmpty => Future.successful(())
-          case errors => Future.failed(new IllegalArgumentException(errors.mkString(". ")))
+          case errors => Future.failed(RuntimeAttributeValidationFailures(errors.toList))
         }
       case Failure(t) => Future.failed(t)
     }
@@ -167,7 +150,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   /**
     * Our predefined sequence to run during preStart
     */
-  final def initSequence() = for {
+  final def initSequence(): Future[InitializationSuccess] = for {
     _ <- validateRuntimeAttributes
     _ <- validate()
     data <- beforeAll()

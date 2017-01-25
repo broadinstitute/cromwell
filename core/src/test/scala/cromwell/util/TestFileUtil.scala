@@ -1,18 +1,24 @@
 package cromwell.util
 
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 
 import better.files._
 import wdl4s.values._
+import cromwell.core.path.FileImplicits._
 
 trait TestFileUtil {
   def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): Path = {
     val suffix = ".out"
-    File.newTemporaryFile(prefix, suffix, dir.map(File.apply)).write(contents).path
+    val tempFile = File.newTemporaryFile(prefix, suffix, dir.map(File.apply))
+    tempFile.createPermissionedDirectories()
+    tempFile.addPermission(PosixFilePermission.OTHERS_READ)
+    tempFile.addPermission(PosixFilePermission.OTHERS_WRITE)
+    tempFile.write(contents).path
   }
 
   def createFile(name: String, dir: Path, contents: String): Path = {
-    File(dir).createDirectories()./(name).write(contents).path
+    File(dir).createPermissionedDirectories()./(name).write(contents).path
   }
 }
 

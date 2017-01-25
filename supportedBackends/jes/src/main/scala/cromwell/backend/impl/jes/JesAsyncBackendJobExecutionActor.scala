@@ -3,21 +3,18 @@ package cromwell.backend.impl.jes
 import java.net.SocketTimeoutException
 import java.nio.file.{Path, Paths}
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.ActorRef
 import better.files._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.contrib.nio.CloudStoragePath
-import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActorClient
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.backend.validation.ContinueOnReturnCode
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core._
-import cromwell.core.logging.JobLogging
 import cromwell.core.path.PathFactory._
 import cromwell.core.path.PathImplicits._
 import cromwell.core.path.proxy.PathProxy
@@ -27,25 +24,13 @@ import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-case class JesAsyncExecutionActorParams
-(
-  override val jobDescriptor: BackendJobDescriptor,
-  jesConfiguration: JesConfiguration,
-  jesBackendInitializationData: JesBackendInitializationData,
-  override val serviceRegistryActor: ActorRef,
-  jesBackendSingletonActorOption: Option[ActorRef],
-  override val completionPromise: Promise[BackendJobExecutionResponse]
-) extends StandardAsyncExecutionActorParams {
-  override val jobIdKey: String = JesJobExecutionActor.JesOperationIdKey
-  override val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
-  override val backendInitializationDataOption: Option[BackendInitializationData] = Option(jesBackendInitializationData)
-}
-
 object JesAsyncBackendJobExecutionActor {
+  val JesOperationIdKey = "__jes_operation_id"
+
   object WorkflowOptionKeys {
     val MonitoringScript = "monitoring_script"
     val GoogleProject = "google_project"
@@ -58,20 +43,14 @@ object JesAsyncBackendJobExecutionActor {
   private val ExtraConfigParamName = "__extra_config_gcs_path"
 }
 
-class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorParams)
-  extends Actor with ActorLogging with BackendJobLifecycleActor with StandardAsyncExecutionActor
-    with JesJobCachingActorHelper with JobLogging with JesPollingActorClient {
+class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
+  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with JesJobCachingActorHelper
+    with JesPollingActorClient {
 
   import JesAsyncBackendJobExecutionActor._
 
-  override val standardParams: StandardAsyncExecutionActorParams = jesParams
-  override val jesConfiguration: JesConfiguration = jesParams.jesConfiguration
-  override val initializationData: JesBackendInitializationData = {
-    backendInitializationDataAs[JesBackendInitializationData]
-  }
-
   val jesBackendSingletonActor: ActorRef =
-    jesParams.jesBackendSingletonActorOption.getOrElse(
+    standardParams.backendSingletonActorOption.getOrElse(
       throw new RuntimeException("JES Backend actor cannot exist without the JES backend singleton actor"))
 
   override type StandardAsyncRunInfo = Run
@@ -85,10 +64,6 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
-
-  override lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
-
-  lazy val call: TaskCall = jobDescriptor.key.call
 
   override lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val cmdInput =
@@ -230,14 +205,6 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
     )
   }
 
-  override lazy val remoteStdErrPath: Path = jesStderrFile
-
-  override lazy val remoteReturnCodePath: Path = returnCodeGcsPath
-
-  override lazy val failOnStdErr: Boolean = runtimeAttributes.failOnStderr
-
-  override lazy val continueOnReturnCode: ContinueOnReturnCode = runtimeAttributes.continueOnReturnCode
-
   override lazy val commandLineFunctions: WdlFunctions[WdlValue] = backendEngineFunctions
 
   override lazy val commandLinePreProcessor: (EvaluatedTaskInputs) => Try[EvaluatedTaskInputs] = mapGcsValues
@@ -291,7 +258,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
           |mv $rcTmpPath $rcPath
           |""".stripMargin.replace("INSTANTIATED_COMMAND", command)
 
-    File(jesCallPaths.script).write(fileContent)
+    jesCallPaths.script.writeAsText(fileContent)
     ()
   }
 
@@ -438,7 +405,7 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
     errorMessage.substring(0, errorMessage.indexOf(':')).toInt
   }
 
-  private def preempted(errorCode: Int, errorMessage: List[String]): Boolean = {
+  private def preempted(errorCode: Int, errorMessage: Option[String]): Boolean = {
     def isPreemptionCode(code: Int) = code == 13 || code == 14
 
     try {
@@ -451,12 +418,13 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
   }
 
   override def handleExecutionFailure(runStatus: RunStatus,
-                                      handle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
+                                      handle: StandardAsyncPendingExecutionHandle,
+                                      returnCode: Option[Int]): ExecutionHandle = {
     val failed = runStatus match {
       case failedStatus: RunStatus.Failed => failedStatus
-      case unknown =>
-        throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed. Instead got $unknown")
+      case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed. Instead got $unknown")
     }
+    
     val errorCode = failed.errorCode
     val errorMessage = failed.errorMessage
 
@@ -475,19 +443,16 @@ class JesAsyncBackendJobExecutionActor(val jesParams: JesAsyncExecutionActorPara
           s"""$preemptedMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption).
              |Error code $errorCode. Message: $errorMessage""".stripMargin
         )
-        FailedRetryableExecutionHandle(e, None)
+        FailedRetryableExecutionHandle(e, returnCode)
       } else {
         val e = PreemptedException(
           s"""$preemptedMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM.
              |Error code $errorCode. Message: $errorMessage)""".stripMargin)
-        FailedRetryableExecutionHandle(e, None)
+        FailedRetryableExecutionHandle(e, returnCode)
       }
     } else {
-      val id = workflowDescriptor.id
-      val name = jobDescriptor.call.unqualifiedName
-      val message = if (errorMessage.isEmpty) "null" else errorMessage.mkString(", ")
-      val exception = new RuntimeException(s"Task $id:$name failed: error code $errorCode. Message: $message")
-      FailedNonRetryableExecutionHandle(exception, None)
+      val exception = failed.toFailure(jobPaths.jobKey.tag, Option(jobPaths.stderr))
+      FailedNonRetryableExecutionHandle(exception, returnCode)
     }
   }
 

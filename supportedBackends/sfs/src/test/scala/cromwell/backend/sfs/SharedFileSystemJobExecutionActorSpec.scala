@@ -7,12 +7,15 @@ import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend.async.WrongReturnCode
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec, RuntimeAttributeDefinition}
+import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
+import cromwell.backend._
 import cromwell.core.Tags._
 import cromwell.core._
+import cromwell.core.path.FileImplicits._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -29,7 +32,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   behavior of "SharedFileSystemJobExecutionActor"
 
   lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    SharedFileSystemValidatedRuntimeAttributesBuilder.default.definitions.toSet
+    StandardValidatedRuntimeAttributesBuilder.default.definitions.toSet
 
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = Map(
@@ -53,7 +56,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse =
-      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], new RuntimeException(""), Option(1))
+      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
     val workflow = TestWorkflow(buildWorkflowDescriptor(GoodbyeWorld), emptyBackendConfig, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
@@ -159,7 +162,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val backend = backendRef.underlyingActor
 
     val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, ConfigFactory.empty)
-    File(jobPaths.callExecutionRoot).createDirectories()
+    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
     File(jobPaths.stdout).write("Hello stubby ! ")
     File(jobPaths.stderr).touch()
 
@@ -183,7 +186,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
-    val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemJob.JobIdKey)
+    val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
     val kvPair = KvPair(scopedKey, Option(pid))
 
     backendRef ! kvPair

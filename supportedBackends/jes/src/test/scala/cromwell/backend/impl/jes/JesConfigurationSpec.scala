@@ -1,7 +1,7 @@
 package cromwell.backend.impl.jes
 
 import better.files.File
-import com.typesafe.config.{ConfigValueFactory, ConfigFactory}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import cromwell.backend.BackendConfigurationDescriptor
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -63,6 +63,7 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
       |     auth = "application-default"
       |     // Endpoint for APIs, no reason to change this unless directed by Google.
       |     endpoint-url = "https://genomics.googleapis.com/"
+      |     default-zones = ["us-central1-a", "us-central1-b"]
       |  }
       |
       |  dockerhub {
@@ -101,6 +102,10 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
 
   it should "have correct root" in {
     new JesConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).root shouldBe "gs://my-cromwell-workflows-bucket"
+  }
+
+  it should "have the correct default zones" in {
+    new JesConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).defaultZones.toList shouldBe List("us-central1-a", "us-central1-b")
   }
 
   it should "have correct docker" in {

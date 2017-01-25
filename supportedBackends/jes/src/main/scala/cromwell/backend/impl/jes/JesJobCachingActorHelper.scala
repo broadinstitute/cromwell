@@ -2,17 +2,14 @@ package cromwell.backend.impl.jes
 
 import java.nio.file.Path
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 import better.files._
-import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
+import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.PathImplicits._
 
-import scala.util.Try
-
-trait JesJobCachingActorHelper extends JobCachingActorHelper {
+trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
 
   val ExecParamName = "exec"
@@ -21,27 +18,15 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
   val JesMonitoringScript: Path = JesWorkingDisk.MountPoint.resolve("monitoring.sh")
   val JesMonitoringLogFile: Path = JesWorkingDisk.MountPoint.resolve("monitoring.log")
 
-  def jesConfiguration: JesConfiguration
-
-  def initializationData: JesBackendInitializationData
-
-  def serviceRegistryActor: ActorRef
-  
-  def workflowDescriptor: BackendWorkflowDescriptor
-
-  def getPath(str: String): Try[Path] = jesCallPaths.getPath(str)
-
-  lazy val jesCallPaths: JesJobPaths = {
-    val workflowPaths = if (workflowDescriptor.breadCrumbs.isEmpty) {
-      initializationData.workflowPaths
-    } else {
-      new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
-    }
-    
-    workflowPaths.toJobPaths(jobDescriptor.key)
+  lazy val initializationData: JesBackendInitializationData = {
+    backendInitializationDataAs[JesBackendInitializationData]
   }
 
-  lazy val runtimeAttributes = JesRuntimeAttributes(jobDescriptor.runtimeAttributes, jobLogger)
+  lazy val jesConfiguration: JesConfiguration = initializationData.jesConfiguration
+
+  lazy val jesCallPaths: JesJobPaths = jobPaths.asInstanceOf[JesJobPaths]
+
+  lazy val runtimeAttributes = JesRuntimeAttributes(validatedRuntimeAttributes)
 
   lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
@@ -68,20 +53,12 @@ trait JesJobCachingActorHelper extends JobCachingActorHelper {
     defaultMonitoringOutputPath.toString, File(JesMonitoringLogFile).path, workingDisk)
   }
 
-  // Implements CacheHitDuplicating.startMetadataKeyValues
-  def startMetadataKeyValues: Map[String, Any] = {
-    val runtimeAttributesMetadata: Map[String, Any] = runtimeAttributes.asMap map {
-      case (key, value) => s"runtimeAttributes:$key" -> value
-    }
-    
-    val otherMetadata: Map[String, Any] = Map(
+  override protected def nonStandardMetadata: Map[String, Any] = {
+    Map(
       JesMetadataKeys.GoogleProject -> jesAttributes.project,
       JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
       JesMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,
-      "preemptible" -> preemptible,
-      "cache:allowResultReuse" -> true
+      "preemptible" -> preemptible
     )
-
-    runtimeAttributesMetadata ++ jesCallPaths.metadataPaths ++ otherMetadata
   }
 }

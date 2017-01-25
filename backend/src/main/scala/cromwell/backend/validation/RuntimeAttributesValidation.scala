@@ -1,54 +1,51 @@
 package cromwell.backend.validation
 
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
-import wdl4s.expression.PureStandardLibraryFunctions
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
-import wdl4s.WdlExpression
-import wdl4s.WdlExpression._
+import wdl4s.expression.PureStandardLibraryFunctions
 import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlType}
 import wdl4s.values._
+import wdl4s.{NoLookup, WdlExpression}
 
 import scala.util.{Failure, Success}
 
 object RuntimeAttributesValidation {
 
-  def warnUnrecognized(actual: Set[String], expected: Set[String], logger: Logger) = {
+  def warnUnrecognized(actual: Set[String], expected: Set[String], logger: Logger): Unit = {
     val unrecognized = actual.diff(expected).mkString(", ")
     if (unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
   }
 
   def validateDocker(docker: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
-    validateWithValidation(docker, DockerValidation.optional, onMissingKey, DockerValidation.missingMessage)
+    validateWithValidation(docker, DockerValidation.optional, onMissingKey)
   }
 
   def validateFailOnStderr(value: Option[WdlValue], onMissingKey: => ErrorOr[Boolean]): ErrorOr[Boolean] = {
-    validateWithValidation(value, FailOnStderrValidation.default, onMissingKey, FailOnStderrValidation.missingMessage)
+    validateWithValidation(value, FailOnStderrValidation.default, onMissingKey)
   }
 
   def validateContinueOnReturnCode(value: Option[WdlValue],
                                    onMissingKey: => ErrorOr[ContinueOnReturnCode]): ErrorOr[ContinueOnReturnCode] = {
-    validateWithValidation(value, ContinueOnReturnCodeValidation.default, onMissingKey,
-      ContinueOnReturnCodeValidation.missingMessage)
+    validateWithValidation(value, ContinueOnReturnCodeValidation.default, onMissingKey)
   }
 
   def validateMemory(value: Option[WdlValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
-    validateWithValidation(value, MemoryValidation.instance, onMissingKey,
-      MemoryValidation.missingFormat.format("Not supported WDL type value"))
+    validateWithValidation(value, MemoryValidation.instance, onMissingKey)
   }
 
   def validateCpu(cpu: Option[WdlValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
-    validateWithValidation(cpu, CpuValidation.default, onMissingKey, CpuValidation.missingMessage)
+    validateWithValidation(cpu, CpuValidation.default, onMissingKey)
   }
 
   private def validateWithValidation[T](valueOption: Option[WdlValue],
                                         validation: RuntimeAttributesValidation[T],
-                                        onMissingValue: => ErrorOr[T],
-                                        missingValidationMessage: String): ErrorOr[T] = {
+                                        onMissingValue: => ErrorOr[T]): ErrorOr[T] = {
     valueOption match {
       case Some(value) =>
-        validation.validateValue.applyOrElse(value, (_: Any) => missingValidationMessage.invalidNel)
+        validation.validateValue.applyOrElse(value, (_: Any) => validation.invalidValueFailure(value))
       case None => onMissingValue
     }
   }
@@ -78,46 +75,62 @@ object RuntimeAttributesValidation {
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
                                  default: WdlValue): RuntimeAttributesValidation[ValidatedType] = {
     new RuntimeAttributesValidation[ValidatedType] {
-      override def key = validation.key
+      override def key: String = validation.key
 
-      override def coercion = validation.coercion
+      override def coercion: Traversable[WdlType] = validation.coercion
 
-      override protected def validateValue = validation.validateValuePackagePrivate
+      override protected def validateValue: PartialFunction[WdlValue, ErrorOr[ValidatedType]] =
+        validation.validateValuePackagePrivate
 
-      override protected def validateExpression = validation.validateExpressionPackagePrivate
+      override protected def validateExpression: PartialFunction[WdlValue, Boolean] =
+        validation.validateExpressionPackagePrivate
 
-      override def staticDefaultOption = Option(default)
+      override protected def invalidValueMessage(value: WdlValue): String =
+        validation.invalidValueMessagePackagePrivate(value)
 
-      override protected def failureMessage = validation.failureMessagePackagePrivate
+      override protected def missingValueMessage: String = validation.missingValueMessage
+
+      override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
+
+      override protected def staticDefaultOption = Option(default)
     }
   }
 
   def optional[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType]):
   OptionalRuntimeAttributesValidation[ValidatedType] = {
     new OptionalRuntimeAttributesValidation[ValidatedType] {
-      override def key = validation.key
+      override def key: String = validation.key
 
-      override def coercion = validation.coercion
+      override def coercion: Traversable[WdlType] = validation.coercion
 
-      override protected def validateOption = validation.validateValuePackagePrivate
+      override protected def validateOption: PartialFunction[WdlValue, ErrorOr[ValidatedType]] =
+        validation.validateValuePackagePrivate
 
-      override protected def validateExpression = validation.validateExpressionPackagePrivate
+      override protected def validateExpression: PartialFunction[WdlValue, Boolean] =
+        validation.validateExpressionPackagePrivate
 
-      override protected def failureMessage = validation.failureMessagePackagePrivate
+      override protected def invalidValueMessage(value: WdlValue): String =
+        validation.invalidValueMessagePackagePrivate(value)
+
+      override protected def missingValueMessage: String = validation.missingValueMessage
+
+      override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
     }
   }
 
   /**
-    * Returns the value from the attributes, unpacking options.
+    * Returns the value from the attributes, unpacking options, and converting them to string values suitable for
+    * storage in metadata.
     *
     * @param validatedRuntimeAttributes The values to search.
     * @return The keys and extracted values.
     */
-  def extract(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Map[String, Any] = {
+  def toMetadataStrings(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Map[String, String] = {
     val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.mapValues(unpackOption)
 
-    val attributes = attributeOptions collect {
-      case (name, Some(value)) => (name, value)
+    val attributes: Map[String, String] = attributeOptions collect {
+      case (name, Some(values: Traversable[_])) => (name, values.mkString(","))
+      case (name, Some(value)) => (name, value.toString)
     }
 
     attributes
@@ -195,23 +208,6 @@ object RuntimeAttributesValidation {
       case _ => Option(value.asInstanceOf[A])
     }
   }
-
-  /**
-    * Converts a RuntimeAttributesValidation to a RuntimeAttributeDefinition.
-    *
-    * @param validation RuntimeAttributesValidation
-    * @return RuntimeAttributeDefinition
-    */
-  def toRuntimeAttributeDefinition(validation: RuntimeAttributesValidation[_]): RuntimeAttributeDefinition = {
-    val name = validation.key
-    val default = validation.staticDefaultOption
-    import cromwell.backend.validation.RuntimeAttributesKeys._
-    val usedInCallCaching = name match {
-      case DockerKey | ContinueOnReturnCodeKey | FailOnStderrKey => true
-      case _ => false
-    }
-    RuntimeAttributeDefinition(name, default, usedInCallCaching)
-  }
 }
 
 /**
@@ -247,7 +243,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * @return the value for when there is no wdl value.
     */
-  protected def validateNone: ErrorOr[ValidatedType] = failureWithMessage
+  protected def validateNone: ErrorOr[ValidatedType] = missingValueFailure
 
   /**
     * Returns true if the value can be validated.
@@ -268,31 +264,50 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * @return the optional default value when no other is specified.
     */
-  def staticDefaultOption: Option[WdlValue] = None
+  protected def staticDefaultOption: Option[WdlValue] = None
 
   /**
     * Returns message to return when a value is invalid.
     *
+    * By default returns the missingValueMessage.
+    *
     * @return Message to return when a value is invalid.
     */
-  protected def failureMessage: String = s"Expecting $key runtime attribute to be a type in $coercion"
+  protected def invalidValueMessage(value: WdlValue): String = missingValueMessage
 
   /**
-    * Utility method to wrap the failureMessage in an ErrorOr.
+    * Utility method to wrap the invalidValueMessage in an ErrorOr.
     *
-    * @return Wrapped failureMessage.
+    * @return Wrapped invalidValueMessage.
     */
-  protected final lazy val failureWithMessage: ErrorOr[ValidatedType] = failureMessage.invalidNel
+  protected final def invalidValueFailure(value: WdlValue): ErrorOr[ValidatedType] =
+    invalidValueMessage(value).invalidNel
+
+  /**
+    * Returns message to return when a value is missing.
+    *
+    * @return Message to return when a value is missing.
+    */
+  protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a type in $coercion"
+
+  /**
+    * Utility method to wrap the missingValueMessage in an ErrorOr.
+    *
+    * @return Wrapped missingValueMessage.
+    */
+  protected final lazy val missingValueFailure: ErrorOr[ValidatedType] = missingValueMessage.invalidNel
 
   /**
     * Runs this validation on the value matching key.
+    *
+    * NOTE: The values passed to this method should already be evaluated instances of WdlValue, and not WdlExpression.
     *
     * @param values The full set of values.
     * @return The error or valid value for this key.
     */
   def validate(values: Map[String, WdlValue]): ErrorOr[ValidatedType] = {
     values.get(key) match {
-      case Some(value) => validateValue.applyOrElse(value, (_: Any) => failureWithMessage)
+      case Some(value) => validateValue.applyOrElse(value, (_: Any) => invalidValueFailure(value))
       case None => validateNone
     }
   }
@@ -308,6 +323,9 @@ trait RuntimeAttributesValidation[ValidatedType] {
     *
     * With our `key` as the key in the map, one can return this function as the value in the map.
     *
+    * NOTE: If there is an attempt lookup a value within a WdlExpression, or a WdlExpression fails to evaluate for any
+    * reason, this method will simply return true.
+    *
     * @param wdlExpressionMaybe The optional expression.
     * @return True if the expression may be evaluated.
     */
@@ -315,34 +333,26 @@ trait RuntimeAttributesValidation[ValidatedType] {
     wdlExpressionMaybe match {
       case None => staticDefaultOption.isDefined || validateNone.isValid
       case Some(wdlExpression: WdlExpression) =>
-        /*
-        TODO: BUG:
-
-        Using `wdl4s.NoLookup` with the following options causes the following exception:
-
-        command:
-          sbt -J-Dbackend.default=SGE 'run run test_wdl/test.wdl - test_wdl/test.default.options'
-
-        options:
-          { "default_runtime_attributes": { "sge_queue": "fromoptions" } }
-
-        exception:
-          java.lang.RuntimeException: Expression evaluation failed due to java.lang.UnsupportedOperationException:
-          No identifiers should be looked up: fromoptions: WdlExpression(<string:1:1 identifier "ZnJvbW9wdGlvbnM=">)
-
-        Not sure why yet the string "fromoptions" is being converted to an expression and not a WdlString.
-
-        For now, if something tries to "lookup" a value, convert it to a WdlString.
-         */
-        val wdlStringLookup: ScopedLookupFunction = (value: String) => WdlString(value)
-        wdlExpression.evaluate(wdlStringLookup, PureStandardLibraryFunctions) match {
+        wdlExpression.evaluate(NoLookup, PureStandardLibraryFunctions) match {
           case Success(wdlValue) => validateExpression.applyOrElse(wdlValue, (_: Any) => false)
-          case Failure(throwable) =>
-            throw new RuntimeException(s"Expression evaluation failed due to $throwable: $wdlExpression", throwable)
+          case Failure(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
       case Some(wdlValue) => validateExpression.applyOrElse(wdlValue, (_: Any) => false)
     }
   }
+
+  /**
+    * Used to convert this instance to a `RuntimeAttributeDefinition`.
+    *
+    * @see [[RuntimeAttributeDefinition.usedInCallCaching]]
+    * @return Value for [[RuntimeAttributeDefinition.usedInCallCaching]].
+    */
+  protected def usedInCallCaching: Boolean = false
+
+  /**
+    * Returns this as an instance of a runtime attribute definition.
+    */
+  final lazy val runtimeAttributeDefinition = RuntimeAttributeDefinition(key, staticDefaultOption, usedInCallCaching)
 
   /**
     * Returns an optional version of this validation.
@@ -356,7 +366,8 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param wdlValue The default wdl value.
     * @return The new version of this validation.
     */
-  final def withDefault(wdlValue: WdlValue) = RuntimeAttributesValidation.withDefault(this, wdlValue)
+  final def withDefault(wdlValue: WdlValue): RuntimeAttributesValidation[ValidatedType] =
+    RuntimeAttributesValidation.withDefault(this, wdlValue)
 
   /*
   Methods below provide aliases to expose protected methods to the package.
@@ -365,11 +376,15 @@ trait RuntimeAttributesValidation[ValidatedType] {
   access the protected values, except the `validation` package that uses these back doors.
    */
 
-  private[validation] lazy val validateValuePackagePrivate = validateValue
+  private[validation] final lazy val validateValuePackagePrivate = validateValue
 
-  private[validation] lazy val validateExpressionPackagePrivate = validateExpression
+  private[validation] final lazy val validateExpressionPackagePrivate = validateExpression
 
-  private[validation] lazy val failureMessagePackagePrivate = failureMessage
+  private[validation] final def invalidValueMessagePackagePrivate(value: WdlValue) = invalidValueMessage(value)
+
+  private[validation] final lazy val missingValueMessagePackagePrivate = missingValueMessage
+
+  private[validation] final lazy val usedInCallCachingPackagePrivate = usedInCallCaching
 }
 
 /**
@@ -389,10 +404,12 @@ trait OptionalRuntimeAttributesValidation[ValidatedType] extends RuntimeAttribut
   protected def validateOption: PartialFunction[WdlValue, ErrorOr[ValidatedType]]
 
   override final protected lazy val validateValue = new PartialFunction[WdlValue, ErrorOr[Option[ValidatedType]]] {
-    override def isDefinedAt(wdlValue: WdlValue) = validateOption.isDefinedAt(wdlValue)
+    override def isDefinedAt(wdlValue: WdlValue): Boolean = validateOption.isDefinedAt(wdlValue)
 
-    override def apply(wdlValue: WdlValue) = validateOption.apply(wdlValue).map(Option.apply)
+    override def apply(wdlValue: WdlValue): Validated[NonEmptyList[String], Option[ValidatedType]] = {
+      validateOption.apply(wdlValue).map(Option.apply)
+    }
   }
 
-  override final protected lazy val validateNone = None.validNel[String]
+  override final protected lazy val validateNone: ErrorOr[None.type] = None.validNel[String]
 }

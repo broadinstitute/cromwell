@@ -2,8 +2,7 @@ package cromwell.server
 
 import java.util.concurrent.TimeoutException
 
-import akka.actor.Props
-import akka.util.Timeout
+import akka.actor.{ActorContext, ActorSystem, Props}
 import com.typesafe.config.Config
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.webservice.WorkflowJsonSupport._
@@ -11,28 +10,29 @@ import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
 import lenthall.spray.SprayCanHttpService._
 import lenthall.spray.WrappedRoute._
 import net.ceedubs.ficus.Ficus._
-import spray.http.{ContentType, MediaTypes, _}
+import spray.http._
 import spray.json._
+import spray.routing.Route
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer {
-  implicit val timeout = Timeout(5.seconds)
-  import scala.concurrent.ExecutionContext.Implicits.global
-
 
   def run(cromwellSystem: CromwellSystem): Future[Any] = {
-    implicit val actorSystem = cromwellSystem.actorSystem
+    implicit val executionContext = scala.concurrent.ExecutionContext.Implicits.global
+
+    val actorSystem: ActorSystem = cromwellSystem.actorSystem
 
     val service = actorSystem.actorOf(CromwellServerActor.props(cromwellSystem.conf), "cromwell-service")
     val webserviceConf = cromwellSystem.conf.getConfig("webservice")
 
     val interface = webserviceConf.getString("interface")
     val port = webserviceConf.getInt("port")
-    val futureBind = service.bind(interface = interface, port = port)
+    val timeout = webserviceConf.as[FiniteDuration]("binding-timeout")
+    val futureBind = service.bind(interface, port)(implicitly, timeout, actorSystem, implicitly)
     futureBind andThen {
       case Success(_) =>
         actorSystem.log.info("Cromwell service started...")
@@ -52,16 +52,18 @@ object CromwellServer {
 }
 
 class CromwellServerActor(config: Config) extends CromwellRootActor with CromwellApiService with SwaggerService {
-  implicit def executionContext = actorRefFactory.dispatcher
+  implicit def executionContext: ExecutionContextExecutor = actorRefFactory.dispatcher
 
   override val serverMode = true
   override val abortJobsOnTerminate = false
 
-  override def actorRefFactory = context
-  override def receive = handleTimeouts orElse runRoute(possibleRoutes)
+  override def actorRefFactory: ActorContext = context
+  override def receive: PartialFunction[Any, Unit] = handleTimeouts orElse runRoute(possibleRoutes)
 
-  val possibleRoutes = workflowRoutes.wrapped("api", config.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)) ~ swaggerUiResourceRoute
-  val timeoutError = APIResponse.error(new TimeoutException("The server was not able to produce a timely response to your request.")).toJson.prettyPrint
+  val routeUnwrapped: Boolean = config.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)
+  val possibleRoutes: Route = workflowRoutes.wrapped("api", routeUnwrapped) ~ swaggerUiResourceRoute
+  val timeoutError: String = APIResponse.error(new TimeoutException(
+    "The server was not able to produce a timely response to your request.")).toJson.prettyPrint
 
   def handleTimeouts: Receive = {
     case Timedout(_: HttpRequest) =>

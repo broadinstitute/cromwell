@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 object MetadataServiceActor {
 
   val MetadataSummaryRefreshInterval: Option[FiniteDuration] = {
-    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.metadata-summary-refresh-interval").getOrElse("2 seconds"))
+    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.config.metadata-summary-refresh-interval").getOrElse("2 seconds"))
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 

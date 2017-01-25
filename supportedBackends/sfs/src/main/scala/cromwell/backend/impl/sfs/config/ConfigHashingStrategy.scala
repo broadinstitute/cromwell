@@ -4,18 +4,18 @@ import akka.event.LoggingAdapter
 import better.files.File
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
-import cromwell.backend.sfs.SharedFileSystemBackendInitializationData
+import cromwell.backend.standard.StandardInitializationData
 import cromwell.core.path.PathFactory
-import cromwell.util.TryWithResource._
 import cromwell.util.FileUtil._
+import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.codec.digest.DigestUtils
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.util.{Failure, Try}
 
 object ConfigHashingStrategy {
-  val logger = LoggerFactory.getLogger(getClass)
+  val logger: Logger = LoggerFactory.getLogger(getClass)
   val defaultStrategy = HashFileStrategy(false)
 
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
@@ -36,10 +36,11 @@ abstract class ConfigHashingStrategy {
   protected def hash(file: File): Try[String]
   protected def description: String
 
-  protected lazy val checkSiblingMessage = if (checkSiblingMd5) "Check first for sibling md5 and if not found " else ""
+  protected lazy val checkSiblingMessage: String =
+    if (checkSiblingMd5) "Check first for sibling md5 and if not found " else ""
 
   def getHash(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
-    def usingSFSInitData(initData: SharedFileSystemBackendInitializationData) = {
+    def usingStandardInitData(initData: StandardInitializationData) = {
       val pathBuilders = initData.workflowPaths.pathBuilders
       val file = PathFactory.buildFile(request.file.valueString, pathBuilders).followSymlinks
 
@@ -52,7 +53,7 @@ abstract class ConfigHashingStrategy {
     }
 
     request.initializationData match {
-      case Some(initData: SharedFileSystemBackendInitializationData) => usingSFSInitData(initData)
+      case Some(initData: StandardInitializationData) => usingStandardInitData(initData)
       case _ => Failure(new IllegalArgumentException("Need SharedFileSystemBackendInitializationData to calculate hash."))
     }
   }
@@ -62,7 +63,7 @@ abstract class ConfigHashingStrategy {
     if (md5.exists) Option(md5) else None
   }
 
-  override def toString = {
+  override def toString: String = {
     s"Call caching hashing strategy: $checkSiblingMessage$description."
   }
 }

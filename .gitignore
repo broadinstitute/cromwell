@@ -8,3 +8,4 @@ cromwell-workflow-logs
 cromwell-test-workflow-logs
 local-cromwell-executions
 native
+scripts/docker-compose-mysql/compose/mysql/data

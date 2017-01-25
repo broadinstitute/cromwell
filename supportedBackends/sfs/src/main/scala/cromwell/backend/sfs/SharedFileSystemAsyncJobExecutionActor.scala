@@ -2,29 +2,30 @@ package cromwell.backend.sfs
 
 import java.nio.file.{FileAlreadyExistsException, Path}
 
-import akka.actor.{Actor, ActorLogging}
 import better.files._
 import cromwell.backend._
-import cromwell.backend.async.{AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
-import cromwell.backend.io.WorkflowPathsBackendInitializationData
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.io.JobPathsWithDocker
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob, StandardInitializationData}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.OutputEvaluator
-import cromwell.core.WorkflowId
+import cromwell.core.path.FileImplicits._
 import cromwell.core.path.PathFactory._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
+import wdl4s.EvaluatedTaskInputs
 import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
-import wdl4s.{EvaluatedTaskInputs, TaskCall}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-object SharedFileSystemJob {
-  val JobIdKey = "sfs_job_id"
+case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
+  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
 }
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean)
+object SharedFileSystemAsyncJobExecutionActor {
+  val JobIdKey = "sfs_job_id"
+}
 
 /**
   * Runs a job on a shared backend, with the ability to (abstractly) submit asynchronously, then poll, kill, etc.
@@ -51,8 +52,7 @@ case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean)
   * messages.
   */
 trait SharedFileSystemAsyncJobExecutionActor
-  extends Actor with ActorLogging with BackendJobLifecycleActor with AsyncBackendJobExecutionActor
-    with StandardAsyncExecutionActor with SharedFileSystemJobCachingActorHelper {
+  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with SharedFileSystemJobCachingActorHelper {
 
   override type StandardAsyncRunInfo = Any
 
@@ -98,11 +98,13 @@ trait SharedFileSystemAsyncJobExecutionActor
     */
   def killArgs(job: StandardAsyncJob): SharedFileSystemCommand
 
+  lazy val jobPathsWithDocker: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
+
   def toUnixPath(docker: Boolean)(path: WdlValue): WdlValue = {
     path match {
       case _: WdlFile =>
         val cleanPath = DefaultPathBuilder.build(path.valueString).get
-        WdlFile(if (docker) jobPaths.toDockerPath(cleanPath).toString else cleanPath.toString)
+        WdlFile(if (docker) jobPathsWithDocker.toDockerPath(cleanPath).toString else cleanPath.toString)
       case array: WdlArray => WdlArray(array.wdlType, array.value map toUnixPath(docker))
       case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toUnixPath(docker))
       case wdlValue => wdlValue
@@ -111,12 +113,8 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
 
-  lazy val workflowDescriptor: BackendWorkflowDescriptor = jobDescriptor.workflowDescriptor
-  lazy val call: TaskCall = jobDescriptor.key.call
-  lazy val pathBuilders: List[PathBuilder] = WorkflowPathsBackendInitializationData.pathBuilders(backendInitializationDataOption)
-  private[sfs] lazy val backendEngineFunctions = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
-  override lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
-  override lazy val jobTag: String = jobDescriptor.key.tag
+  lazy val pathBuilders: List[PathBuilder] = StandardInitializationData.pathBuilders(backendInitializationDataOption)
+  lazy val backendEngineFunctions = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
 
   lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined
@@ -124,19 +122,15 @@ trait SharedFileSystemAsyncJobExecutionActor
   override lazy val commandLineFunctions: SharedFileSystemExpressionFunctions = backendEngineFunctions
 
   override lazy val commandLinePreProcessor: (EvaluatedTaskInputs) => Try[EvaluatedTaskInputs] =
-    sharedFileSystem.localizeInputs(jobPaths.callInputsRoot, isDockerRun)
+    sharedFileSystem.localizeInputs(jobPathsWithDocker.callInputsRoot, isDockerRun)
 
   override lazy val commandLineValueMapper: (WdlValue) => WdlValue = toUnixPath(isDockerRun)
-
-  override lazy val startMetadataKeyValues: Map[String, Any] = {
-    super[SharedFileSystemJobCachingActorHelper].startMetadataKeyValues
-  }
 
   override def execute(): ExecutionHandle = {
     val script = instantiatedCommand
     jobLogger.info(s"`$script`")
-    File(jobPaths.callExecutionRoot).createDirectories()
-    val cwd = if (isDockerRun) jobPaths.callExecutionDockerRoot else jobPaths.callExecutionRoot
+    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
+    val cwd = if (isDockerRun) jobPathsWithDocker.callExecutionDockerRoot else jobPaths.callExecutionRoot
     writeScript(script, cwd, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
     jobLogger.info(s"command: $processArgs")
     val runner = makeProcessRunner()
@@ -168,7 +162,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     * as some extra shell code for monitoring jobs
     */
   private def writeScript(instantiatedCommand: String, cwd: Path, globFiles: Set[WdlGlobFile]) = {
-    val rcPath = if (isDockerRun) jobPaths.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
+    val rcPath = if (isDockerRun) jobPathsWithDocker.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
     val rcTmpPath = pathPlusSuffix(rcPath, "tmp").path
 
     def globManipulation(globFile: WdlGlobFile) = {
@@ -188,6 +182,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
     val scriptBody =
       s"""|#!/bin/sh
+          |umask 0000
           |(
           |cd $cwd
           |INSTANTIATED_COMMAND
@@ -242,16 +237,6 @@ trait SharedFileSystemAsyncJobExecutionActor
     killer.run()
     ()
   }
-
-  override def remoteStdErrPath: Path = jobPaths.stderr
-
-  override def remoteReturnCodePath: Path = jobPaths.returnCode
-
-  override def continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
-    ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
-
-  override def failOnStdErr: Boolean = RuntimeAttributesValidation.extract(
-    FailOnStderrValidation.instance, validatedRuntimeAttributes)
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
     SharedFileSystemRunStatus(File(jobPaths.returnCode).exists)

@@ -1,15 +1,13 @@
 package cromwell.backend.impl.jes
 
+import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
 import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
-import cromwell.backend.validation.RuntimeAttributesDefault._
-import cromwell.backend.validation.RuntimeAttributesKeys._
-import cromwell.backend.validation.RuntimeAttributesValidation._
-import cromwell.backend.validation._
-import lenthall.exception.MessageAggregation
+import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
+import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.types._
@@ -21,32 +19,15 @@ case class JesRuntimeAttributes(cpu: Int,
                                 bootDiskSize: Int,
                                 memory: MemorySize,
                                 disks: Seq[JesAttachedDisk],
-                                dockerImage: Option[String],
+                                dockerImage: String,
                                 failOnStderr: Boolean,
                                 continueOnReturnCode: ContinueOnReturnCode,
-                                noAddress: Boolean) {
-  import JesRuntimeAttributes._
-
-  lazy val asMap = Map[String, Any](
-    CpuKey -> cpu.toString,
-    ZonesKey -> zones.mkString(","),
-    PreemptibleKey -> preemptible.toString,
-    BootDiskSizeKey -> bootDiskSize.toString,
-    MemoryKey -> memory.toString,
-    DisksKey -> disks.mkString(","),
-    DockerKey -> dockerImage.get,
-    FailOnStderrKey -> failOnStderr.toString,
-    ContinueOnReturnCodeKey -> continueOnReturnCode
-  )
-}
+                                noAddress: Boolean)
 
 object JesRuntimeAttributes {
-  private val CpuDefaultValue = 1
-  private val ContinueOnReturnCodeDefaultValue = 0
   private val MemoryDefaultValue = "2 GB"
 
   val ZonesKey = "zones"
-  private val ZoneDefaultValue = "us-central1-b"
 
   val PreemptibleKey = "preemptible"
   private val PreemptibleDefaultValue = 0
@@ -60,109 +41,135 @@ object JesRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = s"${JesWorkingDisk.Name} 10 SSD"
 
-  val staticDefaults = Map(
-    CpuKey -> WdlInteger(CpuDefaultValue),
-    DisksKey -> WdlString(DisksDefaultValue),
-    ZonesKey -> WdlString(ZoneDefaultValue),
-    ContinueOnReturnCodeKey -> WdlInteger(ContinueOnReturnCodeDefaultValue),
-    FailOnStderrKey -> WdlBoolean.False,
-    PreemptibleKey -> WdlInteger(PreemptibleDefaultValue),
-    MemoryKey -> WdlString(MemoryDefaultValue),
-    BootDiskSizeKey -> WdlInteger(BootDiskSizeDefaultValue),
-    NoAddressKey -> WdlBoolean(NoAddressDefaultValue)
-  )
+  private val cpuValidation: RuntimeAttributesValidation[Int] = CpuValidation.default
 
-  private[jes] val coercionMap: Map[String, Set[WdlType]] = Map(
-    CpuKey -> Set(WdlIntegerType),
-    DisksKey -> Set(WdlStringType, WdlArrayType(WdlStringType)),
-    ZonesKey -> Set(WdlStringType, WdlArrayType(WdlStringType)),
-    ContinueOnReturnCodeKey -> ContinueOnReturnCode.validWdlTypes,
-    FailOnStderrKey -> Set(WdlBooleanType),
-    PreemptibleKey -> Set(WdlIntegerType),
-    MemoryKey -> Set(WdlStringType),
-    BootDiskSizeKey -> Set(WdlIntegerType),
-    NoAddressKey -> Set(WdlBooleanType),
-    DockerKey -> Set(WdlStringType)
-  )
+  private val disksValidation: RuntimeAttributesValidation[Seq[JesAttachedDisk]] =
+    DisksValidation.withDefault(WdlString(DisksDefaultValue))
 
-  def apply(attrs: Map[String, WdlValue], logger: Logger): JesRuntimeAttributes = {
-    warnUnrecognized(attrs.keySet, coercionMap.keySet, logger)
+  private def zonesValidation(defaultZones: NonEmptyList[String]): RuntimeAttributesValidation[Vector[String]] =
+    ZonesValidation.withDefault(WdlString(defaultZones.toList.mkString(" ")))
 
-    val cpu = validateCpu(attrs.get(CpuKey), noValueFoundFor(CpuKey))
-    val memory = validateMemory(attrs.get(MemoryKey), noValueFoundFor(MemoryKey))
-    val docker = validateDocker(attrs.get(DockerKey), noValueFoundFor(DockerKey))
-    val failOnStderr = validateFailOnStderr(attrs.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
-    val continueOnReturnCode = validateContinueOnReturnCode(attrs.get(ContinueOnReturnCodeKey), noValueFoundFor(ContinueOnReturnCodeKey))
+  private val preemptibleValidation: RuntimeAttributesValidation[Int] =
+    new IntRuntimeAttributesValidation(JesRuntimeAttributes.PreemptibleKey)
+      .withDefault(WdlInteger(PreemptibleDefaultValue))
 
-    val zones = validateZone(attrs(ZonesKey))
-    val preemptible = validatePreemptible(attrs(PreemptibleKey))
-    val noAddress = validateNoAddress(attrs(NoAddressKey))
-    val bootDiskSize = validateBootDisk(attrs(BootDiskSizeKey))
-    val disks = validateLocalDisks(attrs(DisksKey))
-    (cpu |@| zones |@| preemptible |@| bootDiskSize |@| memory |@| disks |@| docker |@| failOnStderr |@| continueOnReturnCode |@| noAddress) map {
-      new JesRuntimeAttributes(_, _, _, _, _, _, _, _, _, _)
-    } match {
-      case Valid(x) => x
-      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
-        override def exceptionContext: String = "Runtime attribute validation failed"
-        override def errorMessages: Traversable[String] = nel.toList
-      }
-    }
+  private val memoryValidation: RuntimeAttributesValidation[MemorySize] =
+    MemoryValidation.withDefaultMemory(MemorySize.parse(MemoryDefaultValue).get)
+
+  private val bootDiskSizeValidation: RuntimeAttributesValidation[Int] =
+    new IntRuntimeAttributesValidation(JesRuntimeAttributes.BootDiskSizeKey)
+      .withDefault(WdlInteger(BootDiskSizeDefaultValue))
+
+  private val noAddressValidation: RuntimeAttributesValidation[Boolean] =
+    new BooleanRuntimeAttributesValidation(JesRuntimeAttributes.NoAddressKey)
+      .withDefault(WdlBoolean(NoAddressDefaultValue))
+
+  private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
+
+  def runtimeAttributesBuilder(jesConfiguration: JesConfiguration): StandardValidatedRuntimeAttributesBuilder =
+    StandardValidatedRuntimeAttributesBuilder.default.withValidation(
+      cpuValidation,
+      disksValidation,
+      zonesValidation(jesConfiguration.defaultZones),
+      preemptibleValidation,
+      memoryValidation,
+      bootDiskSizeValidation,
+      noAddressValidation,
+      dockerValidation
+    )
+
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes): JesRuntimeAttributes = {
+    val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation, validatedRuntimeAttributes)
+    val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
+    val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation, validatedRuntimeAttributes)
+    val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation, validatedRuntimeAttributes)
+    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation, validatedRuntimeAttributes)
+    val disks: Seq[JesAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation, validatedRuntimeAttributes)
+    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
+    val failOnStderr: Boolean =
+      RuntimeAttributesValidation.extract(FailOnStderrValidation.default, validatedRuntimeAttributes)
+    val continueOnReturnCode: ContinueOnReturnCode =
+      RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.default, validatedRuntimeAttributes)
+    val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation, validatedRuntimeAttributes)
+
+    new JesRuntimeAttributes(
+      cpu,
+      zones,
+      preemptible,
+      bootDiskSize,
+      memory,
+      disks,
+      docker,
+      failOnStderr,
+      continueOnReturnCode,
+      noAddress
+    )
   }
 
-  private def validateZone(zoneValue: WdlValue): ErrorOr[Vector[String]] = {
-    zoneValue match {
-      case WdlString(s) => s.split("\\s+").toVector.validNel
-      case WdlArray(wdlType, value) if wdlType.memberType == WdlStringType =>
-        value.map(_.valueString).toVector.validNel
-      case _ => s"Expecting $ZonesKey runtime attribute to be either a whitespace separated String or an Array[String]".invalidNel
-    }
+  // NOTE: Currently only used by test specs
+  private[jes] def apply(attrs: Map[String, WdlValue], logger: Logger,
+                         jesConfiguration: JesConfiguration): JesRuntimeAttributes = {
+    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
+    val validatedRuntimeAttributes = runtimeAttributesBuilder.build(attrs, logger)
+    apply(validatedRuntimeAttributes)
+  }
+}
+
+object ZonesValidation extends RuntimeAttributesValidation[Vector[String]] {
+  override def key: String = JesRuntimeAttributes.ZonesKey
+
+  override def coercion: Traversable[WdlType] = Set(WdlStringType, WdlArrayType(WdlStringType))
+
+  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[Vector[String]]] = {
+    case WdlString(s) => s.split("\\s+").toVector.validNel
+    case WdlArray(wdlType, value) if wdlType.memberType == WdlStringType =>
+      value.map(_.valueString).toVector.validNel
   }
 
-  private def contextualizeFailure[T](validation: ErrorOr[T], key: String): ErrorOr[T] = {
-    validation.leftMap[String](errors => s"Failed to validate $key runtime attribute: " + errors.toList.mkString(",")).toValidatedNel
+  override protected def missingValueMessage: String =
+    s"Expecting $key runtime attribute to be either a whitespace separated String or an Array[String]"
+}
+
+object DisksValidation extends RuntimeAttributesValidation[Seq[JesAttachedDisk]] {
+  override def key: String = JesRuntimeAttributes.DisksKey
+
+  override def coercion: Traversable[WdlType] = Set(WdlStringType, WdlArrayType(WdlStringType))
+
+  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[Seq[JesAttachedDisk]]] = {
+    case WdlString(value) => validateLocalDisks(value.split(",\\s*").toSeq)
+    case WdlArray(wdlType, values) if wdlType.memberType == WdlStringType =>
+      validateLocalDisks(values.map(_.valueString))
   }
 
-  private def validatePreemptible(preemptible: WdlValue): ErrorOr[Int] = {
-    contextualizeFailure(validateInt(preemptible), PreemptibleKey)
-  }
-
-  private def validateNoAddress(noAddress: WdlValue): ErrorOr[Boolean] = {
-    contextualizeFailure(validateBoolean(noAddress), NoAddressKey)
-  }
-
-  private def validateBootDisk(diskSize: WdlValue): ErrorOr[Int] = diskSize match {
-    case x if WdlIntegerType.isCoerceableFrom(x.wdlType) =>
-      WdlIntegerType.coerceRawValue(x) match {
-        case scala.util.Success(x: WdlInteger) => x.value.intValue.validNel
-        case scala.util.Success(unhandled) => s"Coercion was expected to create an Integer but instead got $unhandled".invalidNel
-        case scala.util.Failure(t) => s"Expecting $BootDiskSizeKey runtime attribute to be an Integer".invalidNel
-      }
-  }
-
-  private def validateLocalDisks(value: WdlValue): ErrorOr[Seq[JesAttachedDisk]] = {
-    val nels: Seq[ErrorOr[JesAttachedDisk]] = value match {
-      case WdlString(s) => s.split(",\\s*").toSeq.map(validateLocalDisk)
-      case WdlArray(wdlType, seq) if wdlType.memberType == WdlStringType =>
-        seq.map(_.valueString).map(validateLocalDisk)
-      case _ =>
-        Seq(s"Expecting $DisksKey runtime attribute to be a comma separated String or Array[String]".invalidNel)
-    }
-
-    val emptyDiskNel = Vector.empty[JesAttachedDisk].validNel[String]
-    val disksNel = nels.foldLeft(emptyDiskNel)((acc, v) => (acc |@| v) map { (a, v) => a :+ v })
-
-    disksNel map {
-      case disks if disks.exists(_.name == JesWorkingDisk.Name) => disks
-      case disks => disks :+ JesAttachedDisk.parse(DisksDefaultValue).get
-    }
+  private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[JesAttachedDisk]] = {
+    val diskNels: Seq[ErrorOr[JesAttachedDisk]] = disks map validateLocalDisk
+    val sequenced: ErrorOr[Seq[JesAttachedDisk]] = sequenceNels(diskNels)
+    val defaulted: ErrorOr[Seq[JesAttachedDisk]] = addDefault(sequenced)
+    defaulted
   }
 
   private def validateLocalDisk(disk: String): ErrorOr[JesAttachedDisk] = {
     JesAttachedDisk.parse(disk) match {
-      case scala.util.Success(localDisk) => localDisk.validNel
+      case scala.util.Success(attachedDisk) => attachedDisk.validNel
       case scala.util.Failure(ex) => ex.getMessage.invalidNel
     }
   }
 
+  private def sequenceNels(nels: Seq[ErrorOr[JesAttachedDisk]]): ErrorOr[Seq[JesAttachedDisk]] = {
+    val emptyDiskNel = Vector.empty[JesAttachedDisk].validNel[String]
+    val disksNel: ErrorOr[Vector[JesAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
+      (acc, v) => (acc |@| v) map { (a, v) => a :+ v }
+    }
+    disksNel
+  }
+
+  private def addDefault(disksNel: ErrorOr[Seq[JesAttachedDisk]]): ErrorOr[Seq[JesAttachedDisk]] = {
+    disksNel map {
+      case disks if disks.exists(_.name == JesWorkingDisk.Name) => disks
+      case disks => disks :+ JesWorkingDisk.Default
+    }
+  }
+
+  override protected def missingValueMessage: String =
+    s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
 }

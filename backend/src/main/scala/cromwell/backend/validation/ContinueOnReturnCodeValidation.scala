@@ -6,8 +6,8 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import lenthall.validation.ErrorOr._
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
+import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType, WdlType}
+import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 import scala.util.Try
 
@@ -23,45 +23,44 @@ import scala.util.Try
   * found.
   */
 object ContinueOnReturnCodeValidation {
-  val key = RuntimeAttributesKeys.ContinueOnReturnCodeKey
-
-  lazy val instance = new ContinueOnReturnCodeValidation
-
-  lazy val default = instance.withDefault(WdlInteger(0))
-
-  lazy val optional = default.optional
-
-  private[validation] val missingMessage =
-    s"Expecting $key runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+  lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
+  lazy val default: RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(WdlInteger(0))
+  lazy val optional: OptionalRuntimeAttributesValidation[ContinueOnReturnCode] = default.optional
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {
 
-  import ContinueOnReturnCodeValidation._
+  override def key: String = RuntimeAttributesKeys.ContinueOnReturnCodeKey
 
-  override def key = RuntimeAttributesKeys.ContinueOnReturnCodeKey
+  override def coercion: Set[WdlType] = ContinueOnReturnCode.validWdlTypes
 
-  override def coercion = ContinueOnReturnCode.validWdlTypes
-
-  override def validateValue = {
+  override def validateValue: PartialFunction[WdlValue, ErrorOr[ContinueOnReturnCode]] = {
     case WdlBoolean(value) => ContinueOnReturnCodeFlag(value).validNel
     case WdlString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).validNel
+    case WdlString(value) if Try(value.toInt).isSuccess => ContinueOnReturnCodeSet(Set(value.toInt)).validNel
     case WdlInteger(value) => ContinueOnReturnCodeSet(Set(value)).validNel
-    case WdlArray(wdlType, seq) =>
+    case value@WdlArray(_, seq) =>
       val errorOrInts: ErrorOr[List[Int]] = (seq.toList map validateInt).sequence[ErrorOr, Int]
       errorOrInts match {
         case Valid(ints) => ContinueOnReturnCodeSet(ints.toSet).validNel
-        case Invalid(_) => failureWithMessage
+        case Invalid(_) => invalidValueFailure(value)
       }
   }
 
-  override def validateExpression = {
-    case _: WdlBoolean => true
+  override def validateExpression: PartialFunction[WdlValue, Boolean] = {
+    case WdlBoolean(_) => true
+    case WdlString(value) if Try(value.toInt).isSuccess => true
     case WdlString(value) if Try(value.toBoolean).isSuccess => true
-    case _: WdlInteger => true
-    case WdlArray(WdlArrayType(WdlStringType), elements) => elements.forall(validateInt(_).isValid)
-    case WdlArray(WdlArrayType(WdlIntegerType), elements) => elements.forall(validateInt(_).isValid)
+    case WdlInteger(_) => true
+    case WdlArray(WdlArrayType(WdlStringType), elements) =>
+      elements forall {
+        value => Try(value.valueString.toInt).isSuccess
+      }
+    case WdlArray(WdlArrayType(WdlIntegerType), _) => true
   }
 
-  override protected def failureMessage = missingMessage
+  override protected def missingValueMessage: String = s"Expecting $key" +
+    " runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+
+  override protected def usedInCallCaching: Boolean = true
 }

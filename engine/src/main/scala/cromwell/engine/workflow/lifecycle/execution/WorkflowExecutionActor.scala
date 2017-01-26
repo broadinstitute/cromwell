@@ -263,12 +263,22 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       data.expressionLanguageFunctions,
       data.outputStore.fetchNodeOutputEntries
     ) map { workflowOutputs =>
+       // For logging and metadata
+       val workflowScopeOutputs = workflowOutputs map {
+         case (output, value) => output.locallyQualifiedName(workflowDescriptor.workflow) -> value
+       }
        workflowLogger.info(
          s"""Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs:
-             |${workflowOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
+             |${workflowScopeOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
        )
-       pushWorkflowOutputMetadata(workflowOutputs)
-       (WorkflowExecutionSucceededResponse(data.jobExecutionMap, workflowOutputs mapValues JobOutput.apply), WorkflowExecutionSuccessfulState)
+       pushWorkflowOutputMetadata(workflowScopeOutputs)
+       
+       // For cromwell internal storage of outputs
+       val unqualifiedWorkflowOutputs = workflowOutputs map {
+         // JobOutput is poorly named here - a WorkflowOutput type would be better
+         case (output, value) => output.unqualifiedName -> JobOutput(value)
+       }
+       (WorkflowExecutionSucceededResponse(data.jobExecutionMap, unqualifiedWorkflowOutputs), WorkflowExecutionSuccessfulState)
     } recover {
        case ex =>
          (WorkflowExecutionFailedResponse(data.jobExecutionMap, ex), WorkflowExecutionFailedState)

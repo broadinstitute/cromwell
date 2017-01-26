@@ -1,13 +1,14 @@
 package cromwell.backend.impl.tes
 
+import java.nio.file.Paths
+
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
-import cromwell.backend.wdl.OutputEvaluator
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
-import java.nio.file.Paths
+import wdl4s.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlSingleFile, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlSingleFile, WdlValue}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
@@ -65,7 +66,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     } ++ Seq(commandScript)
 
   // TODO add TES logs to standard outputs
-  val standardOutputs = Seq("rc", "stdout", "stderr").map {
+  private val standardOutputs = Seq("rc", "stdout", "stderr").map {
     f =>
       TaskParameter(
         f,
@@ -77,31 +78,62 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       )
   }
 
-  val outputs = OutputEvaluator
-    .evaluateOutputs(jobDescriptor, callEngineFunction)
-    // TODO handle globs
-    // TODO remove this .get and handle error appropriately
-    .get
-    .toSeq
-    .map { case (k, v) => (k, v.wdlValue) }
-    .flatMap(flattenWdlValueMap)
-    .filter{
-      case (_: String, _: WdlSingleFile) => true
-      case (s: String, _) => s != "stdout"
-      case _ => false
-    }
-    .map {
-      case (outputName, f) => TaskParameter(
-        outputName,
-        Some(fullyQualifiedTaskName + "." + outputName),
-        tesPaths.storageOutput(f.valueString),
-        tesPaths.containerOutput(f.valueString),
-        "File",
-        Some(false)
-      )
-    } ++ standardOutputs
+  // extract output file variable names
+  private val outputFileNames = jobDescriptor.call.task.outputs
+      .filter {
+        case o => o.wdlType.toWdlString == "Array[File]" || o.wdlType.toWdlString == "File"
+      }
+    .map{case o => o.unqualifiedName}
 
-  val workingDirVolume = runtimeAttributes
+  // extract output files
+  private val outputWdlFiles = jobDescriptor.call.task
+    .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
+
+  private val wdlOutputs = outputFileNames.zip(outputWdlFiles)
+    .flatMap {
+      case (outputName, f: WdlSingleFile) => {
+        val outputFile = f.valueString
+        Seq(
+          TaskParameter(
+            outputName,
+            Some(fullyQualifiedTaskName + "." + outputName),
+            tesPaths.storageOutput(outputFile),
+            tesPaths.containerOutput(outputFile),
+            "File",
+            Some(false)
+          )
+        )
+      }
+      case (outputName, g: WdlGlobFile) => {
+        val globName = callEngineFunction.globName(g.value)
+        val globDirName = outputName + ".globDir"
+        val globDirectory = globName + "/"
+        val globListName = outputName + ".globList"
+        val globListFile = globName + ".list"
+        Seq(
+          TaskParameter(
+            globDirName,
+            Some(fullyQualifiedTaskName + "." + globDirName),
+            tesPaths.storageOutput(globDirectory),
+            tesPaths.containerOutput(globDirectory),
+            "Directory",
+            Some(false)
+          ),
+          TaskParameter(
+            globListName,
+            Some(fullyQualifiedTaskName + "." + globListName),
+            tesPaths.storageOutput(globListFile),
+            tesPaths.containerOutput(globListFile),
+            "File",
+            Some(false)
+          )
+        )
+      }
+    }
+
+  val outputs = wdlOutputs ++ standardOutputs
+
+  private val workingDirVolume = runtimeAttributes
     .dockerWorkingDir
     .map(path => Volume(
       path,

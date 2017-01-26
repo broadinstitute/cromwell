@@ -19,14 +19,25 @@ import spray.client.pipelining._
 import spray.http.HttpRequest
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.unmarshalling._
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-case class TesRunStatus(isTerminal: Boolean)
+sealed trait TesRunStatus {
+  def isTerminal: Boolean
+}
+case object Running extends TesRunStatus {
+  def isTerminal = true
+}
+case object Complete extends TesRunStatus {
+  def isTerminal = true
+}
+case object FailedOrError extends TesRunStatus {
+  def isTerminal = true
+}
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
@@ -66,19 +77,36 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     * Writes the script file containing the user's command from the WDL as well
     * as some extra shell code for monitoring jobs
     */
-  def writeScript(instantiatedCommand: String) = {
+  def writeScript(instantiatedCommand: String, globFiles: Set[WdlGlobFile]) = {
     val cwd = tesJobPaths.containerWorkingDir
     val rcPath = tesJobPaths.containerExec("rc")
     val rcTmpPath = s"$rcPath.tmp"
 
+    def globManipulation(globFile: WdlGlobFile) = {
+
+      val globDir = backendEngineFunctions.globName(globFile.value)
+      val globDirectory = File(cwd)./(globDir)
+      val globList = File(cwd)./(s"$globDir.list")
+
+      s"""|mkdir $globDirectory
+          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+          |ls -1 $globDirectory > $globList
+          |""".stripMargin
+    }
+
+    val globManipulations = globFiles.map(globManipulation).mkString("\n")
+
     val scriptBody =
-      s"""|#!/bin/sh
-          |umask 0000
+      s"""|#!/bin/bash
           |(
           |cd $cwd
           |INSTANTIATED_COMMAND
           |)
           |echo $$? > $rcTmpPath
+          |(
+          |cd $cwd
+          |$globManipulations
+          |)
           |mv $rcTmpPath $rcPath
           |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
 
@@ -99,7 +127,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       .get
 
     jobLogger.info(s"`\n$commandString`")
-    writeScript(commandString)
+    writeScript(commandString, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
 
     val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes)
 
@@ -156,11 +184,20 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     val response = Await.result(pollTask, 5.seconds)
     val state = response.state.get
-    if (state contains "Complete") {
-      jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
-      TesRunStatus(isTerminal = true)
-    } else {
-      TesRunStatus(isTerminal = false)
+    state match {
+      case s if s.contains("Complete") => {
+        jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
+        Complete
+      }
+      case s if s.contains("Cancel") => {
+        jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
+        FailedOrError
+      }
+      case s if s.contains("Error") => {
+        jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
+        FailedOrError
+      }
+      case _ => Running
     }
   }
 
@@ -173,6 +210,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def isTerminal(runStatus: TesRunStatus): Boolean = {
     runStatus.isTerminal
+  }
+
+  override def isSuccess(runStatus: TesRunStatus): Boolean = {
+    runStatus match {
+      case Complete => true
+      case _ => false
+    }
   }
 
   // Everything below was 'borrowed' from the SFS backend
@@ -206,10 +250,10 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                                       returnCode: Int): ExecutionHandle = {
 
     val outputsTry =
-      OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputMapper(jobPaths))
+      OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputMapper(tesJobPaths))
     outputsTry match {
       case Success(outputs) => {
-        SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, Seq.empty)
+        SuccessfulExecutionHandle(outputs, returnCode, tesJobPaths.detritusPaths, Seq.empty)
       }
       case Failure(throwable) => FailedNonRetryableExecutionHandle(throwable, Option(returnCode))
     }

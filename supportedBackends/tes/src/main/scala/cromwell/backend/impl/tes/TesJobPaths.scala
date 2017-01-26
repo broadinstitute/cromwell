@@ -36,6 +36,7 @@ class TesJobPaths(val jobKey: BackendJobDescriptorKey,
     }
   }
 
+  //TODO move to TesConfiguration
   private def prefixScheme(path: String): String = "file://" + path
 
   def storageInput(path: String): String = prefixScheme(path)

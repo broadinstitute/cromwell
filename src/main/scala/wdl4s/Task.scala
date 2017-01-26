@@ -169,9 +169,9 @@ case class Task(name: String,
 
   def evaluateOutputs(inputs: EvaluatedTaskInputs,
                       wdlFunctions: WdlStandardLibraryFunctions,
-                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[Map[LocallyQualifiedName, WdlValue]] = {
+                      postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[Map[TaskOutput, WdlValue]] = {
     val fqnInputs = inputs map { case (d, v) => d.fullyQualifiedName -> v }
-    val evaluatedOutputs = outputs.foldLeft(Map.empty[Scope, Try[WdlValue]])((outputMap, output) => {
+    val evaluatedOutputs = outputs.foldLeft(Map.empty[TaskOutput, Try[WdlValue]])((outputMap, output) => {
       val currentOutputs = outputMap collect {
         case (outputName, value) if value.isSuccess => outputName.fullyQualifiedName -> value.get
       }
@@ -182,7 +182,7 @@ case class Task(name: String,
         case t: Throwable => Failure(new RuntimeException(s"Could not evaluate ${output.fullyQualifiedName} = ${output.requiredExpression.toWdlString}", t))
       }
       outputMap + jobOutput
-    }) map { case (k, v) => k.unqualifiedName -> v }
+    }) map { case (k, v) => k -> v }
 
     TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate outputs.")
   }

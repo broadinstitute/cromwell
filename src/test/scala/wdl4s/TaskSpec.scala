@@ -146,9 +146,9 @@ class TaskSpec extends WdlTest {
       outputs.isSuccess shouldBe true
       val successfulOutputs = outputs.get
       successfulOutputs.size shouldBe 3
-      successfulOutputs.find(_._1 == "o").get._2 shouldBe WdlString("input")
-      successfulOutputs.find(_._1 == "o2").get._2 shouldBe WdlString("input")
-      successfulOutputs.find(_._1 == "o3").get._2 shouldBe WdlString("o3")
+      successfulOutputs.find(_._1.unqualifiedName == "o").get._2 shouldBe WdlString("input")
+      successfulOutputs.find(_._1.unqualifiedName == "o2").get._2 shouldBe WdlString("input")
+      successfulOutputs.find(_._1.unqualifiedName == "o3").get._2 shouldBe WdlString("o3")
     }
 
     "instantiate command (4)" in {

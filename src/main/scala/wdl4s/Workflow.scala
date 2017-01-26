@@ -175,7 +175,7 @@ case class Workflow(unqualifiedName: String,
   def evaluateOutputs(knownInputs: WorkflowCoercedInputs,
                       wdlFunctions: WdlFunctions[WdlValue],
                       outputResolver: OutputResolver = NoOutputResolver,
-                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[LocallyQualifiedName, WdlValue]] = {
+                      shards: Map[Scatter, Int] = Map.empty[Scatter, Int]): Try[Map[WorkflowOutput, WdlValue]] = {
     
     val evaluatedOutputs = outputs.foldLeft(Map.empty[WorkflowOutput, Try[WdlValue]])((outputMap, output) => {
       val currentOutputs = outputMap collect {
@@ -187,7 +187,7 @@ case class Workflow(unqualifiedName: String,
       val workflowOutput = output -> coerced
 
       outputMap + workflowOutput
-    }) map { case (k, v) => k.locallyQualifiedName(this) -> v }
+    }) map { case (k, v) => k -> v }
 
     TryUtil.sequenceMap(evaluatedOutputs, "Failed to evaluate workflow outputs.\n")
   }

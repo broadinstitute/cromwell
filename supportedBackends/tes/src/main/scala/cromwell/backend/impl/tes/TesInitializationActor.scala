@@ -2,9 +2,7 @@ package cromwell.backend.impl.tes
 
 import akka.actor.{ActorRef, Props}
 import better.files.File
-import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.backend.standard._
-import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.FileImplicits._
@@ -49,8 +47,8 @@ class TesInitializationActor(params: TesInitializationActorParams)
       _.withOptions(workflowDescriptor.workflowOptions)(context.system)
     }
 
-  val workflowPaths: WorkflowPathsWithDocker =
-    WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders).asInstanceOf[WorkflowPathsWithDocker]
+  val workflowPaths: TesWorkflowPaths =
+    new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, pathBuilders)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     TesRuntimeAttributes.runtimeAttributesBuilder

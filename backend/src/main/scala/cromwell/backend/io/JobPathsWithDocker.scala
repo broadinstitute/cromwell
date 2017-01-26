@@ -20,7 +20,7 @@ class JobPathsWithDocker(val jobKey: BackendJobDescriptorKey,
 
   def toDockerPath(path: Path): Path = {
     path.toAbsolutePath match {
-      case p if p.startsWith(DockerRoot) => p
+      case p if p.startsWith(WorkflowPathsWithDocker.DockerRoot) => p
       case p =>
         /* For example:
           *
@@ -33,7 +33,7 @@ class JobPathsWithDocker(val jobKey: BackendJobDescriptorKey,
           * TODO: this assumes that p.startsWith(localExecutionRoot)
           */
         val subpath = p.subpath(executionRoot.getNameCount, p.getNameCount)
-        DockerRoot.resolve(subpath)
+        WorkflowPathsWithDocker.DockerRoot.resolve(subpath)
     }
   }
 }

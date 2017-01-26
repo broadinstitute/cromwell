@@ -1,33 +1,44 @@
-package cromwell.backend.io
+package cromwell.backend.impl.tes
 
 import better.files._
-import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.{JobKey, WorkflowId}
-import org.mockito.Mockito._
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.{Call, Workflow}
 
-class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
+class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
+  val configString =
+    """
+      |        root = "local-cromwell-executions"
+      |        dockerRoot = "cromwell-executions"
+      |
+      |        filesystems {
+      |          local {
+      |            localization: [
+      |              "hard-link", "soft-link", "copy"
+      |            ]
+      |          }
+      |          gcs {
+      |            auth = "application-default"
+      |          }
+      |        }
+    """.stripMargin
 
-  val backendConfig = mock[Config]
+  val globalConfig = ConfigFactory.load()
+  val backendConfig =  ConfigFactory.parseString(configString)
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
-    when(backendConfig.hasPath(any[String])).thenReturn(true)
-    when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
-    val workflowPaths = new WorkflowPathsWithDocker(wd, backendConfig)
+    val workflowPaths = new TesWorkflowPaths(wd, backendConfig)
     val id = wd.id
     workflowPaths.workflowRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe
-      s"/root/wf_hello/$id"
+      s"/cromwell-executions/wf_hello/$id"
   }
 
   "WorkflowPaths" should "provide correct paths for a sub workflow" in {
-    when(backendConfig.hasPath(any[String])).thenReturn(true)
-    when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
-    
     val rootWd = mock[BackendWorkflowDescriptor]
     val rootWorkflow = mock[Workflow]
     val rootWorkflowId = WorkflowId.randomId()
@@ -57,8 +68,8 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     subWd.breadCrumbs returns List(BackendJobBreadCrumb(rootWorkflow, rootWorkflowId, jobKey))
     subWd.id returns subWorkflowId
     
-    val workflowPaths = new WorkflowPathsWithDocker(subWd, backendConfig)
+    val workflowPaths = new TesWorkflowPaths(subWd, backendConfig)
     workflowPaths.workflowRoot.toString shouldBe File(s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId").pathAsString
-    workflowPaths.dockerWorkflowRoot.toString shouldBe s"/root/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
+    workflowPaths.dockerWorkflowRoot.toString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
   }
 }

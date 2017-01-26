@@ -2,7 +2,6 @@ package cromwell.backend.impl.tes
 
 
 import akka.actor.Actor
-import cromwell.backend.io.{JobPathsWithDocker, WorkflowPathsWithDocker}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 
@@ -13,9 +12,9 @@ trait TesJobCachingActorHelper extends StandardCachingActorHelper {
     backendInitializationDataAs[TesBackendInitializationData]
   }
 
-  lazy val tesWorkflowPaths: WorkflowPathsWithDocker = workflowPaths.asInstanceOf[WorkflowPathsWithDocker]
+  lazy val tesWorkflowPaths: TesWorkflowPaths = workflowPaths.asInstanceOf[TesWorkflowPaths]
 
-  lazy val tesJobPaths: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
+  lazy val tesJobPaths: TesJobPaths = jobPaths.asInstanceOf[TesJobPaths]
 
   lazy val tesConfiguration: TesConfiguration = initializationData.tesConfiguration
 

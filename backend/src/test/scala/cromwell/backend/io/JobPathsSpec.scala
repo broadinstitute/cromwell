@@ -12,7 +12,9 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   val configString =
     """
-      |        root: "local-cromwell-executions"
+      |        root = "local-cromwell-executions"
+      |        dockerRoot = "/cromwell-executions"
+      |
       |        filesystems {
       |          local {
       |            localization: [

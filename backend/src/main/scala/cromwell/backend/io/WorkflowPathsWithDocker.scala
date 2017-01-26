@@ -11,7 +11,10 @@ class WorkflowPathsWithDocker(val workflowDescriptor: BackendWorkflowDescriptor,
                               val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
 
   val DockerRootString = config.as[Option[String]]("dockerRoot").getOrElse("/root")
-  val DockerRoot = PathFactory.buildPath(DockerRootString, pathBuilders).toAbsolutePath
+  var DockerRoot = PathFactory.buildPath(DockerRootString, pathBuilders)
+  if ( DockerRoot.isAbsolute() == false ) {
+     DockerRoot = PathFactory.buildPath("/".concat(DockerRootString), pathBuilders)
+  }
   val dockerWorkflowRoot = workflowPathBuilder(DockerRoot)
 
   override def toJobPaths(jobKey: BackendJobDescriptorKey,

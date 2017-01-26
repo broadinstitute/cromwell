@@ -28,12 +28,12 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
         sampleWdl = sampleWdl,
         EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
         expectedOutputs = Map(
-          "wf_read_map_out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
+          "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
             WdlString("x") -> WdlInteger(500),
             WdlString("y") -> WdlInteger(600),
             WdlString("z") -> WdlInteger(700)
           )),
-          "wf_write_map_contents" -> WdlString("f1\talice\nf2\tbob\nf3\tchuck")
+          "wf.write_map.contents" -> WdlString("f1\talice\nf2\tbob\nf3\tchuck")
         )
       )
       sampleWdl.cleanup()
@@ -75,7 +75,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
         sampleWdl,
         eventFilter = EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
         expectedOutputs = Map(
-          "wf_read_map_out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
+          "wf.read_map.out_map" -> WdlMap(WdlMapType(WdlStringType, WdlIntegerType), Map(
             WdlString("x") -> WdlInteger(500),
             WdlString("y") -> WdlInteger(600),
             WdlString("z") -> WdlInteger(700)

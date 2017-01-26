@@ -13,7 +13,9 @@ object OutputEvaluator {
                       wdlFunctions: WdlStandardLibraryFunctions,
                       postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[Map[LocallyQualifiedName, JobOutput]] = {
     jobDescriptor.call.task.evaluateOutputs(jobDescriptor.inputDeclarations, wdlFunctions, postMapper) map { outputs =>
-      outputs mapValues JobOutput
+      outputs map {
+        case (output, value) => output.unqualifiedName -> JobOutput(value)
+      } 
     }
   }
 }

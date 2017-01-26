@@ -269,12 +269,15 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       data.expressionLanguageFunctions,
       data.outputStore.fetchNodeOutputEntries
     ) map { workflowOutputs =>
+       val workflowScopeOutputs = workflowOutputs map {
+         case (output, value) => output.locallyQualifiedName(workflowDescriptor.workflow) -> value
+       }
        workflowLogger.info(
          s"""Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs:
-             |${workflowOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
+             |${workflowScopeOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
        )
-       pushWorkflowOutputMetadata(workflowOutputs)
-       (WorkflowExecutionSucceededResponse(data.jobExecutionMap, workflowOutputs mapValues JobOutput.apply), WorkflowExecutionSuccessfulState)
+       pushWorkflowOutputMetadata(workflowScopeOutputs)
+       (WorkflowExecutionSucceededResponse(data.jobExecutionMap, workflowScopeOutputs mapValues JobOutput.apply), WorkflowExecutionSuccessfulState)
     } recover {
        case ex =>
          (WorkflowExecutionFailedResponse(data.jobExecutionMap, ex), WorkflowExecutionFailedState)

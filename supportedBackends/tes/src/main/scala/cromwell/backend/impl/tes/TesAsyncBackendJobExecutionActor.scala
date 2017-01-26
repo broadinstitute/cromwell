@@ -62,8 +62,47 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
+  /**
+    * Writes the script file containing the user's command from the WDL as well
+    * as some extra shell code for monitoring jobs
+    */
+  def writeScript(instantiatedCommand: String) = {
+    val cwd = tesJobPaths.containerWorkingDir
+    val rcPath = tesJobPaths.containerExec("rc")
+    val rcTmpPath = s"$rcPath.tmp"
+
+    val scriptBody =
+      s"""|#!/bin/sh
+          |umask 0000
+          |(
+          |cd $cwd
+          |INSTANTIATED_COMMAND
+          |)
+          |echo $$? > $rcTmpPath
+          |mv $rcTmpPath $rcPath
+          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
+
+    File(tesJobPaths.script).write(scriptBody)
+  }
+
   def createTaskMessage(): TesTaskMessage = {
+    val commandString = jobDescriptor
+      .key
+      .call
+      .task
+      .instantiateCommand(
+        jobDescriptor.inputDeclarations,
+        backendEngineFunctions,
+        tesJobPaths.toContainerPath
+      )
+      // TODO remove this .get and handle error appropriately
+      .get
+
+    jobLogger.info(s"`\n$commandString`")
+    writeScript(commandString)
+
     val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes)
+
     TesTaskMessage(
       Some(task.name),
       Some(task.description),

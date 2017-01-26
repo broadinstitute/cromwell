@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-import better.files.File
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
@@ -36,44 +35,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     val workflowName = jobDescriptor.workflowDescriptor.rootWorkflow.unqualifiedName
     workflowDescriptor.workflowOptions.getOrElse("project", workflowName)
   }
-
-  val commandString = jobDescriptor
-    .key
-    .call
-    .task
-    .instantiateCommand(
-      jobDescriptor.inputDeclarations,
-      callEngineFunction,
-      tesPaths.toContainerPath
-    )
-    // TODO remove this .get and handle error appropriately
-    .get
-
-  /**
-    * Writes the script file containing the user's command from the WDL as well
-    * as some extra shell code for monitoring jobs
-    */
-  def writeScript(instantiatedCommand: String) = {
-    val cwd = tesPaths.containerWorkingDir
-    val rcPath = tesPaths.containerExec("rc")
-    val rcTmpPath = s"$rcPath.tmp"
-
-    val scriptBody =
-      s"""|#!/bin/sh
-          |umask 0000
-          |(
-          |cd $cwd
-          |INSTANTIATED_COMMAND
-          |)
-          |echo $$? > $rcTmpPath
-          |mv $rcTmpPath $rcPath
-          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
-
-    File(tesPaths.script).write(scriptBody)
-  }
-
-  jobLogger.info(s"`\n$commandString`")
-  writeScript(commandString)
 
   private val commandScript = TaskParameter(
     "commandScript",

@@ -20,7 +20,6 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.PathImplicits._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
-import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.util.SampleWdl
 import org.scalatest._

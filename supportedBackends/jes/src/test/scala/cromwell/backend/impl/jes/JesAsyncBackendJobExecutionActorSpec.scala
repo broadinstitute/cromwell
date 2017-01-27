@@ -20,7 +20,6 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.PathImplicits._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
-import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -39,10 +38,7 @@ import scala.util.{Success, Try}
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
 
-  lazy val mockPathBuilder: GcsPathBuilder = {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
-    GcsPathBuilderFactory(NoAuthMode).withOptions(mock[WorkflowOptions])
-  }
+  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(WorkflowOptions.empty)
 
   import JesTestConfig._
 

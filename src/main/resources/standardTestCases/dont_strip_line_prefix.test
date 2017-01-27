@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: wf_prefix
   status: Succeeded
-  "outputs.prefix_out": "1"
+  "outputs.wf_prefix.prefix_out": "1"
 }

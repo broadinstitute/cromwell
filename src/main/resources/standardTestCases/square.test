@@ -8,6 +8,6 @@ files {
 metadata {
   workflowName: square
   status: Succeeded
-  "outputs.doubled.0": 1
-  "outputs.doubled.1": 4
+  "outputs.square.doubled.0": 1
+  "outputs.square.doubled.1": 4
 }

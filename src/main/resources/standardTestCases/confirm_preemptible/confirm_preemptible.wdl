@@ -17,7 +17,7 @@ task check_preemption {
 }
 
 
-workflow w {
+workflow confirm_preemptible {
   call check_preemption as yes { input: set_preemptible = 1 }
   call check_preemption as no  { input: set_preemptible = 0 }
 

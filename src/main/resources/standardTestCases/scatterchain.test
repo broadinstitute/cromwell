@@ -6,14 +6,14 @@ files {
 }
 
 metadata {
-  "outputs.incremented.0": 3
-  "outputs.incremented.1": 4
-  "outputs.incremented.2": 5
-  "outputs.incremented.3": 6
-  "outputs.incremented.4": 7
-  "outputs.summed.0": 5
-  "outputs.summed.1": 7
-  "outputs.summed.2": 9
-  "outputs.summed.3": 11
-  "outputs.summed.4": 13
+  "outputs.scatter_chain.incremented.0": 3
+  "outputs.scatter_chain.incremented.1": 4
+  "outputs.scatter_chain.incremented.2": 5
+  "outputs.scatter_chain.incremented.3": 6
+  "outputs.scatter_chain.incremented.4": 7
+  "outputs.scatter_chain.summed.0": 5
+  "outputs.scatter_chain.summed.1": 7
+  "outputs.scatter_chain.summed.2": 9
+  "outputs.scatter_chain.summed.3": 11
+  "outputs.scatter_chain.summed.4": 13
 }

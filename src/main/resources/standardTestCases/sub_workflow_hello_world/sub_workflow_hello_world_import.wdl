@@ -15,7 +15,7 @@ task hello {
 workflow wf_hello {
   String wf_hello_input = "world"
   
-  call hello {input: addressee = wf_hello_input }
+  call hello { input: addressee = wf_hello_input }
   
   output {
     String salutation = hello.salutation

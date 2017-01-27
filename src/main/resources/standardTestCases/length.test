@@ -8,7 +8,7 @@ files {
 metadata {
   workflowName: length
   status: Succeeded
-  "outputs.someStringsLength": 3
-  "outputs.someIntsLength": 3
-  "outputs.emptyLength": 0
+  "outputs.length.someStringsLength": 3
+  "outputs.length.someIntsLength": 3
+  "outputs.length.emptyLength": 0
 }

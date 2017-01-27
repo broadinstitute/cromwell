@@ -15,8 +15,8 @@ metadata {
   "outputs.sub_workflow_interactions.hello.count": 4
   "outputs.sub_workflow_interactions.hello.salutation": "Hello Sub Workflow World!"
   
-  "outputs.out2": "Hello I'm an output!"
-  "outputs.out4.0": 0
-  "outputs.out4.1": 2
-  "outputs.out4.2": 4
+  "outputs.sub_workflow_interactions.out2": "Hello I'm an output!"
+  "outputs.sub_workflow_interactions.out4.0": 0
+  "outputs.sub_workflow_interactions.out4.1": 2
+  "outputs.sub_workflow_interactions.out4.2": 4
 }

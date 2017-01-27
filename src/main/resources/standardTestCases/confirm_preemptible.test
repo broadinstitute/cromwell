@@ -8,6 +8,6 @@ files {
 
 metadata {
   status: Succeeded
-  "outputs.should_be_true": "TRUE"
-  "outputs.should_be_false": "FALSE"
+  "outputs.confirm_preemptible.should_be_true": "TRUE"
+  "outputs.confirm_preemptible.should_be_false": "FALSE"
 }

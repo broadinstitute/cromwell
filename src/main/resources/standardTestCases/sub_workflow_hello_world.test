@@ -12,5 +12,5 @@ files {
 metadata {
   workflowName: main_workflow
   status: Succeeded
-  "outputs.main_output": "Hello sub world!"
+  "outputs.main_workflow.main_output": "Hello sub world!"
 }

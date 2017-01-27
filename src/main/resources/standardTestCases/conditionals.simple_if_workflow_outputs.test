@@ -8,6 +8,6 @@ files {
 
 metadata {
   workflowName: simple_if
-  "outputs.rmt": "done"
-  "outputs.rmf": "null"
+  "outputs.simple_if.rmt": "done"
+  "outputs.simple_if.rmf": "null"
 }

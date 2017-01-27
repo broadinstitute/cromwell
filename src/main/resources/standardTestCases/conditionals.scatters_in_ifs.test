@@ -8,8 +8,8 @@ files {
 
 metadata {
   workflowName: scatters_in_ifs
-  "outputs.inTruth.0": "0"
-  "outputs.inTruth.1": "1"
-  "outputs.inTruth.2": "2"
-  "outputs.inLies": "null"
+  "outputs.scatters_in_ifs.inTruth.0": "0"
+  "outputs.scatters_in_ifs.inTruth.1": "1"
+  "outputs.scatters_in_ifs.inTruth.2": "2"
+  "outputs.scatters_in_ifs.inLies": "null"
 }

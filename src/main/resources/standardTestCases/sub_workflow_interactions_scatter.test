@@ -13,9 +13,9 @@ metadata {
   workflowName: sub_workflow_interactions_scatter
   status: Succeeded
   
-  "outputs.out.0": "Hello 0!"
-  "outputs.out.1": "Hello 2!"
-  "outputs.out3.0": "Hello I'm an output!"
-  "outputs.out3.1": "Hello I'm an output!"
-  "outputs.out6": "0\n2\n0\n2\n4"
+  "outputs.sub_workflow_interactions_scatter.out.0": "Hello 0!"
+  "outputs.sub_workflow_interactions_scatter.out.1": "Hello 2!"
+  "outputs.sub_workflow_interactions_scatter.out3.0": "Hello I'm an output!"
+  "outputs.sub_workflow_interactions_scatter.out3.1": "Hello I'm an output!"
+  "outputs.sub_workflow_interactions_scatter.out6": "0\n2\n0\n2\n4"
 }

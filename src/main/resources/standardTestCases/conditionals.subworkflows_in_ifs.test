@@ -11,8 +11,8 @@ files {
 
 metadata {
   workflowName: subworkflows_in_ifs
-  "outputs.tjs.0": "1"
-  "outputs.tjs.1": "2"
-  "outputs.tjs.2": "3"
-  "outputs.fjs": "null"
+  "outputs.subworkflows_in_ifs.tjs.0": "1"
+  "outputs.subworkflows_in_ifs.tjs.1": "2"
+  "outputs.subworkflows_in_ifs.tjs.2": "3"
+  "outputs.subworkflows_in_ifs.fjs": "null"
 }

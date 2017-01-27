@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: prefix
   status: Succeeded
-  "outputs.out": "-e k1=v1 -e k2=v2 -e k3=v3"
+  "outputs.prefix.out": "-e k1=v1 -e k2=v2 -e k3=v3"
 }

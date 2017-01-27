@@ -1,4 +1,5 @@
 {
-    "default.hello.person": "alice"
+    "optional_parameter.select_first_with_optionals.wfSupplied": "wfSupplied",
+    "optional_parameter.interpolation_additions.wfSupplied": "wfSupplied",
+    "optional_parameter.default_interpolations.wfSupplied": "wfSupplied"
 }
-

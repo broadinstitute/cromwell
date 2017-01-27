@@ -180,7 +180,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
 
   private def formatWorkflowOutputFqn(fqn: String) = fqn.replaceFirst("[a-zA-Z0-9]+\\.", "")
 
-  private def formatDeclaration(decl: Declaration, level: Int): String = {
+  private def formatDeclaration(decl: DeclarationInterface, level: Int): String = {
     val expression = decl.expression.map(e => s" = ${e.toWdlString}").getOrElse("")
     indent(s"${highlighter.wdlType(decl.wdlType)} ${highlighter.variable(decl.unqualifiedName)}$expression", level)
   }
@@ -188,6 +188,7 @@ class SyntaxFormatter(highlighter: SyntaxHighlighter = NullSyntaxHighlighter) {
   private def formatScope(scope: Scope, level: Int): String = scope match {
     case c: TaskCall => formatCall(c, level)
     case s: Scatter => formatScatter(s, level)
+    case d: DeclarationInterface => formatDeclaration(d, level)
   }
 
   private def formatCall(call: TaskCall, level: Int): String = {

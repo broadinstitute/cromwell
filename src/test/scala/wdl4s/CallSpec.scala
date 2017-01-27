@@ -30,7 +30,7 @@ class CallSpec extends WordSpec with Matchers {
     
     val shardMap = Map(namespace.scatters.head -> 2)
 
-    val declarations = callV.evaluateTaskInputs(inputs, NoFunctions, outputResolver, shardMap)
+    val declarations = callV.evaluateTaskInputs(inputs, NoFunctions, outputResolver, shardMap).get
     declarations.size shouldBe 11
     declarations.find(_._1.unqualifiedName == "a").get._2 shouldBe WdlString("a")
     declarations.find(_._1.unqualifiedName == "b").get._2 shouldBe WdlString("b")
@@ -62,7 +62,7 @@ class CallSpec extends WordSpec with Matchers {
     val namespace = WdlNamespace.loadUsingSource(wdl, None, None)
     val callT = namespace.calls.find(_.unqualifiedName == "t").get
     val exception = the[ValidationException] thrownBy {
-      callT.evaluateTaskInputs(Map.empty, NoFunctions)
+      callT.evaluateTaskInputs(Map.empty, NoFunctions).get
     }
     exception.getMessage shouldBe "Input evaluation for Call w.t failed.:\ns1:\n\tCould not find s1 in input section of call w.t\ns2:\n\tCould not find s2 in input section of call w.t"
   }
@@ -154,7 +154,7 @@ class CallSpec extends WordSpec with Matchers {
 
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty)
     val exception = intercept[ValidationException] {
-        ns.workflow.findCallByName("hello2").get.evaluateTaskInputs(Map("wf_hello.wf_hello_input" -> WdlFile("/do/not/exist")), functionsWithRead)
+        ns.workflow.findCallByName("hello2").get.evaluateTaskInputs(Map("wf_hello.wf_hello_input" -> WdlFile("/do/not/exist")), functionsWithRead).get
     }
     exception.getMessage shouldBe "Input evaluation for Call wf_hello.hello2 failed.:\naddressee:\n\tFile not found /do/not/exist"
 

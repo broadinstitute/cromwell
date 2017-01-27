@@ -10,72 +10,72 @@ case class WdlOptionalValue(innerType: WdlType, value: Option[WdlValue]) extends
 
   override def add(rhs: WdlValue): Try[WdlValue] = value match {
     case Some(lhs) => lhs.add(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("+")
   }
 
   override def subtract(rhs: WdlValue): Try[WdlValue] = value match {
     case Some(lhs) => lhs.subtract(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("-")
   }
   
   override def multiply(rhs: WdlValue): Try[WdlValue] = value match {
     case Some(lhs) => lhs.multiply(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("*")
   }
 
   override def divide(rhs: WdlValue): Try[WdlValue] = value match {
     case Some(lhs) => lhs.divide(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("/")
   }
   
   override def mod(rhs: WdlValue): Try[WdlValue] = value match {
     case Some(lhs) => lhs.mod(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("%")
   }
 
   override def notEquals(rhs: WdlValue): Try[WdlBoolean] = value match {
     case Some(lhs) => lhs.notEquals(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("!=")
   }
 
   override def or(rhs: WdlValue): Try[WdlBoolean] = value match {
     case Some(lhs) => lhs.or(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("||")
   }
 
   override def and(rhs: WdlValue): Try[WdlBoolean] = value match {
     case Some(lhs) => lhs.and(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("&&")
   }
 
   override def not: Try[WdlValue] = value match {
     case Some(lhs) => lhs.not
-    case None => emptyValue(this)
+    case None => emptyValueFailure("!")
   }
 
   override def unaryPlus: Try[WdlValue] = value match {
     case Some(lhs) => lhs.unaryPlus
-    case None => emptyValue(this)
+    case None => emptyValueFailure("+")
   }
 
   override def unaryMinus: Try[WdlValue] = value match {
     case Some(lhs) => lhs.unaryMinus
-    case None => emptyValue(this)
+    case None => emptyValueFailure("-")
   }
 
   override def equals(rhs: WdlValue): Try[WdlBoolean] = value match {
     case Some(lhs) => lhs.equals(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("==")
   }
 
   override def lessThan(rhs: WdlValue): Try[WdlBoolean] = value match {
     case Some(lhs) => lhs.lessThan(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure("<")
   }
 
   override def greaterThan(rhs: WdlValue): Try[WdlBoolean] = value match {
     case Some(lhs) => lhs.greaterThan(rhs)
-    case None => emptyValue(this)
+    case None => emptyValueFailure(">")
   }
 }
 

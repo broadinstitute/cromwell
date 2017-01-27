@@ -1,9 +1,15 @@
 package wdl4s
 
+import cats.syntax.validated._
 import better.files._
+import cats.data.Validated._
+import cats.syntax.cartesian._
+import lenthall.validation.ErrorOr._
+import wdl4s.expression.WdlStandardLibraryFunctionsType
+import wdl4s.types._
 import wdl4s.values.WdlString
 
-import scala.util.Failure
+import scala.util.{Failure, Success, Try}
 
 class NamespaceSpec extends WdlTest {
   val threeStepWdl = "src/test/cases/three_step/test.wdl"
@@ -19,6 +25,17 @@ class NamespaceSpec extends WdlTest {
 
     "fail to coerceRawInputs if a required input is missing" in {
       namespace.coerceRawInputs(Map.empty[FullyQualifiedName, Any]) shouldBe a[Failure[_]]
+    }
+  }
+
+  "WdlNamespace" should {
+    "enforce optional output types" in {
+      val namespace = Try(loadWdlFile(File("src/test/cases/type_checks.wdl")))
+
+      namespace match {
+        case Failure(f) => f.getMessage should startWith("ERROR: oopsNotOptionalArray is declared as a Array[Int] but the expression evaluates to a Array[Int?]")
+        case Success(_) => fail("Should have failed to load namespace")
+      }
     }
   }
 }

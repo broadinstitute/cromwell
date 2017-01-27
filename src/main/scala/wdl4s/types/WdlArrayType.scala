@@ -21,6 +21,7 @@ sealed trait WdlArrayType extends WdlType {
   protected def coercionMaker(allowEmpty: Boolean): PartialFunction[Any, WdlValue] = {
     case s: Seq[Any] if allowEmpty || s.nonEmpty => coerceIterable(s)
     case js: JsArray if allowEmpty || js.elements.nonEmpty => coerceIterable(js.elements)
+    case WdlArray(WdlMaybeEmptyArrayType.EmptyArrayType, _) => WdlArray(WdlArrayType(memberType), Seq.empty)
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType == WdlStringType && memberType == WdlFileType =>
       WdlArray(WdlArrayType(WdlFileType), wdlArray.value.map(str => WdlFile(str.asInstanceOf[WdlString].value)).toList)
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType == memberType => wdlArray
@@ -40,7 +41,7 @@ sealed trait WdlArrayType extends WdlType {
   }
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {
-    case WdlArrayType(otherMemberType) => otherMemberType == WdlAnyType || memberType.isCoerceableFrom(otherMemberType)
+    case WdlArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WdlNothingType
     case _ => false
   }
 
@@ -53,6 +54,10 @@ case class WdlMaybeEmptyArrayType(memberType: WdlType) extends WdlArrayType {
   override protected def coercion = coercionMaker(allowEmpty = true)
 }
 
+object WdlMaybeEmptyArrayType {
+  val EmptyArrayType = WdlMaybeEmptyArrayType(WdlNothingType)
+}
+
 case class WdlNonEmptyArrayType(memberType: WdlType) extends WdlArrayType {
   override val toWdlString: String = s"Array[${memberType.toWdlString}]+"
   override val guaranteedNonEmpty = true
@@ -61,7 +66,9 @@ case class WdlNonEmptyArrayType(memberType: WdlType) extends WdlArrayType {
 
 object WdlArrayType {
 
-  def apply(memberType: WdlType, guaranteedNonEmpty: Boolean = false): WdlArrayType = if (guaranteedNonEmpty) WdlNonEmptyArrayType(memberType) else WdlMaybeEmptyArrayType(memberType)
+  def apply(memberType: WdlType, guaranteedNonEmpty: Boolean = false): WdlArrayType =
+    if (guaranteedNonEmpty) WdlNonEmptyArrayType(memberType)
+    else WdlMaybeEmptyArrayType(memberType)
   def unapply(wdlType: WdlType): Option[WdlType] = {
     wdlType match {
       case arrayType: WdlArrayType => Option(arrayType.memberType)

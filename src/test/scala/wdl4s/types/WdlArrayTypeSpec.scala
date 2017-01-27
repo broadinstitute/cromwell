@@ -4,7 +4,7 @@ import wdl4s.values.{WdlArray, WdlInteger, WdlOptionalValue, WdlString, WdlValue
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsArray, JsNumber}
-import wdl4s.WdlExpression
+import wdl4s.{NoLookup, WdlExpression}
 import wdl4s.expression.NoFunctions
 
 import scala.util.{Failure, Success}
@@ -120,13 +120,19 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
       val desiredArrayType = WdlArrayType(desiredMemberType)
       WdlExpression.fromString("[]").evaluate(noLookup, NoFunctions) match {
         case Success(emptyArray @ WdlArray(actualArrayType @ WdlArrayType(actualMemberType), actualArrayValue)) =>
-          actualMemberType should be(WdlAnyType)
+          actualMemberType should be(WdlNothingType)
           actualArrayValue should be(Seq.empty)
           desiredArrayType.isCoerceableFrom(actualArrayType) should be(true)
           desiredArrayType.coerceRawValue(emptyArray) should be(Success(WdlArray(desiredArrayType, Seq.empty)))
         case Failure(f) => fail("Unable to create an empty array.", f)
       }
+    }
 
+    val arrayType = WdlArrayType(desiredMemberType)
+    val optionalArrayType = WdlArrayType(WdlOptionalType(desiredMemberType))
+    it should s"be able to coerce $arrayType to $optionalArrayType but not vice versa" in {
+      arrayType.isCoerceableFrom(optionalArrayType) should be(false)
+      optionalArrayType.isCoerceableFrom(arrayType) should be(true)
     }
   }
 }

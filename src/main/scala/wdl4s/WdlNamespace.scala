@@ -434,7 +434,8 @@ object WdlNamespace {
   }
 
   def lookupType(from: Scope)(n: String): WdlType = {
-    from.resolveVariable(n) match {
+    val resolved = from.resolveVariable(n)
+    resolved match {
       case Some(d: DeclarationInterface) => d.relativeWdlType(from)
       case Some(c: Call) => WdlCallOutputsObjectType(c)
       case Some(s: Scatter) => s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType, Option(from)) match {
@@ -449,17 +450,19 @@ object WdlNamespace {
   def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     decl.expression flatMap { expr =>
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
-        case Success(wdlType) if !decl.wdlType.isCoerceableFrom(wdlType) =>
-          Option(new SyntaxError(wdlSyntaxErrorFormatter.taskOutputExpressionTypeDoesNotMatchDeclaredType(
-            declarationName(decl.ast), decl.wdlType, wdlType
-          )))
         case Success(wdlType) =>
-          expr.evaluate(NoLookup, NoFunctions) match {
-            case Success(value) if decl.wdlType.coerceRawValue(value).isFailure =>
-              Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(
-                declarationName(decl.ast), decl.wdlType
-              )))
-            case _ => None
+          if (!decl.wdlType.isCoerceableFrom(wdlType)) {
+            Option(new SyntaxError(wdlSyntaxErrorFormatter.taskOutputExpressionTypeDoesNotMatchDeclaredType(
+              declarationName(decl.ast), decl.wdlType, wdlType
+            )))
+          } else {
+            expr.evaluate(NoLookup, NoFunctions) match {
+              case Success(value) if decl.wdlType.coerceRawValue(value).isFailure =>
+                Option(new SyntaxError(wdlSyntaxErrorFormatter.declarationExpressionNotCoerceableToTargetType(
+                  declarationName(decl.ast), decl.wdlType
+                )))
+              case _ => None
+            }
           }
         case Failure(ex) => None
       }

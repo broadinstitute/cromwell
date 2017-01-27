@@ -24,14 +24,14 @@ sealed trait WdlFile extends WdlPrimitive {
 
   override def add(rhs: WdlValue): Try[WdlValue] = rhs match {
     case r: WdlString => Success(WdlFile(value + r.value))
-    case r: WdlOptionalValue => evaluateIfDefined(r, add)
+    case r: WdlOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WdlValue): Try[WdlBoolean] = rhs match {
     case r: WdlFile => Success(WdlBoolean(value.equals(r.value) && isGlob.equals(r.isGlob)))
     case r: WdlString => Success(WdlBoolean(value.toString.equals(r.value.toString) && !isGlob))
-    case r: WdlOptionalValue => evaluateIfDefined(r, equals)
+    case r: WdlOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
 

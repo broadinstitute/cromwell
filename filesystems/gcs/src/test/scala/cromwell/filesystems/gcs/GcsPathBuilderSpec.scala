@@ -28,4 +28,17 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers {
     path.get.getFileSystem.provider() shouldBe a[RetryableFileSystemProviderProxy[_]]
   }
 
+  it should "use google project credentials when provided in the workflow options" in {
+
+    val wfOptionsWithProject = WorkflowOptions.fromMap(Map("google_project" -> "my_project")).get
+
+    val gcsPathBuilderWithProjectInfo = new GcsPathBuilder(
+      GoogleAuthMode.NoAuthMode,
+      RetryParams.defaultInstance(),
+      CloudStorageConfiguration.DEFAULT,
+      wfOptionsWithProject
+    )
+
+    gcsPathBuilderWithProjectInfo.getProjectId shouldBe "my_project"
+  }
 }

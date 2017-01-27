@@ -30,7 +30,7 @@ sealed trait TesRunStatus {
   def isTerminal: Boolean
 }
 case object Running extends TesRunStatus {
-  def isTerminal = true
+  def isTerminal = false
 }
 case object Complete extends TesRunStatus {
   def isTerminal = true

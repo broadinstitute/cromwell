@@ -54,7 +54,9 @@ task default_interpolations {
 		echo ${default="HAPPY_BIRTHDAY_RUCHI" unsupplied}
 		sleep 2
 	}
-
+	runtime {
+        docker: "ubuntu:latest"
+    }
 	output {
 		Array[String] out = read_lines(stdout())
 	}

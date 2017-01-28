@@ -49,7 +49,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           key.attempt,
           jobSuccessful = false,
           returnCode,
-          Option(throwable.getMessage.toClob),
+          throwable.getMessage.toClob,
           Option(retryable))
         JobStoreJoin(entry, Seq.empty)
     }
@@ -64,8 +64,9 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
             val simpletons = simpletonEntries map toSimpleton
             val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
             JobResultSuccess(returnCode, jobOutputs)
-          case JobStoreEntry(_, _, _, _, false, returnCode, Some(exceptionMessage), Some(retryable), _) =>
-            JobResultFailure(returnCode, JobAlreadyFailedInJobStore(jobStoreKey.tag, exceptionMessage.toRawString),
+          case JobStoreEntry(_, _, _, _, false, returnCode, Some(_), Some(retryable), _) =>
+            JobResultFailure(returnCode,
+              JobAlreadyFailedInJobStore(jobStoreKey.tag, entry.exceptionMessage.toRawString),
               retryable)
           case bad =>
             throw new Exception(s"Invalid contents of JobStore table: $bad")

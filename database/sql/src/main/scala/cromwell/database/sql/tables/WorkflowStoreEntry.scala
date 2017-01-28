@@ -5,12 +5,12 @@ import java.sql.{Blob, Clob, Timestamp}
 case class WorkflowStoreEntry
 (
   workflowExecutionUuid: String,
-  workflowDefinition: Clob,
-  workflowInputs: Clob,
-  workflowOptions: Clob,
+  workflowDefinition: Option[Clob],
+  workflowInputs: Option[Clob],
+  workflowOptions: Option[Clob],
   workflowState: String,
   submissionTime: Timestamp,
   importsZip: Option[Blob],
-  customLabels: Clob,
+  customLabels: Option[Clob],
   workflowStoreEntryId: Option[Int] = None
 )

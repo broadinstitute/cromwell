@@ -5,7 +5,7 @@ import java.sql.Clob
 case class JobStoreSimpletonEntry
 (
   simpletonKey: String,
-  simpletonValue: Clob,
+  simpletonValue: Option[Clob],
   wdlType: String,
   jobStoreEntryId: Option[Int] = None,
   jobStoreSimpletonEntryId: Option[Int] = None

@@ -15,13 +15,13 @@ trait WorkflowStoreEntryComponent {
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
 
-    def workflowDefinition = column[Clob]("WORKFLOW_DEFINITION")
+    def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
 
-    def workflowInputs = column[Clob]("WORKFLOW_INPUTS")
+    def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
 
-    def workflowOptions = column[Clob]("WORKFLOW_OPTIONS")
+    def workflowOptions = column[Option[Clob]]("WORKFLOW_OPTIONS")
 
-    def customLabels = column[Clob]("CUSTOM_LABELS")
+    def customLabels = column[Option[Clob]]("CUSTOM_LABELS")
 
     def workflowState = column[String]("WORKFLOW_STATE", O.Length(15))
 

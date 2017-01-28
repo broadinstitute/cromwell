@@ -5,7 +5,7 @@ import java.sql.Clob
 case class CallCachingDetritusEntry
 (
   detritusKey: String,
-  detritusValue: Clob,
+  detritusValue: Option[Clob],
   callCachingEntryId: Option[Int] = None,
   callCachingDetritusEntryId: Option[Int] = None
 )

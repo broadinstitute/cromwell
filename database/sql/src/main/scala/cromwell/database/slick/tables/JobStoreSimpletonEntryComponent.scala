@@ -16,7 +16,7 @@ trait JobStoreSimpletonEntryComponent {
 
     def simpletonKey = column[String]("SIMPLETON_KEY")
 
-    def simpletonValue = column[Clob]("SIMPLETON_VALUE")
+    def simpletonValue = column[Option[Clob]]("SIMPLETON_VALUE")
 
     def wdlType = column[String]("WDL_TYPE")
 

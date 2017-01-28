@@ -18,21 +18,37 @@ object SqlConverters {
     def toSystemTimestamp = Timestamp.valueOf(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault).toLocalDateTime)
   }
 
-  implicit class ClobToRawString(val clob: Clob) extends AnyVal {
-    def toRawString: String = clob.getSubString(1, clob.length.toInt) // yes, it starts at 1
+  implicit class ClobOptionToRawString(val clobOption: Option[Clob]) extends AnyVal {
+    // yes, it starts at 1
+    def toRawStringOption: Option[String] = clobOption.map(clob => clob.getSubString(1, clob.length.toInt))
 
-    def parseSystemTimestamp: Timestamp = OffsetDateTime.parse(toRawString).toSystemTimestamp
+    def toRawString: String = toRawStringOption.getOrElse("")
+
+    def parseSystemTimestampOption: Option[Timestamp] = toRawStringOption map { rawString =>
+      OffsetDateTime.parse(rawString).toSystemTimestamp
+    }
   }
 
-  implicit class StringToClob(val str: String) extends AnyVal {
-    def toClob: Clob = new SerialClob(str.toCharArray)
+  implicit class StringOptionToClobOption(val strOption: Option[String]) extends AnyVal {
+    def toClob: Option[Clob] = strOption.flatMap(_.toClob)
   }
 
-  implicit class BlobToBytes(val blob: Blob) extends AnyVal {
-    def toBytes: Array[Byte] = blob.getBytes(1, blob.length.toInt) // yes, it starts at 1
+  implicit class StringToClobOption(val str: String) extends AnyVal {
+    def toClob: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
   }
 
-  implicit class StringToBlob(val bytes: Array[Byte]) extends AnyVal {
-    def toBlob: Blob = new SerialBlob(bytes)
+  implicit class BlobToBytes(val blobOption: Option[Blob]) extends AnyVal {
+    // yes, it starts at 1
+    def toBytesOption: Option[Array[Byte]] = blobOption.map(blob => blob.getBytes(1, blob.length.toInt))
+
+    def toBytes: Array[Byte] = toBytesOption.getOrElse(Array.empty)
+  }
+
+  implicit class BytesOptionToBlob(val bytesOption: Option[Array[Byte]]) extends AnyVal {
+    def toBlob: Option[Blob] = bytesOption.flatMap(_.toBlob)
+  }
+
+  implicit class BytesToBlob(val bytes: Array[Byte]) extends AnyVal {
+    def toBlob: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
   }
 }

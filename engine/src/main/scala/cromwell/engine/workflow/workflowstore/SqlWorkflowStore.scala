@@ -57,7 +57,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowStoreEntry.workflowInputs.toRawString,
       workflowStoreEntry.workflowOptions.toRawString,
       workflowStoreEntry.customLabels.toRawString,
-      workflowStoreEntry.importsZip.map(_.toBytes)
+      workflowStoreEntry.importsZip.toBytesOption
     )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
@@ -74,7 +74,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       customLabels = workflowSourceFiles.labelsJson.toClob,
       workflowState = WorkflowStoreState.Submitted.toString,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
-      importsZip = workflowSourceFiles.importsZipFileOption.map(_.toBlob)
+      importsZip = workflowSourceFiles.importsZipFileOption.toBlob
     )
   }
 

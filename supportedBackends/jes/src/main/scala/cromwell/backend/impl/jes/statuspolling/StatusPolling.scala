@@ -9,8 +9,8 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
-import cromwell.backend.impl.jes.{Run, RunStatus}
+import cromwell.backend.impl.jes.RunStatus._
+import cromwell.backend.impl.jes.{JesAsyncBackendJobExecutionActor, Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{GoogleJsonException, JesApiException, JesApiQueryFailed, JesStatusPollQuery}
 import cromwell.core.ExecutionEvent
 
@@ -73,6 +73,8 @@ private[statuspolling] object StatusPolling {
         // If there's an error, generate a Failed status. Otherwise, we were successful!
         Option(op.getError) match {
           case None => Success(eventList, machineType, zone, instanceName)
+          case Some(error) if error.getCode == JesAsyncBackendJobExecutionActor.JesPreemption =>
+            Preempted(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
           case Some(error) =>
             Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
         }

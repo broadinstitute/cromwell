@@ -11,11 +11,11 @@ import wdl4s.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctio
 
 
 trait BackendLifecycleActorFactory {
-  
+
   /* ****************************** */
   /*     Workflow Initialization    */
   /* ****************************** */
-  
+
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        ioActor: ActorRef,
                                        calls: Set[TaskCall],
@@ -24,7 +24,7 @@ trait BackendLifecycleActorFactory {
   /* ****************************** */
   /*          Job Execution         */
   /* ****************************** */
-  
+
   def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                              initializationData: Option[BackendInitializationData],
                              serviceRegistryActor: ActorRef,
@@ -36,7 +36,7 @@ trait BackendLifecycleActorFactory {
   /* ****************************** */
   /*      Workflow Finalization     */
   /* ****************************** */
-  
+
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      ioActor: ActorRef,
                                      calls: Set[TaskCall],
@@ -49,7 +49,7 @@ trait BackendLifecycleActorFactory {
   /* ****************************** */
 
   def fileHashingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = None
-  
+
   /**
     * Providing this method to generate Props for a cache hit copying actor is optional.
     * To implement it, add a function:
@@ -64,7 +64,7 @@ trait BackendLifecycleActorFactory {
   /* ****************************** */
   /*              Misc.             */
   /* ****************************** */
-  
+
   def backendSingletonActorProps: Option[Props] = None
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
@@ -80,6 +80,11 @@ trait BackendLifecycleActorFactory {
   }
 
   def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = Set.empty
+
+  /**
+    * A set of KV store keys that this backend requests that the engine lookup before running each job.
+    */
+  def requestedKeyValueStoreKeys: Seq[String] = Seq.empty
 
   /*
    * Returns credentials that can be used to authenticate to a docker registry server

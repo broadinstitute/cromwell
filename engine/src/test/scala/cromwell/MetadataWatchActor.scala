@@ -1,17 +1,18 @@
 package cromwell
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import MetadataWatchActor._
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvPut, KvPutSuccess}
 
 import scala.concurrent.Promise
 
 // This actor stands in for the service registry and watches for metadata messages that match the optional `matcher`.
 // If there is no predicate then use `ignoringBehavior` which ignores all messages.  This is here because there is no
 // WorkflowManagerActor in this test that would spin up a real ServiceRegistry.
-final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) extends Actor {
+final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) extends Actor with ActorLogging {
 
   var unsatisfiedMatchers = matchers
 
@@ -23,6 +24,8 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
         ()
       }
     case PutMetadataAction(_) => // Superfluous message. Ignore
+    // Because the MetadataWatchActor is sometimes used in place of the ServiceRegistryActor, this allows WFs to continue:
+    case kvPut: KvPut => sender ! KvPutSuccess(kvPut)
     case other => throw new Exception(s"Invalid message to MetadataWatchActor: $other")
   }
 }

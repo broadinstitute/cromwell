@@ -6,7 +6,7 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 
-class RestartWorkflowSpec extends CromwellTestKitSpec with WorkflowDescriptorBuilder {
+class RestartWorkflowSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder {
 
   val actorSystem = ActorSystem("RestartWorkflowSpec", ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
   //val localBackend = new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)

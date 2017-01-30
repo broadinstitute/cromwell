@@ -1,8 +1,6 @@
 package cromwell.backend.impl.jes
 
-import cromwell.backend.impl.jes.errors.JesError
 import cromwell.core.ExecutionEvent
-import cromwell.core.path.Path
 
 sealed trait RunStatus {
   import RunStatus._
@@ -25,22 +23,33 @@ object RunStatus {
     def instanceName: Option[String]
   }
 
-  case class Success(eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String]) extends TerminalRunStatus {
+  sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
+    def errorMessage: Option[String]
+    def errorCode: Int
+  }
+
+  case class Success(eventList: Seq[ExecutionEvent],
+                     machineType: Option[String],
+                     zone: Option[String],
+                     instanceName: Option[String]) extends TerminalRunStatus {
     override def toString = "Success"
   }
 
-  final case class Failed(errorCode: Int, errorMessage: Option[String], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String])
-    extends TerminalRunStatus {
-    
-    private def unknownError(jobTag: String) = {
-      new RuntimeException(s"Task $jobTag failed: error code $errorCode. Message: $errorMessage")
-    }
-    
-    // Don't want to include errorMessage or code in the snappy status toString:
+  final case class Failed(errorCode: Int,
+                          errorMessage: Option[String],
+                          eventList: Seq[ExecutionEvent],
+                          machineType: Option[String],
+                          zone: Option[String],
+                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
-    
-    def toFailure(jobTag: String, stderrPath: Option[Path]): Exception = {
-      JesError.fromFailedStatus(this, jobTag, stderrPath) getOrElse unknownError(jobTag)
-    }
+  }
+
+  final case class Preempted(errorCode: Int,
+                          errorMessage: Option[String],
+                          eventList: Seq[ExecutionEvent],
+                          machineType: Option[String],
+                          zone: Option[String],
+                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
+    override def toString = "Preempted"
   }
 }

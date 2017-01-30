@@ -1,11 +1,11 @@
 package cromwell.engine
 
-import cromwell.CromwellTestKitSpec
+import cromwell.CromwellTestKitWordSpec
 import cromwell.engine.workflow.WorkflowDescriptorBuilder
 import cromwell.util.SampleWdl
 
 
-class WorkflowManagerActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuilder {
+class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder {
   override implicit val actorSystem = system
 
   "A WorkflowManagerActor" should {

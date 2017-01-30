@@ -34,8 +34,6 @@ object AsyncBackendJobExecutionActor {
 
 trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
-  def retryable: Boolean
-
   // The scala package object (scala/package.scala) contains a neat list of runtime errors that are always going to be fatal.
   // We also consider any Error as fatal, and include the CromwellFatalExceptionMarker so we can mark our own fatal exceptions.
   def isFatal(throwable: Throwable): Boolean = throwable match {
@@ -71,12 +69,11 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   }
 
   private def failAndStop(t: Throwable) = {
-    val responseBuilder = if (retryable) JobFailedRetryableResponse else JobFailedNonRetryableResponse
-    completionPromise.success(responseBuilder.apply(jobDescriptor.key, t, None))
+    completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, t, None))
     context.stop(self)
   }
 
-  def receive: Receive = {
+  override def receive: Receive = {
     case mode: ExecutionMode => robustExecuteOrRecover(mode)
     case IssuePollRequest(handle) => robustPoll(handle)
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)

@@ -1,37 +1,45 @@
 package cromwell.services.keyvalue
 
 import akka.actor.{Actor, ActorRef}
-import com.typesafe.config.Config
-import cromwell.core.WorkflowId
+import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
-
 object KeyValueServiceActor {
-  sealed  trait KvMessage
 
-  sealed trait KvAction extends KvMessage with ServiceRegistryMessage {
-    def serviceName = "KeyValue"
+  final case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
+  object KvJobKey {
+    def apply(jobKey: JobKey): KvJobKey = KvJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)
   }
-  case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
-  case class ScopedKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)
-  case class KvPut(pair: KvPair) extends KvAction
-  case class KvGet(key: ScopedKey) extends KvAction
+
+  final case class ScopedKey(workflowId: WorkflowId, jobKey: KvJobKey, key: String)
+
+  sealed trait KvMessage {
+    def key: ScopedKey
+  }
+  sealed trait KvMessageWithAction extends KvMessage {
+    val action: KvAction
+    def key = action.key
+  }
+
+  sealed trait KvAction extends KvMessage with ServiceRegistryMessage { override val serviceName = "KeyValue" }
+
+  final case class KvPut(pair: KvPair) extends KvAction { override def key = pair.key }
+  final case class KvGet(key: ScopedKey) extends KvAction
 
   sealed trait KvResponse extends KvMessage
-  case class KvPair(key: ScopedKey, value: Option[String]) extends KvResponse
-  case class KvFailure(action: KvAction, failure: Throwable) extends KvResponse
-  case class KvKeyLookupFailed(action: KvGet) extends KvResponse
-  case class KvPutSuccess(action: KvPut) extends KvResponse
+
+  final case class KvPair(key: ScopedKey, value: Option[String]) extends KvResponse
+  final case class KvFailure(action: KvAction, failure: Throwable) extends KvResponse with KvMessageWithAction
+  final case class KvKeyLookupFailed(action: KvGet) extends KvResponse with KvMessageWithAction
+  final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
 }
 
 trait KeyValueServiceActor extends Actor {
   implicit val ec: ExecutionContextExecutor
-  val serviceConfig: Config
-  val globalConfig: Config
 
   def receive = {
     case action: KvGet => respond(sender(), action, doGet(action))
@@ -39,7 +47,6 @@ trait KeyValueServiceActor extends Actor {
   }
 
   def doPut(put: KvPut): Future[KvResponse]
-
   def doGet(get: KvGet): Future[KvResponse]
 
   private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Unit = {

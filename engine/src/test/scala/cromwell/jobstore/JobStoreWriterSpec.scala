@@ -1,7 +1,7 @@
 package cromwell.jobstore
 
 import akka.testkit.TestFSMRef
-import cromwell.CromwellTestKitSpec
+import cromwell.CromwellTestKitWordSpec
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
@@ -11,7 +11,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 
-class JobStoreWriterSpec extends CromwellTestKitSpec with Matchers with BeforeAndAfter {
+class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter {
   
   var database: WriteCountingJobStore = _
   var jobStoreWriter: TestFSMRef[JobStoreWriterState, JobStoreWriterData, JobStoreWriterActor] = _

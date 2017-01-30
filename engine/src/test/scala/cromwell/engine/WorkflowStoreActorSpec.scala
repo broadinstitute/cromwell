@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import cats.data.NonEmptyList
-import cromwell.CromwellTestKitSpec
+import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
@@ -17,7 +17,7 @@ import org.scalatest.Matchers
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class WorkflowStoreActorSpec extends CromwellTestKitSpec with Matchers {
+class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources()
 
   /**

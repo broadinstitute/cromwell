@@ -21,7 +21,7 @@ import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
 
-class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
+class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
   override implicit val actorSystem = system
 
   val mockServiceRegistryActor = TestActorRef(new Actor {
@@ -40,11 +40,13 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
   val supervisorProbe = TestProbe()
   val deathwatch = TestProbe()
   val finalizationProbe = TestProbe()
-  val copyWorkflowLogsProbe = TestProbe()
+  var copyWorkflowLogsProbe: TestProbe = _
   val AwaitAlmostNothing = 100.milliseconds
 
   before {
     currentWorkflowId = WorkflowId.randomId()
+
+    copyWorkflowLogsProbe = TestProbe()
   }
 
   private def createWorkflowActor(state: WorkflowActorState) = {
@@ -157,9 +159,12 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
     "copy workflow logs in the event of MaterializeWorkflowDescriptorFailureResponse" in {
       val actor = createWorkflowActor(MaterializingWorkflowDescriptorState)
       deathwatch watch actor
+
+      copyWorkflowLogsProbe.expectNoMsg(AwaitAlmostNothing)
       actor ! MaterializeWorkflowDescriptorFailureResponse(new Exception("Intentionally failing workflow materialization to test log copying"))
-      finalizationProbe.expectNoMsg(AwaitAlmostNothing)
       copyWorkflowLogsProbe.expectMsg(CopyWorkflowLogsActor.Copy(currentWorkflowId, mockDir))
+
+      finalizationProbe.expectNoMsg(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
   }

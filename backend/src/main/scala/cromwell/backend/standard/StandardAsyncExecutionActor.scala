@@ -657,7 +657,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     } catch {
       case exception: Exception if isFatal(exception) =>
         jobLogger.warn("Caught fatal exception processing job result", exception)
-        // Return the original handle to try again.
         FailedNonRetryableExecutionHandle(exception)
       case exception: Exception =>
         jobLogger.warn("Caught exception processing job result, retrying", exception)

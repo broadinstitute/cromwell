@@ -10,6 +10,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
+import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
@@ -180,6 +181,21 @@ object CromwellTestKitSpec {
     * the actual value was.
     */
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
+
+  def replaceVariables(wdlValue: WdlValue, workflowId: WorkflowId): WdlValue = {
+    wdlValue match {
+      case WdlString(value) => WdlString(replaceVariables(value, workflowId))
+      case _ => wdlValue
+    }
+  }
+
+  def replaceVariables(value: String, workflowId: WorkflowId): String = {
+    val variables = Map("PWD" -> Cmds.pwd, "WORKFLOW_ID" -> workflowId)
+    variables.foldLeft(value) {
+      case (result, (variableName, variableValue)) => result.replace(s"[$variableName]", s"$variableValue")
+    }
+  }
+
   lazy val DefaultConfig = ConfigFactory.load
   lazy val DefaultLocalBackendConfig = ConfigFactory.parseString(
     """
@@ -363,7 +379,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
     expectedOutputs foreach { case (outputFqn, expectedValue) =>
       val actualValue = outputs.getOrElse(outputFqn, throw OutputNotFoundException(outputFqn, actualOutputNames))
-      if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
+      if (expectedValue != AnyValueIsFine) actualValue shouldEqual replaceVariables(expectedValue, workflowId)
     }
     if (!allowOtherOutputs) {
       outputs foreach { case (actualFqn, actualValue) =>

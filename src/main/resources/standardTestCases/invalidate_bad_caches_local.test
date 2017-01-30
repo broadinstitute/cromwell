@@ -1,0 +1,15 @@
+name: invalidate_bad_caches_local
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files {
+  wdl: invalidate_bad_caches/invalidate_bad_caches.wdl
+  inputs: invalidate_bad_caches/local.inputs
+}
+
+metadata {
+    "calls.invalidate_bad_caches.make_file.Call caching read result": "Cache Miss"
+    "calls.invalidate_bad_caches.delete_file_local.Call caching read result": "Cache Miss"
+    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.Call caching read result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_file:-1"
+}

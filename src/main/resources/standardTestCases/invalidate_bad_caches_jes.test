@@ -1,0 +1,14 @@
+name: invalidate_bad_caches_jes
+testFormat: workflowsuccess
+backends: [Jes, Local]
+
+files {
+  wdl: invalidate_bad_caches/invalidate_bad_caches.wdl
+  inputs: invalidate_bad_caches/jes.inputs
+}
+
+metadata {
+    "calls.invalidate_bad_caches.make_file.Call caching read result": "Cache Miss"
+    "calls.invalidate_bad_caches.delete_file_in_gcs.Call caching read result": "Cache Miss"
+    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.Call caching read result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_file:-1"
+}

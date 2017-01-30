@@ -13,14 +13,14 @@ import configs.syntax._
 import scala.util.{Failure, Success, Try}
 
 sealed abstract class Workflow {
-  def name: String
+  def testName: String
   def data: WorkflowData
   def backends: List[String]
 }
 
 object Workflow {
-  final case class WorkflowWithMetadata(name: String, data: WorkflowData, metadata: WorkflowMetadata, backends: List[String]) extends Workflow
-  final case class WorkflowWithoutMetadata(name: String, data: WorkflowData, backends: List[String]) extends Workflow
+  final case class WorkflowWithMetadata(testName: String, data: WorkflowData, metadata: WorkflowMetadata, backends: List[String]) extends Workflow
+  final case class WorkflowWithoutMetadata(testName: String, data: WorkflowData, backends: List[String]) extends Workflow
 
   def fromPath(path: Path): ErrorOr[Workflow] = {
     Try(ConfigFactory.parseFile(path.toFile)) match {

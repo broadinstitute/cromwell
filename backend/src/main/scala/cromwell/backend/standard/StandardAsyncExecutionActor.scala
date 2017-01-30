@@ -1,10 +1,7 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
@@ -12,7 +9,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
-import cromwell.core.path.PathFactory.pathPlusSuffix
+import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, CromwellAggregatedException, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
@@ -107,13 +104,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /**
-    * Maps WdlFile to a local path, often maping Path.toRealString to Path.toString, for use in the
-    * commandLineValueMapper.
+    * Maps WdlFile to a local path, for use in the commandLineValueMapper.
     *
     * @param wdlFile The wdlFile.
     * @return The updated wdlFile.
     */
-  def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = WdlSingleFile(workflowPaths.buildPath(wdlFile.value).toString)
+  def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile =
+    WdlSingleFile(workflowPaths.buildPath(wdlFile.value).pathAsString)
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WdlValue => WdlValue = {
@@ -152,8 +149,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def globManipulation(globFile: WdlGlobFile): String = {
     val parentDirectory = globParentDirectory(globFile)
     val globDir = backendEngineFunctions.globName(globFile.value)
-    val globDirectory = File(parentDirectory)./(globDir)
-    val globList = File(parentDirectory)./(s"$globDir.list")
+    val globDirectory = parentDirectory./(globDir)
+    val globList = parentDirectory./(s"$globDir.list")
 
     s"""|mkdir $globDirectory
         |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
@@ -169,9 +166,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     jobLogger.info(s"`$instantiatedCommand`")
 
     val cwd = commandDirectory
-    val tmpDir = File(cwd)./("tmp").path
-    val rcPath = File(cwd)./(jobPaths.returnCodeFilename).path
-    val rcTmpPath = pathPlusSuffix(rcPath, "tmp").path
+    val tmpDir = cwd./("tmp")
+    val rcPath = cwd./(jobPaths.returnCodeFilename)
+    val rcTmpPath = rcPath.plusExt("tmp")
 
     val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
@@ -623,12 +620,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
                             oldHandle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
     try {
 
-      lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
+      lazy val returnCodeAsString: Try[String] = Try(jobPaths.returnCode.contentAsString)
       lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
       lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
 
       if (isSuccess(status)) {
-        lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
+        lazy val stderrLength: Try[Long] = Try(jobPaths.stderr.size)
         (stderrLength, returnCodeAsString, returnCodeAsInt) match {
             // Failed to get stderr size -> Retry
           case (Failure(exception), _, _) =>

@@ -1,8 +1,7 @@
 package cromwell.backend.impl.jes.errors
 
-import java.nio.file.Path
-
 import cromwell.backend.impl.jes.RunStatus
+import cromwell.core.path.Path
 
 import scala.util.Try
 
@@ -25,7 +24,8 @@ object JesError {
     (innerCode, message)
   }.toOption
   
-  def fromFailedStatus(failedStatus: RunStatus.Failed, jobTag: String, stderrPath: Option[Path]): Option[JesKnownJobFailure] = {
+  def fromFailedStatus(failedStatus: RunStatus.Failed, jobTag: String,
+                       stderrPath: Option[Path]): Option[JesKnownJobFailure] = {
     def lookupError(innerCode: Int, message: String) = {
       val search = KnownErrors.toStream map { _.toFailureOption(failedStatus.errorCode, innerCode, message, jobTag, stderrPath) } find { _.isDefined }
       search.flatten
@@ -36,7 +36,8 @@ object JesError {
 }
 
 sealed abstract class JesError(val outerCode: Int, val innerCode: Int, val messageStart: String) {
-  def toFailureOption(errorOuterCode: Int, errorInnerCode: Int, errorMessage: String, jobTag: String, stderrPath: Option[Path]): Option[JesKnownJobFailure] = {
+  def toFailureOption(errorOuterCode: Int, errorInnerCode: Int, errorMessage: String, jobTag: String,
+                      stderrPath: Option[Path]): Option[JesKnownJobFailure] = {
     if (
         errorOuterCode == outerCode &&
         errorInnerCode == innerCode &&
@@ -49,5 +50,6 @@ sealed abstract class JesError(val outerCode: Int, val innerCode: Int, val messa
 }
 
 private case object FailedToDelocalize extends JesError(5, 10, "Failed to delocalize files") {
-  def toJobFailure(message: String, jobTag: String, stderrPath: Option[Path]) = FailedToDelocalizeFailure(message, jobTag, stderrPath)
+  def toJobFailure(message: String, jobTag: String, stderrPath: Option[Path]) =
+    FailedToDelocalizeFailure(message, jobTag, stderrPath)
 }

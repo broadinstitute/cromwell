@@ -1,11 +1,9 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.Paths
 import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
-import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
@@ -19,10 +17,9 @@ import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core._
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
-import cromwell.core.path.PathBuilder
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
-import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
@@ -378,21 +375,21 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
     jesInputs should have size 8
     jesInputs should contain(JesFileInput(
-      "stringToFileMap-0", "gs://path/to/stringTofile1", Paths.get("path/to/stringTofile1"), workingDisk))
+      "stringToFileMap-0", "gs://path/to/stringTofile1", DefaultPathBuilder.get("path/to/stringTofile1"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "stringToFileMap-1", "gs://path/to/stringTofile2", Paths.get("path/to/stringTofile2"), workingDisk))
+      "stringToFileMap-1", "gs://path/to/stringTofile2", DefaultPathBuilder.get("path/to/stringTofile2"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "fileToStringMap-0", "gs://path/to/fileToString1", Paths.get("path/to/fileToString1"), workingDisk))
+      "fileToStringMap-0", "gs://path/to/fileToString1", DefaultPathBuilder.get("path/to/fileToString1"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "fileToStringMap-1", "gs://path/to/fileToString2", Paths.get("path/to/fileToString2"), workingDisk))
+      "fileToStringMap-1", "gs://path/to/fileToString2", DefaultPathBuilder.get("path/to/fileToString2"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "fileToFileMap-0", "gs://path/to/fileToFile1Key", Paths.get("path/to/fileToFile1Key"), workingDisk))
+      "fileToFileMap-0", "gs://path/to/fileToFile1Key", DefaultPathBuilder.get("path/to/fileToFile1Key"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "fileToFileMap-1", "gs://path/to/fileToFile1Value", Paths.get("path/to/fileToFile1Value"), workingDisk))
+      "fileToFileMap-1", "gs://path/to/fileToFile1Value", DefaultPathBuilder.get("path/to/fileToFile1Value"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "fileToFileMap-2", "gs://path/to/fileToFile2Key", Paths.get("path/to/fileToFile2Key"), workingDisk))
+      "fileToFileMap-2", "gs://path/to/fileToFile2Key", DefaultPathBuilder.get("path/to/fileToFile2Key"), workingDisk))
     jesInputs should contain(JesFileInput(
-      "fileToFileMap-3", "gs://path/to/fileToFile2Value", Paths.get("path/to/fileToFile2Value"), workingDisk))
+      "fileToFileMap-3", "gs://path/to/fileToFile2Value", DefaultPathBuilder.get("path/to/fileToFile2Value"), workingDisk))
   }
 
   def makeJesActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WdlValue],
@@ -424,11 +421,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val workflowId = jesBackend.workflowId
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
-    jesInputs should contain(JesFileInput("in-0", "gs://blah/b/c.txt", Paths.get("blah/b/c.txt"), workingDisk))
+    jesInputs should contain(JesFileInput("in-0", "gs://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(JesFileOutput("out",
-      s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", Paths.get("out"), workingDisk))
+      s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", DefaultPathBuilder.get("out"), workingDisk))
   }
 
   it should "generate correct JesInputs when a command line contains a write_lines call in it" in {
@@ -448,7 +445,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
     jesInputs should have size 1
     jesInputs should contain(JesFileInput(
-      "c6fd5c91-0", "gs://some/path/file.txt", Paths.get("some/path/file.txt"), workingDisk))
+      "c6fd5c91-0", "gs://some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
     val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
     jesOutputs should have size 0
   }
@@ -478,8 +475,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
     jesInputs should have size 2
-    jesInputs should contain(JesFileInput("fileArray-0", "gs://path/to/file1", Paths.get("path/to/file1"), workingDisk))
-    jesInputs should contain(JesFileInput("fileArray-1", "gs://path/to/file2", Paths.get("path/to/file2"), workingDisk))
+    jesInputs should contain(JesFileInput("fileArray-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
+    jesInputs should contain(JesFileInput("fileArray-1", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
   }
 
   it should "generate correct JesFileInputs from a WdlFile" in {
@@ -507,22 +504,22 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
     jesInputs should have size 2
-    jesInputs should contain(JesFileInput("file1-0", "gs://path/to/file1", Paths.get("path/to/file1"), workingDisk))
-    jesInputs should contain(JesFileInput("file2-0", "gs://path/to/file2", Paths.get("path/to/file2"), workingDisk))
+    jesInputs should contain(JesFileInput("file1-0", "gs://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
+    jesInputs should contain(JesFileInput("file2-0", "gs://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
   }
 
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Set(
       JesFileOutput("/cromwell_root/path/to/file1", "gs://path/to/file1",
-        Paths.get("/cromwell_root/path/to/file1"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk),
       JesFileOutput("/cromwell_root/path/to/file2", "gs://path/to/file2",
-        Paths.get("/cromwell_root/path/to/file2"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk),
       JesFileOutput("/cromwell_root/path/to/file3", "gs://path/to/file3",
-        Paths.get("/cromwell_root/path/to/file3"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk),
       JesFileOutput("/cromwell_root/path/to/file4", "gs://path/to/file4",
-        Paths.get("/cromwell_root/path/to/file4"), workingDisk),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk),
       JesFileOutput("/cromwell_root/path/to/file5", "gs://path/to/file5",
-        Paths.get("/cromwell_root/path/to/file5"), workingDisk)
+        DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk)
     )
     val outputValues = Seq(
       WdlFile("/cromwell_root/path/to/file1"),
@@ -584,7 +581,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe
-      Some(JesFileInput("monitoring-in", "gs://path/to/script", Paths.get("/cromwell_root/monitoring.sh"), workingDisk))
+      Some(JesFileInput("monitoring-in", "gs://path/to/script", DefaultPathBuilder.get("/cromwell_root/monitoring.sh"), workingDisk))
   }
 
   it should "not create a JesFileInput for the monitoring script, when not specified" in {
@@ -629,14 +626,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesBackend = testActorRef.underlyingActor
 
-    jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stdout.toRealString shouldBe
+    jesBackend.jesCallPaths.stdout should be(a[GcsPath])
+    jesBackend.jesCallPaths.stdout.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stdout.log"
-    jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stderr.toRealString shouldBe
+    jesBackend.jesCallPaths.stderr should be(a[GcsPath])
+    jesBackend.jesCallPaths.stderr.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.jesLogPath.toRealString shouldBe
+    jesBackend.jesCallPaths.jesLogPath should be(a[GcsPath])
+    jesBackend.jesCallPaths.jesLogPath.pathAsString shouldBe
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
@@ -661,14 +658,14 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val jesBackend = testActorRef.underlyingActor
 
-    jesBackend.jesCallPaths.stdout should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stdout.toRealString shouldBe
+    jesBackend.jesCallPaths.stdout should be(a[GcsPath])
+    jesBackend.jesCallPaths.stdout.pathAsString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stdout.log"
-    jesBackend.jesCallPaths.stderr should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.stderr.toRealString shouldBe
+    jesBackend.jesCallPaths.stderr should be(a[GcsPath])
+    jesBackend.jesCallPaths.stderr.pathAsString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
-    jesBackend.jesCallPaths.jesLogPath should be(a[CloudStoragePath])
-    jesBackend.jesCallPaths.jesLogPath.toRealString shouldBe
+    jesBackend.jesCallPaths.jesLogPath should be(a[GcsPath])
+    jesBackend.jesCallPaths.jesLogPath.pathAsString shouldBe
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 

@@ -1,7 +1,6 @@
 package cromwell.backend.impl.sfs.config
 
 import akka.event.LoggingAdapter
-import better.files._
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.TryWithResource._
@@ -15,7 +14,7 @@ private[config] object ConfigBackendFileHashing {
       case failure => throw new RuntimeException("Failed to construct path to hash", failure)
     } get
 
-    tryWithResource(() => File(path).newInputStream) { inputStream =>
+    tryWithResource(() => path.newInputStream) { inputStream =>
       org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
     }
   }

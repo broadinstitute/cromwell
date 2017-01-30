@@ -1,11 +1,8 @@
 package cromwell.backend.impl.spark
 
-import java.nio.file.Path
-
-import better.files._
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.core.path.PathImplicits._
-import cromwell.core.path.{TailedWriter, UntailedWriter}
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.{Path, TailedWriter, UntailedWriter}
 
 import scala.sys.process._
 import scala.util.{Failure, Success, Try}

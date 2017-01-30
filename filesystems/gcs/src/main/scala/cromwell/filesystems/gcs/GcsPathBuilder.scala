@@ -1,7 +1,6 @@
 package cromwell.filesystems.gcs
 
 import java.net.URI
-import java.nio.file.Path
 import java.nio.file.spi.FileSystemProvider
 
 import akka.actor.ActorSystem
@@ -14,7 +13,7 @@ import com.google.common.base.Preconditions._
 import com.google.common.net.UrlEscapers
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.proxy.{PathProxy, RetryableFileSystemProviderProxy}
-import cromwell.core.path.{CustomRetryParams, PathBuilder}
+import cromwell.core.path.{CustomRetryParams, NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
@@ -40,8 +39,8 @@ object GcsPathBuilder {
     Try(checkValid(getUri(str))).isSuccess
   }
 
-  def isGcsPath(path: Path): Boolean = {
-    path.getFileSystem.provider().getScheme == CloudStorageFileSystem.URI_SCHEME
+  def isGcsPath(nioPath: NioPath): Boolean = {
+    nioPath.getFileSystem.provider().getScheme == CloudStorageFileSystem.URI_SCHEME
   }
 
   def getUri(string: String) = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
@@ -76,23 +75,26 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
    * com.google.cloud.storage.Storage has some batching capabilities but not for copying.
    * In order to support batch copy, we need a com.google.api.services.storage.Storage.
    */
-  def getHash(path: Path): Try[String] = {
-    path match {
-      case gcsPath: CloudStoragePath => Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
-      case proxy: PathProxy =>
-        val gcsPath = proxy.unbox(classOf[CloudStoragePath]).get
-        Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
-      case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
+  def getHash(builtPath: Path): Try[String] = {
+    builtPath match {
+      case GcsPath(path) => path match {
+        case gcsPath: CloudStoragePath => Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
+        case proxy: PathProxy =>
+          val gcsPath = proxy.unbox(classOf[CloudStoragePath]).get
+          Try(storageOptions.service().get(gcsPath.bucket(), gcsPath.toRealPath().toString).crc32c())
+        case other => Failure(new IllegalArgumentException(s"$other is not a CloudStoragePath"))
+      }
+      case other => Failure(new IllegalArgumentException(s"$other is not a GcsPath"))
     }
   }
 
   def getProjectId = storageOptions.projectId()
 
-  def build(string: String): Try[Path] = {
+  def build(string: String): Try[GcsPath] = {
     Try {
       val uri = getUri(string)
       GcsPathBuilder.checkValid(uri)
-      provider.getPath(uri)
+      GcsPath(provider.getPath(uri))
     }
   }
 
@@ -109,4 +111,21 @@ class RetryableGcsPathBuilder(authMode: GoogleAuthMode,
   override protected def provider = new RetryableFileSystemProviderProxy(_provider, customRetryParams)
 
   override def getHash(path: Path) = provider.withRetry(() => super.getHash(path))
+}
+
+case class GcsPath private[gcs](nioPath: NioPath) extends Path {
+  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath)
+
+  override def pathAsString: String = java.net.URLDecoder.decode(nioPath.toUri.toString, "UTF-8")
+
+  override def pathWithoutScheme: String = {
+    val gcsPath = cloudStoragePath
+    gcsPath.bucket + gcsPath.toAbsolutePath.toString
+  }
+
+  private def cloudStoragePath: CloudStoragePath = nioPath match {
+    case gcsPath: CloudStoragePath => gcsPath
+    case pathProxy: PathProxy => pathProxy.unbox(classOf[CloudStoragePath]).get
+    case _ => throw new RuntimeException(s"Internal path was not a cloud storage path: $nioPath")
+  }
 }

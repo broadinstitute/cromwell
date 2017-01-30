@@ -50,14 +50,14 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = Future.fromTry(Try {
     if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths)
-    publishWorkflowRoot(workflowPaths.workflowRoot.toString)
+    publishWorkflowRoot(workflowPaths.workflowRoot.pathAsString)
     Option(initializationData)
   })
 
   private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Unit = {
     generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) foreach { content =>
       val path = workflowPath.gcsAuthFilePath
-      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toUri}")
+      workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n $path")
       try {
         path.writeAsJson(content)
       } catch {

@@ -1,21 +1,18 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{Files, Paths}
-
 import akka.testkit.TestDuration
-import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend._
 import cromwell.backend.async.WrongReturnCode
 import cromwell.backend.io.TestWorkflows._
 import cromwell.backend.io.{JobPathsWithDocker, TestWorkflows}
 import cromwell.backend.sfs.TestLocalAsyncJobExecutionActor._
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
-import cromwell.backend._
 import cromwell.core.Tags._
 import cromwell.core._
-import cromwell.core.path.FileImplicits._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -65,7 +62,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   def localizationSpec(docker: Boolean): Assertion = {
     def templateConf(localizers: String) = BackendConfigurationDescriptor(
       ConfigFactory.parseString(
-        s"""{
+        s"""|{
             |  root = "local-cromwell-executions"
             |  filesystems {
             |    local {
@@ -75,7 +72,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
             |    }
             |  }
             |}
-        """.stripMargin),
+            |""".stripMargin),
       ConfigFactory.parseString("{}")
     )
 
@@ -117,17 +114,17 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
-        val localizedJsonInputFile = Paths.get(jobPaths.callInputsRoot.toString, jsonInputFile)
-        val localizedCallInputFile = Paths.get(jobPaths.callInputsRoot.toString, callInputFile)
+        val localizedJsonInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, jsonInputFile)
+        val localizedCallInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, callInputFile)
 
-        Files.isSymbolicLink(localizedJsonInputFile) shouldBe isSymlink
+        localizedJsonInputFile.isSymbolicLink shouldBe isSymlink
         val realJsonInputFile =
-          if (isSymlink) Files.readSymbolicLink(localizedJsonInputFile) else localizedJsonInputFile
+          if (isSymlink) localizedJsonInputFile.symbolicLink.get else localizedJsonInputFile
         realJsonInputFile.toFile should exist
 
-        Files.isSymbolicLink(localizedCallInputFile) shouldBe isSymlink
+        localizedCallInputFile.isSymbolicLink shouldBe isSymlink
         val realCallInputFile =
-          if (isSymlink) Files.readSymbolicLink(localizedJsonInputFile) else localizedCallInputFile
+          if (isSymlink) localizedCallInputFile.symbolicLink.get else localizedCallInputFile
         realCallInputFile.toFile should exist
       }
     }
@@ -162,14 +159,14 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val backend = backendRef.underlyingActor
 
     val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, ConfigFactory.empty)
-    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
-    File(jobPaths.stdout).write("Hello stubby ! ")
-    File(jobPaths.stderr).touch()
+    jobPaths.callExecutionRoot.createPermissionedDirectories()
+    jobPaths.stdout.write("Hello stubby ! ")
+    jobPaths.stderr.touch()
 
     val pid =
       if (completed) {
         if (writeReturnCode)
-          File(jobPaths.returnCode).write("0")
+          jobPaths.returnCode.write("0")
         "0"
       } else {
         import sys.process._
@@ -250,8 +247,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, inputs, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backend = createBackend(jobDescriptor, emptyBackendConfig)
     val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, emptyBackendConfig.backendConfig)
-    val expectedA = WdlFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.toString)
-    val expectedB = WdlFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").toString)
+    val expectedA = WdlFile(jobPaths.callExecutionRoot.resolve("a").toAbsolutePath.pathAsString)
+    val expectedB = WdlFile(jobPaths.callExecutionRoot.resolve("dir").toAbsolutePath.resolve("b").pathAsString)
     val expectedOutputs = Map(
       "o1" -> JobOutput(expectedA),
       "o2" -> JobOutput(WdlArray(WdlArrayType(WdlFileType), Seq(expectedA, expectedB))),
@@ -270,8 +267,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     testWorkflow(workflow, backend)
   }
 
-  def createCannedFile(prefix: String, contents: String): File = {
-    val suffix = ".out"
-    File.newTemporaryFile(prefix, suffix).write(contents)
+  def createCannedFile(prefix: String, contents: String): Path = {
+    DefaultPathBuilder.createTempFile(prefix, ".out").write(contents)
   }
 }

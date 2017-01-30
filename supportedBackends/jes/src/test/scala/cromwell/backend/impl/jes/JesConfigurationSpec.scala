@@ -1,8 +1,8 @@
 package cromwell.backend.impl.jes
 
-import better.files.File
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import cromwell.backend.BackendConfigurationDescriptor
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
@@ -10,11 +10,10 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
 
   behavior of "JesConfigurationSpec"
 
-  val mockFile = File.newTemporaryFile()
+  val mockFile = DefaultPathBuilder.createTempFile()
 
   override def afterAll(): Unit = {
-    mockFile.delete(true)
-
+    mockFile.delete(swallowIOExceptions = true)
     ()
   }
 

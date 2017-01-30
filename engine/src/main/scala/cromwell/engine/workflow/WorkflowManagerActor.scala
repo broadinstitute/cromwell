@@ -165,7 +165,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size)
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
       stay()
-    case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, stateData) =>
+    case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")
       scheduleNextNewWorkflowPoll()
       stay()
@@ -200,7 +200,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     /*
      Responses from services
      */
-    case Event(WorkflowFailedResponse(workflowId, inState, reasons), data) =>
+    case Event(WorkflowFailedResponse(workflowId, inState, reasons), _) =>
       log.error(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()
     /*
@@ -254,7 +254,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       context.actorOf(EngineStatsActor.props(data.workflows.values.toList, sndr), s"EngineStatsActor-${sndr.hashCode()}")
       stay()
     // Anything else certainly IS interesting:
-    case Event(unhandled, data) =>
+    case Event(unhandled, _) =>
       log.warning(s"$tag Unhandled message: $unhandled")
       stay()
   }
@@ -298,12 +298,11 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {
-    import cromwell.core.path.PathImplicits._
     
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.toRealString}" } getOrElse ""
+        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}" } getOrElse ""
         reason.getMessage + stderrMessage
       case reason =>
       reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)

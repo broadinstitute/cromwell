@@ -1,8 +1,7 @@
 package cromwell.backend.sfs
 
-import java.nio.file.Path
-
 import cromwell.backend.standard.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
+import cromwell.core.path.Path
 
 class SharedFileSystemCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
   extends StandardCacheHitCopyingActor(standardParams) with SharedFileSystemJobCachingActorHelper {

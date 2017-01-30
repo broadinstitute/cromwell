@@ -1,10 +1,9 @@
 package cromwell.util
 
-import java.nio.file.{Files, Path}
 import java.util.UUID
 
-import better.files._
-import cromwell.core.{WorkflowSourceFilesWithoutImports}
+import cromwell.core.WorkflowSourceFilesWithoutImports
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
@@ -44,6 +43,7 @@ trait SampleWdl extends TestFileUtil {
       case i: WdlInteger => JsNumber(i.value)
       case f: WdlFloat => JsNumber(f.value)
       case f: WdlFile => JsString(f.value)
+      case p: Path => JsString(p.pathAsString)
     }
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
@@ -55,7 +55,7 @@ trait SampleWdl extends TestFileUtil {
 
   def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
 
-  def deleteFile(path: Path) = Files.delete(path)
+  def deleteFile(path: Path) = path.delete()
 }
 
 object SampleWdl {
@@ -585,14 +585,14 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    val tempDir = File.newTemporaryDirectory("ArrayIO").path
-    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Some(tempDir))
-    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Some(tempDir))
+    val tempDir = DefaultPathBuilder.createTempDirectory("ArrayIO")
+    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Option(tempDir))
+    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Option(tempDir))
 
     override val rawInputs = Map(
-      "wf.find.root" -> tempDir.toString,
+      "wf.find.root" -> tempDir,
       "wf.find.pattern" -> "*.out", // createCannedFile makes files that have .out extension
-      "wf.files" -> Seq(firstFile.toString, secondFile.toString)
+      "wf.files" -> Seq(firstFile.pathAsString, secondFile.pathAsString)
     )
   }
 
@@ -863,8 +863,9 @@ object SampleWdl {
            |text file is 11
            |""".stripMargin
 
-    override lazy val rawInputs = Map("sc_test.do_prepare.input_file" -> createCannedFile("scatter",contents).toString,
-    "sc_test.do_scatter.salt" -> salt)
+    override lazy val rawInputs = Map(
+      "sc_test.do_prepare.input_file" -> createCannedFile("scatter", contents).pathAsString,
+      "sc_test.do_scatter.salt" -> salt)
   }
 
   object FileClobber extends SampleWdl {
@@ -881,14 +882,14 @@ object SampleWdl {
         |}
       """.stripMargin
 
-    val tempDir1 = Files.createTempDirectory("FileClobber1")
-    val tempDir2 = Files.createTempDirectory("FileClobber2")
+    val tempDir1 = DefaultPathBuilder.createTempDirectory("FileClobber1")
+    val tempDir2 = DefaultPathBuilder.createTempDirectory("FileClobber2")
     val firstFile = createFile(name = "file.txt", contents = "first file.txt", dir = tempDir1)
     val secondFile = createFile(name = "file.txt", contents = "second file.txt", dir = tempDir2)
 
     override val rawInputs = Map(
-      "two.x.in" -> firstFile.toString,
-      "two.y.in" -> secondFile.toString
+      "two.x.in" -> firstFile.pathAsString,
+      "two.y.in" -> secondFile.pathAsString
     )
   }
 
@@ -920,7 +921,7 @@ object SampleWdl {
     private val fileContents = s"foo bar baz"
 
     override val rawInputs: WorkflowRawInputs = Map(
-      "file_passing.f" -> createCannedFile("canned", fileContents).toString
+      "file_passing.f" -> createCannedFile("canned", fileContents).pathAsString
     )
   }
 
@@ -964,7 +965,7 @@ object SampleWdl {
     private val fileContents = s"foo bar baz"
 
     override val rawInputs: WorkflowRawInputs = Map(
-      "file_passing.f" -> createCannedFile("canned", fileContents).toString,
+      "file_passing.f" -> createCannedFile("canned", fileContents).pathAsString,
       "file_passing.a.salt" -> salt,
       "file_passing.b.salt" -> salt
     )
@@ -1014,8 +1015,8 @@ object SampleWdl {
 
     override val rawInputs = {
       Map(
-        "w.array_file" -> createCannedFile("array.txt", CannedArray).toString,
-        "w.map_file" -> createCannedFile("map.txt", CannedMap).toString
+        "w.array_file" -> createCannedFile("array.txt", CannedArray).pathAsString,
+        "w.map_file" -> createCannedFile("map.txt", CannedMap).pathAsString
       )
     }
   }
@@ -1043,18 +1044,18 @@ object SampleWdl {
         |}
       """.stripMargin
 
-    val tempDir = Files.createTempDirectory("ArrayOfArray")
-    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Some(tempDir))
-    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Some(tempDir))
-    val thirdFile = createCannedFile(prefix = "third", contents = "third\n", dir = Some(tempDir))
-    val fourthFile = createCannedFile(prefix = "fourth", contents = "fourth\n", dir = Some(tempDir))
+    val tempDir = DefaultPathBuilder.createTempDirectory("ArrayOfArray")
+    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Option(tempDir))
+    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Option(tempDir))
+    val thirdFile = createCannedFile(prefix = "third", contents = "third\n", dir = Option(tempDir))
+    val fourthFile = createCannedFile(prefix = "fourth", contents = "fourth\n", dir = Option(tempDir))
 
     override val rawInputs = Map(
       "wf.nested_file" ->
         WdlArray(WdlArrayType(WdlArrayType(WdlStringType)),
         Seq(
-          WdlArray(WdlArrayType(WdlStringType), Seq(firstFile.toString, secondFile.toString).map(WdlString)),
-          WdlArray(WdlArrayType(WdlStringType), Seq(thirdFile.toString, fourthFile.toString).map(WdlString))
+          WdlArray(WdlArrayType(WdlStringType), Seq(firstFile.pathAsString, secondFile.pathAsString).map(WdlString)),
+          WdlArray(WdlArrayType(WdlStringType), Seq(thirdFile.pathAsString, fourthFile.pathAsString).map(WdlString))
         )
       )
     )
@@ -1088,13 +1089,13 @@ object SampleWdl {
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
 
-    val tempDir = Files.createTempDirectory("CallCachingHashingWdl")
-    val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Some(tempDir))
+    val tempDir = DefaultPathBuilder.createTempDirectory("CallCachingHashingWdl")
+    val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Option(tempDir))
     override val rawInputs = Map(
       "w.t.a" -> WdlInteger(1),
       "w.t.b" -> WdlFloat(1.1),
       "w.t.c" -> WdlString("foobar"),
-      "w.t.d" -> WdlFile(cannedFile.toString)
+      "w.t.d" -> WdlFile(cannedFile.pathAsString)
     )
   }
 

@@ -1,6 +1,5 @@
 package cromwell
 
-import java.nio.file.Paths
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -11,6 +10,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
@@ -292,7 +292,8 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibilty
   implicit val wdlEquality = new Equality[WdlValue] {
-    def fileEquality(f1: String, f2: String) = Paths.get(f1).getFileName == Paths.get(f2).getFileName
+    def fileEquality(f1: String, f2: String) =
+      DefaultPathBuilder.get(f1).getFileName == DefaultPathBuilder.get(f2).getFileName
 
     override def areEqual(a: WdlValue, b: Any): Boolean = {
       val typeEquality = b match {

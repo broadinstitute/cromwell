@@ -1,18 +1,18 @@
 package cromwell
 
 import akka.testkit._
-import better.files._
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
+import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 
 import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestKitSpec {
-  private val pwd = File(".")
-  private val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+  private val pwd = DefaultPathBuilder.get(".")
+  private val sampleWdl = SampleWdl.MapLiteral(pwd)
   val ns = WdlNamespaceWithWorkflow.load(sampleWdl.wdlSource(), Seq.empty[ImportResolver])
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
@@ -23,7 +23,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
 
   "A task which contains a parameter " should {
     "accept an array for the value" in {
-      val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+      val sampleWdl = SampleWdl.MapLiteral(pwd)
       runWdlAndAssertOutputs(
         sampleWdl = sampleWdl,
         EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
@@ -71,7 +71,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
       command shouldEqual "cat /test/map/path"
     }
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
-      val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+      val sampleWdl = SampleWdl.MapLiteral(pwd)
       runWdlAndAssertOutputs(
         sampleWdl,
         eventFilter = EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),

@@ -1,11 +1,9 @@
 package cromwell.backend.impl.jes
 
 import java.net.SocketTimeoutException
-import java.nio.file.{Path, Paths}
 
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
-import com.google.cloud.storage.contrib.nio.CloudStoragePath
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
@@ -13,9 +11,9 @@ import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActorClient
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.path.PathImplicits._
-import cromwell.core.path.proxy.PathProxy
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.filesystems.gcs.GcsPath
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
@@ -64,9 +62,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   private lazy val cmdInput =
-    JesFileInput(ExecParamName, jesCallPaths.script.toRealString, Paths.get(jesCallPaths.scriptFilename), workingDisk)
+    JesFileInput(ExecParamName, jesCallPaths.script.pathAsString, DefaultPathBuilder.get(jesCallPaths.scriptFilename), workingDisk)
   private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
-  private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.toRealString, Paths.get(returnCodeFilename), workingDisk)
+  private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk)
 
   private lazy val standardParameters = Seq(rcJesOutput)
 
@@ -82,7 +80,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.toRealString))
+      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.pathAsString))
     else None
   }
 
@@ -95,7 +93,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                                     jobDescriptor: BackendJobDescriptor): Iterable[JesInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
-        Seq(JesFileInput(s"$jesNamePrefix-$index", remotePath.valueString, Paths.get(localPath.valueString), workingDisk))
+        Seq(JesFileInput(s"$jesNamePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
     }
   }
 
@@ -107,9 +105,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     */
   private def relativeLocalizationPath(file: WdlFile): WdlFile = {
     getPath(file.value) match {
-      case Success(path) =>
-        val value: WdlSource = path.toUri.getHost + path.toUri.getPath
-        WdlFile(value, file.isGlob)
+      case Success(path) => WdlFile(path.pathWithoutScheme, file.isGlob)
       case _ => file
     }
   }
@@ -137,7 +133,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     * @throws Exception if the `path` does not live in one of the supplied `disks`
     */
   private def relativePathAndAttachedDisk(path: String, disks: Seq[JesAttachedDisk]): (Path, JesAttachedDisk) = {
-    val absolutePath = Paths.get(path) match {
+    val absolutePath = DefaultPathBuilder.get(path) match {
       case p if !p.isAbsolute => JesWorkingDisk.MountPoint.resolve(p)
       case p => p
     }
@@ -171,7 +167,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private def generateJesSingleFileOutputs(wdlFile: WdlSingleFile): JesFileOutput = {
-    val destination = callRootPath.resolve(wdlFile.value.stripPrefix("/")).toRealString
+    val destination = callRootPath.resolve(wdlFile.value.stripPrefix("/")).pathAsString
     val (relpath, disk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
     JesFileOutput(makeSafeJesReferenceName(wdlFile.value), destination, relpath, disk)
   }
@@ -180,17 +176,17 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val globName = backendEngineFunctions.globName(wdlFile.value)
     val globDirectory = globName + "/"
     val globListFile = globName + ".list"
-    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).toRealString
-    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).toRealString
+    val gcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory).pathAsString
+    val gcsGlobListFileDestinationPath = callRootPath.resolve(globListFile).pathAsString
 
     val (_, globDirectoryDisk) = relativePathAndAttachedDisk(wdlFile.value, runtimeAttributes.disks)
 
     // We need both the glob directory and the glob list:
     List(
       // The glob directory:
-      JesFileOutput(makeSafeJesReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, Paths.get(globDirectory + "*"), globDirectoryDisk),
+      JesFileOutput(makeSafeJesReferenceName(globDirectory), gcsGlobDirectoryDestinationPath, DefaultPathBuilder.get(globDirectory + "*"), globDirectoryDisk),
       // The glob list file:
-      JesFileOutput(makeSafeJesReferenceName(globListFile), gcsGlobListFileDestinationPath, Paths.get(globListFile), globDirectoryDisk)
+      JesFileOutput(makeSafeJesReferenceName(globListFile), gcsGlobListFileDestinationPath, DefaultPathBuilder.get(globListFile), globDirectoryDisk)
     )
   }
 
@@ -229,7 +225,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       runIdForResumption,
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
-      callRootPath = callRootPath.toRealString,
+      callRootPath = callRootPath.pathAsString,
       commandLine = jesCommandLine,
       logFileName = jesLogFilename,
       jesParameters,
@@ -385,27 +381,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  /**
-    * Takes a path in GCS and comes up with a local path which is unique for the given GCS path.
-    *
-    * Matches the path generated via relativeLocalizationPath and passed in as JesFileInput.local.
-    *
-    * @param mountPoint The mount point for inputs
-    * @param gcsPath The input path
-    * @return A path which is unique per input path
-    */
-  private def localFilePathFromCloudStoragePath(mountPoint: Path, gcsPath: CloudStoragePath): Path = {
-    mountPoint.resolve(gcsPath.bucket()).resolve(gcsPath.toUri.getPath.stripPrefix("/"))
-  }
-
   override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
     getPath(wdlFile.valueString) match {
-      case Success(gcsPath: CloudStoragePath) =>
-        WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
-      case Success(proxy: PathProxy) =>
-        proxy.unbox(classOf[CloudStoragePath]) map { gcsPath =>
-          WdlFile(localFilePathFromCloudStoragePath(workingDisk.mountPoint, gcsPath).toString, wdlFile.isGlob)
-        } getOrElse wdlFile
+      case Success(gcsPath: GcsPath) =>
+        val localPath = workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        WdlFile(localPath, wdlFile.isGlob)
       case _ => wdlFile
     }
   }

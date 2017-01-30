@@ -1,13 +1,12 @@
 package cromwell.backend.impl.jes.io
 
-import java.nio.file.{Path, Paths}
-
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.google.api.services.genomics.model.Disk
-import lenthall.validation.ErrorOr._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import lenthall.exception.MessageAggregation
+import lenthall.validation.ErrorOr._
 import wdl4s.values._
 
 import scala.util.Try
@@ -29,7 +28,7 @@ object JesAttachedDisk {
         }
       case MountedDiskPattern(mountPoint, sizeGb, diskType) =>
         (validateLong(sizeGb) |@| validateDiskType(diskType)) map { (s, dt) =>
-          JesEmptyMountedDisk(dt, s.toInt, Paths.get(mountPoint))
+          JesEmptyMountedDisk(dt, s.toInt, DefaultPathBuilder.get(mountPoint))
         }
       case _ => s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'".invalidNel
     }
@@ -72,17 +71,17 @@ trait JesAttachedDisk {
       .setType(diskType.googleTypeName)
       .setAutoDelete(true)
       .setSizeGb(sizeGb)
-      .setMountPoint(mountPoint.toAbsolutePath.toString)
+      .setMountPoint(mountPoint.toAbsolutePath.pathAsString)
   }
 }
 
 case class JesEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends JesAttachedDisk {
-  val name = s"d-${mountPoint.toString.md5Sum}"
+  val name = s"d-${mountPoint.pathAsString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
 }
 
 object JesWorkingDisk {
-  val MountPoint: Path = Paths.get("/cromwell_root")
+  val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
   val Name = "local-disk"
   val Default = JesWorkingDisk(DiskType.SSD, 10)
 }

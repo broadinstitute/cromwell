@@ -1,13 +1,9 @@
 package cromwell.backend.sfs
 
-import java.nio.file.Files
-
-import better.files._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendSpec
 import cromwell.core.CromwellFatalExceptionMarker
-import cromwell.core.path.DefaultPathBuilder
-import cromwell.core.path.FileImplicits._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -29,8 +25,8 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
                        fileAlreadyExists: Boolean = false,
                        symlink: Boolean = false,
                        linkNb: Int = 1) = {
-    val callDir = File.newTemporaryDirectory("SharedFileSystem")
-    val orig = if (fileInCallDir) callDir.createChild("inputFile") else File.newTemporaryFile("inputFile")
+    val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
+    val orig = if (fileInCallDir) callDir.createChild("inputFile") else DefaultPathBuilder.createTempFile("inputFile")
     val dest = if (fileInCallDir) orig else callDir./(orig.pathAsString.drop(1))
     orig.touch()
     if (fileAlreadyExists) {
@@ -44,7 +40,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
       override val sharedFileSystemConfig = config
     }
     val localizedinputs = Map(inputs.head._1 -> WdlFile(dest.pathAsString))
-    val result = sharedFS.localizeInputs(callDir.path, docker = docker)(inputs)
+    val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
 
     result.isSuccess shouldBe true
     result.get should contain theSameElementsAs localizedinputs
@@ -82,20 +78,20 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
   }
   
   it should "throw a fatal exception if localization fails" in {
-    val callDir = File.newTemporaryDirectory("SharedFileSystem")
-    val orig = File("/made/up/origin")
+    val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
+    val orig = DefaultPathBuilder.get("/made/up/origin")
 
     val inputs = fqnMapToDeclarationMap(Map("input" -> WdlFile(orig.pathAsString)))
     val sharedFS = new SharedFileSystem {
       override val pathBuilders = localPathBuilder
       override val sharedFileSystemConfig = defaultLocalization
     }
-    val result = sharedFS.localizeInputs(callDir.path, docker = false)(inputs)
+    val result = sharedFS.localizeInputs(callDir, docker = false)(inputs)
     result.isFailure shouldBe true
     result.failed.get.isInstanceOf[CromwellFatalExceptionMarker] shouldBe true
   }
 
-  private[this] def countLinks(file: File): Int = Files.getAttribute(file.path, "unix:nlink").asInstanceOf[Int]
+  private[this] def countLinks(file: Path): Int = file.getAttribute("unix:nlink").asInstanceOf[Int]
 
-  private[this] def isSymLink(file: File): Boolean = Files.isSymbolicLink(file.path)
+  private[this] def isSymLink(file: Path): Boolean = file.isSymbolicLink
 }

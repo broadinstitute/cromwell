@@ -1,9 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.Files
-
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
-import better.files.File
 import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
@@ -20,16 +17,17 @@ import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.BetterFileMethods.OpenOptions
+import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, _}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
-import spray.json.{JsObject, _}
+import spray.json._
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlString, WdlValue}
@@ -312,19 +310,16 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[File] = {
+  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
 
-    def makeZipFile(contents: Array[Byte]): Try[File] = Try {
-      val dependenciesPath = Files.createTempFile("", ".zip")
-      Files.write(dependenciesPath, contents)
+    def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
+      DefaultPathBuilder.createTempFile("", ".zip").write(contents)(OpenOptions.default)
     }
 
-    def unZipFile(f: File) = Try {
+    def unZipFile(f: Path) = Try {
       val unzippedFile = f.unzip()
-      val unzippedFileContents = unzippedFile.toJava.listFiles().head
-
-      if (unzippedFileContents.isDirectory) File(unzippedFileContents.getPath)
-      else unzippedFile
+      val unzippedFileContents = unzippedFile.list.toSeq.head
+      if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
     }
 
     val importsFile = for {
@@ -334,25 +329,23 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     } yield unzipped
 
     importsFile match {
-      case Success(unzippedDirectory: File) => unzippedDirectory.validNel
+      case Success(unzippedDirectory: Path) => unzippedDirectory.validNel
       case Failure(t) => t.getMessage.invalidNel
     }
   }
 
   private def validateNamespaceWithImports(w: WorkflowSourceFilesWithDependenciesZip): ErrorOr[WdlNamespaceWithWorkflow] = {
-    def getMetadatae(importsDir: File, prefix: String = ""): Seq[(String, File)] = {
+    def getMetadatae(importsDir: Path, prefix: String = ""): Seq[(String, Path)] = {
       importsDir.children.toSeq flatMap {
-        case f: File if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
-        case f: File if f.name.endsWith(".wdl") => Seq((prefix + f.name, f))
+        case f: Path if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
+        case f: Path if f.name.endsWith(".wdl") => Seq((prefix + f.name, f))
         case _ => Seq.empty
       }
     }
 
-    def writeMetadatae(importsDir: File) = {
-      import scala.collection.JavaConverters._
-
-      val wfImportEvents = getMetadatae(importsDir) map { case (name: String, f: File) =>
-        val contents = Files.readAllLines(f.path).asScala.mkString(System.lineSeparator())
+    def writeMetadatae(importsDir: Path) = {
+      val wfImportEvents = getMetadatae(importsDir) map { case (name: String, f: Path) =>
+        val contents = f.lines.mkString(System.lineSeparator())
         MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports, name), MetadataValue(contents))
       }
       serviceRegistryActor ! PutMetadataAction(wfImportEvents)
@@ -360,10 +353,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     validateImportsDirectory(w.importsZip) flatMap { importsDir =>
       writeMetadatae(importsDir)
+      val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
       val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-        List(WdlNamespace.directoryResolver(importsDir), WdlNamespace.fileResolver)
+        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
       } else {
-        List(WdlNamespace.directoryResolver(importsDir))
+        List(WdlNamespace.directoryResolver(importsDirFile))
       }
       val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
       importsDir.delete(swallowIOExceptions = true)

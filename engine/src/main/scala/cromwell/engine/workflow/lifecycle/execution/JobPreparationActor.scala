@@ -32,20 +32,19 @@ abstract class CallPreparationActor(val workflowDescriptor: EngineWorkflowDescri
   }
 
   def resolveAndEvaluateInputs(): Try[Map[Declaration, WdlValue]] = {
-    Try {
-      val call = callKey.scope
-      val scatterMap = callKey.index flatMap { i =>
-        // Will need update for nested scatters
-        call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
-      } getOrElse Map.empty[Scatter, Int]
 
-      call.evaluateTaskInputs(
-        workflowDescriptor.backendDescriptor.knownValues,
-        expressionLanguageFunctions,
-        outputStore.fetchNodeOutputEntries,
-        scatterMap
-      )
-    } recoverWith {
+    val call = callKey.scope
+    val scatterMap = callKey.index flatMap { i =>
+      // Will need update for nested scatters
+      call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
+    } getOrElse Map.empty[Scatter, Int]
+
+    call.evaluateTaskInputs(
+      workflowDescriptor.backendDescriptor.knownValues,
+      expressionLanguageFunctions,
+      outputStore.fetchNodeOutputEntries,
+      scatterMap
+    ).recoverWith {
       case t: Throwable => Failure(new VariableLookupException(s"Couldn't resolve all inputs for ${callKey.scope.fullyQualifiedName} at index ${callKey.index}.", List(t)))
     }
   }

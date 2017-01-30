@@ -41,12 +41,12 @@ object MetadataDatabaseAccess {
     def toSummary: WorkflowMetadataSummaryEntry = {
       val base = baseSummary(metadatum.workflowExecutionUuid)
       metadatum.metadataKey match {
-        case WorkflowMetadataKeys.Name => base.copy(workflowName = metadatum.metadataValue.map(_.toRawString))
-        case WorkflowMetadataKeys.Status => base.copy(workflowStatus = metadatum.metadataValue.map(_.toRawString))
+        case WorkflowMetadataKeys.Name => base.copy(workflowName = metadatum.metadataValue.toRawStringOption)
+        case WorkflowMetadataKeys.Status => base.copy(workflowStatus = metadatum.metadataValue.toRawStringOption)
         case WorkflowMetadataKeys.StartTime =>
-          base.copy(startTimestamp = metadatum.metadataValue.map(_.parseSystemTimestamp))
+          base.copy(startTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
         case WorkflowMetadataKeys.EndTime =>
-          base.copy(endTimestamp = metadatum.metadataValue.map(_.parseSystemTimestamp))
+          base.copy(endTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
       }
     }
   }
@@ -77,7 +77,7 @@ trait MetadataDatabaseAccess {
       val valueType = metadataEvent.value map { _.valueType.typeName }
       val jobKey = key.jobKey map { jk => (jk.callFqn, jk.index, jk.attempt) }
       MetadataEntry(workflowUuid, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3),
-        key.key, value.map(_.toClob), valueType, timestamp)
+        key.key, value.toClob, valueType, timestamp)
     }
     databaseInterface.addMetadataEntries(metadata)
   }
@@ -91,10 +91,9 @@ trait MetadataDatabaseAccess {
       } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
 
       val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
-      val value =  for {
-        mValue <- m.metadataValue
-        mType <- m.metadataValueType
-      } yield MetadataValue(mValue.toRawString, MetadataType.fromString(mType))
+      val value = m.metadataValueType.map(mType =>
+        MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
+      )
 
       MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
     }

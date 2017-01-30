@@ -16,7 +16,7 @@ trait CallCachingDetritusEntryComponent {
 
     def detritusKey = column[String]("DETRITUS_KEY")
 
-    def detritusValue = column[Clob]("DETRITUS_VALUE")
+    def detritusValue = column[Option[Clob]]("DETRITUS_VALUE")
 
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 

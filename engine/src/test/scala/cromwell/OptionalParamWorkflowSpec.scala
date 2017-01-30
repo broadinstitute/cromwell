@@ -27,10 +27,8 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
         fail("Expected to find task 'find'")
       }
 
-      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WdlFile("src"))), NoFunctions) getOrElse {
-        fail("Expected instantiation to work")
-      }
-      instantiateWithoutValue shouldEqual "find src"
+      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WdlFile("src"))), NoFunctions)
+      instantiateWithoutValue.get shouldEqual "find src"
 
       val instantiateWithValue = findTask.instantiateCommand(findTask.inputsFromMap(Map(
         "find.root" -> WdlFile("src"),

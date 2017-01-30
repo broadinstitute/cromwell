@@ -1,7 +1,8 @@
 package cromwell.services
 
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.sql.Connection
+import java.sql.{Connection, JDBCType}
+import java.time.OffsetDateTime
 
 import better.files._
 import com.typesafe.config.ConfigFactory
@@ -9,8 +10,9 @@ import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
-import cromwell.database.sql.tables.JobStoreEntry
+import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
@@ -153,8 +155,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         val expected = s"PK_${primaryKey.table.name}"
         if (actual != expected) {
           misnamed :+=
-            s"""|PrimaryKey: $actual
-                |Should Be:  $expected
+            s"""|  PrimaryKey: $actual
+                |  Should be:  $expected
                 |""".stripMargin
         }
       }
@@ -164,8 +166,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         val expected = s"FK_${foreignKey.fkTable.name}_${foreignKey.fkColumn}"
         if (actual != expected) {
           misnamed :+=
-            s"""|ForeignKey: $actual
-                |Should Be:  $expected
+            s"""|  ForeignKey: $actual
+                |  Should be:  $expected
                 |""".stripMargin
         }
       }
@@ -183,35 +185,56 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
           if (actual != expected) {
             misnamed :+=
-              s"""|Index:     $actual
-                  |Should Be: $expected
+              s"""|  Index:     $actual
+                  |  Should be: $expected
                   |""".stripMargin
           }
-      }
-
-      if (misnamed.nonEmpty) {
-        fail(misnamed.mkString(s"The following items are misnamed in $schemaManager:\n", "\n", ""))
       }
 
       var missing = Seq.empty[String]
 
       schemaMetadata.columns foreach { column =>
         if (!schemaMetadata.existsTableItem(column)) {
-          missing :+= s"${tableClassName(column.tableName)}.${column.itemName}"
+          missing :+= s"  ${tableClassName(column.tableName)}.${column.itemName}"
         }
       }
 
       schemaMetadata.slickItems foreach { databaseItem =>
         if (!schemaMetadata.existsSlickMapping(databaseItem)) {
-          missing :+= s"${slickClassName(databaseItem.tableName)}.${databaseItem.itemName}"
+          missing :+= s"  ${slickClassName(databaseItem.tableName)}.${databaseItem.itemName}"
         }
       }
 
-      if (missing.nonEmpty) {
-        fail(missing.mkString(
-          s"Based on the schema in $schemaManager, please ensure that the following tables/columns exist:\n  ",
-          "\n  ",
-          ""))
+      var nullTyped = Seq.empty[String]
+
+      schemaMetadata.columnMetadata foreach { column =>
+        if (column.isNullable == Option(false)) {
+          val jdbcType = JDBCType.valueOf(column.sqlType)
+          if (jdbcType == JDBCType.BLOB || jdbcType == JDBCType.CLOB) {
+            nullTyped :+= s"  $jdbcType column ${column.table.name}.${column.name}"
+          }
+        }
+      }
+
+      if (missing.nonEmpty || misnamed.nonEmpty || nullTyped.nonEmpty) {
+        var failMessage = ""
+
+        if (misnamed.nonEmpty) {
+          failMessage += misnamed.mkString(s"The following items are misnamed in $schemaManager:\n", "\n", "\n")
+        }
+
+        if (missing.nonEmpty) {
+          failMessage += missing.mkString(
+            s"Based on the schema in $schemaManager, please ensure that the following tables/columns exist:\n",
+            "\n", "\n")
+        }
+
+        if (nullTyped.nonEmpty) {
+          failMessage += nullTyped.mkString(
+            s"The following columns should not be nullable due to incompatibilities with MySQL:\n", "\n", "\n")
+        }
+
+        fail(failMessage)
       }
     }
   }
@@ -245,6 +268,75 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           case _ => Future.successful(())
         }
       } yield ()).futureValue
+    }
+
+    it should "store and retrieve empty clobs" taggedAs DbmsTest in {
+      val workflowUuid = WorkflowId.randomId().toString
+      val callFqn = "call.fqn"
+      val jobIndex = 1
+      val jobAttempt = 1
+      val jobSuccessful = false
+      val jobStoreEntry = JobStoreEntry(workflowUuid, callFqn, jobIndex, jobAttempt, jobSuccessful, None, None, None)
+      val jobStoreSimpletonEntries = Seq(
+        JobStoreSimpletonEntry("empty", "".toClob, "WdlString"),
+        JobStoreSimpletonEntry("aEntry", "a".toClob, "WdlString")
+      )
+      val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, jobStoreSimpletonEntries))
+
+      val future = for {
+        _ <- dataAccess.addJobStores(jobStoreJoins)
+        queried <- dataAccess.queryJobStores(workflowUuid, callFqn, jobIndex, jobAttempt)
+        _ = {
+          val jobStoreJoin = queried.get
+          jobStoreJoin.jobStoreEntry.workflowExecutionUuid should be(workflowUuid)
+
+          val emptyEntry = jobStoreJoin.jobStoreSimpletonEntries.find(_.simpletonKey == "empty").get
+          emptyEntry.simpletonValue.toRawString should be("")
+
+          val aEntry = jobStoreJoin.jobStoreSimpletonEntries.find(_.simpletonKey == "aEntry").get
+          aEntry.simpletonValue.toRawString should be("a")
+        }
+        _ <- dataAccess.removeJobStores(Seq(workflowUuid))
+      } yield ()
+      future.futureValue
+    }
+
+    it should "store and retrieve empty blobs" taggedAs DbmsTest in {
+      val testWorkflowState = "Testing"
+
+      val emptyWorkflowUuid = WorkflowId.randomId().toString
+      val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array.empty[Byte]).toBlob, "{}".toClob)
+
+      val noneWorkflowUuid = WorkflowId.randomId().toString
+      val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, "{}".toClob)
+
+      val aByte = 'a'.toByte
+      val aByteWorkflowUuid = WorkflowId.randomId().toString
+      val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlob, "{}".toClob)
+
+      val workflowStoreEntries = Seq(emptyWorkflowStoreEntry, noneWorkflowStoreEntry, aByteWorkflowStoreEntry)
+
+      val future = for {
+        _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
+        queried <- dataAccess.queryWorkflowStoreEntries(Int.MaxValue, testWorkflowState, testWorkflowState)
+        _ = {
+          val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get
+          emptyEntry.importsZip.toBytesOption should be(None)
+
+          val noneEntry = queried.find(_.workflowExecutionUuid == noneWorkflowUuid).get
+          noneEntry.importsZip.toBytesOption should be(None)
+
+          val aByteEntry = queried.find(_.workflowExecutionUuid == aByteWorkflowUuid).get
+          aByteEntry.importsZip.toBytesOption.get.toSeq should be(Seq(aByte))
+        }
+        _ <- dataAccess.removeWorkflowStoreEntry(emptyWorkflowUuid)
+        _ <- dataAccess.removeWorkflowStoreEntry(noneWorkflowUuid)
+        _ <- dataAccess.removeWorkflowStoreEntry(aByteWorkflowUuid)
+      } yield ()
+      future.futureValue
     }
 
     it should "close the database" taggedAs DbmsTest in {

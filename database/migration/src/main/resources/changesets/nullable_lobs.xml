@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+    <changeSet author="kshakir" id="nullable_lobs">
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="CALL_CACHING_DETRITUS_ENTRY" columnName="DETRITUS_VALUE"/>
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="CALL_CACHING_SIMPLETON_ENTRY" columnName="SIMPLETON_VALUE"/>
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="JOB_STORE_SIMPLETON_ENTRY" columnName="SIMPLETON_VALUE"/>
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_DEFINITION"/>
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_INPUTS"/>
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="WORKFLOW_STORE_ENTRY" columnName="WORKFLOW_OPTIONS"/>
+        <dropNotNullConstraint columnDataType="LONGTEXT"
+                               tableName="WORKFLOW_STORE_ENTRY" columnName="CUSTOM_LABELS"/>
+    </changeSet>
+</databaseChangeLog>

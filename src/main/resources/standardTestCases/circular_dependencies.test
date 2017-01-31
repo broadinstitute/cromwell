@@ -1,0 +1,13 @@
+name: circular_dependencies
+testFormat: workflowfailure
+ignore: true
+
+files {
+  wdl: circular_dependencies/circular_dependencies.wdl
+}
+
+metadata {
+  workflowName: circular_dependencies
+  status: Failed
+  "failures.0": "Oh no! A circular dependency error"
+}

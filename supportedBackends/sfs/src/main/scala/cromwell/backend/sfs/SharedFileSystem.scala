@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
-import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
+import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.values._
@@ -127,7 +127,10 @@ trait SharedFileSystem extends PathFactory {
 
   private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
     val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
-    callRoot.resolve(wdlPath).toAbsolutePath
+    wdlPath match {
+      case _: DefaultPath if !wdlPath.isAbsolute => callRoot.resolve(wdlPath).toAbsolutePath
+      case _ => wdlPath
+    }
   }
 
   def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {

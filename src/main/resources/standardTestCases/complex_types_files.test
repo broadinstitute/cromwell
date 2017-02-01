@@ -1,0 +1,14 @@
+name: complex_types_files
+testFormat: workflowsuccess
+
+files {
+  wdl: complex_types_files/complex_types_files.wdl
+}
+
+metadata {
+  workflowName: complex_types_files
+  status: Succeeded
+  "outputs.complex_types_files.result.0": "There once was a fisher named Fisher\nwho fished for some fish in a fissure\nTill a fish with a grin\npulled the fisherman in\nNow theyre fishing the fissure for Fisher"
+  "outputs.complex_types_files.result.1": ""
+  "outputs.complex_types_files.result.2": "There once was a fisher named Fisher\nwho fished for some fish in a fissure\nTill a fish with a grin\npulled the fisherman in\nNow theyre fishing the fissure for Fisher\nThere once was a fisher named Fisher\nwho fished for some fish in a fissure\nTill a fish with a grin\npulled the fisherman in\nNow theyre fishing the fissure for Fisher"
+}

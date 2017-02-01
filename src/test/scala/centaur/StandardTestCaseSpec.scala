@@ -32,11 +32,11 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
   allTestCases foreach { t => executeStandardTest(t, t.testFunction) }
 
   def executeStandardTest(testCase: StandardTestCase, f: Workflow => Test[_]): Unit = {
-    def nameTest = it should s"${testCase.testFormat.testSpecString} ${testCase.workflow.name}"
+    def nameTest = it should s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
     def runTest = f(testCase.workflow).run.get
 
     // Make tags, but enforce lowercase:
-    val tags = (testCase.testOptions.tags :+ testCase.workflow.name :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
+    val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
 
     tags match {

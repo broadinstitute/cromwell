@@ -64,7 +64,7 @@ object TestFormulas {
     for {
       testWf <- runWorkflowUntilTerminalStatus(workflow, Succeeded)
       metadata <- retrieveMetadata(testWf)
-      _ <- validateNoCacheHits(metadata, workflow.name)
+      _ <- validateNoCacheHits(metadata, workflow.testName)
     } yield ()
   }
 }

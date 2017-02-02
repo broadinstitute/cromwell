@@ -14,7 +14,7 @@ import cromwell.core.path.PathFactory._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
 import wdl4s.EvaluatedTaskInputs
-import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -101,12 +101,15 @@ trait SharedFileSystemAsyncJobExecutionActor
   lazy val jobPathsWithDocker: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
 
   def toUnixPath(docker: Boolean)(path: WdlValue): WdlValue = {
+    val toUnixPathFunc: WdlValue => WdlValue = toUnixPath(docker) _
     path match {
       case _: WdlFile =>
         val cleanPath = DefaultPathBuilder.build(path.valueString).get
         WdlFile(if (docker) jobPathsWithDocker.toDockerPath(cleanPath).toString else cleanPath.toString)
-      case array: WdlArray => WdlArray(array.wdlType, array.value map toUnixPath(docker))
-      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toUnixPath(docker))
+      case array: WdlArray => WdlArray(array.wdlType, array.value map toUnixPathFunc)
+      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toUnixPathFunc)
+      case pair: WdlPair => WdlPair(toUnixPathFunc(pair.left), toUnixPathFunc(pair.right))
+      case opt: WdlOptionalValue => WdlOptionalValue(opt.innerType, opt.value map toUnixPathFunc)
       case wdlValue => wdlValue
     }
   }

@@ -9,7 +9,7 @@ import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
 import wdl4s.types.WdlOptionalType
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object ParameterCommandPart {
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): ParameterCommandPart = {
@@ -24,6 +24,13 @@ object ParameterCommandPart {
       throw new SyntaxError(wdlSyntaxErrorFormatter.trueAndFalseAttributesAreRequired(firstAttr))
     }
     new ParameterCommandPart(attributes, expression)
+  }
+
+  private def withPostProcesser(f: WdlValue => WdlValue, valueFunctions: WdlFunctions[WdlValue]) = new WdlFunctions[WdlValue] {
+    override def getFunction(name: String): WdlFunction = {
+      val originalFunction = valueFunctions.getFunction(name)
+      (seq: Seq[Try[WdlValue]]) => originalFunction(seq) map f
+    }
   }
 }
 
@@ -41,9 +48,9 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
       case Declaration(wdlType: WdlOptionalType, `s`, _, _, _) => wdlType.none
     } getOrElse { throw VariableNotFoundException(s) }
 
-    val lookup = (s: String) => inputs.getOrElse(s, lookupDeclaration(s))
+    val lookup: String => WdlValue = (s: String) => valueMapper(inputs.getOrElse(s, lookupDeclaration(s)))
 
-    val value = expression.evaluate(lookup, functions) match {
+    val value = expression.evaluate(lookup, ParameterCommandPart.withPostProcesser(valueMapper, functions)) match {
       case Success(v) => v match {
         case WdlOptionalValue(memberType, opt) => opt.getOrElse(defaultString)
         case _ => v

@@ -129,7 +129,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       log.debug("Cache miss for job {}", jobTag)
       runJob(data)
     case Event(hit: CacheHit, data: ResponsePendingData) =>
-      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data)
+      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data.copy(cacheHit = Option(hit)))
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       disableCallCaching(t)

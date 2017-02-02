@@ -8,6 +8,8 @@ import cromwell.backend.standard._
 import cromwell.core.CallOutputs
 import wdl4s.TaskCall
 
+import scala.util.{Success, Try}
+
 case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
 
@@ -43,4 +45,14 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))
 
   override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(JesBackendFileHashing.getCrc32c))
+  
+  override def dockerHashCredentials(initializationData: Option[BackendInitializationData]) = {
+    Try(BackendInitializationData.as[JesBackendInitializationData](initializationData)) match {
+      case Success(jesData) => 
+        val maybeDockerHubCredentials = jesData.jesConfiguration.dockerCredentials
+        val googleCredentials = Option(jesData.gcsCredentials.credential)
+        Seq(maybeDockerHubCredentials, googleCredentials).flatten
+      case _ => Seq.empty[Any]
+    }
+  }
 }

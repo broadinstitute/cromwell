@@ -6,7 +6,7 @@ import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
 import wdl4s._
 
-final case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
+case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
                                           backendDescriptor: BackendWorkflowDescriptor,
                                           backendAssignments: Map[TaskCall, String],
                                           failureMode: WorkflowFailureMode,

@@ -141,11 +141,12 @@ object WorkflowActor {
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
+      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -161,6 +162,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                     jobStoreActor: ActorRef,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
+                    dockerHashActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean)
@@ -211,6 +213,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         jobStoreActor,
         subWorkflowStoreActor,
         callCacheReadActor,
+        dockerHashActor,
         jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,

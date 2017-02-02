@@ -59,6 +59,12 @@ trait BackendLifecycleActorFactory {
   lazy val fileHashingActorCount: Int = 50
 
   def fileHashingActorProps: Props = FileHashingActor.props(fileHashingFunction)
+  
+  /*
+   * Returns credentials that can be used to authenticate to a docker registry server
+   * in order to obtain a docker hash.
+   */
+  def dockerHashCredentials(initializationDataOption: Option[BackendInitializationData]): Seq[Any] = Seq.empty
 
   def jobExecutionTokenType: JobExecutionTokenType = JobExecutionTokenType("Default", None)
 }

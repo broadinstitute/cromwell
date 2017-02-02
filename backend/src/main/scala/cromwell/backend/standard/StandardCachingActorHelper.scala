@@ -69,7 +69,7 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
     */
   def startMetadataKeyValues: Map[String, Any] = {
     val runtimeAttributesMetadata = RuntimeAttributesValidation.toMetadataStrings(validatedRuntimeAttributes) map {
-      case (key, value) => (s"runtimeAttributes:$key", value)
+      case (key, value) => (s"${CallMetadataKeys.RuntimeAttributes}:$key", value)
     }
 
     val fileMetadata = jobPaths.metadataPaths

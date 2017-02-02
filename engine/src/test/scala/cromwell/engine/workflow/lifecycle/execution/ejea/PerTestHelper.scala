@@ -7,7 +7,7 @@ import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.core.callcaching.{CallCachingActivity, CallCachingMode, CallCachingOff}
+import cromwell.core.callcaching.{CallCachingActivity, CallCachingEligible, CallCachingMode, CallCachingOff}
 import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
@@ -53,7 +53,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
   val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
-  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputDeclarations = Map.empty)
+  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, inputDeclarations = Map.empty, CallCachingEligible)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[TaskOutput])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
@@ -68,6 +68,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val serviceRegistryProbe = TestProbe()
   val jobStoreProbe = TestProbe()
   val callCacheReadActorProbe = TestProbe()
+  val dockerHashActorProbe = TestProbe()
   val callCacheHitCopyingProbe = TestProbe()
   val jobPreparationProbe = TestProbe()
   val jobTokenDispenserProbe = TestProbe()
@@ -115,6 +116,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       serviceRegistryActor = serviceRegistryProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
       callCacheReadActor = callCacheReadActorProbe.ref,
+      dockerHashActor = dockerHashActorProbe.ref,
       jobTokenDispenserActor = jobTokenDispenserProbe.ref,
       backendName = "NOT USED",
       callCachingMode = callCachingMode
@@ -136,9 +138,10 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              serviceRegistryActor: ActorRef,
                              jobStoreActor: ActorRef,
                              callCacheReadActor: ActorRef,
+                             dockerHashActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
                              backendName: String,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
+                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, jobStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))

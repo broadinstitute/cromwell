@@ -60,6 +60,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
         subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
+        dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
         jobTokenDispenserActor = TestProbe().ref
       ),
       supervisor = supervisorProbe.ref)
@@ -173,7 +174,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         jobStoreActor: ActorRef,
                         subWorkflowStoreActor: ActorRef,
                         callCacheReadActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
+                        dockerHashActor: ActorRef,
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

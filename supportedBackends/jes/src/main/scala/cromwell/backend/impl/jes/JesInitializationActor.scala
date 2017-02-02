@@ -40,13 +40,16 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   }
 
   private lazy val genomics = jesConfiguration.genomicsFactory.withOptions(workflowDescriptor.workflowOptions)
+  // FIXME: workflow paths indirectly re create part of those credentials via the GcsPathBuilder
+  // This is unnecessary duplication of credentials. They are needed here so they can be added to the initialization data
+  // and used to retrieve docker hashes
+  private lazy val gcsCredentials = jesConfiguration.jesAuths.gcs.credentialBundle(workflowDescriptor.workflowOptions)
 
   override lazy val workflowPaths: JesWorkflowPaths =
     new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
 
-
   override lazy val initializationData: JesBackendInitializationData =
-    JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, jesConfiguration, genomics)
+        JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, jesConfiguration, gcsCredentials, genomics)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = Future.fromTry(Try {
     if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths)

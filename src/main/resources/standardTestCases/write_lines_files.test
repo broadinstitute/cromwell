@@ -1,0 +1,18 @@
+name: write_lines_files
+testFormat: workflowsuccess
+ignore: true
+
+files {
+  wdl: write_lines_files/write_lines_files.wdl
+}
+
+metadata {
+  workflowName: write_lines_files
+  status: Succeeded
+  "outputs.write_lines_files.reversed_contents.0": "contents_4"
+  "outputs.write_lines_files.reversed_contents.1": "contents_3"
+  "outputs.write_lines_files.reversed_contents.2": "contents_2"
+  "outputs.write_lines_files.reversed_contents.3": "contents_1"
+  "outputs.write_lines_files.reversed_contents.4": "contents_0"
+}
+

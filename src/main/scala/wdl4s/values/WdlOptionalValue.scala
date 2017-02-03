@@ -77,6 +77,10 @@ case class WdlOptionalValue(innerType: WdlType, value: Option[WdlValue]) extends
     case Some(lhs) => lhs.greaterThan(rhs)
     case None => emptyValueFailure(">")
   }
+
+  override def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
+    value.toList flatMap { _.collectAsSeq(filterFn) }
+  }
 }
 
 object WdlOptionalValue {

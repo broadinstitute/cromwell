@@ -55,6 +55,8 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
         a.value.flatMap(findWdlFiles(_, coerce=false))
       case Success(m: WdlMap) =>
         m.value flatMap { case (k, v) => Seq(k, v) } flatMap(findWdlFiles(_, coerce=false)) toSeq
+      case Success(WdlOptionalValue(_, Some(v))) => findWdlFiles(v, coerce=false)
+      case Success(WdlPair(l, r)) => findWdlFiles(l, coerce = false) ++ findWdlFiles(r, coerce = false)
       case _ => Seq.empty[WdlFile]
     }
   }

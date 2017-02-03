@@ -412,9 +412,9 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
     ()
   }
 
-  private def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): Path = {
+  private def createCannedFile(prefix: String, contents: String, dir: Option[Path] = None): File = {
     val suffix = ".out"
-    val file = File.newTemporaryFile(prefix, suffix, dir)
+    val file = File.newTemporaryFile(prefix, suffix, dir.map(File.apply))
     file.write(contents)
   }
 

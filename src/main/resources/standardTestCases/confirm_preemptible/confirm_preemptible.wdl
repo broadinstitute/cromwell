@@ -18,7 +18,7 @@ task check_preemption {
 
 
 workflow confirm_preemptible {
-  call check_preemption as yes { input: set_preemptible = 1 }
+  call check_preemption as yes { input: set_preemptible = 5 }
   call check_preemption as no  { input: set_preemptible = 0 }
 
   output {

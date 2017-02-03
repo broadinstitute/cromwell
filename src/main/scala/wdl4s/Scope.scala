@@ -88,8 +88,8 @@ trait Scope {
   /**
     * String identifier for this scope.  this.namespace.resolve(this.fullyQualifiedName) == this
     */
-  def fullyQualifiedName = {
-    (ancestry.reverse.filter(_.appearsInFqn).map(_.unqualifiedName) :+ unqualifiedName).mkString(".")
+  lazy val fullyQualifiedName = {
+    (ancestry.filter(_.appearsInFqn).map(_.unqualifiedName).reverse :+ unqualifiedName).mkString(".")
   }
 
   /**

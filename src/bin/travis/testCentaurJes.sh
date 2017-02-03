@@ -48,7 +48,7 @@ pyenv global 2.7.10
 sudo pip install --upgrade pip
 sudo pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
 export CLOUDSDK_PYTHON_SITEPACKAGES=1
-gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d9c443bb4a94.json "$CROMWELL_SERVICE_ACCOUNT"
+gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-ed9fc19865dc.json "$CROMWELL_SERVICE_ACCOUNT"
 
 echo "RUNNING TRAVIS CENTAUR"
 sbt assembly

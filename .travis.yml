@@ -33,4 +33,3 @@ deploy:
   script: src/bin/travis/publishRelease.sh
   on:
     tags: true
-

@@ -2,7 +2,7 @@ package cromwell.backend.wdl
 
 import lenthall.exception.AggregatedException
 import lenthall.util.TryUtil
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
 
 import scala.util.{Failure, Success, Try}
 
@@ -19,15 +19,26 @@ object WdlFileMapper {
         val mappedMap = map.value map {
           case (key, value) => mapWdlFiles(mapper)(key) -> mapWdlFiles(mapper)(value)
         }
-        KeyValueTryUtil.sequenceMapKeyValues(mappedMap) map {
+        EnhancedTryUtil.sequenceMapKeyValues(mappedMap) map {
           WdlMap(map.wdlType, _)
+        }
+      case pair: WdlPair =>
+        val mappedPair: (Try[WdlValue], Try[WdlValue]) = (mapWdlFiles(mapper)(pair.left), mapWdlFiles(mapper)(pair.right))
+        EnhancedTryUtil.sequenceMapTuple(mappedPair) map {
+          (WdlPair.apply _).tupled
+        }
+      case optionalValue: WdlOptionalValue =>
+        val mappedOptional: Option[Try[WdlValue]] = optionalValue.value.map(mapWdlFiles(mapper))
+        EnhancedTryUtil.sequenceOptionalValue(mappedOptional) map {
+          WdlOptionalValue(optionalValue.innerType, _)
         }
       case other => Success(other)
     }
   }
 }
 
-object KeyValueTryUtil {
+// TODO: Move into Lenthall
+object EnhancedTryUtil {
   private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
     tries collect { case f: Failure[_] => f } match {
       case failures if failures.nonEmpty =>
@@ -35,6 +46,24 @@ object KeyValueTryUtil {
         Failure(AggregatedException(prefixErrorMessage, exceptions.toList))
       case _ => Success(unbox())
     }
+  }
+
+  def sequenceOptionalValue[T](tried: Option[Try[T]], prefixErrorMessage: String = ""): Try[Option[T]] = {
+    def unbox: Option[T] = tried.map(_.get)
+
+    val triesSeq: Seq[Try[_]] = tried.toSeq
+    sequenceIterable(triesSeq, unbox _, prefixErrorMessage)
+  }
+
+  def sequenceMapTuple[T, U](tries: (Try[T], Try[U]), prefixErrorMessage: String = ""): Try[(T, U)] = {
+    def unbox: (T, U) = tries match {
+      case (try1, try2) => (try1.get, try2.get)
+    }
+
+    val triesSeq: Seq[Try[_]] = tries match {
+      case (try1, try2) => Seq(try1, try2)
+    }
+    sequenceIterable(triesSeq, unbox _, prefixErrorMessage)
   }
 
   // TODO: TryUtil.sequenceMap doesn't currently handle keys of Try[WdlValue], so for now implementing our own here.

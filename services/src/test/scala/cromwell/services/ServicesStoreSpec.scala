@@ -3,9 +3,10 @@ package cromwell.services
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.sql.{Connection, JDBCType}
 import java.time.OffsetDateTime
+import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 
 import better.files._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.migration.liquibase.LiquibaseUtils
@@ -26,7 +27,7 @@ import slick.driver.JdbcProfile
 import slick.jdbc.meta._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.util.Try
 import scala.xml._
 
@@ -39,6 +40,53 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
   implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
   behavior of "ServicesStore"
+
+  it should "deadlock and timeout after 10 seconds" in {
+    /*
+    Tests that we still need our deadlock workaround in `database.run` to deal with problems in Slick 3.1.
+    If/when this test fails, the workaround should be removed.
+    */
+
+    class DeadlockingSlickDatabase(config: Config) extends SlickDatabase(config) {
+
+      import dataAccess.driver.api._
+
+      override protected[this] def runTransaction[R](action: DBIO[R]): Future[R] = {
+        database.run(action.transactionally) //<-- https://github.com/slick/slick/issues/1274
+      }
+    }
+
+    // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
+    val databaseConfig = ConfigFactory.parseString(
+      s"""|db.url = "jdbc:hsqldb:mem:$${uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
+          |db.driver = "org.hsqldb.jdbcDriver"
+          |db.connectionTimeout = 3000
+          |db.numThreads = 2
+          |driver = "slick.driver.HsqldbDriver$$"
+          |""".stripMargin)
+    import ServicesStore.EnhancedSqlDatabase
+    for {
+      database <- new DeadlockingSlickDatabase(databaseConfig).initialized.autoClosed
+    } {
+      val futures = 1 to 20 map { _ =>
+        val workflowUuid = WorkflowId.randomId().toString
+        val callFqn = "call.fqn"
+        val jobIndex = 1
+        val jobAttempt = 1
+        val jobSuccessful = false
+        val jobStoreEntry = JobStoreEntry(workflowUuid, callFqn, jobIndex, jobAttempt, jobSuccessful, None, None, None)
+        val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, Seq()))
+        // NOTE: This test just needs to repeatedly read/write from a table that acts as a PK for a FK.
+        for {
+          _ <- database.addJobStores(jobStoreJoins)
+          queried <- database.queryJobStores(workflowUuid, callFqn, jobIndex, jobAttempt)
+          _ = queried.get.jobStoreEntry.workflowExecutionUuid should be(workflowUuid)
+        } yield ()
+      }
+
+      intercept[TimeoutException](Await.result(Future.sequence(futures), 10.seconds))
+    }
+  }
 
   it should "not deadlock" in {
     // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
@@ -249,10 +297,13 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
     lazy val dataAccess = new SlickDatabase(databaseConfig).initialized
 
+    lazy val getProduct = {
+      import dataAccess.dataAccess.driver.api._
+      SimpleDBIO[String](_.connection.getMetaData.getDatabaseProductName)
+    }
+
     it should "(if hsqldb) have transaction isolation mvcc" taggedAs DbmsTest in {
       import dataAccess.dataAccess.driver.api._
-
-      val getProduct = SimpleDBIO[String](_.connection.getMetaData.getDatabaseProductName)
       //noinspection SqlDialectInspection
       val getHsqldbTx = sql"""SELECT PROPERTY_VALUE
                               FROM INFORMATION_SCHEMA.SYSTEM_PROPERTIES
@@ -268,6 +319,68 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           case _ => Future.successful(())
         }
       } yield ()).futureValue
+    }
+
+    it should "fail to store and retrieve empty clobs in MySQL" taggedAs DbmsTest in {
+      /*
+      Tests that we still need our empty clob workaround in `SqlConverters.toClob`. The current mysql jdbc driver throws
+      an exception when serializing an empty clob. If/when this test fails, the workaround should be removed.
+      */
+      val emptyClob = new SerialClob(Array.empty[Char])
+
+      val workflowUuid = WorkflowId.randomId().toString
+      val callFqn = "call.fqn"
+      val jobIndex = 1
+      val jobAttempt = 1
+      val jobSuccessful = false
+      val jobStoreEntry = JobStoreEntry(workflowUuid, callFqn, jobIndex, jobAttempt, jobSuccessful, None, None, None)
+      val jobStoreSimpletonEntries = Seq(JobStoreSimpletonEntry("empty", Option(emptyClob), "WdlString"))
+      val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, jobStoreSimpletonEntries))
+
+      val future = for {
+        product <- dataAccess.database.run(getProduct)
+        _ = product match {
+          case "MySQL" =>
+            val exception = intercept[SerialException] {
+              Await.result(dataAccess.addJobStores(jobStoreJoins), Duration.Inf)
+            }
+            exception should be(a[SerialException])
+            exception.getMessage should be("Invalid position in SerialClob object set")
+          case _ => ()
+        }
+      } yield ()
+
+      future.futureValue
+    }
+
+    it should "fail to store and retrieve empty blobs in MySQL" taggedAs DbmsTest in {
+      /*
+      Tests that we still need our empty blob workaround in `SqlConverters.toBlob`. The current mysql jdbc driver throws
+      an exception when serializing an empty blob. If/when this test fails, the workaround should be removed.
+      */
+      val emptyBlob = new SerialBlob(Array.empty[Byte])
+
+      val workflowUuid = WorkflowId.randomId().toString
+      val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+        "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), "{}".toClob)
+
+      val workflowStoreEntries = Seq(workflowStoreEntry)
+
+      val future = for {
+        product <- dataAccess.database.run(getProduct)
+        _ = product match {
+          case "MySQL" =>
+            val exception = intercept[SerialException] {
+              Await.result(dataAccess.addWorkflowStoreEntries(workflowStoreEntries), Duration.Inf)
+            }
+            exception should be(a[SerialException])
+            exception.getMessage should
+              be("Invalid arguments: position cannot be less than 1 or greater than the length of the SerialBlob")
+          case _ => ()
+        }
+      } yield ()
+
+      future.futureValue
     }
 
     it should "store and retrieve empty clobs" taggedAs DbmsTest in {

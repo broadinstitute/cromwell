@@ -24,7 +24,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
   "A task which contains a parameter " should {
     "accept an array for the value" in {
       val sampleWdl = SampleWdl.MapLiteral(pwd)
-      val callDir = "[PWD]/cromwell-executions/wf/[WORKFLOW_ID]/call-write_map/inputs[PWD]"
+      val callDir = "<<PWD>>/cromwell-executions/wf/<<UUID>>/call-write_map/inputs<<PWD>>"
       runWdlAndAssertOutputs(
         sampleWdl = sampleWdl,
         EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),

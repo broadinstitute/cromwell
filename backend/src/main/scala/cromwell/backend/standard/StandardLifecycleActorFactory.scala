@@ -41,7 +41,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     *
     * @return the initialization class.
     */
-  def initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[StandardInitializationActor]
+  lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[StandardInitializationActor]
 
   /**
     * Returns the synchronous executor class. By default using the standard sync executor should be sufficient for most

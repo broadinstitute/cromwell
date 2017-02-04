@@ -28,9 +28,7 @@ object CromwellCommandLine {
 }
 
 // We cannot initialize the logging until after we parse the command line in Main.scala. So we have to bundle up and pass back this information, just for logging.
-case class SingleRunPathParameters(wdlPath: Path, inputsPath: Option[Path], optionsPath: Option[Path],
-                                   metadataPath: Option[Path], importPath: Option[Path],
-                                   labelsPath: Option[Path]) {
+case class SingleRunPathParameters(wdlPath: Path, inputsPath: Option[Path], optionsPath: Option[Path], metadataPath: Option[Path], importPath: Option[Path], labelsPath: Option[Path]) {
   def logMe(log: org.slf4j.Logger) = {
     log.info(s"  WDL file: $wdlPath")
     inputsPath foreach { i => log.info(s"  Inputs: $i") }

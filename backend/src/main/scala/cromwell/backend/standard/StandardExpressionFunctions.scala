@@ -19,7 +19,7 @@ case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: L
                                                     override val callContext: CallContext
                                                    ) extends StandardExpressionFunctionsParams
 
-// TODO: GLOB: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.
+// TODO: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.
 class StandardExpressionFunctions(val standardParams: StandardExpressionFunctionsParams)
   extends PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions with GlobFunctions {
 

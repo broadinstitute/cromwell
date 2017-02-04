@@ -190,9 +190,9 @@ object CromwellTestKitSpec {
   }
 
   def replaceVariables(value: String, workflowId: WorkflowId): String = {
-    val variables = Map("PWD" -> Cmds.pwd, "WORKFLOW_ID" -> workflowId)
+    val variables = Map("PWD" -> Cmds.pwd, "UUID" -> workflowId)
     variables.foldLeft(value) {
-      case (result, (variableName, variableValue)) => result.replace(s"[$variableName]", s"$variableValue")
+      case (result, (variableName, variableValue)) => result.replace(s"<<$variableName>>", s"$variableValue")
     }
   }
 

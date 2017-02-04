@@ -29,9 +29,7 @@ class CopyWorkflowOutputsSpec extends CromwellTestKitSpec {
         eventFilter = EventFilter.info(
           pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
         workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
-        expectedOutputs = Seq("A.out", "A.out2", "B.outs") map { o =>
-          ("wfoutputs." + o) -> CromwellTestKitSpec.AnyValueIsFine
-        } toMap,
+        expectedOutputs = Seq("A.out", "A.out2", "B.outs") map { o => ("wfoutputs." + o) -> CromwellTestKitSpec.AnyValueIsFine } toMap,
         allowOtherOutputs = false
       )
 

@@ -1,11 +1,10 @@
 package cromwell.backend.impl.tes
 
-import java.nio.file.Paths
-
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.path.Obsolete._
 import wdl4s.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlSingleFile, WdlValue}

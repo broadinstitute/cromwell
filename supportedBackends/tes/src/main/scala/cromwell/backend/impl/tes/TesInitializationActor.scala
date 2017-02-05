@@ -1,11 +1,10 @@
 package cromwell.backend.impl.tes
 
 import akka.actor.{ActorRef, Props}
-import better.files.File
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.path.FileImplicits._
+import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
 import wdl4s.TaskCall
 
@@ -34,20 +33,18 @@ case class TesInitializationActorParams
 }
 
 class TesInitializationActor(params: TesInitializationActorParams)
-  extends StandardInitializationActor {
-
-  override val standardParams: StandardInitializationActorParams = params
+  extends StandardInitializationActor(params) {
 
   private val tesConfiguration = params.tesConfiguration
 
   lazy val pathBuilderFactories: List[PathBuilderFactory] = List(Option(DefaultPathBuilderFactory)).flatten
 
-  lazy val pathBuilders: List[PathBuilder] =
+  override lazy val pathBuilders: List[PathBuilder] =
     pathBuilderFactories map {
       _.withOptions(workflowDescriptor.workflowOptions)(context.system)
     }
 
-  val workflowPaths: TesWorkflowPaths =
+  override lazy val workflowPaths: TesWorkflowPaths =
     new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, pathBuilders)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =

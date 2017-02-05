@@ -1,11 +1,10 @@
 package cromwell.backend.impl.tes
 
-import java.nio.file.{Path, Paths}
-
 import com.typesafe.config.Config
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.{Path, PathBuilder}
 import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
 
 class TesJobPaths(val jobKey: BackendJobDescriptorKey,
@@ -21,8 +20,6 @@ class TesJobPaths(val jobKey: BackendJobDescriptorKey,
   val callInputsRoot = callRoot.resolve("inputs")
   var containerWorkingDir = callExecutionDockerRoot
 
-  // Utility for converting a WdlValue so that the path is localized to the
-  // container's filesystem.
   def toContainerPath(path: WdlValue): WdlValue = {
     path match {
       case file: WdlFile => {

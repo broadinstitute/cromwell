@@ -1,10 +1,9 @@
 package cromwell.backend.async
 
-import java.nio.file.Path
-
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
-import cromwell.core.{ExecutionEvent, CallOutputs}
+import cromwell.core.path.Path
+import cromwell.core.{CallOutputs, ExecutionEvent}
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction

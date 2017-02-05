@@ -1,7 +1,5 @@
 package cromwell.core.logging
 
-import java.nio.file.{Path, Paths}
-
 import akka.actor.{Actor, ActorLogging}
 import akka.event.LoggingAdapter
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
@@ -10,7 +8,7 @@ import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.FileAppender
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
-import cromwell.core.path.FileImplicits._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger, LoggerFactory}
@@ -27,7 +25,7 @@ object WorkflowLogger {
   def makeFileLogger(path: Path, level: Level): Logger = {
     // see below
     val ctx = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
-    val name = path.getFileName.toString
+    val name = path.name
 
     Option(ctx.exists(name)) match {
       case Some(existingLogger) => existingLogger
@@ -54,7 +52,7 @@ object WorkflowLogger {
         encoder.start()
 
         val appender = new FileAppender[ILoggingEvent]()
-        appender.setFile(path.toString)
+        appender.setFile(path.pathAsString)
         appender.setEncoder(encoder)
         appender.setName(name)
         appender.setContext(ctx)
@@ -77,7 +75,7 @@ object WorkflowLogger {
       workflowConfig <- conf.as[Option[Config]]("workflow-options")
       dir <- workflowConfig.as[Option[String]]("workflow-log-dir") if !dir.isEmpty
       temporary <- workflowConfig.as[Option[Boolean]]("workflow-log-temporary") orElse Option(true)
-    } yield WorkflowLogConfiguration(Paths.get(dir).toAbsolutePath, temporary)
+    } yield WorkflowLogConfiguration(DefaultPathBuilder.get(dir).toAbsolutePath, temporary)
   }
 
   val isEnabled = workflowLogConfiguration.isDefined
@@ -108,16 +106,14 @@ class WorkflowLogger(loggerName: String,
                      otherLoggers: Set[Logger] = Set.empty[Logger])
   extends LoggerWrapper {
 
-  import better.files._
-
   override def getName = loggerName
 
-  def deleteLogFile() = Try { workflowLogPath foreach { File(_).delete(swallowIOExceptions = false) } }
+  def deleteLogFile() = Try { workflowLogPath foreach { _.delete() } }
 
   import WorkflowLogger._
 
   lazy val workflowLogPath = workflowLogConfiguration.map(workflowLogConfigurationActual =>
-    File(workflowLogConfigurationActual.dir).createPermissionedDirectories() / s"workflow.$workflowId.log").map(_.path)
+    workflowLogConfigurationActual.dir.createPermissionedDirectories() / s"workflow.$workflowId.log")
 
   lazy val fileLogger = workflowLogPath match {
     case Some(path) => makeFileLogger(path, Level.toLevel(sys.props.getOrElse("LOG_LEVEL", "debug")))

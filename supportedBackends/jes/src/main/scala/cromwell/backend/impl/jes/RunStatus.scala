@@ -1,9 +1,8 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.Path
-
 import cromwell.backend.impl.jes.errors.JesError
 import cromwell.core.ExecutionEvent
+import cromwell.core.path.Path
 
 sealed trait RunStatus {
   import RunStatus._

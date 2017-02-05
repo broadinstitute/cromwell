@@ -1,23 +1,17 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileAlreadyExistsException, Path}
+import java.nio.file.FileAlreadyExistsException
 
-import better.files._
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.io.JobPathsWithDocker
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob, StandardInitializationData}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
-import cromwell.backend.wdl.OutputEvaluator
-import cromwell.core.path.FileImplicits._
-import cromwell.core.path.PathFactory._
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wdl4s.EvaluatedTaskInputs
-import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
+import wdl4s.values.WdlFile
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
 
 case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
   override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
@@ -100,42 +94,33 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   lazy val jobPathsWithDocker: JobPathsWithDocker = jobPaths.asInstanceOf[JobPathsWithDocker]
 
-  def toUnixPath(docker: Boolean)(path: WdlValue): WdlValue = {
-    val toUnixPathFunc: WdlValue => WdlValue = toUnixPath(docker) _
-    path match {
-      case _: WdlFile =>
-        val cleanPath = DefaultPathBuilder.build(path.valueString).get
-        WdlFile(if (docker) jobPathsWithDocker.toDockerPath(cleanPath).toString else cleanPath.toString)
-      case array: WdlArray => WdlArray(array.wdlType, array.value map toUnixPathFunc)
-      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toUnixPathFunc)
-      case pair: WdlPair => WdlPair(toUnixPathFunc(pair.left), toUnixPathFunc(pair.right))
-      case opt: WdlOptionalValue => WdlOptionalValue(opt.innerType, opt.value map toUnixPathFunc)
-      case wdlValue => wdlValue
-    }
-  }
-
   def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.call.unqualifiedName}"
-
-  lazy val pathBuilders: List[PathBuilder] = StandardInitializationData.pathBuilders(backendInitializationDataOption)
-  lazy val backendEngineFunctions = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
 
   lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
     DockerValidation.instance, validatedRuntimeAttributes).isDefined
 
-  override lazy val commandLineFunctions: SharedFileSystemExpressionFunctions = backendEngineFunctions
+  /**
+    * Localizes the file, run outside of docker.
+    */
+  override def preProcessWdlFile(wdlFile: WdlFile): WdlFile = {
+    sharedFileSystem.localizeWdlFile(jobPathsWithDocker.callInputsRoot, isDockerRun)(wdlFile)
+  }
 
-  override lazy val commandLinePreProcessor: (EvaluatedTaskInputs) => Try[EvaluatedTaskInputs] =
-    sharedFileSystem.localizeInputs(jobPathsWithDocker.callInputsRoot, isDockerRun)
+  /**
+    * Returns the paths to the file, inside of docker.
+    */
+  override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
+    val cleanPath = DefaultPathBuilder.build(wdlFile.valueString).get
+    WdlFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
+  }
 
-  override lazy val commandLineValueMapper: (WdlValue) => WdlValue = toUnixPath(isDockerRun)
+  override lazy val commandDirectory: Path = {
+    if (isDockerRun) jobPathsWithDocker.callExecutionDockerRoot else jobPaths.callExecutionRoot
+  }
 
   override def execute(): ExecutionHandle = {
-    val script = instantiatedCommand
-    jobLogger.info(s"`$script`")
-    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
-    val cwd = if (isDockerRun) jobPathsWithDocker.callExecutionDockerRoot else jobPaths.callExecutionRoot
-    writeScript(script, cwd, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
-    jobLogger.info(s"command: $processArgs")
+    jobPaths.callExecutionRoot.createPermissionedDirectories()
+    writeScriptContents()
     val runner = makeProcessRunner()
     val exitValue = runner.run()
     if (exitValue != 0) {
@@ -147,6 +132,11 @@ trait SharedFileSystemAsyncJobExecutionActor
     }
   }
 
+  def writeScriptContents(): Unit = {
+    jobPaths.script.write(commandScriptContents)
+    ()
+  }
+
   /**
     * Creates a script to submit the script for asynchronous processing. The default implementation assumes the
     * processArgs already runs the script asynchronously. If not, mix in the `BackgroundAsyncJobExecutionActor` that
@@ -155,55 +145,14 @@ trait SharedFileSystemAsyncJobExecutionActor
     * @return A process runner that will relatively quickly submit the script asynchronously.
     */
   def makeProcessRunner(): ProcessRunner = {
-    val stdout = pathPlusSuffix(jobPaths.stdout, "submit")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "submit")
-    new ProcessRunner(processArgs.argv, stdout.path, stderr.path)
-  }
-
-  /**
-    * Writes the script file containing the user's command from the WDL as well
-    * as some extra shell code for monitoring jobs
-    */
-  private def writeScript(instantiatedCommand: String, cwd: Path, globFiles: Set[WdlGlobFile]) = {
-    val rcPath = if (isDockerRun) jobPathsWithDocker.toDockerPath(jobPaths.returnCode) else jobPaths.returnCode
-    val rcTmpPath = pathPlusSuffix(rcPath, "tmp").path
-
-    def globManipulation(globFile: WdlGlobFile) = {
-
-      // TODO: Move glob list and directory generation into trait GlobFunctions? There is already a globPath using callContext
-      val globDir = backendEngineFunctions.globName(globFile.value)
-      val globDirectory = File(cwd)./(globDir)
-      val globList = File(cwd)./(s"$globDir.list")
-
-      s"""|mkdir $globDirectory
-          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
-          |ls -1 $globDirectory > $globList
-          |""".stripMargin
-    }
-
-    val globManipulations = globFiles.map(globManipulation).mkString("\n")
-
-    val scriptBody =
-      s"""|#!/bin/sh
-          |umask 0000
-          |(
-          |cd $cwd
-          |INSTANTIATED_COMMAND
-          |)
-          |echo $$? > $rcTmpPath
-          |(
-          |cd $cwd
-          |$globManipulations
-          |)
-          |mv $rcTmpPath $rcPath
-          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
-
-    File(jobPaths.script).write(scriptBody)
+    val stdout = jobPaths.stdout.plusExt("submit")
+    val stderr = jobPaths.stderr.plusExt("submit")
+    new ProcessRunner(processArgs.argv, stdout, stderr)
   }
 
   override def recover(job: StandardAsyncJob): ExecutionHandle = {
     // To avoid race conditions, check for the rc file after checking if the job is alive.
-    if (isAlive(job) || File(jobPaths.returnCode).exists) {
+    if (isAlive(job) || jobPaths.returnCode.exists) {
       // If we're done, we'll get to the rc during the next poll.
       // Or if we're still running, return pending also.
       jobLogger.info(s"Recovering using job id: ${job.jobId}")
@@ -217,14 +166,14 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def isAlive(job: StandardAsyncJob): Boolean = {
     val argv = checkAliveArgs(job).argv
-    val stdout = pathPlusSuffix(jobPaths.stdout, "check")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "check")
-    val checkAlive = new ProcessRunner(argv, stdout.path, stderr.path)
+    val stdout = jobPaths.stdout.plusExt("check")
+    val stderr = jobPaths.stderr.plusExt("check")
+    val checkAlive = new ProcessRunner(argv, stdout, stderr)
     checkAlive.run() == 0
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
-    val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
+    val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
     try {
       returnCodeTmp.moveTo(jobPaths.returnCode)
@@ -234,29 +183,22 @@ trait SharedFileSystemAsyncJobExecutionActor
         returnCodeTmp.delete(true)
     }
     val argv = killArgs(job).argv
-    val stdout = pathPlusSuffix(jobPaths.stdout, "kill")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "kill")
-    val killer = new ProcessRunner(argv, stdout.path, stderr.path)
+    val stdout = jobPaths.stdout.plusExt("kill")
+    val stderr = jobPaths.stderr.plusExt("kill")
+    val killer = new ProcessRunner(argv, stdout, stderr)
     killer.run()
     ()
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    SharedFileSystemRunStatus(File(jobPaths.returnCode).exists)
+    SharedFileSystemRunStatus(jobPaths.returnCode.exists)
   }
 
   override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
     runStatus.returnCodeFileExists
   }
 
-  override def handleExecutionSuccess(runStatus: StandardAsyncRunStatus, handle: StandardAsyncPendingExecutionHandle,
-                                      returnCode: Int): ExecutionHandle = {
-    val outputsTry =
-      OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, sharedFileSystem.outputMapper(jobPaths))
-    outputsTry match {
-      case Success(outputs) => SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, Seq.empty)
-      case Failure(throwable) => FailedNonRetryableExecutionHandle(throwable, Option(returnCode))
-    }
+  override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
+    sharedFileSystem.mapJobWdlFile(jobPaths)(wdlFile)
   }
-
 }

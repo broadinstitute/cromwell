@@ -1,7 +1,6 @@
 package cromwell.backend.impl.htcondor
 
-import better.files._
-
+import cromwell.core.path.Obsolete._
 import org.scalatest.{Matchers, WordSpecLike}
 
 class HtCondorCommandSpec extends WordSpecLike with Matchers {

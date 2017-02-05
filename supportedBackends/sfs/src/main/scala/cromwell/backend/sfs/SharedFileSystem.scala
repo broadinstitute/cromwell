@@ -1,20 +1,17 @@
 package cromwell.backend.sfs
 
 import java.io.{FileNotFoundException, IOException}
-import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
+import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
-import cromwell.core.path.FileImplicits._
-import cromwell.core.path.PathFactory
-import cromwell.core.path.PathFactory._
+import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
-import wdl4s.types.{WdlArrayType, WdlMapType}
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -22,7 +19,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object SharedFileSystem extends StrictLogging {
-  import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
     def toPair: (String, Try[WdlValue]) = name -> value
@@ -36,34 +32,34 @@ object SharedFileSystem extends StrictLogging {
     }
   }
 
-  case class PairOfFiles(src: File, dst: File)
-  type DuplicationStrategy = (File, File) => Try[Unit]
+  case class PairOfFiles(src: Path, dst: Path)
+  type DuplicationStrategy = (Path, Path) => Try[Unit]
 
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
     if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
   }
 
-  private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
     val action = Try {
       executionPath.parent.createPermissionedDirectories()
-      val executionTmpPath = pathPlusSuffix(executionPath, "tmp")
+      val executionTmpPath = executionPath.plusExt("tmp")
       originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
     }.void
     logOnFailure(action, "copy")
   }
 
-  private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
     val action = Try {
       executionPath.parent.createPermissionedDirectories()
-      executionPath.linkTo(originalPath, symbolic = false)
+      executionPath.linkTo(originalPath)
     }.void
     logOnFailure(action, "hard link")
   }
 
-  private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
       else {
@@ -80,10 +76,8 @@ object SharedFileSystem extends StrictLogging {
     action
   }
 
-  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
-    import cromwell.util.FileUtil._
-
-    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymlinks, dest))
+  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
+    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymbolicLinks, dest))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
@@ -92,7 +86,6 @@ object SharedFileSystem extends StrictLogging {
 
 trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
-  import better.files._
 
   def sharedFileSystemConfig: Config
 
@@ -132,24 +125,24 @@ trait SharedFileSystem extends PathFactory {
     localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
   }
 
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
+  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
     val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
-    callRoot.resolve(wdlPath).toAbsolutePath
+    wdlPath match {
+      case _: DefaultPath if !wdlPath.isAbsolute => callRoot.resolve(wdlPath).toAbsolutePath
+      case _ => wdlPath
+    }
   }
 
   def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
-    wdlValue match {
+    WdlFileMapper.mapWdlFiles(mapJobWdlFile(job))(wdlValue)
+  }
+
+  def mapJobWdlFile(job: JobPaths)(wdlFile: WdlFile): WdlFile = {
+    wdlFile match {
       case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
-        Failure(new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}"))
-      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, file.valueString).pathAsString))
-      case array: WdlArray =>
-        val mappedArray = array.value map outputMapper(job)
-        TryUtil.sequence(mappedArray) map { WdlArray(array.wdlType, _) }
-      case map: WdlMap =>
-        val mappedMap = map.value mapValues outputMapper(job)
-        TryUtil.sequenceMap(mappedMap) map { WdlMap(map.wdlType, _) }
-      case other => Success(other)
+        throw new RuntimeException("Could not process output, file not found: " +
+          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}")
+      case _ => WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, wdlFile.valueString).pathAsString)
     }
   }
 
@@ -162,16 +155,19 @@ trait SharedFileSystem extends PathFactory {
    * been performed for this `Backend` implementation.
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: EvaluatedTaskInputs): Try[EvaluatedTaskInputs] = {
+    TryUtil.sequenceMap(
+      inputs mapValues WdlFileMapper.mapWdlFiles(localizeWdlFile(inputsRoot, docker)),
+      "Failures during localization"
+    ) recoverWith {
+      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+    }
+  }
+
+  def localizeWdlFile(inputsRoot: Path, docker: Boolean)(value: WdlFile): WdlFile = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
-    // Use URI to identify protocol scheme and strip it out
-    def stripProtocolScheme(path: Path): Path = {
-      val uri = path.toUri
-      val host = Option(uri.getHost)
-      val uriPath = uri.getPath
-
-      host map { h => Paths.get(h, uriPath) } getOrElse Paths.get(uriPath)
-    }
+    // Strip the protocol scheme
+    def stripProtocolScheme(path: Path): Path = DefaultPathBuilder.get(path.pathWithoutScheme)
 
     /*
       * Transform an original input path to a path in the call directory.
@@ -179,84 +175,36 @@ trait SharedFileSystem extends PathFactory {
       */
 
     def toCallPath(path: String): Try[PairOfFiles] = Try {
-      val src = buildFile(path)
+      val src = buildPath(path)
       // Strip out potential prefix protocol
-      val localInputPath = stripProtocolScheme(src.path)
-      val dest = if (File(inputsRoot).isParentOf(localInputPath)) File(localInputPath)
+      val localInputPath = stripProtocolScheme(src)
+      val dest = if (inputsRoot.isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        File(Paths.get(inputsRoot.toString, localInputPath.toString))
+        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.pathAsString)
       }
 
       PairOfFiles(src, dest)
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    val localizeFunction = localizeWdlValue(toCallPath, strategies.toStream) _
-    val localizedValues = inputs.toSeq map {
-      case (declaration, value) => localizeFunction(value) map { declaration -> _ }
-    }
-
-    TryUtil.sequence(localizedValues, "Failures during localization").map(_.toMap) recoverWith {
-      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
-    }
+    localizeWdlFile(toCallPath _, strategies.toStream)(value)
   }
 
   /**
-   * Try to localize a WdlValue if it is or contains one or more WdlFiles.
-   *
-   * @param toDestPath function specifying how to generate the destination path from the source path
-   * @param strategies strategies to use for localization
-   * @param wdlValue WdlValue to localize
-   * @return localized wdlValue
-   */
-  private def localizeWdlValue(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
-                              (wdlValue: WdlValue): Try[WdlValue] = {
-
-    def adjustArray(t: WdlArrayType, inputArray: Seq[WdlValue]): Try[WdlArray] = {
-      val tryAdjust = inputArray map localizeWdlValue(toDestPath, strategies)
-
-      TryUtil.sequence(tryAdjust, s"Failed to localize files in input Array ${wdlValue.valueString}") map { adjusted =>
-        new WdlArray(t, adjusted)
-      }
+    * Try to localize a WdlFile.
+    *
+    * @param toDestPath function specifying how to generate the destination path from the source path
+    * @param strategies strategies to use for localization
+    * @param wdlFile WdlFile to localize
+    * @return localized wdl file
+    */
+  private def localizeWdlFile(toDestPath: (String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy])
+                             (wdlFile: WdlFile): WdlFile = {
+    val path = wdlFile.value
+    val result = toDestPath(path) flatMap {
+      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.pathAsString) }
     }
-
-    def adjustMap(t: WdlMapType, inputMap: Map[WdlValue, WdlValue]): Try[WdlMap] = {
-      val tryAdjust = inputMap mapValues { localizeWdlValue(toDestPath, strategies) }
-
-      TryUtil.sequenceMap(tryAdjust, s"Failed to localize files in input Map ${wdlValue.valueString}") map { adjusted =>
-        new WdlMap(t, adjusted)
-      }
-    }
-
-    def adjustPair(p: WdlPair): Try[WdlPair] = {
-      for {
-        l <- localizeWdlValue(toDestPath, strategies)(p.left)
-        r <- localizeWdlValue(toDestPath, strategies)(p.right)
-      } yield WdlPair(l, r)
-    }
-
-    def adjustOptional(v: WdlOptionalValue): Try[WdlOptionalValue] = {
-      v.value map localizeWdlValue(toDestPath, strategies) match {
-        case Some(Success(adjusted)) => Success(WdlOptionalValue(v.innerType, Option(adjusted)))
-        case Some(Failure(t)) => Failure(t)
-        case None => Success(v)
-      }
-    }
-
-    def adjustFile(path: String) = {
-      toDestPath(path) flatMap {
-        case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.toString) }
-      }
-    }
-
-    wdlValue match {
-      case wdlFile: WdlFile => adjustFile(wdlFile.value)
-      case WdlArray(t, values) => adjustArray(t, values)
-      case WdlMap(t, values) => adjustMap(t, values)
-      case pair: WdlPair => adjustPair(pair)
-      case opt: WdlOptionalValue => adjustOptional(opt)
-      case x => Success(x)
-    }
+    result.get
   }
 }

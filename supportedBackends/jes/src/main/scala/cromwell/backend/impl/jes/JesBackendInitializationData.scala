@@ -9,4 +9,4 @@ case class JesBackendInitializationData
   override val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   jesConfiguration: JesConfiguration,
   genomics: Genomics
-) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder)
+) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, classOf[JesExpressionFunctions])

@@ -18,6 +18,8 @@
   The non-root user could either be the default user for a given Docker image (e.g. specified in a Dockerfile via a `USER` directive),
   or the Config backend could pass an optional `"-u username"` as part of the `submit-docker` command.
 * For MySQL users, a massive scalability improvement via batched DB writing of internal metadata events. Note that one must add `rewriteBatchedStatements=true` to their JDBC URL in their config in order to take advantage of this
+* In some cases the SFS backend, used for Local, SGE, etc., coerced `WdlFile` to `WdlString` by using `.toUri`. This
+resulted in strings prepended with `file:///path/to/file`. Now absolute file paths will not contain the uri scheme.
 
 ### Database schema changes
 * Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.

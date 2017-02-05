@@ -1,8 +1,7 @@
 package cromwell.backend.impl.htcondor.caching.localization
 
-import java.nio.file.Files
-
-import cromwell.core.{JobOutput, CallOutputs}
+import cromwell.core.path.Obsolete._
+import cromwell.core.{CallOutputs, JobOutput}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.values.{WdlArray, WdlSingleFile, WdlString}

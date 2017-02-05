@@ -1,25 +1,40 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import better.files.File
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
 import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
-import cromwell.backend.wdl.Command
+import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.core.path.Path
+import cromwell.core.{CallOutputs, CromwellAggregatedException, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
+import lenthall.util.TryUtil
 import wdl4s._
-import wdl4s.expression.{PureStandardLibraryFunctions, WdlFunctions}
-import wdl4s.values.WdlValue
+import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}
+
+trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
+  /** The promise that will be completed when the async run is complete. */
+  def completionPromise: Promise[BackendJobExecutionResponse]
+}
+
+case class DefaultStandardAsyncExecutionActorParams
+(
+  override val jobIdKey: String,
+  override val serviceRegistryActor: ActorRef,
+  override val jobDescriptor: BackendJobDescriptor,
+  override val configurationDescriptor: BackendConfigurationDescriptor,
+  override val backendInitializationDataOption: Option[BackendInitializationData],
+  override val backendSingletonActorOption: Option[ActorRef],
+  override val completionPromise: Promise[BackendJobExecutionResponse]
+) extends StandardAsyncExecutionActorParams
 
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an
@@ -65,20 +80,128 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
 
   /** @see [[StandardAsyncExecutionActorParams.jobIdKey]] */
-  def jobIdKey: String = standardParams.jobIdKey
+  lazy val jobIdKey: String = standardParams.jobIdKey
 
   /** @see [[Command.instantiate]] */
-  def commandLineFunctions: WdlFunctions[WdlValue] = PureStandardLibraryFunctions
+  lazy val backendEngineFunctions: StandardExpressionFunctions =
+    standardInitializationData.expressionFunctions(jobPaths)
+
+  /**
+    * Maps WdlFile objects for use in the commandLinePreProcessor.
+    *
+    * By default just calls the pass through mapper mapCommandLineWdlFile.
+    *
+    * Sometimes a preprocessor may need to localize the files, etc.
+    *
+    * @param wdlFile The wdlFile.
+    * @return The updated wdlFile.
+    */
+  def preProcessWdlFile(wdlFile: WdlFile): WdlFile = wdlFile
 
   /** @see [[Command.instantiate]] */
-  def commandLinePreProcessor: EvaluatedTaskInputs => Try[EvaluatedTaskInputs] = Success.apply
+  final lazy val commandLinePreProcessor: EvaluatedTaskInputs => Try[EvaluatedTaskInputs] = {
+    inputs => TryUtil.sequenceMap(inputs mapValues WdlFileMapper.mapWdlFiles(preProcessWdlFile))
+  }
+
+  /**
+    * Maps WdlFile to a local path, for use in the commandLineValueMapper.
+    *
+    * @param wdlFile The wdlFile.
+    * @return The updated wdlFile.
+    */
+  def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile =
+    WdlSingleFile(workflowPaths.buildPath(wdlFile.value).pathAsString)
 
   /** @see [[Command.instantiate]] */
-  def commandLineValueMapper: WdlValue => WdlValue = identity
+  final lazy val commandLineValueMapper: WdlValue => WdlValue = {
+    wdlValue => WdlFileMapper.mapWdlFiles(mapCommandLineWdlFile)(wdlValue).get
+  }
+
+  /**
+    * The local path where the command will run.
+    */
+  lazy val commandDirectory: Path = jobPaths.callExecutionRoot
+
+  /**
+    * The local parent directory of the glob file. By default this is the same as the commandDirectory.
+    *
+    * In some cases, to allow the hard linking by ln to operate, a different mount point must be returned.
+    *
+    * @param wdlGlobFile The glob.
+    * @return The parent directory for writing the wdl glob.
+    */
+  def globParentDirectory(wdlGlobFile: WdlGlobFile): Path = commandDirectory
+
+  /**
+    * Returns the shell scripting for hard linking the glob results using ln.
+    *
+    * @param globFiles The globs.
+    * @return The shell scripting.
+    */
+  def globManipulations(globFiles: Traversable[WdlGlobFile]): String = globFiles map globManipulation mkString "\n"
+
+  /**
+    * Returns the shell scripting for hard linking a glob results using ln.
+    *
+    * @param globFile The glob.
+    * @return The shell scripting.
+    */
+  def globManipulation(globFile: WdlGlobFile): String = {
+    val parentDirectory = globParentDirectory(globFile)
+    val globDir = backendEngineFunctions.globName(globFile.value)
+    val globDirectory = parentDirectory./(globDir)
+    val globList = parentDirectory./(s"$globDir.list")
+
+    s"""|mkdir $globDirectory
+        |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+        |ls -1 $globDirectory > $globList
+        |""".stripMargin
+  }
+
+  /** Any custom code that should be run within commandScriptContents before the instantiated command. */
+  def commandScriptPreamble: String = ""
+
+  /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
+  def commandScriptContents: String = {
+    jobLogger.info(s"`$instantiatedCommand`")
+
+    val cwd = commandDirectory
+    val tmpDir = cwd./("tmp")
+    val rcPath = cwd./(jobPaths.returnCodeFilename)
+    val rcTmpPath = rcPath.plusExt("tmp")
+
+    val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
+
+    s"""|#!/bin/bash
+        |export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpDir
+        |export TMPDIR=$tmpDir
+        |$commandScriptPreamble
+        |(
+        |cd $cwd
+        |INSTANTIATED_COMMAND
+        |)
+        |echo $$? > $rcTmpPath
+        |(
+        |cd $cwd
+        |${globManipulations(globFiles)}
+        |)
+        |mv $rcTmpPath $rcPath
+        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
+  }
 
   /** The instantiated command. */
   lazy val instantiatedCommand: String = Command.instantiate(
-    jobDescriptor, commandLineFunctions, commandLinePreProcessor, commandLineValueMapper).get
+    jobDescriptor, backendEngineFunctions, commandLinePreProcessor, commandLineValueMapper).get
+
+  /**
+    * Redirect the stdout and stderr to the appropriate files. While not necessary, mark the job as not receiving any
+    * stdin by pointing it at /dev/null.
+    *
+    * If the `command` errors for some reason, put a "-1" into the rc file.
+    */
+  def redirectOutputs(command: String): String = {
+    s"$command > ${jobPaths.stdout} 2> ${jobPaths.stderr} < /dev/null || echo -1 > ${jobPaths.returnCode}"
+  }
 
   /** A tag that may be used for logging. */
   lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
@@ -180,6 +303,14 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def isTerminal(runStatus: StandardAsyncRunStatus): Boolean
 
   /**
+    * Returns any events retrieved from the terminal run status.
+    *
+    * @param runStatus The terminal run status, as defined by isTerminal.
+    * @return The execution events.
+    */
+  def getTerminalEvents(runStatus: StandardAsyncRunStatus): Seq[ExecutionEvent] = Seq.empty
+
+  /**
     * Returns true if the status represents a success.
     *
     * @param runStatus The run status.
@@ -237,6 +368,73 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /**
+    * Output value mapper.
+    *
+    * @param wdlValue The original wdl value.
+    * @return The Try wrapped and mapped wdl value.
+    */
+  final def outputValueMapper(wdlValue: WdlValue): Try[WdlValue] = {
+    WdlFileMapper.mapWdlFiles(mapOutputWdlFile)(wdlValue)
+  }
+
+  /**
+    * Used to convert to output paths.
+    *
+    * @param wdlFile The original file.
+    * @return The mapped output file.
+    */
+  def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = wdlFile
+
+  /**
+    * Tries to evaluate the outputs.
+    *
+    * Used during handleExecutionSuccess.
+    *
+    * @return A Try wrapping evaluated outputs.
+    */
+  def evaluateOutputs: Try[CallOutputs] = {
+    OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputValueMapper)
+  }
+
+  /**
+    * Tests whether an attempted result of evaluateOutputs should possibly be retried.
+    *
+    * If the exception is a CromwellAggregatedException, this method will recursively call into itself checking if the
+    * inner exceptions should be retried by using retryEvaluateOutputs.
+    *
+    * Custom implementations of handleExecutionSuccess should use this method when testing the results of
+    * evaluateOutputs.
+    *
+    * However, to implement the actual check, override the function retryEvaluateOutputs.
+    *
+    * @param exception The exception, possibly an CromwellAggregatedException.
+    * @return True if evaluateOutputs should be retried later.
+    */
+  final def retryEvaluateOutputsAggregated(exception: Exception): Boolean = {
+    exception match {
+      case aggregated: CromwellAggregatedException =>
+        aggregated.throwables.collectFirst {
+          case exception: Exception if retryEvaluateOutputsAggregated(exception) => exception
+        }.isDefined
+      case _ => retryEvaluateOutputs(exception)
+    }
+  }
+
+  /**
+    * Tests whether an attempted result of evaluateOutputs should possibly be retried.
+    *
+    * Override this function to check for different types of exceptions.
+    *
+    * Custom implementations of handleExecutionSuccess should NOT use method when testing the results of
+    * evaluateOutputs, as this method does not recurse into aggregated exceptions. Instead custom overrides of
+    * handleExecutionSuccess should call into retryEvaluateOutputsAggregated.
+    *
+    * @param exception The exception, possibly an internal instance retrieved from within a CromwellAggregatedException.
+    * @return True if evaluateOutputs should be retried later.
+    */
+  def retryEvaluateOutputs(exception: Exception): Boolean = false
+
+  /**
     * Process a successful run, as defined by `isSuccess`.
     *
     * @param runStatus  The run status.
@@ -244,8 +442,18 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param returnCode The return code.
     * @return The execution handle.
     */
-  def handleExecutionSuccess(runStatus: StandardAsyncRunStatus, handle: StandardAsyncPendingExecutionHandle,
-                             returnCode: Int): ExecutionHandle
+  def handleExecutionSuccess(runStatus: StandardAsyncRunStatus,
+                             handle: StandardAsyncPendingExecutionHandle,
+                             returnCode: Int): ExecutionHandle = {
+    evaluateOutputs match {
+      case Success(outputs) =>
+        SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
+      case Failure(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
+        // Return the execution handle in this case to retry the operation
+        handle
+      case Failure(ex) => FailedNonRetryableExecutionHandle(ex)
+    }
+  }
 
   /**
     * Process an unsuccessful run, as defined by `isSuccess`.
@@ -384,9 +592,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       case exception: Exception =>
         val handler: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] =
           customPollStatusFailure orElse {
+            case (_: ExecutionHandle, exception: Exception) if isFatal(exception) =>
+              // Log exceptions and return the original handle to try again.
+              jobLogger.warn(s"Caught fatal exception attempting to poll", exception)
+              FailedNonRetryableExecutionHandle(exception)
             case (handle: ExecutionHandle, exception: Exception) =>
               // Log exceptions and return the original handle to try again.
-              jobLogger.warn(s"Caught exception, retrying", exception)
+              jobLogger.warn(s"Caught exception trying to poll, retrying", exception)
               handle
           }
         handler((oldHandle, exception))
@@ -408,12 +620,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
                             oldHandle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
     try {
 
-      lazy val returnCodeAsString: Try[String] = Try(File(jobPaths.returnCode).contentAsString)
+      lazy val returnCodeAsString: Try[String] = Try(jobPaths.returnCode.contentAsString)
       lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
       lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
-      
+
       if (isSuccess(status)) {
-        lazy val stderrLength: Try[Long] = Try(File(jobPaths.stderr).size)
+        lazy val stderrLength: Try[Long] = Try(jobPaths.stderr.size)
         (stderrLength, returnCodeAsString, returnCodeAsInt) match {
             // Failed to get stderr size -> Retry
           case (Failure(exception), _, _) =>
@@ -443,8 +655,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         handleExecutionFailure(status, oldHandle, returnCodeAsInt.toOption)
       }
     } catch {
-      case e: Exception =>
-        jobLogger.warn("Caught exception processing job result, retrying", e)
+      case exception: Exception if isFatal(exception) =>
+        jobLogger.warn("Caught fatal exception processing job result", exception)
+        FailedNonRetryableExecutionHandle(exception)
+      case exception: Exception =>
+        jobLogger.warn("Caught exception processing job result, retrying", exception)
         // Return the original handle to try again.
         oldHandle
     }

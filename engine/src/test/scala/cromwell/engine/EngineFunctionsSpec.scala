@@ -1,9 +1,7 @@
 package cromwell.engine
 
-import java.nio.file.Path
-
 import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
+import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
@@ -24,7 +22,7 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
 
   def expectFailure(value: Try[WdlValue]) = value match {
     case Success(s) => fail(s"$s: Expected this function invocation to fail")
-    case Failure(ex) => // expected
+    case Failure(_) => // expected
   }
   "EngineFunctions" should "all initially be undefined" in {
     val stdFunctions = Seq(
@@ -39,9 +37,9 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
 
   "sub" should "replace a string according to a pattern" in {
     class TestEngineFn extends WdlStandardLibraryImpl {
-      override def glob(path: String, pattern: String): Seq[String] = ???
+      override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError
       override def pathBuilders: List[PathBuilder] = List(DefaultPathBuilder)
-      override def writeDirectory: Path = ???
+      override def writeDirectory: Path = throw new NotImplementedError
     }
 
     val engineFn = new TestEngineFn

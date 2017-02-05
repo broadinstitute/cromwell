@@ -1,6 +1,5 @@
 package cromwell
 
-import java.nio.file.Paths
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -11,6 +10,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
+import cromwell.core.path.BetterFileMethods.Cmds
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
@@ -180,6 +181,21 @@ object CromwellTestKitSpec {
     * the actual value was.
     */
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
+
+  def replaceVariables(wdlValue: WdlValue, workflowId: WorkflowId): WdlValue = {
+    wdlValue match {
+      case WdlString(value) => WdlString(replaceVariables(value, workflowId))
+      case _ => wdlValue
+    }
+  }
+
+  def replaceVariables(value: String, workflowId: WorkflowId): String = {
+    val variables = Map("PWD" -> Cmds.pwd, "UUID" -> workflowId)
+    variables.foldLeft(value) {
+      case (result, (variableName, variableValue)) => result.replace(s"<<$variableName>>", s"$variableValue")
+    }
+  }
+
   lazy val DefaultConfig = ConfigFactory.load
   lazy val DefaultLocalBackendConfig = ConfigFactory.parseString(
     """
@@ -292,7 +308,8 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibilty
   implicit val wdlEquality = new Equality[WdlValue] {
-    def fileEquality(f1: String, f2: String) = Paths.get(f1).getFileName == Paths.get(f2).getFileName
+    def fileEquality(f1: String, f2: String) =
+      DefaultPathBuilder.get(f1).getFileName == DefaultPathBuilder.get(f2).getFileName
 
     override def areEqual(a: WdlValue, b: Any): Boolean = {
       val typeEquality = b match {
@@ -362,7 +379,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
     expectedOutputs foreach { case (outputFqn, expectedValue) =>
       val actualValue = outputs.getOrElse(outputFqn, throw OutputNotFoundException(outputFqn, actualOutputNames))
-      if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
+      if (expectedValue != AnyValueIsFine) actualValue shouldEqual replaceVariables(expectedValue, workflowId)
     }
     if (!allowOtherOutputs) {
       outputs foreach { case (actualFqn, actualValue) =>

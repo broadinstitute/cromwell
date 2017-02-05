@@ -9,7 +9,6 @@ import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import lenthall.validation.ErrorOr._
-import org.slf4j.Logger
 import wdl4s.types._
 import wdl4s.values._
 
@@ -104,14 +103,6 @@ object JesRuntimeAttributes {
       continueOnReturnCode,
       noAddress
     )
-  }
-
-  // NOTE: Currently only used by test specs
-  private[jes] def apply(attrs: Map[String, WdlValue], logger: Logger,
-                         jesConfiguration: JesConfiguration): JesRuntimeAttributes = {
-    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
-    val validatedRuntimeAttributes = runtimeAttributesBuilder.build(attrs, logger)
-    apply(validatedRuntimeAttributes)
   }
 }
 

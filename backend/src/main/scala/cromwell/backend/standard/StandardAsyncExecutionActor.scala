@@ -105,7 +105,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @return the execution handle for the job.
     */
-  def execute(): ExecutionHandle
+  def execute(): ExecutionHandle = {
+    throw new NotImplementedError(s"Neither execute() nor executeAsync() implemented by $getClass")
+  }
+
+  /**
+    * Async execute the job specified in the params. Should return a `StandardAsyncPendingExecutionHandle`, or a
+    * `FailedExecutionHandle`.
+    *
+    * @return the execution handle for the job.
+    */
+  def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    Future.fromTry(Try(execute()))
+  }
 
   /**
     * Recovers the specified job id, or starts a new job. The default implementation simply calls execute().
@@ -116,13 +128,23 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def recover(jobId: StandardAsyncJob): ExecutionHandle = execute()
 
   /**
+    * Async recovers the specified job id, or starts a new job. The default implementation simply calls execute().
+    *
+    * @param jobId The previously recorded job id.
+    * @return the execution handle for the job.
+    */
+  def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    Future.fromTry(Try(recover(jobId)))
+  }
+
+  /**
     * Returns the run status for the job.
     *
     * @param handle The handle of the running job.
     * @return The status of the job.
     */
   def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunStatus = {
-    throw new NotImplementedError(s"pollStatus nor pollStatusAsync not implemented by $getClass")
+    throw new NotImplementedError(s"Neither pollStatus nor pollStatusAsync implemented by $getClass")
   }
 
   /**
@@ -238,46 +260,67 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), returnCode)
   }
 
+  // See executeOrRecoverSuccess
+  private var missedAbort = false
+  private case object CheckMissedAbort
+
   context.become(standardReceiveBehavior(None) orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
-      jobIdOption foreach { jobId =>
-        Try(tryAbort(jobId)) match {
-          case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, jobId)
-          case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, jobId, ex.getMessage)
-        }
+      jobIdOption match {
+        case Some(jobId) =>
+          Try(tryAbort(jobId)) match {
+            case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, jobId)
+            case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, jobId, ex.getMessage)
+          }
+        case None => missedAbort = true
       }
       postAbort()
+    case CheckMissedAbort =>
+      if (missedAbort)
+        self ! AbortJobCommand
     case KvPutSuccess(_) => // expected after the KvPut for the operation ID
   }
 
   override def retryable = false
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    Future.fromTry(Try {
-      val result = mode match {
-        case Recover(jobId: StandardAsyncJob@unchecked) =>
-          recover(jobId)
+    val executeOrRecoverFuture = {
+      mode match {
+        case Recover(jobId: StandardAsyncJob@unchecked) => recoverAsync(jobId)
         case _ =>
           tellMetadata(startMetadataKeyValues)
-          execute()
+          executeAsync()
       }
-      result match {
-        case handle: PendingExecutionHandle[
-          StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
-          tellKvJobId(handle.pendingJob)
-          jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
-          tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
-          context.become(standardReceiveBehavior(Option(handle.pendingJob)) orElse receive)
-        case _ => /* ignore */
+    }
+
+    executeOrRecoverFuture map executeOrRecoverSuccess recoverWith {
+      case throwable: Throwable => Future failed {
+        jobLogger.error(s"Error attempting to $mode", throwable)
+        throwable
       }
-      result
-    } recoverWith {
-      case exception: Exception =>
-        jobLogger.error(s"Error attempting to $mode", exception)
-        Failure(exception)
-    })
+    }
+  }
+
+  private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): ExecutionHandle = {
+    executionHandle match {
+      case handle: PendingExecutionHandle[
+        StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
+        tellKvJobId(handle.pendingJob)
+        jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
+        tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
+        /*
+        NOTE: Because of the async nature of the Scala Futures, there is a point in time where we have submitted this or
+        the prior runnable to the thread pool this actor doesn't know the job id for aborting. These runnables are
+        queued up and may still be run by the thread pool anytime in the future. Issue #1218 may address this
+        inconsistency at a later time. For now, just go back and check if we missed the abort command.
+        */
+        context.become(standardReceiveBehavior(Option(handle.pendingJob)) orElse receive)
+        self ! CheckMissedAbort
+      case _ =>
+    }
+    executionHandle
   }
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
@@ -381,7 +424,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
             jobLogger.warn(s"could not download return code file, retrying", exception)
             oldHandle
             // Failed to convert return code content to Int -> Fail
-          case (_, _, Failure(exception)) =>
+          case (_, _, Failure(_)) =>
             FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, stderrAsOption))
             // Stderr is not empty and failOnStdErr is true -> Fail
           case (Success(length), _, _) if failOnStdErr && length.intValue > 0 =>

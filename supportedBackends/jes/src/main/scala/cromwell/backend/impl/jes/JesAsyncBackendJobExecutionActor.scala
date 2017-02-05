@@ -500,6 +500,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         }
       case wdlArray: WdlArray => wdlArray map gcsPathToLocal
       case wdlMap: WdlMap => wdlMap map { case (k, v) => gcsPathToLocal(k) -> gcsPathToLocal(v) }
+      case wdlPair: WdlPair => WdlPair(gcsPathToLocal(wdlPair.left), gcsPathToLocal(wdlPair.right))
+      case wdlOptional: WdlOptionalValue => wdlOptional.copy(value = wdlOptional.value map gcsPathToLocal)
       case _ => wdlValue
     }
   }

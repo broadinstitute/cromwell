@@ -203,7 +203,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   /**
-   * Try to localize a WdlValue if it is or contains a WdlFile.
+   * Try to localize a WdlValue if it is or contains one or more WdlFiles.
    *
    * @param toDestPath function specifying how to generate the destination path from the source path
    * @param strategies strategies to use for localization
@@ -229,6 +229,21 @@ trait SharedFileSystem extends PathFactory {
       }
     }
 
+    def adjustPair(p: WdlPair): Try[WdlPair] = {
+      for {
+        l <- localizeWdlValue(toDestPath, strategies)(p.left)
+        r <- localizeWdlValue(toDestPath, strategies)(p.right)
+      } yield WdlPair(l, r)
+    }
+
+    def adjustOptional(v: WdlOptionalValue): Try[WdlOptionalValue] = {
+      v.value map localizeWdlValue(toDestPath, strategies) match {
+        case Some(Success(adjusted)) => Success(WdlOptionalValue(v.innerType, Option(adjusted)))
+        case Some(Failure(t)) => Failure(t)
+        case None => Success(v)
+      }
+    }
+
     def adjustFile(path: String) = {
       toDestPath(path) flatMap {
         case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.toString) }
@@ -239,6 +254,8 @@ trait SharedFileSystem extends PathFactory {
       case wdlFile: WdlFile => adjustFile(wdlFile.value)
       case WdlArray(t, values) => adjustArray(t, values)
       case WdlMap(t, values) => adjustMap(t, values)
+      case pair: WdlPair => adjustPair(pair)
+      case opt: WdlOptionalValue => adjustOptional(opt)
       case x => Success(x)
     }
   }

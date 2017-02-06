@@ -1,0 +1,16 @@
+name: inter_scatter_dependencies
+testFormat: workflowsuccess
+
+files {
+  wdl: inter_scatter_dependencies/inter_scatter_dependencies.wdl
+}
+
+metadata {
+  workflowName: inter_scatter_dependencies
+  status: Succeeded
+  "outputs.inter_scatter_dependencies.result.0": "hello_world_hello_world_hello_world_hello_world_hello_world"
+  "outputs.inter_scatter_dependencies.result.1": "hello_world_hello_world_hello_world_hello_world_hello_world"
+  "outputs.inter_scatter_dependencies.result.2": "hello_world_hello_world_hello_world_hello_world_hello_world"
+  "outputs.inter_scatter_dependencies.result.3": "hello_world_hello_world_hello_world_hello_world_hello_world"
+  "outputs.inter_scatter_dependencies.result.4": "hello_world_hello_world_hello_world_hello_world_hello_world"
+}

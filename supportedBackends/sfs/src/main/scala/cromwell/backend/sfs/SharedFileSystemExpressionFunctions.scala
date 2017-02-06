@@ -1,75 +1,27 @@
 package cromwell.backend.sfs
 
-import java.nio.file.Path
-
 import cromwell.backend.io._
-import cromwell.backend.standard.StandardInitializationData
-import cromwell.backend.wdl._
-import cromwell.backend._
+import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.core.CallContext
-import cromwell.core.path.PathBuilder
-import wdl4s.expression.PureStandardLibraryFunctionsLike
-import wdl4s.values._
-
-import scala.util.{Success, Try}
+import cromwell.core.path.{DefaultPath, Path, PathBuilder}
 
 object SharedFileSystemExpressionFunctions {
-  private val LocalFileSystemScheme = "file"
-
-  def isLocalPath(path: Path): Boolean =
-    path.toUri.getScheme == SharedFileSystemExpressionFunctions.LocalFileSystemScheme
-
-  def apply(workflowDescriptor: BackendWorkflowDescriptor,
-            jobKey: BackendJobDescriptorKey,
-            configurationDescriptor: BackendConfigurationDescriptor,
-            pathBuilders: List[PathBuilder]): SharedFileSystemExpressionFunctions = {
-    val jobPaths = new JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
-    val callContext = CallContext(
-      jobPaths.callExecutionRoot,
-      jobPaths.stdout.toString,
-      jobPaths.stderr.toString
-    )
-    new SharedFileSystemExpressionFunctions(pathBuilders, callContext)
-  }
-
   def apply(jobPaths: JobPaths, pathBuilders: List[PathBuilder]): SharedFileSystemExpressionFunctions = {
-    val callContext = CallContext(
-      jobPaths.callExecutionRoot,
-      jobPaths.stdout.toString,
-      jobPaths.stderr.toString
-    )
-    new SharedFileSystemExpressionFunctions(pathBuilders, callContext)
-  }
-
-  def apply(workflowDescriptor: BackendWorkflowDescriptor,
-            configurationDescriptor: BackendConfigurationDescriptor,
-            jobKey: BackendJobDescriptorKey,
-            initializationData: Option[BackendInitializationData]): SharedFileSystemExpressionFunctions = {
-    val jobPaths = new JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
-    val callContext = CallContext(
-      jobPaths.callExecutionRoot,
-      jobPaths.stdout.toString,
-      jobPaths.stderr.toString
-    )
-
-    new SharedFileSystemExpressionFunctions(StandardInitializationData.pathBuilders(initializationData), callContext)
+    new SharedFileSystemExpressionFunctions(pathBuilders, jobPaths.callContext)
   }
 }
 
-class SharedFileSystemExpressionFunctions(override val pathBuilders: List[PathBuilder],
-                                          context: CallContext
-                                 ) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions with WriteFunctions with GlobFunctions {
-  import SharedFileSystemExpressionFunctions._
+class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
+  extends StandardExpressionFunctions(standardParams) {
 
-  def callContext: CallContext = context
+  def this(pathBuilders: List[PathBuilder], callContext: CallContext) = {
+    this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext))
+  }
 
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
-
-  override val writeDirectory: Path = context.root
-
-  override def stdout(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stdout))
-  override def stderr(params: Seq[Try[WdlValue]]) = Success(WdlFile(context.stderr))
-
-  override def postMapping(path: Path): Path =
-    if (!path.isAbsolute && isLocalPath(path)) context.root.resolve(path) else path
+  override def postMapping(path: Path) = {
+    path match {
+      case _: DefaultPath if !path.isAbsolute => callContext.root.resolve(path)
+      case _ => path
+    }
+  }
 }

@@ -1,12 +1,10 @@
 package cromwell.backend.impl.sfs.config
 
 import akka.event.LoggingAdapter
-import better.files.File
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.standard.StandardInitializationData
-import cromwell.core.path.PathFactory
-import cromwell.util.FileUtil._
+import cromwell.core.path.{Path, PathFactory}
 import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.codec.digest.DigestUtils
@@ -33,7 +31,7 @@ object ConfigHashingStrategy {
 
 abstract class ConfigHashingStrategy {
   def checkSiblingMd5: Boolean
-  protected def hash(file: File): Try[String]
+  protected def hash(file: Path): Try[String]
   protected def description: String
 
   protected lazy val checkSiblingMessage: String =
@@ -42,7 +40,7 @@ abstract class ConfigHashingStrategy {
   def getHash(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
     def usingStandardInitData(initData: StandardInitializationData) = {
       val pathBuilders = initData.workflowPaths.pathBuilders
-      val file = PathFactory.buildFile(request.file.valueString, pathBuilders).followSymlinks
+      val file = PathFactory.buildPath(request.file.valueString, pathBuilders).followSymbolicLinks
 
       if (checkSiblingMd5) {
         precomputedMd5(file) match {
@@ -58,7 +56,7 @@ abstract class ConfigHashingStrategy {
     }
   }
 
-  private def precomputedMd5(file: File): Option[File] = {
+  private def precomputedMd5(file: Path): Option[Path] = {
     val md5 = file.sibling(s"${file.name}.md5")
     if (md5.exists) Option(md5) else None
   }
@@ -69,15 +67,15 @@ abstract class ConfigHashingStrategy {
 }
 
 final case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
-  override def hash(file: File): Try[String] = {
-    Try(DigestUtils.md5Hex(file.path.toAbsolutePath.toString))
+  override def hash(file: Path): Try[String] = {
+    Try(DigestUtils.md5Hex(file.toAbsolutePath.pathAsString))
   }
 
   override val description = "hash file path"
 }
 
 final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
-  override protected def hash(file: File): Try[String] = {
+  override protected def hash(file: Path): Try[String] = {
     tryWithResource(() => file.newInputStream) { DigestUtils.md5Hex }
   }
 

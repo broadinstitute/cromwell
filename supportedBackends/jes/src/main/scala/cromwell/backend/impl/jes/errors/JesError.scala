@@ -1,8 +1,7 @@
 package cromwell.backend.impl.jes.errors
 
-import java.nio.file.Path
-
 import cromwell.backend.impl.jes.RunStatus
+import cromwell.core.path.Path
 
 import scala.util.Try
 

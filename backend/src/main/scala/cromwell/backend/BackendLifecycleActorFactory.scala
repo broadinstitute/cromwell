@@ -1,7 +1,5 @@
 package cromwell.backend
 
-import java.nio.file.Path
-
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor
@@ -9,6 +7,7 @@ import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import cromwell.core.path.Path
 import wdl4s.TaskCall
 import wdl4s.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
 

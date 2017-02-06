@@ -1,4 +1,4 @@
-package cromwell.core.path
+package cromwell.core.path.proxy
 
 import java.io.FileNotFoundException
 import java.nio.channels.SeekableByteChannel
@@ -8,7 +8,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.nio.file.{DirectoryStream, OpenOption, Path, StandardOpenOption}
 import java.util.concurrent.TimeoutException
 
-import cromwell.core.path.proxy.RetryableFileSystemProviderProxy
+import cromwell.core.path.CustomRetryParams
 import cromwell.core.retry.Backoff
 import cromwell.core.{CromwellFatalException, TestKitSuite}
 import org.mockito.Matchers._
@@ -92,6 +92,8 @@ class RetryableFileSystemProxySpec extends TestKitSuite with FlatSpecLike with M
         mock(classOf[FileAttributeView])
       }
     }
+
+    import java.nio.file.Path
 
     when(provider.move(any[Path], any[Path])).thenAnswer(answerUnit)
     when(provider.checkAccess(any[Path])).thenAnswer(answerUnit)

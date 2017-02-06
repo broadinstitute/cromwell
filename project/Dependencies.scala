@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.20"
+  lazy val lenthallV = "0.21-e1b7822-SNAP"
   lazy val wdl4sV = "0.10-76bf06b-SNAP"
   lazy val sprayV = "1.3.3"
   /*
@@ -84,6 +84,8 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-nio" % "0.3.0"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
+      exclude("org.apache.httpcomponents", "httpclient"),
+    "org.apache.httpcomponents" % "httpclient" % "4.5.2"
   )
 
   private val dbmsDependencies = List(

@@ -1,20 +1,19 @@
 package cromwell.engine.workflow
 
-import java.nio.file.Path
 import java.util.UUID
 
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
-import better.files._
 import cats.instances.try_._
 import cats.syntax.functor._
-import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core._
+import cromwell.core.path.Path
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
@@ -183,12 +182,12 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 
   private def outputMetadata(metadata: JsObject): Try[Unit] = {
     Try {
-      val path = File(metadataOutputPath.get)
+      val path = metadataOutputPath.get
       if (path.isDirectory) {
         log.error("Specified metadata path is a directory, should be a file: " + path)
       } else {
         log.info(s"$Tag writing metadata to $path")
-        path.createIfNotExists(asDirectory = false, createParents = true).write(metadata.prettyPrint)
+        path.createIfNotExists(createParents = true).write(metadata.prettyPrint)
       }
     } void
   }

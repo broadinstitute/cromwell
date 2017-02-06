@@ -1,15 +1,12 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.Path
-
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.WorkflowOptionKeys
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.PathBuilder
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.{Path, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, RetryableGcsPathBuilder}
 
 import scala.language.postfixOps
@@ -45,7 +42,7 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
     // The default auth file bucket is always at the root of the root workflow
     val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.unqualifiedName).resolve(workflowDescriptor.rootWorkflowId.toString)
 
-    val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.toRealString
+    val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
     val authBucket = GcsPathBuilderFactory(genomicsCredentials).withOptions(workflowOptions).build(bucket) recover {
       case ex => throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
     } get

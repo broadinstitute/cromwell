@@ -1,13 +1,10 @@
 package cromwell
 
-import java.nio.file.{Files, Path, Paths}
-
-import better.files._
 import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
-import cromwell.util.FileUtil._
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import org.slf4j.LoggerFactory
@@ -50,9 +47,9 @@ object RunSingle {
 
   def apply(args: Seq[String]): RunSingle = {
     val pathParameters = SingleRunPathParameters(
-      wdlPath = Paths.get(args.head).toAbsolutePath,
-      inputsPath = argPath(args, 1, Option(".inputs"), checkDefaultExists = false),
-      optionsPath = argPath(args, 2, Option(".options"), checkDefaultExists = true),
+      wdlPath = DefaultPathBuilder.get(args.head).toAbsolutePath,
+      inputsPath = argPath(args, 1, Option("inputs"), checkDefaultExists = false),
+      optionsPath = argPath(args, 2, Option("options")),
       metadataPath = argPath(args, 3, None),
       importPath = argPath(args, 4, None),
       labelsPath = argPath(args, 5, None)
@@ -64,7 +61,8 @@ object RunSingle {
     val labelsJson = readJson("Labels", pathParameters.labelsPath)
 
     val sourceFileCollection = pathParameters.importPath match {
-      case Some(p) => (wdl |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) => WorkflowSourceFilesWithDependenciesZip.apply(w, i, o, l, Files.readAllBytes(p)) }
+      case Some(p) => (wdl |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
+        WorkflowSourceFilesWithDependenciesZip.apply(w, i, o, l, p.loadBytes) }
       case None => (wdl |@| inputsJson |@| optionsJson |@| labelsJson) map WorkflowSourceFilesWithoutImports.apply
     }
 
@@ -85,17 +83,17 @@ object RunSingle {
   private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
     path match {
       case Some(p) if !metadataPathIsWriteable(p) => s"Unable to write to metadata directory: $p".invalidNel
-      case otherwise => ().validNel
+      case _ => ().validNel
     }
   }
 
   /** Read the path to a string. */
   private def readContent(inputDescription: String, path: Path): ErrorOr[String] = {
-    if (!Files.exists(path)) {
+    if (!path.exists) {
       s"$inputDescription does not exist: $path".invalidNel
-    } else if (!Files.isReadable(path)) {
+    } else if (!path.isReadable) {
       s"$inputDescription is not readable: $path".invalidNel
-    } else File(path).contentAsString.validNel
+    } else path.contentAsString.validNel
   }
 
   /** Read the path to a string, unless the path is None, in which case returns "{}". */
@@ -107,7 +105,7 @@ object RunSingle {
   }
 
   private def metadataPathIsWriteable(metadataPath: Path): Boolean = {
-    Try(File(metadataPath).createIfNotExists(asDirectory = false, createParents = true).append("")) match {
+    Try(metadataPath.createIfNotExists(createParents = true).append("")) match {
       case Success(_) => true
       case Failure(_) => false
     }
@@ -127,12 +125,13 @@ object RunSingle {
 
     // To return a default, swap the extension, and then maybe check if the file exists.
     def defaultPath = defaultExt
-      .map(ext => swapExt(args.head, ".wdl", ext))
-      .filter(path => !checkDefaultExists || Files.exists(Paths.get(path)))
+      .map(ext => DefaultPathBuilder.get(args.head).swapExt("wdl", ext))
+      .filter(path => !checkDefaultExists || path.exists)
+      .map(_.pathAsString)
 
     // Return the path for the arg index, or the default, but remove "-" paths.
     for {
       path <- args.lift(index) orElse defaultPath filterNot (_ == "-")
-    } yield Paths.get(path).toAbsolutePath
+    } yield DefaultPathBuilder.get(path).toAbsolutePath
   }
 }

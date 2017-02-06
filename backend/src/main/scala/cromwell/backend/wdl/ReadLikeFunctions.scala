@@ -10,7 +10,6 @@ import wdl4s.values._
 import scala.util.{Failure, Success, Try}
 
 trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions =>
-  import better.files._
 
   /**
     * Asserts that the parameter list contains a single parameter which will be interpreted
@@ -28,7 +27,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
 
-  override def readFile(path: String): String = File(buildPath(path)).contentAsString
+  override def readFile(path: String): String = buildPath(path).contentAsString
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
@@ -94,12 +93,12 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(File(buildPath(value.valueString)).size.toDouble, MemoryUnit.Bytes).to(unit).amount
+      } yield MemorySize(buildPath(value.valueString).size.toDouble, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {
-      case oneArg if params.length == 1 => fileSize(params.head) map WdlFloat.apply
-      case twoArgs if params.length == 2 => fileSize(params.head, toUnit(params(1))) map WdlFloat.apply
+      case _ if params.length == 1 => fileSize(params.head) map WdlFloat.apply
+      case _ if params.length == 2 => fileSize(params.head, toUnit(params.tail.head)) map WdlFloat.apply
       case _ => Failure(new UnsupportedOperationException(s"Expected one or two parameters but got ${params.length} instead."))
     }
   }

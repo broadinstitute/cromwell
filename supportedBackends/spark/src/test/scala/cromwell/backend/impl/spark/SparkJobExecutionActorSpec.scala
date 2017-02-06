@@ -1,17 +1,16 @@
 package cromwell.backend.impl.spark
 
 import java.io.Writer
-import java.nio.file.Path
 
 import akka.testkit.{ImplicitSender, TestActorRef}
-import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.{Path, PathWriter, TailedWriter, UntailedWriter}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout

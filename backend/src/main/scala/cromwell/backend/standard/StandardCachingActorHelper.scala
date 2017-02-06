@@ -1,13 +1,12 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend._
 import cromwell.backend.callcaching.JobCachingActorHelper
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.Path
 import wdl4s.TaskCall
 
 import scala.util.Try

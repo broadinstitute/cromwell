@@ -1,12 +1,10 @@
 package cromwell.backend.sfs
 
-import better.files._
 import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardInitializationActor, StandardInitializationActorParams}
 import cromwell.backend.wfs.WorkflowPathBuilder
-import cromwell.core.path.FileImplicits._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
@@ -48,8 +46,8 @@ class SharedFileSystemInitializationActor(standardParams: StandardInitialization
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {
-      publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-      File(workflowPaths.workflowRoot).createPermissionedDirectories()
+      publishWorkflowRoot(workflowPaths.workflowRoot.pathAsString)
+      workflowPaths.workflowRoot.createPermissionedDirectories()
       Option(initializationData)
     })
   }

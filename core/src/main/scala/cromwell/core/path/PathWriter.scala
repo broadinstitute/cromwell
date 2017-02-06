@@ -1,20 +1,16 @@
 package cromwell.core.path
 
 import java.io.Writer
-import java.nio.file.Path
 
 import scala.collection.immutable.Queue
-
-
 
 /**
   * Used with a `ProcessLogger`, writes lines with a newline.
   */
 trait PathWriter {
-  import better.files._
 
   val path: Path
-  lazy val writer: Writer = File(path).newBufferedWriter
+  lazy val writer: Writer = path.newBufferedWriter
 
   /**
     * Passed to `ProcessLogger` to add a new line.
@@ -73,4 +69,3 @@ case class TailedWriter(path: Path, tailedSize: Int) extends PathWriter {
     }
   }
 }
-

@@ -1,12 +1,11 @@
 package cromwell.backend
 
-import java.nio.file.Path
-
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.wdl.OutputEvaluator
+import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent, JobKey}
 import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.values.WdlValue

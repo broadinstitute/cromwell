@@ -1,7 +1,6 @@
 package cromwell.backend.sfs
 
 import java.io.{FileNotFoundException, IOException}
-import java.nio.file.{Path, Paths}
 
 import cats.instances.try_._
 import cats.syntax.functor._
@@ -10,9 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.io.JobPaths
 import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
-import cromwell.core.path.FileImplicits._
-import cromwell.core.path.PathFactory
-import cromwell.core.path.PathFactory._
+import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import lenthall.util.TryUtil
 import wdl4s.EvaluatedTaskInputs
 import wdl4s.values._
@@ -22,7 +19,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object SharedFileSystem extends StrictLogging {
-  import better.files._
 
   final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
     def toPair: (String, Try[WdlValue]) = name -> value
@@ -36,34 +32,34 @@ object SharedFileSystem extends StrictLogging {
     }
   }
 
-  case class PairOfFiles(src: File, dst: File)
-  type DuplicationStrategy = (File, File) => Try[Unit]
+  case class PairOfFiles(src: Path, dst: Path)
+  type DuplicationStrategy = (Path, Path) => Try[Unit]
 
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Try[Unit] = {
     if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exists"))
   }
 
-  private def localizePathViaCopy(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathViaCopy(originalPath: Path, executionPath: Path): Try[Unit] = {
     val action = Try {
       executionPath.parent.createPermissionedDirectories()
-      val executionTmpPath = pathPlusSuffix(executionPath, "tmp")
+      val executionTmpPath = executionPath.plusExt("tmp")
       originalPath.copyTo(executionTmpPath, overwrite = true).moveTo(executionPath, overwrite = true)
     }.void
     logOnFailure(action, "copy")
   }
 
-  private def localizePathViaHardLink(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
     val action = Try {
       executionPath.parent.createPermissionedDirectories()
-      executionPath.linkTo(originalPath, symbolic = false)
+      executionPath.linkTo(originalPath)
     }.void
     logOnFailure(action, "hard link")
   }
 
-  private def localizePathViaSymbolicLink(originalPath: File, executionPath: File): Try[Unit] = {
+  private def localizePathViaSymbolicLink(originalPath: Path, executionPath: Path): Try[Unit] = {
       if (originalPath.isDirectory) Failure(new UnsupportedOperationException("Cannot localize directory with symbolic links"))
       else if (!originalPath.exists) Failure(new FileNotFoundException(originalPath.pathAsString))
       else {
@@ -80,10 +76,8 @@ object SharedFileSystem extends StrictLogging {
     action
   }
 
-  private def duplicate(description: String, source: File, dest: File, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
-    import cromwell.util.FileUtil._
-
-    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymlinks, dest))
+  private def duplicate(description: String, source: Path, dest: Path, strategies: Stream[DuplicationStrategy]): Try[Unit] = {
+    val attempts: Stream[Try[Unit]] = strategies.map(_ (source.followSymbolicLinks, dest))
     attempts.find(_.isSuccess) getOrElse {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
@@ -92,7 +86,6 @@ object SharedFileSystem extends StrictLogging {
 
 trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
-  import better.files._
 
   def sharedFileSystemConfig: Config
 
@@ -132,9 +125,12 @@ trait SharedFileSystem extends PathFactory {
     localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
   }
 
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
+  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): Path = {
     val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
-    callRoot.resolve(wdlPath).toAbsolutePath
+    wdlPath match {
+      case _: DefaultPath if !wdlPath.isAbsolute => callRoot.resolve(wdlPath).toAbsolutePath
+      case _ => wdlPath
+    }
   }
 
   def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
@@ -170,14 +166,8 @@ trait SharedFileSystem extends PathFactory {
   def localizeWdlFile(inputsRoot: Path, docker: Boolean)(value: WdlFile): WdlFile = {
     val strategies = if (docker) DockerLocalizers else Localizers
 
-    // Use URI to identify protocol scheme and strip it out
-    def stripProtocolScheme(path: Path): Path = {
-      val uri = path.toUri
-      val host = Option(uri.getHost)
-      val uriPath = uri.getPath
-
-      host map { h => Paths.get(h, uriPath) } getOrElse Paths.get(uriPath)
-    }
+    // Strip the protocol scheme
+    def stripProtocolScheme(path: Path): Path = DefaultPathBuilder.get(path.pathWithoutScheme)
 
     /*
       * Transform an original input path to a path in the call directory.
@@ -185,13 +175,13 @@ trait SharedFileSystem extends PathFactory {
       */
 
     def toCallPath(path: String): Try[PairOfFiles] = Try {
-      val src = buildFile(path)
+      val src = buildPath(path)
       // Strip out potential prefix protocol
-      val localInputPath = stripProtocolScheme(src.path)
-      val dest = if (File(inputsRoot).isParentOf(localInputPath)) File(localInputPath)
+      val localInputPath = stripProtocolScheme(src)
+      val dest = if (inputsRoot.isParentOf(localInputPath)) localInputPath
       else {
         // Concatenate call directory with absolute input path
-        File(Paths.get(inputsRoot.toString, localInputPath.toString))
+        DefaultPathBuilder.get(inputsRoot.pathAsString, localInputPath.pathAsString)
       }
 
       PairOfFiles(src, dest)
@@ -213,7 +203,7 @@ trait SharedFileSystem extends PathFactory {
                              (wdlFile: WdlFile): WdlFile = {
     val path = wdlFile.value
     val result = toDestPath(path) flatMap {
-      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.toString) }
+      case PairOfFiles(src, dst) => duplicate("localize", src, dst, strategies) map { _ => WdlFile(dst.pathAsString) }
     }
     result.get
   }

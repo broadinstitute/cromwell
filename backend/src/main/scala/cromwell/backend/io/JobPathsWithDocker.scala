@@ -1,10 +1,8 @@
 package cromwell.backend.io
 
-import java.nio.file.Path
-
 import com.typesafe.config.Config
-import cromwell.backend.{BackendWorkflowDescriptor, BackendJobDescriptorKey}
-import cromwell.core.path.PathBuilder
+import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.path.{Path, PathBuilder}
 
 class JobPathsWithDocker(val jobKey: BackendJobDescriptorKey,
                          workflowDescriptor: BackendWorkflowDescriptor,

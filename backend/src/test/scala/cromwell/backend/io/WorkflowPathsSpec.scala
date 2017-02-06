@@ -1,8 +1,8 @@
 package cromwell.backend.io
 
-import better.files._
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{JobKey, WorkflowId}
 import org.mockito.Mockito._
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,9 +18,9 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
     val workflowPaths = new WorkflowPathsWithDocker(wd, backendConfig)
     val id = wd.id
-    workflowPaths.workflowRoot.toString shouldBe
-      File(s"local-cromwell-executions/wf_hello/$id").pathAsString
-    workflowPaths.dockerWorkflowRoot.toString shouldBe
+    workflowPaths.workflowRoot.pathAsString shouldBe
+      DefaultPathBuilder.get(s"local-cromwell-executions/wf_hello/$id").toAbsolutePath.pathAsString
+    workflowPaths.dockerWorkflowRoot.pathAsString shouldBe
       s"/cromwell-executions/wf_hello/$id"
   }
 
@@ -58,7 +58,10 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     subWd.id returns subWorkflowId
     
     val workflowPaths = new WorkflowPathsWithDocker(subWd, backendConfig)
-    workflowPaths.workflowRoot.toString shouldBe File(s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId").pathAsString
-    workflowPaths.dockerWorkflowRoot.toString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
+    workflowPaths.workflowRoot.pathAsString shouldBe
+      DefaultPathBuilder.get(
+        s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
+      ).toAbsolutePath.pathAsString
+    workflowPaths.dockerWorkflowRoot.pathAsString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
   }
 }

@@ -1,10 +1,9 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.Path
-
 import akka.actor.ActorSystem
 import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 object JesJobPaths {

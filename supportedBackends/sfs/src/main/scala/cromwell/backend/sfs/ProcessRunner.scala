@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.Path
+import cromwell.core.path.Path
 
 /**
   * Runs a process and sends the stdout and stderr to a file path.

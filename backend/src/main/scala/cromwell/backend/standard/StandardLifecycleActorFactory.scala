@@ -1,12 +1,11 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
-import cromwell.core.{CallOutputs, Dispatcher}
 import cromwell.core.Dispatcher.BackendDispatcher
+import cromwell.core.path.Path
+import cromwell.core.{CallOutputs, Dispatcher}
 import wdl4s.TaskCall
 import wdl4s.expression.WdlStandardLibraryFunctions
 

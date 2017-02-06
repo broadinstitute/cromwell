@@ -1,18 +1,18 @@
 package cromwell
 
 import akka.testkit._
-import better.files._
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 import wdl4s.expression.{NoFunctions, WdlFunctions}
 import wdl4s.types.{WdlFileType, WdlIntegerType, WdlMapType, WdlStringType}
 import wdl4s.values._
+import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 
 import scala.util.{Success, Try}
 
 class MapWorkflowSpec extends CromwellTestKitSpec {
-  private val pwd = File(".")
-  private val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+  private val pwd = DefaultPathBuilder.get(".")
+  private val sampleWdl = SampleWdl.MapLiteral(pwd)
   val ns = WdlNamespaceWithWorkflow.load(sampleWdl.wdlSource(), Seq.empty[ImportResolver])
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
@@ -23,7 +23,8 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
 
   "A task which contains a parameter " should {
     "accept an array for the value" in {
-      val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+      val sampleWdl = SampleWdl.MapLiteral(pwd)
+      val callDir = "<<PWD>>/cromwell-executions/wf/<<UUID>>/call-write_map/inputs<<PWD>>"
       runWdlAndAssertOutputs(
         sampleWdl = sampleWdl,
         EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),
@@ -32,9 +33,8 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
             WdlString("x") -> WdlInteger(500),
             WdlString("y") -> WdlInteger(600),
             WdlString("z") -> WdlInteger(700)
-          )) //, TODO: We now process file paths used as keys. So file paths like 'f1' will actually be mapped
-          // to ${PWD}/cromwell-executions/wf/<id>/call-write_map/inputs${PWD}/f1
-          //"wf.write_map.contents" -> WdlString("f1\talice\nf2\tbob\nf3\tchuck")
+          )),
+          "wf.write_map.contents" -> WdlString(s"$callDir/f1\talice\n$callDir/f2\tbob\n$callDir/f3\tchuck")
         )
       )
       sampleWdl.cleanup()
@@ -71,7 +71,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
       command shouldEqual "cat /test/map/path"
     }
     "Coerce Map[String, String] to Map[String, Int] when running the workflow" in {
-      val sampleWdl = SampleWdl.MapLiteral(pwd.path)
+      val sampleWdl = SampleWdl.MapLiteral(pwd)
       runWdlAndAssertOutputs(
         sampleWdl,
         eventFilter = EventFilter.info(pattern = "Starting calls: wf.read_map:NA:1, wf.write_map:NA:1", occurrences = 1),

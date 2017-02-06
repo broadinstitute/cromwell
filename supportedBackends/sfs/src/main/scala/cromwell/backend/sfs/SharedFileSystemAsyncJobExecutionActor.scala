@@ -1,16 +1,13 @@
 package cromwell.backend.sfs
 
-import java.nio.file.{FileAlreadyExistsException, Path}
+import java.nio.file.FileAlreadyExistsException
 
-import better.files._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.backend.validation._
-import cromwell.core.path.DefaultPathBuilder
-import cromwell.core.path.FileImplicits._
-import cromwell.core.path.PathFactory._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import wdl4s.values.WdlFile
 
@@ -114,7 +111,7 @@ trait SharedFileSystemAsyncJobExecutionActor
     */
   override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
     val cleanPath = DefaultPathBuilder.build(wdlFile.valueString).get
-    WdlFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).toString else cleanPath.toString)
+    WdlFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
   }
 
   override lazy val commandDirectory: Path = {
@@ -122,7 +119,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def execute(): ExecutionHandle = {
-    File(jobPaths.callExecutionRoot).createPermissionedDirectories()
+    jobPaths.callExecutionRoot.createPermissionedDirectories()
     writeScriptContents()
     val runner = makeProcessRunner()
     val exitValue = runner.run()
@@ -136,7 +133,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   def writeScriptContents(): Unit = {
-    File(jobPaths.script).write(commandScriptContents)
+    jobPaths.script.write(commandScriptContents)
     ()
   }
 
@@ -148,14 +145,14 @@ trait SharedFileSystemAsyncJobExecutionActor
     * @return A process runner that will relatively quickly submit the script asynchronously.
     */
   def makeProcessRunner(): ProcessRunner = {
-    val stdout = pathPlusSuffix(jobPaths.stdout, "submit")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "submit")
-    new ProcessRunner(processArgs.argv, stdout.path, stderr.path)
+    val stdout = jobPaths.stdout.plusExt("submit")
+    val stderr = jobPaths.stderr.plusExt("submit")
+    new ProcessRunner(processArgs.argv, stdout, stderr)
   }
 
   override def recover(job: StandardAsyncJob): ExecutionHandle = {
     // To avoid race conditions, check for the rc file after checking if the job is alive.
-    if (isAlive(job) || File(jobPaths.returnCode).exists) {
+    if (isAlive(job) || jobPaths.returnCode.exists) {
       // If we're done, we'll get to the rc during the next poll.
       // Or if we're still running, return pending also.
       jobLogger.info(s"Recovering using job id: ${job.jobId}")
@@ -169,14 +166,14 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def isAlive(job: StandardAsyncJob): Boolean = {
     val argv = checkAliveArgs(job).argv
-    val stdout = pathPlusSuffix(jobPaths.stdout, "check")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "check")
-    val checkAlive = new ProcessRunner(argv, stdout.path, stderr.path)
+    val stdout = jobPaths.stdout.plusExt("check")
+    val stderr = jobPaths.stderr.plusExt("check")
+    val checkAlive = new ProcessRunner(argv, stdout, stderr)
     checkAlive.run() == 0
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
-    val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
+    val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
     try {
       returnCodeTmp.moveTo(jobPaths.returnCode)
@@ -186,15 +183,15 @@ trait SharedFileSystemAsyncJobExecutionActor
         returnCodeTmp.delete(true)
     }
     val argv = killArgs(job).argv
-    val stdout = pathPlusSuffix(jobPaths.stdout, "kill")
-    val stderr = pathPlusSuffix(jobPaths.stderr, "kill")
-    val killer = new ProcessRunner(argv, stdout.path, stderr.path)
+    val stdout = jobPaths.stdout.plusExt("kill")
+    val stderr = jobPaths.stderr.plusExt("kill")
+    val killer = new ProcessRunner(argv, stdout, stderr)
     killer.run()
     ()
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    SharedFileSystemRunStatus(File(jobPaths.returnCode).exists)
+    SharedFileSystemRunStatus(jobPaths.returnCode.exists)
   }
 
   override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {

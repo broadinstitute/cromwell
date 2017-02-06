@@ -1,7 +1,6 @@
 package cromwell.backend.io
 
-import java.nio.file.Path
-
+import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey}
 import cromwell.services.metadata.CallMetadataKeys
 
@@ -27,7 +26,6 @@ object JobPaths {
 
 trait JobPaths { this: WorkflowPaths =>
   import JobPaths._
-  import cromwell.core.path.PathImplicits._
 
   def returnCodeFilename: String = "rc"
   def stdoutFilename: String = "stdout"
@@ -69,5 +67,5 @@ trait JobPaths { this: WorkflowPaths =>
   lazy val detritusPaths = commonDetritusPaths ++ customDetritusPaths
   lazy val logPaths = commonLogPaths ++ customLogPaths
 
-  lazy val callContext = CallContext(callExecutionRoot, stdout.toRealString, stderr.toRealString)
+  lazy val callContext = CallContext(callExecutionRoot, stdout.pathAsString, stderr.pathAsString)
 }

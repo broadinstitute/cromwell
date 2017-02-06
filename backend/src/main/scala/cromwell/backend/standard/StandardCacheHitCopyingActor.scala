@@ -1,11 +1,9 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.ActorRef
 import cromwell.backend.callcaching.CacheHitDuplicating
 import cromwell.backend.{BackendCacheHitCopyingActor, BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
-import cromwell.core.path.PathCopier
+import cromwell.core.path.{Path, PathCopier}
 
 /**
   * Trait of parameters passed to a StandardCacheHitCopyingActor.

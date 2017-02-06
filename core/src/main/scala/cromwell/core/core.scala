@@ -1,7 +1,6 @@
 package cromwell.core
 
-import java.nio.file.Path
-
+import cromwell.core.path.Path
 import lenthall.exception.ThrowableAggregation
 import wdl4s.values.WdlValue
 

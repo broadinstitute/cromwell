@@ -10,11 +10,11 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 class TestLocalAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackgroundAsyncJobExecutionActor {
   override lazy val processArgs: SharedFileSystemCommand = {
-    val script = jobPaths.script.toString
+    val script = jobPaths.script.pathAsString
     if (isDockerRun) {
       val docker = RuntimeAttributesValidation.extract(DockerValidation.instance, validatedRuntimeAttributes)
-      val cwd = jobPaths.callRoot.toString
-      val dockerCwd = jobPathsWithDocker.callDockerRoot.toString
+      val cwd = jobPaths.callRoot.pathAsString
+      val dockerCwd = jobPathsWithDocker.callDockerRoot.pathAsString
       SharedFileSystemCommand("/bin/bash", "-c",
         s"docker run --rm -v $cwd:$dockerCwd -i $docker /bin/bash < $script")
     } else {

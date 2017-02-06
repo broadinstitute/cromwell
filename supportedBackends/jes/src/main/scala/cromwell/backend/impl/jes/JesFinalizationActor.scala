@@ -1,6 +1,5 @@
 package cromwell.backend.impl.jes
 
-import better.files._
 import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.backend._
@@ -38,7 +37,7 @@ class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths: JesWorkflowPaths)) => Future { File(paths.gcsAuthFilePath).delete(false) } void
+      case (true, Some(paths: JesWorkflowPaths)) => Future { paths.gcsAuthFilePath.delete() } void
       case _ => Future.successful(())
     }
   }

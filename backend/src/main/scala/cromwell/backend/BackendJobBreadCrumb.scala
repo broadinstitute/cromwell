@@ -1,8 +1,7 @@
 package cromwell.backend
 
-import java.nio.file.Path
-
 import cromwell.backend.io.JobPaths
+import cromwell.core.path.Path
 import cromwell.core.{JobKey, WorkflowId}
 import wdl4s.Workflow
 

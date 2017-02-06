@@ -1,26 +1,23 @@
 package cromwell.backend.impl.spark
 
-import java.nio.file.Path
-
 import akka.testkit.ImplicitSender
-import better.files._
-import Cmds._
-
-import scala.concurrent.{Future, Promise}
+import cromwell.backend.impl.spark.SparkClusterProcess.SparkClusterJsonProtocol._
+import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.core.TestKitSuite
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.Path
 import org.mockito.Matchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
+import spray.http._
 import spray.json._
 
 import scala.concurrent.duration._
-import cromwell.backend.impl.spark.SparkClusterProcess.{Failed, _}
-import org.scalatest.concurrent.ScalaFutures
-import spray.http._
-import SparkClusterJsonProtocol._
+import scala.concurrent.{Future, Promise}
 
 class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   with WordSpecLike

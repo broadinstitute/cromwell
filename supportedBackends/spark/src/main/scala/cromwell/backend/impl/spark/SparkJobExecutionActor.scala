@@ -10,6 +10,7 @@ import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctio
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.path.JavaWriterImplicits._
+import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
 import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
@@ -29,7 +30,6 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
                              override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor with SharedFileSystem {
 
   import SparkJobExecutionActor._
-  import better.files._
 
   override val pathBuilders = DefaultPathBuilders
   private val tag = s"SparkJobExecutionActor-${jobDescriptor.key.tag}:"

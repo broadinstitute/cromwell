@@ -1,0 +1,21 @@
+
+name: optional_declarations
+testFormat: workflowsuccess
+
+files {
+  wdl: optional_declarations/optional_declarations.wdl
+  inputs: optional_declarations/optional_declarations.inputs
+}
+
+metadata {
+  workflowName: optional_declarations
+  status: Succeeded
+  "outputs.optional_declarations.strings.out_string": "2",
+  "outputs.optional_declarations.out_coerced_wf_string": "1",
+  "outputs.optional_declarations.out_wf_int": 1,
+  "outputs.optional_declarations.strings.out_coerced_string": "1",
+  "outputs.optional_declarations.out_wf_string": "2",
+  "outputs.optional_declarations.strings.out_coerced_int": 2,
+  "outputs.optional_declarations.strings.out_int": 1,
+  "outputs.optional_declarations.out_coerced_wf_int": 2
+}

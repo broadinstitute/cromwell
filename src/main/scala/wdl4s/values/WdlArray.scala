@@ -1,5 +1,6 @@
 package wdl4s.values
 
+import lenthall.util.TryUtil
 import wdl4s.TsvSerializable
 import wdl4s.types._
 
@@ -12,25 +13,26 @@ object WdlArray {
       WdlArray(WdlArrayType(WdlStringType), line.split("\t").toSeq.map(WdlString))
     })
   }
+
+  def apply(wdlType: WdlArrayType, value: Seq[WdlValue]): WdlArray = {
+    if (wdlType == WdlMaybeEmptyArrayType.EmptyArrayType && value.nonEmpty) {
+      throw new UnsupportedOperationException(s"An ${wdlType.toWdlString} must be empty but instead has value: ${value.mkString(", ")}")
+    }
+    if (wdlType.guaranteedNonEmpty && value.isEmpty) {
+      throw new UnsupportedOperationException(s"An ${wdlType.toWdlString} must contain at least one element")
+    }
+
+    val coercedValue = TryUtil.sequence(value map wdlType.memberType.coerceRawValue)
+    coercedValue match {
+      case Success(coercedArray) => new WdlArray(wdlType, coercedArray) {}
+      case Failure(f) => throw new UnsupportedOperationException(s"Could not construct array of type $wdlType with this value: $value", f)
+    }
+  }
 }
 
-case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue with TsvSerializable {
+sealed abstract case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue with TsvSerializable {
 
   val nonEmpty = value.nonEmpty
-  val typesUsedInValue = Set(value map {_.wdlType}: _*)
-  if (typesUsedInValue.size == 1 && typesUsedInValue.head != wdlType.memberType) {
-    throw new UnsupportedOperationException(s"Could not construct array of type $wdlType with this value: $value")
-  }
-  if (typesUsedInValue.size > 1 && !value.forall(v => wdlType.memberType.isCoerceableFrom(v.wdlType))) {
-    throw new UnsupportedOperationException(s"Cannot construct ${wdlType.memberType.toWdlString} array with mixed type: ${value.map(_.wdlType).toSet.mkString(", ")}")
-  }
-  if (wdlType == WdlMaybeEmptyArrayType.EmptyArrayType && value.nonEmpty) {
-    throw new UnsupportedOperationException(s"An Array[Void] must be empty but instead has value: ${value.mkString(", ")}")
-  }
-  if (nonEmpty && value.isEmpty) {
-    throw new UnsupportedOperationException(s"An ${wdlType.toWdlString} contain at least one element")
-  }
-
   override def toWdlString: String = s"[${value.map(_.toWdlString).mkString(", ")}]"
   override def toString = toWdlString
 

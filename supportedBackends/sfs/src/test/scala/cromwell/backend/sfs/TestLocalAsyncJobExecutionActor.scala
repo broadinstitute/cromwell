@@ -34,7 +34,8 @@ object TestLocalAsyncJobExecutionActor {
     val emptyActor = system.actorOf(Props.empty)
     val workflowPaths = new WorkflowPathsWithDocker(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
     val initializationData = new StandardInitializationData(workflowPaths,
-      StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional))
+      StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional),
+      classOf[SharedFileSystemExpressionFunctions])
     val asyncClass = classOf[TestLocalAsyncJobExecutionActor]
 
     val params = DefaultStandardSyncExecutionActorParams(SharedFileSystemAsyncJobExecutionActor.JobIdKey, emptyActor,

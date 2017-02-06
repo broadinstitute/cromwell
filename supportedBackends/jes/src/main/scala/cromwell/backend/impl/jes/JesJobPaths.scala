@@ -5,7 +5,6 @@ import java.nio.file.Path
 import akka.actor.ActorSystem
 import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.CallContext
 import cromwell.services.metadata.CallMetadataKeys
 
 object JesJobPaths {
@@ -35,8 +34,6 @@ class JesJobPaths(val jobKey: BackendJobDescriptorKey, workflowDescriptor: Backe
   val jesLogFilename: String = s"$jesLogBasename.log"
   lazy val jesLogPath: Path = callExecutionRoot.resolve(jesLogFilename)
   
-  lazy val callContext = CallContext(callExecutionRoot, stdoutFilename, stderrFilename)
-
   /*
   TODO: Move various monitoring files path generation here.
 
@@ -55,6 +52,10 @@ class JesJobPaths(val jobKey: BackendJobDescriptorKey, workflowDescriptor: Backe
 
   override lazy val customDetritusPaths: Map[String, Path] = Map(
     JesJobPaths.GcsExecPathKey -> script,
+    JesJobPaths.JesLogPathKey -> jesLogPath
+  )
+
+  override lazy val customLogPaths: Map[String, Path] = Map(
     JesJobPaths.JesLogPathKey -> jesLogPath
   )
 }

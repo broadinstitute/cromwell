@@ -21,4 +21,6 @@ object CromwellFatalException {
 }
 
 class CromwellFatalException(val exception: Throwable) extends Exception(exception) with CromwellFatalExceptionMarker
-case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "") extends ThrowableAggregation
+
+case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "")
+  extends Exception with ThrowableAggregation

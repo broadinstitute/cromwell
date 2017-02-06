@@ -2,32 +2,17 @@ package cromwell.backend.impl.jes
 
 import java.io.IOException
 
-import akka.actor.{ActorRef, Props}
-import cats.instances.future._
-import cats.syntax.functor._
-import com.google.api.services.genomics.Genomics
+import akka.actor.ActorRef
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformation}
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import spray.json.JsObject
 import wdl4s.TaskCall
 
 import scala.concurrent.Future
-import scala.language.postfixOps
-
-object JesInitializationActor {
-  /* NOTE: Only used by tests */
-  def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[TaskCall],
-            jesConfiguration: JesConfiguration,
-            serviceRegistryActor: ActorRef): Props = {
-    val params = JesInitializationActorParams(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor)
-    Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
-  }
-}
+import scala.util.Try
 
 case class JesInitializationActorParams
 (
@@ -40,9 +25,7 @@ case class JesInitializationActorParams
 }
 
 class JesInitializationActor(jesParams: JesInitializationActorParams)
-  extends StandardInitializationActor {
-
-  override val standardParams: StandardInitializationActorParams = jesParams
+  extends StandardInitializationActor(jesParams) {
 
   private val jesConfiguration = jesParams.jesConfiguration
 
@@ -56,31 +39,31 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
     } yield GcsLocalizing(clientSecrets, token)
   }
 
-  /**
-    * A call which happens before anything else runs
-    */
-  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+  private lazy val genomics = jesConfiguration.genomicsFactory.withOptions(workflowDescriptor.workflowOptions)
 
-    def buildGenomics: Future[Genomics] = Future {
-      jesConfiguration.genomicsFactory.withOptions(workflowDescriptor.workflowOptions)
-    }
+  override lazy val workflowPaths: JesWorkflowPaths =
+    new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
 
-    for {
-      genomics <- buildGenomics
-      workflowPaths = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)(context.system)
-      _ <- if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths) else Future.successful(())
-      _ = publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-    } yield Option(JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, jesConfiguration, genomics))
-  }
 
-  private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Future[Unit] = {
-    generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) map { content =>
+  override lazy val initializationData: JesBackendInitializationData =
+    JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, jesConfiguration, genomics)
+
+  override def beforeAll(): Future[Option[BackendInitializationData]] = Future.fromTry(Try {
+    if (jesConfiguration.needAuthFileUpload) writeAuthenticationFile(workflowPaths)
+    publishWorkflowRoot(workflowPaths.workflowRoot.toString)
+    Option(initializationData)
+  })
+
+  private def writeAuthenticationFile(workflowPath: JesWorkflowPaths): Unit = {
+    generateAuthJson(jesConfiguration.dockerCredentials, refreshTokenAuth) foreach { content =>
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n ${path.toUri}")
-      Future(path.writeAsJson(content)).void.recoverWith {
-        case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
-      } void
-    } getOrElse Future.successful(())
+      try {
+        path.writeAsJson(content)
+      } catch {
+        case exception: Exception => throw new IOException("Failed to upload authentication file", exception)
+      }
+    }
   }
 
   def generateAuthJson(authInformation: Option[JesAuthInformation]*): Option[String] = {

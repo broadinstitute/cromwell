@@ -22,9 +22,9 @@ class ConfigBackendLifecycleActorFactory(name: String, val configurationDescript
     configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
   }
 
-  override def initializationActorClass: Class[ConfigInitializationActor] = classOf[ConfigInitializationActor]
+  override lazy val initializationActorClass: Class[ConfigInitializationActor] = classOf[ConfigInitializationActor]
 
-  override def asyncExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
+  override lazy val asyncExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
     val runInBackground = configurationDescriptor.backendConfig.as[Option[Boolean]](RunInBackgroundConfig).getOrElse(false)
     if (runInBackground)
       classOf[BackgroundConfigAsyncJobExecutionActor]

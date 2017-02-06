@@ -8,6 +8,7 @@ import cromwell.backend._
 import cromwell.core.{CallOutputs, Dispatcher}
 import cromwell.core.Dispatcher.BackendDispatcher
 import wdl4s.TaskCall
+import wdl4s.expression.WdlStandardLibraryFunctions
 
 /**
   * May be extended for using the standard sync/async backend pattern.
@@ -23,19 +24,11 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   def configurationDescriptor: BackendConfigurationDescriptor
 
   /**
-    * Returns the initialization class.
+    * Returns the key to use for storing and looking up the job id.
     *
-    * @return the initialization class.
+    * @return the key to use for storing and looking up the job id.
     */
-  def initializationActorClass: Class[_ <: StandardInitializationActor]
-
-  /**
-    * Returns the synchronous executor class. By default using the standard sync executor should be sufficient for most
-    * implementations.
-    *
-    * @return the synchronous executor class.
-    */
-  def syncExecutionActorClass: Class[_ <: StandardSyncExecutionActor] = classOf[StandardSyncExecutionActor]
+  def jobIdKey: String
 
   /**
     * Returns the asynchronous executor class.
@@ -45,25 +38,35 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
 
   /**
+    * Returns the initialization class.
+    *
+    * @return the initialization class.
+    */
+  lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[StandardInitializationActor]
+
+  /**
+    * Returns the synchronous executor class. By default using the standard sync executor should be sufficient for most
+    * implementations.
+    *
+    * @return the synchronous executor class.
+    */
+  lazy val syncExecutionActorClass: Class[_ <: StandardSyncExecutionActor] = classOf[StandardSyncExecutionActor]
+
+  /**
     * Returns the cache hit copying class.
     *
     * @return the cache hit copying class.
     */
-  def standardCacheHitCopyingActorOption: Option[Class[_ <: StandardCacheHitCopyingActor]] = None
+  lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] =
+    Option(classOf[StandardCacheHitCopyingActor])
 
   /**
     * Returns the finalization class.
     *
     * @return the finalization class.
     */
-  def finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] = None
-
-  /**
-    * Returns the key to use for storing and looking up the job id.
-    *
-    * @return the key to use for storing and looking up the job id.
-    */
-  def jobIdKey: String
+  lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] =
+    Option(classOf[StandardFinalizationActor])
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
                                                 serviceRegistryActor: ActorRef): Option[Props] = {
@@ -96,7 +99,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
 
   override def cacheHitCopyingActorProps:
   Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef) => Props] = {
-    standardCacheHitCopyingActorOption map {
+    cacheHitCopyingActorClassOption map {
       standardCacheHitCopyingActor => cacheHitCopyingActorInner(standardCacheHitCopyingActor) _
     }
   }
@@ -132,6 +135,15 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   StandardFinalizationActorParams = {
     DefaultStandardFinalizationActorParams(workflowDescriptor, calls, jobExecutionMap, workflowOutputs,
       initializationDataOption, configurationDescriptor)
+  }
+
+  override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
+                                           jobKey: BackendJobDescriptorKey,
+                                           initializationDataOption: Option[BackendInitializationData]):
+  WdlStandardLibraryFunctions = {
+    val standardInitializationData = BackendInitializationData.as[StandardInitializationData](initializationDataOption)
+    val jobPaths = standardInitializationData.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
+    standardInitializationData.expressionFunctions(jobPaths)
   }
 
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,

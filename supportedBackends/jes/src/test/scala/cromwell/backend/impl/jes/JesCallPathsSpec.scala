@@ -58,8 +58,10 @@ class JesCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with
     val callPaths = JesJobPaths(jobDescriptorKey, workflowDescriptor, jesConfiguration)
     callPaths.callContext.root.toRealString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
-    callPaths.callContext.stdout should be("hello-stdout.log")
-    callPaths.callContext.stderr should be("hello-stderr.log")
+    callPaths.callContext.stdout should
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
+    callPaths.callContext.stderr should
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
   }
 
 }

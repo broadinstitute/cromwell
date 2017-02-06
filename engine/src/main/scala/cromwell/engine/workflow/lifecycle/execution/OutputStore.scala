@@ -70,7 +70,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
       val wdlValues = shardsOutputs.map(
         _.getOrElse(taskOutput.unqualifiedName, throw new RuntimeException(s"Could not retrieve output ${taskOutput.unqualifiedName}")))
       val arrayType = taskOutput.relativeWdlType(scatter).asInstanceOf[WdlArrayType]
-      val arrayOfValues = new WdlArray(arrayType, wdlValues)
+      val arrayOfValues = WdlArray(arrayType, wdlValues)
       taskOutput.unqualifiedName -> JobOutput(arrayOfValues)
     } toMap
   }

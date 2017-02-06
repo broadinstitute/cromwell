@@ -5,27 +5,13 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import wdl4s.expression.NoFunctions
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
+import wdl4s.values.{WdlArray, WdlFile, WdlString}
 import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 
 class ArrayWorkflowSpec extends CromwellTestKitSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
   val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(), Seq.empty[ImportResolver])
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
-
-  "A task which contains a parameter " should {
-    "accept an array for the value" in {
-      runWdlAndAssertOutputs(
-        sampleWdl = SampleWdl.ArrayIO,
-        eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
-        expectedOutputs = Map(
-          "wf.count_lines.count" -> WdlInteger(3),
-          "wf.count_lines_array.count" -> WdlInteger(3),
-          "wf.serialize.contents" -> WdlString("str1\nstr2\nstr3")
-        )
-      )
-    }
-  }
 
   "A static Array[File] declaration" should {
     "be a valid declaration" in {

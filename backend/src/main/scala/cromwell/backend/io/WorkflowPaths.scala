@@ -1,11 +1,9 @@
 package cromwell.backend.io
 
-import java.nio.file.Path
-
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions.FinalCallLogsDir
-import cromwell.core.path.{DefaultPathBuilder, PathFactory}
+import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
 import net.ceedubs.ficus.Ficus._
 
 import scala.util.Try

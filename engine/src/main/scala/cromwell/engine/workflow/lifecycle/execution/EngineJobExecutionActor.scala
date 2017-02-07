@@ -129,7 +129,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       log.debug("Cache miss for job {}", jobTag)
       runJob(data)
     case Event(hit: CacheHit, data: ResponsePendingData) =>
-      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data)
+      fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data.copy(cacheHit = Option(hit)))
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       disableCallCaching(t)
@@ -218,6 +218,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       eventList ++= response.executionEvents
       log.debug(s"Got job result for {}, awaiting hashes", jobTag)
       stay using data.withSuccessResponse(response)
+    case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
+      eventList ++= response.executionEvents
+      saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
       saveJobCompletionToJobStore(data.withResponse(response))
   }
@@ -409,7 +412,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
       case JobSucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: CallOutputs, _, executionEvents) =>
-        eventList ++= executionEvents
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(jobKey: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)

@@ -1,14 +1,10 @@
 package cromwell.backend.io
 
-import java.nio.file.Files
-
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
 import wdl4s.TaskCall
 import wdl4s.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
 import wdl4s.values._
-import scala.collection.JavaConverters._
-import cromwell.core.path.PathImplicits._
 
 trait GlobFunctions extends PureStandardLibraryFunctionsLike {
 
@@ -26,35 +22,29 @@ trait GlobFunctions extends PureStandardLibraryFunctionsLike {
   def globName(glob: String) = s"glob-${glob.md5Sum}"
 
   /**
-    * Returns a path to the glob using toRealString.
-    *
-    * NOTE: Due to use of toRealString, returned paths must be passed to PathBuilders.buildPath, and will not work with
-    * Paths.get.
+    * Returns a path to the glob.
     *
     * This path is usually passed back into the glob() method below.
     *
     * @param glob The glob. This is the same "pattern" passed to glob() below.
-    * @return The path converted using .toRealString.
+    * @return The path.
     */
-  override def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).toRealString
+  override def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).pathAsString
 
   /**
-    * Returns a list of path from the glob, each path converted to a string using toRealString.
+    * Returns a list of path from the glob.
     *
     * The paths are currently read from a list file based on the pattern, and the path parameter is not used.
     *
-    * NOTE: Due to use of toRealString, returned paths must be passed to PathBuilders.buildPath, and will not work with
-    * Paths.get.
-    *
     * @param path    The path string returned by globPath. This isn't currently used.
     * @param pattern The pattern of the glob. This is the same "glob" passed to globPath().
-    * @return The paths that match the pattern, each path converted using .toRealString.
+    * @return The paths that match the pattern.
     */
   override def glob(path: String, pattern: String): Seq[String] = {
     val name = globName(pattern)
     val listFile = callContext.root.resolve(s"$name.list").toRealPath()
-    Files.readAllLines(listFile).asScala map { fileName =>
-      callContext.root.resolve(name).resolve(fileName).toRealString
+    listFile.lines.toSeq map { fileName =>
+      callContext.root.resolve(name).resolve(fileName).pathAsString
     }
   }
 }

@@ -2,7 +2,7 @@ package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.sfs._
-import cromwell.backend.standard.{DefaultInitializationActorParams, StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
+import cromwell.backend.standard.{StandardInitializationActorParams, StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 import wdl4s.WdlNamespace
 
 /**
@@ -21,7 +21,8 @@ class ConfigInitializationData
   runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   val declarationValidations: Seq[DeclarationValidation],
   val wdlNamespace: WdlNamespace)
-  extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder)
+  extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder,
+    classOf[SharedFileSystemExpressionFunctions])
 
 /**
   * Extends the SharedFileSystemInitializationActor to create an instance of the ConfigInitializationData.
@@ -30,7 +31,7 @@ class ConfigInitializationData
   *
   * @param params Parameters to create an initialization actor.
   */
-class ConfigInitializationActor(params: DefaultInitializationActorParams)
+class ConfigInitializationActor(params: StandardInitializationActorParams)
   extends SharedFileSystemInitializationActor(params) {
 
   lazy val configWdlNamespace = new ConfigWdlNamespace(params.configurationDescriptor.backendConfig)

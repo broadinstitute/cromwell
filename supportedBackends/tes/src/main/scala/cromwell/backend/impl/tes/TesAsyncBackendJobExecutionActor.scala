@@ -1,40 +1,37 @@
 package cromwell.backend.impl.tes
 
-import java.nio.file.{FileAlreadyExistsException, Path}
+import java.nio.file.FileAlreadyExistsException
 
-import better.files.File
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, SuccessfulExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.io.JobPaths
-import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardInitializationData}
-import cromwell.backend.wdl.OutputEvaluator
-import cromwell.core.path.FileImplicits._
-import cromwell.core.path.PathFactory.pathPlusSuffix
-import cromwell.core.path.{PathBuilder, PathFactory}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
-import lenthall.util.TryUtil
 import spray.client.pipelining._
 import spray.http.HttpRequest
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.unmarshalling._
-import wdl4s.values.{WdlArray, WdlFile, WdlGlobFile, WdlMap, WdlValue}
+import wdl4s.values.WdlFile
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 sealed trait TesRunStatus {
   def isTerminal: Boolean
 }
+
 case object Running extends TesRunStatus {
   def isTerminal = false
 }
+
 case object Complete extends TesRunStatus {
   def isTerminal = true
 }
+
 case object FailedOrError extends TesRunStatus {
   def isTerminal = true
 }
@@ -62,9 +59,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     multiplier = 1.1
   )
 
-  lazy val pathBuilders: List[PathBuilder] = StandardInitializationData.pathBuilders(backendInitializationDataOption)
-  lazy val backendEngineFunctions = SharedFileSystemExpressionFunctions(jobPaths, pathBuilders)
-
   override lazy val retryable: Boolean = false
 
   private val tesEndpoint = tesConfiguration.endpointURL
@@ -73,76 +67,38 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
-  /**
-    * Writes the script file containing the user's command from the WDL as well
-    * as some extra shell code for monitoring jobs
-    */
-  def writeScript(instantiatedCommand: String, globFiles: Set[WdlGlobFile]) = {
-    val cwd = tesJobPaths.containerWorkingDir
-    val rcPath = tesJobPaths.containerExec("rc")
-    val rcTmpPath = s"$rcPath.tmp"
-
-    def globManipulation(globFile: WdlGlobFile) = {
-
-      val globDir = backendEngineFunctions.globName(globFile.value)
-      val globDirectory = File(cwd)./(globDir)
-      val globList = File(cwd)./(s"$globDir.list")
-
-      s"""|mkdir $globDirectory
-          |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
-          |ls -1 $globDirectory > $globList
-          |""".stripMargin
+  // Utility for converting a WdlValue so that the path is localized to the
+  // container's filesystem.
+  override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
+    val localPath = Paths.get(wdlFile.valueString).toAbsolutePath
+    // Workaround since each input seemed to hit this function twice?
+    if (localPath.startsWith(tesJobPaths.callInputsDockerRoot)) {
+      WdlFile(localPath.pathAsString)
+    } else {
+      val containerPath = tesJobPaths.containerInput(localPath.pathAsString)
+      WdlFile(containerPath)
     }
-
-    val globManipulations = globFiles.map(globManipulation).mkString("\n")
-
-    val scriptBody =
-      s"""|#!/bin/bash
-          |(
-          |cd $cwd
-          |INSTANTIATED_COMMAND
-          |)
-          |echo $$? > $rcTmpPath
-          |(
-          |cd $cwd
-          |$globManipulations
-          |)
-          |mv $rcTmpPath $rcPath
-          |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
-
-    File(tesJobPaths.script).write(scriptBody)
   }
 
-  def createTaskMessage(): TesTaskMessage = {
-    val commandString = jobDescriptor
-      .key
-      .call
-      .task
-      .instantiateCommand(
-        jobDescriptor.inputDeclarations,
-        backendEngineFunctions,
-        tesJobPaths.toContainerPath
-      )
-      // TODO remove this .get and handle error appropriately
-      .get
+  override lazy val commandDirectory: Path = tesJobPaths.callExecutionDockerRoot
 
-    jobLogger.info(s"`\n$commandString`")
-    writeScript(commandString, backendEngineFunctions.findGlobOutputs(call, jobDescriptor))
+  def createTaskMessage(): TesTaskMessage = {
+    tesJobPaths.script.write(commandScriptContents)
 
     val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes)
 
     TesTaskMessage(
-      Some(task.name),
-      Some(task.description),
-      Some(task.project),
-      Some(task.inputs),
-      Some(task.outputs),
+      Option(task.name),
+      Option(task.description),
+      Option(task.project),
+      Option(task.inputs),
+      Option(task.outputs),
       task.resources,
       task.dockerExecutor
     )
   }
 
-  override def execute(): ExecutionHandle = {
+  override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     // create call exec dir
     File(tesJobPaths.callExecutionRoot).createPermissionedDirectories()
     val taskMessage = createTaskMessage()
@@ -150,15 +106,16 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val submitTask = pipeline[TesPostResponse]
       .apply(Post(tesEndpoint, taskMessage))
 
-    val response = Await.result(submitTask, 15.seconds)
-    val jobID = response.value.get
-
-    PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
+    submitTask.map {
+      response =>
+        val jobID = response.value
+        PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
+    }
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
-    val returnCodeTmp = pathPlusSuffix(jobPaths.returnCode, "kill")
+    val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
     try {
       returnCodeTmp.moveTo(jobPaths.returnCode)
@@ -179,25 +136,27 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = true
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): TesRunStatus = {
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)(implicit ec: ExecutionContext): Future[TesRunStatus] = {
     val pollTask = pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}"))
 
-    val response = Await.result(pollTask, 5.seconds)
-    val state = response.state.get
-    state match {
-      case s if s.contains("Complete") => {
-        jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
-        Complete
-      }
-      case s if s.contains("Cancel") => {
-        jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
-        FailedOrError
-      }
-      case s if s.contains("Error") => {
-        jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
-        FailedOrError
-      }
-      case _ => Running
+    pollTask.map {
+      response =>
+        val state = response.state
+        state match {
+          case s if s.contains("Complete") => {
+            jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
+            Complete
+          }
+          case s if s.contains("Cancel") => {
+            jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
+            FailedOrError
+          }
+          case s if s.contains("Error") => {
+            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
+            FailedOrError
+          }
+          case _ => Running
+        }
     }
   }
 
@@ -220,42 +179,16 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   // Everything below was 'borrowed' from the SFS backend
-  private def hostAbsoluteFilePath(callRoot: Path, pathString: String): File = {
-    val wdlPath = PathFactory.buildPath(pathString, pathBuilders)
-    callRoot.resolve(wdlPath).toAbsolutePath
+  private def hostAbsoluteFilePath(wdlFile: WdlFile): File = {
+    tesJobPaths.callExecutionRoot.resolve(wdlFile.value).toAbsolutePath
   }
 
-  def outputMapper(job: JobPaths)(wdlValue: WdlValue): Try[WdlValue] = {
-    wdlValue match {
-      case fileNotFound: WdlFile if !hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).exists =>
-        Failure(new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(job.callExecutionRoot, fileNotFound.valueString).pathAsString}"))
-      case file: WdlFile => Try(WdlFile(hostAbsoluteFilePath(job.callExecutionRoot, file.valueString).pathAsString))
-      case array: WdlArray =>
-        val mappedArray = array.value map outputMapper(job)
-        TryUtil.sequence(mappedArray) map {
-          WdlArray(array.wdlType, _)
-        }
-      case map: WdlMap =>
-        val mappedMap = map.value mapValues outputMapper(job)
-        TryUtil.sequenceMap(mappedMap) map {
-          WdlMap(map.wdlType, _)
-        }
-      case other => Success(other)
-    }
-  }
-
-  override def handleExecutionSuccess(runStatus: StandardAsyncRunStatus,
-                                      handle: StandardAsyncPendingExecutionHandle,
-                                      returnCode: Int): ExecutionHandle = {
-
-    val outputsTry =
-      OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputMapper(tesJobPaths))
-    outputsTry match {
-      case Success(outputs) => {
-        SuccessfulExecutionHandle(outputs, returnCode, tesJobPaths.detritusPaths, Seq.empty)
-      }
-      case Failure(throwable) => FailedNonRetryableExecutionHandle(throwable, Option(returnCode))
+  override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
+    if (!hostAbsoluteFilePath(wdlFile).exists) {
+      throw new RuntimeException("Could not process output, file not found: " +
+        s"${hostAbsoluteFilePath(wdlFile).pathAsString}")
+    } else {
+      WdlFile(hostAbsoluteFilePath(wdlFile).pathAsString)
     }
   }
 }

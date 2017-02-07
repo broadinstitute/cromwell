@@ -5,7 +5,6 @@ import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import lenthall.validation.ErrorOr.ErrorOr
-import org.slf4j.Logger
 import wdl4s.parser.MemoryUnit
 import wdl4s.values.{WdlInteger, WdlString, WdlValue}
 
@@ -69,13 +68,13 @@ object TesRuntimeAttributes {
     )
   }
 
-  // NOTE: Currently only used by test specs
-  private[tes] def apply(attrs: Map[String, WdlValue],
-                         logger: Logger): TesRuntimeAttributes = {
-    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder
-    val validatedRuntimeAttributes = runtimeAttributesBuilder.build(attrs, logger)
-    apply(validatedRuntimeAttributes)
-  }
+//  // NOTE: Currently only used by test specs
+//  private[tes] def apply(attrs: Map[String, WdlValue],
+//                         logger: Logger): TesRuntimeAttributes = {
+//    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder
+//    val validatedRuntimeAttributes = runtimeAttributesBuilder.build(attrs, logger)
+//    apply(validatedRuntimeAttributes)
+//  }
 }
 
 object DockerWorkingDirValidation {
@@ -135,6 +134,7 @@ class DiskSizeValidation extends MemoryValidation {
     case WdlInteger(value) => DiskSizeValidation.validateDiskSizeInteger(value)
     case WdlString(value) => DiskSizeValidation.validateDiskSizeString(value)
   }
+
   override def missingValueMessage: String = DiskSizeValidation.wrongTypeFormat.format("Not supported WDL type value")
 }
 

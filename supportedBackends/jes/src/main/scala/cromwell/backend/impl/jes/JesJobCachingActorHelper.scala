@@ -1,13 +1,10 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.Path
-
 import akka.actor.Actor
-import better.files._
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.Path
 
 trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
@@ -45,12 +42,12 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val jesAttributes: JesAttributes = jesConfiguration.jesAttributes
   lazy val monitoringScript: Option[JesInput] = {
     jesCallPaths.monitoringPath map { path =>
-      JesFileInput(s"$MonitoringParamName-in", path.toRealString,
+      JesFileInput(s"$MonitoringParamName-in", path.pathAsString,
         JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
     }
   }
   lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
-    defaultMonitoringOutputPath.toString, File(JesMonitoringLogFile).path, workingDisk)
+    defaultMonitoringOutputPath.pathAsString, JesMonitoringLogFile, workingDisk)
   }
 
   override protected def nonStandardMetadata: Map[String, Any] = {

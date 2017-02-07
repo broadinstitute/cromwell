@@ -2,12 +2,14 @@ package cromwell.backend.impl.jes
 
 import java.util.UUID
 
+import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.impl.jes.authentication.GcsLocalizing
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -139,8 +141,16 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
+  private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                 calls: Set[TaskCall],
+                                 jesConfiguration: JesConfiguration): Props = {
+    val params = JesInitializationActorParams(workflowDescriptor, calls, jesConfiguration, emptyActor)
+    Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
+  }
+
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf), emptyActor))
+    val props = getJesBackendProps(workflowDescriptor, calls, new JesConfiguration(conf))
+    system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
 
   behavior of "JesInitializationActor"
@@ -192,7 +202,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 
     val actorRef = TestActorRef[JesInitializationActor](
-      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration, emptyActor),
+      getJesBackendProps(workflowDescriptor, calls, jesConfiguration),
       "TestableJesInitializationActor-" + UUID.randomUUID)
     TestingBits(actorRef, jesConfiguration)
   }

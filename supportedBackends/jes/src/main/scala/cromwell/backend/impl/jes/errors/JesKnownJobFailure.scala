@@ -1,15 +1,14 @@
 package cromwell.backend.impl.jes.errors
 
-import java.nio.file.Path
-
 import cromwell.backend.async.KnownJobFailureException
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.Path
 
 sealed trait JesKnownJobFailure extends KnownJobFailureException
 
-case class FailedToDelocalizeFailure(message: String, jobTag: String, stderrPath: Option[Path]) extends JesKnownJobFailure {
+case class FailedToDelocalizeFailure(message: String, jobTag: String, stderrPath: Option[Path])
+  extends JesKnownJobFailure {
   lazy val stderrMessage = stderrPath map { p =>
-    s"3) Look into the stderr (${p.toRealString}) file for evidence that some of the output files the command is expected to create were not created."
+    s"3) Look into the stderr (${p.pathAsString}) file for evidence that some of the output files the command is expected to create were not created."
   } getOrElse ""
   
   lazy val missingFilesMessage = if (message.contains("No URLs matched")) {

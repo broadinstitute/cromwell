@@ -1,13 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import java.nio.file.Path
-
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.Path
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
@@ -55,7 +53,7 @@ class CallCache(database: CallCachingSqlDatabase) {
 
     val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.toRealString.toClob)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.pathAsString.toClob)
       }
     }
 

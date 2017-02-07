@@ -1,10 +1,9 @@
 package cromwell.backend.standard
 
-import java.nio.file.Path
-
 import akka.actor.ActorRef
 import cromwell.backend.callcaching.CacheHitDuplicating
 import cromwell.backend.{BackendCacheHitCopyingActor, BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
+import cromwell.core.path.{Path, PathCopier}
 
 /**
   * Trait of parameters passed to a StandardCacheHitCopyingActor.
@@ -31,10 +30,10 @@ case class DefaultStandardCacheHitCopyingActorParams
 /**
   * Standard implementation of a BackendCacheHitCopyingActor.
   */
-trait StandardCacheHitCopyingActor extends BackendCacheHitCopyingActor with CacheHitDuplicating
-  with StandardCachingActorHelper {
+class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
+  extends BackendCacheHitCopyingActor with CacheHitDuplicating with StandardCachingActorHelper {
 
-  def standardParams: StandardCacheHitCopyingActorParams
+  override protected def duplicate(source: Path, destination: Path): Unit = PathCopier.copy(source, destination).get
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] =

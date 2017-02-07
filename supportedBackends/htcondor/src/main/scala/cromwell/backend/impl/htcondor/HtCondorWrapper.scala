@@ -1,13 +1,10 @@
 package cromwell.backend.impl.htcondor
 
-import java.nio.file.{Files, Path}
-
-import better.files._
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.impl.htcondor
-import cromwell.core.path.{TailedWriter, UntailedWriter}
-import cromwell.core.path.PathImplicits._
 import cromwell.core.path.JavaWriterImplicits._
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.{Path, TailedWriter, UntailedWriter}
 
 import scala.sys.process._
 

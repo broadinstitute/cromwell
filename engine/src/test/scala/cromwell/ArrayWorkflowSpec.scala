@@ -1,19 +1,16 @@
 package cromwell
 
-import java.nio.file.Files
-
 import akka.testkit._
-import better.files._
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
-import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 import wdl4s.expression.NoFunctions
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
-
+import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 
 class ArrayWorkflowSpec extends CromwellTestKitSpec {
-  val tmpDir = Files.createTempDirectory("ArrayWorkflowSpec")
-  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(""), Seq.empty[ImportResolver])
+  val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
+  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(), Seq.empty[ImportResolver])
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
 
   "A task which contains a parameter " should {
@@ -38,7 +35,7 @@ class ArrayWorkflowSpec extends CromwellTestKitSpec {
       val expression = declaration.expression.getOrElse {
         fail("Expected an expression for declaration 'arr'")
       }
-      val value = expression.evaluate((s:String) => fail("No lookups"), NoFunctions).getOrElse {
+      val value = expression.evaluate((_: String) => fail("No lookups"), NoFunctions).getOrElse {
         fail("Expected expression for 'arr' to evaluate")
       }
       value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
@@ -63,8 +60,8 @@ class ArrayWorkflowSpec extends CromwellTestKitSpec {
           )
         )
       )
-      val pwd = File(".")
-      val sampleWdl = SampleWdl.ArrayLiteral(pwd.path)
+      val pwd = DefaultPathBuilder.get(".")
+      val sampleWdl = SampleWdl.ArrayLiteral(pwd)
       runWdlAndAssertOutputs(
         sampleWdl,
         eventFilter = EventFilter.info(pattern = "Starting calls: wf.cat", occurrences = 1),

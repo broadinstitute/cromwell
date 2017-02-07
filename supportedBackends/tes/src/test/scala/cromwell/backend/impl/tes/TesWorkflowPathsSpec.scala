@@ -10,20 +10,20 @@ import wdl4s.{Call, Workflow}
 class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
   val configString =
     """
-      |        root = "local-cromwell-executions"
-      |        dockerRoot = "cromwell-executions"
+      |root = "local-cromwell-executions"
+      |dockerRoot = "cromwell-executions"
       |
-      |        filesystems {
-      |          local {
-      |            localization: [
-      |              "hard-link", "soft-link", "copy"
-      |            ]
-      |          }
-      |          gcs {
-      |            auth = "application-default"
-      |          }
-      |        }
-    """.stripMargin
+      |filesystems {
+      |  local {
+      |    localization: [
+      |      "hard-link", "soft-link", "copy"
+      |    ]
+      |  }
+      |  gcs {
+      |    auth = "application-default"
+      |  }
+      |}
+      |""".stripMargin
 
   val globalConfig = ConfigFactory.load()
   val backendConfig =  ConfigFactory.parseString(configString)

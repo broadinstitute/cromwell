@@ -1,16 +1,15 @@
 package cromwell.engine.workflow
 
-import java.nio.file.Path
 import java.time.OffsetDateTime
 
 import akka.actor._
 import akka.pattern.ask
 import akka.testkit.TestKit
 import akka.util.Timeout
-import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
-import cromwell.core.{WorkflowSourceFilesCollection}
+import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -23,7 +22,7 @@ import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util._
 
 /**
@@ -32,13 +31,13 @@ import scala.util._
  *
  * Currently, as instance of the actor system are created via an instance of CromwellTestkitSpec, and the
  * SingleWorkflowRunnerActor also tests halting its actor system, each spec is currently in a separate instance of the
- * CromwellTestkitSpec.
+ * CromwellTestKitSpec.
  */
 object SingleWorkflowRunnerActorSpec {
 
-  def tempFile() = File.newTemporaryFile("metadata.", ".json")
+  def tempFile() = DefaultPathBuilder.createTempFile("metadata.", ".json")
 
-  def tempDir() = File.newTemporaryDirectory("metadata.dir.")
+  def tempDir() = DefaultPathBuilder.createTempDirectory("metadata.dir.")
 
   implicit class OptionJsValueEnhancer(val jsValue: Option[JsValue]) extends AnyVal {
     def toOffsetDateTime = OffsetDateTime.parse(jsValue.toStringValue)
@@ -116,7 +115,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
     within(TimeoutDuration) {
       singleWorkflowActor(
         sampleWdl = wdlFile,
-        outputFile = Option(metadataFile.path))
+        outputFile = Option(metadataFile))
         TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
     val metadataFileContent = metadataFile.contentAsString
@@ -188,7 +187,7 @@ class SingleWorkflowRunnerActorWithMetadataOnFailureSpec extends SingleWorkflowR
     "fail to run a workflow and still output metadata" in {
       val testStart = OffsetDateTime.now
       within(TimeoutDuration) {
-        singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile.path))
+        singleWorkflowActor(sampleWdl = GoodbyeWorld, outputFile = Option(metadataFile))
       }
       TestKit.shutdownActorSystem(system, TimeoutDuration)
 
@@ -240,9 +239,9 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
   "A SingleWorkflowRunnerActor" should {
     "successfully run a workflow requesting a bad metadata path" in {
       within(TimeoutDuration) {
-        val runner = createRunnerActor(outputFile = Option(metadataDir.path))
+        val runner = createRunnerActor(outputFile = Option(metadataDir))
         waitForErrorWithException(s"Specified metadata path is a directory, should be a file: $metadataDir") {
-          val futureResult = runner ? RunWorkflow
+          val futureResult = runner.ask(RunWorkflow)(30.seconds, implicitly)
           Await.ready(futureResult, Duration.Inf)
           futureResult.value.get match {
             case Success(_) =>

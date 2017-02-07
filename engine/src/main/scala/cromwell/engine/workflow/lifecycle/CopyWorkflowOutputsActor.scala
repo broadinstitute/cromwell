@@ -1,14 +1,12 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.Path
-
 import akka.actor.Props
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
 import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
-import cromwell.core.path.{PathCopier, PathFactory}
+import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wdl4s.values.{WdlArray, WdlMap, WdlSingleFile, WdlValue}
@@ -57,7 +55,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
       rootPath <- getBackendRootPath(backend, config).toSeq
       outputFiles = findFiles(workflowOutputs.values.map(_.wdlValue).toSeq)
       wdlFile <- outputFiles
-      wdlPath = rootPath.getFileSystem.getPath(wdlFile.value)
+      wdlPath = PathFactory.buildPath(wdlFile.value, pathBuilders)
     } yield (rootPath, wdlPath)
   }
 

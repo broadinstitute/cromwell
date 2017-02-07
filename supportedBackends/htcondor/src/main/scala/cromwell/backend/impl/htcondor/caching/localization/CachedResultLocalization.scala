@@ -1,10 +1,8 @@
 package cromwell.backend.impl.htcondor.caching.localization
 
-import java.nio.file.{Files, Path, Paths}
-
-import better.files.File
-import cromwell.core.path.FileImplicits._
-import cromwell.core.{JobOutput, _}
+import cromwell.core._
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.Path
 import wdl4s.types.{WdlArrayType, WdlFileType}
 import wdl4s.values.{WdlArray, WdlSingleFile, WdlValue}
 

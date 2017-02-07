@@ -1,11 +1,9 @@
 package cromwell.backend.impl.htcondor
 
 import java.io.Writer
-import java.nio.file.{Files, Path}
 
 import akka.actor.{Actor, Props}
 import akka.testkit.{ImplicitSender, TestActorRef}
-import better.files._
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.htcondor.caching.CacheActor
@@ -14,7 +12,8 @@ import cromwell.backend.impl.htcondor.caching.model.CachedExecutionResult
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core._
-import cromwell.core.path.{PathWriter, TailedWriter, UntailedWriter}
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.{Path, PathWriter, TailedWriter, UntailedWriter}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvPair, KvPut}
 import org.mockito.Mockito
 import org.mockito.Mockito._

@@ -26,7 +26,7 @@ object TestWorkflows {
       |workflow wf_hello {
       |  call hello
       |}
-    """.stripMargin
+      |""".stripMargin
 
   val GoodbyeWorld =
     """
@@ -42,7 +42,7 @@ object TestWorkflows {
       |workflow wf_goodbye {
       |  call goodbye
       |}
-    """.stripMargin
+      |""".stripMargin
 
   val InputFiles =
     s"""
@@ -65,7 +65,7 @@ object TestWorkflows {
       |  File workflowFile
       |  call localize { input: inputFileFromCallInputs = workflowFile }
       |}
-    """.stripMargin
+      |""".stripMargin
 
   val Sleep10 =
     """
@@ -79,7 +79,7 @@ object TestWorkflows {
       |workflow wf_abort {
       |  call abort
       |}
-    """.stripMargin
+      |""".stripMargin
 
   val Scatter =
     s"""
@@ -99,7 +99,7 @@ object TestWorkflows {
       |     call scattering { input: intNumber = i }
       |  }
       |}
-    """.stripMargin
+      |""".stripMargin
 
   val OutputProcess = {
     """
@@ -120,7 +120,7 @@ object TestWorkflows {
       |workflow wf_localize {
       |  call localize
       |}
-    """.stripMargin
+      |""".stripMargin
   }
 
   val MissingOutputProcess = {
@@ -136,6 +136,6 @@ object TestWorkflows {
       |workflow wf_localize {
       |  call localize
       |}
-    """.stripMargin
+      |""".stripMargin
   }
 }

@@ -1,27 +1,14 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.{ActorRef, Props}
-import better.files.File
+import akka.actor.ActorRef
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.path.FileImplicits._
+import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
 import wdl4s.TaskCall
 
 import scala.concurrent.Future
 import scala.util.Try
-
-object TesInitializationActor {
-  /* NOTE: Only used by tests */
-  def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[TaskCall],
-            tesConfiguration: TesConfiguration,
-            serviceRegistryActor: ActorRef): Props = {
-    val params = TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
-    Props(new TesInitializationActor(params)).withDispatcher(BackendDispatcher)
-  }
-}
 
 case class TesInitializationActorParams
 (
@@ -34,20 +21,18 @@ case class TesInitializationActorParams
 }
 
 class TesInitializationActor(params: TesInitializationActorParams)
-  extends StandardInitializationActor {
-
-  override val standardParams: StandardInitializationActorParams = params
+  extends StandardInitializationActor(params) {
 
   private val tesConfiguration = params.tesConfiguration
 
   lazy val pathBuilderFactories: List[PathBuilderFactory] = List(Option(DefaultPathBuilderFactory)).flatten
 
-  lazy val pathBuilders: List[PathBuilder] =
+  override lazy val pathBuilders: List[PathBuilder] =
     pathBuilderFactories map {
       _.withOptions(workflowDescriptor.workflowOptions)(context.system)
     }
 
-  val workflowPaths: TesWorkflowPaths =
+  override lazy val workflowPaths: TesWorkflowPaths =
     new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, pathBuilders)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =

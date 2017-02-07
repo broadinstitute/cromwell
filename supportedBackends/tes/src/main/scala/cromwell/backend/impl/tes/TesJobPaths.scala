@@ -1,40 +1,27 @@
 package cromwell.backend.impl.tes
 
-import java.nio.file.{Path, Paths}
-
 import com.typesafe.config.Config
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.path.PathBuilder
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlValue}
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.{Path, PathBuilder}
 
 class TesJobPaths(val jobKey: BackendJobDescriptorKey,
                   workflowDescriptor: BackendWorkflowDescriptor,
                   config: Config,
                   pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends TesWorkflowPaths(
   workflowDescriptor, config, pathBuilders) with JobPaths {
+
   import JobPaths._
 
-  override lazy val callExecutionRoot = { callRoot.resolve("execution") }
+  override lazy val callExecutionRoot = {
+    callRoot.resolve("execution")
+  }
   val callDockerRoot = callPathBuilder(dockerWorkflowRoot, jobKey)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
+  val callInputsDockerRoot = callDockerRoot.resolve("inputs")
   val callInputsRoot = callRoot.resolve("inputs")
   var containerWorkingDir = callExecutionDockerRoot
-
-  // Utility for converting a WdlValue so that the path is localized to the
-  // container's filesystem.
-  def toContainerPath(path: WdlValue): WdlValue = {
-    path match {
-      case file: WdlFile => {
-        val localPath = Paths.get(file.valueString).toAbsolutePath
-        val containerPath = containerInput(localPath.toString)
-        WdlFile(containerPath)
-      }
-      case array: WdlArray => WdlArray(array.wdlType, array.value map toContainerPath)
-      case map: WdlMap => WdlMap(map.wdlType, map.value mapValues toContainerPath)
-      case wdlValue => wdlValue
-    }
-  }
 
   //TODO move to TesConfiguration
   private def prefixScheme(path: String): String = "file://" + path
@@ -47,7 +34,7 @@ class TesJobPaths(val jobKey: BackendJobDescriptorKey,
   }
 
   def containerInput(path: String): String = {
-    callDockerRoot.resolve("inputs").toString + cleanPathForContainer(Paths.get(path))
+    callInputsDockerRoot.toString + cleanPathForContainer(Paths.get(path))
   }
 
   // Given an output path, return a path localized to the container file system
@@ -63,7 +50,7 @@ class TesJobPaths(val jobKey: BackendJobDescriptorKey,
 
   def cleanPathForContainer(path: Path): String = {
     path.toAbsolutePath match {
-      case p if p.startsWith(executionRoot) => {
+      case p if p.startsWith(executionRoot) =>
         /* For example:
           *
           * p = /abs/path/to/cromwell-executions/three-step/f00ba4/call-ps/stdout.txt
@@ -75,7 +62,6 @@ class TesJobPaths(val jobKey: BackendJobDescriptorKey,
           */
         val subpath = p.subpath(executionRoot.getNameCount, p.getNameCount)
         subpath.toString
-      }
       case _ => path.toString
     }
   }

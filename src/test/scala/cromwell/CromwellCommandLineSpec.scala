@@ -1,7 +1,6 @@
 package cromwell
 
-import better.files._
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{FileClobber, FilePassingWorkflow, ThreeStep}
 import org.scalatest.{FlatSpec, Matchers}
@@ -82,10 +81,10 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
   }
 
   it should "run if imports directory is a .zip file" in {
-    val wdlDir = File.newTemporaryDirectory("wdlDirectory")
+    val wdlDir = DefaultPathBuilder.createTempDirectory("wdlDirectory")
 
-    val filePassing = File.newTemporaryFile("filePassing", ".wdl", Option(wdlDir))
-    val fileClobber = File.newTemporaryFile("fileClobber", ".wdl", Option(wdlDir))
+    val filePassing = DefaultPathBuilder.createTempFile("filePassing", ".wdl", Option(wdlDir))
+    val fileClobber = DefaultPathBuilder.createTempFile("fileClobber", ".wdl", Option(wdlDir))
     filePassing write FilePassingWorkflow.wdlSource()
     fileClobber write FileClobber.wdlSource()
 
@@ -109,18 +108,18 @@ object CromwellCommandLineSpec {
    */
   case class WdlAndInputs(sampleWdl: SampleWdl, optionsJson: String = "{}") {
     // Track all the temporary files we create, and delete them after the test.
-    private var tempFiles = Vector.empty[File]
+    private var tempFiles = Vector.empty[Path]
 
     lazy val wdlFile = {
-      val file = File.newTemporaryFile(s"${sampleWdl.name}.", ".wdl")
+      val file = DefaultPathBuilder.createTempFile(s"${sampleWdl.name}.", ".wdl")
       tempFiles :+= file
-      file write sampleWdl.wdlSource("")
+      file write sampleWdl.wdlSource()
     }
 
     lazy val wdl = wdlFile.pathAsString
 
     lazy val inputsFile = {
-      val file = File(wdlFile.path.swapExt(".wdl", ".inputs"))
+      val file = wdlFile.swapExt("wdl", "inputs")
       tempFiles :+= file
       file write sampleWdl.wdlJson
     }
@@ -128,7 +127,7 @@ object CromwellCommandLineSpec {
     lazy val inputs = inputsFile.pathAsString
 
     lazy val optionsFile = {
-      val file = File(wdlFile.path.swapExt(".wdl", ".options"))
+      val file = wdlFile.swapExt("wdl", "options")
       tempFiles :+= file
       file write optionsJson
     }
@@ -136,7 +135,7 @@ object CromwellCommandLineSpec {
     lazy val options = optionsFile.pathAsString
 
     lazy val metadataFile = {
-      val path = File(wdlFile.path.swapExt(".wdl", ".metadata.json"))
+      val path = wdlFile.swapExt("wdl", "metadata.json")
       tempFiles :+= path
       path
     }

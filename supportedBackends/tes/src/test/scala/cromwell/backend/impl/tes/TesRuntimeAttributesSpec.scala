@@ -1,7 +1,7 @@
 package cromwell.backend.impl.tes
 
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
@@ -11,25 +11,6 @@ import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
-
-  val HelloWorld =
-    s"""
-       |task hello {
-       |  String addressee = "you"
-       |  command {
-       |    echo "Hello $${addressee}!"
-       |  }
-       |  output {
-       |    String salutation = read_string(stdout())
-       |  }
-       |
-       |  RUNTIME
-       |}
-       |
-       |workflow wf_hello {
-       |  call hello
-       |}
-    """.stripMargin
 
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),
@@ -141,7 +122,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid dockerWorkingDir entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "dockerWorkingDir" -> WdlString("/tmp"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(dockerWorkingDir = Some("/tmp"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(dockerWorkingDir = Option("/tmp"))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -155,14 +136,13 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       expectedDefaultsPlusUbuntuDocker
     )
   }
+
   private def assertSuccess(runtimeAttributes: Map[String, WdlValue],
                             expectedRuntimeAttributes: TesRuntimeAttributes,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
 
-    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
-      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      val actualRuntimeAttributes = TesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER)
+      val actualRuntimeAttributes = toTesRuntimeAttributes(runtimeAttributes, workflowOptions)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
@@ -173,10 +153,8 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
   private def assertFailure(runtimeAttributes: Map[String, WdlValue],
                             exMsg: String,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
-      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      TesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER)
+      toTesRuntimeAttributes(runtimeAttributes, workflowOptions)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
@@ -188,4 +166,13 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     TesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet
 
+
+  private def toTesRuntimeAttributes(runtimeAttributes: Map[String, WdlValue],
+                                     workflowOptions: WorkflowOptions): TesRuntimeAttributes = {
+    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder
+    val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
+      staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
+    val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
+    TesRuntimeAttributes(validatedRuntimeAttributes)
+  }
 }

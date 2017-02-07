@@ -13,7 +13,7 @@ import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
-class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
+class  JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map(
@@ -195,11 +195,8 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
                                                            expectedRuntimeAttributes: JesRuntimeAttributes,
                                                            workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                            defaultZones: NonEmptyList[String] = defaultZones): Unit = {
-    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
-      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      val actualRuntimeAttributes =
-        JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER, jesConfiguration)
+      val actualRuntimeAttributes = toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
@@ -208,15 +205,23 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   }
 
   private def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WdlValue], exMsg: String, workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    val withDefaults = RuntimeAttributeDefinition.addDefaultsToAttributes(
-      staticRuntimeAttributeDefinitions, workflowOptions) _
     try {
-      JesRuntimeAttributes(withDefaults(runtimeAttributes), NOPLogger.NOP_LOGGER, jesConfiguration)
-      fail("A RuntimeException was expected.")
+      toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
+      fail(s"A RuntimeException was expected with message: $exMsg")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
     }
     ()
+  }
+
+  private def toJesRuntimeAttributes(runtimeAttributes: Map[String, WdlValue],
+                                     workflowOptions: WorkflowOptions,
+                                     jesConfiguration: JesConfiguration): JesRuntimeAttributes = {
+    val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
+    val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
+      staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
+    val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
+    JesRuntimeAttributes(validatedRuntimeAttributes)
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get

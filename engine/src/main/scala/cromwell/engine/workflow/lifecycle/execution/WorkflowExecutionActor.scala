@@ -175,7 +175,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.
     // If they do, it's a big programmer error and the workflow execution fails.
     val jobKey = stateData.engineCallExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
-    val jobStatus = stateData.executionStore.store.getOrElse(jobKey, throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
+    val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
 
     if (!jobStatus.isTerminal) {
       val terminationException = getFailureCause(actorRef) match {
@@ -386,19 +386,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def isInBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData) = {
-    // This is hugely ripe for optimization, if it becomes a bottleneck
-    def isBypassedConditional(conditional: If, executionStore: ExecutionStore): Boolean = {
-      executionStore.store.exists { case (jobKeyUnderExamination, executionStatus) =>
-        if (jobKeyUnderExamination.isInstanceOf[ConditionalKey]) {
-          if (jobKeyUnderExamination.scope.fullyQualifiedName.equals(conditional.fullyQualifiedName) && jobKeyUnderExamination.index.equals(jobKey.index)) {
-            executionStatus.equals(ExecutionStatus.Bypassed)
-          } else false
-        } else false
-      }
-    }
-
     val result = jobKey.scope.ancestry.exists {
-      case i: If => isBypassedConditional(i, data.executionStore)
+      case i: If => data.executionStore.isBypassedConditional(jobKey, i)
       case _ => false
     }
     result
@@ -526,11 +515,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def processRunnableCollector(collector: CollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    def shards(collectorKey: CollectorKey) = data.executionStore.findShardEntries(collectorKey) collect {
-      case (k: CallKey, v) if v.isDoneOrBypassed => k
-      case (k: DynamicDeclarationKey, v) if v.isDoneOrBypassed => k
-    }
-    data.outputStore.generateCollectorOutput(collector, shards(collector)) match {
+
+    val shards = data.executionStore.findCompletedShardsForOutput(collector)
+
+    data.outputStore.generateCollectorOutput(collector, shards) match {
       case Failure(e) => Failure(new RuntimeException(s"Failed to collect output shards for call ${collector.tag}", e))
       case Success(outputs) =>
         val adjustedOutputs: CallOutputs = if (isInBypassed) {

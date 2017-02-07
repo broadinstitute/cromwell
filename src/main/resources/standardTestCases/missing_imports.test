@@ -1,0 +1,16 @@
+name: missing_imports
+testFormat: workflowfailure
+ignore: true
+
+files {
+  wdl: recursive_imports/recursive_imports.wdl
+  imports: [
+    forkjoin/forkjoin.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world.wdl
+  ]
+}
+
+metadata {
+  workflowName: recursive_imports
+  status: Failed
+}

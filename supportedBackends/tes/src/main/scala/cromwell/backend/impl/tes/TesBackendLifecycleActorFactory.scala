@@ -3,6 +3,8 @@ package cromwell.backend.impl.tes
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.backend.standard._
+import cromwell.core.JobExecutionToken.JobExecutionTokenType
+import net.ceedubs.ficus.Ficus._
 import wdl4s.TaskCall
 
 case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
@@ -16,6 +18,11 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
   override def jobIdKey: String = TesAsyncBackendJobExecutionActor.JobIdKey
 
   val tesConfiguration = new TesConfiguration(configurationDescriptor)
+
+  override val jobExecutionTokenType: JobExecutionTokenType = {
+    val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
+    JobExecutionTokenType(name, concurrentJobLimit)
+  }
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
                                                  serviceRegistryActor: ActorRef): StandardInitializationActorParams = {

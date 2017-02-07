@@ -20,7 +20,7 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
   def writeTempFile(path: String,prefix: String,suffix: String,content: String): String = throw new NotImplementedError("This method is not used anywhere and should be removed")
 
   private def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    val tmpFile = _writeDirectory / s"$baseName-${content.md5Sum}.tmp"
+    val tmpFile = _writeDirectory / s"${baseName}_${content.md5Sum}.tmp"
 
     Try {
       if (tmpFile.notExists) tmpFile.write(content)
@@ -41,7 +41,7 @@ trait WriteFunctions { this: WdlStandardLibraryFunctions =>
       singleArgument <- extractSingleArgument(functionName, params)
       downcast <- Try(castOrDefault(singleArgument))
       tsvSerialized <- downcast.tsvSerialize
-      file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
+      file <- writeContent(functionName, tsvSerialized)
     } yield file
   }
 

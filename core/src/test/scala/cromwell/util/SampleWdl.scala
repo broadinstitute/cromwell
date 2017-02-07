@@ -4,6 +4,7 @@ import java.util.UUID
 
 import cromwell.core.WorkflowSourceFilesWithoutImports
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.WorkflowSourceFilesWithoutImports
 import spray.json._
 import wdl4s._
 import wdl4s.types.{WdlArrayType, WdlStringType}
@@ -520,41 +521,7 @@ object SampleWdl {
 
   object ArrayIO extends SampleWdl {
     override def wdlSource(runtime: String = "") =
-      s"""task concat_files {
-        |  String? flags
-        |  Array[File]+ files
-        |  command {
-        |    cat $${default = "-s" flags} $${sep = " " files}
-        |  }
-        |  output {
-        |    File concatenated = stdout()
-        |  }
-        |  RUNTIME
-        |}
-        |
-        |task find {
-        |  String pattern
-        |  File root
-        |  command {
-        |    find $${root} $${"-name " + pattern}
-        |  }
-        |  output {
-        |    Array[String] results = read_lines(stdout())
-        |  }
-        |  RUNTIME
-        |}
-        |
-        |task count_lines {
-        |  Array[File]+ files
-        |  command {
-        |    cat $${sep = ' ' files} | wc -l
-        |  }
-        |  output {
-        |    Int count = read_int(stdout())
-        |  }
-        |  RUNTIME
-        |}
-        |
+      s"""
         |task serialize {
         |  Array[String] strs
         |  command {
@@ -567,33 +534,13 @@ object SampleWdl {
         |}
         |
         |workflow wf {
-        |  Array[File] files
         |  Array[String] strings = ["str1", "str2", "str3"]
         |  call serialize {
         |    input: strs = strings
         |  }
-        |  call concat_files as concat {
-        |    input: files = files
-        |  }
-        |  call count_lines {
-        |    input: files = [concat.concatenated]
-        |  }
-        |  call find
-        |  call count_lines as count_lines_array {
-        |    input: files = find.results
-        |  }
         |}
       """.stripMargin.replaceAll("RUNTIME", runtime)
-
-    val tempDir = DefaultPathBuilder.createTempDirectory("ArrayIO")
-    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Option(tempDir))
-    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Option(tempDir))
-
-    override val rawInputs = Map(
-      "wf.find.root" -> tempDir,
-      "wf.find.pattern" -> "*.out", // createCannedFile makes files that have .out extension
-      "wf.files" -> Seq(firstFile.pathAsString, secondFile.pathAsString)
-    )
+    override val rawInputs: Map[String, Any] = Map.empty
   }
 
   case class ArrayLiteral(catRootDir: Path) extends SampleWdl {

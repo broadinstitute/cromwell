@@ -180,7 +180,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   // Everything below was 'borrowed' from the SFS backend
   private def hostAbsoluteFilePath(wdlFile: WdlFile): File = {
-    jobPaths.callRoot.resolve(wdlFile.value).toAbsolutePath
+    tesJobPaths.callExecutionRoot.resolve(wdlFile.value).toAbsolutePath
   }
 
   override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {

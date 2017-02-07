@@ -180,7 +180,7 @@ sealed abstract class Call(val alias: Option[String],
         parentLookup <- Try(parent.lookupFunction(inputs, wdlFunctions, outputResolver, shards, relativeTo)(name))
       } yield parentLookup
 
-      val resolutions = Seq(inputMappingsLookup, declarationLookup, declarationExprLookup, taskParentResolution)
+      val resolutions = Seq(inputMappingsLookup, declarationExprLookup, declarationLookup, taskParentResolution)
 
       resolutions.collectFirst({ case Success(value) => value}) match {
         case Some(value) => value

@@ -4,7 +4,7 @@ import wdl4s.values.{WdlArray, WdlInteger, WdlOptionalValue, WdlString, WdlValue
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsArray, JsNumber}
-import wdl4s.{NoLookup, WdlExpression}
+import wdl4s.WdlExpression
 import wdl4s.expression.NoFunctions
 
 import scala.util.{Failure, Success}
@@ -104,10 +104,18 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
       case _: UnsupportedOperationException => // expected
     }
   }
-  it should "detect invalid array construction if type does not match the input array type" in {
+  it should "detect invalid array construction if type cannot be coerced to the array type" in {
     try {
-      WdlArray(WdlArrayType(WdlStringType), Seq(WdlInteger(2)))
+      WdlArray(WdlArrayType(WdlStringType), Seq(WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(2)))))
       fail("Invalid array initialization should have failed")
+    } catch {
+      case _: UnsupportedOperationException => // expected
+    }
+  }
+  it should "correctly coerce values to create an array of optionals from real values" in {
+    try {
+      val array = WdlArray(WdlArrayType(WdlOptionalType(WdlIntegerType)), Seq(WdlInteger(2), WdlInteger(3)))
+      array.value should be(Seq(WdlOptionalValue(WdlInteger(2)), WdlOptionalValue(WdlInteger(3))))
     } catch {
       case _: UnsupportedOperationException => // expected
     }

@@ -1,7 +1,7 @@
 task makeString {
 
 	command {
-		echo hello
+		echo hello && sleep 2
 	}
 	runtime {
 	  docker: "ubuntu:latest"

@@ -1,0 +1,15 @@
+name: array_io
+testFormat: workflowsuccess
+
+files {
+  wdl: array_io/array_io.wdl
+}
+
+metadata {
+  workflowName: array_io
+  status: Succeeded
+  "outputs.array_io.array_count": 3
+  "outputs.array_io.single_count": 3
+  "outputs.array_io.serialized": "str1\nstr2\nstr3"
+  "outputs.array_io.concatenated": "file-0\nfile-1\nfile-2"
+}

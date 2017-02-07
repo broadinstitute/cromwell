@@ -12,7 +12,7 @@ class TesWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescripto
 
   val DockerRootString = config.as[Option[String]]("dockerRoot").getOrElse("/root")
   var DockerRoot = PathFactory.buildPath(DockerRootString, pathBuilders)
-  if ( !DockerRoot.isAbsolute ) {
+  if (!DockerRoot.isAbsolute) {
     DockerRoot = PathFactory.buildPath("/".concat(DockerRootString), pathBuilders)
   }
   val dockerWorkflowRoot = workflowPathBuilder(DockerRoot)

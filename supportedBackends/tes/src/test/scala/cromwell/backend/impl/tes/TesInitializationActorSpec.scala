@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-
 import java.util.UUID
 
 import akka.actor.Props
@@ -44,13 +43,13 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
 
   val backendConfigTemplate: String =
     """
-      |  // Base bucket for workflow executions
-      |  root = "cromwell-executions"
-      |  endpoint = "0.0.0.0"
+      |// Base bucket for workflow executions
+      |root = "cromwell-executions"
+      |endpoint = "0.0.0.0"
       |
-      |  // Polling for completion backs-off gradually for slower-running jobs.
-      |  // This is the maximum polling interval (in seconds):
-      |  maximum-polling-interval = 600
+      |// Polling for completion backs-off gradually for slower-running jobs.
+      |// This is the maximum polling interval (in seconds):
+      |maximum-polling-interval = 600
       |""".stripMargin
 
 

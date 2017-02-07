@@ -16,19 +16,22 @@ import spray.httpx.unmarshalling._
 import wdl4s.values.WdlFile
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 sealed trait TesRunStatus {
   def isTerminal: Boolean
 }
+
 case object Running extends TesRunStatus {
   def isTerminal = false
 }
+
 case object Complete extends TesRunStatus {
   def isTerminal = true
 }
+
 case object FailedOrError extends TesRunStatus {
   def isTerminal = true
 }
@@ -68,9 +71,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   // container's filesystem.
   override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
     val localPath = Paths.get(wdlFile.valueString).toAbsolutePath
-    // TODO: .containerInput(String) => String could be (Path) => Path
-    val containerPath = tesJobPaths.containerInput(localPath.pathAsString)
-    WdlFile(containerPath)
+    // Workaround since each input seemed to hit this function twice?
+    if (localPath.startsWith(tesJobPaths.callInputsDockerRoot)) {
+      WdlFile(localPath.pathAsString)
+    } else {
+      val containerPath = tesJobPaths.containerInput(localPath.pathAsString)
+      WdlFile(containerPath)
+    }
   }
 
   override lazy val commandDirectory: Path = tesJobPaths.callExecutionDockerRoot
@@ -81,17 +88,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes)
 
     TesTaskMessage(
-      Some(task.name),
-      Some(task.description),
-      Some(task.project),
-      Some(task.inputs),
-      Some(task.outputs),
+      Option(task.name),
+      Option(task.description),
+      Option(task.project),
+      Option(task.inputs),
+      Option(task.outputs),
       task.resources,
       task.dockerExecutor
     )
   }
 
-  override def execute(): ExecutionHandle = {
+  override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     // create call exec dir
     File(tesJobPaths.callExecutionRoot).createPermissionedDirectories()
     val taskMessage = createTaskMessage()
@@ -99,10 +106,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val submitTask = pipeline[TesPostResponse]
       .apply(Post(tesEndpoint, taskMessage))
 
-    val response = Await.result(submitTask, 15.seconds)
-    val jobID = response.value.get
-
-    PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
+    submitTask.map {
+      response =>
+        val jobID = response.value
+        PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
+    }
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
@@ -128,25 +136,27 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = true
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): TesRunStatus = {
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)(implicit ec: ExecutionContext): Future[TesRunStatus] = {
     val pollTask = pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}"))
 
-    val response = Await.result(pollTask, 5.seconds)
-    val state = response.state.get
-    state match {
-      case s if s.contains("Complete") => {
-        jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
-        Complete
-      }
-      case s if s.contains("Cancel") => {
-        jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
-        FailedOrError
-      }
-      case s if s.contains("Error") => {
-        jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
-        FailedOrError
-      }
-      case _ => Running
+    pollTask.map {
+      response =>
+        val state = response.state
+        state match {
+          case s if s.contains("Complete") => {
+            jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
+            Complete
+          }
+          case s if s.contains("Cancel") => {
+            jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
+            FailedOrError
+          }
+          case s if s.contains("Error") => {
+            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
+            FailedOrError
+          }
+          case _ => Running
+        }
     }
   }
 

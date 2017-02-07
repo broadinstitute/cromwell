@@ -1,26 +1,14 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.ActorRef
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
 import wdl4s.TaskCall
 
 import scala.concurrent.Future
 import scala.util.Try
-
-object TesInitializationActor {
-  /* NOTE: Only used by tests */
-  def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[TaskCall],
-            tesConfiguration: TesConfiguration,
-            serviceRegistryActor: ActorRef): Props = {
-    val params = TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
-    Props(new TesInitializationActor(params)).withDispatcher(BackendDispatcher)
-  }
-}
 
 case class TesInitializationActorParams
 (

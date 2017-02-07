@@ -2,12 +2,12 @@ package cromwell.backend.impl.tes
 
 import spray.json._
 
-final case class TesPostResponse(value: Option[String])
+final case class TesPostResponse(value: String)
 
 final case class TesGetResponse(
-                                 jobID: Option[String],
-                                 task: Option[TesTaskMessage],
-                                 state: Option[String],
+                                 jobID: String,
+                                 task: TesTaskMessage,
+                                 state: String,
                                  logs: Option[Seq[Map[String, String]]]
                                )
 

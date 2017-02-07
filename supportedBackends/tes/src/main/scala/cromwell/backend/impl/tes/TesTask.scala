@@ -26,8 +26,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val description = jobDescriptor.toString
 
   runtimeAttributes.dockerWorkingDir match {
-          case Some(path: String) => tesPaths.containerWorkingDir = Paths.get(path)
-          case _ => tesPaths.containerWorkingDir = tesPaths.callExecutionDockerRoot
+    case Some(path) => tesPaths.containerWorkingDir = Paths.get(path)
+    case None => tesPaths.containerWorkingDir = tesPaths.callExecutionDockerRoot
   }
 
   // TODO validate "project" field of workflowOptions
@@ -38,29 +38,29 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val commandScript = TaskParameter(
     "commandScript",
-    Some(fullyQualifiedTaskName + ".commandScript"),
+    Option(fullyQualifiedTaskName + ".commandScript"),
     tesPaths.storageInput(tesPaths.script.toString),
     tesPaths.callExecutionDockerRoot.resolve("script").toString,
     "File",
-    Some(false)
+    Option(false)
   )
 
   val inputs: Seq[TaskParameter] = jobDescriptor
     .fullyQualifiedInputs
     .toSeq
     .flatMap(flattenWdlValueMap)
-    .filter{
-        case (_: String, _: WdlSingleFile) => true
-        case _ => false
+    .filter {
+      case (_: String, _: WdlSingleFile) => true
+      case _ => false
     }
     .map {
       case (inputName, f) => TaskParameter(
         inputName,
-        Some(workflowName + "." + inputName),
+        Option(workflowName + "." + inputName),
         tesPaths.storageInput(f.valueString),
-        tesPaths.toContainerPath(f).valueString,
+        tesPaths.containerInput(f.valueString),
         "File",
-        Some(false)
+        Option(false)
       )
     } ++ Seq(commandScript)
 
@@ -69,20 +69,18 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     f =>
       TaskParameter(
         f,
-        Some(fullyQualifiedTaskName + "." + f),
+        Option(fullyQualifiedTaskName + "." + f),
         tesPaths.storageOutput(f),
         tesPaths.containerOutput(f),
         "File",
-        Some(false)
+        Option(false)
       )
   }
 
   // extract output file variable names
   private val outputFileNames = jobDescriptor.call.task.outputs
-      .filter {
-        case o => o.wdlType.toWdlString == "Array[File]" || o.wdlType.toWdlString == "File"
-      }
-    .map{case o => o.unqualifiedName}
+    .filter(o => o.wdlType.toWdlString == "Array[File]" || o.wdlType.toWdlString == "File")
+    .map(_.unqualifiedName)
 
   // extract output files
   private val outputWdlFiles = jobDescriptor.call.task
@@ -90,20 +88,19 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val wdlOutputs = outputFileNames.zip(outputWdlFiles)
     .flatMap {
-      case (outputName, f: WdlSingleFile) => {
+      case (outputName, f: WdlSingleFile) =>
         val outputFile = f.valueString
         Seq(
           TaskParameter(
             outputName,
-            Some(fullyQualifiedTaskName + "." + outputName),
+            Option(fullyQualifiedTaskName + "." + outputName),
             tesPaths.storageOutput(outputFile),
             tesPaths.containerOutput(outputFile),
             "File",
-            Some(false)
+            Option(false)
           )
         )
-      }
-      case (outputName, g: WdlGlobFile) => {
+      case (outputName, g: WdlGlobFile) =>
         val globName = callEngineFunction.globName(g.value)
         val globDirName = outputName + ".globDir"
         val globDirectory = globName + "/"
@@ -112,22 +109,21 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
         Seq(
           TaskParameter(
             globDirName,
-            Some(fullyQualifiedTaskName + "." + globDirName),
+            Option(fullyQualifiedTaskName + "." + globDirName),
             tesPaths.storageOutput(globDirectory),
             tesPaths.containerOutput(globDirectory),
             "Directory",
-            Some(false)
+            Option(false)
           ),
           TaskParameter(
             globListName,
-            Some(fullyQualifiedTaskName + "." + globListName),
+            Option(fullyQualifiedTaskName + "." + globListName),
             tesPaths.storageOutput(globListFile),
             tesPaths.containerOutput(globListFile),
             "File",
-            Some(false)
+            Option(false)
           )
         )
-      }
     }
 
   val outputs = wdlOutputs ++ standardOutputs
@@ -137,7 +133,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     .map(path => Volume(
       path,
       // TODO all volumes currently get the same requirements
-      Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
+      Option(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
       None,
       path
     ))
@@ -145,7 +141,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val volumes = Seq(
     Volume(
       tesPaths.dockerWorkflowRoot.toString,
-      Some(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
+      Option(runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt),
       None,
       tesPaths.dockerWorkflowRoot.toString
     )
@@ -154,8 +150,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val resources = Resources(
     runtimeAttributes.cpu,
     runtimeAttributes.memory.to(MemoryUnit.GB).amount.toInt,
-    Some(false),
-    Some(volumes),
+    Option(false),
+    Option(volumes),
     None
   )
 
@@ -177,13 +173,11 @@ object TesTask {
       case (name, array: WdlArray) => array.value.zipWithIndex.flatMap {
         case (v: WdlValue, i: Int) => flattenWdlValueMap((name + "-" + i, v))
       }
-      case (_, map: WdlMap) => {
+      case (_, map: WdlMap) =>
         map.value.toSeq flatMap {
-          case (name: WdlValue, item: WdlValue) => {
+          case (name: WdlValue, item: WdlValue) =>
             flattenWdlValueMap((name + name.valueString, item))
           }
-        }
-      }
       case (name, wdlValue) => Seq((name, wdlValue))
     }
   }

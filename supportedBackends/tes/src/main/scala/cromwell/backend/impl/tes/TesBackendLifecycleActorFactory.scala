@@ -8,9 +8,9 @@ import wdl4s.TaskCall
 case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
 
-  override def initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[TesInitializationActor]
+  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[TesInitializationActor]
 
-  override def asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
+  override lazy val  asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
     classOf[TesAsyncBackendJobExecutionActor]
 
   override def jobIdKey: String = TesAsyncBackendJobExecutionActor.JobIdKey

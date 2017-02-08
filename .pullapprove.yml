@@ -5,10 +5,11 @@ author_approval: ignored
 reviewers:
     required: 2
     members:
-        - cjllanwarne
         - Horneth
-        - mcovarr
+        - cjllanwarne
         - geoffjentry
-        - kshakir
+        - katevoss
         - kcibul
+        - kshakir
+        - mcovarr
         - ruchim

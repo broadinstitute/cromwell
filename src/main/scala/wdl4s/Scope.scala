@@ -234,15 +234,19 @@ trait Scope {
     }
 
     def handleDeclarationEvaluation(declaration: DeclarationInterface): Try[WdlValue] = {
-      def evaluate = {
+      def declarationExcludingLookup(lookup: String => WdlValue): String => WdlValue = name => {
+        if (name.equals(declaration.unqualifiedName)) throw new IllegalArgumentException(s"Declaration for '$name' refers to its own value")
+        else lookup(name)
+      }
+
+      def evaluate =
         declaration.expression match {
           case Some(e) =>
             val parentLookup = declaration.parent.map(_.lookupFunction(knownInputs, wdlFunctions, outputResolver, shards)).getOrElse(NoLookup)
-            e.evaluate(parentLookup, wdlFunctions)
+            e.evaluate(declarationExcludingLookup(parentLookup), wdlFunctions)
           case None =>
             Failure(new VariableLookupException(s"Declaration ${declaration.fullyQualifiedName} does not have an expression"))
         }
-      }
 
       fromOutputs(declaration) recoverWith { case _ => evaluate }
     }

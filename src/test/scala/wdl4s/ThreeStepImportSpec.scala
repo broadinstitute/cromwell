@@ -3,6 +3,8 @@ package wdl4s
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.exception.ValidationException
 
+import scala.util.Failure
+
 class ThreeStepImportSpec extends FlatSpec with Matchers {
   val psTaskWdl = """
     |task ps {
@@ -77,11 +79,9 @@ class ThreeStepImportSpec extends FlatSpec with Matchers {
     def badResolver(s: String): String = {
       throw new RuntimeException(s"Can't Resolve")
     }
-    try {
-      val badBinding = WdlNamespace.loadUsingSource(workflowWdl, None, Option(Seq(badResolver)))
-      fail("Expecting an exception to be thrown when using badResolver")
-    } catch {
-      case _: ValidationException =>
+      val badBinding = WdlNamespace.loadUsingSource(workflowWdl, None, Option(Seq(badResolver))) match {
+        case Failure(_: ValidationException) =>
+        case x => fail(s"Expecting an exception to be thrown when using badResolver but got $x")
     }
   }
 }

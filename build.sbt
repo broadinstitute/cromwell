@@ -42,7 +42,7 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats" % "0.7.2" % Provided
     exclude("org.typelevel", "cats-laws_2.11")
     exclude("org.typelevel", "cats-kernel-laws_2.11"),
-  "ch.qos.logback" % "logback-classic" % "1.1.7" % Provided,
+  "ch.qos.logback" % "logback-classic" % "1.2.1" % Provided,
   "org.webjars" % "swagger-ui" % "2.2.2" % Provided,
   "io.spray" %% "spray-routing" % sprayV % Provided,
   "io.spray" %% "spray-http" % sprayV % Provided,

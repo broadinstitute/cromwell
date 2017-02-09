@@ -46,8 +46,8 @@ object Dependencies {
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % "1.1.7",
-    "ch.qos.logback" % "logback-access" % "1.1.7",
+    "ch.qos.logback" % "logback-classic" % "1.2.1",
+    "ch.qos.logback" % "logback-access" % "1.2.1",
     "org.codehaus.janino" % "janino" % "3.0.1"
   )
 

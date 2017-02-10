@@ -43,7 +43,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
 
   "A static Map[File, String] declaration" should {
     "be a valid declaration" in {
-      val declaration = ns.workflow.declarations.find {_.unqualifiedName == "map"}.getOrElse {
+      val declaration = ns.get.workflow.declarations.find {_.unqualifiedName == "map"}.getOrElse {
         fail("Expected declaration 'map' to be found")
       }
       val expression = declaration.expression.getOrElse {
@@ -55,7 +55,7 @@ class MapWorkflowSpec extends CromwellTestKitSpec {
       expectedMap.wdlType.coerceRawValue(value).get shouldEqual expectedMap
     }
     "be usable as an input" in {
-      val writeMapTask = ns.findTask("write_map").getOrElse {
+      val writeMapTask = ns.get.findTask("write_map").getOrElse {
         fail("Expected to find task 'write_map'")
       }
       class CannedFunctions extends WdlFunctions[WdlValue] {

@@ -81,9 +81,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     * Returns true if this flow is able to process this docker image,
     * false otherwise
     */
-  def accepts(dockerImageIdentifierWithoutHash: DockerImageIdentifierWithoutHash) = {
-    dockerImageIdentifierWithoutHash.host == registryHostName
-  }
+  def accepts(dockerImageIdentifierWithoutHash: DockerImageIdentifierWithoutHash) = dockerImageIdentifierWithoutHash.host.contains(registryHostName)
   
   /* Methods that must to be implemented by a subclass */
 
@@ -127,7 +125,9 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     */
   protected def buildTokenRequestUri(dockerImageID: DockerImageIdentifierWithoutHash): String = {
     val service = serviceName map { name => s"service=$name&" } getOrElse ""
-    s"https://$authorizationServerHostName/token?${service}scope=repository:${dockerImageID.name}:pull"
+    val uri = s"https://$authorizationServerHostName/token?${service}scope=repository:${dockerImageID.name}:pull"
+    println(uri)
+    uri
   }
 
   /**
@@ -243,7 +243,9 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     * Builds the manifest URI to be queried based on a DockerImageID
     */
   private def buildManifestUri(dockerImageID: DockerImageIdentifierWithoutHash): String = {
-    s"https://$registryHostName/v2/${dockerImageID.name}/manifests/${dockerImageID.reference}"
+    val uri = s"https://$registryHostName/v2/${dockerImageID.name}/manifests/${dockerImageID.reference}"
+    println(uri)
+    uri
   }
 
   /**

@@ -4,9 +4,9 @@ import akka.actor.{ActorRef, Cancellable, FSM, Props}
 import cromwell.backend._
 import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.callcaching.{CallCachingEligibility, CallCachingEligible, CallCachingIneligible}
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashBackPressure, DockerHashFailedResponse, DockerHashResponseSuccess}
+import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashBackPressure, DockerHashFailureResponse, DockerHashResponseSuccess}
 import cromwell.core.callcaching.docker._
+import cromwell.core.callcaching.{CallCachingEligibility, CallCachingEligible, CallCachingIneligible}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
@@ -54,12 +54,13 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   when(WaitingForDockerHash) {
     case Event(DockerHashResponseSuccess(dockerHash), Some(data)) =>
       handleDockerHashSuccess(dockerHash, data)
-    case Event(DockerHashFailedResponse(failure, request), Some(data)) =>
-      handleDockerHashFailed(failure, data)
+    case Event(failureResponse: DockerHashFailureResponse, Some(data)) =>
+      log.error(failureResponse.reason)
+      handleDockerHashFailed(failureResponse.reason, data)
     case Event(DockerHashBackPressure(request), Some(data)) =>
       handleDockHashBackPressure(request, data)
     case Event(DockerNoResponseTimeout, Some(data)) =>
-      if (data.maxAttemptsReached) handleDockerHashFailed(new Exception("Docker Hash service is unreachable"), data)
+      if (data.maxAttemptsReached) handleDockerHashFailed("Docker Hash service is unreachable", data)
       else {
         dockerHashingActor ! data.dockerHashRequest
         stay() using data.newAttempt(newRequestLostTimer)
@@ -146,7 +147,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
     sendResponseAndStop(response)
   }
 
-  private def handleDockerHashFailed(failure: Throwable, data: JobPreparationActorData) = {
+  private def handleDockerHashFailed(failure: String, data: JobPreparationActorData) = {
     data.cancelTimers()
     val response = prepareBackendDescriptor(data.inputs, data.attributes, callCacheIneligibleWithoutHash)
     sendResponseAndStop(response)

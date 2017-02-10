@@ -3,26 +3,25 @@ package cromwell.core.callcaching.docker
 import scala.util.{Failure, Success, Try}
 
 sealed trait DockerImageIdentifier {
-  def host: String
+  def host: Option[String]
   def repository: String
   def image: String
   def reference: String
 
   lazy val name = s"$repository/$image"
-  lazy val fullName = s"$host/$repository/$image:$reference"
+  lazy val hostAsString = host map { h => s"$h/" } getOrElse ""
+  lazy val fullName = s"$hostAsString$repository/$image:$reference"
 }
 
-case class DockerImageIdentifierWithoutHash(host: String, repository: String, image: String, reference: String) extends DockerImageIdentifier {
+case class DockerImageIdentifierWithoutHash(host: Option[String], repository: String, image: String, reference: String) extends DockerImageIdentifier {
   def withHash(hash: DockerHashResult) =  DockerImageIdentifierWithHash(host, repository, image, reference, hash)
 }
 
-case class DockerImageIdentifierWithHash(host: String, repository: String, image: String, reference: String, hash: DockerHashResult) extends DockerImageIdentifier {
-  override lazy val fullName: String = s"$host/$repository/$image@${hash.algorithmAndHash}"
+case class DockerImageIdentifierWithHash(host: Option[String], repository: String, image: String, reference: String, hash: DockerHashResult) extends DockerImageIdentifier {
+  override lazy val fullName: String = s"$hostAsString$repository/$image@${hash.algorithmAndHash}"
 }
 
 object DockerImageIdentifier {
-  
-  private val DefaultDockerHost = "registry-1.docker.io"
   // See https://github.com/docker-library/official-images/tree/master/library
   private val DefaultDockerRepo = "library"
   private val DefaultDockerTag = "latest"
@@ -62,16 +61,16 @@ object DockerImageIdentifier {
   
   private def buildId(name: String, tagSeparator: String, reference: String) = {
     val (dockerHost, dockerRepo, dockerImage) = name.split('/').toList match {
-      // If just one component (e.g ubuntu), assume default host and default repo
-      case image :: Nil => (DefaultDockerHost, DefaultDockerRepo, image)
-      // If repo/image (e.g broadinstitute/cromwell) without host, assume default host
-      case repo :: image :: Nil if !isRegistryHostName(repo) => (DefaultDockerHost, repo, image)
+      // If just one component (e.g ubuntu), assume default repo
+      case image :: Nil => (None, DefaultDockerRepo, image)
+      // If repo/image (e.g broadinstitute/cromwell) without host
+      case repo :: image :: Nil if !isRegistryHostName(repo) => (None, repo, image)
       // If host/image (e.g index.docker.io/ubuntu), assume default repo
-      case host :: image :: Nil if isRegistryHostName(host) => (host, DefaultDockerRepo, image)
-      // Not a host followed more than one components, assume default host
-      case nothost :: rest if !isRegistryHostName(nothost) => (DefaultDockerHost, s"$nothost/${rest.init.mkString("/")}", rest.last)
+      case host :: image :: Nil if isRegistryHostName(host) => (Option(host), DefaultDockerRepo, image)
+      // Not a host followed more than one components
+      case nothost :: rest if !isRegistryHostName(nothost) => (None, s"$nothost/${rest.init.mkString("/")}", rest.last)
       // A host followed more than one components (e.g gcr.io/google-containers/alpine-with-bash)
-      case host :: rest if isRegistryHostName(host) => (host, rest.init.mkString("/"), rest.last)
+      case host :: rest if isRegistryHostName(host) => (Option(host), rest.init.mkString("/"), rest.last)
     }
     
     tagSeparator match {

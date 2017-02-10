@@ -67,7 +67,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     )
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     val inputsAndAttributes = Success((inputs, attributes))
-    val finalValue = "registry-1.docker.io/library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val finalValue = "library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val dockerHashingActor = TestProbe()
     val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, Seq.empty, dockerHashingActor.ref, inputsAndAttributes), self)
     actor ! Start

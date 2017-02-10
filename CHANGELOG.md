@@ -39,6 +39,7 @@
 * In some cases the SFS backend, used for Local, SGE, etc., coerced `WdlFile` to `WdlString` by using `.toUri`. This
 resulted in strings prepended with `file:///path/to/file`. Now absolute file paths will not contain the uri scheme.
 * Launch jobs on servers that support the GA4GH Task Execution Schema using the TES backend.
+* Added docker hash lookup. Docker images without an explicit digest value will disqualify the task for call caching. See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details
 
 ### Database schema changes
 * Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.

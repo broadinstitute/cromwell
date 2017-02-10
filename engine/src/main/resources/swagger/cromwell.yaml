@@ -99,7 +99,7 @@ paths:
           type: file
           in: formData
         - name: wdlDependencies
-          description: Workflow Options JSON
+          description: Zip file containing WDL dependencies
           required: false
           type: file
           in: formData
@@ -150,7 +150,7 @@ paths:
           type: file
           in: formData
         - name: wdlDependencies
-          description: Workflow Options JSON
+          description: Zip file containing WDL dependencies
           required: false
           type: file
           in: formData

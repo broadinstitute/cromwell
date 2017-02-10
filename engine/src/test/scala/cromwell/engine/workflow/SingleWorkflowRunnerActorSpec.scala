@@ -118,40 +118,42 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
         outputFile = Option(metadataFile))
         TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
-    val metadataFileContent = metadataFile.contentAsString
-    val metadata = metadataFileContent.parseJson.asJsObject.fields
-    metadata.get("id") shouldNot be(empty)
-    metadata.get("status").toStringValue should be("Succeeded")
-    metadata.get("submission").toOffsetDateTime should be >= testStart
-    val workflowStart = metadata.get("start").toOffsetDateTime
-    workflowStart should be >= metadata.get("submission").toOffsetDateTime
-    val workflowEnd = metadata.get("end").toOffsetDateTime
-    workflowEnd should be >= metadata.get("start").toOffsetDateTime
-    metadata.get("inputs").toFields should have size workflowInputs
-    metadata.get("outputs").toFields should have size workflowOutputs
-    val calls = metadata.get("calls").toFields
-    calls should not be empty
+    eventually {
+      val metadataFileContent = metadataFile.contentAsString
+      val metadata = metadataFileContent.parseJson.asJsObject.fields
+      metadata.get("id") shouldNot be(empty)
+      metadata.get("status").toStringValue should be("Succeeded")
+      metadata.get("submission").toOffsetDateTime should be >= testStart
+      val workflowStart = metadata.get("start").toOffsetDateTime
+      workflowStart should be >= metadata.get("submission").toOffsetDateTime
+      val workflowEnd = metadata.get("end").toOffsetDateTime
+      workflowEnd should be >= metadata.get("start").toOffsetDateTime
+      metadata.get("inputs").toFields should have size workflowInputs
+      metadata.get("outputs").toFields should have size workflowOutputs
+      val calls = metadata.get("calls").toFields
+      calls should not be empty
 
-    forAll(expectedCalls) { (callName, numInputs, numOutputs) =>
-      val callSeq = calls(callName).asInstanceOf[JsArray].elements
-      callSeq should have size 1
-      val call = callSeq.head.asJsObject.fields
-      val inputs = call.get("inputs").toFields
-      inputs should have size numInputs
-      call.get("executionStatus").toStringValue should be("Done")
-      call.get("backend").toStringValue should be("Local")
-      call.get("backendStatus").toStringValue should be("Done")
-      call.get("outputs").toFields should have size numOutputs
-      val callStart = call.get("start").toOffsetDateTime
-      callStart should be >= workflowStart
-      val callEnd = call.get("end").toOffsetDateTime
-      callEnd should be >= callStart
-      callEnd should be <= workflowEnd
-      call.get("jobId") shouldNot be(empty)
-      call("returnCode").asInstanceOf[JsNumber].value should be (0)
-      call.get("stdout") shouldNot be(empty)
-      call.get("stderr") shouldNot be(empty)
-      call("attempt").asInstanceOf[JsNumber].value should be (1)
+      forAll(expectedCalls) { (callName, numInputs, numOutputs) =>
+        val callSeq = calls(callName).asInstanceOf[JsArray].elements
+        callSeq should have size 1
+        val call = callSeq.head.asJsObject.fields
+        val inputs = call.get("inputs").toFields
+        inputs should have size numInputs
+        call.get("executionStatus").toStringValue should be("Done")
+        call.get("backend").toStringValue should be("Local")
+        call.get("backendStatus").toStringValue should be("Done")
+        call.get("outputs").toFields should have size numOutputs
+        val callStart = call.get("start").toOffsetDateTime
+        callStart should be >= workflowStart
+        val callEnd = call.get("end").toOffsetDateTime
+        callEnd should be >= callStart
+        callEnd should be <= workflowEnd
+        call.get("jobId") shouldNot be(empty)
+        call("returnCode").asInstanceOf[JsNumber].value should be(0)
+        call.get("stdout") shouldNot be(empty)
+        call.get("stderr") shouldNot be(empty)
+        call("attempt").asInstanceOf[JsNumber].value should be(1)
+      }
     }
   }
 

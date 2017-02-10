@@ -2,7 +2,7 @@ package cromwell.core.callcaching.docker
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
-import akka.stream.QueueOfferResult.{Dropped, Enqueued}
+import akka.stream.QueueOfferResult.{Dropped, Enqueued, QueueClosed}
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Merge, Partition, Sink, Source}
 import com.google.common.cache.CacheBuilder
@@ -130,9 +130,21 @@ final class DockerHashActor(
       }
     case EnqueueResponse(Enqueued, dockerHashContext) => // All good !
     case EnqueueResponse(Dropped, dockerHashContext) => dockerHashContext.replyTo ! DockerHashBackPressure(dockerHashContext.request)
+      // In any of the below case, the stream is in a state where it will not be able to receive new elements.
+      // This means something blew off so we can just restart the actor to re-instantiate a new stream
+    case EnqueueResponse(QueueClosed, dockerHashContext) =>
+      val exception = new RuntimeException(s"Failed to enqueue docker hash request ${dockerHashContext.request}. Queue was closed")
+      logAndRestart(exception)
+    case EnqueueResponse(QueueOfferResult.Failure(failure), dockerHashContext) => 
+      logAndRestart(failure)
     case FailedToEnqueue(throwable, dockerHashContext) =>
-      logger.error("Failed to enqueue docker hash request", throwable)
-      dockerHashContext.replyTo ! DockerHashBackPressure(dockerHashContext.request)
+      logAndRestart(throwable)
+  }
+  
+  private def logAndRestart(throwable: Throwable) = {
+    log.error("Failed to process docker hash request", throwable)
+    // Throw the exception that will be caught by supervisor and restart the actor
+    throw DockerHashActorException(throwable)
   }
   
   private def checkCache(dockerImageIdentifierWithoutHash: DockerImageIdentifierWithoutHash) = {
@@ -179,6 +191,7 @@ object DockerHashActor {
   }
 
   case class DockerHashBackPressure(originalRequest: DockerHashRequest) extends DockerHashResponse
+  case class DockerHashActorException(failure: Throwable) extends RuntimeException(failure)
   
   /* Internal ADTs */
   case class DockerHashContext(request: DockerHashRequest, replyTo: ActorRef) {

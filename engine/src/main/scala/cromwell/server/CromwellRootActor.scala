@@ -1,6 +1,6 @@
 package cromwell.server
 
-import akka.actor.SupervisorStrategy.Escalate
+import akka.actor.SupervisorStrategy.{Escalate, Restart}
 import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrategy}
 import akka.event.Logging
 import akka.http.scaladsl.Http
@@ -10,7 +10,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher
 import cromwell.core.callcaching.docker.DockerHashActor
-import cromwell.core.callcaching.docker.DockerHashActor.DockerHashContext
+import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashActorException, DockerHashContext}
 import cromwell.core.callcaching.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.core.callcaching.docker.registryv2.flows.gcr.GoogleFlow
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
@@ -106,6 +106,7 @@ import scala.concurrent.duration._
     */
   override val supervisorStrategy = OneForOneStrategy() {
     case actorInitializationException: ActorInitializationException => Escalate
+    case dockerHash: DockerHashActorException => Restart
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

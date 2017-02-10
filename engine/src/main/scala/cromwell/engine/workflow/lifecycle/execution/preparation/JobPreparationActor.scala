@@ -66,6 +66,12 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
       }
   }
   
+  whenUnhandled {
+    case Event(unexpectedMessage, _) =>
+      workflowLogger.error(s"JobPreparation actor received an unexpected message in state $stateName: $unexpectedMessage")
+      stay()
+  }
+  
   private [preparation] def evaluateInputsAndAttributes = {
     for {
       evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, executionData.outputStore)

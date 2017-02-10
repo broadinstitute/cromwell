@@ -43,7 +43,7 @@ final class DockerHashActor(
    *    If/when this size is reached, least used entries will be expired
    */  
   private val cache = CacheBuilder.newBuilder()
-    .concurrencyLevel(1)
+    .concurrencyLevel(2)
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
     .maximumSize(cacheSize)
     .build[DockerImageIdentifierWithoutHash, DockerHashResult]()

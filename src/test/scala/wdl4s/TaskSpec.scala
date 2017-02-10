@@ -139,7 +139,7 @@ class TaskSpec extends WdlTest {
         """.
           stripMargin
 
-      val namespace = WdlNamespaceWithWorkflow.load(wdl)
+      val namespace = WdlNamespaceWithWorkflow.load(wdl).get
       val callT = namespace.taskCalls.find(_.unqualifiedName == "t").get
       val callInputs = Map(callT.task.declarations.head -> WdlString("input"))
       val outputs = callT.task.evaluateOutputs(callInputs, NoFunctions)
@@ -152,7 +152,7 @@ class TaskSpec extends WdlTest {
     }
 
     "instantiate command (4)" in {
-      val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource())
+      val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource()).get
       val callV = namespace.taskCalls.find(_.unqualifiedName == "v").get
       val inputs = callV.task.inputsFromMap(
         Map(

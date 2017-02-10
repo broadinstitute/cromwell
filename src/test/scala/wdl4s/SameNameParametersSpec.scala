@@ -13,7 +13,7 @@ class SameNameParametersSpec extends FlatSpec with Matchers {
        |}
        |workflow wf { call test }
      """.stripMargin
-  )
+  ).get
   val task = namespace1.findTask("test").get
 
   "A task with command that uses the same parameter more than once" should "only count it as one input" in {

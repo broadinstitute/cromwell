@@ -21,7 +21,7 @@ object ex7 {
       |  call a
       |}""".stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl).get
     val inputs = Map(
       "prefix" -> WdlString("some_prefix"),
       "ints" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(1,2,3,4,5).map(WdlInteger(_)))

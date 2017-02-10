@@ -10,7 +10,7 @@ import scala.util.{Failure, Success, Try}
 
 class TypeEvaluatorSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
-  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource())
+  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource()).get
 
   def noLookup(String: String): WdlType = fail("No identifiers should be looked up in this test")
 

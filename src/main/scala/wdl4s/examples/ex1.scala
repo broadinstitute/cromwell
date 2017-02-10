@@ -11,7 +11,7 @@ object ex1 {
     | call a
     |}""".stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl).get
 
     println(s"Workflow: ${ns.workflow.unqualifiedName}")
     ns.workflow.calls foreach {call =>

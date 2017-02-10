@@ -13,7 +13,7 @@ object ex6 {
       |  String c = "hello " + other_variable
       |}""".stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl).get
     def lookup(name: String): WdlValue = {
       name match {
         case "variable" => WdlString("world")

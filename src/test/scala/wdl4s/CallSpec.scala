@@ -11,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 class CallSpec extends WordSpec with Matchers {
 
   "evaluate its declarations" in {
-    val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource())
+    val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource()).get
     val callT = namespace.calls.find(_.unqualifiedName == "t").get
     val callT2 = namespace.calls.find(_.unqualifiedName == "t2").get
     val callV = namespace.calls.find(_.unqualifiedName == "v").get
@@ -109,7 +109,7 @@ class CallSpec extends WordSpec with Matchers {
         |}
       """.stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl, importResolver = (uri: String) => subWorkflow)
+    val ns = WdlNamespaceWithWorkflow.load(wdl, importResolver = (uri: String) => subWorkflow).get
     ns.workflow.workflowCalls.size shouldBe 1
     ns.workflow.taskCalls.size shouldBe 1
   }
@@ -152,7 +152,7 @@ class CallSpec extends WordSpec with Matchers {
       }
     }
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty)
+    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     val exception = intercept[ValidationException] {
         ns.workflow.findCallByName("hello2").get.evaluateTaskInputs(Map("wf_hello.wf_hello_input" -> WdlFile("/do/not/exist")), functionsWithRead).get
     }

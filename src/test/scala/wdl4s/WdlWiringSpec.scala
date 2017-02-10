@@ -14,7 +14,7 @@ class WdlWiringSpec extends FlatSpec with Matchers {
     val wdlFile = testDir / "test.wdl"
     if (!wdlFile.exists) fail(s"Expecting a 'test.wdl' file at ${testDir.name}")
     def resolvers: Seq[ImportResolver] = Seq((relPath: String) => (testDir / relPath).contentAsString)
-    val namespace = WdlNamespaceWithWorkflow.load(File(wdlFile.path).contentAsString, resolvers)
+    val namespace = WdlNamespaceWithWorkflow.load(File(wdlFile.path).contentAsString, resolvers).get
     val wdlFileRelPath = File(".").relativize(wdlFile)
 
     expectedFullyQualifiedNames(testDir, namespace) foreach { case (fqn, expectedType) =>

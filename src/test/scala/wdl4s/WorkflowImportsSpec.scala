@@ -233,7 +233,7 @@ class WorkflowImportsSpec extends FlatSpec with Matchers {
 
   val wdlWithImports = imports + primaryWorkflow
 
-  val namespace = WdlNamespaceWithWorkflow.load(wdlWithImports, wdlDirectory)
+  val namespace = WdlNamespaceWithWorkflow.load(wdlWithImports, wdlDirectory).get
 
   "WDL file with imports" should "Have 1 task (remaining tasks are in separate namespaces)" in {
     namespace.tasks.size shouldEqual 1

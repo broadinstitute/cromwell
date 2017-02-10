@@ -22,7 +22,7 @@ object ex2 {
       }
     }
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl, resolver _)
+    val ns = WdlNamespaceWithWorkflow.load(wdl, resolver _).get
 
     ns.tasks foreach {task =>
       println(s"Task: ${task.name}")

@@ -9,7 +9,7 @@ import scala.util.{Failure, Success}
 
 class DeclarationSpec extends FlatSpec with Matchers {
   lazy val wdlSource = (new SampleWdl.DeclarationsWdl).wdlSource()
-  lazy val namespace = WdlNamespaceWithWorkflow.load(wdlSource)
+  lazy val namespace = WdlNamespaceWithWorkflow.load(wdlSource).get
 
   "A Workflow with declarations" should "have declarations defined properly" in {
     namespace.workflow.declarations.size shouldEqual 4
@@ -181,7 +181,7 @@ class DeclarationSpec extends FlatSpec with Matchers {
                  |    }
                  |}
             """.stripMargin
-    val ns = WdlNamespaceWithWorkflow.load(wdl)
+    val ns = WdlNamespaceWithWorkflow.load(wdl).get
     ns.staticDeclarationsRecursive(Map.empty[String, WdlValue], NoFunctions) match {
       case Failure(ex) => fail("Expected all declarations to be statically evaluable", ex)
       case Success(values) =>

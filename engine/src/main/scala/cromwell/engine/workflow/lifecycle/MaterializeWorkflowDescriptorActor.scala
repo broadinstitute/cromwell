@@ -359,9 +359,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       } else {
         List(WdlNamespace.directoryResolver(importsDirFile))
       }
-      val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
-      importsDir.delete(swallowIOExceptions = true)
-      results.validNel
+
+      WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers) match {
+        case Success(s) =>
+          importsDir.delete(swallowIOExceptions = true)
+          s.validNel
+        case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
+      }
+
     }
   }
 
@@ -375,7 +380,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           } else {
             List.empty
           }
-          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).validNel
+          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers) match {
+            case Success(s) => s.validNel
+            case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
+          }
       }
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel

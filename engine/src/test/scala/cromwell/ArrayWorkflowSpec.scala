@@ -15,7 +15,7 @@ class ArrayWorkflowSpec extends CromwellTestKitSpec {
 
   "A static Array[File] declaration" should {
     "be a valid declaration" in {
-      val declaration = ns.workflow.declarations.find {_.unqualifiedName == "arr"}.getOrElse {
+      val declaration = ns.get.workflow.declarations.find {_.unqualifiedName == "arr"}.getOrElse {
         fail("Expected declaration 'arr' to be found")
       }
       val expression = declaration.expression.getOrElse {
@@ -27,7 +27,7 @@ class ArrayWorkflowSpec extends CromwellTestKitSpec {
       value shouldEqual WdlArray(WdlArrayType(WdlStringType), Seq(WdlString("f1"), WdlString("f2"), WdlString("f3")))
     }
     "be usable as an input" in {
-      val catTask = ns.findTask("cat").getOrElse {
+      val catTask = ns.get.findTask("cat").getOrElse {
         fail("Expected to find task 'cat'")
       }
       val command = catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions).getOrElse {

@@ -77,7 +77,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe finalValue
         success.jobDescriptor.callCachingEligibility.isInstanceOf[CallCachingIneligible] shouldBe true
-        success.jobDescriptor.callCachingEligibility.asInstanceOf[CallCachingIneligible].reason shouldBe
+        success.jobDescriptor.callCachingEligibility.asInstanceOf[CallCachingIneligible].message shouldBe
           s"""You are using a floating docker tag in this task. Cromwell does not consider tasks with floating tags to be eligible for call caching.
               |If you want this task to be eligible for call caching in the future, use a docker runtime attribute with a digest instead.
               |This is the exact docker image that was used for this job: $finalValue
@@ -101,7 +101,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
         success.jobDescriptor.callCachingEligibility.isInstanceOf[CallCachingIneligible] shouldBe true
-        success.jobDescriptor.callCachingEligibility.asInstanceOf[CallCachingIneligible].reason shouldBe
+        success.jobDescriptor.callCachingEligibility.asInstanceOf[CallCachingIneligible].message shouldBe
           s"""You are using a floating docker tag in this task. Cromwell does not consider tasks with floating tags to be eligible for call caching.
               |If you want this task to be eligible for call caching in the future, use a docker runtime attribute with a digest instead.
               |Cromwell attempted to retrieve the current hash for this docker image but failed.
@@ -152,7 +152,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
         success.jobDescriptor.callCachingEligibility.isInstanceOf[CallCachingIneligible] shouldBe true
-        success.jobDescriptor.callCachingEligibility.asInstanceOf[CallCachingIneligible].reason shouldBe
+        success.jobDescriptor.callCachingEligibility.asInstanceOf[CallCachingIneligible].message shouldBe
           s"""You are using a floating docker tag in this task. Cromwell does not consider tasks with floating tags to be eligible for call caching.
               |If you want this task to be eligible for call caching in the future, use a docker runtime attribute with a digest instead.
               |Cromwell attempted to retrieve the current hash for this docker image but failed.

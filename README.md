@@ -1850,11 +1850,11 @@ Docker tags are a convenient way to point to a version of an image (ubuntu:14.04
 For that purpose, tags are mutable, in a sense that the image they point to can change, while the tag name stays the same.
 While this is very convenient in some cases, using mutable, or "floating" tags in WDL affects the reproducibility of the WDL file: the same WDL using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
 This has an even bigger impact when Call Caching is turned on in Cromwell, and could lead to false positive cache hits.
-Docker provides another way of identifying an image version, using the specific digest of the image. The digest is guaranteed to be different if 2 images have the same byte content. For more information see https://docs.docker.com/registry/spec/api/#/content-digests
-A docker image with digest can be referenced as follow :
+Docker provides another way of identifying an image version, using the specific digest of the image. The digest is guaranteed to be different if 2 images have different byte content. For more information see https://docs.docker.com/registry/spec/api/#/content-digests
+A docker image with digest can be referenced as follows :
     ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950
 The above image refers to a specific image of ubuntu, that does not depend on a floating tag.
-A wdl containing this docker image run now and a year from now will run on the exact same image.
+A WDL containing this Docker image run now and a year from now will run on the exact same image.
 
 In order to remove the possibility of false positive, Cromwell takes the following approach regarding floating docker tags.
 
@@ -1870,7 +1870,7 @@ When Cromwell finds a job ready to be run, it will first look at its docker runt
         For that reason, the job will not be eligible for call caching. Which means that even if call caching reading is turned on, Cromwell will not look for an existing job in the cache database.
         If call caching writing is turned on, Cromwell will still write the job in the cache database, using the image with digest
         
-Cromwell can only lookup Dockerhub and Google Container Engine image digests. Provided the right credentials, it will be able to lookup private images.
+Cromwell can only lookup Docker Hub and Google Container Engine image digests. Provided the right credentials, it will be able to lookup private images.
 Note that if for some reason Cromwell fails to lookup the image digest, the job will run with the original floating tag, but will still be ineligible for call caching.
 
 ## Local Filesystem Options

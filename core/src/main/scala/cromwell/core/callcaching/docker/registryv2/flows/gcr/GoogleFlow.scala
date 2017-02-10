@@ -26,29 +26,24 @@ class GoogleFlow(httpClientFlow: HttpDockerFlow, queriesPer100Sec: Int)(implicit
 
     // This flow should only receive images that have been vetted by accepts.
     def mapContextToFlow(dockerHashContext: DockerHashContext) = {
-      if (gcrFlow.accepts(dockerHashContext.dockerImageID)) 0
-      else if (usGcrFlow.accepts(dockerHashContext.dockerImageID)) 1
-      else if (usGcrFlow.accepts(dockerHashContext.dockerImageID)) 2
-      else 3
+      googleFlows.indexWhere(_.accepts(dockerHashContext.dockerImageID)) match {
+        case -1 => googleFlows.length
+        case found => found
+      }
     }
     
-    val gcr = builder.add(gcrFlow.buildFlow())
-    val usGcr = builder.add(usGcrFlow.buildFlow())
-    val euGcr = builder.add(euGcrFlow.buildFlow())
     // If we ever get an image that none of the above flow can process,
     // which shouldn't happen because the caller should have called "accepts" before
     // to make sure this flow can handle the image
     val failFlow = builder.add(Flow[DockerHashContext].map(dockerContext => (DockerHashUnknownRegistry(dockerContext.dockerImageID), dockerContext)))
     
-    val partition = builder.add(Partition[DockerHashContext](4, mapContextToFlow))
-    val merge = builder.add(Merge[(DockerHashResponse, DockerHashContext)](4))
+    val partition = builder.add(Partition[DockerHashContext](googleFlows.length + 1, mapContextToFlow))
+    val merge = builder.add(Merge[(DockerHashResponse, DockerHashContext)](googleFlows.length + 1))
     val throttle = builder.add(throttler)
     
     throttle ~> partition
-                partition.out(0) ~> gcr ~> merge.in(0)
-                partition.out(1) ~> usGcr ~> merge.in(1)
-                partition.out(2) ~> euGcr ~> merge.in(2)
-                partition.out(3) ~> failFlow ~> merge.in(3)
+                googleFlows.indices foreach { i => partition.out(i) ~> googleFlows(i).buildFlow() ~> merge.in(i) }
+                partition.out(googleFlows.length) ~> failFlow ~> merge.in(googleFlows.length)
     
     FlowShape(throttle.in, merge.out)
   }

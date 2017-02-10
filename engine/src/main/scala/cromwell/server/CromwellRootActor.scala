@@ -25,6 +25,8 @@ import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
+
 /**
   * An actor which serves as the lord protector for the rest of Cromwell, allowing us to have more fine grain
   * control on top level supervision, etc.
@@ -69,8 +71,8 @@ import scala.concurrent.duration._
   
   // Docker Actor
   lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
-  lazy val gcrQueriesPer100Sec = config.getAs[Int]("docker.gcr-api-queries-per-100-seconds") getOrElse 50000
-  lazy val dockerCacheEntryTTL = (config.getAs[Int]("docker.cache-entry-ttl-in-minutes") getOrElse 20).minutes
+  lazy val gcrQueriesPer100Sec = config.getAs[Int]("docker.gcr-api-queries-per-100-seconds") getOrElse 1000
+  lazy val dockerCacheEntryTTL = config.as[Option[FiniteDuration]]("docker.cache-entry-ttl").getOrElse(DefaultCacheTTL)
   lazy val dockerCacheSize = config.getAs[Long]("docker.cache-size") getOrElse 200L
   // Sets the number of requests that the docker actor will accept before it starts backpressuring (modulo the number of in flight requests)
   lazy val dockerActorQueueSize = 500
@@ -113,4 +115,5 @@ import scala.concurrent.duration._
 
 object CromwellRootActor {
   val DefaultNumberOfWorkflowLogCopyWorkers = 10
+  val DefaultCacheTTL = 20 minutes
 }

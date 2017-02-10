@@ -22,7 +22,7 @@ object HttpFlowWithRetry {
     * In order to allow for retries, the http context object needs to encapsulate the original request,
     * so that it can be re-submitted if necessary.
     * This type provides this encapsulation by creating a pair of (T, HttpRequest) where T is the custom type that
-    * the user wishes to use as a context for his specific use case.
+    * the user wishes to use as a context for their specific use case.
     */
   type ContextWithRequest[T] = (T, HttpRequest)
 
@@ -80,7 +80,7 @@ case class HttpFlowWithRetry[T](
       case (httpResponse, flowContext) if httpResponse.status.isSuccess() => 0
       // Failed return code but retryable
       case (httpResponse, flowContext) if isRetryable(httpResponse) => 1
-      // Failed return code an non retryable
+      // Failed return code and non retryable
       case (httpResponse, flowContext) => 2
     }))
 
@@ -98,11 +98,11 @@ case class HttpFlowWithRetry[T](
     
     // Submit request to underlying http flow  -  Partition responses: Failure | Success
     mergeRequests     ~>     http      ~>         partitionResponseTry.in
-                                                        // Success -> analyze response and partition into 3 (see above)
-                                                        requestSuccessful ~> partitionHttpResponse
+                                                  // Success -> analyze response and partition into 3 (see above)
+                                                  requestSuccessful ~> partitionHttpResponse
     // Retry failed requests (Try[HttpResponse] was a Failure)
     mergeRequests.in(1)     <~ retryBuffer <~     requestFailed.outlet
-    // Retry retryable failed responses (the HttpResponse had a non successful return code and was deeemed retryable)
+    // Retry retryable failed responses (the HttpResponse had a non successful return code and was deemed retryable)
     mergeRequests.in(2)        <~        retryBuffer         <~        responseRetryable.outlet
 
     new FanOutShape2(source.in, responseSuccessful.outlet, responseFailed.outlet)

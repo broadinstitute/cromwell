@@ -11,14 +11,14 @@ object FlowUtils {
     * Takes an input of the form (Try[T], U) and exposes 2 output ports.
     * U is the type of the context value to be passed along.
     * The first one will emit a pair of the form (value, context) if the try is a success.
-    * The second one will emit a pair of the form (throwable, context) if th try is a failure.
+    * The second one will emit a pair of the form (throwable, context) if the try is a failure.
     */
   def fanOutTry[T, U] = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
     val partition = builder.add(Partition[(Try[T], U)](2, {
-      case (Success(v), flowContext) => 0
-      case (Failure(f), flowContext) => 1
+      case (Success(v), _) => 0
+      case (Failure(f), _) => 1
     }))
 
     val successOut: PortOps[(T, U)] = partition.out(0) collect {

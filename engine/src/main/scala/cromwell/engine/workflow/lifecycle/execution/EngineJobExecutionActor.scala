@@ -273,8 +273,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case CallCachingEligible =>
         initializeJobHashing(jobDescriptor, activity)
         goto(CheckingCallCache) using updatedData
-      case CallCachingIneligible(reason) =>
-        writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: $reason"))
+      case ineligible: CallCachingIneligible =>
+        writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: ${ineligible.message}"))
         initializeJobHashing(jobDescriptor, activity)
         runJob(updatedData)
     }

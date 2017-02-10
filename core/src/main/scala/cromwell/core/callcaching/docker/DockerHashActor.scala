@@ -30,7 +30,7 @@ final class DockerHashActor(
    *  - Automatically removed from the cache by the cache itself
    *  
    *  + Concurrency level is the number of expected threads to modify the cache.
-   *      Choose 2 because the stream will add elements, and the cache itself remove them.
+   *      Set to "2" because the stream will add elements, and the cache itself remove them.
    *      This value has not a critical impact: 
    *        https://google.github.io/guava/releases/20.0/api/docs/com/google/common/cache/CacheBuilder.html#concurrencyLevel-int-
    *        
@@ -142,7 +142,7 @@ final class DockerHashActor(
   }
   
   private def logAndRestart(throwable: Throwable) = {
-    log.error("Failed to process docker hash request", throwable)
+    log.warning("Failed to process docker hash request", throwable)
     // Throw the exception that will be caught by supervisor and restart the actor
     throw DockerHashActorException(throwable)
   }

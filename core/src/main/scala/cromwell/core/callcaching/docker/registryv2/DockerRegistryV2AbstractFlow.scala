@@ -103,8 +103,8 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   /* Methods that may be overridden by a subclass */
 
   /**
-    * Returns true if an http response failed in such a way that it an be retried,
-    * false owtherwise.
+    * Returns true if an http response failed in such a way that it can be retried,
+    * false otherwise.
     */
   protected def isRetryable(httpResponse: HttpResponse) = {
     httpResponse.status match {
@@ -151,9 +151,9 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
 
   /**
     * Generic method to build a flow that creates a request, sends it,
-    * gets the result and perform some transformation on the result
+    * gets the result and performs some transformation on the result
     * @param requestBuilderFunction Function that builds a request from an input object of type A
-    * @param responseHandlerFlow Function that transforms a response in a object of type Try[B]
+    * @param responseHandlerFlow Function that transforms a response in an object of type Try[B]
     * @tparam A type of the input value of the flow
     * @tparam B type of the output value of the flow, if successful
     * @return flow
@@ -164,7 +164,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
                                         ) = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
-    // Build a request from a A
+    // Build a request from an A
     val request = builder.add(Flow.fromFunction(requestBuilderFunction))
 
     // Perform http requests

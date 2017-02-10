@@ -351,18 +351,23 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       serviceRegistryActor ! PutMetadataAction(wfImportEvents)
     }
 
-    validateImportsDirectory(w.importsZip) flatMap { importsDir =>
-      writeMetadatae(importsDir)
-      val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
+    def importsAsNamespace(importsDir: Path): ErrorOr[WdlNamespaceWithWorkflow] = {
+        writeMetadatae(importsDir)
+        val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
       val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
-      } else {
-        List(WdlNamespace.directoryResolver(importsDirFile))
-      }
-      val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
-      importsDir.delete(swallowIOExceptions = true)
-      results.validNel
+          List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
+        } else {
+          List(WdlNamespace.directoryResolver(importsDirFile))
+        }
+        val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
+        importsDir.delete(swallowIOExceptions = true)
+        results match {
+          case Success(ns) => ns.validNel
+          case Failure(f) => f.getMessage.invalidNel
+        }
     }
+
+    validateImportsDirectory(w.importsZip) flatMap importsAsNamespace
   }
 
   private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
@@ -375,7 +380,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           } else {
             List.empty
           }
-          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).validNel
+          // This .get is ok because we're already in a try/catch.
+          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).get.validNel
       }
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel

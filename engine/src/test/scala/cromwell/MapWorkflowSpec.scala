@@ -13,7 +13,7 @@ import scala.util.{Success, Try}
 class MapWorkflowSpec extends CromwellTestKitSpec {
   private val pwd = DefaultPathBuilder.get(".")
   private val sampleWdl = SampleWdl.MapLiteral(pwd)
-  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.wdlSource(), Seq.empty[ImportResolver])
+  val ns = WdlNamespaceWithWorkflow.load(sampleWdl.wdlSource(), Seq.empty[ImportResolver]).get
   val expectedMap = WdlMap(WdlMapType(WdlFileType, WdlStringType), Map(
     WdlFile("f1") -> WdlString("alice"),
     WdlFile("f2") -> WdlString("bob"),

@@ -10,7 +10,7 @@ import wdl4s.{ImportResolver, WdlNamespaceWithWorkflow}
 
 class ArrayWorkflowSpec extends CromwellTestKitSpec {
   val tmpDir = DefaultPathBuilder.createTempDirectory("ArrayWorkflowSpec")
-  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(), Seq.empty[ImportResolver])
+  val ns = WdlNamespaceWithWorkflow.load(SampleWdl.ArrayLiteral(tmpDir).wdlSource(), Seq.empty[ImportResolver]).get
   val expectedArray = WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("f1"), WdlFile("f2"), WdlFile("f3")))
 
   "A static Array[File] declaration" should {

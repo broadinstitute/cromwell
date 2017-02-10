@@ -22,7 +22,7 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
          |  call find
          |}
        """.stripMargin
-      val ns = WdlNamespace.loadUsingSource(wf, None, None)
+      val ns = WdlNamespace.loadUsingSource(wf, None, None).get
       val findTask = ns.findTask("find") getOrElse {
         fail("Expected to find task 'find'")
       }

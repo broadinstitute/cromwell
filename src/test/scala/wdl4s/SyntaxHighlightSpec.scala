@@ -1,7 +1,7 @@
 package wdl4s
 
 import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import org.scalatest.{FlatSpec, Matchers, WordSpec}
+import org.scalatest.{Matchers, WordSpec}
 
 class SyntaxHighlightSpec extends WordSpec with Matchers {
   "SyntaxFormatter for typical workflow" should {
@@ -94,7 +94,7 @@ class SyntaxHighlightSpec extends WordSpec with Matchers {
         |   email: "joe@company.org"
         |  }
         |}
-     """.stripMargin, None, None)
+     """.stripMargin, None, None).get
 
     val console =
       """\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mPairedFastQsToUnmappedBAM\u001b[0m {
@@ -295,7 +295,7 @@ class SyntaxHighlightSpec extends WordSpec with Matchers {
         |    input: f="abc", p=p
         |  }
         |}""".stripMargin, None, Option(Seq(resolver))
-    )
+    ).get
 
     val console =
       """\u001b[38;5;214mimport\u001b[0m 'foo.wdl' as foo_ns

@@ -7,6 +7,8 @@ import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import wdl4s.util.StringUtil
 
+import scala.util.Failure
+
 class SyntaxErrorSpec extends FlatSpec with Matchers {
   private val psTaskWdl = """
       |task ps {
@@ -756,12 +758,9 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
 
   forAll(syntaxErrorWdlTable) { (errorWdl) =>
     it should errorWdl.testString in {
-      try {
-        WdlNamespace.loadUsingSource(errorWdl.wdl, None, Option(Seq(resolver)))
-        fail("Expecting a SyntaxError")
-      } catch {
-        case e: SyntaxError =>
-          normalizeErrorMessage(e.getMessage) shouldEqual normalizeErrorMessage(errorWdl.errors)
+        WdlNamespace.loadUsingSource(errorWdl.wdl, None, Option(Seq(resolver))) match {
+          case Failure(e: SyntaxError) => normalizeErrorMessage(e.getMessage) shouldEqual normalizeErrorMessage(errorWdl.errors)
+          case x => fail(s"Expecting a SyntaxError but got $x")
       }
     }
   }

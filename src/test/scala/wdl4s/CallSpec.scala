@@ -59,7 +59,7 @@ class CallSpec extends WordSpec with Matchers {
         |}
       """.stripMargin
     
-    val namespace = WdlNamespace.loadUsingSource(wdl, None, None)
+    val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get
     val callT = namespace.calls.find(_.unqualifiedName == "t").get
     val exception = the[ValidationException] thrownBy {
       callT.evaluateTaskInputs(Map.empty, NoFunctions).get

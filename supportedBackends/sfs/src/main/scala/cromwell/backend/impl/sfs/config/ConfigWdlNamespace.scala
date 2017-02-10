@@ -5,6 +5,8 @@ import cromwell.backend.impl.sfs.config.ConfigConstants._
 import net.ceedubs.ficus.Ficus._
 import wdl4s._
 
+import scala.util.{Failure, Success}
+
 /**
   * Builds a wdl namespace from the config.
   *
@@ -43,11 +45,9 @@ class ConfigWdlNamespace(backendConfig: Config) {
     * The wdl namespace containing the submit, kill, and check alive tasks.
     */
   val wdlNamespace = {
-    try {
-      WdlNamespace.loadUsingSource(wdlSource, None, None)
-    } catch {
-      case exception: Exception =>
-        throw new RuntimeException(s"Error parsing generated wdl:\n$wdlSource".stripMargin, exception)
+    WdlNamespace.loadUsingSource(wdlSource, None, None) match {
+      case Success(ns) => ns
+      case Failure(f) => throw new RuntimeException(s"Error parsing generated wdl:\n$wdlSource".stripMargin, f)
     }
   }
 
@@ -74,7 +74,7 @@ object ConfigWdlNamespace {
 
   private def makeTask(taskName: String, command: String, declarations: String): Task = {
     val wdlSource = makeWdlSource(taskName, command, declarations)
-    val wdlNamespace = WdlNamespace.loadUsingSource(wdlSource, None, None)
+    val wdlNamespace = WdlNamespace.loadUsingSource(wdlSource, None, None).get
     wdlNamespace.findTask(taskName).getOrElse(throw new RuntimeException(s"Couldn't find task $taskName"))
   }
 

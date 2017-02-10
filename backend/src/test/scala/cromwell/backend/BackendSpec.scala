@@ -29,7 +29,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
       inputs,
       options,
       Labels.empty

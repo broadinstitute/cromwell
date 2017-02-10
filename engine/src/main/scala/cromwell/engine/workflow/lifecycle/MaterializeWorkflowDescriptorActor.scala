@@ -360,12 +360,13 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         List(WdlNamespace.directoryResolver(importsDirFile))
       }
 
-      importsDir.delete(swallowIOExceptions = true)
-
       WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers) match {
-        case Success(s) => s.validNel
+        case Success(s) =>
+          importsDir.delete(swallowIOExceptions = true)
+          s.validNel
         case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
       }
+
     }
   }
 

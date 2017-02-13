@@ -94,7 +94,7 @@ object Main extends App {
   private[this] def continueIf(valid: => Boolean)(block: => Termination): Termination = if (valid) block else BadUsageTermination
 
   private[this] def loadWdl(path: String)(f: WdlNamespace => Termination): Termination = {
-    Try(WdlNamespace.loadUsingPath(Paths.get(path), None, None)) match {
+    WdlNamespace.loadUsingPath(Paths.get(path), None, None) match {
       case Success(namespace) => f(namespace)
       case Failure(t) => UnsuccessfulTermination(t.getMessage)
     }

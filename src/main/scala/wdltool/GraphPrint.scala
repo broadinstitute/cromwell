@@ -10,7 +10,8 @@ object GraphPrint {
   case class WorkflowDigraph(workflowName: String, digraph: Set[String])
 
   def generateWorkflowDigraph(file: String, allNodesMode: Boolean): WorkflowDigraph = {
-    val namespace = WdlNamespaceWithWorkflow.load(Files.readAllLines(Paths.get(file)).asScala.mkString(System.lineSeparator()), Seq(WdlNamespace.fileResolver _))
+    // It's ok to use .get here, we're happy to throw an exception and crash the program!
+    val namespace = WdlNamespaceWithWorkflow.load(Files.readAllLines(Paths.get(file)).asScala.mkString(System.lineSeparator()), Seq(WdlNamespace.fileResolver _)).get
 
     val digraph = if (allNodesMode) {
       listAllGraphNodes(namespace)

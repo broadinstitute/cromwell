@@ -1,0 +1,14 @@
+name: defined_function
+testFormat: workflowsuccess
+
+files {
+  wdl: defined_function/defined_function.wdl
+}
+
+metadata {
+  workflowName: defined_function
+  status: Succeeded
+  "outputs.defined_function.good_indices.0": 0
+  "outputs.defined_function.cat_out.0": "file_0"
+  "outputs.defined_function.cat_out.1": "null"
+}

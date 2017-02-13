@@ -12,6 +12,7 @@
   * `prefix: (String, Array[X]) => Array[String]` - generate an array consisting of each element of the input array prefixed
      by a specified `String`.  The input array can have elements of any primitive type, the return array will always have
      type `Array[String]`.
+  * `defined: (Any) => Boolean` - Will return false if the provided value is an optional that is not defined. Returns true in all other cases.
 * The cromwell server TCP binding timeout is now configurable via the config key `webservice.binding-timeout`, defaulted
   to the previous value `5s` (five seconds) via the reference.conf.
 * Cromwell's Config (Shared Filesystem) backend now supports invocation of commands which run in a Docker image as a non-root user.

@@ -1,6 +1,6 @@
 name: missing_imports
 testFormat: workflowfailure
-ignore: true
+ignore: false
 
 files {
   wdl: recursive_imports/recursive_imports.wdl
@@ -11,6 +11,5 @@ files {
 }
 
 metadata {
-  workflowName: recursive_imports
   status: Failed
 }

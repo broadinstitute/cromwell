@@ -3,7 +3,6 @@ package cromwell.core.path
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 /**
@@ -37,10 +36,11 @@ trait EvenBetterPathMethods {
     this
   }
 
-  @tailrec
-  final def followSymbolicLinks: Path = symbolicLink match {
-    case Some(target) => target.followSymbolicLinks
-    case None => this
+  final def followSymbolicLinks: Path = {
+    symbolicLink match {
+      case Some(target) => parent.resolve(target.followSymbolicLinks)
+      case None => this
+    }
   }
 
   final def createPermissionedDirectories(): this.type = {

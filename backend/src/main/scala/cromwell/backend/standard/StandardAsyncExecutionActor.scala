@@ -1,5 +1,7 @@
 package cromwell.backend.standard
 
+import java.io.IOException
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
@@ -10,7 +12,7 @@ import cromwell.backend.validation._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
 import cromwell.core.path.Path
-import cromwell.core.{CallOutputs, CromwellAggregatedException, ExecutionEvent}
+import cromwell.core.{CallOutputs, CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import lenthall.util.TryUtil
@@ -100,7 +102,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLinePreProcessor: EvaluatedTaskInputs => Try[EvaluatedTaskInputs] = {
-    inputs => TryUtil.sequenceMap(inputs mapValues WdlFileMapper.mapWdlFiles(preProcessWdlFile))
+    inputs => TryUtil.sequenceMap(inputs mapValues WdlFileMapper.mapWdlFiles(preProcessWdlFile)) recoverWith {
+      case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+    }
   }
 
   /**

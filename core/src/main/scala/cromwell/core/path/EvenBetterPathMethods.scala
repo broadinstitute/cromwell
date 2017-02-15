@@ -1,6 +1,6 @@
 package cromwell.core.path
 
-import java.nio.file.FileAlreadyExistsException
+import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
 import scala.collection.JavaConverters._
@@ -36,8 +36,17 @@ trait EvenBetterPathMethods {
     this
   }
 
+  // betterFile.symbolicLink calls Files.readSymbolicLink, but then implicitly converts the java.nio.Path returned to a better.File
+  // which calls toAbsolutePath. Consequently, if the path was relative, the current directory is used to make it absolute.
+  // This is not the desired behaviour to be able to follow relative symbolic links, so bypass better files method and directly use the java one.
+  final def symbolicLinkRelative: Option[Path] = {
+    if (betterFile.isSymbolicLink) {
+      Option(newPath(Files.readSymbolicLink(betterFile.path)))
+    } else None
+  }
+
   final def followSymbolicLinks: Path = {
-    symbolicLink match {
+    symbolicLinkRelative match {
       case Some(target) => parent.resolve(target.followSymbolicLinks)
       case None => this
     }

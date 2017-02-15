@@ -1,18 +1,19 @@
 package cromwell.backend.impl.jes
 
-import cats.instances.future._
-import cats.syntax.functor._
+import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
 import cromwell.core.CallOutputs
+import cromwell.core.io.AsyncIo
+import cromwell.filesystems.gcs.GcsBatchCommandBuilder
 import wdl4s.TaskCall
 
 import scala.concurrent.Future
-import scala.language.postfixOps
 
 case class JesFinalizationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
+  ioActor: ActorRef,
   calls: Set[TaskCall],
   jesConfiguration: JesConfiguration,
   jobExecutionMap: JobExecutionMap,
@@ -23,9 +24,11 @@ case class JesFinalizationActorParams
 }
 
 class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
-  extends StandardFinalizationActor(jesParams) {
+  extends StandardFinalizationActor(jesParams) with AsyncIo with GcsBatchCommandBuilder {
 
   lazy val jesConfiguration: JesConfiguration = jesParams.jesConfiguration
+  
+  override def receive = ioReceive orElse super.receive
 
   override def afterAll(): Future[Unit] = {
     for {
@@ -37,8 +40,10 @@ class JesFinalizationActor(val jesParams: JesFinalizationActorParams)
 
   private def deleteAuthenticationFile(): Future[Unit] = {
     (jesConfiguration.needAuthFileUpload, workflowPaths) match {
-      case (true, Some(paths: JesWorkflowPaths)) => Future { paths.gcsAuthFilePath.delete() } void
+      case (true, Some(paths: JesWorkflowPaths)) => deleteAsync(paths.gcsAuthFilePath)
       case _ => Future.successful(())
     }
   }
+
+  override def ioActor: ActorRef = jesParams.ioActor
 }

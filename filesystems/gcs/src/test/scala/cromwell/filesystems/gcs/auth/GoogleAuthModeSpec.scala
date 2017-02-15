@@ -17,7 +17,6 @@ object GoogleAuthModeSpec {
   private lazy val tryApplicationDefaultCredentials: Try[Unit] = Try {
     val authMode = ApplicationDefaultMode("application-default")
     val workflowOptions = WorkflowOptions.empty
-    authMode.authCredentials(workflowOptions)
     authMode.credential(workflowOptions)
     ()
   }

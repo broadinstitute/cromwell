@@ -26,13 +26,14 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     val jesWorkflowInfo = mock[JesConfiguration]
     val initializationData = mock[JesBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty)
+    val ioActor = system.actorOf(Props.empty)
     val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
 
     initializationData.jesConfiguration returns jesWorkflowInfo
 
     val parent = TestProbe()
     val deathwatch = TestProbe()
-    val params = DefaultStandardSyncExecutionActorParams(JesAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor,
+    val params = DefaultStandardSyncExecutionActorParams(JesAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
       classOf[JesAsyncBackendJobExecutionActor])
     val testJJEA = TestActorRef[TestJesJobExecutionActor](
@@ -57,6 +58,7 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     val jesWorkflowInfo = mock[JesConfiguration]
     val initializationData = mock[JesBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty)
+    val ioActor = system.actorOf(Props.empty)
     val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
 
     initializationData.jesConfiguration returns jesWorkflowInfo
@@ -64,7 +66,7 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     val parent = TestProbe()
     val deathwatch = TestProbe()
     val jabjeaConstructionPromise = Promise[ActorRef]()
-    val params = DefaultStandardSyncExecutionActorParams(JesAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor,
+    val params = DefaultStandardSyncExecutionActorParams(JesAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
       classOf[JesAsyncBackendJobExecutionActor])
     val testJJEA = TestActorRef[TestJesJobExecutionActor](

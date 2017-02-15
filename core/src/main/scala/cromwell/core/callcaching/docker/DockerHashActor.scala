@@ -6,6 +6,7 @@ import akka.stream.QueueOfferResult.{Dropped, Enqueued, QueueClosed}
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Merge, Partition, Sink, Source}
 import com.google.common.cache.CacheBuilder
+import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.callcaching.docker.DockerHashActor._
 import org.slf4j.LoggerFactory
 
@@ -191,7 +192,7 @@ object DockerHashActor {
   }
 
   case class DockerHashBackPressure(originalRequest: DockerHashRequest) extends DockerHashResponse
-  case class DockerHashActorException(failure: Throwable) extends RuntimeException(failure)
+  case class DockerHashActorException(failure: Throwable) extends ActorRestartException(failure)
   
   /* Internal ADTs */
   case class DockerHashContext(request: DockerHashRequest, replyTo: ActorRef) {

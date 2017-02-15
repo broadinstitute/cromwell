@@ -2,7 +2,6 @@ package cromwell.backend.impl.tes
 
 import akka.actor.ActorRef
 import cromwell.backend._
-import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.standard._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import net.ceedubs.ficus.Ficus._
@@ -25,10 +24,8 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
     JobExecutionTokenType(name, concurrentJobLimit)
   }
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCall],
                                                  serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
     TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
   }
-
-  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(TesBackendFileHashing.getMd5Result))
 }

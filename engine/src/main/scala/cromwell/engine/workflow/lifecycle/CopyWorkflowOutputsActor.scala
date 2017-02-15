@@ -1,41 +1,48 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
 import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
+import cromwell.core.io.AsyncIo
 import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.filesystems.gcs.GcsBatchCommandBuilder
 import wdl4s.values.{WdlArray, WdlMap, WdlSingleFile, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object CopyWorkflowOutputsActor {
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
+  def props(workflowId: WorkflowId, ioActor: ActorRef, workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
             initializationData: AllBackendInitializationData) = Props(
-    new CopyWorkflowOutputsActor(workflowId, workflowDescriptor, workflowOutputs, initializationData)
+    new CopyWorkflowOutputsActor(workflowId, ioActor, workflowDescriptor, workflowOutputs, initializationData)
   ).withDispatcher(IoDispatcher)
 }
 
-class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
+class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: ActorRef, val workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
                                initializationData: AllBackendInitializationData)
-  extends EngineWorkflowFinalizationActor with PathFactory {
+  extends EngineWorkflowFinalizationActor with PathFactory with AsyncIo with GcsBatchCommandBuilder {
 
+  implicit val ec = context.dispatcher
   override val pathBuilders = workflowDescriptor.pathBuilders
 
-  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Unit = {
+  override def receive = ioReceive orElse super.receive
+  
+  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
 
-    val outputFilePaths = getOutputFilePaths
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
 
-    outputFilePaths foreach {
-      case (workflowRootPath, srcPath) =>
-        // WARNING: PathCopier does not do atomic copies. The files may be partially written.
-        PathCopier.copy(workflowRootPath, srcPath, workflowOutputsPath)
+    val copies = outputFilePaths map {
+      case (srcPath, dstPath) => 
+        dstPath.createDirectories()
+        copyAsync(srcPath, dstPath, overwrite = true)
     }
+    
+    Future.sequence(copies)
   }
 
   private def findFiles(values: Seq[WdlValue]): Seq[WdlSingleFile] = {
@@ -47,16 +54,23 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
     }
   }
   
-  private def getOutputFilePaths: Seq[(Path, Path)] = {
-    for {
+  private def getOutputFilePaths(workflowOutputsPath: Path): List[(Path, Path)] = {
+    val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- workflowDescriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config).toSeq
-      outputFiles = findFiles(workflowOutputs.values.map(_.wdlValue).toSeq)
-      wdlFile <- outputFiles
-      wdlPath = PathFactory.buildPath(wdlFile.value, pathBuilders)
-    } yield (rootPath, wdlPath)
+      outputFiles = findFiles(workflowOutputs.values.map(_.wdlValue).toSeq).map(_.value)
+    } yield (rootPath, outputFiles)
+    
+    val outputFileDestinations = rootAndFiles flatMap {
+      case (workflowRoot, outputs) =>
+        outputs map { output => 
+          val outputPath = PathFactory.buildPath(output, pathBuilders)
+          outputPath -> PathCopier.getDestinationFilePath(workflowRoot, outputPath, workflowOutputsPath) 
+        }
+    }
+    outputFileDestinations.distinct.toList
   }
 
   private def getBackendRootPath(backend: String, config: BackendConfigurationDescriptor): Option[Path] = {
@@ -72,8 +86,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, val workflowDescriptor: E
     backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig, initializationData)
   }
 
-  final override def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = Future {
-    workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir) foreach copyWorkflowOutputs
-    FinalizationSuccess
+  final override def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
+    workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir) match {
+      case Some(outputs) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
+      case None => Future.successful(FinalizationSuccess)
+    }
   }
 }

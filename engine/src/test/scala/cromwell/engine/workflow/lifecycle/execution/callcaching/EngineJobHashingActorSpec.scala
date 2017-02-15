@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestProbe}
 import cats.data.NonEmptyList
 import cromwell.CromwellTestKitSpec
 import cromwell.backend._
-import cromwell.backend.callcaching.FileHashingActor.{FileHashResponse, SingleFileHashRequest}
+import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
 import org.scalatest.mockito.MockitoSugar
@@ -180,15 +180,58 @@ object EngineJobHashingActorSpec extends BackendSpec {
   )(implicit system: ActorSystem) = {
     val callCacheReadActor = system.actorOf(Props(new PredictableCallCacheReadActor(cacheLookupResponses)))
     
-    system.actorOf(EngineJobHashingActor.props(
-      receiver = replyTo,
+    system.actorOf(EngineJobHashingActorTest.props(
+      replyTo = replyTo,
+      activity = activity,
       jobDescriptor = jobDescriptor,
       initializationData = initializationData,
       fileHashingActor = fileHashingActor.getOrElse(emptyActor),
       callCacheReadActor = callCacheReadActor,
       runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-      backendName = backendName,
-      activity = activity))
+      backendName = backendName
+      ))
+  }
+  
+  object EngineJobHashingActorTest {
+    def props(replyTo: ActorRef,
+              activity: CallCachingActivity,
+              jobDescriptor: BackendJobDescriptor,
+              initializationData: Option[BackendInitializationData],
+              fileHashingActor: ActorRef,
+              callCacheReadActor: ActorRef,
+              runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
+              backendName: String
+             ) = Props(new EngineJobHashingActorTest(
+      replyTo,
+      activity,
+      jobDescriptor,
+      initializationData,
+      fileHashingActor,
+      callCacheReadActor,
+      runtimeAttributeDefinitions,
+      backendName
+    ))
+  }
+  
+  class EngineJobHashingActorTest(replyTo: ActorRef,
+                                  activity: CallCachingActivity,
+                                  jobDescriptor: BackendJobDescriptor,
+                                  initializationData: Option[BackendInitializationData],
+                                  fileHashingActor: ActorRef,
+                                  callCacheReadActor: ActorRef,
+                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
+                                  backendName: String
+                                 ) extends EngineJobHashingActor(
+    replyTo,
+    jobDescriptor,
+    initializationData,
+    Props.empty,
+    callCacheReadActor,
+    runtimeAttributeDefinitions,
+    backendName,
+    activity
+  ) {
+    override def makeFileHashingActor(): ActorRef = fileHashingActor
   }
 
   def emptyActor(implicit actorSystem: ActorSystem) = actorSystem.actorOf(Props.empty)

@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.genomics.model.RunPipelineRequest
+import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
@@ -15,17 +16,17 @@ import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.gcs.{GcsBatchCommandBuilder, GcsPath}
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
-import scala.collection.JavaConverters._
 
 object JesAsyncBackendJobExecutionActor {
   val JesOperationIdKey = "__jes_operation_id"
@@ -45,7 +46,7 @@ object JesAsyncBackendJobExecutionActor {
 
 class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with JesJobCachingActorHelper
-    with JesStatusRequestClient with JesRunCreationClient  {
+    with JesStatusRequestClient with JesRunCreationClient with GcsBatchCommandBuilder {
 
   import JesAsyncBackendJobExecutionActor._
 
@@ -82,7 +83,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     Run(job, initializationData.genomics).abort()
   }
 
-  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse ioReceive orElse super.receive
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -257,17 +258,21 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private def runWithJes(jobForResumption: Option[StandardAsyncJob]): Future[ExecutionHandle] = {
-
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
-    def makeRpr: Try[RunPipelineRequest] = Try(runtimeAttributes) flatMap { _ => Try {
+    def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
+    
+    def generateJesParameters = Future.fromTry(Try {
       val jesInputs: Set[JesInput] = generateJesInputs(jobDescriptor) ++ monitoringScript + cmdInput
       val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
-      val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
-
-      jobPaths.script.writeAsText(commandScriptContents)
+      standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
+    })
+    
+    def uploadScriptFile = writeAsync(jobPaths.script, commandScriptContents, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    
+    def makeRpr(jesParameters: Seq[JesParameter]) = Future.fromTry(Try {
       createJesRunPipelineRequest(jesParameters)
-    }}
+    })
 
     jobForResumption match {
       case Some(job) =>
@@ -275,7 +280,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         Future.successful(PendingExecutionHandle(jobDescriptor, job, Option(run), previousStatus = None))
       case None =>
         for {
-          rpr <- Future.fromTry(makeRpr)
+          _ <- evaluateRuntimeAttributes
+          jesParameters <- generateJesParameters
+          _ <- uploadScriptFile
+          rpr <- makeRpr(jesParameters)
           runId <- runPipeline(initializationData.genomics, rpr)
           run = Run(runId, initializationData.genomics)
         } yield PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)

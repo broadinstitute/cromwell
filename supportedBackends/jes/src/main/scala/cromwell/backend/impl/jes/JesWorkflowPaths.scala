@@ -7,10 +7,9 @@ import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{Path, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, RetryableGcsPathBuilder}
+import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 
 import scala.language.postfixOps
-import scala.util.Try
 
 object JesWorkflowPaths {
   private val GcsRootOptionKey = "jes_gcs_root"
@@ -28,9 +27,7 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(JesWorkflowPaths.GcsRootOptionKey, jesConfiguration.root)
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
-  val gcsPathBuilder: RetryableGcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
-
-  def getHash(gcsUrl: Path): Try[String] = gcsPathBuilder.getHash(gcsUrl)
+  val gcsPathBuilder: GcsPathBuilder = jesConfiguration.gcsPathBuilderFactory.withOptions(workflowOptions)
 
   val gcsAuthFilePath: Path = {
     /*
@@ -43,7 +40,7 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
     val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.unqualifiedName).resolve(workflowDescriptor.rootWorkflowId.toString)
 
     val bucket = workflowDescriptor.workflowOptions.get(JesWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
-    val authBucket = GcsPathBuilderFactory(genomicsCredentials).withOptions(workflowOptions).build(bucket) recover {
+    val authBucket = GcsPathBuilderFactory(genomicsCredentials, jesConfiguration.googleConfig.applicationName).withOptions(workflowOptions).build(bucket) recover {
       case ex => throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
     } get
 

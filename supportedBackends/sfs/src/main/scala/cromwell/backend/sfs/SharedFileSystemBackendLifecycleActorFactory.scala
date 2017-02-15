@@ -1,6 +1,7 @@
 package cromwell.backend.sfs
 
 import cromwell.backend.standard._
+import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor
 
 /**
   * A factory that can be extended for any shared file system implementation.

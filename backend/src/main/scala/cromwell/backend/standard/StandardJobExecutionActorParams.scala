@@ -9,6 +9,9 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationDa
 trait StandardJobExecutionActorParams {
   /** The service registry actor for key/value and metadata. */
   def serviceRegistryActor: ActorRef
+  
+  /** Actor able to handle IO requests asynchronously */
+  def ioActor: ActorRef
 
   /** The descriptor of this job. */
   def jobDescriptor: BackendJobDescriptor

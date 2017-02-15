@@ -19,7 +19,7 @@ import cromwell.core.callcaching.CallCachingEligible
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
+import cromwell.filesystems.gcs.auth.GoogleAuthMode.MockAuthMode
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -33,12 +33,13 @@ import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
 
-  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(WorkflowOptions.empty)
+  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(MockAuthMode, "cromwell-test").withOptions(WorkflowOptions.empty)
 
   import JesTestConfig._
 
@@ -93,11 +94,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
              promise: Promise[BackendJobExecutionResponse],
              jesConfiguration: JesConfiguration,
              functions: JesExpressionFunctions = TestableJesExpressionFunctions,
-             jesSingletonActor: ActorRef = emptyActor) = {
+             jesSingletonActor: ActorRef = emptyActor,
+             ioActor: ActorRef = mockIoActor) = {
       this(
         DefaultStandardAsyncExecutionActorParams(
           JesAsyncBackendJobExecutionActor.JesOperationIdKey,
           emptyActor,
+          ioActor,
           jobDescriptor,
           jesConfiguration.configurationDescriptor,
           Option(buildInitializationData(jobDescriptor, jesConfiguration)),
@@ -177,11 +180,17 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int): TestActorRef[TestableJesJobExecutionActor] = {
     val jobDescriptor = buildPreemptibleJobDescriptor(attempt, preemptible)
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(),
+      jesConfiguration,
+      TestableJesExpressionFunctions,
+      emptyActor,
+      failIoActor))
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
   behavior of "JesAsyncBackendJobExecutionActor"
+  
+  val timeout = 5 seconds
 
   { // Set of "handle call failures appropriately with respect to preemption" tests
     val expectations = Table(
@@ -225,8 +234,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    executionResult.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    val failedHandle = executionResult.asInstanceOf[FailedNonRetryableExecutionHandle]
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
     failedHandle.returnCode shouldBe None
   }
 
@@ -238,8 +248,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
     retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
     retryableHandle.returnCode shouldBe None
     val preemptedException = retryableHandle.throwable.asInstanceOf[PreemptedException]
@@ -254,8 +265,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
     retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
     retryableHandle.returnCode shouldBe None
     val preemptedException2 = retryableHandle.throwable.asInstanceOf[PreemptedException]
@@ -271,7 +283,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     def checkFailedResult(errorCode: Int, errorMessage: Option[String]): ExecutionHandle = {
       val failed =
         Failed(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
-      jesBackend.handleExecutionResult(failed, handle)
+      Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 
     checkFailedResult(10, Option("15: Other type of error."))

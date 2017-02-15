@@ -3,7 +3,6 @@ package cromwell.filesystems.gcs
 import com.google.cloud.RetryParams
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.core.path._
-import cromwell.core.path.proxy.RetryableFileSystemProviderProxy
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.auth.{GoogleAuthMode, GoogleAuthModeSpec}
 import org.scalatest.prop.Tables.Table
@@ -13,20 +12,15 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
 
   behavior of "GcsPathBuilder"
 
-  it should "create a path with a retryable provider" in {
-    val path = retryablePathBuilder.build("gs://bucket/object")
-    path.isSuccess shouldBe true
-    path.get.nioPath.getFileSystem.provider() shouldBe a[RetryableFileSystemProviderProxy[_]]
-  }
-
   it should "use google project credentials when provided in the workflow options" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
     val wfOptionsWithProject = WorkflowOptions.fromMap(Map("google_project" -> "my_project")).get
 
     val gcsPathBuilderWithProjectInfo = new GcsPathBuilder(
-      GoogleAuthMode.NoAuthMode,
-      RetryParams.defaultInstance(),
+      GoogleAuthMode.MockAuthMode,
+      "cromwell-test",
+      RetryParams.getDefaultInstance,
       CloudStorageConfiguration.DEFAULT,
       wfOptionsWithProject
     )
@@ -34,14 +28,14 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     gcsPathBuilderWithProjectInfo.getProjectId shouldBe "my_project"
   }
 
-  it should behave like truncateCommonRoots(retryablePathBuilder, pathsToTruncate)
+  it should behave like truncateCommonRoots(pathBuilder, pathsToTruncate)
 
   goodPaths foreach { goodPath =>
-    it should behave like buildGoodPath(retryablePathBuilder, goodPath)
+    it should behave like buildGoodPath(pathBuilder, goodPath)
   }
 
   badPaths foreach { badPath =>
-    it should behave like buildBadPath(retryablePathBuilder, badPath)
+    it should behave like buildBadPath(pathBuilder, badPath)
   }
 
   private def pathsToTruncate = Table(
@@ -361,13 +355,13 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     BadPath("an absolute file path", "/hello/world", "/hello/world does not have a gcs scheme")
   )
 
-  private lazy val retryablePathBuilder = {
+  private lazy val pathBuilder = {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
-    new RetryableGcsPathBuilder(
-      GoogleAuthMode.NoAuthMode,
-      RetryParams.defaultInstance(),
-      CustomRetryParams.Default,
+    new GcsPathBuilder(
+      GoogleAuthMode.MockAuthMode,
+      "cromwell-test",
+      RetryParams.getDefaultInstance,
       CloudStorageConfiguration.DEFAULT,
       WorkflowOptions.empty
     )

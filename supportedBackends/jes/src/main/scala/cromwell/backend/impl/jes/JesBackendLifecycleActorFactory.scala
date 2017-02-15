@@ -2,9 +2,9 @@ package cromwell.backend.impl.jes
 
 import akka.actor.ActorRef
 import cromwell.backend._
-import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
-import cromwell.backend.impl.jes.callcaching.JesBackendFileHashing
+import cromwell.backend.impl.jes.callcaching.{JesBackendCacheHitCopyingActor, JesBackendFileHashingActor}
 import cromwell.backend.standard._
+import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.core.CallOutputs
 import wdl4s.TaskCall
 
@@ -25,12 +25,12 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
 
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCall],
                                                  serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
-    JesInitializationActorParams(workflowDescriptor, calls, jesConfiguration, serviceRegistryActor)
+    JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, serviceRegistryActor)
   }
 
-  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
+  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCall],
                                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                               initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {
@@ -38,19 +38,23 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
     // invocation.  HOWEVER, the finalization actor is created regardless of whether workflow initialization was successful
     // or not.  So the finalization actor must be able to handle an empty `JesBackendInitializationData` option, and there is no
     // `.get` on the initialization data as there is with the execution or cache hit copying actor methods.
-    JesFinalizationActorParams(workflowDescriptor, calls, jesConfiguration, jobExecutionMap, workflowOutputs,
+    JesFinalizationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, jobExecutionMap, workflowOutputs,
       initializationDataOption)
+  }
+
+  override lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] = {
+    Option(classOf[JesBackendCacheHitCopyingActor])
   }
 
   override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))
 
-  override lazy val fileHashingFunction: Option[FileHashingFunction] = Option(FileHashingFunction(JesBackendFileHashing.getCrc32c))
+  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[JesBackendFileHashingActor])
   
   override def dockerHashCredentials(initializationData: Option[BackendInitializationData]) = {
     Try(BackendInitializationData.as[JesBackendInitializationData](initializationData)) match {
       case Success(jesData) => 
         val maybeDockerHubCredentials = jesData.jesConfiguration.dockerCredentials
-        val googleCredentials = Option(jesData.gcsCredentials.credential)
+        val googleCredentials = Option(jesData.gcsCredentials)
         List(maybeDockerHubCredentials, googleCredentials).flatten
       case _ => List.empty[Any]
     }

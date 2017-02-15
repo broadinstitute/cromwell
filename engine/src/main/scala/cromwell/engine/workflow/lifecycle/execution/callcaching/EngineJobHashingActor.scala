@@ -2,10 +2,10 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
+import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
-import cromwell.core.callcaching._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.callcaching._
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultLookupFailure, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
@@ -16,15 +16,17 @@ import wdl4s.values.WdlFile
   *  * (if read enabled): Either a CacheHit(id) or CacheMiss message
   *  * (if write enabled): A CallCacheHashes(hashes) message
   */
-case class EngineJobHashingActor(receiver: ActorRef,
+class EngineJobHashingActor(receiver: ActorRef,
                                  jobDescriptor: BackendJobDescriptor,
                                  initializationData: Option[BackendInitializationData],
-                                 fileHashingActor: ActorRef,
+                                 fileHashingActorProps: Props,
                                  callCacheReadActor: ActorRef,
                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                  backendName: String,
                                  activity: CallCachingActivity) extends LoggingFSM[EJHAState, EJHAData] with ActorLogging {
 
+  private val fileHashingActor = makeFileHashingActor()
+  
   initializeEJHA()
 
   when(DeterminingHitOrMiss) {
@@ -46,12 +48,13 @@ case class EngineJobHashingActor(receiver: ActorRef,
   whenUnhandled {
     case Event(CacheResultLookupFailure(reason), _) =>
       receiver ! HashError(new Exception(s"Failure looking up call cache results: ${reason.getMessage}"))
-      context.stop(self)
-      stay
+      stopAndStay()
     case Event(HashingFailedMessage(hashKey, reason), _) =>
       receiver ! HashError(new Exception(s"Unable to generate ${hashKey.key} hash. Caused by ${reason.getMessage}", reason))
-      context.stop(self)
-      stay
+      stopAndStay()
+    case Event(HashingServiceUnvailable, _) =>
+      receiver ! HashError(new Exception(s"File hashing service is unavailable."))
+      stopAndStay()
     case Event(other, _) =>
       log.error(s"Bad message in $stateName with $stateData: $other")
       stay
@@ -60,6 +63,17 @@ case class EngineJobHashingActor(receiver: ActorRef,
   onTransition {
     case fromState -> toState =>
       log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+  }
+  
+  private def stopAndStay() = {
+    context.stop(fileHashingActor)
+    context.stop(self)
+    stay
+  }
+  
+  private [callcaching] def makeFileHashingActor() = {
+    val jobPreparationActorName = s"FileHashingActor_for_${jobDescriptor.key.tag}"
+    context.actorOf(fileHashingActorProps, jobPreparationActorName)
   }
 
   private def initializeEJHA() = {
@@ -132,8 +146,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
 
     receiver ! hitOrMissResponse
     if (!activity.writeToCache) {
-      context.stop(self)
-      stay
+      stopAndStay()
     } else {
       checkWhetherAllHashesAreKnownAndTransition(newData)
     }
@@ -142,7 +155,7 @@ case class EngineJobHashingActor(receiver: ActorRef,
   private def checkWhetherAllHashesAreKnownAndTransition(newData: EJHAData) = {
     if (newData.allHashesKnown) {
       receiver ! CallCacheHashes(newData.hashesKnown)
-      context.stop(self)
+      stopAndStay()
     }
     goto(GeneratingAllHashes) using newData
   }
@@ -182,7 +195,7 @@ object EngineJobHashingActor {
   def props(receiver: ActorRef,
             jobDescriptor: BackendJobDescriptor,
             initializationData: Option[BackendInitializationData],
-            fileHashingActor: ActorRef,
+            fileHashingActorProps: Props,
             callCacheReadActor: ActorRef,
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
@@ -190,7 +203,7 @@ object EngineJobHashingActor {
       receiver = receiver,
       jobDescriptor = jobDescriptor,
       initializationData = initializationData,
-      fileHashingActor = fileHashingActor,
+      fileHashingActorProps = fileHashingActorProps,
       callCacheReadActor = callCacheReadActor,
       runtimeAttributeDefinitions = runtimeAttributeDefinitions,
       backendName = backendName,

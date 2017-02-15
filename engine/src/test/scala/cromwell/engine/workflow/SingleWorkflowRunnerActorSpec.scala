@@ -8,8 +8,9 @@ import akka.testkit.TestKit
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
-import cromwell.core.WorkflowSourceFilesCollection
+import cromwell._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.{SimpleIoActor, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -17,7 +18,6 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
-import cromwell._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
@@ -55,6 +55,7 @@ object SingleWorkflowRunnerActorSpec {
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
+  private val ioActor = system.actorOf(SimpleIoActor.props)
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
@@ -64,6 +65,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   def workflowManagerActor(): ActorRef = {
     val params = WorkflowManagerActorParams(ConfigFactory.load(),
       workflowStore,
+      ioActor = ioActor,
       dummyServiceRegistryActor,
       dummyLogCopyRouter,
       jobStore,

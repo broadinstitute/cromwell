@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor.{ActorRef, ActorRefFactory, LoggingFSM, Props}
-import akka.routing.RoundRobinPool
+import akka.actor.{ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
@@ -36,6 +35,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               initializationData: Option[BackendInitializationData],
                               restarting: Boolean,
                               val serviceRegistryActor: ActorRef,
+                              ioActor: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
                               dockerHashActor: ActorRef,
@@ -52,7 +52,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   // There's no need to check for a cache hit again if we got preempted, or if there's no result copying actor defined
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
-  private var effectiveCallCachingMode = if (factory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) callCachingMode.withoutRead else callCachingMode
+  private var effectiveCallCachingMode = {
+    if (factory.fileHashingActorProps.isEmpty) CallCachingOff
+    else if (factory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) {
+      callCachingMode.withoutRead
+    } else callCachingMode
+  }
 
   // For tests:
   private[execution] def checkEffectiveCallCachingMode = effectiveCallCachingMode
@@ -270,8 +275,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobDescriptor.callCachingEligibility match {
         // If the job is eligible, initialize job hashing and go to CheckingCallCache state
       case CallCachingEligible =>
-        initializeJobHashing(jobDescriptor, activity)
-        goto(CheckingCallCache) using updatedData
+        initializeJobHashing(jobDescriptor, activity) match {
+          case Success(_) => goto(CheckingCallCache) using updatedData
+          case Failure(failure) => respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey.jobKey, failure, None))
+        }
       case ineligible: CallCachingIneligible =>
         // If the job is ineligible, turn call caching off
         writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: ${ineligible.message}"))
@@ -283,7 +290,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def handleReadFromCacheOff(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
     jobDescriptor.callCachingEligibility match {
         // If the job is eligible, initialize job hashing so it can be written to the cache
-      case CallCachingEligible => initializeJobHashing(jobDescriptor, activity)
+      case CallCachingEligible => initializeJobHashing(jobDescriptor, activity) match {
+        case Failure(failure) => log.error(failure, "Failed to initialize job hashing. The job will not be written to the cache")
+        case _ =>
+      }
       // Don't even initialize hashing to write to the cache if the job is ineligible
       case ineligible: CallCachingIneligible => disableCallCaching()
     }
@@ -338,23 +348,31 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
   def prepareJob() = {
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
-    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, dockerHashActor, initializationData, serviceRegistryActor, backendSingletonActor)
+    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, dockerHashActor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor)
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! CallPreparation.Start
     goto(PreparingJob)
   }
 
-  def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity): Unit = {
-    val props = EngineJobHashingActor.props(
-      self,
-      jobDescriptor,
-      initializationData,
-      // Use context.system instead of context as the factory. Otherwise when we die, so will the child actors.
-      factoryFileHashingRouter(backendName, factory, context.system),
-      callCacheReadActor,
-      factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
-    context.actorOf(props, s"ejha_for_$jobDescriptor")
-    ()
+  def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity): Try[Unit] = {
+    val maybeFileHashingActorProps = factory.fileHashingActorProps map {
+      _(jobDescriptor, initializationData, serviceRegistryActor, ioActor)
+    }
+
+    maybeFileHashingActorProps match {
+      case Some(fileHashingActorProps) =>
+        val props = EngineJobHashingActor.props(
+          self,
+          jobDescriptor,
+          initializationData,
+          fileHashingActorProps,
+          callCacheReadActor,
+          factory.runtimeAttributeDefinitions(initializationData), backendName, activity)
+        context.actorOf(props, s"ejha_for_$jobDescriptor")
+        
+        Success(())
+      case None => Failure(new IllegalStateException("Tried to initialize job hashing without a file hashing actor !"))
+    }
   }
 
   def makeFetchCachedResultsActor(callCachingEntryId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]): Unit = {
@@ -370,7 +388,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def makeBackendCopyCacheHit(wdlValueSimpletons: Seq[WdlValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData, cacheResultId: CallCachingEntryId) = {
     factory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
-        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor)
+        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
         cacheHitCopyActor ! CopyOutputsCommand(wdlValueSimpletons, jobDetritusFiles, returnCode)
         replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.inputDeclarations, None)
@@ -525,6 +543,7 @@ object EngineJobExecutionActor {
             initializationData: Option[BackendInitializationData],
             restarting: Boolean,
             serviceRegistryActor: ActorRef,
+            ioActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             dockerHashActor: ActorRef,
@@ -540,6 +559,7 @@ object EngineJobExecutionActor {
       initializationData = initializationData,
       restarting = restarting,
       serviceRegistryActor = serviceRegistryActor,
+      ioActor = ioActor,
       jobStoreActor = jobStoreActor,
       callCacheReadActor = callCacheReadActor,
       dockerHashActor = dockerHashActor,
@@ -587,62 +607,4 @@ object EngineJobExecutionActor {
 
   private[execution] case class NotSucceededResponseData(response: BackendJobExecutionResponse,
                                                          hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData
-
-  /**
-    * Deliberately a singleton (well, a singleton router), so we can globally rate limit hash lookups per backend.
-    *
-    * More refinement may appear via #1377.
-    */
-  private var factoryFileHashingRouters = Map[BackendLifecycleActorFactory, ActorRef]()
-
-  /**
-    * Returns a RoundRobinPool of actors based on the backend factory.
-    *
-    * @param backendName                  Name of the backend.
-    * @param backendLifecycleActorFactory A backend factory.
-    * @param actorRefFactory              An actor factory.
-    * @return a RoundRobinPool of actors based on backend factory.
-    */
-  private def factoryFileHashingRouter(backendName: String,
-                                       backendLifecycleActorFactory: BackendLifecycleActorFactory,
-                                       actorRefFactory: ActorRefFactory): ActorRef = {
-    synchronized {
-      val (originalOrUpdated, result) = getOrElseUpdated(
-        factoryFileHashingRouters, backendLifecycleActorFactory, {
-          val numberOfInstances = backendLifecycleActorFactory.fileHashingActorCount
-          val props = backendLifecycleActorFactory.fileHashingActorProps
-          actorRefFactory.actorOf(RoundRobinPool(numberOfInstances).props(props), s"FileHashingActor-$backendName")
-        }
-      )
-      factoryFileHashingRouters = originalOrUpdated
-      result
-    }
-  }
-
-  /**
-    * Immutable version of mutable.Map.getOrElseUpdate based on:
-    * http://stackoverflow.com/questions/4385976/idiomatic-get-or-else-update-for-immutable-map#answer-5840119
-    *
-    * If given key is already in this map, returns associated value in the copy of the Map.
-    *
-    * Otherwise, computes value from given expression `op`, stores with key
-    * in map and returns that value in a copy of the Map.
-    *
-    * @param map the immutable map
-    * @param key the key to test
-    * @param op  the computation yielding the value to associate with `key`, if
-    *            `key` is previously unbound.
-    * @tparam K type of the key
-    * @tparam V type of the value
-    * @return the value associated with key (either previously or as a result
-    *         of executing the method).
-    */
-  def getOrElseUpdated[K, V](map: Map[K, V], key: K, op: => V): (Map[K, V], V) = {
-    map.get(key) match {
-      case Some(value) => (map, value)
-      case None =>
-        val value = op
-        (map.updated(key, value), value)
-    }
-  }
 }

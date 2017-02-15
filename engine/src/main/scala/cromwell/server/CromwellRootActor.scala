@@ -9,11 +9,14 @@ import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher
+import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.callcaching.docker.DockerHashActor
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashActorException, DockerHashContext}
+import cromwell.core.callcaching.docker.DockerHashActor.DockerHashContext
 import cromwell.core.callcaching.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.core.callcaching.docker.registryv2.flows.gcr.GoogleFlow
+import cromwell.core.io.Throttle
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
+import cromwell.engine.io.IoActor
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
@@ -47,13 +50,9 @@ import scala.language.postfixOps
   
   val serverMode: Boolean
 
+  lazy val systemConfig = config.getConfig("system")
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
-  lazy val numberOfWorkflowLogCopyWorkers = config.getConfig("system").as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
-
-  lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
-      .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
-      .props(CopyWorkflowLogsActor.props(serviceRegistryActor)),
-      "WorkflowLogCopyRouter")
+  lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
   lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
@@ -63,6 +62,18 @@ import scala.language.postfixOps
 
   lazy val subWorkflowStore = new SqlSubWorkflowStore(SingletonServicesStore.databaseInterface)
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
+  
+  // Io Actor
+  lazy val ioParallelism = systemConfig.as[Option[Int]]("io.parallelism").getOrElse(100)
+  lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
+  lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
+  lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
+  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle)).withDispatcher(Dispatcher.IoDispatcher))
+
+  lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
+    .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
+    .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
+    "WorkflowLogCopyRouter")
 
   lazy val callCache: CallCache = new CallCache(SingletonServicesStore.databaseInterface)
 
@@ -96,8 +107,8 @@ import scala.language.postfixOps
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor,
-      dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
+      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor,
+    dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
     "WorkflowManagerActor")
 
   override def receive = {
@@ -110,7 +121,7 @@ import scala.language.postfixOps
     */
   override val supervisorStrategy = OneForOneStrategy() {
     case actorInitializationException: ActorInitializationException => Escalate
-    case dockerHash: DockerHashActorException => Restart
+    case restart: ActorRestartException => Restart
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

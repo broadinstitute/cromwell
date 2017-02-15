@@ -192,6 +192,11 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     case other => Failure(new IllegalArgumentException("select_all must take an array but got: " + other.toWdlString))
   }
 
+  def defined(params: Seq[Try[WdlValue]]): Try[WdlBoolean] = extractSingleArgument("defined", params) map {
+    case WdlOptionalValue(_, None) => WdlBoolean(false)
+    case _ => WdlBoolean(true)
+  }
+
   def zip(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     val badArgsFailure = Failure(new IllegalArgumentException(s"Invalid parameters for engine function zip: $params. Requires exactly two evaluated array values of equal length."))
 
@@ -336,6 +341,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
     case WdlArrayType(WdlOptionalType(innerType)) => Success(WdlArrayType(innerType))
     case other => Failure(new IllegalArgumentException(s"select_all failed. It expects an array of optional values but got ${other.toWdlString}."))
   }
+  def defined(params: Seq[Try[WdlType]]): Try[WdlType] = extractSingleArgument("defined", params).map(_ => WdlBooleanType)
   def zip(params: Seq[Try[WdlType]]): Try[WdlType] = {
     val badArgsFailure = Failure(new Exception(s"Unexpected zip parameters: $params"))
     WdlStandardLibraryFunctions.extractTwoParams(params, badArgsFailure) flatMap {

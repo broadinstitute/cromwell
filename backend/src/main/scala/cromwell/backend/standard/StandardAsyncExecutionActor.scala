@@ -576,7 +576,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       the state names.
        */
       val prevStateName = previousStatus.map(_.toString).getOrElse("-")
-      jobLogger.info(s"$tag Status change from $prevStateName to $status")
+      jobLogger.info(s"Status change from $prevStateName to $status")
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> status))
     }
 
@@ -604,11 +604,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           customPollStatusFailure orElse {
             case (_: ExecutionHandle, exception: Exception) if isFatal(exception) =>
               // Log exceptions and return the original handle to try again.
-              jobLogger.warn(s"Caught fatal exception attempting to poll", exception)
+              jobLogger.warn(s"Fatal exception polling for status. Job will fail.")
               FailedNonRetryableExecutionHandle(exception)
             case (handle: ExecutionHandle, exception: Exception) =>
               // Log exceptions and return the original handle to try again.
-              jobLogger.warn(s"Caught exception trying to poll, retrying", exception)
+              jobLogger.warn(s"Caught non-fatal ${exception.getClass.getSimpleName} exception trying to poll, retrying", exception)
               handle
           }
         handler((oldHandle, exception))
@@ -708,4 +708,4 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   *
   * @param jobId The job id.
   */
-case class StandardAsyncJob(jobId: String) extends JobId
+final case class StandardAsyncJob(jobId: String) extends JobId

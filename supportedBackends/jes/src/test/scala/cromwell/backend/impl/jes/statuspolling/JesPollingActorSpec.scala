@@ -12,11 +12,13 @@ import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
+import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesStatusPollQuery
-import cromwell.backend.impl.jes.statuspolling.JesPollingActor.JesPollFailed
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, JesApiQueryFailed, JesStatusPollQuery, RequestJesPollingWork}
 import cromwell.backend.impl.jes.statuspolling.TestJesPollingActor.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
@@ -36,8 +38,9 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   var jpActor: TestActorRef[TestJesPollingActor] = _
 
   it should "correctly calculate batch intervals" in {
-    JesPollingActor.determineBatchInterval(10) shouldBe 9.seconds
-    JesPollingActor.determineBatchInterval(100) shouldBe 1.second
+    import eu.timepit.refined.auto._
+    JesPollingActor.determineBatchInterval(10) should be(11.seconds)
+    JesPollingActor.determineBatchInterval(100000) shouldBe 1.seconds
   }
 
   it should "query for work and wait for a reply" in {
@@ -45,17 +48,17 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     managerProbe.expectNoMsg(max = AwaitAlmostNothing)
   }
 
-  it should "respond directly to requesters with various run statuses" in {
+  it should "respond correctly with various run statuses" in {
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[JesApiQueryManager.RequestJesPollingWork])
 
     val requester1 = TestProbe()
-    val query1 = JesStatusPollQuery(requester1.ref, mock[Run])
+    val query1 = JesStatusPollQuery(requester1.ref, Run(null, null))
     val requester2 = TestProbe()
-    val query2 = JesStatusPollQuery(requester2.ref, mock[Run])
+    val query2 = JesStatusPollQuery(requester2.ref, Run(null, null))
     val requester3 = TestProbe()
-    val query3 = JesStatusPollQuery(requester3.ref, mock[Run])
+    val query3 = JesStatusPollQuery(requester3.ref, Run(null, null))
 
-    // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails:
+    // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails (simulating a network timeout, for example):
     jpActor.underlyingActor.callbackResponses :+= CallbackSuccess
     jpActor.underlyingActor.callbackResponses :+= CallbackSuccess
     jpActor.underlyingActor.callbackResponses :+= CallbackFailure
@@ -77,10 +80,16 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
     requester1.expectMsg(successStatus)
     requester2.expectMsg(failureStatus)
-    requester3.expectMsgClass(classOf[JesPollFailed])
+    requester3.expectNoMsg(max = AwaitAlmostNothing)
 
-    // And the poller is done! Now the manager should now have (only one) request for more work:
-    managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[JesApiQueryManager.RequestJesPollingWork])
+    // Requester3 expected nothing... Instead, the manager expects an API failure notification and then a request for more work:
+    managerProbe.expectMsgPF(TestExecutionTimeout) {
+      case failure: JesApiQueryFailed =>
+        if (!failure.cause.isInstanceOf[JesApiException]) fail("Unexpected failure cause class: " + failure.cause.getClass.getSimpleName)
+        if (failure.query != query2 && failure.query != query3) fail("Unexpected query caused failure: " + failure.query)
+    }
+    managerProbe.expectMsg(RequestJesPollingWork(JesPollingActor.MaxBatchSize))
+    managerProbe.expectNoMsg(max = AwaitAlmostNothing)
   }
 
   before {
@@ -89,20 +98,12 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   }
 }
 
-object JesPollingActorSpec extends Mockito {
-  def mockRun(runId: String): Run = {
-    val run = mock[Run]
-    run.runId returns runId
-    run
-  }
-}
-
 /**
   * Testable JES polling actor.
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef, qps: Int) extends JesPollingActor(manager, qps) with Mockito {
+class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends JesPollingActor(manager, qps) with Mockito {
 
   override lazy val batchInterval = 10.milliseconds
 
@@ -111,7 +112,7 @@ class TestJesPollingActor(manager: ActorRef, qps: Int) extends JesPollingActor(m
   var callbackResponses: Queue[JesBatchCallbackResponse] = Queue.empty
   var runBatchRequested: Boolean = false
 
-  override private[statuspolling] def createBatch(run: Run): BatchRequest = null
+  override private[statuspolling] def createBatch(genomicsInterface: Genomics): BatchRequest = null
   override private[statuspolling] def runBatch(batch: BatchRequest): Unit = runBatchRequested = true
 
   def executeBatch(): Unit = {
@@ -122,13 +123,13 @@ class TestJesPollingActor(manager: ActorRef, qps: Int) extends JesPollingActor(m
         handler.onFailure(error, null)
     }}
   }
-  override private[statuspolling] def enqueueStatusPollInBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
-  override private[statuspolling] def interpretOperationStatus(operation: Operation): RunStatus = {
+  override def addStatusPollToBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
+  override def interpretOperationStatus(operation: Operation): RunStatus = {
     val (status, newQueue) = operationStatusResponses.dequeue
     operationStatusResponses = newQueue
     status
   }
-  override private[statuspolling] def mkErrorString(e: GoogleJsonError) = "NA"
+  override def mkErrorString(e: GoogleJsonError) = "NA"
 }
 
 object TestJesPollingActor {

@@ -3,29 +3,29 @@ package cromwell.backend.impl.jes.statuspolling
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
-import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
-import com.google.api.client.http.HttpHeaders
-import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.{JesAttributes, Run}
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesPollingWorkBatch, JesStatusPollQuery, NoWorkToDo}
+import com.google.api.services.genomics.Genomics
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.backend.impl.jes.statuspolling.JesPollingActor._
 import cromwell.core.Dispatcher.BackendDispatcher
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric._
 
-import scala.collection.JavaConversions._
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+import scala.collection.JavaConversions._
 
 /**
-  * Polls JES for status. Pipes the results back (so expect either a RunStatus or a akka.actor.Status.Failure).
+  * Sends batched requests to JES as a worker to the JesApiQueryManager
   */
-class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor with ActorLogging {
+class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positive) extends Actor with ActorLogging
+  with StatusPolling with RunCreation {
   // The interval to delay between submitting each batch
-  lazy val batchInterval = determineBatchInterval(determineEffectiveQps(qps))
+  lazy val batchInterval = determineBatchInterval(qps)
   log.debug("JES batch polling interval is {}", batchInterval)
 
-  self ! NoWorkToDo // Starts the check-for-work cycle
+  self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -33,57 +33,34 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor 
 
     case JesPollingWorkBatch(workBatch) =>
       log.debug(s"Got a polling batch with ${workBatch.tail.size + 1} requests.")
-      val batchResultFutures = handleBatch(workBatch)
-      val overallFuture = Future.sequence(batchResultFutures.toList)
-      overallFuture.andThen(interstitialRecombobulation)
+      handleBatch(workBatch).andThen(interstitialRecombobulation)
       ()
     case NoWorkToDo =>
       scheduleCheckForWork()
   }
 
-  private def handleBatch(workBatch: NonEmptyList[JesStatusPollQuery]): NonEmptyList[Future[Try[Unit]]] = {
-
-    // Assume that the auth for the first element is also able to query the remaining Runs
-    val batch: BatchRequest = createBatch(workBatch.head.run)
+  private def handleBatch(workBatch: NonEmptyList[JesApiQuery]): Future[List[Try[Unit]]] = {
+    // Assume that the auth for the first element is also good enough for everything else:
+    val batch: BatchRequest = createBatch(workBatch.head.genomicsInterface)
 
     // Create the batch:
-    val batchFutures = workBatch map { pollingRequest =>
-      val completionPromise = Promise[Try[Unit]]()
-      val resultHandler = batchResultHandler(pollingRequest.requester, completionPromise)
-      enqueueStatusPollInBatch(pollingRequest.run, batch, resultHandler)
-      completionPromise.future
+    // WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
+    val batchFutures = workBatch map {
+      case pollingRequest: JesStatusPollQuery => enqueueStatusPollInBatch(pollingRequest, batch)
+      case runCreationRequest: JesRunCreationQuery => enqueueRunCreationInBatch(runCreationRequest, batch)
+
+      // We do the "successful Failure" thing so that the Future.sequence doesn't short-out immediately when the first one fails.
+      case other => Future.successful(Failure(new RuntimeException(s"Cannot handle ${other.getClass.getSimpleName} requests")))
     }
 
     // Execute the batch and return the map:
     runBatch(batch)
-    batchFutures
+    Future.sequence(batchFutures.toList)
   }
 
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
-  private[statuspolling] def createBatch(run: Run): BatchRequest = run.genomicsInterface.batch()
-  private[statuspolling] def enqueueStatusPollInBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]) = {
-    run.getOperationCommand.queue(batch, resultHandler)
-  }
+  private[statuspolling] def createBatch(genomicsInterface: Genomics): BatchRequest = genomicsInterface.batch()
   private[statuspolling] def runBatch(batch: BatchRequest) = batch.execute()
-
-  private def batchResultHandler(originalRequester: ActorRef, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
-    override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
-      log.debug(s"Batch result onSuccess callback triggered!")
-      originalRequester ! interpretOperationStatus(operation)
-      completionPromise.trySuccess(Success(()))
-      ()
-    }
-
-    override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      log.debug(s"Batch request onFailure callback triggered!")
-      originalRequester ! JesPollFailed(e, responseHeaders)
-      completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
-      ()
-    }
-  }
-
-  private[statuspolling] def mkErrorString(e: GoogleJsonError) = e.getErrors.toList.mkString(", ")
-  private[statuspolling] def interpretOperationStatus(operation: Operation) = Run.interpretOperationStatus(operation)
 
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {
@@ -93,14 +70,15 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor 
     case Success(someFailures) =>
       val errors = someFailures collect { case Failure(t) => t.getMessage }
       if (log.isDebugEnabled) {
-        log.warning("{} failures fetching JES statuses", errors.size)
+        log.warning("{} failures (from {} requests) fetching JES statuses", errors.size, someFailures.size)
       } else {
-        log.warning("{} failures fetching JES statuses: {}", errors.size, errors.mkString(", "))
+        log.warning("{} failures (from {} requests) fetching JES statuses: {}", errors.size, someFailures.size, errors.mkString(", "))
       }
       scheduleCheckForWork()
     case Failure(t) =>
       // NB: Should be impossible since we only ever do completionPromise.trySuccess()
-      log.error("Completion promise unexpectedly set to Failure: {}", t.getMessage)
+      val msg = "Programmer Error: Completion promise unexpectedly set to Failure: {}. Don't do this, otherwise the Future.sequence is short-circuited on the first failure"
+      log.error(msg, t.getMessage)
       scheduleCheckForWork()
   }
 
@@ -113,22 +91,11 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int) extends Actor 
     ()
   }
 
-  /**
-    * We don't want to allow non-positive QPS values. Catch these instances and replace them with a sensible default.
-    * Here we're using the default value coming from JES itself
-    */
-  private def determineEffectiveQps(qps: Int): Int = {
-    if (qps > 0) qps
-    else {
-      val defaultQps = JesAttributes.GenomicsApiDefaultQps
-      log.warning("Supplied QPS for Google Genomics API was not positive, value was {} using {} instead", qps, defaultQps)
-      defaultQps
-    }
-  }
+  private[statuspolling] def mkErrorString(e: GoogleJsonError) = e.getErrors.toList.mkString(", ")
 }
 
 object JesPollingActor {
-  def props(pollingManager: ActorRef, qps: Int) = Props(new JesPollingActor(pollingManager, qps)).withDispatcher(BackendDispatcher)
+  def props(pollingManager: ActorRef, qps: Int Refined Positive) = Props(new JesPollingActor(pollingManager, qps)).withDispatcher(BackendDispatcher)
 
   // The Batch API limits us to 100 at a time
   val MaxBatchSize = 100
@@ -141,11 +108,9 @@ object JesPollingActor {
     * Forcing the minimum value to be 1 second, for now it seems unlikely to matter and it makes testing a bit
     * easier
     */
-  def determineBatchInterval(qps: Int): FiniteDuration = {
-    val maxInterval = MaxBatchSize / qps.toDouble // Force this to be floating point in case the value is < 1
-    val interval = Math.max(maxInterval * 0.9, 1)
+  def determineBatchInterval(qps: Int Refined Positive): FiniteDuration = {
+    val maxInterval = MaxBatchSize / qps.value
+    val interval = Math.max(maxInterval / 0.9, 1).toInt
     interval.seconds
   }
-
-  final case class JesPollFailed(e: GoogleJsonError, responseHeaders: HttpHeaders)
 }

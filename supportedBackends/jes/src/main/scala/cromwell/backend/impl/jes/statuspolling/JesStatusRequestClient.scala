@@ -1,9 +1,7 @@
 package cromwell.backend.impl.jes.statuspolling
 
-import java.io.IOException
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import cromwell.backend.impl.jes.statuspolling.JesPollingActor.JesPollFailed
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesApiQueryFailed
 import cromwell.backend.impl.jes.{Run, RunStatus}
 
 import scala.concurrent.{Future, Promise}
@@ -15,7 +13,7 @@ import scala.util.{Failure, Success, Try}
   * Be sure to make the main class's receive look like:
   *   override def receive = pollingActorClientReceive orElse { ... }
   */
-trait JesPollingActorClient { this: Actor with ActorLogging =>
+trait JesStatusRequestClient { this: Actor with ActorLogging =>
 
   private var pollingActorClientPromise: Option[Promise[RunStatus]] = None
 
@@ -25,9 +23,9 @@ trait JesPollingActorClient { this: Actor with ActorLogging =>
     case r: RunStatus =>
       log.debug(s"Polled status received: $r")
       completePromise(Success(r))
-    case JesPollFailed(e, responseHeaders) =>
-      log.debug("JES poll failed! Sad.")
-      completePromise(Failure(new IOException(s"Google request failed: ${e.toPrettyString}")))
+    case JesApiQueryFailed(_, e) =>
+      log.debug("JES poll failed!")
+      completePromise(Failure(e))
   }
 
   private def completePromise(runStatus: Try[RunStatus]) = {

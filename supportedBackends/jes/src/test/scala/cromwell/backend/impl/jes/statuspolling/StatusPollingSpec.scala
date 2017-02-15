@@ -1,4 +1,4 @@
-package cromwell.backend.impl.jes
+package cromwell.backend.impl.jes.statuspolling
 
 import java.time.OffsetDateTime
 import java.util
@@ -12,26 +12,26 @@ import org.specs2.mock.{Mockito => MockitoTrait}
 
 import scala.collection.JavaConverters._
 
-class RunSpec extends FlatSpec with Matchers with MockitoTrait {
-  behavior of "JES Run"
+class StatusPollingSpec extends FlatSpec with Matchers with MockitoTrait {
+  behavior of "JES Status polling"
 
   it should "parse events from Operation metadata" in {
     val op: Operation = new Operation()
     op.setMetadata(eventsMetadata.asJava)
 
-    val list = Run.getEventList(op)
+    val list = StatusPolling.getEventList(op)
     list should contain theSameElementsAs eventsExpected
   }
 
   it should "require operation be non-null" in {
-    val exception = intercept[RuntimeException](Run.interpretOperationStatus(null))
+    val exception = intercept[RuntimeException](StatusPolling.interpretOperationStatus(null))
     exception.getMessage should be("requirement failed: Operation must not be null.")
   }
 
   it should "catch and wrap null pointer exceptions in an empty operation" in {
     val op = new Operation()
 
-    val exception = intercept[RuntimeException](Run.interpretOperationStatus(op))
+    val exception = intercept[RuntimeException](StatusPolling.interpretOperationStatus(op))
     exception.getMessage should be("Caught NPE while processing operation null: {}")
   }
 
@@ -39,7 +39,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val op = new Operation()
     op.setName("my/customName")
 
-    val exception = intercept[RuntimeException](Run.interpretOperationStatus(op))
+    val exception = intercept[RuntimeException](StatusPolling.interpretOperationStatus(op))
     exception.getMessage should be("Caught NPE while processing operation my/customName: {name=my/customName}")
   }
 
@@ -49,7 +49,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     op.setDone(true)
     op.setMetadata(eventsMetadata.asJava)
 
-    val runStatus = Run.interpretOperationStatus(op)
+    val runStatus = StatusPolling.interpretOperationStatus(op)
 
     runStatus should be(a[Success])
 
@@ -70,7 +70,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = Run.interpretOperationStatus(op)
+    val runStatus = StatusPolling.interpretOperationStatus(op)
     runStatus should be(a[Success])
 
     val success = runStatus.asInstanceOf[Success]
@@ -93,7 +93,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = Run.interpretOperationStatus(op)
+    val runStatus = StatusPolling.interpretOperationStatus(op)
     runStatus should be(a[Success])
 
     val success = runStatus.asInstanceOf[Success]
@@ -117,7 +117,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = Run.interpretOperationStatus(op)
+    val runStatus = StatusPolling.interpretOperationStatus(op)
 
     runStatus should be(a[Success])
 
@@ -144,7 +144,7 @@ class RunSpec extends FlatSpec with Matchers with MockitoTrait {
     val metadata = eventsMetadata ++ Map("runtimeMetadata" -> runtimeMetadata)
     op.setMetadata(metadata.asJava)
 
-    val runStatus = Run.interpretOperationStatus(op)
+    val runStatus = StatusPolling.interpretOperationStatus(op)
 
     runStatus should be(a[Success])
 

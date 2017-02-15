@@ -148,9 +148,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef): ActorRef = {
 
-    // Mock/stub out the bits that would reach out to JES.
-    val run = mock[Run]
-    val handle = new JesPendingExecutionHandle(jobDescriptor, StandardAsyncJob(run.runId), Option(run), None)
+    val job = StandardAsyncJob(UUID.randomUUID().toString)
+    val run = Run(job, null)
+    val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
     class ExecuteOrRecoverActor extends TestableJesJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
@@ -220,7 +220,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "not restart 2 of 1 unexpected shutdowns without another preemptible VM" in {
     val actorRef = buildPreemptibleTestActorRef(2, 1)
     val jesBackend = actorRef.underlyingActor
-    val handle = mock[JesPendingExecutionHandle]
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
@@ -232,7 +233,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "restart 1 of 1 unexpected shutdowns without another preemptible VM" in {
     val actorRef = buildPreemptibleTestActorRef(1, 1)
     val jesBackend = actorRef.underlyingActor
-    val handle = mock[JesPendingExecutionHandle]
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
@@ -247,7 +249,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "restart 1 of 2 unexpected shutdowns with another preemptible VM" in {
     val actorRef = buildPreemptibleTestActorRef(1, 2)
     val jesBackend = actorRef.underlyingActor
-    val handle = mock[JesPendingExecutionHandle]
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
@@ -262,7 +265,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   it should "handle Failure Status for various errors" in {
     val actorRef = buildPreemptibleTestActorRef(1, 1)
     val jesBackend = actorRef.underlyingActor
-    val handle = mock[JesPendingExecutionHandle]
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     def checkFailedResult(errorCode: Int, errorMessage: Option[String]): ExecutionHandle = {
       val failed =

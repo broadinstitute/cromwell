@@ -51,8 +51,8 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
       case Success(jesData) => 
         val maybeDockerHubCredentials = jesData.jesConfiguration.dockerCredentials
         val googleCredentials = Option(jesData.gcsCredentials.credential)
-        Seq(maybeDockerHubCredentials, googleCredentials).flatten
-      case _ => Seq.empty[Any]
+        List(maybeDockerHubCredentials, googleCredentials).flatten
+      case _ => List.empty[Any]
     }
   }
 }

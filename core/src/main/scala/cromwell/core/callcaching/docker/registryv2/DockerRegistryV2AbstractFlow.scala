@@ -12,11 +12,9 @@ import cromwell.core.callcaching.docker.DockerHashActor._
 import cromwell.core.callcaching.docker.registryv2.DockerRegistryV2AbstractFlow._
 import cromwell.core.callcaching.docker.registryv2.flows.{FlowUtils, HttpFlowWithRetry}
 import cromwell.core.callcaching.docker.{DockerFlow, DockerHashResult, DockerImageIdentifierWithoutHash}
-import spray.json.{JsObject, JsString, _}
+import spray.json._
 
-import scala.collection.immutable.{Seq => ImmutableSeq}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 object DockerRegistryV2AbstractFlow {
@@ -38,11 +36,6 @@ object DockerRegistryV2AbstractFlow {
   * https://docs.docker.com/registry/spec/api/
   */
 abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContext, materializer: ActorMaterializer) extends DockerFlow {
-  
-  // Http requests take headers as a scala.collection.immutable.Seq
-  // This implicitly converts type Seq collections to immutable
-  private implicit def toImmutableSeq[T](seq: Seq[T]): ImmutableSeq[T] = ImmutableSeq[T](seq: _*)
-
   // Wraps the Http flow in a retryable flow to enable auto retries
   final private val httpFlowWithRetry = new HttpFlowWithRetry[DockerHashContext](httpClientFlow, isRetryable = isRetryable).flow
 
@@ -98,7 +91,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   /**
     * Builds the list of headers for the token request
     */
-  protected def buildTokenRequestHeaders(dockerHashContext: DockerHashContext): Seq[HttpHeader]
+  protected def buildTokenRequestHeaders(dockerHashContext: DockerHashContext): List[HttpHeader]
   
   /* Methods that may be overridden by a subclass */
 

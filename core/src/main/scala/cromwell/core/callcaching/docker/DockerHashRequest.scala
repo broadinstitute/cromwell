@@ -1,3 +1,3 @@
 package cromwell.core.callcaching.docker
 
-case class DockerHashRequest(dockerImageID: DockerImageIdentifierWithoutHash, credentials: Seq[Any] = Seq.empty)
+case class DockerHashRequest(dockerImageID: DockerImageIdentifierWithoutHash, credentials: List[Any] = List.empty)

@@ -39,7 +39,15 @@
 * In some cases the SFS backend, used for Local, SGE, etc., coerced `WdlFile` to `WdlString` by using `.toUri`. This
 resulted in strings prepended with `file:///path/to/file`. Now absolute file paths will not contain the uri scheme.
 * Launch jobs on servers that support the GA4GH Task Execution Schema using the TES backend.
-* Added docker hash lookup. Docker images without an explicit digest value will disqualify the task for call caching. See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details
+* **Call caching: Cromwell will no longer try to use the cache for WDL tasks that contain a floating docker tag.** 
+  Call caching will still behave the same for tasks having a docker image with a specific hash.
+  See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details. 
+* Added docker hash lookup. Cromwell will try to lookup the hash for a docker image with a floating tag, and use that hash when executing the job.
+  This will be reflected in the metadata where the docker runtime attribute will contains the hash that was used.
+  If Cromwell is unable to lookup the hash hash, the job will be run with the original user defined floating tag.
+  Cromwell is currently able to lookup public and private docker hashes for images on Docker Hub and Google Container Engine for job running on the JES backend.
+  For other backends, cromwell is able to lookup public docker hashes for Docker Hub and Google Container Engine.
+  See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details. 
 
 ### Database schema changes
 * Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.

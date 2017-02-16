@@ -25,7 +25,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   def buildJobPreparationMock(
                                backpressureTimeout: FiniteDuration,
                                noResponseTimeout: FiniteDuration,
-                               dockerHashCredentials: Seq[Any],
+                               dockerHashCredentials: List[Any],
                                dockerHashingActor: ActorRef,
                                inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.LocallyQualifiedName, WdlValue])]
                              ) = {

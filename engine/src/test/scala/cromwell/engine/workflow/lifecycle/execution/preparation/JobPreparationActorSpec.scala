@@ -69,7 +69,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     val inputsAndAttributes = Success((inputs, attributes))
     val finalValue = "library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val dockerHashingActor = TestProbe()
-    val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, Seq.empty, dockerHashingActor.ref, inputsAndAttributes), self)
+    val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, List.empty, dockerHashingActor.ref, inputsAndAttributes), self)
     actor ! Start
     dockerHashingActor.expectMsgClass(classOf[DockerHashRequest])
     dockerHashingActor.reply(DockerHashResponseSuccess(hashResult))
@@ -93,7 +93,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     )
     val inputsAndAttributes = Success((inputs, attributes))
     val dockerHashingActor = TestProbe()
-    val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, Seq.empty, dockerHashingActor.ref, inputsAndAttributes), self)
+    val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, List.empty, dockerHashingActor.ref, inputsAndAttributes), self)
     actor ! Start
     dockerHashingActor.expectMsgClass(classOf[DockerHashRequest])
     dockerHashingActor.reply(DockerHashFailedResponse(new Exception("Failed to get docker hash - part of test flow"), dockerId))

@@ -21,6 +21,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecu
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
 import cromwell.services.SingletonServicesStore
+import cromwell.services.metadata.{CallMetadataKeys, MetadataKey}
 import wdl4s.TaskOutput
 
 import scala.concurrent.ExecutionContext
@@ -55,7 +56,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private[execution] var executionToken: Option[JobExecutionToken] = None
 
-  private val effectiveCallCachingKey = "Effective call caching mode"
+  private val effectiveCallCachingKey = CacheMetadataKeyPrefix + "effectiveCallCachingMode"
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -122,10 +123,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       respondAndStop(JobFailedNonRetryableResponse(jobKey, throwable, None))
   }
 
-  private val callCachingReadResultMetadataKey = "Call caching read result"
+  private val callCachingReadResultMetadataKey = CacheMetadataKeyPrefix + "result"
+  private val callCachingHitResultMetadataKey = CacheMetadataKeyPrefix + "hit"
   when(CheckingCallCache) {
     case Event(CacheMiss, data: ResponsePendingData) =>
-      writeToMetadata(Map(callCachingReadResultMetadataKey -> "Cache Miss"))
+      writeToMetadata(Map(
+        callCachingHitResultMetadataKey -> false,
+        callCachingReadResultMetadataKey -> "Cache Miss"))
       log.debug("Cache miss for job {}", jobTag)
       runJob(data)
     case Event(hit: CacheHit, data: ResponsePendingData) =>
@@ -138,7 +142,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   when(FetchingCachedOutputsFromDatabase) {
     case Event(CachedOutputLookupSucceeded(wdlValueSimpletons, jobDetritus, returnCode, cacheResultId, cacheHitDetails), data: ResponsePendingData) =>
-      writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
+      writeToMetadata(Map(
+        callCachingHitResultMetadataKey -> true,
+        callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
       log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
       makeBackendCopyCacheHit(wdlValueSimpletons, jobDetritus, returnCode, data)
     case Event(CachedOutputLookupFailed(callCachingEntryId, error), data: ResponsePendingData) =>
@@ -434,7 +440,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobStoreActor ! RegisterJobCompleted(jobStoreKey, jobStoreResult)
   }
 
-  private def writeToMetadata(keyValues: Map[String, String]) = {
+  private def writeToMetadata(keyValues: Map[String, Any]) = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(workflowIdForLogging, Option(jobDescriptorKey), keyValues)
   }
@@ -463,6 +469,8 @@ object EngineJobExecutionActor {
   /** Commands */
   sealed trait EngineJobExecutionActorCommand
   case object Execute extends EngineJobExecutionActorCommand
+
+  val CacheMetadataKeyPrefix = CallMetadataKeys.CallCaching + MetadataKey.KeySeparator
 
   def props(replyTo: ActorRef,
             jobDescriptorKey: BackendJobDescriptorKey,

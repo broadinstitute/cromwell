@@ -66,7 +66,9 @@ case class EngineJobHashingActor(receiver: ActorRef,
 
     import cromwell.core.simpleton.WdlValueSimpleton._
 
-    val inputSimpletons = jobDescriptor.fullyQualifiedInputs.simplify
+    val unqualifiedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.unqualifiedName -> value }
+
+    val inputSimpletons = unqualifiedInputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
       case WdlValueSimpleton(_, f: WdlFile) => true
       case _ => false

@@ -8,7 +8,7 @@ files {
 metadata {
   workflowName: cacheBetweenWF
   status: Succeeded
-  "calls.cacheBetweenWF.getAverage.Call caching read result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.getAverage:-1"
-  "calls.cacheBetweenWF.heightProduct.Call caching read result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.heightProduct:-1"
+  "calls.cacheBetweenWF.getAverage.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.getAverage:-1"
+  "calls.cacheBetweenWF.heightProduct.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.heightProduct:-1"
   "outputs.cacheBetweenWF.heightProduct.trapezoidalArea": 406.0
 }

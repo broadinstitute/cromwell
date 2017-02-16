@@ -126,7 +126,7 @@ object Operations {
   def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = {
     new Test[Unit] {
       override def run: Try[Unit] = {
-        val cacheHits = metadata.value.keySet filter { _.contains("Call caching read result") }
+        val cacheHits = metadata.value.keySet filter { _.contains("callCaching.result") }
 
         if (cacheHits.isEmpty) Success(())
         else Failure(new Exception(s"Found unexpected cache hits for $workflowName: \n"))

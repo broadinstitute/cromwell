@@ -13,7 +13,7 @@ import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
-class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
+class  JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map(

@@ -18,6 +18,7 @@ object WdlFileMapper {
         val mappedMap = map.value map {
           case (key, value) => mapWdlFiles(mapper)(key) -> mapWdlFiles(mapper)(value)
         }
+
         TryUtil.sequenceKeyValues(mappedMap) map {
           WdlMap(map.wdlType, _)
         }

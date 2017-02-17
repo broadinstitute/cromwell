@@ -65,7 +65,7 @@ trait CallCachingHashEntryComponent {
   }
 
   /**
-    * Returns the callCachingEntryIds where all the hash keys and hash values exist.
+    * Returns the callCachingEntryIds where all the hash keys and hash values exist, and are allowed to be reused.
     *
     * @param hashKeyHashValues The hash keys and hash values as tuples.
     * @return The callCachingEntryIds with all of the hash keys and hash values.
@@ -74,7 +74,7 @@ trait CallCachingHashEntryComponent {
     for {
       callCachingEntry <- callCachingEntries
       if existsAllCallCachingEntryIdHashKeyHashValues(
-        callCachingEntry.callCachingEntryId, hashKeyHashValues)
+        callCachingEntry.callCachingEntryId, hashKeyHashValues) && callCachingEntry.allowResultReuse
     } yield callCachingEntry.callCachingEntryId
   }
 }

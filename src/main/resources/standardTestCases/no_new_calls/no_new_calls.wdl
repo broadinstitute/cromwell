@@ -14,7 +14,6 @@ task shouldNotStart {
   String str
     command {
      echo ${str}
-     sleep 2
     }
     runtime {
        docker: "ubuntu:latest"
@@ -26,7 +25,6 @@ task shouldSucceed {
     command {
      sleep 100
      echo ${str}
-     sleep 2
     }
     runtime {
        docker: "ubuntu:latest"
@@ -40,7 +38,6 @@ task delayedTask {
   String str_2
     command {
      echo ${str_2}
-     sleep 2
     }
     runtime {
        docker: "ubuntu:latest"

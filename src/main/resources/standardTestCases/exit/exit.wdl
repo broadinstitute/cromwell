@@ -1,7 +1,6 @@
 task exitTask {
   command {
     exit 5
-    sleep 2
   }
   runtime {
     docker: "ubuntu:latest"

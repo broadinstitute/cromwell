@@ -6,7 +6,6 @@ task globber {
       mkdir out-$i
       echo "globbing is my number $i best hobby" > out-$i/$i.txt
     done
-    sleep 2
   >>>
   output {
     Array[File] out = glob("out-*/*.txt")
@@ -18,7 +17,6 @@ task combiner {
   Array[File] in_file
   command <<<
     cat ${sep=' ' in_file}
-    sleep 2
   >>>
   output {
     String result = read_string(stdout())
@@ -30,7 +28,6 @@ task catter {
   File in_file
   command <<<
     cat ${in_file}
-    sleep 2
   >>>
   output {
     File result = stdout()

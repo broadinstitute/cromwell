@@ -1,7 +1,6 @@
 task print {
   command {
     echo "She sells sea shells by the sea shore only on $(date)"
-    sleep 2
   }
   output {
     File tongueTwister = stdout()
@@ -14,7 +13,6 @@ task grep {
   File input_file
   command {
     grep '${match}' ${input_file} | wc -l
-    sleep 2
   }
   output {
     Int count = read_int(stdout())
@@ -28,7 +26,6 @@ task grepAgain {
   File input_file
   command {
     grep '${match}' ${input_file} | wc -l
-    sleep 2
   }
   output {
     Int count = read_int(stdout())

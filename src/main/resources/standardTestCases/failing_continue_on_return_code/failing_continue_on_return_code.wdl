@@ -15,7 +15,6 @@ task B {
   Int B_in
   command {
     echo ${B_in}
-    sleep 2
   }
   runtime {
     docker: "ubuntu:latest"

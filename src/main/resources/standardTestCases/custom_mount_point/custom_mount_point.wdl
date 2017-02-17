@@ -9,7 +9,6 @@ task t {
   command {
     cd /some/mnt
     echo "foobar" > some_file
-    sleep 2
   }
 
   output {

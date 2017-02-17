@@ -1,7 +1,6 @@
 task make_a_file {
   command {
     echo "content" > myfilename.bam
-    sleep 2
   }
   output {
     File a_file = "myfilename.bam"
@@ -19,7 +18,6 @@ task sub {
     command {
       echo ${sub(myBamString, ".bam$", ".txt")}
       echo "content" > ${swappedFile}
-      sleep 2
     }
 
     runtime {

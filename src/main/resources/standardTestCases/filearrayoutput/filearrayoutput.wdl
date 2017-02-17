@@ -3,7 +3,6 @@ task createFileArray {
     mkdir out
     echo "hullo" > out/hello.txt
     echo "buh-bye" > out/ciao.txt
-    sleep 2
   >>>
   output {
     Array[File] out = [ "out/hello.txt", "out/ciao.txt" ]
@@ -15,7 +14,6 @@ task combiner {
   Array[File] in_file
   command <<<
     cat ${sep=' ' in_file}
-    sleep 2
   >>>
   output {
     String result = read_string(stdout())

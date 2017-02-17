@@ -2,8 +2,6 @@ task increment {
   Int i
   command {
     echo $(( ${i} + 1 ))
-
-    sleep 2
   }
   output {
     Int j = read_int(stdout())

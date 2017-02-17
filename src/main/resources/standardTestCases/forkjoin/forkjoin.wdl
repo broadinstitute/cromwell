@@ -9,7 +9,6 @@ task mkFile {
     do
       echo $i
     done
-    sleep 2
   }
   output {
     File numbers = stdout()
@@ -22,7 +21,6 @@ task grep {
   File in_file
   command {
     grep '${pattern}' ${in_file} | wc -l
-    sleep 2
   }
   output {
     Int count = read_int(stdout())
@@ -34,7 +32,6 @@ task wc {
   File in_file
   command {
     cat ${in_file} | wc -l
-    sleep 2
   }
   output {
     Int count = read_int(stdout())
@@ -47,7 +44,6 @@ task join {
   Int wcCount
   command {
     expr ${wcCount} / ${grepCount}
-    sleep 2
   }
   output {
     Int proportion = read_int(stdout())

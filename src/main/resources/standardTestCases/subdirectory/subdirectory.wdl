@@ -3,7 +3,6 @@ task subdirTask {
     mkdir subdir
     cd subdir
     echo "I'm in a subdirectory !" > subFile
-    sleep 2
   }
   runtime {
     docker: "ubuntu:latest"

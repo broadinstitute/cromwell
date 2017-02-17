@@ -8,7 +8,6 @@
 task mkFile {
   command { 
     echo "small file contents" > out.txt
-    sleep 2
   }
   output { File out = "out.txt" }
   runtime { docker: "ubuntu:latest" }
@@ -20,7 +19,6 @@ task consumeFile {
 
   command {
     cat ${in_file} > ${out_name}
-    sleep 2
   }
   runtime {
     docker: "ubuntu:latest"

@@ -10,8 +10,6 @@ task writeFiles {
 
     cd ${dir}
     echo "buh-bye" > ciao.txt
-
-    sleep 2
   >>>
   output {
     Array[File] strInterpolation =  glob("${dir}/*.txt")
@@ -27,8 +25,6 @@ task unexpectedReturnCode {
 
   command {
     echo "easiest glob job ever!" > tiny.txt
-
-    sleep 2
     exit 3
   }
 
@@ -58,8 +54,6 @@ task writeLinks {
     ln sym_link_2.txt hard_link_to_sym.txt
 
     echo "updated file" > orig_file.txt
-
-    sleep 2
   >>>
   output {
     Array[File] origFileContents =  glob("${dir}/orig_file*.txt")

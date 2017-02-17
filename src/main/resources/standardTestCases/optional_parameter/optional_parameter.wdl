@@ -10,7 +10,6 @@ task select_first_with_optionals {
 		echo "${wfSuppliedWithDefault}"
 		echo "${suppliedWithDefault}"
 		echo "${unsuppliedWithDefault}"
-		sleep 2
 	}
     runtime {
 	  docker: "ubuntu:latest"
@@ -33,7 +32,6 @@ task interpolation_additions {
 		echo ${"wfSupplied: " + wfSupplied}
 		echo ${"unsupplied: " + unsupplied}
 		echo ${"unsuppliedInt: " + unsuppliedInt}
-		sleep 2
 	}
 	runtime {
         docker: "ubuntu:latest"
@@ -52,7 +50,6 @@ task default_interpolations {
 		echo ${default="HAPPY_BIRTHDAY_RUCHI" supplied}
 		echo ${default="HAPPY_BIRTHDAY_RUCHI" wfSupplied}
 		echo ${default="HAPPY_BIRTHDAY_RUCHI" unsupplied}
-		sleep 2
 	}
 	runtime {
         docker: "ubuntu:latest"

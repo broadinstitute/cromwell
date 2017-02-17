@@ -5,7 +5,6 @@ task golden_pie {
   command {
     echo 1.6180339887
     echo ${tau} 1>&2
-    sleep 2
   }
 
   output {

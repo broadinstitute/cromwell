@@ -1,7 +1,6 @@
 task makeGcsFileInJes {
   command {
     echo "I am writing stuff" > out
-    sleep 2
   }
 
   runtime {
@@ -18,7 +17,6 @@ task readGcsFileFromLocal {
 
   command {
     cat ${gcsFile}
-    sleep 2
   }
 
   runtime {

@@ -2,8 +2,6 @@ task double {
   Int x
   command {
     echo $(( ${x} * 2 ))
-
-    sleep 2
   }
   output {
     Int doubled = read_int(stdout())

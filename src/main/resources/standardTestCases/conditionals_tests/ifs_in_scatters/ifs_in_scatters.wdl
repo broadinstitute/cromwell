@@ -2,8 +2,6 @@ task validate_int {
   Int i
   command {
     echo $(( ${i} % 2 ))
-
-    sleep 2
   }
   output {
     Boolean validation = read_int(stdout()) == 1
@@ -17,8 +15,6 @@ task mirror {
   Int i
   command {
     echo ${i}
-
-    sleep 2
   }
   output {
     Int out = read_int(stdout())

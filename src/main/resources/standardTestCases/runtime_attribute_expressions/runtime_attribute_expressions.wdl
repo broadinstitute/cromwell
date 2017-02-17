@@ -4,7 +4,6 @@ task expression {
 
   command {
     echo "Hello world!"
-    sleep 2
   }
 
   output {

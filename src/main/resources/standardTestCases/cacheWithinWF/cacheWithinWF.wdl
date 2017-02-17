@@ -2,7 +2,6 @@ task one {
   Int radius
     command {
         echo ${radius*radius}
-        sleep 2
     }
     output {
         Int rSquared = read_int(stdout())
@@ -19,7 +18,6 @@ task two{
 
    command {
    		echo ${r2*pi}
-   		sleep 2
    }
    output {
 		Float area = read_float(stdout())

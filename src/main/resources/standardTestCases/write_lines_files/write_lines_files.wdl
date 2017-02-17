@@ -2,7 +2,7 @@ task make_file {
   Int index
 
   command {
-    echo contents_${index} > out && sleep 2
+    echo contents_${index} > out
   }
 
   output {
@@ -19,7 +19,6 @@ task switcho_reverso {
     do
       cat $f
     done
-    sleep 2
   }
 
   output {

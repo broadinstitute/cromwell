@@ -2,7 +2,6 @@ task createfile {
     command {
         echo "blah" > somefile.unique.txt
         echo "blah" > someotherfile.unique.txt
-        sleep 2
     }
     runtime {
         docker: "ubuntu:latest"
@@ -19,7 +18,6 @@ task globtask {
     command {
         echo "blah" > outputfile1.unique.txt
         echo "blah" > outputfile2.unique.txt
-        sleep 2
     }
     runtime {
         docker: "ubuntu:latest"
@@ -33,7 +31,6 @@ task length {
     Array[File] array
     command {
         echo "${sep=' ' array}" | wc -w
-        sleep 2
     }
     runtime {
             docker: "ubuntu:latest"

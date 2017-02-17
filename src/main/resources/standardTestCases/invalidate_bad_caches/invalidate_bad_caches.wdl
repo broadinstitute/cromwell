@@ -1,6 +1,6 @@
 task make_file {
     command {
-        echo woohoo > out.txt && sleep 2
+        echo woohoo > out.txt
     }
     runtime {
         docker: "ubuntu:latest"
@@ -13,7 +13,7 @@ task make_file {
 task delete_file_in_gcs {
     String file_path
     command {
-        gsutil rm ${file_path} && sleep 2
+        gsutil rm ${file_path}
     }
     runtime {
         docker: "google/cloud-sdk"
@@ -28,7 +28,7 @@ task delete_file_local {
     String file_path = sub(file_path_raw, "file://", "")
 
     command {
-        rm ${file_path} && sleep 2
+        rm ${file_path}
     }
     output {
         Boolean done = true

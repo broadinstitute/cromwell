@@ -4,7 +4,6 @@ task scoping_task {
 
     command {
         echo "${number1} and ${number2}"
-        sleep 2
     }
 
     output { String out = read_string(stdout()) }

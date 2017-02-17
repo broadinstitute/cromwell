@@ -1,7 +1,6 @@
 task singleFile {
   command {
     echo hello
-    sleep 2
   }
   output {
     File out = stdout()
@@ -13,7 +12,6 @@ task listFiles {
   Array[File] manyIn
   command {
     cat ${sep=" " manyIn}
-    sleep 2
   }
   output {
     String result = read_string(stdout())

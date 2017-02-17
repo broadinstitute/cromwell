@@ -119,10 +119,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(BackendJobPreparationSucceeded(jobDescriptor, bjeaProps), NoData) =>
       val updatedData = ResponsePendingData(jobDescriptor, bjeaProps)
       effectiveCallCachingMode match {
-        case activity: CallCachingActivity if activity.readFromCache => handleCacheReadOn(jobDescriptor, activity, updatedData)
-        case activity: CallCachingActivity =>
-          initializeJobHashing(jobDescriptor, activity)
-          runJob(updatedData)
+        case activity: CallCachingActivity if activity.readFromCache => handleReadFromCacheOn(jobDescriptor, activity, updatedData)
+        case activity: CallCachingActivity => handleReadFromCacheOff(jobDescriptor, activity, updatedData)
         case CallCachingOff => runJob(updatedData)
       }
     case Event(CallPreparationFailed(jobKey: BackendJobDescriptorKey, throwable), NoData) =>
@@ -268,19 +266,28 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay
   }
   
-  private def handleCacheReadOn(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
+  private def handleReadFromCacheOn(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
     jobDescriptor.callCachingEligibility match {
+        // If the job is eligible, initialize job hashing and go to CheckingCallCache state
       case CallCachingEligible =>
         initializeJobHashing(jobDescriptor, activity)
         goto(CheckingCallCache) using updatedData
       case ineligible: CallCachingIneligible =>
+        // If the job is ineligible, don't initialize job hashing and run the job
         writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: ${ineligible.message}"))
-        activity.withoutRead match {
-          case activityWithoutRead: CallCachingActivity => initializeJobHashing(jobDescriptor, activityWithoutRead)
-          case CallCachingOff => 
-        }
         runJob(updatedData)
     }
+  }
+
+  private def handleReadFromCacheOff(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
+    jobDescriptor.callCachingEligibility match {
+        // If the job is eligible, initialize job hashing so it can be written to the cache
+      case CallCachingEligible => initializeJobHashing(jobDescriptor, activity)
+      // Don't even initialize hashing to write to the cache if the job is ineligible
+      case ineligible: CallCachingIneligible =>
+    }
+    // If read from cache is off, always run the job
+    runJob(updatedData)
   }
 
   private def requestExecutionToken(): Unit = {

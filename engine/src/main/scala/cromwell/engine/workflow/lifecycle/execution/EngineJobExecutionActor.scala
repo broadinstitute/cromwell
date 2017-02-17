@@ -275,6 +275,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case ineligible: CallCachingIneligible =>
         // If the job is ineligible, don't initialize job hashing and run the job
         writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: ${ineligible.message}"))
+        effectiveCallCachingMode = CallCachingOff
         runJob(updatedData)
     }
   }
@@ -284,7 +285,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         // If the job is eligible, initialize job hashing so it can be written to the cache
       case CallCachingEligible => initializeJobHashing(jobDescriptor, activity)
       // Don't even initialize hashing to write to the cache if the job is ineligible
-      case ineligible: CallCachingIneligible =>
+      case ineligible: CallCachingIneligible => effectiveCallCachingMode = CallCachingOff
     }
     // If read from cache is off, always run the job
     runJob(updatedData)

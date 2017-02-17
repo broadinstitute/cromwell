@@ -9,6 +9,6 @@ files {
 metadata {
   workflowName: writeToCache
   status: Succeeded
-  "calls.writeToCache.grepAgain.Call caching read result": "Cache Miss"
-  "calls.writeToCache.grep.Call caching read result": "Cache Miss"
+  "calls.writeToCache.grepAgain.callCaching.result": "Cache Miss"
+  "calls.writeToCache.grep.callCaching.result": "Cache Miss"
 }

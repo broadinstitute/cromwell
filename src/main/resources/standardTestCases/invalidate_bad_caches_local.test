@@ -9,7 +9,7 @@ files {
 }
 
 metadata {
-    "calls.invalidate_bad_caches.make_file.Call caching read result": "Cache Miss"
-    "calls.invalidate_bad_caches.delete_file_local.Call caching read result": "Cache Miss"
-    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.Call caching read result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_file:-1"
+    "calls.invalidate_bad_caches.make_file.callCaching.result": "Cache Miss"
+    "calls.invalidate_bad_caches.delete_file_local.callCaching.result": "Cache Miss"
+    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.callCaching.result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_file:-1"
 }

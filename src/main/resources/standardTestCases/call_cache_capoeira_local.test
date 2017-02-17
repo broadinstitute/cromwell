@@ -1,0 +1,36 @@
+name: call_cache_capoeira_local
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files {
+  wdl: call_cache_capoeira/call_cache_capoeira_local.wdl
+}
+
+metadata {
+  workflowName: call_cache_capoeira
+  status: Succeeded
+  "calls.call_cache_capoeira.make_files.callCaching.hit": false
+  "calls.call_cache_capoeira.make_files_cached.callCaching.result": "Cache Hit: <<UUID>>:call_cache_capoeira.make_files:-1"
+
+  "calls.call_cache_capoeira.read_files.callCaching.hit": false
+  "calls.call_cache_capoeira.modify_file_sfs.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_after_modify.callCaching.hit": false
+  "calls.call_cache_capoeira.read_copied_files.callCaching.result": "Cache Hit: <<UUID>>:call_cache_capoeira.read_files:-1"
+  "calls.call_cache_capoeira.read_files_swapped.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_new_command.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_new_output_expressions.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_new_output_names.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_non_file_input_switcheroo.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_inputs_renamed.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_different_docker.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_without_docker.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_different_continueOnReturnCode.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_different_continueOnReturnCode_2.callCaching.hit": false
+  "calls.call_cache_capoeira.read_files_different_failOnStderr.callCaching.hit": false
+
+  "calls.call_cache_capoeira.read_files_whitespace.callCaching.hit": true
+  "calls.call_cache_capoeira.read_files_without_continueOnReturnCode.callCaching.hit": true
+  "calls.call_cache_capoeira.read_files_without_failOnStderr.callCaching.hit": true
+  "calls.call_cache_capoeira.read_files_failOnStderr_expression.callCaching.hit": true
+}

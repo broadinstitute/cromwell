@@ -8,9 +8,9 @@ files {
 metadata {
   workflowName: cacheWithinWF
   status: Succeeded
-  "calls.cacheWithinWF.one.Call caching read result": "Cache Miss"
-  "calls.cacheWithinWF.two.Call caching read result": "Cache Miss"
-  "calls.cacheWithinWF.twoAgain.Call caching read result": "Cache Hit: <<UUID>>:cacheWithinWF.two:-1"
+  "calls.cacheWithinWF.one.callCaching.result": "Cache Miss"
+  "calls.cacheWithinWF.two.callCaching.result": "Cache Miss"
+  "calls.cacheWithinWF.twoAgain.callCaching.result": "Cache Hit: <<UUID>>:cacheWithinWF.two:-1"
   "calls.cacheWithinWF.twoAgain.inputs.pi": 3.14159
   "calls.cacheWithinWF.twoAgain.inputs.r2": 3844
   "calls.cacheWithinWF.twoAgain.outputs.area": 12076.27196

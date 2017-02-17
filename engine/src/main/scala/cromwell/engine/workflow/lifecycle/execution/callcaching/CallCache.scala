@@ -26,6 +26,7 @@ class CallCache(database: CallCachingSqlDatabase) {
       workflowExecutionUuid = workflowId.toString,
       callFullyQualifiedName = response.jobKey.call.fullyQualifiedName,
       jobIndex = response.jobKey.index.fromIndex,
+      jobAttempt = response.jobKey.attempt,
       returnCode = response.returnCode,
       allowResultReuse = true)
     val hashes = callCacheHashes.hashes

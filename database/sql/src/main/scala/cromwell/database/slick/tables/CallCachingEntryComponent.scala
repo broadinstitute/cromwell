@@ -17,11 +17,13 @@ trait CallCachingEntryComponent {
 
     def jobIndex = column[Int]("JOB_INDEX")
 
+    def jobAttempt = column[Int]("JOB_ATTEMPT")
+
     def returnCode = column[Option[Int]]("RETURN_CODE")
 
     def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", O.Default(true))
-
-    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, returnCode, allowResultReuse,
+    
+    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, returnCode, allowResultReuse,
       callCachingEntryId.?) <> (CallCachingEntry.tupled, CallCachingEntry.unapply)
 
     def ucCallCachingEntryWeuCfqnJi =

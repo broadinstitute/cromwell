@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.database.sql.tables.CallCachingEntry
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -13,8 +14,8 @@ class CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId
   def receiver = context.parent
 
   callCache.invalidate(cacheId) onComplete {
-    case Success(_) =>
-      receiver ! CallCacheInvalidatedSuccess
+    case Success(maybeEntry) =>
+      receiver ! CallCacheInvalidatedSuccess(maybeEntry)
       context.stop(self)
     case Failure(t) =>
       receiver ! CallCacheInvalidatedFailure(t)
@@ -33,6 +34,6 @@ object CallCacheInvalidateActor {
 }
 
 sealed trait CallCacheInvalidatedResponse
-case object CallCacheInvalidatedSuccess extends CallCacheInvalidatedResponse
+case class CallCacheInvalidatedSuccess(maybeEntry: Option[CallCachingEntry]) extends CallCacheInvalidatedResponse
 case object CallCacheInvalidationUnnecessary extends CallCacheInvalidatedResponse
 case class CallCacheInvalidatedFailure(t: Throwable) extends CallCacheInvalidatedResponse

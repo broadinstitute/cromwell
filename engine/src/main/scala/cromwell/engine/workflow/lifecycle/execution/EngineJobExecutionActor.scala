@@ -12,6 +12,7 @@ import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{BackendJobPreparationSucceeded, CallPreparationFailed}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes, HashError}
@@ -125,6 +126,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private val callCachingReadResultMetadataKey = CacheMetadataKeyPrefix + "result"
   private val callCachingHitResultMetadataKey = CacheMetadataKeyPrefix + "hit"
+  private val callCachingAllowReuseMetadataKey = CacheMetadataKeyPrefix + "allowResultReuse"
+  
   when(CheckingCallCache) {
     case Event(CacheMiss, data: ResponsePendingData) =>
       writeToMetadata(Map(
@@ -300,6 +303,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   def writeCallCachingModeToMetadata(): Unit = {
     writeToMetadata(Map(effectiveCallCachingKey -> effectiveCallCachingMode.toString))
+    writeToMetadata(Map(callCachingReadResultMetadataKey -> effectiveCallCachingMode.writeToCache))
   }
 
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
@@ -360,8 +364,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def handleCacheInvalidatedResponse(response: CallCacheInvalidatedResponse, data: ResponsePendingData) = {
+    def updateMetadataForInvalidatedEntry(entry: CallCachingEntry) = {
+      import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+      import cromwell.core.ExecutionIndex._
+      
+      val workflowId = WorkflowId.fromString(entry.workflowExecutionUuid)
+      val key = Option((entry.callFullyQualifiedName, entry.jobIndex.toIndex, entry.jobAttempt))
+      serviceRegistryActor.putMetadataWithRawKey(workflowId, key, Map(callCachingAllowReuseMetadataKey -> false))
+    }
+    
     response match {
       case CallCacheInvalidatedFailure(failure) => log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
+      case CallCacheInvalidatedSuccess(Some(entry)) => updateMetadataForInvalidatedEntry(entry)
       case _ =>
     }
 

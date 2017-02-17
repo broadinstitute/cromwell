@@ -17,7 +17,7 @@ trait CallCachingEntryComponent {
 
     def jobIndex = column[Int]("JOB_INDEX")
 
-    def jobAttempt = column[Int]("JOB_ATTEMPT")
+    def jobAttempt = column[Option[Int]]("JOB_ATTEMPT", O.Default(None))
 
     def returnCode = column[Option[Int]]("RETURN_CODE")
 

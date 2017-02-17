@@ -369,7 +369,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       import cromwell.core.ExecutionIndex._
       
       val workflowId = WorkflowId.fromString(entry.workflowExecutionUuid)
-      val key = Option((entry.callFullyQualifiedName, entry.jobIndex.toIndex, entry.jobAttempt))
+      // If the entry doesn't have an attempt, it means that this cache entry was added before this change
+      // and we don't know which attempt yielded this cache entry
+      // In that case make a best effort and update the first attempt
+      val key = Option((entry.callFullyQualifiedName, entry.jobIndex.toIndex, entry.jobAttempt.getOrElse(1)))
       serviceRegistryActor.putMetadataWithRawKey(workflowId, key, Map(callCachingAllowReuseMetadataKey -> false))
     }
     

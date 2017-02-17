@@ -2,23 +2,40 @@
 
 ## 25
 
+### Breaking Changes
+
+* Metadata keys for call caching are changed. All call caching keys are now in a `callCaching` stanze. `Call cache read result` has moved here and is now `result`. The `allowResultReuse` and `effectiveCallCachingMode` have moved here. The `hit` boolean is a simple indication of whether or not it was a hit, with no additional information. An example using the new format is:
+```
+"callCaching": {
+  "hit": false,
+  "effectiveCallCachingMode": "ReadAndWriteCache",
+  "result": "Cache Miss",
+  "allowResultReuse": true
+}
+```
+
+### Config Changes
+
 * Added a field `insert-batch-size` to the `database` stanza which defines how many values from a batch insert will be processed at a time. This value defaults to 2000. 
-* Cromwell's WDL parser now recognizes empty array literals correctly, e.g. `Array[String] emptyArray = []`.
 * Moved the config value `services.MetadataService.metadata-summary-refresh-interval` to `services.MetadataService.config.metadata-summary-refresh-interval`
-* Cromwell now applies default labels automatically to JES pipeline runs.
 * Added ability to override the default zone(s) used by JES via the config structure by setting `genomics.default-zones` in the JES configuration
+* The cromwell server TCP binding timeout is now configurable via the config key `webservice.binding-timeout`, defaulted
+  to the previous value `5s` (five seconds) via the reference.conf.
+* For MySQL users, a massive scalability improvement via batched DB writing of internal metadata events. Note that one must add `rewriteBatchedStatements=true` to their JDBC URL in their config in order to take advantage of this
+
+### General Changes
+
+* Cromwell's WDL parser now recognizes empty array literals correctly, e.g. `Array[String] emptyArray = []`.
+* Cromwell now applies default labels automatically to JES pipeline runs.
 * Added support for new WDL functions:
   * `length: (Array[X]) => Integer` - report the length of the specified array
   * `prefix: (String, Array[X]) => Array[String]` - generate an array consisting of each element of the input array prefixed
      by a specified `String`.  The input array can have elements of any primitive type, the return array will always have
      type `Array[String]`.
   * `defined: (Any) => Boolean` - Will return false if the provided value is an optional that is not defined. Returns true in all other cases.
-* The cromwell server TCP binding timeout is now configurable via the config key `webservice.binding-timeout`, defaulted
-  to the previous value `5s` (five seconds) via the reference.conf.
 * Cromwell's Config (Shared Filesystem) backend now supports invocation of commands which run in a Docker image as a non-root user.
   The non-root user could either be the default user for a given Docker image (e.g. specified in a Dockerfile via a `USER` directive),
   or the Config backend could pass an optional `"-u username"` as part of the `submit-docker` command.
-* For MySQL users, a massive scalability improvement via batched DB writing of internal metadata events. Note that one must add `rewriteBatchedStatements=true` to their JDBC URL in their config in order to take advantage of this
 * In some cases the SFS backend, used for Local, SGE, etc., coerced `WdlFile` to `WdlString` by using `.toUri`. This
 resulted in strings prepended with `file:///path/to/file`. Now absolute file paths will not contain the uri scheme.
 

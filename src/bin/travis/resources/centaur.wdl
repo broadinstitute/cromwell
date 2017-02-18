@@ -31,3 +31,4 @@ task centaur {
 workflow centaur_workflow {
     call centaur
 }
+

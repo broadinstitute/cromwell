@@ -1,5 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
+import java.io.FileNotFoundException
+
 import akka.event.LoggingAdapter
 import com.typesafe.config.Config
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
@@ -41,13 +43,14 @@ abstract class ConfigHashingStrategy {
     def usingStandardInitData(initData: StandardInitializationData) = {
       val pathBuilders = initData.workflowPaths.pathBuilders
       val file = PathFactory.buildPath(request.file.valueString, pathBuilders).followSymbolicLinks
-
-      if (checkSiblingMd5) {
-        precomputedMd5(file) match {
-          case Some(md5) => Try(md5.contentAsString)
-          case None => hash(file)
-        }
-      } else hash(file)
+      if (!file.exists) Failure(new FileNotFoundException(s"Cannot hash file $file because it can't be found")) else {
+        if (checkSiblingMd5) {
+          precomputedMd5(file) match {
+            case Some(md5) => Try(md5.contentAsString)
+            case None => hash(file)
+          }
+        } else hash(file)
+      }
     }
 
     request.initializationData match {

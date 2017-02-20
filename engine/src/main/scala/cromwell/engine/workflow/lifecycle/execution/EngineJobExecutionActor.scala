@@ -58,6 +58,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private[execution] var executionToken: Option[JobExecutionToken] = None
 
   private val effectiveCallCachingKey = CacheMetadataKeyPrefix + "effectiveCallCachingMode"
+  private val callCachingReadResultMetadataKey = CacheMetadataKeyPrefix + "result"
+  private val callCachingHitResultMetadataKey = CacheMetadataKeyPrefix + "hit"
+  private val callCachingAllowReuseMetadataKey = CacheMetadataKeyPrefix + "allowResultReuse"
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -124,10 +127,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       respondAndStop(JobFailedNonRetryableResponse(jobKey, throwable, None))
   }
 
-  private val callCachingReadResultMetadataKey = CacheMetadataKeyPrefix + "result"
-  private val callCachingHitResultMetadataKey = CacheMetadataKeyPrefix + "hit"
-  private val callCachingAllowReuseMetadataKey = CacheMetadataKeyPrefix + "allowResultReuse"
-  
   when(CheckingCallCache) {
     case Event(CacheMiss, data: ResponsePendingData) =>
       writeToMetadata(Map(
@@ -303,7 +302,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   def writeCallCachingModeToMetadata(): Unit = {
     writeToMetadata(Map(effectiveCallCachingKey -> effectiveCallCachingMode.toString))
-    writeToMetadata(Map(callCachingReadResultMetadataKey -> effectiveCallCachingMode.writeToCache))
+    writeToMetadata(Map(callCachingAllowReuseMetadataKey -> effectiveCallCachingMode.writeToCache))
   }
 
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)

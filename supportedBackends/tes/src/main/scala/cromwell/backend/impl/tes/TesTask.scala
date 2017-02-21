@@ -3,8 +3,7 @@ package cromwell.backend.impl.tes
 import cromwell.backend.standard.StandardExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
-import cromwell.core.path.Obsolete.Paths
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl4s.FullyQualifiedName
 import wdl4s.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
@@ -55,10 +54,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   val inputs: Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles)
     .flatMap {
-      case (name, files) => files.zipWithIndex.map {
+      case (fullyQualifiedName, files) => files.zipWithIndex.map {
         case (f, index) => TaskParameter(
-          Option(name + "." + index),
-          Option(workflowName + "." + name + "." + index),
+          Option(fullyQualifiedName + "." + index),
+          Option(workflowName + "." + fullyQualifiedName + "." + index),
           tesPaths.storageInput(f.value),
           tesPaths.containerInput(f.value),
           "File",
@@ -92,7 +91,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   // if output paths are absolute we will ignore them here and assume they are redirects
   private val outputWdlFiles: Seq[WdlFile] = jobDescriptor.call.task
     .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-    .filter(o => !Paths.get(o.valueString).isAbsolute)
+    .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
 
   private val wdlOutputs = outputWdlFiles
     .zipWithIndex

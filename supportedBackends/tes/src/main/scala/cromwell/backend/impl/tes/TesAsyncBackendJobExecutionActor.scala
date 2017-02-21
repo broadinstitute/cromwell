@@ -6,8 +6,7 @@ import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.core.path.Obsolete._
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import spray.client.pipelining._
 import spray.http.HttpRequest
@@ -71,7 +70,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   // Utility for converting a WdlValue so that the path is localized to the
   // container's filesystem.
   override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
-    val localPath = Paths.get(wdlFile.valueString).toAbsolutePath
+    val localPath = DefaultPathBuilder.get(wdlFile.valueString).toAbsolutePath
     localPath match {
       case p if p.startsWith(tesJobPaths.DockerRoot) =>
         val containerPath = p.pathAsString
@@ -87,7 +86,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val commandDirectory: Path = {
     runtimeAttributes.dockerWorkingDir match {
-      case Some(path) => Paths.get(path)
+      case Some(path) => DefaultPathBuilder.get(path)
       case None => tesJobPaths.callExecutionDockerRoot
     }
   }
@@ -110,7 +109,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     // create call exec dir
-    File(tesJobPaths.callExecutionRoot).createPermissionedDirectories()
+    tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessage = createTaskMessage()
 
     val submitTask = pipeline[TesPostResponse]
@@ -187,13 +186,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def hostAbsoluteFilePath(wdlFile: WdlFile): File = {
+  private def hostAbsoluteFilePath(wdlFile: WdlFile): Path = {
     tesJobPaths.callExecutionRoot.resolve(wdlFile.value)
   }
   
   private val outputWdlFiles: Seq[WdlFile] = jobDescriptor.call.task
     .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-    .filter(o => !Paths.get(o.valueString).isAbsolute)
+    .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
 
   override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
     wdlFile match {

@@ -3,8 +3,7 @@ package cromwell.backend.impl.tes
 import com.typesafe.config.Config
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.path.Obsolete._
-import cromwell.core.path.{Path, PathBuilder}
+import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 
 class TesJobPaths(val jobKey: BackendJobDescriptorKey,
                   workflowDescriptor: BackendWorkflowDescriptor,
@@ -33,7 +32,7 @@ class TesJobPaths(val jobKey: BackendJobDescriptorKey,
   }
 
   def containerInput(path: String): String = {
-    cleanContainerInputPath(callInputsDockerRoot, Paths.get(path))
+    cleanContainerInputPath(callInputsDockerRoot, DefaultPathBuilder.get(path))
   }
 
   // Given an output path, return a path localized to the container file system

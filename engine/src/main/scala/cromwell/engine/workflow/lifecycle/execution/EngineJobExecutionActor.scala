@@ -64,8 +64,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  log.debug(s"$tag: $effectiveCallCachingKey: $effectiveCallCachingMode")
-  writeCallCachingModeToMetadata()
+  override def preStart() = {
+    log.debug(s"$tag: $effectiveCallCachingKey: $effectiveCallCachingMode")
+    writeCallCachingModeToMetadata()
+  }
 
   startWith(Pending, NoData)
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))

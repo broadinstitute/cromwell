@@ -335,11 +335,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def validateNamespaceWithImports(w: WorkflowSourceFilesWithDependenciesZip): ErrorOr[WdlNamespaceWithWorkflow] = {
-    def getMetadatae(importsDir: Path, prefix: String = ""): Seq[(String, Path)] = {
-      importsDir.children.toSeq flatMap {
+    def getMetadatae(importsDir: Path, prefix: String = ""): List[(String, Path)] = {
+      importsDir.children.toList flatMap {
         case f: Path if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
-        case f: Path if f.name.endsWith(".wdl") => Seq((prefix + f.name, f))
-        case _ => Seq.empty
+        case f: Path if f.name.endsWith(".wdl") => List((prefix + f.name, f))
+        case _ => List.empty
       }
     }
 
@@ -352,19 +352,19 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
 
     def importsAsNamespace(importsDir: Path): ErrorOr[WdlNamespaceWithWorkflow] = {
-        writeMetadatae(importsDir)
-        val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
+      writeMetadatae(importsDir)
+      val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
       val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-          List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
-        } else {
-          List(WdlNamespace.directoryResolver(importsDirFile))
-        }
-        val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
-        importsDir.delete(swallowIOExceptions = true)
-        results match {
-          case Success(ns) => ns.validNel
-          case Failure(f) => f.getMessage.invalidNel
-        }
+        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
+      } else {
+        List(WdlNamespace.directoryResolver(importsDirFile))
+      }
+      val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
+      importsDir.delete(swallowIOExceptions = true)
+      results match {
+        case Success(ns) => ns.validNel
+        case Failure(f) => f.getMessage.invalidNel
+      }
     }
 
     validateImportsDirectory(w.importsZip) flatMap importsAsNamespace

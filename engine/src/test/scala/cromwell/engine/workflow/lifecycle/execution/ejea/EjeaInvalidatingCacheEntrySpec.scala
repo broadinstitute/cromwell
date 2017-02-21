@@ -14,7 +14,7 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec with Ca
   "An EJEA in InvalidatingCacheEntry state" should {
 
     val invalidationErrorCause = new Exception("blah")
-    val invalidateSuccess = CallCacheInvalidatedSuccess
+    val invalidateSuccess = CallCacheInvalidatedSuccess(None)
     val invalidateFailure = CallCacheInvalidatedFailure(invalidationErrorCause)
 
     val metaInfo31: CallCachingEntryId = CallCachingEntryId(31)

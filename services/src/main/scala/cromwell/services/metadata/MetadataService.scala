@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
-import cromwell.core.{JobKey, WorkflowId, WorkflowState}
+import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.ThrowableAggregation
 import wdl4s.values._
@@ -39,6 +39,16 @@ object MetadataService {
     implicit class MetadataAutoPutter(serviceRegistryActor: ActorRef) {
       def putMetadata(workflowId: WorkflowId, jobKey: Option[JobKey], keyValue: Map[String, Any]) = {
         val metadataJobKey = jobKey map { jk => MetadataJobKey(jk.scope.fullyQualifiedName, jk.index, jk.attempt) }
+
+        val events = keyValue map { case (key, value) =>
+          val metadataKey = MetadataKey(workflowId, metadataJobKey, key)
+          MetadataEvent(metadataKey, MetadataValue(value))
+        }
+        serviceRegistryActor ! PutMetadataAction(events)
+      }
+
+      def putMetadataWithRawKey(workflowId: WorkflowId, jobKey: Option[(FullyQualifiedName, Option[Int], Int)], keyValue: Map[String, Any]) = {
+        val metadataJobKey = jobKey map { case (fullyQualifiedName, index, attempt) => MetadataJobKey(fullyQualifiedName, index, attempt) }
 
         val events = keyValue map { case (key, value) =>
           val metadataKey = MetadataKey(workflowId, metadataJobKey, key)

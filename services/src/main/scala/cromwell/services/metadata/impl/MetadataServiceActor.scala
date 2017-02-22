@@ -2,7 +2,7 @@ package cromwell.services.metadata.impl
 
 import java.util.UUID
 
-import akka.actor.SupervisorStrategy.{Directive, Escalate, Resume}
+import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
 import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
@@ -30,7 +30,7 @@ object MetadataServiceActor {
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {
   
-  private val decider = {
+  private val decider: Decider = {
     case _: ActorInitializationException => Escalate
     case _ => Resume
   }

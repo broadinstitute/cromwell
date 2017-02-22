@@ -338,7 +338,3 @@ val taskAsts = AstTools.findAsts(ast, "Task") foreach {ast =>
 }
 ```
 
-# Developer Zone
-
-This section is intended for developers of wdl4s.
-

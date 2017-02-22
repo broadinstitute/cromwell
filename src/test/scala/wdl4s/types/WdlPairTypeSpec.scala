@@ -97,6 +97,6 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
     
-    noException should be thrownBy WdlNamespaceWithWorkflow.load(wdl)
+    noException should be thrownBy WdlNamespaceWithWorkflow.load(wdl, Seq.empty)
   }
 }

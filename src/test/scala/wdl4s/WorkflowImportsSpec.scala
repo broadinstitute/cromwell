@@ -3,11 +3,10 @@ package wdl4s
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
 
-
 class WorkflowImportsSpec extends FlatSpec with Matchers {
 
   def addAndGetFile(name: String, source: String): String = {
-    val tempFile = File.newTemporaryFile(s"${name}", ".wdl", Option(wdlDirectory)) write source
+    val tempFile = File.newTemporaryFile(s"$name", ".wdl", Option(wdlDirectory)) write source
     tempFile.name
   }
 
@@ -233,7 +232,10 @@ class WorkflowImportsSpec extends FlatSpec with Matchers {
 
   val wdlWithImports = imports + primaryWorkflow
 
-  val namespace = WdlNamespaceWithWorkflow.load(wdlWithImports, wdlDirectory).get
+  val namespace = {
+    val resolvers: Seq[ImportResolver] = Seq(WdlNamespace.directoryResolver(wdlDirectory), WdlNamespace.fileResolver)
+    WdlNamespaceWithWorkflow.load(wdlWithImports, resolvers).get
+  }
 
   "WDL file with imports" should "Have 1 task (remaining tasks are in separate namespaces)" in {
     namespace.tasks.size shouldEqual 1

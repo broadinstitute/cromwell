@@ -5,7 +5,7 @@ import wdl4s.AstTools.AstNodeName
 import wdl4s.parser.WdlParser.Ast
 
 class ScopeSpec extends FlatSpec with Matchers {
-  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource()).get
+  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.wdlSource(), Seq.empty).get
 
   it should "throw an exception if trying to re-assign children on a scope" in {
     the [UnsupportedOperationException] thrownBy { namespace.workflow.children = Seq.empty } should have message "children is write-once"

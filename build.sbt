@@ -25,7 +25,7 @@ versionWithGit ++ versionSettings
 
 val sprayJsonV = "1.3.2"
 
-val lenthallV = "0.20"
+val lenthallV = "0.21-e1b7822-SNAP"
 
 resolvers ++= List(
   "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/"
@@ -49,7 +49,8 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-lang3" % "3.4",
   "com.github.pathikrit" %% "better-files" % "2.16.0",
   //---------- Test libraries -------------------//
-  "org.scalatest" %% "scalatest" % "3.0.0" % Test
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+  "org.pegdown" % "pegdown" % "1.6.0" % Test
 )
 
 // The reason why -Xmax-classfile-name is set is because this will fail
@@ -60,4 +61,4 @@ libraryDependencies ++= Seq(
 // https://github.com/scala/pickling/issues/10
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
 
-testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI")
+testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")

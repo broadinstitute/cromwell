@@ -4,7 +4,7 @@ import wdl4s.SampleWdl.ScatterWdl
 import org.scalatest.{FlatSpec, Matchers}
 
 class PrerequisiteScopesSpec extends FlatSpec with Matchers {
-  val namespace = WdlNamespaceWithWorkflow.load((new ScatterWdl).wdlSource()).get
+  val namespace = WdlNamespaceWithWorkflow.load((new ScatterWdl).wdlSource(), Seq.empty).get
   val workflow = namespace.workflow
   val allCalls = workflow.calls
   val allScatters = workflow.scatters

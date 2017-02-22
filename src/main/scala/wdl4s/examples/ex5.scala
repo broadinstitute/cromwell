@@ -20,7 +20,7 @@ object ex5 {
       | call b {input: s=a.procs}
       |}""".stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl).get
+    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
     Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach {
       case Some(c: TaskCall) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.upstream}")

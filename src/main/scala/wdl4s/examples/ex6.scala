@@ -13,7 +13,7 @@ object ex6 {
       |  String c = "hello " + other_variable
       |}""".stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl).get
+    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
     def lookup(name: String): WdlValue = {
       name match {
         case "variable" => WdlString("world")
@@ -22,7 +22,7 @@ object ex6 {
     }
     ns.workflow.declarations foreach { decl =>
       val value = decl.expression.get.evaluate(lookup, NoFunctions)
-      println(s"Declaration '${decl.toWdlString}' evaluates to: ${value}")
+      println(s"Declaration '${decl.toWdlString}' evaluates to: $value")
     }
   }
 }

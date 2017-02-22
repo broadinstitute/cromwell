@@ -12,7 +12,7 @@ class SameNameParametersSpec extends FlatSpec with Matchers {
        |  command { ./script ${x} ${x} ${x} }
        |}
        |workflow wf { call test }
-     """.stripMargin
+     """.stripMargin, Seq.empty
   ).get
   val task = namespace1.findTask("test").get
 

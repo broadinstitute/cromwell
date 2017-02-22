@@ -10,7 +10,7 @@ import scala.util.{Failure, Success, Try}
 
 class TypeEvaluatorSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
-  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource()).get
+  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.wdlSource(), Seq.empty).get
 
   def noLookup(String: String): WdlType = fail("No identifiers should be looked up in this test")
 
@@ -24,7 +24,7 @@ class TypeEvaluatorSpec extends FlatSpec with Matchers {
   def identifierEval(exprStr: String): WdlPrimitiveType = expr(exprStr).evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType).asInstanceOf[Try[WdlPrimitiveType]].get
   def identifierEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluateType(identifierLookup, new WdlStandardLibraryFunctionsType).asInstanceOf[Try[WdlPrimitive]] match {
-      case Failure(ex) => // Expected
+      case Failure(_) => // Expected
       case Success(badValue) => fail(s"Operation was supposed to fail, instead I got value: $badValue")
     }
   }

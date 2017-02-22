@@ -319,6 +319,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     log.error(reason, "{}: Hash error, disabling call caching for this job.", jobTag)
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
+    writeToMetadata(Map(callCachingHitResultMetadataKey -> false))
   }
 
   private def disableCacheWrite(reason: Throwable) = {

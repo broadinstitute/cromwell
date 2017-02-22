@@ -8,8 +8,8 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.jes.RunStatus.{Failed, Initializing, Running, Success}
-import cromwell.core.labels.Labels
 import cromwell.core.ExecutionEvent
+import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import org.slf4j.LoggerFactory
 
@@ -117,22 +117,32 @@ object Run {
   }
 
   def interpretOperationStatus(op: Operation): RunStatus = {
-    if (op.getDone) {
-      lazy val eventList = getEventList(op)
-      lazy val ceInfo = op.getMetadata.get ("runtimeMetadata").asInstanceOf[GArrayMap[String,Object]].get("computeEngine").asInstanceOf[GArrayMap[String, String]]
-      lazy val machineType = Option(ceInfo.get("machineType"))
-      lazy val instanceName = Option(ceInfo.get("instanceName"))
-      lazy val zone = Option(ceInfo.get("zone"))
+    require(op != null, "Operation must not be null.")
+    try {
+      if (op.getDone) {
+        lazy val eventList = getEventList(op)
+        lazy val computeEngineOption = for {
+          runtimeMetadata <- op.getMetadata.asScala.get("runtimeMetadata")
+          computeEngine <- runtimeMetadata.asInstanceOf[GArrayMap[String, Object]].asScala.get("computeEngine")
+        } yield computeEngine.asInstanceOf[GArrayMap[String, String]].asScala
+        lazy val machineType = computeEngineOption.flatMap(_.get("machineType"))
+        lazy val instanceName = computeEngineOption.flatMap(_.get("instanceName"))
+        lazy val zone = computeEngineOption.flatMap(_.get("zone"))
 
-      // If there's an error, generate a Failed status. Otherwise, we were successful!
-      Option(op.getError) match {
-        case None => Success(eventList, machineType, zone, instanceName)
-        case Some(error) => Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+        // If there's an error, generate a Failed status. Otherwise, we were successful!
+        Option(op.getError) match {
+          case None => Success(eventList, machineType, zone, instanceName)
+          case Some(error) =>
+            Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+        }
+      } else if (op.hasStarted) {
+        Running
+      } else {
+        Initializing
       }
-    } else if (op.hasStarted) {
-      Running
-    } else {
-      Initializing
+    } catch {
+      case npe: NullPointerException =>
+        throw new RuntimeException(s"Caught NPE while processing operation ${op.getName}: $op", npe)
     }
   }
 

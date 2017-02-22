@@ -138,7 +138,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data.copy(cacheHit = Option(hit)))
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
-      disableCallCaching(t)
+      disableCallCaching(Option(t))
       runJob(data)
   }
 
@@ -217,10 +217,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay()
 
     case Event(HashError(t), data: SucceededResponseData) =>
-      disableCallCaching(t)
+      disableCallCaching(Option(t))
       saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
     case Event(HashError(t), data: ResponsePendingData) =>
-      disableCallCaching(t)
+      disableCallCaching(Option(t))
       stay using data.copy(hashes = Option(Failure(t)))
 
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _)) if effectiveCallCachingMode.writeToCache =>
@@ -273,9 +273,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         initializeJobHashing(jobDescriptor, activity)
         goto(CheckingCallCache) using updatedData
       case ineligible: CallCachingIneligible =>
-        // If the job is ineligible, don't initialize job hashing and run the job
+        // If the job is ineligible, turn call caching off
         writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: ${ineligible.message}"))
-        effectiveCallCachingMode = CallCachingOff
+        disableCallCaching()
         runJob(updatedData)
     }
   }
@@ -285,7 +285,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         // If the job is eligible, initialize job hashing so it can be written to the cache
       case CallCachingEligible => initializeJobHashing(jobDescriptor, activity)
       // Don't even initialize hashing to write to the cache if the job is ineligible
-      case ineligible: CallCachingIneligible => effectiveCallCachingMode = CallCachingOff
+      case ineligible: CallCachingIneligible => disableCallCaching()
     }
     // If read from cache is off, always run the job
     runJob(updatedData)
@@ -315,8 +315,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     stay()
   }
 
-  private def disableCallCaching(reason: Throwable) = {
-    log.error(reason, "{}: Hash error, disabling call caching for this job.", jobTag)
+  private def disableCallCaching(reason: Option[Throwable] = None) = {
+    reason foreach { r => log.error(r, "{}: Hash error, disabling call caching for this job.", jobTag) }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))

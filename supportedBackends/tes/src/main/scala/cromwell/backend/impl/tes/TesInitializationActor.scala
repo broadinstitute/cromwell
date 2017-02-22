@@ -3,7 +3,6 @@ package cromwell.backend.impl.tes
 import akka.actor.ActorRef
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.path.Obsolete._
 import wdl4s.TaskCall
 
 import scala.concurrent.Future
@@ -33,7 +32,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {
       publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-      File(workflowPaths.workflowRoot).createPermissionedDirectories()
+      workflowPaths.workflowRoot.createPermissionedDirectories()
       Option(TesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, tesConfiguration))
     })
   }

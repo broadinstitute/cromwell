@@ -38,6 +38,7 @@
   or the Config backend could pass an optional `"-u username"` as part of the `submit-docker` command.
 * In some cases the SFS backend, used for Local, SGE, etc., coerced `WdlFile` to `WdlString` by using `.toUri`. This
 resulted in strings prepended with `file:///path/to/file`. Now absolute file paths will not contain the uri scheme.
+* Launch jobs on servers that support the GA4GH Task Execution Schema using the TES backend.
 
 ### Database schema changes
 * Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.

@@ -40,7 +40,7 @@ git checkout ${CENTAUR_BRANCH}
 cd ..
 
 TES_CONF="$(pwd)/src/bin/travis/resources/tes.conf"
-git clone https://github.com/broadinstitute/funnel.git
+git clone https://github.com/ohsu-comp-bio/funnel.git
 cd funnel
 make
 cd ..

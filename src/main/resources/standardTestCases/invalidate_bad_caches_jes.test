@@ -9,6 +9,8 @@ files {
 
 metadata {
     "calls.invalidate_bad_caches.make_file.callCaching.result": "Cache Miss"
+    "calls.invalidate_bad_caches.make_file.callCaching.allowResultReuse": false
+    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.callCaching.allowResultReuse": true
     "calls.invalidate_bad_caches.delete_file_in_gcs.callCaching.result": "Cache Miss"
     "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.callCaching.result": "Cache Hit: <<UUID>>:invalidate_bad_caches.make_file:-1"
 }

@@ -10,6 +10,19 @@ task make_file {
     }
 }
 
+task read_file {
+    File input_file
+    command {
+      cat ${input_file}
+    }
+    runtime {
+        docker: "ubuntu:latest"
+    }
+    output {
+        File out = stdout()
+    }
+}
+
 task delete_file_in_gcs {
     String file_path
     command {
@@ -54,6 +67,7 @@ workflow invalidate_bad_caches {
 
     if (done) {
         call make_file as invalidate_cache_and_remake_file
+        call read_file { input: input_file = invalidate_cache_and_remake_file.out }
     }
 }
 

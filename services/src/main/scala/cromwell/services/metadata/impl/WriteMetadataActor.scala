@@ -7,9 +7,10 @@ import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.impl.WriteMetadataActor.{WriteMetadataActorData, WriteMetadataActorState}
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 final case class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
   extends LoggingFSM[WriteMetadataActorState, WriteMetadataActorData] with ActorLogging with
@@ -64,6 +65,7 @@ final case class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
 
 object WriteMetadataActor {
   def props(batchRate: Int, flushRate: FiniteDuration) = Props(new WriteMetadataActor(batchRate, flushRate)).withDispatcher(ServiceDispatcher)
+  private lazy val logger = LoggerFactory.getLogger("WriteMetadataActor")
 
   sealed trait WriteMetadataActorMessage
   case object DbWriteComplete extends WriteMetadataActorMessage
@@ -76,14 +78,17 @@ object WriteMetadataActor {
 
   sealed trait WriteMetadataActorData {
     def addEvents(newEvents: Iterable[MetadataEvent]): WriteMetadataActorData = {
-      NonEmptyVector.fromVector(newEvents.toVector) match {
-        case Some(v) =>
+      Try(NonEmptyVector.fromVector(newEvents.toVector)) match {
+        case Success(Some(v)) =>
           val newEvents = this match {
             case NoEvents => v
             case HasEvents(e) => e.concatNev(v)
           }
           HasEvents(newEvents)
-        case None => this
+        case Success(None) => this
+        case Failure(f) =>
+          logger.error("Failed processing metadata events. Events will be dropped and not be sent to the database.", f)
+          this
       }
     }
   }

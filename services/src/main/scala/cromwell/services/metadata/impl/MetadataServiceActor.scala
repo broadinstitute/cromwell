@@ -2,7 +2,8 @@ package cromwell.services.metadata.impl
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
+import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
@@ -28,7 +29,19 @@ object MetadataServiceActor {
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {
-
+  
+  private val decider: Decider = {
+    case _: ActorInitializationException => Escalate
+    case _ => Resume
+  }
+  
+  override val supervisorStrategy = new OneForOneStrategy()(decider) {
+    override def logFailure(context: ActorContext, child: ActorRef, cause: Throwable, decision: Directive) = {
+      val childName = if (child == readActor) "Read" else "Write"
+      log.error(s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...", cause)
+    }
+  }
+  
   private val summaryActor: Option[ActorRef] = buildSummaryActor
 
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")

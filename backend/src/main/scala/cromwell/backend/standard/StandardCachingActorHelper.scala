@@ -7,6 +7,7 @@ import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
+import cromwell.services.metadata.CallMetadataKeys
 import wdl4s.TaskCall
 
 import scala.util.Try

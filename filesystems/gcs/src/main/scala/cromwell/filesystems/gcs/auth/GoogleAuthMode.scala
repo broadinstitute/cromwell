@@ -59,6 +59,10 @@ sealed trait GoogleAuthMode {
   def authCredentials(options: WorkflowOptions): AuthCredentials
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
   def credential(options: WorkflowOptions): Credential
+  
+  def credentialBundle(options: WorkflowOptions) = {
+    GoogleCredentialBundle(credential(options), authCredentials(options))
+  }
 
   def requiresAuthFile: Boolean = false
 

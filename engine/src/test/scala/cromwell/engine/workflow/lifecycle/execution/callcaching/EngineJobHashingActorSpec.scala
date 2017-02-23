@@ -179,6 +179,7 @@ object EngineJobHashingActorSpec extends BackendSpec {
     backendName: String = "whatever"
   )(implicit system: ActorSystem) = {
     val callCacheReadActor = system.actorOf(Props(new PredictableCallCacheReadActor(cacheLookupResponses)))
+    
     system.actorOf(EngineJobHashingActor.props(
       receiver = replyTo,
       jobDescriptor = jobDescriptor,
@@ -199,7 +200,7 @@ object EngineJobHashingActorSpec extends BackendSpec {
     when(task.outputs).thenReturn(List.empty)
     when(call.task).thenReturn(task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs))
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), CallCachingEligible)
     jobDescriptor
   }
 

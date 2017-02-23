@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed}
 import cromwell.jobstore.JobStoreActor.QueryJobCompletion
 import org.scalatest.concurrent.Eventually
@@ -45,7 +45,7 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
         ejea = helper.buildEJEA(restarting = false)
         ejea ! JobExecutionTokenDispensed(helper.executionToken)
 
-        helper.jobPreparationProbe.expectMsg(max = awaitTimeout, hint = "Awaiting job preparation", CallPreparationActor.Start)
+        helper.jobPreparationProbe.expectMsg(max = awaitTimeout, hint = "Awaiting job preparation", CallPreparation.Start)
         helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
         ejea.stateName should be(PreparingJob)
       }

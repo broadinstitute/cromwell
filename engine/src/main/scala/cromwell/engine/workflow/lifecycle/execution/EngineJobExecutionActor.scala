@@ -13,11 +13,12 @@ import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
-import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{BackendJobPreparationSucceeded, CallPreparationFailed}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes, HashError}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed}
+import cromwell.engine.workflow.lifecycle.execution.preparation.{CallPreparation, JobPreparationActor}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.{Pending => _, _}
@@ -37,6 +38,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               val serviceRegistryActor: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
+                              dockerHashActor: ActorRef,
                               jobTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               backendName: String,
@@ -117,12 +119,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(BackendJobPreparationSucceeded(jobDescriptor, bjeaProps), NoData) =>
       val updatedData = ResponsePendingData(jobDescriptor, bjeaProps)
       effectiveCallCachingMode match {
-        case activity: CallCachingActivity if activity.readFromCache =>
-          initializeJobHashing(jobDescriptor, activity)
-          goto(CheckingCallCache) using updatedData
-        case activity: CallCachingActivity =>
-          initializeJobHashing(jobDescriptor, activity)
-          runJob(updatedData)
+        case activity: CallCachingActivity if activity.readFromCache => handleReadFromCacheOn(jobDescriptor, activity, updatedData)
+        case activity: CallCachingActivity => handleReadFromCacheOff(jobDescriptor, activity, updatedData)
         case CallCachingOff => runJob(updatedData)
       }
     case Event(CallPreparationFailed(jobKey: BackendJobDescriptorKey, throwable), NoData) =>
@@ -140,7 +138,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       fetchCachedResults(jobDescriptorKey.call.task.outputs, hit.cacheResultIds.head, data.copy(cacheHit = Option(hit)))
     case Event(HashError(t), data: ResponsePendingData) =>
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
-      disableCallCaching(t)
+      disableCallCaching(Option(t))
       runJob(data)
   }
 
@@ -213,12 +211,16 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       saveCacheResults(hashes, data)
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
+    case Event(CacheMiss, _) =>
+      stay()
+    case Event(_: CacheHit, _) =>
+      stay()
 
     case Event(HashError(t), data: SucceededResponseData) =>
-      disableCallCaching(t)
+      disableCallCaching(Option(t))
       saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
     case Event(HashError(t), data: ResponsePendingData) =>
-      disableCallCaching(t)
+      disableCallCaching(Option(t))
       stay using data.copy(hashes = Option(Failure(t)))
 
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _)) if effectiveCallCachingMode.writeToCache =>
@@ -263,6 +265,31 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender, stateName, stateData, msg)
       stay
   }
+  
+  private def handleReadFromCacheOn(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
+    jobDescriptor.callCachingEligibility match {
+        // If the job is eligible, initialize job hashing and go to CheckingCallCache state
+      case CallCachingEligible =>
+        initializeJobHashing(jobDescriptor, activity)
+        goto(CheckingCallCache) using updatedData
+      case ineligible: CallCachingIneligible =>
+        // If the job is ineligible, turn call caching off
+        writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss: ${ineligible.message}"))
+        disableCallCaching()
+        runJob(updatedData)
+    }
+  }
+
+  private def handleReadFromCacheOff(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
+    jobDescriptor.callCachingEligibility match {
+        // If the job is eligible, initialize job hashing so it can be written to the cache
+      case CallCachingEligible => initializeJobHashing(jobDescriptor, activity)
+      // Don't even initialize hashing to write to the cache if the job is ineligible
+      case ineligible: CallCachingIneligible => disableCallCaching()
+    }
+    // If read from cache is off, always run the job
+    runJob(updatedData)
+  }
 
   private def requestExecutionToken(): Unit = {
     jobTokenDispenserActor ! JobExecutionTokenRequest(factory.jobExecutionTokenType)
@@ -288,10 +315,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     stay()
   }
 
-  private def disableCallCaching(reason: Throwable) = {
-    log.error(reason, "{}: Hash error, disabling call caching for this job.", jobTag)
+  private def disableCallCaching(reason: Option[Throwable] = None) = {
+    reason foreach { r => log.error(r, "{}: Hash error, disabling call caching for this job.", jobTag) }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
+    writeToMetadata(Map(callCachingHitResultMetadataKey -> false))
   }
 
   private def disableCacheWrite(reason: Throwable) = {
@@ -310,9 +338,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
   def prepareJob() = {
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
-    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, initializationData, serviceRegistryActor, backendSingletonActor)
+    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, dockerHashActor, initializationData, serviceRegistryActor, backendSingletonActor)
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
-    jobPreparationActor ! CallPreparationActor.Start
+    jobPreparationActor ! CallPreparation.Start
     goto(PreparingJob)
   }
 
@@ -366,8 +394,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def handleCacheInvalidatedResponse(response: CallCacheInvalidatedResponse, data: ResponsePendingData) = {
     def updateMetadataForInvalidatedEntry(entry: CallCachingEntry) = {
-      import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
       import cromwell.core.ExecutionIndex._
+      import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
       
       val workflowId = WorkflowId.fromString(entry.workflowExecutionUuid)
       // If the entry doesn't have an attempt, it means that this cache entry was added before this change
@@ -499,6 +527,7 @@ object EngineJobExecutionActor {
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
             backendName: String,
@@ -513,6 +542,7 @@ object EngineJobExecutionActor {
       serviceRegistryActor = serviceRegistryActor,
       jobStoreActor = jobStoreActor,
       callCacheReadActor = callCacheReadActor,
+      dockerHashActor = dockerHashActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonActor = backendSingletonActor,
       backendName = backendName: String,

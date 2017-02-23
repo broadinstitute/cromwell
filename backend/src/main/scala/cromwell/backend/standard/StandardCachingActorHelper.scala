@@ -7,6 +7,7 @@ import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.validation.{RuntimeAttributesValidation, ValidatedRuntimeAttributes}
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
+import cromwell.services.metadata.CallMetadataKeys
 import wdl4s.TaskCall
 
 import scala.util.Try
@@ -69,7 +70,7 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
     */
   def startMetadataKeyValues: Map[String, Any] = {
     val runtimeAttributesMetadata = RuntimeAttributesValidation.toMetadataStrings(validatedRuntimeAttributes) map {
-      case (key, value) => (s"runtimeAttributes:$key", value)
+      case (key, value) => (s"${CallMetadataKeys.RuntimeAttributes}:$key", value)
     }
 
     val fileMetadata = jobPaths.metadataPaths

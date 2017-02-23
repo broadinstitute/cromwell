@@ -17,7 +17,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
-import cromwell.{AlwaysHappyJobStoreActor, AlwaysHappySubWorkflowStoreActor, CromwellTestKitSpec, EmptyCallCacheReadActor}
+import cromwell._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import spray.json._
 
@@ -57,6 +57,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+  private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
   private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
 
 
@@ -68,6 +69,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitSpec {
       jobStore,
       subWorkflowStore,
       callCacheReadActor,
+      dockerHashActor,
       jobTokenDispenserActor,
       BackendSingletonCollection(Map.empty),
       abortJobsOnTerminate = false,
@@ -118,6 +120,7 @@ class SingleWorkflowRunnerActorWithMetadataSpec extends SingleWorkflowRunnerActo
         outputFile = Option(metadataFile))
         TestKit.shutdownActorSystem(system, TimeoutDuration)
     }
+    
     eventually {
       val metadataFileContent = metadataFile.contentAsString
       val metadata = metadataFileContent.parseJson.asJsObject.fields

@@ -1844,6 +1844,42 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 
 > **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
 
+## Docker Tags
+
+Docker tags are a convenient way to point to a version of an image (ubuntu:14.04), or even the latest version (ubuntu:latest).
+For that purpose, tags are mutable, meaning that the image they point to can change, while the tag name stays the same.
+While this is very convenient in some cases, using mutable, or "floating" tags in WDL affects the reproducibility of the WDL file: the same WDL using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
+This has an even bigger impact when Call Caching is turned on in Cromwell, and could lead to unpredictable behaviors if a tag is updated in the middle of a workflow or even a scatter for example.
+Docker provides another way of identifying an image version, using the specific digest of the image. The digest is guaranteed to be different if 2 images have different byte content. For more information see https://docs.docker.com/registry/spec/api/#/content-digests
+A docker image with digest can be referenced as follows : **ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950**
+The above image refers to a specific image of ubuntu, that does not depend on a floating tag.
+A WDL containing this Docker image run now and a year from now will run in the exact same container.
+
+In order to remove unpredictable behaviors, Cromwell takes the following approach regarding floating docker tags.
+
+When Cromwell finds a job ready to be run, it will first look at its docker runtime attribute, and apply the following logic:
+
+* The job doesn't specify a docker image: The job will be dispatched and all call caching settings (read/write) will apply normally.
+* The job does specify a docker runtime attribute:
+    * The docker image uses a hash: All call caching settings apply normally
+    * The docker image uses a floating tag:
+        Call caching `reading` will be disabled for this job. Specifically, Cromwell will *not* attempt to find an entry in the cache for this job.
+        Additionally, cromwell will attempt to look up the hash of the image. Upon success, it will replace the user's docker value with the hash.
+        This mechanism ensures that as long as Cromwell is able to lookup the hash, the job is guaranteed to have run on the container with that hash.
+        The docker value with the hash used for the job will be reported in the runtime attributes section of the metadata.
+        If Cromwell fails to lookup the hash (unsupported registry, wrong credentials, ...) it will run the job with the user provided floating tag.
+        If call caching writing is turned on, Cromwell will still write the job in the cache database, using:
+         * the hash if the lookup succeeded
+         * the floating tag otherwise.
+         
+Docker registry and access levels supported by Cromwell for docker hash lookup:
+
+|       |       DockerHub    ||       GCR       ||
+|:-----:|:---------:|:-------:|:------:|:-------:|
+|       |   Public  | Private | Public | Private |
+|  JES  |     X     |    X    |    X   |    X    |
+| Other |     X     |         |    X   |         |
+
 ## Local Filesystem Options
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
 

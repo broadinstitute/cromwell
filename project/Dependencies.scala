@@ -13,6 +13,7 @@ object Dependencies {
    */
   lazy val sprayJsonV = "1.3.2"
   lazy val akkaV = "2.4.16"
+  lazy val akkaHttpV = "2.4.8"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
@@ -118,7 +119,10 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
-    "com.google.guava" % "guava" % "20.0"
+    "com.google.guava" % "guava" % "20.0",
+    "com.typesafe.akka" %% "akka-http-core" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaHttpV
   ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies

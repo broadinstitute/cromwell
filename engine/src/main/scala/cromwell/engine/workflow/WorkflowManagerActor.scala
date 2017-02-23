@@ -46,12 +46,13 @@ object WorkflowManagerActor {
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             abortJobsOnTerminate: Boolean,
             serverMode: Boolean): Props = {
     val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection,
+      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection,
       abortJobsOnTerminate, serverMode)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
@@ -91,6 +92,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       jobStoreActor: ActorRef,
                                       subWorkflowStoreActor: ActorRef,
                                       callCacheReadActor: ActorRef,
+                                      dockerHashActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
                                       abortJobsOnTerminate: Boolean,
@@ -283,7 +285,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     }
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.serviceRegistryActor,
-      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.jobTokenDispenserActor,
+      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor,
+      params.dockerHashActor, params.jobTokenDispenserActor,
       params.backendSingletonCollection, params.serverMode)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 

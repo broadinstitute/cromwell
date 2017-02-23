@@ -45,6 +45,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
         subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
+        dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
         jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true),

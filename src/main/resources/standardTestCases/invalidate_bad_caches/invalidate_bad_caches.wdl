@@ -3,7 +3,7 @@ task make_file {
         echo woohoo > out.txt
     }
     runtime {
-        docker: "ubuntu:latest"
+        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     }
     output {
         File out = "out.txt"
@@ -29,7 +29,7 @@ task delete_file_in_gcs {
         gsutil rm ${file_path}
     }
     runtime {
-        docker: "google/cloud-sdk"
+        docker: "google/cloud-sdk@sha256:fb904276e8a902ccd9564989d9222bdfbe37ffcd7f9989ca7e24b4019a9b4b6b"
     }
     output {
         Boolean done = true

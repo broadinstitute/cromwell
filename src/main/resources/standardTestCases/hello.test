@@ -10,7 +10,7 @@ metadata {
   workflowName: wf_hello
   status: Succeeded
   "calls.wf_hello.hello.executionStatus": Done
-  "calls.wf_hello.hello.runtimeAttributes.docker": "ubuntu:latest"
+  "calls.wf_hello.hello.runtimeAttributes.docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
   "outputs.wf_hello.hello.salutation": "Hello m'Lord!"
   "inputs.wf_hello.hello.addressee": "m'Lord"
 }

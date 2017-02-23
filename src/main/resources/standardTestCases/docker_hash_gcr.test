@@ -1,0 +1,10 @@
+name: docker_hash_gcr
+testFormat: workflowsuccess
+
+files {
+  wdl: docker_hash/docker_hash_gcr.wdl
+}
+
+metadata {
+  "calls.docker_hash_gcr.gcr.runtimeAttributes.docker": "gcr.io/google-containers/ubuntu@sha256:5746b3b4974d1bd3d4ddbac0373fb71b425f13583797414ffd9d8b547d241f75"
+}

@@ -1,0 +1,13 @@
+name: floatingTags
+
+files {
+  wdl: floatingTags/floatingTags.wdl
+  options: floatingTags/floatingTags.options
+}
+
+metadata {
+  workflowName: floatingTags
+  status: Succeeded
+  "calls.floatingTags.echoAgain": "Cache Miss: You are using a floating docker tag in this task. Cromwell does not consider tasks with floating tags to be eligible for call caching.\nIf you want this task to be eligible for call caching in the future, use a docker runtime attribute with a digest instead.\nThis is the exact docker image that was used for this job: registry-1.docker.io/library/ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7\nYou can replace the docker runtime attribute in your task with the above value to make this task eligible for call caching."
+  "calls.floatingTags.findAgain": "Cache Miss: You are using a floating docker tag in this task. Cromwell does not consider tasks with floating tags to be eligible for call caching.\nIf you want this task to be eligible for call caching in the future, use a docker runtime attribute with a digest instead.\nThis is the exact docker image that was used for this job: registry-1.docker.io/library/ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7\nYou can replace the docker runtime attribute in your task with the above value to make this task eligible for call caching."
+}

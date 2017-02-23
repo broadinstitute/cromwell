@@ -1,0 +1,11 @@
+name: docker_hash_dockerhub_private
+testFormat: workflowsuccess
+backends: [Jes]
+
+files {
+  wdl: docker_hash/docker_hash_dockerhub_private.wdl
+}
+
+metadata {
+  "calls.docker_hash_dockerhub_private.dockerhub.runtimeAttributes.docker": "broadinstitute/cloud-cromwell@sha256:0d51f90e1dd6a449d4587004c945e43f2a7bbf615151308cff40c15998cc3ad4"
+}

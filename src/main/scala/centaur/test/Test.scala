@@ -9,6 +9,8 @@ import centaur.api.CromwellClient._
 import centaur.api._
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
+import spray.json.JsString
+
 import scala.annotation.tailrec
 import scala.concurrent.{Future, blocking}
 import scala.concurrent.duration.FiniteDuration
@@ -126,7 +128,10 @@ object Operations {
   def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = {
     new Test[Unit] {
       override def run: Try[Unit] = {
-        val cacheHits = metadata.value.keySet filter { _.contains("callCaching.result") }
+        val cacheHits = metadata.value filter {
+          case (k, JsString(v)) if k.contains("callCaching.result") => v.contains("Cache Hit")
+          case _ => false
+        }
 
         if (cacheHits.isEmpty) Success(())
         else Failure(new Exception(s"Found unexpected cache hits for $workflowName: \n"))

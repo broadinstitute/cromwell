@@ -101,7 +101,7 @@ class TaskSpec extends WdlTest {
 
     s"fail to instantiate command if missing a required input" in {
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(Map("param_test.a" -> WdlString("a_val"))), NoFunctions) match {
-        case Failure(f) => // expected
+        case Failure(_) => // expected
         case _ => fail("Expected an exception")
       }
     }
@@ -115,7 +115,7 @@ class TaskSpec extends WdlTest {
         "param_test.e" -> WdlArray(WdlArrayType(WdlIntegerType), Seq())
       )
       paramTestTask.instantiateCommand(paramTestTask.inputsFromMap(inputs), NoFunctions) match {
-        case Failure(f) => // expected
+        case Failure(_) => // expected
         case _ => fail("Expected an exception")
       }
     }
@@ -139,7 +139,7 @@ class TaskSpec extends WdlTest {
         """.
           stripMargin
 
-      val namespace = WdlNamespaceWithWorkflow.load(wdl).get
+      val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
       val callT = namespace.taskCalls.find(_.unqualifiedName == "t").get
       val callInputs = Map(callT.task.declarations.head -> WdlString("input"))
       val outputs = callT.task.evaluateOutputs(callInputs, NoFunctions)
@@ -152,7 +152,7 @@ class TaskSpec extends WdlTest {
     }
 
     "instantiate command (4)" in {
-      val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource()).get
+      val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource(), Seq.empty).get
       val callV = namespace.taskCalls.find(_.unqualifiedName == "v").get
       val inputs = callV.task.inputsFromMap(
         Map(

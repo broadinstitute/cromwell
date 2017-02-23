@@ -93,9 +93,10 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
           case _ => Failure(new UnsatisfiedInputException(s"Could not coerce ${rawValue.getClass.getSimpleName} value for '${input.fqn}' ($rawValue) into: ${input.wdlType}"))
         }
       case _ =>
-        input.optional match {
-          case true => Success(WdlOptionalValue(input.wdlType.asInstanceOf[WdlOptionalType].memberType, None))
-          case _ => Failure(new UnsatisfiedInputException(s"Required workflow input '${input.fqn}' not specified."))
+        if (input.optional) {
+          Success(WdlOptionalValue(input.wdlType.asInstanceOf[WdlOptionalType].memberType, None))
+        } else {
+          Failure(new UnsatisfiedInputException(s"Required workflow input '${input.fqn}' not specified."))
         }
     }
 
@@ -157,7 +158,7 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
   * Example usage
   *
   * {{{
-  * val namespace = WdlNamespace.load(new File("/path/to/file.wdl"))
+  * val namespace = WdlNamespace.loadUsingPath(Paths.get("/path/to/file.wdl"), None, None)
   * namespace.workflow.calls foreach { call =>
   *   println(call)
   * }
@@ -313,7 +314,7 @@ object WdlNamespace {
     def descendants(scope: Scope): Seq[Scope] = {
       val children = scope.children
       val childDescendants = scope.children.flatMap({
-        case n: WdlNamespace => Seq.empty
+        case _: WdlNamespace => Seq.empty
         case s => descendants(s)
       })
       children ++ childDescendants
@@ -442,7 +443,7 @@ object WdlNamespace {
         case Success(a: WdlArrayType) => a.memberType
         case _ => throw new VariableLookupException(s"Variable $n references a scatter block ${s.fullyQualifiedName}, but the collection does not evaluate to an array")
       }
-      case Some(ns: WdlNamespace) => WdlNamespaceType
+      case Some(_: WdlNamespace) => WdlNamespaceType
       case _ => throw new VariableLookupException(s"Could not resolve $n from scope ${from.fullyQualifiedName}")
     }
   }
@@ -464,7 +465,7 @@ object WdlNamespace {
               case _ => None
             }
           }
-        case Failure(ex) => None
+        case Failure(_) => None
       }
     }
   }

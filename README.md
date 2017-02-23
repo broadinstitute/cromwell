@@ -70,7 +70,7 @@ val wdl = """
   | call a
   |}""".stripMargin
 
-val ns = NamespaceWithWorkflow.load(wdl)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
 println(s"Workflow: ${ns.workflow.unqualifiedName}")
 ns.workflow.calls foreach {call =>
@@ -103,14 +103,14 @@ val wdl = """
 
 def resolver(importString: String): WdlSource = {
   importString match {
-	case "some_string" => "task imported { command {ps} }"
-	case s if s.startsWith("http://") =>
-	  // issue HTTP request
-	  throw new NotImplementedError("not implemented")
+    case "some_string" => "task imported { command {ps} }"
+    case s if s.startsWith("http://") =>
+      // issue HTTP request
+      throw new NotImplementedError("not implemented")
   }
 }
 
-val ns = NamespaceWithWorkflow.load(wdl, resolver)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq(resolver _)).get
 
 ns.tasks foreach {task =>
   println(s"Task: ${task.name}")
@@ -140,12 +140,12 @@ val wdl = """
 
 def resolver(importString: String): WdlSource = {
   importString match {
-	case "some_string" => "task imported { command {ps} }"
-	case _ => throw new NotImplementedError()
+    case "some_string" => "task imported { command {ps} }"
+    case _ => throw new NotImplementedError()
   }
 }
 
-val ns = NamespaceWithWorkflow.load(wdl, resolver)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq(resolver _)).get
 
 ns.tasks foreach {task =>
   println(s"Task: ${task.name}")
@@ -153,7 +153,7 @@ ns.tasks foreach {task =>
 
 ns.namespaces foreach { n =>
   n.tasks.foreach { t =>
-	println(s"Imported Task: ${t.name} (from ${n.importedAs.get})")
+    println(s"Imported Task: ${t.name} (from ${n.importedAs})")
   }
 }
 ```
@@ -181,7 +181,7 @@ val wdl = """
   | call a as b
   |}""".stripMargin
 
-val ns = NamespaceWithWorkflow.load(wdl)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
 println(ns.resolve("wf.a")) // resolves to Call object for `call a`
 println(ns.resolve("wf.b")) // resolves to Call object for `call a as b`
@@ -211,12 +211,11 @@ val wdl = """
   | call b {input: s=a.procs}
   |}""".stripMargin
 
-val ns = NamespaceWithWorkflow.load(wdl)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
-Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach { scope =>
-  scope match {
-	case Some(c: Call) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.prerequisiteScopes}")
-  }
+Seq(ns.resolve("wf.a"), ns.resolve("wf.b")) foreach {
+  case Some(c: TaskCall) => println(s"Call '${c.fullyQualifiedName}' prerequisites: ${c.upstream}")
+  case _ =>
 }
 ```
 
@@ -245,16 +244,16 @@ val wdl = """
   |  String c = "hello " + other_variable
   |}""".stripMargin
 
-val ns = NamespaceWithWorkflow.load(wdl)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 def lookup(name: String): WdlValue = {
   name match {
-	case "variable" => WdlString("world")
-	case _ => throw new NoSuchElementException
+    case "variable" => WdlString("world")
+    case _ => throw new NoSuchElementException
   }
 }
 ns.workflow.declarations foreach { decl =>
   val value = decl.expression.get.evaluate(lookup, NoFunctions)
-  println(s"Declaration '${decl.toWdlString}' evaluates to: ${value}")
+  println(s"Declaration '${decl.toWdlString}' evaluates to: $value")
 }
 ```
 
@@ -285,7 +284,7 @@ val wdl = """
   |  call a
   |}""".stripMargin
 
-val ns = NamespaceWithWorkflow.load(wdl)
+val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 val inputs = Map(
   "prefix" -> WdlString("some_prefix"),
   "ints" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(1,2,3,4,5).map(WdlInteger(_)))
@@ -293,13 +292,15 @@ val inputs = Map(
 
 class CustomFunctions extends WdlFunctions[WdlValue] {
   def write_lines(params: Seq[Try[WdlValue]]): Try[WdlValue] = {
-	// Validate `params`, write the result to a file, return file path
-	Success(WdlFile("/tmp/array.txt"))
+    // Validate `params`, write the result to a file, return file path
+    Success(WdlFile("/tmp/array.txt"))
   }
 }
 
-ns.findTask("a") foreach { task =>
-  println(task.instantiateCommand(inputs, new CustomFunctions).get)
+ns.taskCalls.find( _.unqualifiedName == "a") foreach { call =>
+  val wdlFunctions: CustomFunctions = new CustomFunctions
+  val evaluatedInputs = call.evaluateTaskInputs(inputs, wdlFunctions).get
+  println(call.task.instantiateCommand(evaluatedInputs, wdlFunctions).get)
 }
 ```
 
@@ -316,24 +317,20 @@ To access only the parser, use the `AstTools` library, as follows:
 Example `src/main/scala/wdl4s/examples/ex8.scala`
 
 ```scala
-import java.io.File
-import wdl4s.AstTools
-import wdl4s.AstTools.EnhancedAstNode
-
 /* Create syntax tree from contents of file */
-val ast = AstTools.getAst(new File(args(0)))
+val ast = AstTools.getAst(Paths.get(args(0)))
 
 /* Second parameter is a descriptor about where the first string came from.
  * Most of the time this would be the URI of where the text was loaded from,
  * but there are no restrictions on what the string can be.
  */
-val ast2 = AstTools.getAst("workflow simple {}", "string")
+AstTools.getAst("workflow simple {}", "string")
 
 /* Print the AST */
 println(ast.toPrettyString)
 
 /* Traverse the tree to find all Task definitions */
-val taskAsts = AstTools.findAsts(ast, "Task") foreach {ast =>
+AstTools.findAsts(ast, "Task") foreach {ast =>
   println(s"Task name: ${ast.getAttribute("name").sourceString}")
 }
 ```

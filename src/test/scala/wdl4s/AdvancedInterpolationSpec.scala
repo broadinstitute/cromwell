@@ -29,7 +29,7 @@ class AdvancedInterpolationSpec extends FlatSpec with Matchers {
       |}
     """.stripMargin
 
-  val namespace = WdlNamespaceWithWorkflow.load(wdl).get
+  val namespace = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
   it should "be able to resolve interpolated strings within interpolated strings" in {
     val testCall = namespace.workflow.taskCalls.find(_.unqualifiedName == "test") getOrElse {

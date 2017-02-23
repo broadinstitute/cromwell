@@ -13,7 +13,7 @@ object ex4 {
       | call a as b
       |}""".stripMargin
 
-    val ns = WdlNamespaceWithWorkflow.load(wdl).get
+    val ns = WdlNamespaceWithWorkflow.load(wdl, Seq.empty).get
 
     println(ns.resolve("wf.a")) // resolves to Call object for `call a`
     println(ns.resolve("wf.b")) // resolves to Call object for `call a as b`

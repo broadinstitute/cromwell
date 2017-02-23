@@ -17,7 +17,7 @@ killTravisHeartbeat() {
 
 exitScript() {
     echo "TES LOG"
-    #cat logs/tes.log
+    cat logs/tes.log
     echo "CROMWELL LOG"
     cat logs/cromwell.log
     echo "CENTAUR LOG"

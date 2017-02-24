@@ -1,6 +1,6 @@
 package wdl4s.expression
 
-import wdl4s.WdlExpression
+import wdl4s.{NoLookup, WdlExpression}
 import wdl4s.types._
 import wdl4s.values._
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -9,9 +9,6 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.language.postfixOps
 
 class FileEvaluatorSpec extends FlatSpec with Matchers {
-  val expr: String => WdlExpression = WdlExpression.fromString
-  def noLookup(String: String): WdlValue = fail("No identifiers should be looked up in this test")
-
   val expressions = Table(
     ("expression", "files", "wdlType"),
     ("1 + 1", Seq.empty[WdlFile], WdlIntegerType),
@@ -45,12 +42,13 @@ class FileEvaluatorSpec extends FlatSpec with Matchers {
     (""" [read_string("x"), read_string("y")] """, Seq(WdlSingleFile("x"), WdlSingleFile("y")), WdlArrayType(WdlStringType)),
     (""" {read_int("a"): read_string("x"), 4: read_string("y")} """, Seq(WdlSingleFile("a"), WdlSingleFile("x"), WdlSingleFile("y")), WdlArrayType(WdlStringType)),
     (""" glob("out-*.txt") """, Seq(WdlGlobFile("out-*.txt")), WdlFileType),
+    (""" glob("out-*.txt")[0] """, Seq(WdlGlobFile("out-*.txt")), WdlFileType),
     (""" read_tsv("my_file") """, Seq(WdlSingleFile("my_file")), WdlFileType)
   )
 
   forAll (expressions) { (expression, files, wdlType) =>
     it should s"evaluate $expression (coerced to: $wdlType) => $files" in {
-      expr(expression).evaluateFiles(noLookup, NoFunctions, wdlType).get shouldEqual files
+      WdlExpression.fromString(expression).evaluateFiles(NoLookup, NoFunctions, wdlType).get shouldEqual files
     }
   }
 }

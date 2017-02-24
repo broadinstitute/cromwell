@@ -98,10 +98,10 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
       case a: Ast if a.isBinaryOperator =>
         evalValueToWdlFile(a) match {
           case Success(f: WdlFile) => Success(Seq(f))
-          case _ => (evaluateRecursive(a.getAttribute("lhs")), evaluateRecursive(a.getAttribute("rhs"))) match {
-            case (Success(a:Seq[WdlFile]), Success(b:Seq[WdlFile])) => Success(a ++ b)
-            case _ => Failure(new WdlExpressionException(s"Could not evaluate:\n${a.toPrettyString}"))
-          }
+          case _ => for {
+            left <- evaluateRecursive(a.getAttribute("lhs"))
+            right <- evaluateRecursive(a.getAttribute("rhs"))
+          } yield left ++ right
         }
       case a: Ast if a.isUnaryOperator =>
         evalValueToWdlFile(a) match {
@@ -115,7 +115,10 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
       case a: Ast if a.isArrayOrMapLookup =>
         evalValue(a) match {
           case Success(f: WdlFile) => Success(Seq(f))
-          case _ => evaluateRecursive(a.getAttribute("rhs"))
+          case _ => for {
+            left <- evaluateRecursive(a.getAttribute("lhs"))
+            right <- evaluateRecursive(a.getAttribute("rhs"))
+          } yield left ++ right
         }
       case a: Ast if a.isMemberAccess =>
         evalValue(a) match {

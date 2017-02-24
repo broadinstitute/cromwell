@@ -6,6 +6,8 @@ task glob_task {
         echo "globArray" > globArray.txt
     }
 
+    runtime {docker:"ubuntu:latest"}
+
     output {
         Array[File] staticFiles = ["staticFile.txt"]
         Array[File] staticRef = staticFiles

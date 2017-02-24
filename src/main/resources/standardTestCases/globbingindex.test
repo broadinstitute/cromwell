@@ -1,0 +1,21 @@
+name: globbingindex
+testFormat: workflowsuccess
+
+files {
+  wdl: globbingindex/globbingindex.wdl
+}
+
+metadata {
+  workflowName: globbingindex
+  status: Succeeded
+  "outputs.globbingindex.globFileContent": "globFile"
+  "outputs.globbingindex.globArrayContent": "globArray"
+  "outputs.globbingindex.staticFileContent": "staticFile"
+  "outputs.globbingindex.staticFilesContent": "staticFile"
+  "outputs.globbingindex.staticRefContent": "staticFile"
+  "outputs.globbingindex.staticArrayContent": "staticArray"
+  "outputs.globbingindex.staticFilesLength": "1"
+  "outputs.globbingindex.staticRefLength": "1"
+  "outputs.globbingindex.staticArrayLength": "1"
+  "outputs.globbingindex.globArrayLength": "1"
+}

@@ -90,6 +90,12 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
 
+  def pushAbortedCallMetadata(jobKey: JobKey) = {
+    val completionEvents = completedCallMetadataEvents(jobKey, ExecutionStatus.Aborted, None)
+
+    serviceRegistryActor ! PutMetadataAction(completionEvents)
+  }
+
   def pushExecutionEventsToMetadataService(jobKey: JobKey, eventList: Seq[ExecutionEvent]) = {
     def metadataEvent(k: String, value: Any) = {
       val metadataValue = MetadataValue(value)

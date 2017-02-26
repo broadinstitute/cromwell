@@ -134,12 +134,16 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(WorkflowExecutionAbortingState) {
     case Event(AbortedResponse(jobKey), stateData) =>
+      pushAbortedCallMetadata(jobKey)
       handleCallAborted(stateData, jobKey, Map.empty)
     case Event(SubWorkflowAbortedResponse(jobKey, executedKeys), stateData) =>
+      pushAbortedCallMetadata(jobKey)
       handleCallAborted(stateData, jobKey, executedKeys)
     case Event(SubWorkflowSucceededResponse(subKey, executedKeys, _), stateData) =>
+      pushAbortedCallMetadata(subKey)
       handleCallAborted(stateData, subKey, executedKeys)
     case Event(JobSucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
+      pushAbortedCallMetadata(jobKey)
       handleCallAborted(stateData, jobKey, Map.empty)
   }
   
@@ -195,7 +199,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       if (stateData.hasRunningActors) {
         log.info(s"$tag: Abort received. " +
           s"Aborting ${stateData.backendJobExecutionActors.size} Job Execution Actors" +
-          s"and ${stateData.subWorkflowExecutionActors.size} Sub Workflow Execution Actors"
+          s" and ${stateData.subWorkflowExecutionActors.size} Sub Workflow Execution Actors"
         )
         stateData.backendJobExecutionActors.values foreach { _ ! AbortJobCommand }
         stateData.subWorkflowExecutionActors.values foreach { _ ! EngineLifecycleActorAbortCommand }
@@ -334,7 +338,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   
   private def handleCallAborted(data: WorkflowExecutionActorData, jobKey: JobKey, jobExecutionMap: JobExecutionMap) = {
     workflowLogger.info(s"$tag job aborted: ${jobKey.tag}")
-    val newStateData = data.removeCallExecutionActor(jobKey).addExecutions(jobExecutionMap)
+    val newStateData = data
+      .mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Aborted)))
+      .removeCallExecutionActor(jobKey)
+      .addExecutions(jobExecutionMap)
     if (!newStateData.hasRunningActors) {
       workflowLogger.info(s"$tag all jobs aborted")
       goto(WorkflowExecutionAbortedState)

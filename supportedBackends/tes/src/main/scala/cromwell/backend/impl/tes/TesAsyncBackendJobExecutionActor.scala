@@ -143,8 +143,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ()
   }
 
-  override def requestsAbortAndDiesImmediately: Boolean = true
-
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)(implicit ec: ExecutionContext): Future[TesRunStatus] = {
     val pollTask = pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}"))
 

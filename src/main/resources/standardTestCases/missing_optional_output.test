@@ -1,0 +1,12 @@
+name: missing_optional_output
+testFormat: workflowfailure
+
+files {
+  wdl: missing_optional_output/missing_optional_output.wdl
+}
+
+metadata {
+  workflowName: missing_optional_output
+  status: Failed
+  "failures.0.message": "out_except_undeclared is not declared as an output of the task x.\nMake sure to declare it as an output to be able to use it in the workflow."
+}

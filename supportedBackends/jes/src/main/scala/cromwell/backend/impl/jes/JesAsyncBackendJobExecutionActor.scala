@@ -74,8 +74,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     Run(job.jobId, initializationData.genomics).abort()
   }
 
-  override def requestsAbortAndDiesImmediately: Boolean = true
-
   override def receive: Receive = pollingActorClientReceive orElse super.receive
 
   private def gcsAuthParameter: Option[JesInput] = {

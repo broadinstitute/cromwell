@@ -172,6 +172,8 @@ trait SharedFileSystemAsyncJobExecutionActor
     checkAlive.run() == 0
   }
 
+  override def requestsAbortAndDiesImmediately: Boolean = false
+
   override def tryAbort(job: StandardAsyncJob): Unit = {
     val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
@@ -181,6 +183,15 @@ trait SharedFileSystemAsyncJobExecutionActor
       case _: FileAlreadyExistsException =>
         // If the process has already completed, there will be an existing rc file.
         returnCodeTmp.delete(true)
+    }
+    val stderrTmp = jobPaths.stderr.plusExt("kill")
+    stderrTmp.touch()
+    try {
+      stderrTmp.moveTo(jobPaths.stderr)
+    } catch {
+      case _: FileAlreadyExistsException =>
+        // If the process has already started, there will be an existing stderr file.
+        stderrTmp.delete(true)
     }
     val argv = killArgs(job).argv
     val stdout = jobPaths.stdout.plusExt("kill")

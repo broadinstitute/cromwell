@@ -334,7 +334,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Attempts to abort a job when an abort signal is retrieved.
     *
-    * If `abortAndDieImmediately` is true, then the actor will die immediately after this method returns.
+    * If `requestsAbortAndDiesImmediately` is true, then the actor will die immediately after this method returns.
     *
     * @param jobId The job to abort.
     */
@@ -344,11 +344,14 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * Returns true if when an abort signal is retrieved, the actor makes an attempt to abort and then immediately stops
     * itself _without_ polling for an aborted status.
     *
-    * The default is false.
+    * NOTE: When this value is set to `false`, `tryAbort` must write the rc and stderr files, as they will still be
+    * processed during a poll that returns a terminal status.
+    *
+    * The default is true.
     *
     * @return true if actor should request an abort and then die immediately.
     */
-  def requestsAbortAndDiesImmediately: Boolean = false
+  def requestsAbortAndDiesImmediately: Boolean = true
 
   /**
     * Return true if the return code is an abort code.
@@ -363,10 +366,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Custom behavior to run after an abort signal is processed.
     *
-    * By default handles the behavior of `abortAndDieImmediately`.
+    * By default handles the behavior of `requestsAbortAndDiesImmediately`.
     */
   def postAbort(): Unit = {
     if (requestsAbortAndDiesImmediately) {
+      tellMetadata(Map(CallMetadataKeys.BackendStatus -> "Aborted"))
       context.parent ! AbortedResponse(jobDescriptor.key)
       context.stop(self)
     }
@@ -475,7 +479,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   // See executeOrRecoverSuccess
   private var missedAbort = false
-  private case object CheckMissedAbort
+  private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
   context.become(standardReceiveBehavior(None) orElse receive)
 
@@ -490,7 +494,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         case None => missedAbort = true
       }
       postAbort()
-    case CheckMissedAbort =>
+    case CheckMissedAbort(jobId: StandardAsyncJob) =>
+      context.become(standardReceiveBehavior(Option(jobId)) orElse receive)
       if (missedAbort)
         self ! AbortJobCommand
     case KvPutSuccess(_) => // expected after the KvPut for the operation ID
@@ -529,8 +534,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         queued up and may still be run by the thread pool anytime in the future. Issue #1218 may address this
         inconsistency at a later time. For now, just go back and check if we missed the abort command.
         */
-        context.become(standardReceiveBehavior(Option(handle.pendingJob)) orElse receive)
-        self ! CheckMissedAbort
+        self ! CheckMissedAbort(handle.pendingJob)
       case _ =>
     }
     executionHandle

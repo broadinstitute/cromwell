@@ -7,8 +7,6 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
-import scala.util.Random
-
 trait WorkflowMetadataHelper {
 
   def serviceRegistryActor: ActorRef
@@ -24,7 +22,7 @@ trait WorkflowMetadataHelper {
   }
   
   def pushWorkflowFailures(workflowId: WorkflowId, failures: List[Throwable]) = {
-    val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}[${Random.nextInt(Int.MaxValue)}]"), r) }
+    val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}"), r) }
     serviceRegistryActor ! PutMetadataAction(failureEvents)
   }
   

@@ -1,6 +1,9 @@
 package cromwell.services.metadata
 
+import java.util.UUID
+
 import cromwell.core.WorkflowId
+import lenthall.exception.AggregatedException
 import org.scalactic.Equality
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -74,4 +77,94 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
     }
   }
 
+  // For the metadata event tests!
+  val eventKeyRegex = "path\\:to\\:failures\\[([0-9]*)\\]\\:message".r
+
+  it should "convert an exception into a failure event" in {
+    import MetadataService.throwableToMetadataEvents
+
+    val workflowId = WorkflowId(UUID.randomUUID())
+    val mdkey = MetadataKey(workflowId, None, "path:to:failures")
+
+    val tMsg = "The Oscars suck!"
+    val t = new RuntimeException(tMsg)
+
+    val events = throwableToMetadataEvents(mdkey, t)
+    events.size should be(1)
+    val _ = validateEvent(events.head, workflowId, tMsg)
+  }
+
+  it should "convert nested exceptions into a sequence of failure events" in {
+    import MetadataService.throwableToMetadataEvents
+
+    val workflowId = WorkflowId(UUID.randomUUID())
+    val mdkey = MetadataKey(workflowId, None, "path:to:failures")
+
+    val innerCauseMsg = "Envelope malfunctions"
+    val innerCause = new RuntimeException(innerCauseMsg)
+
+    val causeMsg = "Wrong recipients"
+    val cause = new RuntimeException(causeMsg, innerCause)
+
+    val tMsg = "The Oscars suck!"
+    val t = new RuntimeException(tMsg, cause)
+
+    val events = throwableToMetadataEvents(mdkey, t)
+    events.size should be(3)
+    val errorIds = List(
+      validateEvent(events.head, workflowId, tMsg),
+      validateEvent(events(1), workflowId, causeMsg),
+      validateEvent(events(2), workflowId, innerCauseMsg)
+    )
+    // Make sure all IDs are unique:
+    errorIds.toSet.size should be(3)
+  }
+
+  it should "convert aggregated exceptions into a sequence of failure events" in {
+    import MetadataService.throwableToMetadataEvents
+
+    val workflowId = WorkflowId(UUID.randomUUID())
+    val mdkey = MetadataKey(workflowId, None, "path:to:failures")
+
+    val innerCauseMsg = "Envelope malfunctions"
+    val innerCause = new RuntimeException(innerCauseMsg)
+
+    val causeMsg1 = "Wrong recipients"
+    val cause1 = new RuntimeException(causeMsg1, innerCause)
+    val causeMsg2 = "Self congratulation"
+    val cause2 = new RuntimeException(causeMsg2)
+    val causeMsg3 = "The Globes are better anyway"
+    val cause3 = new RuntimeException(causeMsg3)
+
+    val causeContext = "Compound Entertainment Failure"
+    val cause = new AggregatedException(causeContext, List(cause1, cause2, cause3))
+
+    val tMsg = "The Oscars suck!"
+    val t = new RuntimeException(tMsg, cause)
+
+    val events = throwableToMetadataEvents(mdkey, t)
+    events.size should be(6)
+    val errorIds = List(
+      validateEvent(events.head, workflowId, tMsg),
+      validateEvent(events(1), workflowId, causeContext),
+      validateEvent(events(2), workflowId, causeMsg1),
+      validateEvent(events(3), workflowId, innerCauseMsg),
+      validateEvent(events(4), workflowId, causeMsg2),
+      validateEvent(events(5), workflowId, causeMsg3)
+    )
+    // Make sure all IDs are unique:
+    errorIds.toSet.size should be(6)
+  }
+
+  def validateEvent(event: MetadataEvent, workflowId: WorkflowId, message: String) = event match {
+    case MetadataEvent(k, Some(MetadataValue(v, _)), _) =>
+      k.workflowId should be(workflowId)
+      val messageIndex = k.key match {
+        case eventKeyRegex(x) => x
+        case _ => fail("Unexpected failure key format: " + k.key)
+      }
+      v should be(message)
+
+      messageIndex
+  }
 }

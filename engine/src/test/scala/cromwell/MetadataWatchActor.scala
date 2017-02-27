@@ -23,7 +23,7 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
         ()
       }
     case PutMetadataAction(_) => // Superfluous message. Ignore
-    case _ => throw new Exception("Invalid message to MetadataWatchActor")
+    case other => throw new Exception(s"Invalid message to MetadataWatchActor: $other")
   }
 }
 
@@ -69,6 +69,7 @@ object MetadataWatchActor {
     }
   }
 
-  val failurePattern = """failures\[\d*\].message"""
+  val failurePattern = """failures\[\d*\].*\:message"""
+  // val failurePattern = """failures\[\d*\]\:message"""
   final case class FailureMatcher(value: String) extends KeyMatchesRegexAndValueContainsStringMatcher(failurePattern, value) { }
 }

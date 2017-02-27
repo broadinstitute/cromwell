@@ -61,4 +61,7 @@ libraryDependencies ++= Seq(
 // https://github.com/scala/pickling/issues/10
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
 
+// http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
+scalacOptions in (Compile, doc) ++= Seq("-no-link-warnings")
+
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")

@@ -182,7 +182,7 @@ trait Scope {
     * @param wdlFunctions Implementation of WDL functions for expression evaluation
     * @param shards For resolving specific shards of scatter blocks
     * @return String => WdlValue lookup function rooted at `scope`
-    * @throws VariableNotFoundException => If no errors occurred, but also `name` didn't resolve to any value
+    * @throws VariableNotFoundException If no errors occurred, but also `name` didn't resolve to any value
     * @throws VariableLookupException if anything else goes wrong in looking up a value for `name`
     */
   def lookupFunction(knownInputs: WorkflowCoercedInputs,
@@ -204,7 +204,7 @@ trait Scope {
           }
         case (Success(value: WdlArray), Some(shard)) =>
           Failure(new VariableLookupException(s"Scatter expression (${scatter.collection.toWdlString}) evaluated to an array of ${value.value.size} elements, but element $shard was requested."))
-        case (Success(value: WdlArray), None) =>
+        case (Success(_: WdlArray), None) =>
           Failure(ScatterIndexNotFound(s"Could not find the shard mapping to this scatter ${scatter.fullyQualifiedName}"))
         case (Success(value: WdlValue), _) =>
           Failure(new VariableLookupException(s"Expected scatter expression (${scatter.collection.toWdlString}) to evaluate to an Array.  Instead, got a $value"))

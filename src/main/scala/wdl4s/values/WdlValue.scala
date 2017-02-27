@@ -1,12 +1,11 @@
 package wdl4s.values
 
 import wdl4s.WdlExpressionException
-import wdl4s.exception.{OptionalNotSuppliedException, VariableNotFoundException}
+import wdl4s.exception.OptionalNotSuppliedException
 import wdl4s.types.WdlType
 
 import scala.collection.immutable.TreeMap
 import scala.util.{Failure, Try}
-
 
 trait WdlValue {
   val wdlType: WdlType
@@ -38,7 +37,7 @@ trait WdlValue {
   def typeName: String = wdlType.getClass.getSimpleName
 
   /* This emits valid WDL source.  WdlString("foobar") -> "foobar" (quotes included) */
-  def toWdlString: String = ???
+  def toWdlString: String = throw new NotImplementedError(s"$getClass does not implement toWdlString")
 
   /* This emits the value as a string.  In other words, the String value that
    * would be inserted into the command line.
@@ -70,5 +69,48 @@ trait WdlValue {
       case w: WdlFile => hasher(w)
       case w => symbolHash(w.valueString)
     }
+  }
+}
+
+object WdlValue {
+  /**
+    * Returns the wdlValue with all collections recursively limited to maximum length `maxElements`.
+    *
+    * @param wdlValue    The original wdlValue.
+    * @param maxElements The maximum number of elements per collection.
+    * @return The wdlValue with maximum maxElements per collection.
+    */
+  def takeMaxElements(wdlValue: WdlValue, maxElements: Int): WdlValue = {
+    def takeMaxElements(recursiveWdlValue: WdlValue): WdlValue = {
+      recursiveWdlValue match {
+        case WdlArray(wdlType, values) =>
+          val subset = values.take(maxElements)
+          WdlArray(wdlType, subset map takeMaxElements)
+        case WdlMap(wdlType, values) =>
+          val subset = values.take(maxElements)
+          WdlMap(
+            wdlType,
+            subset map {
+              case (mapKey, mapValue) => takeMaxElements(mapKey) -> takeMaxElements(mapValue)
+            }
+          )
+        case WdlObject(values) =>
+          val subset = values.take(maxElements)
+          WdlObject(subset map {
+            case (mapKey, mapValue) => mapKey -> takeMaxElements(mapValue)
+          })
+        case WdlCallOutputsObject(call, values) =>
+          val subset = values.take(maxElements)
+          WdlCallOutputsObject(call, subset map {
+            case (mapKey, mapValue) => mapKey -> takeMaxElements(mapValue)
+          })
+        case WdlOptionalValue(innerType, valueOption) =>
+          WdlOptionalValue(innerType, valueOption map takeMaxElements)
+        case WdlPair(left, right) => WdlPair(takeMaxElements(left), takeMaxElements(right))
+        case _ => recursiveWdlValue
+      }
+    }
+
+    takeMaxElements(wdlValue)
   }
 }

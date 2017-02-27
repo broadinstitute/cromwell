@@ -7,6 +7,8 @@ import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.JsString
 
+import scala.runtime.ScalaRunTime
+
 class WdlTypeSpec extends FlatSpec with Matchers {
   "WdlType class" should "stringify WdlBoolean to 'Boolean'" in {
     WdlBooleanType.toWdlString shouldEqual "Boolean"
@@ -25,6 +27,98 @@ class WdlTypeSpec extends FlatSpec with Matchers {
   }
   it should "stringify WdlFile to 'File'" in {
     WdlFileType.toWdlString shouldEqual "File"
+  }
+
+  val rawValuesCoercedToType = Table(
+    (
+      "Raw Value",
+      "WdlType",
+      "Exception Class",
+      "Exception Message Regex"
+    ),
+    (
+      WdlString("hello"),
+      WdlIntegerType,
+      classOf[NumberFormatException],
+      "For input string: \"hello\""
+    ),
+    (
+      WdlInteger(0),
+      WdlBooleanType,
+      classOf[IllegalArgumentException],
+      "No coercion defined from '0' of type 'Int' to 'Boolean'."
+    ),
+    (
+      0,
+      WdlBooleanType,
+      classOf[IllegalArgumentException],
+      "No coercion defined from '0' of type 'java.lang.Integer' to 'Boolean'."
+    ),
+    (
+      Array(0, 1, 2, 3, 4),
+      WdlBooleanType,
+      classOf[IllegalArgumentException],
+      """No coercion defined from 'Array\(0, 1, 2\)' of type 'int\[\]' to 'Boolean'."""
+    ),
+    (
+      new AnyRef {},
+      WdlBooleanType,
+      classOf[IllegalArgumentException],
+      "No coercion defined from" +
+        """ 'wdl4s.types.WdlTypeSpec\$\$anon\$(.*)@.*' of type""" +
+        """ 'wdl4s.types.WdlTypeSpec\$\$anon\$\1' to 'Boolean'."""
+    ),
+    (
+      WdlArray(WdlArrayType(WdlOptionalType(WdlIntegerType)), Seq(
+        WdlOptionalValue(WdlInteger(0)),
+        WdlOptionalValue(WdlInteger(1)),
+        WdlOptionalValue(WdlInteger(2)),
+        WdlOptionalValue(WdlInteger(3)),
+        WdlOptionalValue(WdlInteger(4)))
+      ),
+      WdlOptionalType(WdlMaybeEmptyArrayType(WdlIntegerType)),
+      classOf[IllegalArgumentException],
+      """No coercion defined from '\[0, 1, 2\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
+    ),
+    (
+      WdlArray(WdlArrayType(WdlOptionalType(WdlIntegerType)), Seq(WdlOptionalValue.none(WdlIntegerType))),
+      WdlOptionalType(WdlMaybeEmptyArrayType(WdlIntegerType)),
+      classOf[IllegalArgumentException],
+      """No coercion defined from '\[null\]' of type 'Array\[Int\?\]' to 'Array\[Int\]\?'."""
+    ),
+    (
+      WdlOptionalValue(WdlArray(WdlArrayType(WdlIntegerType), Seq(
+        WdlInteger(0),
+        WdlInteger(1),
+        WdlInteger(2),
+        WdlInteger(3),
+        WdlInteger(4)
+      ))),
+      WdlMaybeEmptyArrayType(WdlOptionalType(WdlIntegerType)),
+      classOf[IllegalArgumentException],
+      """No coercion defined from '\[0, 1, 2\]' of type 'Array\[Int\]\?' to 'Array\[Int\?\]'."""
+    ),
+    (
+      WdlOptionalValue.none(WdlArrayType(WdlIntegerType)),
+      WdlMaybeEmptyArrayType(WdlOptionalType(WdlIntegerType)),
+      classOf[IllegalArgumentException],
+      """No coercion defined from 'null' of type 'Array\[Int\]\?' to 'Array\[Int\?\]'."""
+    )
+  )
+
+  private def describe(any: Any): String = {
+    any match {
+      case wdlValue: WdlValue => s"wdl value ${wdlValue.toWdlString} of type ${wdlValue.wdlType.toWdlString}"
+      case _ => s"scala value ${ScalaRunTime.stringOf(any)}"
+    }
+  }
+
+  forAll(rawValuesCoercedToType) { (rawValue, wdlType, exceptionClass, exceptionMessage) =>
+    it should s"fail coercing ${wdlType.toWdlString} from ${describe(rawValue)}" in {
+      val exception = wdlType.coerceRawValue(rawValue).failed.get
+      exception.getClass should be(exceptionClass)
+      exception.getMessage should fullyMatch regex exceptionMessage
+    }
   }
 
   "WdlBoolean" should "support expected coercions" in {

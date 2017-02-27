@@ -115,6 +115,8 @@ object RuntimeAttributesValidation {
       override protected def missingValueMessage: String = validation.missingValueMessage
 
       override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
+
+      override protected def staticDefaultOption = validation.staticDefaultOption
     }
   }
 

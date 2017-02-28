@@ -78,7 +78,7 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
   }
 
   // For the metadata event tests!
-  val eventKeyRegex = "path\\:to\\:failures\\[([0-9]*)\\]\\:message".r
+  val eventKeyRegex = "path\\:to\\:failures\\[([0-9]+)\\]\\:message".r
 
   it should "convert an exception into a failure event" in {
     import MetadataService.throwableToMetadataEvents
@@ -159,12 +159,13 @@ class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropert
   def validateEvent(event: MetadataEvent, workflowId: WorkflowId, message: String) = event match {
     case MetadataEvent(k, Some(MetadataValue(v, _)), _) =>
       k.workflowId should be(workflowId)
-      val messageIndex = k.key match {
+      v should be(message)
+
+      // Return the ID so that we can check for uniqueness later:
+      k.key match {
         case eventKeyRegex(x) => x
         case _ => fail("Unexpected failure key format: " + k.key)
       }
-      v should be(message)
-
-      messageIndex
+    case _ => fail("throwableToMetadataEvents generated a metadata event without a metadata value! Bad throwableToMetadataEvents! Very bad!")
   }
 }

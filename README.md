@@ -1335,7 +1335,7 @@ It supports the following Spark deploy modes:
 
 ### Configuring Spark Project
 
-When using Spark backend uncomment the following Spark configuration in the application.conf file
+When using Spark backend uncomment the following Spark configuration in the reference.conf file, which is available under `core/src/resources`
 
 ```conf
 Spark {

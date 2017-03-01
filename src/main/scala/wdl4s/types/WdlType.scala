@@ -6,6 +6,7 @@ import wdl4s.{WdlExpressionException, WdlSource, WdlSyntaxErrorFormatter}
 import wdl4s.parser.WdlParser
 
 import scala.collection.JavaConverters._
+import scala.runtime.ScalaRunTime
 import scala.util.{Failure, Success, Try}
 
 class WdlTypeException(message: String) extends RuntimeException(message)
@@ -28,8 +29,13 @@ trait WdlType {
    */
   def coerceRawValue(any: Any): Try[WdlValue] = {
     any match {
-      case v: WdlValue if v.wdlType == this => Success(v)
-      case a if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(s"No coercion defined from '$any' of type '${any.getClass}' to ${getClass.getSimpleName}."))
+      case wdlValue: WdlValue if wdlValue.wdlType == this => Success(wdlValue)
+      case wdlValue: WdlValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
+        s"No coercion defined from '${WdlValue.takeMaxElements(wdlValue, 3).toWdlString}' of type" +
+          s" '${wdlValue.wdlType.toWdlString}' to '$toWdlString'."))
+      case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
+        s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +
+          s" '${Option(any.getClass.getCanonicalName).getOrElse(any.getClass.getName)}' to '$toWdlString'."))
       case _ => Try(coercion(any))
     }
   }
@@ -48,7 +54,7 @@ trait WdlType {
   def fromWdlString(wdlSource: WdlSource): WdlValue = {
     val tokens = WdlType.parser.lex(wdlSource, "string")
     val terminalMap = tokens.asScala.toVector.map {(_, wdlSource)}.toMap
-    val wdlSyntaxErrorFormatter = new WdlSyntaxErrorFormatter(terminalMap)
+    val wdlSyntaxErrorFormatter = WdlSyntaxErrorFormatter(terminalMap)
 
     /* Parsing as an expression is not sufficient... only a subset of these
      * ASTs are valid as WdlValues and this distinction is done in the
@@ -66,7 +72,7 @@ trait WdlType {
   def divide(rhs: WdlType): Try[WdlType] = invalid(s"$this / $rhs")
   def mod(rhs: WdlType): Try[WdlType] = invalid(s"$this % $rhs")
   def equals(rhs: WdlType): Try[WdlType] = invalid(s"$this == $rhs")
-  def notEquals(rhs: WdlType): Try[WdlType] = equals(rhs) map {x => WdlBooleanType}
+  def notEquals(rhs: WdlType): Try[WdlType] = equals(rhs) map {_ => WdlBooleanType}
   def lessThan(rhs: WdlType): Try[WdlType] = invalid(s"$this < $rhs")
   def lessThanOrEqual(rhs: WdlType): Try[WdlType] = (lessThan(rhs), equals(rhs)) match {
     case (Success(b:WdlType), _) if b == WdlBooleanType => Success(WdlBooleanType)
@@ -118,7 +124,7 @@ object WdlType {
       case _ =>
         val tokens = parser.lex(wdlString, "string")
         val terminalMap = tokens.asScala.toVector.map {(_, wdlString)}.toMap
-        val wdlSyntaxErrorFormatter = new WdlSyntaxErrorFormatter(terminalMap)
+        val wdlSyntaxErrorFormatter = WdlSyntaxErrorFormatter(terminalMap)
 
         /* parse_type_e() is the parse function for the $type_e nonterminal in grammar.hgr */
         val ast = parser.parse_type_e(tokens, wdlSyntaxErrorFormatter).toAst

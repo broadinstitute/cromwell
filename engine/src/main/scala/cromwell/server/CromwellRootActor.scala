@@ -65,7 +65,9 @@ import scala.language.postfixOps
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
   lazy val callCache: CallCache = new CallCache(SingletonServicesStore.databaseInterface)
-  lazy val callCacheReadActor = context.actorOf(RoundRobinPool(25)
+
+  lazy val numberOfCacheReadWorkers = config.getConfig("system").as[Option[Int]]("number-of-cache-read-workers").getOrElse(DefaultNumberOfCacheReadWorkers)
+  lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")
   
@@ -116,4 +118,5 @@ import scala.language.postfixOps
 object CromwellRootActor {
   val DefaultNumberOfWorkflowLogCopyWorkers = 10
   val DefaultCacheTTL = 20 minutes
+  val DefaultNumberOfCacheReadWorkers = 25
 }

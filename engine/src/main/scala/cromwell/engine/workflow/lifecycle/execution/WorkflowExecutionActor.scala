@@ -13,7 +13,7 @@ import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.util.StopAndLogSupervisor
@@ -121,7 +121,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, Map.empty)
       // Job Retryable
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
+    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = true)
       handleRetryableFailure(jobKey, reason, returnCode)
       // Sub Workflow - sub workflow failures are always non retryable
@@ -142,7 +142,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(SubWorkflowSucceededResponse(subKey, executedKeys, _), stateData) =>
       pushAbortedCallMetadata(subKey)
       handleCallAborted(stateData, subKey, executedKeys)
-    case Event(JobSucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
+    case Event(JobSucceededResponse(jobKey, _, _, _, _), stateData) =>
       pushAbortedCallMetadata(jobKey)
       handleCallAborted(stateData, jobKey, Map.empty)
   }
@@ -161,16 +161,16 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Mop up function to handle a set of incoming results if this workflow has already failed:
     */
   private def alreadyFailedMopUp: StateFunction = {
-    case Event(JobInitializationFailed(jobKey, reason), stateData) =>
+    case Event(JobInitializationFailed(jobKey, reason), _) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
       stay
-    case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
+    case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), _) =>
       pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = false)
       stay
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), stateData) =>
+    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
       pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
       stay
-    case Event(JobSucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
+    case Event(JobSucceededResponse(jobKey, returnCode, callOutputs, _, _), _) =>
       pushSuccessfulCallMetadata(jobKey, returnCode, callOutputs)
       stay
   }
@@ -263,7 +263,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     import cromwell.util.JsonFormatting.WdlValueJsonFormatter._
     import spray.json._
 
-     val (response, finalState) = workflowDescriptor.workflow.evaluateOutputs(
+    case class ResponseAndFinalState(response: WorkflowExecutionActorResponse,
+                                     finalState: WorkflowExecutionActorTerminalState)
+
+    val responseAndState = workflowDescriptor.workflow.evaluateOutputs(
       workflowDescriptor.knownValues,
       data.expressionLanguageFunctions,
       data.outputStore.fetchNodeOutputEntries
@@ -277,20 +280,22 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
              |${workflowScopeOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
        )
        pushWorkflowOutputMetadata(workflowScopeOutputs)
-       
+
        // For cromwell internal storage of outputs
        val unqualifiedWorkflowOutputs = workflowOutputs map {
          // JobOutput is poorly named here - a WorkflowOutput type would be better
          case (output, value) => output.unqualifiedName -> JobOutput(value)
        }
-       (WorkflowExecutionSucceededResponse(data.jobExecutionMap, unqualifiedWorkflowOutputs), WorkflowExecutionSuccessfulState)
+      ResponseAndFinalState(
+        WorkflowExecutionSucceededResponse(data.jobExecutionMap, unqualifiedWorkflowOutputs),
+        WorkflowExecutionSuccessfulState)
     } recover {
        case ex =>
-         (WorkflowExecutionFailedResponse(data.jobExecutionMap, ex), WorkflowExecutionFailedState)
+         ResponseAndFinalState(WorkflowExecutionFailedResponse(data.jobExecutionMap, ex), WorkflowExecutionFailedState)
     } get
     
-    context.parent ! response
-    goto(finalState) using data
+    context.parent ! responseAndState.response
+    goto(responseAndState.finalState) using data
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
@@ -328,7 +333,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     data.workflowCompletionStatus match {
       case Some(ExecutionStatus.Done) =>
         handleWorkflowSuccessful(data)
-      case Some(sts) =>
+      case Some(_) =>
         context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in fail-slow mode"))
         goto(WorkflowExecutionFailedState) using data
       case _ =>
@@ -362,34 +367,58 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))
 
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
-    val executionDiffs = runnableScopes map {
-      case k: CallKey if isInBypassedScope(k, data) => processBypassedScope(k, data)
-      case k: DeclarationKey if isInBypassedScope(k, data) => processBypassedScope(k, data)
-      case k: BackendJobDescriptorKey => processRunnableJob(k, data)
-      case k: ScatterKey => processRunnableScatter(k, data, isInBypassedScope(k, data))
-      case k: ConditionalKey => processRunnableConditional(k, data)
-      case k: CollectorKey => processRunnableCollector(k, data, isInBypassedScope(k, data))
-      case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
-      case k: StaticDeclarationKey => processRunnableStaticDeclaration(k)
-      case k: DynamicDeclarationKey => processRunnableDynamicDeclaration(k, data)
-      case k =>
-        val exception = new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}")
-        self ! JobInitializationFailed(k, exception)
-        Failure(exception)
+    val diffs = runnableScopes map { scope =>
+      scope -> Try(scope match {
+        case k: CallKey if isInBypassedScope(k, data) => processBypassedScope(k, data)
+        case k: DeclarationKey if isInBypassedScope(k, data) => processBypassedScope(k, data)
+        case k: BackendJobDescriptorKey => processRunnableJob(k, data)
+        case k: ScatterKey => processRunnableScatter(k, data, isInBypassedScope(k, data))
+        case k: ConditionalKey => processRunnableConditional(k, data)
+        case k: CollectorKey => processRunnableCollector(k, data, isInBypassedScope(k, data))
+        case k: SubWorkflowKey => processRunnableSubWorkflow(k, data)
+        case k: StaticDeclarationKey => processRunnableStaticDeclaration(k)
+        case k: DynamicDeclarationKey => processRunnableDynamicDeclaration(k, data)
+        case k => Failure(new UnsupportedOperationException(s"Unknown entry in execution store: ${k.tag}"))
+      }).flatten
+    } map {
+      case (_, Success(value)) => Success(value)
+      case (scope, Failure(throwable)) =>
+        self ! JobInitializationFailed(scope, throwable)
+        Failure(throwable)
+    } collect {
+      /*
+      NOTE: This is filtering out all errors and only returning the successes, but only after the map above sent a
+      message that something is wrong.
+
+      We used to throw an aggregation exception of all the collected errors, but _nothing_ in cromwell is actually
+      expecting that. Thus the workflows were being left in a Running state, jobs were left dispatched, etc.
+
+      Meanwhile this actor and its children died or restarted, and one couldn't even attempt to abort the other jobs.
+
+      Now, in the previous map, we send a message to ourselves about _every_ failure. But this method does not attempt
+      to further process the errors. The failures enqueue in the actor mailbox, and are handled by this actor's receive.
+
+      At the moment, there is an issue in how this actor handles failure messages. That issue is tracked in:
+      https://github.com/broadinstitute/cromwell/issues/2029
+
+      Separately, we may also want to institute better supervision of actors, in general. But just throwing an exception
+      here doesn't actually force the correct handling.
+
+      See also:
+      https://github.com/broadinstitute/cromwell/issues/1414
+      https://github.com/broadinstitute/cromwell/issues/1874
+      */
+      case Success(value) => value
     }
 
-    TryUtil.sequence(executionDiffs) match {
-      case Success(diffs) =>
-        // Update the metadata for the jobs we just sent to EJEAs (they'll start off queued up waiting for tokens):
-        pushQueuedCallMetadata(diffs)
-        if (diffs.exists(_.containsNewEntry)) {
-          val newData = data.mergeExecutionDiffs(diffs)
-          startRunnableScopes(newData)
-        } else {
-          val result = data.mergeExecutionDiffs(diffs)
-          result
-        }
-      case Failure(e) => throw new RuntimeException("Unexpected engine failure", e)
+    // Update the metadata for the jobs we just sent to EJEAs (they'll start off queued up waiting for tokens):
+    pushQueuedCallMetadata(diffs)
+    if (diffs.exists(_.containsNewEntry)) {
+      val newData = data.mergeExecutionDiffs(diffs)
+      startRunnableScopes(newData)
+    } else {
+      val result = data.mergeExecutionDiffs(diffs)
+      result
     }
   }
 
@@ -500,7 +529,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
         val result = WorkflowExecutionDiff(conditionalKey.populate(workflowDescriptor.knownValues) + (conditionalKey -> conditionalStatus))
         result
-      case v: WdlValue => throw new RuntimeException("'if' condition must evaluate to a boolean")
+      case v: WdlValue => throw new RuntimeException(
+        s"'if' condition must evaluate to a boolean but instead got ${v.wdlType.toWdlString}")
     }
   }
 
@@ -517,7 +547,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
         case a: WdlArray =>
           WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.knownValues) + (scatterKey -> ExecutionStatus.Done))
-        case v: WdlValue => throw new RuntimeException("Scatter collection must evaluate to an array")
+        case v: WdlValue => throw new RuntimeException(
+          s"Scatter collection must evaluate to an array but instead got ${v.wdlType.toWdlString}")
       }
     }
   }
@@ -644,7 +675,7 @@ object WorkflowExecutionActor {
       def makeCollectors(scope: Scope): Seq[CollectorKey] = scope match {
         case call: Call => List(CollectorKey(call, scatter, count))
         case decl: Declaration => List(CollectorKey(decl, scatter, count))
-        case i: If => i.children.flatMap(makeCollectors(_))
+        case i: If => i.children.flatMap(makeCollectors)
       }
 
       (scope match {
@@ -652,7 +683,7 @@ object WorkflowExecutionActor {
         case call: WorkflowCall => (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
         case declaration: Declaration => (0 until count) map { i => DeclarationKey(declaration, Option(i), workflowCoercedInputs) }
         case conditional: If => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
-        case scatter: Scatter =>
+        case _: Scatter =>
           throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
         case e =>
           throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")

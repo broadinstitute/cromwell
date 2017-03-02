@@ -9,6 +9,8 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import cromwell.backend.impl.jes.authentication.JesAuths
 import cromwell.filesystems.gcs.GoogleConfiguration
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import lenthall.validation.Validation._
@@ -24,7 +26,7 @@ case class JesAttributes(project: String,
                          executionBucket: String,
                          endpointUrl: URL,
                          maxPollingInterval: Int,
-                         qps: Int,
+                         qps: Int Refined Positive,
                          defaultZones: NonEmptyList[String])
 
 object JesAttributes {
@@ -64,12 +66,12 @@ object JesAttributes {
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
-    val qps = backendConfig.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(GenomicsApiDefaultQps) / 100
+    val qpsValidation = validateQps(backendConfig)
     val defaultZones = defaultZonesFromConfig(backendConfig)
 
-    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| defaultZones) map {
-      (_, _, _, _, _, _)
-    } flatMap { case (p, b, u, genomicsName, gcsName, d) =>
+    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| defaultZones |@| qpsValidation) map {
+      (_, _, _, _, _, _, _)
+    } flatMap { case (p, b, u, genomicsName, gcsName, d, qps) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
         JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps, d)
       }
@@ -88,6 +90,18 @@ object JesAttributes {
     zones match {
       case x :: xs => NonEmptyList(x, xs).validNel
       case _ => "genomics.default-zones was set but no values were provided".invalidNel
+    }
+  }
+
+  def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
+    import eu.timepit.refined._
+
+    val qp100s = config.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(GenomicsApiDefaultQps)
+    val qpsCandidate = qp100s / 100
+
+    refineV[Positive](qpsCandidate) match {
+      case Left(_) => s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
+      case Right(refined) => refined.validNel
     }
   }
 }

@@ -4,16 +4,19 @@ import java.net.SocketTimeoutException
 
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
+import com.google.api.services.genomics.model.RunPipelineRequest
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
 import cromwell.backend.impl.jes.io._
-import cromwell.backend.impl.jes.statuspolling.JesPollingActorClient
+import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
+import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.gcs.GcsPath
+import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values._
@@ -21,7 +24,8 @@ import wdl4s.values._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
+import scala.collection.JavaConverters._
 
 object JesAsyncBackendJobExecutionActor {
   val JesOperationIdKey = "__jes_operation_id"
@@ -36,13 +40,17 @@ object JesAsyncBackendJobExecutionActor {
     PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
 
   private val ExtraConfigParamName = "__extra_config_gcs_path"
+  private def stringifyMap(m: Map[String, String]): String = m map { case(k, v) => s"  $k -> $v"} mkString "\n"
 }
 
 class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with JesJobCachingActorHelper
-    with JesPollingActorClient {
+    with JesStatusRequestClient with JesRunCreationClient  {
 
   import JesAsyncBackendJobExecutionActor._
+
+  val slf4jLogger = LoggerFactory.getLogger(JesAsyncBackendJobExecutionActor.getClass)
+  val logger = new JobLogger("JesRun", jobDescriptor.workflowDescriptor.id, jobDescriptor.key.tag, None, Set(slf4jLogger))
 
   val jesBackendSingletonActor: ActorRef =
     standardParams.backendSingletonActorOption.getOrElse(
@@ -71,10 +79,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private lazy val dockerConfiguration = jesConfiguration.dockerCredentials
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
-    Run(job.jobId, initializationData.genomics).abort()
+    Run(job, initializationData.genomics).abort()
   }
 
-  override def receive: Receive = pollingActorClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse super.receive
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -218,9 +226,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def createJesRun(jesParameters: Seq[JesParameter], runIdForResumption: Option[String]): Run = {
-    Run(
-      runIdForResumption,
+  private def createJesRunPipelineRequest(jesParameters: Seq[JesParameter]): RunPipelineRequest = {
+    val runPipelineParameters = Run.makeRunPipelineRequest(
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       callRootPath = callRootPath.pathAsString,
@@ -232,41 +239,58 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       retryable,
       initializationData.genomics
     )
+    logger.debug(s"Inputs:\n${stringifyMap(runPipelineParameters.getPipelineArgs.getInputs.asScala.toMap)}")
+    logger.debug(s"Outputs:\n${stringifyMap(runPipelineParameters.getPipelineArgs.getOutputs.asScala.toMap)}")
+    runPipelineParameters
   }
 
-  override def isFatal(throwable: Throwable): Boolean = isFatalJesException(throwable)
+  override def isFatal(throwable: Throwable): Boolean = super.isFatal(throwable) || isFatalJesException(throwable)
 
   override def isTransient(throwable: Throwable): Boolean = isTransientJesException(throwable)
 
-  override def execute(): ExecutionHandle = {
+  override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     runWithJes(None)
   }
 
-  protected def runWithJes(runIdForResumption: Option[String]): ExecutionHandle = {
-    // Force runtimeAttributes to evaluate so we can fail quickly now if we need to:
-    Try(runtimeAttributes) match {
-      case Success(_) =>
-        val jesInputs: Set[JesInput] = generateJesInputs(jobDescriptor) ++ monitoringScript + cmdInput
-        val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
+  override def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+    runWithJes(Option(jobId))
+  }
 
-        val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
+  private def runWithJes(jobForResumption: Option[StandardAsyncJob]): Future[ExecutionHandle] = {
 
-        jobPaths.script.writeAsText(commandScriptContents)
-        val run = createJesRun(jesParameters, runIdForResumption)
-        PendingExecutionHandle(jobDescriptor, StandardAsyncJob(run.runId), Option(run), previousStatus = None)
-      case Failure(e) => FailedNonRetryableExecutionHandle(e)
+    // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
+    def makeRpr: Try[RunPipelineRequest] = Try(runtimeAttributes) flatMap { _ => Try {
+      val jesInputs: Set[JesInput] = generateJesInputs(jobDescriptor) ++ monitoringScript + cmdInput
+      val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
+
+      val jesParameters = standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs
+
+      jobPaths.script.writeAsText(commandScriptContents)
+      createJesRunPipelineRequest(jesParameters)
+    }}
+
+    jobForResumption match {
+      case Some(job) =>
+        val run = Run(job, initializationData.genomics)
+        Future.successful(PendingExecutionHandle(jobDescriptor, job, Option(run), previousStatus = None))
+      case None =>
+        for {
+          rpr <- Future.fromTry(makeRpr)
+          runId <- runPipeline(initializationData.genomics, rpr)
+          run = Run(runId, initializationData.genomics)
+        } yield PendingExecutionHandle(jobDescriptor, runId, Option(run), previousStatus = None)
     }
   }
 
   override def pollStatusAsync(handle: JesPendingExecutionHandle)
                               (implicit ec: ExecutionContext): Future[RunStatus] = {
-    super[JesPollingActorClient].pollStatus(handle.runInfo.get)
+    super[JesStatusRequestClient].pollStatus(handle.runInfo.get)
   }
 
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
-      jobLogger.error(s"$tag JES Job ID ${oldHandle.runInfo.get.runId} has not been found, failing call")
+      jobLogger.error(s"JES Job ID ${oldHandle.runInfo.get.job} has not been found, failing call")
       FailedNonRetryableExecutionHandle(e)
   }
 

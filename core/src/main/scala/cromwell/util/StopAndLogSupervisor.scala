@@ -2,9 +2,8 @@ package cromwell.util
 
 import akka.actor.SupervisorStrategy.{Decider, Stop}
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, SupervisorStrategy}
-import cromwell.core.logging.WorkflowLogging
 
-trait StopAndLogSupervisor { this: Actor with WorkflowLogging =>
+trait StopAndLogSupervisor { this: Actor =>
 
   private var failureLog: Map[ActorRef, Throwable] = Map.empty
 
@@ -15,10 +14,14 @@ trait StopAndLogSupervisor { this: Actor with WorkflowLogging =>
         failureLog += failer -> e
         Stop
     }
-    OneForOneStrategy()(stoppingDecider)
+    OneForOneStrategy(loggingEnabled = false)(stoppingDecider)
   }
 
-  final def getFailureCause(actorRef: ActorRef): Option[Throwable] = failureLog.get(actorRef)
+  final def getFailureCause(actorRef: ActorRef): Option[Throwable] = {
+    val result = failureLog.get(actorRef)
+    failureLog -= actorRef
+    result
+  }
 
   override final val supervisorStrategy = stopAndLogStrategy
 }

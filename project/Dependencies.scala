@@ -136,6 +136,11 @@ object Dependencies {
     "org.mongodb" %% "casbah" % "3.0.0"
   )
 
+  val jesBackendDependencies = List(
+    "org.scala-lang" % "scala-compiler" % Settings.ScalaVersion,
+    "eu.timepit" %% "refined" % "0.7.0"
+  )
+
   val tesBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV
   ) ++ sprayServerDependencies

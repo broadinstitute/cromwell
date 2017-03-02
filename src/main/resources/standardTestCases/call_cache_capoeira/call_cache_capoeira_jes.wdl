@@ -70,8 +70,7 @@ task modify_file_gcs {
     Boolean ready
     String file_path_raw
     command {
-        echo "override" > tmp
-        gsutil cp tmp ${file_path_raw}
+        echo "override" | gsutil cp - ${file_path_raw}
     }
     runtime {
         docker: "google/cloud-sdk"

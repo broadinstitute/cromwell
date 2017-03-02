@@ -1,0 +1,12 @@
+name: undeclared_scatter_variable
+testFormat: workflowfailure
+
+files {
+  wdl: undeclared_scatter_variable/undeclared_scatter_variable.wdl
+}
+
+metadata {
+  workflowName: undeclared_scatter_variable
+  status: Failed
+  "failures.0.message": "Variable 'undeclared' not found"
+}

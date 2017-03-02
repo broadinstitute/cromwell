@@ -29,7 +29,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     */
   override lazy val processArgs: SharedFileSystemCommand = {
     val submitScript = jobPaths.script.plusExt("submit")
-    val submitInputs = standardInputs ++ dockerInputs ++ runtimeAttributeInputs
+    val submitInputs = standardInputs ++ dockerizedInputs ++ runtimeAttributeInputs
     val submitTaskName = if (isDockerRun) SubmitDockerTask else SubmitTask
     writeTaskScript(submitScript, submitTaskName, submitInputs)
     SharedFileSystemCommand("/bin/bash", submitScript)
@@ -64,23 +64,28 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   private lazy val standardInputs: WorkflowCoercedInputs = {
     Map(
       JobNameInput -> WdlString(jobName),
-      CwdInput -> WdlString(jobPaths.callRoot.pathAsString),
-      StdoutInput -> WdlString(jobPaths.stdout.pathAsString),
-      StderrInput -> WdlString(jobPaths.stderr.pathAsString),
-      ScriptInput -> WdlString(jobPaths.script.pathAsString)
+      CwdInput -> WdlString(jobPaths.callRoot.pathAsString)
     )
   }
 
   /**
-    * Extra arguments if this is a submit-docker command, or Map.empty.
+    * The inputs that are not specified by the config, that will be passed into a command for either submit or
+    * submit-docker.
     */
-  private lazy val dockerInputs: WorkflowCoercedInputs = {
+  private lazy val dockerizedInputs: WorkflowCoercedInputs = {
     if (isDockerRun) {
       Map(
-        DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.pathAsString)
+        DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        StdoutInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
+        StderrInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
+        ScriptInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
       )
     } else {
-      Map.empty
+      Map(
+        StdoutInput -> WdlString(jobPaths.stdout.pathAsString),
+        StderrInput -> WdlString(jobPaths.stderr.pathAsString),
+        ScriptInput -> WdlString(jobPaths.script.pathAsString)
+      )
     }
   }
 

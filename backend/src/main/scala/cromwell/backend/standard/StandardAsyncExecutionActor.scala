@@ -176,7 +176,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
     s"""|#!/bin/bash
-        |tmpDir=$$(mktemp -d -p $cwd) 
+        |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX) 
         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
         |export TMPDIR=$$tmpDir
         |$commandScriptPreamble

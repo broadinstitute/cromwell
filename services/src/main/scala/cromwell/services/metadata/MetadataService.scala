@@ -9,6 +9,8 @@ import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.ThrowableAggregation
 import wdl4s.values._
 
+import scala.util.Random
+
 
 object MetadataService {
 
@@ -129,10 +131,12 @@ object MetadataService {
   def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable): List[MetadataEvent] = {
     t match {
       case aggregation: ThrowableAggregation =>
-        aggregation.errorMessages.toList map { message => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(s"${aggregation.exceptionContext}: $message")) }
+        val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}[${Random.nextInt(Int.MaxValue)}]:message"), MetadataValue(aggregation.exceptionContext)))
+        val innards = aggregation.throwables.toList flatMap { innard => throwableToMetadataEvents(metadataKey, innard) }
+        message ++ innards
       case other =>
-        val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
-        val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
+        val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}[${Random.nextInt(Int.MaxValue)}]:message"), MetadataValue(t.getMessage)))
+        val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey, cause) } getOrElse List.empty
         message ++ cause
     }
   }

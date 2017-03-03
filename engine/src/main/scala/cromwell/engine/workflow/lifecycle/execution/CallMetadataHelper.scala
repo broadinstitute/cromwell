@@ -85,7 +85,7 @@ trait CallMetadataHelper {
     val failedState = if (retryableFailure) ExecutionStatus.Preempted else ExecutionStatus.Failed
     val completionEvents = completedCallMetadataEvents(jobKey, failedState, returnCode)
     val retryableFailureEvent = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure))
-    val failureEvents = throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}[$randomNumberString]"), failure).+:(retryableFailureEvent)
+    val failureEvents = throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
 
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
@@ -137,5 +137,5 @@ trait CallMetadataHelper {
   private def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
 
   private def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
-  
+
 }

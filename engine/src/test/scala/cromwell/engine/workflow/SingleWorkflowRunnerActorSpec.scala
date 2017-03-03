@@ -41,7 +41,7 @@ object SingleWorkflowRunnerActorSpec {
 
   implicit class OptionJsValueEnhancer(val jsValue: Option[JsValue]) extends AnyVal {
     def toOffsetDateTime = OffsetDateTime.parse(jsValue.toStringValue)
-    def toStringValue = jsValue.get.asInstanceOf[JsString].value
+    def toStringValue = jsValue.getOrElse(JsString("{}")).asInstanceOf[JsString].value
     def toFields = jsValue.get.asJsObject.fields
   }
 

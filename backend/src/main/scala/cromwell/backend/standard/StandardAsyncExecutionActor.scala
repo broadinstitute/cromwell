@@ -170,16 +170,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     jobLogger.info(s"`$instantiatedCommand`")
 
     val cwd = commandDirectory
-    val tmpDir = cwd./("tmp")
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     val rcTmpPath = rcPath.plusExt("tmp")
 
     val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
     s"""|#!/bin/bash
-        |export _JAVA_OPTIONS=-Djava.io.tmpdir=$tmpDir
-        |export TMPDIR=$tmpDir
-        |mkdir -p $tmpDir
+        |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX) 
+        |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
+        |export TMPDIR=$$tmpDir
         |$commandScriptPreamble
         |(
         |cd $cwd

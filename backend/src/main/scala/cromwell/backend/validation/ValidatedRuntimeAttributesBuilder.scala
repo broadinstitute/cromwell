@@ -6,6 +6,7 @@ import cromwell.backend.RuntimeAttributeDefinition
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
+import wdl4s.types.WdlType
 import wdl4s.values.WdlValue
 
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
@@ -29,20 +30,23 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns a mapping of the validations: RuntimeAttributesValidation each converted to a RuntimeAttributeDefinition.
     */
-  final lazy val definitions: Seq[RuntimeAttributeDefinition] = {
-    validations map RuntimeAttributesValidation.toRuntimeAttributeDefinition
+  final lazy val definitions: Seq[RuntimeAttributeDefinition] = validations.map(_.runtimeAttributeDefinition)
+
+  /**
+    * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
+    */
+  final lazy val validatorMap: Map[String, (Option[WdlValue]) => Boolean] = {
+    validations.map(validation =>
+      validation.key -> validation.validateOptionalExpression _
+    ).toMap
   }
 
   /**
-    * Returns the additional validations that should be used during value parsing.
-    *
-    * For example, sometimes docker might not be supported, BUT we want to still validate the value if specified.
-    *
-    * In that case, return the validation here.
-    *
-    * @return the additional validations that should be used during value parsing.
+    * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
     */
-  protected def unsupportedExtraValidations: Seq[OptionalRuntimeAttributesValidation[_]] = Seq.empty
+  final lazy val coercionMap: Map[String, Traversable[WdlType]] = {
+    validations.map(validation => validation.key -> validation.coercion).toMap
+  }
 
   def unsupportedKeys(keys: Seq[String]): Seq[String] = keys.diff(validationKeys)
 
@@ -63,9 +67,8 @@ trait ValidatedRuntimeAttributesBuilder {
   }
 
   private def validate(values: Map[String, WdlValue]): ErrorOr[ValidatedRuntimeAttributes] = {
-    val validationsForValues = validations ++ unsupportedExtraValidations
     val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
-      validationsForValues.map(validation => validation.key -> validation.validate(values)).toList
+      validations.map(validation => validation.key -> validation.validate(values)).toList
 
     val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map {
       case (key, errorOrAny) => errorOrAny map { any => (key, any) }

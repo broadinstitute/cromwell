@@ -1,21 +1,20 @@
 package cromwell.backend.async
 
-import java.nio.file.Path
-
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
-import cromwell.core.{ExecutionEvent, CallOutputs}
+import cromwell.core.path.Path
+import cromwell.core.{CallOutputs, ExecutionEvent}
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
  * with the `poll` API to feed results of previous job status queries forward.
  */
-trait ExecutionHandle {
+sealed trait ExecutionHandle {
   def isDone: Boolean
   def result: ExecutionResult
 }
 
-case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunStatus]
+final case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunStatus]
 (
   jobDescriptor: BackendJobDescriptor,
   pendingJob: BackendJobId,

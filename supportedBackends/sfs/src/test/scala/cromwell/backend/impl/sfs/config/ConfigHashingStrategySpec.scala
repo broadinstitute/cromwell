@@ -3,12 +3,11 @@ package cromwell.backend.impl.sfs.config
 import java.util.UUID
 
 import akka.event.LoggingAdapter
-import better.files._
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.io.WorkflowPaths
-import cromwell.backend.sfs.SharedFileSystemBackendInitializationData
-import cromwell.core.path.DefaultPathBuilder
+import cromwell.backend.standard.StandardInitializationData
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -23,8 +22,8 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   val steak = "Steak"
   val steakHash = DigestUtils.md5Hex(steak)
-  val file = File.newTemporaryFile()
-  val symLinksDir = File.newTemporaryDirectory("sym-dir")
+  val file = DefaultPathBuilder.createTempFile()
+  val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
   val pathHash = DigestUtils.md5Hex(file.pathAsString)
   val md5File = file.sibling(s"${file.name}.md5")
   // Not the md5 value of "Steak". This is intentional so we can verify which hash is used depending on the strategy
@@ -37,11 +36,11 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   private def randomName(): String = UUID.randomUUID().toString
 
-  def mockRequest(withSibling: Boolean, symlink: Boolean = false) = {
+  def mockRequest(withSibling: Boolean, symlink: Boolean) = {
     if (withSibling && md5File.notExists) md5File.write(md5FileHash)
     val request = mock[SingleFileHashRequest]
     val requestFile = if (symlink) {
-      val symLink : File = symLinksDir./(s"symlink-${randomName()}")
+      val symLink: Path = symLinksDir./(s"symlink-${randomName()}")
       symLink.symbolicLinkTo(file)
       symLink
     } else file
@@ -49,7 +48,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val workflowPaths = mock[WorkflowPaths]
     workflowPaths.pathBuilders returns List(DefaultPathBuilder)
 
-    val initData = mock[SharedFileSystemBackendInitializationData]
+    val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
 
     request.file returns WdlFile(requestFile.pathAsString)
@@ -99,7 +98,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
       checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
 
       val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
-      val symlink = File(symLinkRequest.file.valueString)
+      val symlink = DefaultPathBuilder.get(symLinkRequest.file.valueString)
 
       symlink.isSymbolicLink shouldBe true
       DigestUtils.md5Hex(symlink.pathAsString) should not be expected
@@ -141,7 +140,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
       checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
 
       val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
-      val symlink = File(symLinkRequest.file.valueString)
+      val symlink = DefaultPathBuilder.get(symLinkRequest.file.valueString)
 
       symlink.isSymbolicLink shouldBe true
       checkSibling.getHash(symLinkRequest, mock[LoggingAdapter]) shouldBe Success(expected)

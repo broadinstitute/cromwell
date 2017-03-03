@@ -1,22 +1,21 @@
 package cromwell.engine.workflow
 
-import java.nio.file.Paths
-
 import akka.actor.{Actor, ActorRef}
 import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
-import cromwell.engine.workflow.lifecycle.{CopyWorkflowLogsActor, EngineLifecycleActorAbortCommand}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
+import cromwell.engine.workflow.lifecycle.{CopyWorkflowLogsActor, EngineLifecycleActorAbortCommand}
 import cromwell.util.SampleWdl.ThreeStep
-import cromwell._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
@@ -31,7 +30,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
     }
   })
 
-  val mockDir = Paths.get("/where/to/copy/wf/logs")
+  val mockDir = DefaultPathBuilder.get("/where/to/copy/wf/logs")
   val mockWorkflowOptions = s"""{ "final_workflow_log_dir" : "$mockDir" }"""
 
   var currentWorkflowId: WorkflowId = _
@@ -61,6 +60,7 @@ class WorkflowActorSpec extends CromwellTestKitSpec with WorkflowDescriptorBuild
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
         subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
+        dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
         jobTokenDispenserActor = TestProbe().ref
       ),
       supervisor = supervisorProbe.ref)
@@ -174,7 +174,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         jobStoreActor: ActorRef,
                         subWorkflowStoreActor: ActorRef,
                         callCacheReadActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
+                        dockerHashActor: ActorRef,
+                        jobTokenDispenserActor: ActorRef) extends WorkflowActor(workflowId, startMode, workflowSources, conf, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, BackendSingletonCollection(Map.empty), serverMode = true) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

@@ -1,14 +1,13 @@
 package cromwell.engine.workflow.lifecycle
 
 import java.io.IOException
-import java.nio.file.Path
 
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
-import better.files._
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogger
+import cromwell.core.path.Path
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
@@ -30,11 +29,11 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
     with ActorLogging {
 
   def copyAndClean(src: Path, dest: Path) = {
-    File(dest).parent.createDirectories()
+    dest.parent.createPermissionedDirectories()
 
-    File(src).copyTo(dest, overwrite = true)
+    src.copyTo(dest, overwrite = true)
     if (WorkflowLogger.isTemporary) {
-      File(src).delete()
+      src.delete()
     }
   }
 
@@ -43,8 +42,8 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef)
       val workflowLogger = new WorkflowLogger(self.path.name, workflowId, Option(log))
 
       workflowLogger.workflowLogPath foreach { src =>
-        if (File(src).exists) {
-          val destPath = destinationDir.resolve(src.getFileName)
+        if (src.exists) {
+          val destPath = destinationDir.resolve(src.name)
           workflowLogger.info(s"Copying workflow logs from $src to $destPath")
 
           copyAndClean(src, destPath)

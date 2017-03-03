@@ -8,9 +8,11 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.logging.JobLogging
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
-import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{CallPreparationFailed, Start, SubWorkflowPreparationSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor
+import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
@@ -23,6 +25,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 jobStoreActor: ActorRef,
                                 subWorkflowStoreActor: ActorRef,
                                 callCacheReadActor: ActorRef,
+                                dockerHashActor: ActorRef,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
@@ -94,10 +97,6 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command")
       stay()
-    case Event(MetadataPutFailed(action, error), _) =>
-      jobLogger.warn(s"Put failed for Metadata action $action", error)
-      stay()
-    case Event(MetadataPutAcknowledgement(_), _) => stay()
   }
 
   onTransition {
@@ -153,6 +152,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       jobStoreActor,
       subWorkflowStoreActor,
       callCacheReadActor,
+      dockerHashActor,
       jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
@@ -255,6 +255,7 @@ object SubWorkflowExecutionActor {
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
@@ -267,6 +268,7 @@ object SubWorkflowExecutionActor {
       jobStoreActor,
       subWorkflowStoreActor,
       callCacheReadActor,
+      dockerHashActor,
       jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,

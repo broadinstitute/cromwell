@@ -4,6 +4,8 @@ import cats.data.NonEmptyList
 import cromwell.CromwellTestKitSpec
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
+import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.engine.workflow.workflowstore._
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse}

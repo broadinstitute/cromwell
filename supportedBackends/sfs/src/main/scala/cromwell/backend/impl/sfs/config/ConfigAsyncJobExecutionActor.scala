@@ -1,12 +1,9 @@
 package cromwell.backend.impl.sfs.config
 
-import java.nio.file.Path
-
-import better.files._
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.core.path.PathFactory._
+import cromwell.core.path.Path
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.WdlString
@@ -31,8 +28,8 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * will grab the job id from the stdout.
     */
   override lazy val processArgs: SharedFileSystemCommand = {
-    val submitScript = pathPlusSuffix(jobPaths.script, "submit")
-    val submitInputs = standardInputs ++ dockerInputs ++ runtimeAttributeInputs
+    val submitScript = jobPaths.script.plusExt("submit")
+    val submitInputs = standardInputs ++ dockerizedInputs ++ runtimeAttributeInputs
     val submitTaskName = if (isDockerRun) SubmitDockerTask else SubmitTask
     writeTaskScript(submitScript, submitTaskName, submitInputs)
     SharedFileSystemCommand("/bin/bash", submitScript)
@@ -46,19 +43,16 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param taskName The name of the task to retrieve from the precomputed wdl namespace.
     * @param inputs   The customized inputs to this task.
     */
-  def writeTaskScript(script: File, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
+  def writeTaskScript(script: Path, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
     val task = configInitializationData.wdlNamespace.findTask(taskName).
       getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
     val inputsWithFqns = inputs map { case (k, v) => s"$taskName.$k" -> v }
     val command = task.instantiateCommand(task.inputsFromMap(inputsWithFqns), NoFunctions).get
     jobLogger.info(s"executing: $command")
     val scriptBody =
-      s"""
-
-#!/bin/bash
-$command
-
-""".trim + "\n"
+      s"""|#!/bin/bash
+          |SCRIPT_COMMAND
+          |""".stripMargin.replace("SCRIPT_COMMAND", command)
     script.write(scriptBody)
     ()
   }
@@ -70,23 +64,28 @@ $command
   private lazy val standardInputs: WorkflowCoercedInputs = {
     Map(
       JobNameInput -> WdlString(jobName),
-      CwdInput -> WdlString(jobPaths.callRoot.toString),
-      StdoutInput -> WdlString(jobPaths.stdout.toString),
-      StderrInput -> WdlString(jobPaths.stderr.toString),
-      ScriptInput -> WdlString(jobPaths.script.toString)
+      CwdInput -> WdlString(jobPaths.callRoot.pathAsString)
     )
   }
 
   /**
-    * Extra arguments if this is a submit-docker command, or Map.empty.
+    * The inputs that are not specified by the config, that will be passed into a command for either submit or
+    * submit-docker.
     */
-  private lazy val dockerInputs: WorkflowCoercedInputs = {
+  private lazy val dockerizedInputs: WorkflowCoercedInputs = {
     if (isDockerRun) {
       Map(
-        DockerCwdInput -> WdlString(jobPaths.callDockerRoot.toString)
+        DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        StdoutInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
+        StderrInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
+        ScriptInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
       )
     } else {
-      Map.empty
+      Map(
+        StdoutInput -> WdlString(jobPaths.stdout.pathAsString),
+        StderrInput -> WdlString(jobPaths.stderr.pathAsString),
+        ScriptInput -> WdlString(jobPaths.script.pathAsString)
+      )
     }
   }
 
@@ -132,7 +131,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     */
   override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob = {
     val jobIdRegex = configurationDescriptor.backendConfig.getString(JobIdRegexConfig).r
-    val output = File(stdout).contentAsString.stripLineEnd
+    val output = stdout.contentAsString.stripLineEnd
     output match {
       case jobIdRegex(jobId) => StandardAsyncJob(jobId)
       case _ =>
@@ -170,7 +169,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @return A runnable command.
     */
   private def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String): SharedFileSystemCommand = {
-    val script = pathPlusSuffix(jobPaths.script, suffix)
+    val script = jobPaths.script.plusExt(suffix)
     writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)))
     SharedFileSystemCommand("/bin/bash", script)
   }

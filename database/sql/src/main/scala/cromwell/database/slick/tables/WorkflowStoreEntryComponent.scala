@@ -15,20 +15,22 @@ trait WorkflowStoreEntryComponent {
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
 
-    def workflowDefinition = column[Clob]("WORKFLOW_DEFINITION")
+    def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
 
-    def workflowInputs = column[Clob]("WORKFLOW_INPUTS")
+    def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
 
-    def workflowOptions = column[Clob]("WORKFLOW_OPTIONS")
+    def workflowOptions = column[Option[Clob]]("WORKFLOW_OPTIONS")
 
-    def workflowState = column[String]("WORKFLOW_STATE")
+    def customLabels = column[Option[Clob]]("CUSTOM_LABELS")
+
+    def workflowState = column[String]("WORKFLOW_STATE", O.Length(15))
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
-    def importsZipFile = column[Option[Blob]]("IMPORTS_ZIP")
+    def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
     override def * = (workflowExecutionUuid, workflowDefinition, workflowInputs, workflowOptions, workflowState,
-      submissionTime, importsZipFile, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
+      submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 

@@ -1,5 +1,59 @@
 # Cromwell Change Log
 
+## 25
+
+### External Contributors
+* A special thank you to @adamstruck, @antonkulaga and @delocalizer for their contributions to Cromwell.
+### Breaking Changes
+
+* Metadata keys for call caching are changed. All call caching keys are now in a `callCaching` stanza. `Call cache read result` has moved here and is now `result`. The `allowResultReuse` and `effectiveCallCachingMode` have moved here. The `hit` boolean is a simple indication of whether or not it was a hit, with no additional information. An example using the new format is:
+```
+"callCaching": {
+  "hit": false,
+  "effectiveCallCachingMode": "ReadAndWriteCache",
+  "result": "Cache Miss",
+  "allowResultReuse": true
+}
+```
+
+### Config Changes
+
+* Added a field `insert-batch-size` to the `database` stanza which defines how many values from a batch insert will be processed at a time. This value defaults to 2000. 
+* Moved the config value `services.MetadataService.metadata-summary-refresh-interval` to `services.MetadataService.config.metadata-summary-refresh-interval`
+* Added ability to override the default zone(s) used by JES via the config structure by setting `genomics.default-zones` in the JES configuration
+* The cromwell server TCP binding timeout is now configurable via the config key `webservice.binding-timeout`, defaulted
+  to the previous value `5s` (five seconds) via the reference.conf.
+* For MySQL users, a massive scalability improvement via batched DB writing of internal metadata events. Note that one must add `rewriteBatchedStatements=true` to their JDBC URL in their config in order to take advantage of this
+
+### General Changes
+
+* Cromwell's WDL parser now recognizes empty array literals correctly, e.g. `Array[String] emptyArray = []`.
+* Cromwell now applies default labels automatically to JES pipeline runs.
+* Added support for new WDL functions:
+  * `length: (Array[X]) => Integer` - report the length of the specified array
+  * `prefix: (String, Array[X]) => Array[String]` - generate an array consisting of each element of the input array prefixed
+     by a specified `String`.  The input array can have elements of any primitive type, the return array will always have
+     type `Array[String]`.
+  * `defined: (Any) => Boolean` - Will return false if the provided value is an optional that is not defined. Returns true in all other cases.
+* Cromwell's Config (Shared Filesystem) backend now supports invocation of commands which run in a Docker image as a non-root user.
+  The non-root user could either be the default user for a given Docker image (e.g. specified in a Dockerfile via a `USER` directive),
+  or the Config backend could pass an optional `"-u username"` as part of the `submit-docker` command.
+* In some cases the SFS backend, used for Local, SGE, etc., coerced `WdlFile` to `WdlString` by using `.toUri`. This
+resulted in strings prepended with `file:///path/to/file`. Now absolute file paths will not contain the uri scheme.
+* Launch jobs on servers that support the GA4GH Task Execution Schema using the TES backend.
+* **Call caching: Cromwell will no longer try to use the cache for WDL tasks that contain a floating docker tag.** 
+  Call caching will still behave the same for tasks having a docker image with a specific hash.
+  See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details. 
+* Added docker hash lookup. Cromwell will try to lookup the hash for a docker image with a floating tag, and use that hash when executing the job.
+  This will be reflected in the metadata where the docker runtime attribute will contains the hash that was used.
+  If Cromwell is unable to lookup the docker hash, the job will be run with the original user defined floating tag.
+  Cromwell is currently able to lookup public and private docker hashes for images on Docker Hub and Google Container Engine for job running on the JES backend.
+  For other backends, cromwell is able to lookup public docker hashes for Docker Hub and Google Container Engine.
+  See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details. 
+
+### Database schema changes
+* Added CUSTOM_LABELS as a field of WORKFLOW_STORE_ENTRY, to store workflow store entries.
+
 ## 24
 
 * When emitting workflow outputs to the Cromwell log only the first 1000 characters per output will be printed
@@ -19,6 +73,7 @@
   * `transpose: (Array[Array[X]]) => Array[Array[X]]` compute the matrix transpose for a 2D array. Assumes each inner array has the same length.
 * By default, `system.abort-jobs-on-terminate` is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
 * Enable WDL imports when running in Single Workflow Runner Mode.
+* Both batch and non-batch REST workflow submissions now require a multipart/form-data encoded body.
 * Support for sub workflows (see [Annex A](#annex-a---workflow-outputs))
 * Enable WDL imports when running in Single Workflow Runner Mode as well as Server Mode
 * Support for WDL imports through an additional imports.zip parameter

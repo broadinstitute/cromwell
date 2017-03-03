@@ -2,11 +2,12 @@ package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.sfs._
+import cromwell.backend.standard.{StandardInitializationActorParams, StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 import wdl4s.WdlNamespace
 
 /**
   * Extension of the SharedFileSystemBackendInitializationData with declarations of extra runtime attributes, and a
-  * wdl namespace containing various tasks for submiting, killing, etc.
+  * wdl namespace containing various tasks for submitting, killing, etc.
   *
   * @param workflowPaths            The paths for the workflow.
   * @param runtimeAttributesBuilder The customized runtime attributes builder with extra validations for the
@@ -17,10 +18,11 @@ import wdl4s.WdlNamespace
 class ConfigInitializationData
 (
   workflowPaths: WorkflowPaths,
-  runtimeAttributesBuilder: SharedFileSystemValidatedRuntimeAttributesBuilder,
+  runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   val declarationValidations: Seq[DeclarationValidation],
   val wdlNamespace: WdlNamespace)
-  extends SharedFileSystemBackendInitializationData(workflowPaths, runtimeAttributesBuilder)
+  extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder,
+    classOf[SharedFileSystemExpressionFunctions])
 
 /**
   * Extends the SharedFileSystemInitializationActor to create an instance of the ConfigInitializationData.
@@ -29,7 +31,7 @@ class ConfigInitializationData
   *
   * @param params Parameters to create an initialization actor.
   */
-class ConfigInitializationActor(params: SharedFileSystemInitializationActorParams)
+class ConfigInitializationActor(params: StandardInitializationActorParams)
   extends SharedFileSystemInitializationActor(params) {
 
   lazy val configWdlNamespace = new ConfigWdlNamespace(params.configurationDescriptor.backendConfig)
@@ -38,12 +40,12 @@ class ConfigInitializationActor(params: SharedFileSystemInitializationActorParam
     DeclarationValidation.fromDeclarations(configWdlNamespace.runtimeDeclarations)
   }
 
-  override lazy val initializationData = {
+  override lazy val initializationData: ConfigInitializationData = {
     val wdlNamespace = configWdlNamespace.wdlNamespace
     new ConfigInitializationData(workflowPaths, runtimeAttributesBuilder, declarationValidations, wdlNamespace)
   }
 
-  override lazy val runtimeAttributesBuilder = {
+  override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder = {
     val declared = declarationValidations.map(_.makeValidation())
     super.runtimeAttributesBuilder.withValidation(declared: _*)
   }

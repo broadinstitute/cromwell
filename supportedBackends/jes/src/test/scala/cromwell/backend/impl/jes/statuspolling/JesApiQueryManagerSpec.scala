@@ -9,7 +9,11 @@ import org.scalatest.{FlatSpecLike, Matchers}
 import scala.concurrent.duration._
 import akka.testkit._
 import JesApiQueryManagerSpec._
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesStatusPollQuery
+import cromwell.backend.standard.StandardAsyncJob
 import cromwell.util.AkkaTestUtil
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric._
 import org.scalatest.concurrent.Eventually
 
 import scala.collection.immutable.Queue
@@ -35,7 +39,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
 
     // Send a few status poll requests:
     statusRequesters foreach { case (index, probe) =>
-      jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(index.toString, null)), sender = probe.ref)
+      jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(StandardAsyncJob(index.toString), null)), sender = probe.ref)
     }
 
     // Should have no messages to the actual statusPoller yet:
@@ -52,8 +56,9 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
           val zippedWithRequesters = workBatch.toList.zip(requesters)
           zippedWithRequesters foreach { case (pollQuery, (index, testProbe)) =>
             pollQuery.requester should be(testProbe.ref)
-            pollQuery.run.runId should be(index.toString)
+            pollQuery.asInstanceOf[JesStatusPollQuery].run.job should be(StandardAsyncJob(index.toString))
           }
+        case other => fail(s"Unexpected message: $other")
       }
     }
 
@@ -82,7 +87,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
 
        // Send a few status poll requests:
       BatchSize indexedTimes { index =>
-        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(index.toString, null)), sender = emptyActor)
+        jaqmActor.tell(msg = JesApiQueryManager.DoPoll(Run(StandardAsyncJob(index.toString), null)), sender = emptyActor)
       }
 
       jaqmActor.tell(msg = JesApiQueryManager.RequestJesPollingWork(BatchSize), sender = statusPoller1)
@@ -108,7 +113,7 @@ object JesApiQueryManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestJesApiQueryManager(qps: Int, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps) {
+class TestJesApiQueryManager(qps: Int Refined Positive, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps) {
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
@@ -117,7 +122,7 @@ class TestJesApiQueryManager(qps: Int, statusPollerProbes: ActorRef*) extends Je
     testPollerCreations = 0
   }
 
-  override private[statuspolling] def makeStatusPoller(): ActorRef = {
+  override private[statuspolling] def makeWorkerActor(): ActorRef = {
     // Initialize the queue, if necessary:
     if (testProbes == null) {
       init()

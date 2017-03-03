@@ -22,15 +22,13 @@ class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {
          |  call find
          |}
        """.stripMargin
-      val ns = WdlNamespace.loadUsingSource(wf, None, None)
+      val ns = WdlNamespace.loadUsingSource(wf, None, None).get
       val findTask = ns.findTask("find") getOrElse {
         fail("Expected to find task 'find'")
       }
 
-      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WdlFile("src"))), NoFunctions) getOrElse {
-        fail("Expected instantiation to work")
-      }
-      instantiateWithoutValue shouldEqual "find src"
+      val instantiateWithoutValue = findTask.instantiateCommand(findTask.inputsFromMap(Map("find.root" -> WdlFile("src"))), NoFunctions)
+      instantiateWithoutValue.get shouldEqual "find src"
 
       val instantiateWithValue = findTask.instantiateCommand(findTask.inputsFromMap(Map(
         "find.root" -> WdlFile("src"),

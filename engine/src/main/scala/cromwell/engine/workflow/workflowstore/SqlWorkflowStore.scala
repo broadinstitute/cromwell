@@ -1,16 +1,15 @@
 package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
-import javax.sql.rowset.serial.SerialBlob
 
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import net.ceedubs.ficus.Ficus._
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -57,7 +56,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowStoreEntry.workflowDefinition.toRawString,
       workflowStoreEntry.workflowInputs.toRawString,
       workflowStoreEntry.workflowOptions.toRawString,
-      workflowStoreEntry.importsZipFile.map(b => b.getBytes(1, b.length.asInstanceOf[Int]))
+      workflowStoreEntry.customLabels.toRawString,
+      workflowStoreEntry.importsZip.toBytesOption
     )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
@@ -67,13 +67,14 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowStoreEntry = {
     WorkflowStoreEntry(
-      WorkflowId.randomId().toString,
-      workflowSourceFiles.wdlSource.toClob,
-      workflowSourceFiles.inputsJson.toClob,
-      workflowSourceFiles.workflowOptionsJson.toClob,
-      WorkflowStoreState.Submitted.toString,
-      OffsetDateTime.now.toSystemTimestamp,
-      workflowSourceFiles.importsZipFileOption.map(new SerialBlob(_))
+      workflowExecutionUuid = WorkflowId.randomId().toString,
+      workflowDefinition = workflowSourceFiles.wdlSource.toClob,
+      workflowInputs = workflowSourceFiles.inputsJson.toClob,
+      workflowOptions = workflowSourceFiles.workflowOptionsJson.toClob,
+      customLabels = workflowSourceFiles.labelsJson.toClob,
+      workflowState = WorkflowStoreState.Submitted.toString,
+      submissionTime = OffsetDateTime.now.toSystemTimestamp,
+      importsZip = workflowSourceFiles.importsZipFileOption.toBlob
     )
   }
 

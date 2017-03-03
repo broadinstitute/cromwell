@@ -5,11 +5,28 @@ import akka.actor.{ActorRef, OneForOneStrategy, Props}
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{Future, Promise}
+import scala.language.existentials
+
+trait StandardSyncExecutionActorParams extends StandardJobExecutionActorParams {
+  /** The class for creating an async backend. */
+  def asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
+}
+
+case class DefaultStandardSyncExecutionActorParams
+(
+  override val jobIdKey: String,
+  override val serviceRegistryActor: ActorRef,
+  override val jobDescriptor: BackendJobDescriptor,
+  override val configurationDescriptor: BackendConfigurationDescriptor,
+  override val backendInitializationDataOption: Option[BackendInitializationData],
+  override val backendSingletonActorOption: Option[ActorRef],
+  override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
+) extends StandardSyncExecutionActorParams
 
 /**
   * Facade to the asynchronous execution actor.
@@ -97,6 +114,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       standardParams.jobDescriptor,
       standardParams.configurationDescriptor,
       standardParams.backendInitializationDataOption,
+      standardParams.backendSingletonActorOption,
       completionPromise
     )
   }

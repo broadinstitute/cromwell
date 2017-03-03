@@ -1,14 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import java.nio.file.Path
-
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.HashResult
+import cromwell.core.path.Path
 import cromwell.core.simpleton.WdlValueSimpleton
-import cromwell.core.path.PathImplicits._
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry, CallCachingHashEntry, CallCachingSimpletonEntry}
@@ -27,6 +26,7 @@ class CallCache(database: CallCachingSqlDatabase) {
       workflowExecutionUuid = workflowId.toString,
       callFullyQualifiedName = response.jobKey.call.fullyQualifiedName,
       jobIndex = response.jobKey.index.fromIndex,
+      jobAttempt = Option(response.jobKey.attempt),
       returnCode = response.returnCode,
       allowResultReuse = true)
     val hashes = callCacheHashes.hashes
@@ -48,13 +48,13 @@ class CallCache(database: CallCachingSqlDatabase) {
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
         case WdlValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString, wdlPrimitive.wdlType.toWdlString)
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClob, wdlPrimitive.wdlType.toWdlString)
       }
     }
 
     val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.toRealString)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.pathAsString.toClob)
       }
     }
 

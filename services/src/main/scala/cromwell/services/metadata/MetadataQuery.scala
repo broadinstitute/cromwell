@@ -1,12 +1,10 @@
 package cromwell.services.metadata
 
-import java.nio.file.Path
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
-import cromwell.core.path.PathImplicits._
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
@@ -21,7 +19,7 @@ object MetadataKey {
     new MetadataKey(workflowId, jobKey, compositeKey(keys:_*))
   }
 
-  def compositeKey(keys: String*) = keys.toList.mkString(KeySeparator.toString)
+  def compositeKey(keys: String*): String = keys.toList.mkString(KeySeparator.toString)
 }
 
 object MetadataEvent {
@@ -47,16 +45,15 @@ object MetadataValue {
       case _: Int | Long => new MetadataValue(value.toString, MetadataInt)
       case _: Double | Float => new MetadataValue(value.toString, MetadataNumber)
       case _: Boolean => new MetadataValue(value.toString, MetadataBoolean)
-      case path: Path => new MetadataValue(path.toRealString, MetadataString)
-      case _ => new MetadataValue(value.toString, MetadataString)
+      case other => new MetadataValue(other.toString, MetadataString)
     }
   }
 }
 
 object MetadataType {
-  val log = LoggerFactory.getLogger("Metadata Type")
+  val log: Logger = LoggerFactory.getLogger("Metadata Type")
 
-  def fromString(s: String) = s match {
+  def fromString(s: String): MetadataType = s match {
     case MetadataString.typeName => MetadataString
     case MetadataInt.typeName => MetadataInt
     case MetadataNumber.typeName => MetadataNumber
@@ -85,11 +82,11 @@ case class MetadataQuery(workflowId: WorkflowId, jobKey: Option[MetadataQueryJob
 object MetadataQuery {
   def forWorkflow(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
-  def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey) = {
+  def forJob(workflowId: WorkflowId, jobKey: MetadataJobKey): MetadataQuery = {
     MetadataQuery(workflowId, Option(MetadataQueryJobKey.forMetadataJobKey(jobKey)), None, None, None, expandSubWorkflows = false)
   }
 
-  def forKey(key: MetadataKey) = {
+  def forKey(key: MetadataKey): MetadataQuery = {
     MetadataQuery(key.workflowId, key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key), None, None, expandSubWorkflows = false)
   }
 }

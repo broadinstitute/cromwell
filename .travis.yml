@@ -15,6 +15,8 @@ before_cache:
   # Tricks to avoid unnecessary cache updates
   - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
   - find $HOME/.sbt -name "*.lock" -delete
+before_install:
+  - openssl aes-256-cbc -K "$encrypted_5ebd3ff04788_key" -iv "$encrypted_5ebd3ff04788_iv" -in src/bin/travis/resources/jesConf.tar.enc -out jesConf.tar -d || true
 env:
   global:
     - CENTAUR_BRANCH=develop
@@ -24,6 +26,7 @@ env:
     - BUILD_TYPE=checkPublish
     - BUILD_TYPE=centaurJes
     - BUILD_TYPE=centaurLocal
+    - BUILD_TYPE=centaurTes
 script:
   - src/bin/travis/test.sh
 after_success:

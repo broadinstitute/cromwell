@@ -5,13 +5,14 @@ author_approval: ignored
 reviewers:
     required: 2
     members:
-        - cjllanwarne
         - Horneth
-        - mcovarr
-        - geoffjentry
-        - kshakir
+        - cjllanwarne
         - francares
         - gauravs90
+        - geoffjentry
         - jainh
+        - katevoss
         - kcibul
+        - kshakir
+        - mcovarr
         - ruchim

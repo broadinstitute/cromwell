@@ -19,24 +19,57 @@ object ExecutionStore {
       case scatter: Scatter => Option(ScatterKey(scatter))
       case conditional: If => Option(ConditionalKey(conditional, None))
       case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
-      case _ => None // Ifs will need to be added here when supported
+      case _ => None
     }
 
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap)
   }
 }
 
-case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
+case class ExecutionStore(private val store: Map[JobKey, ExecutionStatus]) {
 
-  override def toString = store.map { case (j, s) => s"$j -> $s" } mkString(System.lineSeparator())
+  // This is hugely ripe for optimization, if it becomes a bottleneck
+  def isBypassedConditional(jobKey: JobKey, conditional: If): Boolean = {
+    store.exists {
+      case (key: ConditionalKey, status) =>
+        key.scope.fullyQualifiedName.equals(conditional.fullyQualifiedName) &&
+          key.index.equals(jobKey.index) &&
+          status.equals(ExecutionStatus.Bypassed)
+      case _ => false
+    }
+  }
+
+  def hasActiveJob: Boolean = {
+    def upstreamFailed(scope: Scope): Boolean = scope match {
+      case node: GraphNode => node.upstreamAncestry exists hasFailedScope
+    }
+
+    store exists {
+      case (jobKey, jobStatus) => (jobStatus == NotStarted && !upstreamFailed(jobKey.scope)) || jobStatus == QueuedInCromwell || jobStatus == Starting || jobStatus == Running
+    }
+  }
+
+  def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = store.get(jobKey)
+
+  def unstartedJobs: List[BackendJobDescriptorKey] = {
+    store.collect({case (k: BackendJobDescriptorKey, status) if status != ExecutionStatus.NotStarted => k }).toList
+  }
+
+  private def hasFailedScope(s: GraphNode): Boolean = {
+    store.exists({ case (key, status) => status == Failed && key.scope == s })
+  }
+
+  def hasFailedJob: Boolean = {
+    store.values.exists(_ == ExecutionStatus.Failed)
+  }
+
+  override def toString = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
 
   def add(values: Map[JobKey, ExecutionStatus]) = this.copy(store = store ++ values)
 
   // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
   // assembling the result.
   def runnableScopes = store.toList collect { case entry if isRunnable(entry) => entry._1 }
-
-  def backendJobKeys = store.keys.toList collect { case k: BackendJobDescriptorKey => k }
 
   private def isRunnable(entry: ExecutionStoreEntry) = {
     entry match {
@@ -45,18 +78,17 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
     }
   }
 
-  def findShardEntries(key: CollectorKey): List[ExecutionStoreEntry] = store.toList filter {
-    case (k: CallKey, v) => k.scope == key.scope && k.isShard
-    case (k: DeclarationKey, v) => k.scope == key.scope && k.isShard
-    case _ => false
+  def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = store.toList collect {
+    case (k: CallKey, v) if v.isDoneOrBypassed && k.scope == key.scope && k.isShard => k
+    case (k: DynamicDeclarationKey, v) if v.isDoneOrBypassed && k.scope == key.scope && k.isShard => k
   }
 
   // Just used to decide whether a collector can be run. In case the shard entries haven't been populated into the
   // execution store yet.
   case class TempJobKey(scope: Scope with GraphNode, index: Option[Int]) extends JobKey {
     // If these are ever used, we've done something wrong...
-    override def attempt: Int = ???
-    override def tag: String = ???
+    override def attempt: Int = throw new NotImplementedError("We've done something wrong.")
+    override def tag: String = throw new NotImplementedError("We've done something wrong.")
   }
   def emulateShardEntries(key: CollectorKey): List[JobKey] = {
     (0 until key.scatterWidth).toList flatMap { i => key.scope match {
@@ -66,13 +98,6 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
     }}
   }
 
-
-//    store.toList filter {
-//    case (k: CallKey, v) => k.scope == key.scope && k.isShard
-//    case (k: DeclarationKey, v) => k.scope == key.scope && k.isShard
-//    case _ => false
-//  }
-
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     val upstream = key.scope.upstream collect {
       case n: Call => upstreamEntry(key, n)
@@ -80,7 +105,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       case n: Declaration => upstreamEntry(key, n)
     }
 
-    val downstream: List[JobKey] = key match {
+    val shardEntriesForCollector: List[JobKey] = key match {
       case collector: CollectorKey => emulateShardEntries(collector)
       case _ => Nil
     }
@@ -94,7 +119,7 @@ case class ExecutionStore(store: Map[JobKey, ExecutionStatus]) {
       case (k, s) => k.scope.fullyQualifiedName == e.scope.fullyQualifiedName && k.index == e.index && s.isDoneOrBypassed
     }
 
-    val dependencies = upstream.flatten.map(_._1) ++ downstream
+    val dependencies = upstream.flatten.map(_._1) ++ shardEntriesForCollector
     val dependenciesResolved = dependencies forall { isDone }
 
     /*

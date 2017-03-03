@@ -33,6 +33,19 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Shared Local Filesystem](#shared-local-filesystem)
     * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
   * [Local Backend](#local-backend)
+  * [Google JES Backend](#google-jes-backend)
+    * [Configuring Google Project](#configuring-google-project)
+    * [Configuring Authentication](#configuring-authentication)
+      * [Application Default Credentials](#application-default-credentials)
+      * [Service Account](#service-account)
+      * [Refresh Token](#refresh-token)
+    * [Docker](#docker)
+    * [Monitoring](#monitoring)
+  * [GA4GH TES Backend](#ga4gh-tes-backend)
+    * [Configuring](#configuring)
+    * [Supported File Systems](#supported-file-systems)
+    * [Docker](#docker)
+    * [CPU, Memory and Disk](#cpu-memory-and-disk)
   * [Sun GridEngine Backend](#sun-gridengine-backend)
   * [HtCondor Backend](#htcondor-backend)
     * [Caching configuration](#caching-configuration)
@@ -45,14 +58,6 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
     * [Spark runtime attributes](#spark-runtime-attributes)
     * [Spark Environment](#spark-environment)
     * [Sample Wdl](#sample-wdl)
-  * [Google JES Backend](#google-jes-backend)
-    * [Configuring Google Project](#configuring-google-project)
-    * [Configuring Authentication](#configuring-authentication)
-      * [Application Default Credentials](#application-default-credentials)
-      * [Service Account](#service-account)
-      * [Refresh Token](#refresh-token)
-    * [Docker](#docker)
-    * [Monitoring](#monitoring)
 * [Runtime Attributes](#runtime-attributes)
   * [Specifying Default Values](#specifying-default-values)
   * [continueOnReturnCode](#continueonreturncode)
@@ -66,13 +71,17 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [preemptible](#preemptible)
 * [Logging](#logging)
 * [Workflow Options](#workflow-options)
+* [Labels](#labels)
+  * [Custom Labels File](#custom-labels-file)
+  * [Label Format](#label-format)
 * [Call Caching](#call-caching)
   * [Configuring Call Caching](#configuring-call-caching)
   * [Call Caching Workflow Options](#call-caching-workflow-options)
   * [Local Filesystem Options](#local-filesystem-options)
 * [Imports](#imports)
 * [Sub Workflows](#sub-workflows)
-* [Meta blocks](#meta-blocks)
+  * [Execution](#execution)
+  * [Metadata](#metadata)
 * [REST API](#rest-api)
   * [REST API Versions](#rest-api-versions)
   * [POST /api/workflows/:version](#post-apiworkflowsversion)
@@ -142,7 +151,7 @@ java -jar cromwell.jar <action> <parameters>
 
 Actions:
 run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
-  [<OUTPUT workflow metadata>] [<Zip of WDL Files>]
+  [<OUTPUT workflow metadata>] [<Zip of WDL Files>] [<JSON labels file>]
 
   Given a WDL file and JSON file containing the value of the
   workflow inputs, this will run the workflow locally and
@@ -287,6 +296,8 @@ The command to run this WDL, without needing any inputs, workflow options or met
 $ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
 ```
 
+The sixth optional parameter is a path to a labels file. See [Labels](#labels) for information and the expected format.
+
 ## server
 
 Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
@@ -376,6 +387,8 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
   * [Array\[Array\[X\]\] transpose(Array\[Array\[X\]\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayarrayx-transposearrayarrayx)
   * [Pair(X,Y) zip(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-zipxy)
   * [Pair(X,Y) cross(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-crossxy)
+  * [Integer length(Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#integer-lengtharrayx)
+  * [Array\[String\] prefix(String, Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-prefixstring-arrayx)
 * [Data Types & Serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#data-types--serialization)
   * [Serialization of Task Inputs](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#serialization-of-task-inputs)
     * [Primitive Types](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#primitive-types)
@@ -412,6 +425,7 @@ The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/
 webservice {
   port = 8000
   interface = 0.0.0.0
+  binding-timeout = 5s
   instance.name = "reference"
 }
 ```
@@ -421,6 +435,7 @@ Or, alternatively, as dot-separated values:
 ```hocon
 webservice.port = 8000
 webservice.interface = 0.0.0.0
+webservice.binding-timeout = 5s
 webservice.instance.name = "reference"
 ```
 
@@ -458,7 +473,7 @@ database {
   driver = "slick.driver.MySQLDriver$"
   db {
     driver = "com.mysql.jdbc.Driver"
-    url = "jdbc:mysql://host/cromwell"
+    url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
     connectionTimeout = 5000
@@ -469,6 +484,8 @@ database {
   }
 }
 ```
+
+By default batch inserts will be processed in blocks of 2000. To modify this value add the field `insert-batch-size` to the `database` stanza.
 
 ## SIGINT abort handler
 
@@ -498,6 +515,7 @@ Cromwell distribution:
 
 * Local / GridEngine / LSF / etc. - Run jobs as subprocesses or via a dispatcher.  Supports launching in Docker containers. Use `bash`, `qsub`, `bsub`, etc. to run scripts.
 * Google JES - Launch jobs on Google Compute Engine through the Job Execution Service (JES).
+* GA4GH TES - Launch jobs on servers that support the GA4GH Task Execution Schema (TES).
 * HtCondor - Allows to execute jobs using HTCondor.
 * Spark - Adds support for execution of spark jobs.
 
@@ -728,7 +746,7 @@ cd <container_call_root>
 echo $? > rc
 ```
 
-`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/root/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
+`<container_call_root>` would be equal to `<call_dir>` for non-Docker jobs, or it would be under `/cromwell-executions/<workflow_uuid>/call-<call_name>` if this is running in a Docker container.
 
 When running without docker, the subprocess command that the local backend will launch is:
 
@@ -751,6 +769,244 @@ docker run --rm -v <cwd>:<docker_cwd> -i <docker_image> /bin/bash < <script>
 > Cromwell as tasks failing for odd reasons (like missing RC file)
 >
 > See https://docs.docker.com/engine/userguide/dockervolumes/ for more information on volume mounting in Docker.
+
+## Google JES Backend
+
+Google JES (Job Execution Service) is a Docker-as-a-service from Google.
+
+### Configuring Google Project
+
+You'll need the following things to get started:
+
+* A Google Project (Manage/create projects [here](https://console.developers.google.com/project))
+* A Google Cloud Storage bucket (View/create buckets in your project [here](https://console.cloud.google.com/storage/browser))
+
+On your Google project, open up the [API Manager](https://console.developers.google.com/apis/library) and enable the following APIs:
+
+* Google Compute Engine
+* Google Cloud Storage
+* Genomics API
+
+If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](#configuring-cromwell) as follows:
+
+```hocon
+backend {
+  default = "JES"
+  providers {
+    JES {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      config {
+        project = "my-project"
+        root = "gs://my-bucket"
+        genomics-api-queries-per-100-seconds = 1000
+        .
+        .
+        .
+      }
+    }
+  ]
+}
+```
+
+If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with JES.
+
+### Configuring Authentication
+
+The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
+authentication schemes that might be used:
+
+* `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
+* `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
+* `user_account` - Authenticate as a user.
+* `refresh_token` - Authenticate using a refresh token supplied in the workflow options.
+
+The `auths` block in the `google` stanza defines the authorization schemes within a Cromwell deployment:
+
+```hocon
+google {
+  application-name = "cromwell"
+  auths = [
+    {
+      name = "application-default"
+      scheme = "application_default"
+    },
+    {
+      name = "user-via-refresh"
+      scheme = "refresh_token"
+      client-id = "secret_id"
+      client-secret = "secret_secret"
+    },
+    {
+      name = "service-account"
+      scheme = "service_account"
+      service-account-id = "my-service-account"
+      pem-file = "/path/to/file.pem"
+    }
+  ]
+}
+```
+
+These authorization schemes can be referenced by name within other portions of the configuration file.  For example, both
+the `genomics` and `filesystems.gcs` sections within a JES configuration block must reference an auth defined in this block.
+The auth for the `genomics` section governs the interactions with JES itself, while `filesystems.gcs` governs the localization
+of data into and out of GCE VMs.
+
+#### Application Default Credentials
+
+By default, application default credentials will be used.  There is no configuration required for application default
+credentials, only `name` and `scheme` are required.
+
+To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
+
+```
+$ gcloud auth login
+$ gcloud config set project my-project
+```
+
+#### Service Account
+
+First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
+
+Creating the account will cause the JSON file to be downloaded.  The structure of this file is roughly like this (account name is `my-account`):
+
+```
+{
+  "type": "service_account",
+  "project_id": "my-project",
+  "private_key_id": "OMITTED",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nBASE64 ENCODED KEY WITH \n TO REPRESENT NEWLINES\n-----END PRIVATE KEY-----\n",
+  "client_email": "my-account@my-project.iam.gserviceaccount.com",
+  "client_id": "22377410244549202395",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-account%40my-project.iam.gserviceaccount.com"
+}
+```
+
+Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
+`private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
+
+While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  It's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
+
+#### Refresh Token
+
+A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
+
+The refresh token is passed to JES along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
+
+
+### Docker
+
+It is possible to reference private docker images in DockerHub to be run on JES.
+However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
+
+
+```
+backend {
+  default = "JES"
+  providers {
+    JES {
+      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
+      config {
+        dockerhub {
+          account = "mydockeraccount@mail.com"
+          token = "mydockertoken"
+        }
+      }
+    }
+  }
+}
+```
+
+It is now possible to reference an image only this account has access to:
+
+```
+task mytask {
+  command {
+    ...
+  }
+  runtime {
+    docker: "private_repo/image"
+    memory: "8 GB"
+    cpu: "1"
+  }
+  ...
+}
+```
+
+Note that if the docker image to be used is public there is no need to add this configuration.
+
+### Monitoring
+
+In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
+
+```
+{
+  "monitoring_script": "gs://cromwell/monitoring/script.sh"
+}
+```
+
+The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
+
+## GA4GH TES Backend
+The TES backend submits jobs to a server that complies with the protocol described by the [GA4GH schema](https://github.com/ga4gh/task-execution-schemas).
+
+This backend creates three files in the `<call_dir>`:
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `stdout` - The standard output of the process
+* `stderr` - The standard error of the process
+
+The `script` file contains:
+
+```
+#!/bin/sh
+cd <container_call_root>
+<user_command>
+echo $? > rc
+```
+
+`<container_call_root>` would be equal to the runtime attribute `dockerWorkingDir`  or `/cromwell-executions/<workflow_uuid>/call-<call_name>/execution` if this attribute is not supplied.
+
+### Configuring
+Configuring the TES backend is straightforward; one must only provide the TES API endpoint for the service. 
+
+```hocon
+backend {
+  default = "TES"
+  providers {
+    TES {
+      actor-factory = "cromwell.backend.impl.tes.TesBackendLifecycleActorFactory"
+      config {
+        endpoint = "https://<some-url>/v1/jobs"
+        root = "cromwell-executions"
+        dockerRoot = "/cromwell-executions"
+        concurrent-job-limit = 1000
+      }
+    }
+  }
+}
+```
+
+### Supported File Systems
+Currently this backend only works with files on a Local or Shared File System. 
+
+### Docker
+This backend supports the following optional runtime attributes / workflow options for working with Docker:
+* docker: Docker image to use such as "Ubuntu".
+* dockerWorkingDir: defines the working directory in the container.
+
+Outputs:
+It will use `dockerOutputDir` runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no `dockerWorkingDir` defined it will use `/cromwell-executions/<workflow_uuid>/call-<call_name>/execution`.
+
+### CPU, Memory and Disk
+This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
+* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
+* memory: defines the amount of memory to use. Default value: "2 GB". Type: String. Ex: "4 GB" or "4096 MB"
+* disk: defines the amount of disk to use. Default value: "2 GB". Type: String. Ex: "1 GB" or "1024 MB"
+
+It they are not set, the TES backend will use default values.
 
 ## Sun GridEngine Backend
 
@@ -1204,185 +1460,6 @@ and its accompanying json input as:
 }
 ```
 
-## Google JES Backend
-
-Google JES (Job Execution Service) is a Docker-as-a-service from Google.
-
-### Configuring Google Project
-
-You'll need the following things to get started:
-
-* A Google Project (Manage/create projects [here](https://console.developers.google.com/project))
-* A Google Cloud Storage bucket (View/create buckets in your project [here](https://console.cloud.google.com/storage/browser))
-
-On your Google project, open up the [API Manager](https://console.developers.google.com/apis/library) and enable the following APIs:
-
-* Google Compute Engine
-* Google Cloud Storage
-* Genomics API
-
-If your project is `my-project` your bucket is `gs://my-bucket/`, then update your [Cromwell configuration file](#configuring-cromwell) as follows:
-
-```hocon
-backend {
-  default = "JES"
-  providers {
-    JES {
-      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
-      config {
-        project = "my-project"
-        root = "gs://my-bucket"
-        genomics-api-queries-per-100-seconds = 1000
-        .
-        .
-        .
-      }
-    }
-  ]
-}
-```
-
-If your project has API quotas other than the defaults set the `genomics-api-queries-per-100-seconds` value to be the lesser of the `Queries per 100 seconds per user` and `Queries per 100 seconds` quotas. This value will be used to help tune Cromwell's rate of interaction with JES.
-
-### Configuring Authentication
-
-The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
-authentication schemes that might be used:
-
-* `application_default` - (default, recommended) Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
-* `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
-* `user_account` - Authenticate as a user.
-* `refresh_token` - Authenticate using a refresh token supplied in the workflow options.
-
-The `auths` block in the `google` stanza defines the authorization schemes within a Cromwell deployment:
-
-```hocon
-google {
-  application-name = "cromwell"
-  auths = [
-    {
-      name = "application-default"
-      scheme = "application_default"
-    },
-    {
-      name = "user-via-refresh"
-      scheme = "refresh_token"
-      client-id = "secret_id"
-      client-secret = "secret_secret"
-    },
-    {
-      name = "service-account"
-      scheme = "service_account"
-      service-account-id = "my-service-account"
-      pem-file = "/path/to/file.pem"
-    }
-  ]
-}
-```
-
-These authorization schemes can be referenced by name within other portions of the configuration file.  For example, both
-the `genomics` and `filesystems.gcs` sections within a JES configuration block must reference an auth defined in this block.
-The auth for the `genomics` section governs the interactions with JES itself, while `filesystems.gcs` governs the localization
-of data into and out of GCE VMs.
-
-#### Application Default Credentials
-
-By default, application default credentials will be used.  There is no configuration required for application default
-credentials, only `name` and `scheme` are required.
-
-To authenticate, run the following commands from your command line (requires [gcloud](https://cloud.google.com/sdk/gcloud/)):
-
-```
-$ gcloud auth login
-$ gcloud config set project my-project
-```
-
-#### Service Account
-
-First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
-
-Creating the account will cause the JSON file to be downloaded.  The structure of this file is roughly like this (account name is `my-account`):
-
-```
-{
-  "type": "service_account",
-  "project_id": "my-project",
-  "private_key_id": "OMITTED",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nBASE64 ENCODED KEY WITH \n TO REPRESENT NEWLINES\n-----END PRIVATE KEY-----\n",
-  "client_email": "my-account@my-project.iam.gserviceaccount.com",
-  "client_id": "22377410244549202395",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://accounts.google.com/o/oauth2/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-account%40my-project.iam.gserviceaccount.com"
-}
-```
-
-Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
-`private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
-
-While technically not part of Service Account authorization mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  It's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
-
-#### Refresh Token
-
-A **refresh_token** field must be specified in the [workflow options](#workflow-options) when submitting the job.  Omitting this field will cause the workflow to fail.
-
-The refresh token is passed to JES along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
-
-
-### Docker
-
-It is possible to reference private docker images in DockerHub to be run on JES.
-However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
-
-
-```
-backend {
-  default = "JES"
-  providers {
-    JES {
-      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
-      config {
-        dockerhub {
-          account = "mydockeraccount@mail.com"
-          token = "mydockertoken"
-        }
-      }
-    }
-  }
-}
-```
-
-It is now possible to reference an image only this account has access to:
-
-```
-task mytask {
-  command {
-    ...
-  }
-  runtime {
-    docker: "private_repo/image"
-    memory: "8 GB"
-    cpu: "1"
-  }
-  ...
-}
-```
-
-Note that if the docker image to be used is public there is no need to add this configuration.
-
-### Monitoring
-
-In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
-
-```
-{
-  "monitoring_script": "gs://cromwell/monitoring/script.sh"
-}
-```
-
-The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
-
 # Runtime Attributes
 
 Runtime attributes are used to customize tasks. Within a task one can specify runtime attributes to customize the environment for the call.
@@ -1586,7 +1663,7 @@ runtime {
 }
 ```
 
-Defaults to "us-central1-b"
+Defaults to the configuration setting `genomics.default-zones` in the JES configuration block which in turn defaults to using `us-central1-b`
 
 ## docker
 
@@ -1700,6 +1777,41 @@ Valid keys and their meanings:
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
     * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
 
+# Labels
+
+Every call in Cromwell is labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
+
+| Key | Value | Example | Notes |
+|-----|-------|---------|-------|
+| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
+| cromwell-workflow-name | The name of the root workflow | my-root-workflow | |
+| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
+| wdl-task-name | The name of the WDL task | my-task | |
+| wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
+
+## Custom Labels File
+
+Custom labels can also be applied to every call in a workflow by specifying a custom labels file when the workflow is submitted. This file should be in JSON format and contain a set of fields: `"label-key": "label-value" `. For example:
+```
+{
+  "label-key-1": "label-value-1",
+  "label-key-2": "label-value-2",
+  "label-key-3": "label-value-3"
+}
+```
+
+## Label Format
+
+To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. 
+
+For custom labels, Cromwell will reject any request which is made containing invalid label strings. For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
+
+- Any capital letters are lowercased.
+- Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
+- If the start character does not match `[a-z]` then prefix with `x--`
+- If the final character does not match `[a-z0-9]` then suffix with `--x`
+- If the string is too long, only take the first 30 and last 30 characters and add `---` between them.
+
 # Call Caching
 
 Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  Cromwell searches the cache of previously run jobs for a one that has the exact same command and exact same inputs.  If a previously run job is found in the cache, Cromwell will **copy the results** of the previous job instead of re-running it.
@@ -1733,6 +1845,42 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 * If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`
 
 > **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
+
+## Docker Tags
+
+Docker tags are a convenient way to point to a version of an image (ubuntu:14.04), or even the latest version (ubuntu:latest).
+For that purpose, tags are mutable, meaning that the image they point to can change, while the tag name stays the same.
+While this is very convenient in some cases, using mutable, or "floating" tags in WDL affects the reproducibility of the WDL file: the same WDL using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
+This has an even bigger impact when Call Caching is turned on in Cromwell, and could lead to unpredictable behaviors if a tag is updated in the middle of a workflow or even a scatter for example.
+Docker provides another way of identifying an image version, using the specific digest of the image. The digest is guaranteed to be different if 2 images have different byte content. For more information see https://docs.docker.com/registry/spec/api/#/content-digests
+A docker image with digest can be referenced as follows : **ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950**
+The above image refers to a specific image of ubuntu, that does not depend on a floating tag.
+A WDL containing this Docker image run now and a year from now will run in the exact same container.
+
+In order to remove unpredictable behaviors, Cromwell takes the following approach regarding floating docker tags.
+
+When Cromwell finds a job ready to be run, it will first look at its docker runtime attribute, and apply the following logic:
+
+* The job doesn't specify a docker image: The job will be dispatched and all call caching settings (read/write) will apply normally.
+* The job does specify a docker runtime attribute:
+    * The docker image uses a hash: All call caching settings apply normally
+    * The docker image uses a floating tag:
+        Call caching `reading` will be disabled for this job. Specifically, Cromwell will *not* attempt to find an entry in the cache for this job.
+        Additionally, cromwell will attempt to look up the hash of the image. Upon success, it will replace the user's docker value with the hash.
+        This mechanism ensures that as long as Cromwell is able to lookup the hash, the job is guaranteed to have run on the container with that hash.
+        The docker value with the hash used for the job will be reported in the runtime attributes section of the metadata.
+        If Cromwell fails to lookup the hash (unsupported registry, wrong credentials, ...) it will run the job with the user provided floating tag.
+        If call caching writing is turned on, Cromwell will still write the job in the cache database, using:
+         * the hash if the lookup succeeded
+         * the floating tag otherwise.
+         
+Docker registry and access levels supported by Cromwell for docker hash lookup:
+
+|       |       DockerHub    ||       GCR       ||
+|:-----:|:---------:|:-------:|:------:|:-------:|
+|       |   Public  | Private | Public | Private |
+|  JES  |     X     |    X    |    X   |    X    |
+| Other |     X     |         |    X   |         |
 
 ## Local Filesystem Options
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
@@ -2252,11 +2400,9 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 
 * `wdlSource` - *Required* Contains the WDL file to submit for execution.
 * `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
-* `workflowInputs_2` - *Optional* JSON file containing the inputs.
-* `workflowInputs_3` - *Optional* JSON file containing the inputs.
-* `workflowInputs_4` - *Optional* JSON file containing the inputs.
-* `workflowInputs_5` - *Optional* JSON file containing the inputs.
+* `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
+* `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](#labels) for the expected format.
 * `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements.
 
 Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
@@ -2671,7 +2817,9 @@ refresh interval will default to 2 seconds.  To turn off metadata summary refres
 ```
 services {
   MetadataService {
-    metadata-summary-refresh-interval = "10 seconds"
+    config {
+      metadata-summary-refresh-interval = "10 seconds"
+    }
   }
 }
 ```

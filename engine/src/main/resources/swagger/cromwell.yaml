@@ -93,8 +93,13 @@ paths:
           required: false
           type: file
           in: formData
+        - name: customLabels
+          description: Custom Labels JSON
+          required: false
+          type: file
+          in: formData
         - name: wdlDependencies
-          description: Workflow Options JSON
+          description: Zip file containing WDL dependencies
           required: false
           type: file
           in: formData
@@ -139,8 +144,13 @@ paths:
           required: false
           type: file
           in: formData
+        - name: customLabels
+          description: Custom Labels JSON
+          required: false
+          type: file
+          in: formData
         - name: wdlDependencies
-          description: Workflow Options JSON
+          description: Zip file containing WDL dependencies
           required: false
           type: file
           in: formData

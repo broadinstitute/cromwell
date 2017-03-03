@@ -1,30 +1,26 @@
 package cromwell.core.path
 
 import java.io.IOException
-import java.nio.file.Path
-
-import better.files._
 
 import scala.util.{Failure, Try}
 
 object PathCopier {
 
   /*
-   * Remove p1 from p2 as long as they match.
+   * Remove common prefix found in path1 from path2 as long the directories match.
    */
-  private def truncateCommonRoot(p1: Path, p2: Path): String = {
-    def names(p: Path) = 0 until p.getNameCount map p.getName
+  private[path] def truncateCommonRoot(path1: Path, path2: Path): String = {
+    val string1 = path1.toAbsolutePath.pathWithoutScheme
+    val string2 = path2.toAbsolutePath.pathWithoutScheme
 
-    val names1 = names(p1)
+    val regexIncludingSlashes = "(?<=/)|(?=/)" // http://stackoverflow.com/q/2206378
+    val tokens1 = string1.split(regexIncludingSlashes)
+    val tokens2 = string2.split(regexIncludingSlashes)
 
-    val truncated = names(p2).zipWithIndex.dropWhile {
-      case (n1, n2) => n2 < names1.size && n1.equals(names1(n2))
-    } map { _._1 }
+    val matchingTokens: Array[(String, String)] = tokens1.zip(tokens2).takeWhile(Function.tupled(_ == _))
+    val matchingPrefix = matchingTokens.map({ case (str, _) => str }).mkString
 
-    truncated match {
-      case empty if empty.isEmpty => ""
-      case truncs => truncs.reduceLeft(_.resolve(_)).toString
-    }
+    string2.stripPrefix(matchingPrefix).replaceAll("^/+", "")
   }
 
   def getDestinationFilePath(sourceContextPath: Path, sourceFilePath: Path, destinationDirPath: Path): Path = {
@@ -44,13 +40,13 @@ object PathCopier {
     * Copies from source to destination. NOTE: Copies are not atomic, and may create a partial copy.
     */
   def copy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
-    Option(File(destinationFilePath).parent).foreach(_.createDirectories())
+    Option(destinationFilePath.parent).foreach(_.createPermissionedDirectories())
     Try {
-      File(sourceFilePath).copyTo(destinationFilePath, overwrite = true)
+      sourceFilePath.copyTo(destinationFilePath, overwrite = true)
 
       ()
     } recoverWith {
-      case ex => Failure(new IOException(s"Failed to copy ${sourceFilePath.toUri} to ${destinationFilePath.toUri}", ex))
+      case ex => Failure(new IOException(s"Failed to copy $sourceFilePath to $destinationFilePath", ex))
     }
   }
 }

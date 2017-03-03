@@ -100,10 +100,11 @@ object Settings {
     )
   )
 
+  val ScalaVersion = "2.11.8"
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
-    scalaVersion := "2.11.8",
+    scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
     scalacOptions ++= compilerSettings,
     scalacOptions in (Compile, doc) ++= docSettings,
@@ -142,6 +143,11 @@ object Settings {
     name := "cromwell-sfs-backend"
   ) ++ commonSettings
 
+  val tesBackendSettings = List(
+    name := "cromwell-tes-backend",
+    libraryDependencies ++= tesBackendDependencies
+  ) ++ commonSettings
+
   val htCondorBackendSettings = List(
     name := "cromwell-htcondor-backend",
     libraryDependencies ++= htCondorBackendDependencies
@@ -153,7 +159,8 @@ object Settings {
   ) ++ commonSettings
 
   val jesBackendSettings = List(
-    name := "cromwell-jes-backend"
+    name := "cromwell-jes-backend",
+    libraryDependencies ++= jesBackendDependencies
   ) ++ commonSettings
 
   val engineSettings = List(

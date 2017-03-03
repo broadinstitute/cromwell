@@ -2,16 +2,19 @@ package cromwell.backend.impl.jes
 
 import java.util.UUID
 
+import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
+import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.impl.jes.authentication.GcsLocalizing
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
+import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.GoogleConfiguration
-import cromwell.filesystems.gcs.auth.{RefreshTokenMode, SimpleClientSecrets}
+import cromwell.filesystems.gcs.auth.{GoogleAuthModeSpec, RefreshTokenMode, SimpleClientSecrets}
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -22,11 +25,11 @@ import scala.concurrent.duration._
 
 class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpec") with FlatSpecLike with Matchers
   with ImplicitSender with Mockito {
-  val Timeout = 5.second.dilated
+  val Timeout: FiniteDuration = 5.second.dilated
 
   import BackendSpec._
 
-  val HelloWorld =
+  val HelloWorld: String =
     s"""
       |task hello {
       |  String addressee = "you"
@@ -45,7 +48,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |}
     """.stripMargin
 
-  val globalConfig = ConfigFactory.parseString(
+  val globalConfig: Config = ConfigFactory.parseString(
     """
       |google {
       |
@@ -66,7 +69,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |}
       | """.stripMargin)
 
-  val backendConfigTemplate =
+  val backendConfigTemplate: String =
     """
       |  // Google project
       |  project = "my-cromwell-workflows"
@@ -96,7 +99,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |[DOCKERHUBCONFIG]
       |""".stripMargin
 
-  val refreshTokenConfigTemplate =
+  val refreshTokenConfigTemplate: String =
     """
       |  // Google project
       |  project = "my-cromwell-workflows"
@@ -124,9 +127,9 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |  }
       |""".stripMargin
 
-  val backendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
+  val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
 
-  val dockerBackendConfig = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
+  val dockerBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
     """
       |dockerhub {
       |  account = "my@docker.account"
@@ -136,22 +139,32 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
 
   val defaultBackendConfig = BackendConfigurationDescriptor(backendConfig, globalConfig)
 
-  val refreshTokenConfig = ConfigFactory.parseString(refreshTokenConfigTemplate)
+  val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
+
+  private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                 calls: Set[TaskCall],
+                                 jesConfiguration: JesConfiguration): Props = {
+    val params = JesInitializationActorParams(workflowDescriptor, calls, jesConfiguration, emptyActor)
+    Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
+  }
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
-    system.actorOf(JesInitializationActor.props(workflowDescriptor, calls, new JesConfiguration(conf), emptyActor))
+    val props = getJesBackendProps(workflowDescriptor, calls, new JesConfiguration(conf))
+    system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
 
   behavior of "JesInitializationActor"
 
   it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
+    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
+
     within(Timeout) {
       val workflowDescriptor = buildWorkflowDescriptor(HelloWorld,
         runtime = """runtime { docker: "ubuntu/latest" test: true }""")
       val backend = getJesBackend(workflowDescriptor, workflowDescriptor.workflow.taskCalls,
         defaultBackendConfig)
       val eventPattern =
-        "Key/s [test] is/are not supported by JesBackend. Unsupported attributes will not be part of jobs executions."
+        "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
       EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
         backend ! Initialize
       }
@@ -171,9 +184,9 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       expectMsgPF() {
         case InitializationFailed(failure) =>
           failure match {
-            case exception: IllegalArgumentException =>
-              if (!exception.getMessage.equals("Task hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
-                fail("Exception message does not contains 'Runtime attribute validation failed'.")
+            case exception: RuntimeAttributeValidationFailures =>
+              if (!exception.getMessage.equals("Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
+                fail("Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'.")
           }
       }
     }
@@ -189,7 +202,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val jesConfiguration = new JesConfiguration(backendConfigurationDescriptor)
 
     val actorRef = TestActorRef[JesInitializationActor](
-      JesInitializationActor.props(workflowDescriptor, calls, jesConfiguration, emptyActor),
+      getJesBackendProps(workflowDescriptor, calls, jesConfiguration),
       "TestableJesInitializationActor-" + UUID.randomUUID)
     TestingBits(actorRef, jesConfiguration)
   }

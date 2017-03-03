@@ -9,9 +9,11 @@ import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.backend.BackendSingletonCollection
-import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{CallPreparationFailed, SubWorkflowPreparationSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.CallPreparationFailed
+import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import org.scalatest.concurrent.Eventually
@@ -30,6 +32,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val jobStoreProbe = TestProbe()
   val subWorkflowStoreProbe = TestProbe()
   val callCacheReadActorProbe = TestProbe()
+  val dockerHashActorProbe = TestProbe()
   val jobTokenDispenserProbe = TestProbe()
   val preparationActor = TestProbe()
   val subWorkflowActor = TestProbe()
@@ -65,6 +68,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobStoreProbe.ref,
         subWorkflowStoreProbe.ref,
         callCacheReadActorProbe.ref,
+        dockerHashActorProbe.ref,
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
@@ -94,7 +98,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     
     val subWorkflowUuid = WorkflowId.randomId()
     ewea ! SubWorkflowFound(SubWorkflowStoreEntry(Option(0), parentWorkflowId.toString, subKey.scope.fullyQualifiedName, subKey.index.fromIndex, subKey.attempt, subWorkflowUuid.toString, None))
-    preparationActor.expectMsg(CallPreparationActor.Start)
+    preparationActor.expectMsg(CallPreparation.Start)
     parentProbe.expectMsg(JobStarting(subKey))
     
     eventually {
@@ -108,7 +112,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     ewea.setState(SubWorkflowCheckingStoreState)
 
     ewea ! SubWorkflowNotFound(QuerySubWorkflow(parentWorkflowId, subKey))
-    preparationActor.expectMsg(CallPreparationActor.Start)
+    preparationActor.expectMsg(CallPreparation.Start)
     parentProbe.expectMsg(JobStarting(subKey))
     
     eventually {
@@ -122,7 +126,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     ewea.setState(SubWorkflowPendingState)
     
     ewea ! Execute
-    preparationActor.expectMsg(CallPreparationActor.Start)
+    preparationActor.expectMsg(CallPreparation.Start)
     parentProbe.expectMsg(JobStarting(subKey))
     eventually {
       ewea.stateName shouldBe SubWorkflowPreparingState

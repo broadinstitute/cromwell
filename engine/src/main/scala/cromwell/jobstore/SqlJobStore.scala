@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
 import cromwell.Simpletons._
+import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._
 import cromwell.core.WorkflowId
 import cromwell.core.simpleton.WdlValueBuilder
@@ -11,6 +12,7 @@ import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import wdl4s.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
+import cromwell.database.sql.SqlConverters._
 
 class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
   override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])(implicit ec: ExecutionContext): Future[Unit] = {
@@ -35,7 +37,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
         val jobStoreResultSimpletons =
           jobOutputs.mapValues(_.wdlValue).simplify.map {
             wdlValueSimpleton => JobStoreSimpletonEntry(
-              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString,
+              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString.toClob,
               wdlValueSimpleton.simpletonValue.wdlType.toWdlString)
           }
         JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
@@ -47,7 +49,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           key.attempt,
           jobSuccessful = false,
           returnCode,
-          Option(throwable.getMessage),
+          throwable.getMessage.toClob,
           Option(retryable))
         JobStoreJoin(entry, Seq.empty)
     }
@@ -62,8 +64,10 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
             val simpletons = simpletonEntries map toSimpleton
             val jobOutputs = WdlValueBuilder.toJobOutputs(taskOutputs, simpletons)
             JobResultSuccess(returnCode, jobOutputs)
-          case JobStoreEntry(_, _, _, _, false, returnCode, Some(exceptionMessage), Some(retryable), _) =>
-            JobResultFailure(returnCode, new Exception(exceptionMessage), retryable)
+          case JobStoreEntry(_, _, _, _, false, returnCode, Some(_), Some(retryable), _) =>
+            JobResultFailure(returnCode,
+              JobAlreadyFailedInJobStore(jobStoreKey.tag, entry.exceptionMessage.toRawString),
+              retryable)
           case bad =>
             throw new Exception(s"Invalid contents of JobStore table: $bad")
         }

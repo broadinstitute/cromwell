@@ -1,13 +1,10 @@
 package cromwell.backend.callcaching
 
-import java.nio.file.Path
-
 import akka.actor.ActorRef
 import cromwell.backend.BackendCacheHitCopyingActor
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
 import cromwell.backend.io.JobPaths
-import cromwell.core.path.PathCopier
-import cromwell.core.path.PathImplicits._
+import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
 
@@ -67,7 +64,7 @@ trait CacheHitDuplicating {
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
         duplicate(sourcePath, destinationPath)
-        WdlValueSimpleton(key, WdlFile(destinationPath.toRealString))
+        WdlValueSimpleton(key, WdlFile(destinationPath.pathAsString))
       case wdlValueSimpleton => wdlValueSimpleton
     }
   }

@@ -1,8 +1,7 @@
 package cromwell
 
-import java.nio.file.{Files, Paths}
-
 import akka.testkit.EventFilter
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
@@ -15,7 +14,7 @@ class CopyWorkflowOutputsSpec extends CromwellTestKitSpec {
     "copy workflow outputs" in {
       val workflowOutputsPath = "copy-workflow-outputs"
 
-      val tmpDir = Files.createTempDirectory(workflowOutputsPath).toAbsolutePath
+      val tmpDir = DefaultPathBuilder.createTempDirectory(workflowOutputsPath).toAbsolutePath
 
       val outputs = Table(
         ("call", "file"),
@@ -29,24 +28,23 @@ class CopyWorkflowOutputsSpec extends CromwellTestKitSpec {
         sampleWdl = SampleWdl.WorkflowOutputsWithFiles,
         eventFilter = EventFilter.info(
           pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
-        runtime = "",
         workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
-        expectedOutputs = Seq("A_out", "A_out2", "B_outs") map { o => ("wfoutputs_" + o) -> CromwellTestKitSpec.AnyValueIsFine } toMap,
+        expectedOutputs = Seq("A.out", "A.out2", "B.outs") map { o => ("wfoutputs." + o) -> CromwellTestKitSpec.AnyValueIsFine } toMap,
         allowOtherOutputs = false
       )
 
       forAll(outputs) { (call, file) =>
-        val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, "execution", file))
+        val path = tmpDir / "wfoutputs" / workflowId.id.toString / call / "execution" / file
         path.toFile should exist
       }
-      val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, "call-C", "execution", "out"))
+      val path = tmpDir / "wfoutputs" / workflowId.id.toString / "call-C" / "execution" / "out"
       path.toFile shouldNot exist
     }
 
     "copy scattered workflow outputs" in {
       val workflowOutputsPath = "copy-workflow-outputs"
 
-      val tmpDir = Files.createTempDirectory(workflowOutputsPath).toAbsolutePath
+      val tmpDir = DefaultPathBuilder.createTempDirectory(workflowOutputsPath).toAbsolutePath
 
       val shards = 0 to 9
       val outputNames = List("B1", "B2")
@@ -62,15 +60,14 @@ class CopyWorkflowOutputsSpec extends CromwellTestKitSpec {
         sampleWdl = SampleWdl.WorkflowScatterOutputsWithFileArrays,
         eventFilter = EventFilter.info(
           pattern = "transition from FinalizingWorkflowState to WorkflowSucceededState", occurrences = 1),
-        runtime = "",
         workflowOptions = s""" { "final_workflow_outputs_dir": "$tmpDir" } """,
-        expectedOutputs = Map("wfoutputs_A_outs" -> CromwellTestKitSpec.AnyValueIsFine),
+        expectedOutputs = Map("wfoutputs.A.outs" -> CromwellTestKitSpec.AnyValueIsFine),
         allowOtherOutputs = false
       )
 
       forAll(outputs) { (call, file) =>
-        val path = tmpDir.resolve(Paths.get("wfoutputs", workflowId.id.toString, call, file))
-        Files.exists(path) shouldBe true
+        val path = tmpDir / "wfoutputs" / workflowId.id.toString / call / file
+        path.toFile should exist
       }
     }
   }

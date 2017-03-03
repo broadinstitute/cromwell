@@ -3,6 +3,8 @@ package cromwell.backend
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
+import cromwell.core.callcaching.CallCachingEligible
+import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import lenthall.exception.AggregatedException
 import org.scalatest.Matchers
@@ -28,9 +30,10 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
       inputs,
-      options
+      options,
+      Labels.empty
     )
   }
 
@@ -50,10 +53,10 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val call = workflowDescriptor.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions)
+    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions).get // .get is ok because this is a test
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, CallCachingEligible)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
@@ -65,7 +68,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, CallCachingEligible)
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
@@ -79,7 +82,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
     val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations)
+    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, CallCachingEligible)
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -125,7 +128,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
   def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                          inputs: Map[String, WdlValue] = Map.empty) = {
-    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, fqnMapToDeclarationMap(inputs))
+    BackendJobDescriptor(workflowDescriptor, firstJobDescriptorKey(workflowDescriptor), Map.empty, fqnMapToDeclarationMap(inputs), CallCachingEligible)
   }
 }
 

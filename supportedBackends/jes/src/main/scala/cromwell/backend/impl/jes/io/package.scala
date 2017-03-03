@@ -1,16 +1,18 @@
 package cromwell.backend.impl.jes
 
-import java.nio.file.{Files, Path}
-
 import com.google.api.client.http.HttpResponseException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
+import cromwell.core.path.Path
 
 package object io {
   implicit class PathEnhanced(val path: Path) extends AnyVal {
-    import better.files._
 
-    def writeAsJson(content: String): File = {
-      Files.write(path, content.getBytes, CloudStorageOptions.withMimeType("application/json"))
+    def writeAsJson(content: String): Path = {
+      path.writeBytes(content.getBytes.toIterator)(Seq(CloudStorageOptions.withMimeType("application/json")))
+    }
+
+    def writeAsText(content: String): Path = {
+      path.writeBytes(content.getBytes.toIterator)(Seq(CloudStorageOptions.withMimeType("text/plain")))
     }
   }
 

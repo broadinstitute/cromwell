@@ -20,7 +20,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
   implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
   implicit val callAttempt = jsonFormat2(CallAttempt)
-  implicit val workflowSourceData = jsonFormat3(WorkflowSourceFilesWithoutImports)
+  implicit val workflowSourceData = jsonFormat4(WorkflowSourceFilesWithoutImports)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)
@@ -30,7 +30,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowSourceDataWithImports = jsonFormat4(WorkflowSourceFilesWithDependenciesZip)
+  implicit val workflowSourceDataWithImports = jsonFormat5(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
   implicit val successResponse = jsonFormat3(SuccessResponse)
 

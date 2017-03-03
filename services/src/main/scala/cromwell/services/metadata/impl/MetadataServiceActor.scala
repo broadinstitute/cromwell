@@ -2,7 +2,8 @@ package cromwell.services.metadata.impl
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
+import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
@@ -11,13 +12,15 @@ import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import net.ceedubs.ficus.Ficus._
-import scala.concurrent.duration.{Duration, FiniteDuration}
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object MetadataServiceActor {
 
   val MetadataSummaryRefreshInterval: Option[FiniteDuration] = {
-    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.metadata-summary-refresh-interval").getOrElse("2 seconds"))
+    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.config.metadata-summary-refresh-interval").getOrElse("2 seconds"))
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 
@@ -26,11 +29,26 @@ object MetadataServiceActor {
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {
-
+  
+  private val decider: Decider = {
+    case _: ActorInitializationException => Escalate
+    case _ => Resume
+  }
+  
+  override val supervisorStrategy = new OneForOneStrategy()(decider) {
+    override def logFailure(context: ActorContext, child: ActorRef, cause: Throwable, decision: Directive) = {
+      val childName = if (child == readActor) "Read" else "Write"
+      log.error(s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...", cause)
+    }
+  }
+  
   private val summaryActor: Option[ActorRef] = buildSummaryActor
 
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
-  val writeActor = context.actorOf(WriteMetadataActor.props(), "write-metadata-actor")
+
+  val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("services.MetadataService.db-flush-rate").getOrElse(5 seconds)
+  val dbBatchSize = serviceConfig.as[Option[Int]]("services.MetadataService.db-batch-size").getOrElse(1)
+  val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate), "write-metadata-actor")
   implicit val ec = context.dispatcher
 
   summaryActor foreach { _ => self ! RefreshSummary }

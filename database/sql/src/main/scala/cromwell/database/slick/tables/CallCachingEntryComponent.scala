@@ -1,7 +1,6 @@
 package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CallCachingEntry
-import slick.profile.RelationalProfile.ColumnOption.Default
 
 trait CallCachingEntryComponent {
 
@@ -18,15 +17,17 @@ trait CallCachingEntryComponent {
 
     def jobIndex = column[Int]("JOB_INDEX")
 
+    def jobAttempt = column[Option[Int]]("JOB_ATTEMPT", O.Default(None))
+
     def returnCode = column[Option[Int]]("RETURN_CODE")
 
-    def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", Default(true))
-
-    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, returnCode, allowResultReuse,
+    def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", O.Default(true))
+    
+    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, returnCode, allowResultReuse,
       callCachingEntryId.?) <> (CallCachingEntry.tupled, CallCachingEntry.unapply)
 
-    def ucCallCachingEntryWeuCqfnJi =
-      index("UC_CALL_CACHING_ENTRY_WEU_CQFN_JI", (workflowExecutionUuid, callFullyQualifiedName, jobIndex),
+    def ucCallCachingEntryWeuCfqnJi =
+      index("UC_CALL_CACHING_ENTRY_WEU_CFQN_JI", (workflowExecutionUuid, callFullyQualifiedName, jobIndex),
         unique = true)
   }
 

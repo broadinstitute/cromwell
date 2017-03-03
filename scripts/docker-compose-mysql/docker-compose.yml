@@ -1,0 +1,22 @@
+version: '2'
+services:
+  cromwell:
+    build: 
+      context: ./compose/cromwell
+    volumes:
+      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
+    command: ["/wait-for-it/wait-for-it.sh mysql-db:3306 -t 120 -- java -Dconfig.file=/app-config/application.conf -jar /app/cromwell.jar server"]
+    links:
+      - mysql-db
+    ports:
+      - "80:8000"
+  mysql-db:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ROOT_PASSWORD=cromwell
+      - MYSQL_DATABASE=cromwell_db
+    volumes:
+      - ./compose/mysql/init:/docker-entrypoint-initdb.d
+      - ./compose/mysql/data:/var/lib/mysql
+    ports:
+      - "3307:3306"

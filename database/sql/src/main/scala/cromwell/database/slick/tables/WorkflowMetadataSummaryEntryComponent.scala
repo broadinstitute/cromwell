@@ -14,11 +14,11 @@ trait WorkflowMetadataSummaryEntryComponent {
     extends Table[WorkflowMetadataSummaryEntry](tag, "WORKFLOW_METADATA_SUMMARY_ENTRY") {
     def workflowMetadataSummaryEntryId = column[Long]("WORKFLOW_METADATA_SUMMARY_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(100))
 
-    def workflowName = column[Option[String]]("WORKFLOW_NAME")
+    def workflowName = column[Option[String]]("WORKFLOW_NAME", O.Length(100))
 
-    def workflowStatus = column[Option[String]]("WORKFLOW_STATUS")
+    def workflowStatus = column[Option[String]]("WORKFLOW_STATUS", O.Length(50))
 
     def startTimestamp = column[Option[Timestamp]]("START_TIMESTAMP")
 

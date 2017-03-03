@@ -2,9 +2,9 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.callcaching.CallCachingMode
-import cromwell.engine.workflow.lifecycle.execution.CallPreparationActor.{BackendJobPreparationSucceeded, CallPreparationFailed}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed}
 import org.scalatest.concurrent.Eventually
 
 class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHashingInitialization with Eventually {

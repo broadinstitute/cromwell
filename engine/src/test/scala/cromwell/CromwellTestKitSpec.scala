@@ -1,6 +1,5 @@
 package cromwell
 
-import java.nio.file.Paths
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -11,11 +10,15 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
+import cromwell.core.callcaching.docker.DockerHashActor.DockerHashResponseSuccess
+import cromwell.core.callcaching.docker.{DockerHashRequest, DockerHashResult}
+import cromwell.core.path.BetterFileMethods.Cmds
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowSubmittedToStore
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
@@ -180,6 +183,21 @@ object CromwellTestKitSpec {
     * the actual value was.
     */
   lazy val AnyValueIsFine: WdlValue = WdlString("Today you are you! That is truer than true! There is no one alive who is you-er than you!")
+
+  def replaceVariables(wdlValue: WdlValue, workflowId: WorkflowId): WdlValue = {
+    wdlValue match {
+      case WdlString(value) => WdlString(replaceVariables(value, workflowId))
+      case _ => wdlValue
+    }
+  }
+
+  def replaceVariables(value: String, workflowId: WorkflowId): String = {
+    val variables = Map("PWD" -> Cmds.pwd, "UUID" -> workflowId)
+    variables.foldLeft(value) {
+      case (result, (variableName, variableValue)) => result.replace(s"<<$variableName>>", s"$variableValue")
+    }
+  }
+
   lazy val DefaultConfig = ConfigFactory.load
   lazy val DefaultLocalBackendConfig = ConfigFactory.parseString(
     """
@@ -292,7 +310,8 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibilty
   implicit val wdlEquality = new Equality[WdlValue] {
-    def fileEquality(f1: String, f2: String) = Paths.get(f1).getFileName == Paths.get(f2).getFileName
+    def fileEquality(f1: String, f2: String) =
+      DefaultPathBuilder.get(f1).getFileName == DefaultPathBuilder.get(f2).getFileName
 
     override def areEqual(a: WdlValue, b: Any): Boolean = {
       val typeEquality = b match {
@@ -326,11 +345,12 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
   def runWdl(sampleWdl: SampleWdl,
              runtime: String = "",
              workflowOptions: String = "{}",
+             customLabels: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = DefaultConfig,
              patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val rootActor = buildCromwellRootActor(config)
-    val sources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions)
+    val sources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(runtime), sampleWdl.wdlJson, workflowOptions, customLabels)
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
     eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
@@ -361,7 +381,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
     expectedOutputs foreach { case (outputFqn, expectedValue) =>
       val actualValue = outputs.getOrElse(outputFqn, throw OutputNotFoundException(outputFqn, actualOutputNames))
-      if (expectedValue != AnyValueIsFine) actualValue shouldEqual expectedValue
+      if (expectedValue != AnyValueIsFine) actualValue shouldEqual replaceVariables(expectedValue, workflowId)
     }
     if (!allowOtherOutputs) {
       outputs foreach { case (actualFqn, actualValue) =>
@@ -454,4 +474,14 @@ class EmptyCallCacheReadActor extends Actor {
 
 object EmptyCallCacheReadActor {
   def props: Props = Props(new EmptyCallCacheReadActor)
+}
+
+class EmptyDockerHashActor extends Actor {
+  override def receive: Receive = {
+    case DockerHashRequest(image, _) => sender ! DockerHashResponseSuccess(DockerHashResult("alg", "hash"))
+  }
+}
+
+object EmptyDockerHashActor {
+  def props: Props = Props(new EmptyDockerHashActor)
 }

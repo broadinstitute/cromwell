@@ -1,6 +1,8 @@
 package cromwell.backend.impl.jes
 
+import cromwell.backend.impl.jes.errors.JesError
 import cromwell.core.ExecutionEvent
+import cromwell.core.path.Path
 
 sealed trait RunStatus {
   import RunStatus._
@@ -27,9 +29,18 @@ object RunStatus {
     override def toString = "Success"
   }
 
-  final case class Failed(errorCode: Int, errorMessage: List[String], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String])
+  final case class Failed(errorCode: Int, errorMessage: Option[String], eventList: Seq[ExecutionEvent], machineType: Option[String], zone: Option[String], instanceName: Option[String])
     extends TerminalRunStatus {
+    
+    private def unknownError(jobTag: String) = {
+      new RuntimeException(s"Task $jobTag failed: error code $errorCode. Message: $errorMessage")
+    }
+    
     // Don't want to include errorMessage or code in the snappy status toString:
     override def toString = "Failed"
+    
+    def toFailure(jobTag: String, stderrPath: Option[Path]): Exception = {
+      JesError.fromFailedStatus(this, jobTag, stderrPath) getOrElse unknownError(jobTag)
+    }
   }
 }

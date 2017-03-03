@@ -1,5 +1,7 @@
 package cromwell.database.slick.tables
 
+import java.sql.Clob
+
 import cromwell.database.sql.tables.CallCachingSimpletonEntry
 
 trait CallCachingSimpletonEntryComponent {
@@ -14,7 +16,7 @@ trait CallCachingSimpletonEntryComponent {
 
     def simpletonKey = column[String]("SIMPLETON_KEY")
 
-    def simpletonValue = column[String]("SIMPLETON_VALUE")
+    def simpletonValue = column[Option[Clob]]("SIMPLETON_VALUE")
 
     def wdlType = column[String]("WDL_TYPE")
 

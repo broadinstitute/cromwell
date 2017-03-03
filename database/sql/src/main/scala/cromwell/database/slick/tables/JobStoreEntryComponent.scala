@@ -1,5 +1,7 @@
 package cromwell.database.slick.tables
 
+import java.sql.Clob
+
 import cromwell.database.sql.tables.JobStoreEntry
 
 trait JobStoreEntryComponent {
@@ -24,7 +26,7 @@ trait JobStoreEntryComponent {
     def returnCode = column[Option[Int]]("RETURN_CODE")
 
     // Only set for failure:
-    def exceptionMessage = column[Option[String]]("EXCEPTION_MESSAGE")
+    def exceptionMessage = column[Option[Clob]]("EXCEPTION_MESSAGE")
 
     def retryableFailure = column[Option[Boolean]]("RETRYABLE_FAILURE")
 

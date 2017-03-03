@@ -1,9 +1,8 @@
 package cromwell.backend.async
 
-import java.nio.file.Path
-
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.{ExecutionEvent, CallOutputs}
+import cromwell.core.path.Path
+import cromwell.core.{CallOutputs, ExecutionEvent}
 
 /**
  * ADT representing the result of an execution of a BackendCall.

@@ -1,16 +1,13 @@
 package cromwell.engine.workflow.lifecycle
 
-import java.nio.file.Files
-
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
-import better.files.File
 import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
+import cats.instances.vector._
 import cats.syntax.cartesian._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cromwell.core._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
@@ -18,17 +15,19 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
 import cromwell.core.callcaching._
+import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.BetterFileMethods.OpenOptions
+import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, _}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
-import spray.json.{JsObject, _}
+import spray.json._
 import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlString, WdlValue}
@@ -171,12 +170,13 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation = validateNamespace(sourceFiles)
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
-    (namespaceValidation |@| workflowOptionsValidation) map {
-      (_, _)
-    } flatMap { case (namespace, workflowOptions) =>
+    val labelsValidation = validateLabels(sourceFiles.labelsJson)
+    (namespaceValidation |@| workflowOptionsValidation |@| labelsValidation) map {
+      (_, _, _)
+    } flatMap { case (namespace, workflowOptions, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       val pathBuilders = EngineFilesystems(context.system).pathBuildersForWorkflow(workflowOptions)
-      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, pathBuilders)
+      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)
     }
   }
 
@@ -192,18 +192,20 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       sourceFiles: WorkflowSourceFilesCollection,
                                       namespace: WdlNamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
+                                      labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val defaultBackendName = conf.as[Option[String]]("backend.default")
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
+
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(namespace.taskCalls, workflowOptions, defaultBackendName)
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
 
-    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation ) map {
+    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation) map {
       (_, _, _, _)
     } flatMap { case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
-      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, pathBuilders, callCachingMode)
+      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, labels, failureMode, pathBuilders, callCachingMode)
     }
   }
 
@@ -212,6 +214,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       rawInputs: Map[String, JsValue],
                                       backendAssignments: Map[TaskCall, String],
                                       workflowOptions: WorkflowOptions,
+                                      labels: Labels,
                                       failureMode: WorkflowFailureMode,
                                       pathBuilders: List[PathBuilder],
                                       callCachingMode: CallCachingMode): ErrorOr[EngineWorkflowDescriptor] = {
@@ -235,7 +238,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ = pushWfInputsToMetadataService(coercedInputs)
       evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedInputs)
-      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions)
+      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions, labels)
     } yield EngineWorkflowDescriptor(namespace, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 
@@ -307,19 +310,16 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[File] = {
+  private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
 
-    def makeZipFile(contents: Array[Byte]): Try[File] = Try {
-      val dependenciesPath = Files.createTempFile("", ".zip")
-      Files.write(dependenciesPath, contents)
+    def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
+      DefaultPathBuilder.createTempFile("", ".zip").write(contents)(OpenOptions.default)
     }
 
-    def unZipFile(f: File) = Try {
+    def unZipFile(f: Path) = Try {
       val unzippedFile = f.unzip()
-      val unzippedFileContents = unzippedFile.toJava.listFiles().head
-
-      if (unzippedFileContents.isDirectory) File(unzippedFileContents.getPath)
-      else unzippedFile
+      val unzippedFileContents = unzippedFile.list.toSeq.head
+      if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
     }
 
     val importsFile = for {
@@ -329,41 +329,45 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     } yield unzipped
 
     importsFile match {
-      case Success(unzippedDirectory: File) => unzippedDirectory.validNel
+      case Success(unzippedDirectory: Path) => unzippedDirectory.validNel
       case Failure(t) => t.getMessage.invalidNel
     }
   }
 
   private def validateNamespaceWithImports(w: WorkflowSourceFilesWithDependenciesZip): ErrorOr[WdlNamespaceWithWorkflow] = {
-    def getMetadatae(importsDir: File, prefix: String = ""): Seq[(String, File)] = {
-      importsDir.children.toSeq flatMap {
-        case f: File if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
-        case f: File if f.name.endsWith(".wdl") => Seq((prefix + f.name, f))
-        case _ => Seq.empty
+    def getMetadatae(importsDir: Path, prefix: String = ""): List[(String, Path)] = {
+      importsDir.children.toList flatMap {
+        case f: Path if f.isDirectory => getMetadatae(f, prefix + f.name + "/")
+        case f: Path if f.name.endsWith(".wdl") => List((prefix + f.name, f))
+        case _ => List.empty
       }
     }
 
-    def writeMetadatae(importsDir: File) = {
-      import scala.collection.JavaConverters._
-
-      val wfImportEvents = getMetadatae(importsDir) map { case (name: String, f: File) =>
-        val contents = Files.readAllLines(f.path).asScala.mkString(System.lineSeparator())
+    def writeMetadatae(importsDir: Path) = {
+      val wfImportEvents = getMetadatae(importsDir) map { case (name: String, f: Path) =>
+        val contents = f.lines.mkString(System.lineSeparator())
         MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Imports, name), MetadataValue(contents))
       }
       serviceRegistryActor ! PutMetadataAction(wfImportEvents)
     }
 
-    validateImportsDirectory(w.importsZip) flatMap { importsDir =>
+    def importsAsNamespace(importsDir: Path): ErrorOr[WdlNamespaceWithWorkflow] = {
       writeMetadatae(importsDir)
+      val importsDirFile = better.files.File(importsDir.pathAsString) // For wdl4s better file compatibility
       val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-        List(WdlNamespace.directoryResolver(importsDir), WdlNamespace.fileResolver)
+        List(WdlNamespace.directoryResolver(importsDirFile), WdlNamespace.fileResolver)
       } else {
-        List(WdlNamespace.directoryResolver(importsDir))
+        List(WdlNamespace.directoryResolver(importsDirFile))
       }
       val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
       importsDir.delete(swallowIOExceptions = true)
-      results.validNel
+      results match {
+        case Success(ns) => ns.validNel
+        case Failure(f) => f.getMessage.invalidNel
+      }
     }
+
+    validateImportsDirectory(w.importsZip) flatMap importsAsNamespace
   }
 
   private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
@@ -376,7 +380,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           } else {
             List.empty
           }
-          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).validNel
+          // This .get is ok because we're already in a try/catch.
+          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).get.validNel
       }
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
@@ -388,6 +393,24 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case Success(JsObject(inputs)) => inputs.validNel
       case Failure(reason: Throwable) => s"Workflow contains invalid inputs JSON: ${reason.getMessage}".invalidNel
       case _ => s"Workflow inputs JSON cannot be parsed to JsObject: $json".invalidNel
+    }
+  }
+
+  private def validateLabels(json: WdlJson): ErrorOr[Labels] = {
+
+    def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
+      val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
+        case (key, JsString(s)) => Label.validateLabel(key, s)
+        case (key, other) => s"Invalid label '$key: $other': Labels must be strings, and must match the regex ${Label.LabelRegexPattern}".invalidNel
+      }
+
+      vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }
+    }
+
+    Try(json.parseJson) match {
+      case Success(JsObject(inputs)) => toLabels(inputs)
+      case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
+      case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
     }
   }
 

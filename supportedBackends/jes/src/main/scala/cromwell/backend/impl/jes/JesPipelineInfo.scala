@@ -31,13 +31,7 @@ trait JesPipelineInfoBuilder {
 
 object NonPreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
   def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo = {
-    /*
-     It should be impossible for docker to be None here. Enforcing that w/ ADTs seemed more trouble than
-      it was worth. If you're ever debugging a NoSuchElementException which leads you here, that means
-      the more trouble than worth calculation was incorrect and we should have separate RuntimeAttributes for
-      docker and no docker cases
-    */
-    val dockerImage = runtimeAttributes.dockerImage.get
+    val dockerImage = runtimeAttributes.dockerImage
     val resources = buildResources(runtimeAttributes).setPreemptible(false)
     new NonPreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
@@ -45,8 +39,7 @@ object NonPreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
 
 object PreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
   def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo = {
-    // See comment above
-    val dockerImage = runtimeAttributes.dockerImage.get
+    val dockerImage = runtimeAttributes.dockerImage
     val resources = buildResources(runtimeAttributes).setPreemptible(true)
     new PreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }

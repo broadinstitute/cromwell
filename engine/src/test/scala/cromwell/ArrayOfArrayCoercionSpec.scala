@@ -13,7 +13,7 @@ class ArrayOfArrayCoercionSpec extends CromwellTestKitSpec {
         sampleWdl = SampleWdl.ArrayOfArrays,
         eventFilter = EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
-          "wf_subtask_concatenated" -> WdlArray(WdlArrayType(WdlStringType), Seq(
+          "wf.subtask.concatenated" -> WdlArray(WdlArrayType(WdlStringType), Seq(
             WdlString("foo\nbar\nbaz"),
             WdlString("third\nfourth")
           ))

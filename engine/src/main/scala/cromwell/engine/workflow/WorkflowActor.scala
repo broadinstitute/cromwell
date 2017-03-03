@@ -18,7 +18,6 @@ import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInit
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
-import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import wdl4s.{LocallyQualifiedName => _}
@@ -142,11 +141,12 @@ object WorkflowActor {
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean): Props = {
     Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
+      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -162,6 +162,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                     jobStoreActor: ActorRef,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
+                    dockerHashActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean)
@@ -212,6 +213,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         jobStoreActor,
         subWorkflowStoreActor,
         callCacheReadActor,
+        dockerHashActor,
         jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
@@ -259,11 +261,6 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowSucceededState) { FSM.NullFunction }
 
   whenUnhandled {
-    case Event(MetadataPutFailed(action, error), _) =>
-      // Do something useful here??
-      workflowLogger.warn(s"Put failed for Metadata action $action : ${error.getMessage}")
-      stay
-    case Event(MetadataPutAcknowledgement(_), _) => stay()
     case Event(AbortWorkflowCommand, WorkflowActorData(Some(actor), _, _, _)) =>
       actor ! EngineLifecycleActorAbortCommand
       goto(WorkflowAbortingState)

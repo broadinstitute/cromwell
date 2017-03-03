@@ -2,6 +2,17 @@
 
 set -e
 
+if [ "$TRAVIS_SECURE_ENV_VARS" = "false" ]; then
+    echo "************************************************************************************************"
+    echo "************************************************************************************************"
+    echo "**                                                                                            **"
+    echo "**  WARNING: Encrypted keys are unavailable to automatically test JES with centaur. Exiting.  **"
+    echo "**                                                                                            **"
+    echo "************************************************************************************************"
+    echo "************************************************************************************************"
+    exit 0
+fi
+
 removeCromwellJar() {
     gsutil rm "${JAR_GCS_PATH}" || true
 }
@@ -32,7 +43,6 @@ printTravisHeartbeat
 set -x
 
 # Unpack our credentials and such
-openssl aes-256-cbc -K "$encrypted_5b9e82629fa8_key" -iv "$encrypted_5b9e82629fa8_iv" -in src/bin/travis/resources/jesConf.tar.enc -out jesConf.tar -d
 tar xvf jesConf.tar
 
 # Do a bunch of crap to enable gsutil. It's possible this is overkill but it doesn't take long anyways
@@ -48,7 +58,7 @@ pyenv global 2.7.10
 sudo pip install --upgrade pip
 sudo pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
 export CLOUDSDK_PYTHON_SITEPACKAGES=1
-gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d9c443bb4a94.json "$CROMWELL_SERVICE_ACCOUNT"
+gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"
 
 echo "RUNNING TRAVIS CENTAUR"
 sbt assembly

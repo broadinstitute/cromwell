@@ -13,7 +13,8 @@ import scala.concurrent.duration._
 import SubWorkflowStoreSpec._
 import akka.testkit.TestProbe
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{SubmitWorkflow, WorkflowSubmittedToStore}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStoreActor}
 
 import scala.language.postfixOps
@@ -44,7 +45,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockit
         override def tag: String = "foobar"
       }
 
-      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports("", "{}", "{}"))
+      workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports("", "{}", "{}", "{}"))
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 
       // Query for non existing sub workflow

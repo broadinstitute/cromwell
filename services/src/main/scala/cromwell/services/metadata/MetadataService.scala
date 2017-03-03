@@ -2,9 +2,9 @@ package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
-import akka.actor.{ActorRef, DeadLetterSuppression}
+import akka.actor.ActorRef
 import cats.data.NonEmptyList
-import cromwell.core.{JobKey, WorkflowId, WorkflowState}
+import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.ThrowableAggregation
 import wdl4s.values._
@@ -46,6 +46,16 @@ object MetadataService {
         }
         serviceRegistryActor ! PutMetadataAction(events)
       }
+
+      def putMetadataWithRawKey(workflowId: WorkflowId, jobKey: Option[(FullyQualifiedName, Option[Int], Int)], keyValue: Map[String, Any]) = {
+        val metadataJobKey = jobKey map { case (fullyQualifiedName, index, attempt) => MetadataJobKey(fullyQualifiedName, index, attempt) }
+
+        val events = keyValue map { case (key, value) =>
+          val metadataKey = MetadataKey(workflowId, metadataJobKey, key)
+          MetadataEvent(metadataKey, MetadataValue(value))
+        }
+        serviceRegistryActor ! PutMetadataAction(events)
+      }
     }
   }
 
@@ -76,9 +86,6 @@ object MetadataService {
   trait MetadataServiceFailure extends MetadataServiceResponse {
     def reason: Throwable
   }
-
-  case class MetadataPutAcknowledgement(putRequest: PutMetadataAction) extends MetadataServiceResponse with DeadLetterSuppression
-  case class MetadataPutFailed(putRequest: PutMetadataAction, reason: Throwable) extends MetadataServiceFailure
 
   case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
   case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure

@@ -2,6 +2,8 @@ package cromwell.backend
 
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
+import cromwell.core.callcaching.CallCachingEligibility
+import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import wdl4s._
 import wdl4s.values.WdlValue
@@ -24,7 +26,8 @@ case class BackendJobDescriptorKey(call: TaskCall, index: Option[Int], attempt: 
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
                                 runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
-                                inputDeclarations: EvaluatedTaskInputs) {
+                                inputDeclarations: EvaluatedTaskInputs,
+                                callCachingEligibility: CallCachingEligibility) {
   val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> value }
   val call = key.call
   override val toString = s"${key.mkTag(workflowDescriptor.id)}"
@@ -34,8 +37,9 @@ object BackendWorkflowDescriptor {
   def apply(id: WorkflowId,
             workflow: Workflow,
             knownValues: Map[FullyQualifiedName, WdlValue],
-            workflowOptions: WorkflowOptions) = {
-    new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, List.empty)
+            workflowOptions: WorkflowOptions,
+            customLabels: Labels) = {
+    new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, customLabels, List.empty)
   }
 }
 
@@ -46,6 +50,7 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
                                      workflow: Workflow,
                                      knownValues: Map[FullyQualifiedName, WdlValue],
                                      workflowOptions: WorkflowOptions,
+                                     customLabels: Labels,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {
   
   val rootWorkflow = breadCrumbs.headOption.map(_.workflow).getOrElse(workflow)

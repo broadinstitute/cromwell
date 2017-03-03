@@ -1,10 +1,19 @@
-.idea
-log
-target
+# common scala config
+*~
+.DS_Store
 .artifactory
+.idea/*
+!/.idea/inspectionProfiles/
+.idea/inspectionProfiles/*
+!/.idea/inspectionProfiles/Project_Default.xml
+target
+
+# custom config
 cromwell-executions
 cromwell-test-executions
-cromwell-workflow-logs
 cromwell-test-workflow-logs
+cromwell-workflow-logs
 local-cromwell-executions
+log
 native
+scripts/docker-compose-mysql/compose/mysql/data

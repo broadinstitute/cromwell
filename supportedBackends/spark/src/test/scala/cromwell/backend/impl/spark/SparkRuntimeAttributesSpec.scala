@@ -2,6 +2,7 @@ package cromwell.backend.impl.spark
 
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
+import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import lenthall.util.TryUtil
 import org.scalatest.{Matchers, WordSpecLike}
@@ -90,9 +91,10 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       runtime: String) = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).workflow,
+      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime.format("appMainClass", "com.test.spark")), Seq.empty[ImportResolver]).get.workflow,
       inputs,
-      options
+      options,
+      Labels.empty
     )
   }
 

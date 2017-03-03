@@ -8,7 +8,6 @@ import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, 
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import wdl4s.values.WdlValue
-import wdl4s.{GraphNode, Scope}
 
 object WorkflowExecutionDiff {
   def empty = WorkflowExecutionDiff(Map.empty)
@@ -78,30 +77,14 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     Map(OutputCallKey(jobKey.scope, jobKey.index) -> newOutputEntries.toList)
   }
 
-  /** Checks if the workflow is completed by scanning through the executionStore.
+  /** Checks if the workflow is completed.
     * If complete, this will return Some(finalStatus).  Otherwise, returns None */
   def workflowCompletionStatus: Option[ExecutionStatus] = {
-    // `List`ify the `prerequisiteScopes` to avoid expensive hashing of `Scope`s when assembling the result.
-
-    def upstreamFailed(scope: Scope): List[GraphNode] = scope match {
-      case node: GraphNode => node.upstreamAncestry.toList filter { s =>
-        executionStore.store.exists({ case (key, status) => status == Failed && key.scope == s })
-      }
-    }
-    // activeJobs is the subset of the executionStore that are either running or will run in the future.
-    val activeJobs = executionStore.store.toList filter {
-      case (jobKey, jobStatus) => (jobStatus == NotStarted && upstreamFailed(jobKey.scope).isEmpty) || jobStatus == QueuedInCromwell || jobStatus == Starting || jobStatus == Running
-    }
-
-    activeJobs match {
-      case jobs if jobs.isEmpty && hasFailedJob => Option(Failed)
-      case jobs if jobs.isEmpty && !hasFailedJob => Option(Done)
+    (executionStore.hasActiveJob, executionStore.hasFailedJob) match {
+      case (false, true) => Option(Failed)
+      case (false, false) => Option(Done)
       case _ => None
     }
-  }
-
-  def hasFailedJob: Boolean = {
-    executionStore.store.values.exists(_ == ExecutionStatus.Failed)
   }
 
   def removeEngineJobExecutionActor(actorRef: ActorRef) = {
@@ -141,8 +124,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
   
   def jobExecutionMap: JobExecutionMap = {
-    val keys = executionStore.store.collect({case (k: BackendJobDescriptorKey, status) if status != ExecutionStatus.NotStarted => k }).toList
-    downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, keys)
+    downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.unstartedJobs)
   }
   
   def hasRunningActors = backendJobExecutionActors.nonEmpty || subWorkflowExecutionActors.nonEmpty

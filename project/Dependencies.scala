@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.20"
-  lazy val wdl4sV = "0.8"
+  lazy val lenthallV = "0.21"
+  lazy val wdl4sV = "0.10"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -12,10 +12,11 @@ object Dependencies {
   - http://doc.akka.io/docs/akka/2.4/scala/http/common/json-support.html#akka-http-spray-json
    */
   lazy val sprayJsonV = "1.3.2"
-  lazy val akkaV = "2.4.14"
+  lazy val akkaV = "2.4.16"
+  lazy val akkaHttpV = "2.4.8"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.22.0"
-  lazy val googleGenomicsServicesApiV = "1.20.0"
+  lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.16.0"
   lazy val catsV = "0.7.2"
 
@@ -46,8 +47,8 @@ object Dependencies {
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % "1.1.7",
-    "ch.qos.logback" % "logback-access" % "1.1.7",
+    "ch.qos.logback" % "logback-classic" % "1.2.1",
+    "ch.qos.logback" % "logback-access" % "1.2.1",
     "org.codehaus.janino" % "janino" % "3.0.1"
   )
 
@@ -80,10 +81,12 @@ object Dependencies {
   )
 
   private val googleCloudDependencies = List(
-    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev14-" + googleGenomicsServicesApiV),
+    "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
     "com.google.cloud" % "google-cloud-nio" % "0.3.0"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
+      exclude("org.apache.httpcomponents", "httpclient"),
+    "org.apache.httpcomponents" % "httpclient" % "4.5.2"
   )
 
   private val dbmsDependencies = List(
@@ -116,7 +119,10 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
-    "com.google.guava" % "guava" % "20.0"
+    "com.google.guava" % "guava" % "20.0",
+    "com.typesafe.akka" %% "akka-http-core" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaHttpV
   ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
@@ -129,6 +135,15 @@ object Dependencies {
     "com.twitter" %% "chill" % "0.8.0",
     "org.mongodb" %% "casbah" % "3.0.0"
   )
+
+  val jesBackendDependencies = List(
+    "org.scala-lang" % "scala-compiler" % Settings.ScalaVersion,
+    "eu.timepit" %% "refined" % "0.7.0"
+  )
+
+  val tesBackendDependencies = List(
+    "io.spray" %% "spray-client" % sprayV
+  ) ++ sprayServerDependencies
 
   val sparkBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV

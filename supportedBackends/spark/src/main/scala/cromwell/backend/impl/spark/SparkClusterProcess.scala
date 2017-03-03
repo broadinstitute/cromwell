@@ -1,18 +1,17 @@
 package cromwell.backend.impl.spark
 
-import java.nio.file.Path
-
 import akka.actor.ActorSystem
+import com.typesafe.scalalogging.Logger
 import cromwell.backend.impl.spark.SparkClusterProcess.{SparkJobSubmissionResponse, TerminalStatus}
+import cromwell.core.path.Obsolete._
+import cromwell.core.path.Path
+import org.slf4j.LoggerFactory
+import spray.client.pipelining._
 import spray.http.{HttpRequest, HttpResponse, StatusCodes}
 import spray.json.{DefaultJsonProtocol, JsonParser}
-import spray.client.pipelining._
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import better.files._
-import com.typesafe.scalalogging.Logger
-import org.slf4j.LoggerFactory
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
 object SparkClusterProcess {
@@ -59,8 +58,8 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
   with SparkClusterRestClient with SparkClusterJobParser with SparkClusterProcessMonitor {
 
   import SparkClusterProcess._
-  import spray.httpx.SprayJsonSupport._
   import SparkClusterJsonProtocol._
+  import spray.httpx.SprayJsonSupport._
 
   implicit lazy val ec: ExecutionContext = system.dispatcher
   lazy val completionPromise = Promise[TerminalStatus]()

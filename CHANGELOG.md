@@ -2,6 +2,8 @@
 
 ## 25
 
+### External Contributors
+* A special thank you to @adamstruck, @antonkulaga and @delocalizer for their contributions to Cromwell.
 ### Breaking Changes
 
 * Metadata keys for call caching are changed. All call caching keys are now in a `callCaching` stanza. `Call cache read result` has moved here and is now `result`. The `allowResultReuse` and `effectiveCallCachingMode` have moved here. The `hit` boolean is a simple indication of whether or not it was a hit, with no additional information. An example using the new format is:
@@ -44,7 +46,7 @@ resulted in strings prepended with `file:///path/to/file`. Now absolute file pat
   See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details. 
 * Added docker hash lookup. Cromwell will try to lookup the hash for a docker image with a floating tag, and use that hash when executing the job.
   This will be reflected in the metadata where the docker runtime attribute will contains the hash that was used.
-  If Cromwell is unable to lookup the hash hash, the job will be run with the original user defined floating tag.
+  If Cromwell is unable to lookup the docker hash, the job will be run with the original user defined floating tag.
   Cromwell is currently able to lookup public and private docker hashes for images on Docker Hub and Google Container Engine for job running on the JES backend.
   For other backends, cromwell is able to lookup public docker hashes for Docker Hub and Google Container Engine.
   See https://github.com/broadinstitute/cromwell#call-caching-docker-tags for more details. 

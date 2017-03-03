@@ -425,6 +425,7 @@ The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/
 webservice {
   port = 8000
   interface = 0.0.0.0
+  binding-timeout = 5s
   instance.name = "reference"
 }
 ```
@@ -434,6 +435,7 @@ Or, alternatively, as dot-separated values:
 ```hocon
 webservice.port = 8000
 webservice.interface = 0.0.0.0
+webservice.binding-timeout = 5s
 webservice.instance.name = "reference"
 ```
 
@@ -2815,7 +2817,9 @@ refresh interval will default to 2 seconds.  To turn off metadata summary refres
 ```
 services {
   MetadataService {
-    metadata-summary-refresh-interval = "10 seconds"
+    config {
+      metadata-summary-refresh-interval = "10 seconds"
+    }
   }
 }
 ```

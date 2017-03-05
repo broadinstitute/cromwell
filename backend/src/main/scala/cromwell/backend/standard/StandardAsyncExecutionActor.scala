@@ -177,6 +177,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     s"""|#!/bin/bash
         |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX) 
+        |chmod 777 $$tmpDir
         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
         |export TMPDIR=$$tmpDir
         |$commandScriptPreamble

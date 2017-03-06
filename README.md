@@ -1334,8 +1334,7 @@ It supports the following Spark deploy modes:
 *  Cluster deploy mode using Yarn resource manager
 
 ### Configuring Spark Project
-
-When using Spark backend move the following Spark configuration in the reference.conf file, which is available under `core/src/resources`
+When using Spark backend, copy the Spark configuration in reference.conf (available under `core/src/main/resources`) into the main application.conf (in `src/main/resources`):
 
 ```conf
 Spark {

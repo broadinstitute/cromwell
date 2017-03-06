@@ -22,16 +22,16 @@ lazy val versionSettings = Seq(
 
 versionWithGit ++ versionSettings
 
-val sprayV = "1.3.3"
+val sprayV = "1.3.4"
 
-val akkaV = "2.4.10"
+val akkaV = "2.4.17"
 
 resolvers += Resolver.jcenterRepo
 
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.3.0",
-  "org.slf4j" % "slf4j-api" % "1.7.21",
-  "com.iheart" %% "ficus" % "1.3.0",
+  "com.typesafe" % "config" % "1.3.1",
+  "org.slf4j" % "slf4j-api" % "1.7.24",
+  "com.iheart" %% "ficus" % "1.4.0",
   //---------- Provided libraries -------------------//
   /*
   Exclude test framework cats-laws and its transitive dependency scalacheck.
@@ -39,7 +39,7 @@ libraryDependencies ++= Seq(
   Explicitly excluding the two problematic artifacts instead of including the three (or four?).
   https://github.com/typelevel/cats/tree/v0.7.2#getting-started
    */
-  "org.typelevel" %% "cats" % "0.7.2" % Provided
+  "org.typelevel" %% "cats" % "0.9.0" % Provided
     exclude("org.typelevel", "cats-laws_2.11")
     exclude("org.typelevel", "cats-kernel-laws_2.11"),
   "ch.qos.logback" % "logback-classic" % "1.2.1" % Provided,
@@ -50,7 +50,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaV % Provided,
   //---------- Test libraries -------------------//
   "io.spray" %% "spray-testkit" % sprayV % Test,
-  "org.scalatest" %% "scalatest" % "3.0.0" % Test
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test
 )
 
 shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), git.baseVersion.value)}

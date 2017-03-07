@@ -6,8 +6,7 @@ import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core._
-import cromwell.core.actor.RobustClientHelper
-import cromwell.core.io.{IoCopyCommand, IoDeleteCommand, IoFailure, IoSuccess}
+import cromwell.core.io._
 import cromwell.core.logging.WorkflowLogger
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsBatchCommandBuilder
@@ -27,16 +26,16 @@ object CopyWorkflowLogsActor {
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
 // Which could be used for other copying work (outputs, call logs..)
-class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef, ioActor: ActorRef) extends Actor with ActorLogging with GcsBatchCommandBuilder with RobustClientHelper {
+class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef, override val ioActor: ActorRef) extends Actor with ActorLogging with GcsBatchCommandBuilder with IoClientHelper {
 
   def copyLog(src: Path, dest: Path, workflowId: WorkflowId) = {
     dest.parent.createPermissionedDirectories()
     // Send the workflowId as context along with the copy so we can update metadata when the response comes back
-    ioActor ! (workflowId -> copyCommand(src, dest, overwrite = true))
+    sendIoCommandWithContext(copyCommand(src, dest, overwrite = true), workflowId)
   }
 
   def deleteLog(src: Path) = if (WorkflowLogger.isTemporary) {
-    ioActor ! deleteCommand(src)
+    sendIoCommand(deleteCommand(src))
   }
   
   def updateLogsPathInMetadata(workflowId: WorkflowId, path: Path) = {
@@ -74,7 +73,7 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef, ioActor: ActorRef) e
     case other => log.warning(s"CopyWorkflowLogsActor received an unexpected message: $other")
   }
   
-  override def receive = robustReceive orElse copyLogsReceive
+  override def receive = ioReceive orElse copyLogsReceive
 
   override def preRestart(t: Throwable, message: Option[Any]) = {
     message foreach self.forward

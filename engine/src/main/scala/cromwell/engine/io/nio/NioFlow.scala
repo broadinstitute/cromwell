@@ -10,6 +10,7 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Codec
 
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
@@ -49,7 +50,7 @@ class NioFlow(parallelism: Int, scheduler: Scheduler)(implicit ec: ExecutionCont
   }
 
   private def write(write: IoWriteCommand) = Future {
-    write.file.write(write.content)
+    write.file.write(write.content)(write.openOptions, Codec.UTF8)
     ()
   }
   

@@ -11,7 +11,6 @@ import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core._
-import cromwell.core.actor.RobustClientHelper
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
@@ -69,7 +68,7 @@ class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
   * Standard implementation of a BackendCacheHitCopyingActor.
   */
 abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
-  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with RobustClientHelper { this: IoCommandBuilder =>
+  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with IoClientHelper { this: IoCommandBuilder =>
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
@@ -82,7 +81,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   
   startWith(Idle, None)
   
-  context.become(robustReceive orElse receive)
+  context.become(ioReceive orElse receive)
   
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
@@ -108,7 +107,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
               // from the beginning, potentially overwriting the first ones.
               val allCopyCommands = allCopyPairs map { case (source, destination) => copyCommand(source, destination, overwrite = true) }
 
-              allCopyCommands foreach { ioActor ! _ }
+              allCopyCommands foreach { sendIoCommand(_) }
 
               goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
           }
@@ -119,12 +118,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   
   when(WaitingForCopyResponses) {
     case Event(IoSuccess(copyCommand: IoCopyCommand, _), Some(data)) =>
-      cancelTimeout(copyCommand)
       val newData = data.remove(copyCommand)
       if (newData.copyCommandsToWaitFor.isEmpty) succeedAndStop(data.returnCode, data.copiedJobOutputs, data.copiedDetritus)
       else stay() using Option(newData)
     case Event(IoFailure(copyCommand: IoCopyCommand, failure), _) =>
-      cancelTimeout(copyCommand) 
       failAndStop(failure)
   }
   

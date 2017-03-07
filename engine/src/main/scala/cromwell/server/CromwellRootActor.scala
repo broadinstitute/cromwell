@@ -64,7 +64,6 @@ import scala.language.postfixOps
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
   
   // Io Actor
-  lazy val ioParallelism = systemConfig.as[Option[Int]]("io.parallelism").getOrElse(100)
   lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)

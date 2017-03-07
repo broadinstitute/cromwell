@@ -102,12 +102,69 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     remoteActor.expectNoMsg()
     delegateActor.expectNoMsg()
   }
+
+  it should "reset timeout when backpressured is received" in {
+    val remoteActor = TestProbe()
+    val delegateActor = TestProbe()
+    
+    val margin = 500 millis
+    val backpressureTimeout = 1 second
+    val noResponseTimeout = 3 seconds
+    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout))
+
+    val messageToSend = TestActor.TestMessage("hello")
+
+    // send message
+    testActor.underlyingActor.sendMessage(messageToSend, remoteActor.ref)
+
+    // remote actor receives message
+    remoteActor.expectMsg(messageToSend)
+
+    // remote actor sends a backpressure message
+    remoteActor.reply(Backpressure(messageToSend))
+
+    // remote actor expects request again after backpressureTimeout
+    remoteActor.expectMsg(backpressureTimeout + margin, messageToSend)
+
+    // remote actor replies
+    remoteActor.reply("world")
+
+    // delegate receives ServiceUnreachable message
+    delegateActor.expectMsg("world")
+
+    // remote actor doesn't receives new messages
+    remoteActor.expectNoMsg()
+    // ensure that no ServiceUnreachable message was sent
+    delegateActor.expectNoMsg(4 seconds)
+  }
+  
+  it should "randomize backpressure timings" in {
+    val delegateActor = TestProbe()
+    val backpressureTimeout = 20 seconds
+    val noResponseTimeout = 3 seconds
+    val randomizeFactor = 0.2D
+    
+    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout, randomizeFactor)).underlyingActor
+    
+    val randomBackpressures = 0 until 10 map { _ =>
+      val time = testActor.generateBackpressureTime
+      time.gt(16.seconds) shouldBe true
+      time.lt(24.seconds) shouldBe true
+      time
+    }
+    
+    // They should all be different
+    randomBackpressures.distinct.size shouldBe 10
+  }
   
   private [actor] object TestActor {
     case class TestMessage(v: String)
     case object ServiceUnreachable
   }
-  private class TestActor(delegateTo: ActorRef, override val backpressureTimeout: FiniteDuration, noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with RobustClientHelper {
+  private class TestActor(delegateTo: ActorRef,
+                          override val backpressureTimeout: FiniteDuration,
+                          noResponseTimeout: FiniteDuration,
+                          override val backpressureRandomizerFactor: Double = 0.5D) extends Actor with ActorLogging with RobustClientHelper {
     
     context.become(robustReceive orElse receive)
     var messageSent: Any = _

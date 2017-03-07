@@ -18,12 +18,13 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
 
   private final val random = new Random()
   
-  private var timeouts = Map.empty[Any, (Cancellable, FiniteDuration)]
+  // package private for testing
+  private [core] var timeouts = Map.empty[Any, (Cancellable, FiniteDuration)]
   
   protected def backpressureTimeout: FiniteDuration = 10 seconds
   protected def backpressureRandomizerFactor: Double = 0.5D
   
-  protected def robustReceive: Receive = {
+  private [core] def robustReceive: Receive = {
     case Backpressure(request) => 
       val snd = sender()
       newTimer(request, snd, generateBackpressureTime)
@@ -46,6 +47,8 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
     timeouts = timeouts + (command -> (cancellable -> timeout))
   }
 
+  protected final def hasTimeout(command: Any) = timeouts.get(command).isDefined
+
   protected final def cancelTimeout(command: Any) = {
     timeouts.get(command) foreach { case (cancellable, _) => cancellable.cancel() }
     timeouts = timeouts - command
@@ -57,7 +60,7 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
     timeout foreach { addTimeout(command, to, _) }
   }
   
-  private final def generateBackpressureTime = {
+  private [actor] final def generateBackpressureTime = {
     val backpressureTimeoutInMillis = backpressureTimeout.toMillis
     
     val delta = backpressureRandomizerFactor * backpressureTimeoutInMillis

@@ -74,12 +74,10 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
     // Hash Success
     case (fileHashRequest: SingleFileHashRequest, response @ IoSuccess(_, result: String)) =>
-      cancelTimeout(fileHashRequest -> response.command)
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
     // Hash Failure
     case (fileHashRequest: SingleFileHashRequest, response @ IoFailure(_, failure: Throwable)) =>
-      cancelTimeout(fileHashRequest -> response.command)
       context.parent ! HashingFailedMessage(fileHashRequest.hashKey, failure)
 
     case other =>
@@ -91,7 +89,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     case Failure(failure) => replyTo ! HashingFailedMessage(fileRequest.hashKey, failure)
   }
 
-  override def receive: Receive = robustReceive orElse fileHashingReceive
+  override def receive: Receive = ioReceive orElse fileHashingReceive
 
   protected def onTimeout(message: Any, to: ActorRef): Unit = {
     context.parent ! HashingServiceUnvailable

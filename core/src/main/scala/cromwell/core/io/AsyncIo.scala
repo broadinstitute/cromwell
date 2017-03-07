@@ -13,8 +13,8 @@ trait AsyncIo extends IoClientHelper { this: Actor with ActorLogging with IoComm
   
   protected val ioTimeout = 3 minutes
   
-  private final def ioResponseReceive: Receive = {
-    case (promise: Promise[_], ack: IoAck[Any] @ unchecked) =>
+  override private [core] def ioResponseReceive: Receive = {
+    case (promise: Promise[_], ack: IoAck[Any]) =>
       cancelTimeout(promise -> ack.command)
       // This is not typesafe. 
       // However the sendIoCommand method ensures that the command and the promise have the same generic type
@@ -24,8 +24,6 @@ trait AsyncIo extends IoClientHelper { this: Actor with ActorLogging with IoComm
       ()
   }
   
-  protected final def ioReceive = ioResponseReceive orElse robustReceive
-
   /**
     * IMPORTANT: This loads the entire content of the file into memory !
     * Only use for small files !
@@ -45,6 +43,12 @@ trait AsyncIo extends IoClientHelper { this: Actor with ActorLogging with IoComm
   def sizeAsync(path: Path): Future[Long] = {
     val promise = Promise[Long]
     sendIoCommandWithPromise(sizeCommand(path), promise)
+    promise.future
+  }
+
+  def hashAsync(path: Path): Future[String] = {
+    val promise = Promise[String]
+    sendIoCommandWithPromise(hashCommand(path), promise)
     promise.future
   }
 

@@ -14,7 +14,7 @@ trait AsyncIo extends IoClientHelper { this: Actor with ActorLogging with IoComm
   protected val ioTimeout = 3 minutes
   
   override private [core] def ioResponseReceive: Receive = {
-    case (promise: Promise[_], ack: IoAck[Any]) =>
+    case (promise: Promise[_], ack: IoAck[Any] @unchecked) =>
       cancelTimeout(promise -> ack.command)
       // This is not typesafe. 
       // However the sendIoCommand method ensures that the command and the promise have the same generic type

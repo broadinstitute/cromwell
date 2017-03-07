@@ -2,6 +2,32 @@
 
 ## 26
 
+### Breaking Changes
+
+* Failure metadata for calls and workflows was being displayed inconsistently, with different formats depending on the originating Cromwell version. Failures will now always present as an array of JSON objects each representing a failure. Each failure will have a message and a causedBy field. The causedBy field will be an array of similar failure objects. An example is given below:
+
+```
+failures: [{
+  message: "failure1",
+  causedBy: [{
+    message: "cause1",
+    causedBy: []
+   }, {
+    message: "cause2",
+    causedBy: []
+  }]
+ }, {
+  message: "failure2",
+  causedBy: []
+}]
+```
+
+### Additional Upgrade Time
+
+* Upgrading to Cromwell 26 will take additional time due to the migration of failure metadata. Cromwell will automatically run a database query during the upgrade which appears to be roughly linear to the number of rows in the METADATA_ENTRY table. You can estimate upgrade time using the following equation: `time to migrate (in seconds) ~= (rows in METADATA_ENTRY) / 65000` Note that due to differences in hardware and database speed, this is only a rough estimate.
+
+### Config Changes
+
 * Added a configuration option under `system.io` to throttle the number of I/O queries that Cromwell makes, as well as configure retry parameters.
  This is mostly useful for the JES backend and should be updated to match the GCS quota available for the project.
  

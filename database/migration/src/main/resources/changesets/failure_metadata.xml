@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="cjllanwarne" id="failure_to_message" dbms="mysql">
+        <sqlFile relativeToChangelogFile="true" path="failure_metadata_scripts/failure_to_message.sql" />
+    </changeSet>
+
+    <changeSet author="cjllanwarne" id="remove_failure_timestamp" dbms="mysql">
+        <delete tableName="METADATA_ENTRY">
+            <where>METADATA_KEY LIKE '%failures[%]:timestamp'</where>
+        </delete>
+    </changeSet>
+
+    <changeSet author="cjllanwarne" id="causedByLists" dbms="mysql">
+        <sqlFile relativeToChangelogFile="true" path="failure_metadata_scripts/causedBy_lists.sql" />
+    </changeSet>
+
+    <changeSet author="cjllanwarne" id="deduplicate_failure_messages" dbms="mysql">
+        <customChange class="cromwell.database.migration.failuremetadata.DeduplicateFailureMessageIds"/>
+    </changeSet>
+
+    <changeSet author="cjllanwarne" id="guaranteed_caused_bys" dbms="mysql">
+        <sqlFile relativeToChangelogFile="true" path="failure_metadata_scripts/guarantee_causedBy.sql" />
+    </changeSet>
+
+</databaseChangeLog>

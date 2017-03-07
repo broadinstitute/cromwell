@@ -70,6 +70,5 @@ object MetadataWatchActor {
   }
 
   val failurePattern = """failures\[\d*\].*\:message"""
-  // val failurePattern = """failures\[\d*\]\:message"""
   final case class FailureMatcher(value: String) extends KeyMatchesRegexAndValueContainsStringMatcher(failurePattern, value) { }
 }

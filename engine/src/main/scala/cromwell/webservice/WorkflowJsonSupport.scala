@@ -43,7 +43,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val unqualifiedFailureEventEntry = jsonFormat2(FailureEventEntry)
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
 }

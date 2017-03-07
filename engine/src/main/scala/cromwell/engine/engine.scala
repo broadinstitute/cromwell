@@ -1,7 +1,5 @@
 package cromwell.engine
 
-import java.time.OffsetDateTime
-
 import wdl4s._
 
 import scala.util.{Failure, Success, Try}
@@ -9,7 +7,6 @@ import scala.util.{Failure, Success, Try}
 final case class AbortFunction(function: () => Unit)
 final case class AbortRegistrationFunction(register: AbortFunction => Unit)
 
-final case class FailureEventEntry(failure: String, timestamp: OffsetDateTime)
 final case class CallAttempt(fqn: FullyQualifiedName, attempt: Int)
 
 object WorkflowFailureMode {

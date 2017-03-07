@@ -4,7 +4,7 @@ import akka.actor.Props
 import com.typesafe.config.Config
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.backend.standard.callcaching.{StandardFileHashingActor, StandardFileHashingActorParams}
-import cromwell.filesystems.gcs.GcsBatchCommandBuilder
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import net.ceedubs.ficus.Ficus._
 
 import scala.util.Try

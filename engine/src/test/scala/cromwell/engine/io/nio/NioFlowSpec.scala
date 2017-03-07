@@ -41,7 +41,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "read asynchronously" in {
+  it should "read from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
     
@@ -56,7 +56,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "get size asynchronously" in {
+  it should "get size from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
 
@@ -71,7 +71,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
   
-  it should "get hash asynchronously" in {
+  it should "get hash from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
 
@@ -86,7 +86,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "copy asynchronously" in {
+  it should "copy Nio paths" in {
     val testPath = DefaultPathBuilder.createTempFile()
     val testCopyPath = testPath.sibling(UUID.randomUUID().toString)
 
@@ -102,7 +102,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "copy asynchronously with overwrite true" in {
+  it should "copy Nio paths with overwrite true" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("goodbye")
     
@@ -123,7 +123,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "copy asynchronously with overwrite false" in {
+  it should "copy Nio paths with overwrite false" in {
     val testPath = DefaultPathBuilder.createTempFile()
     val testCopyPath = DefaultPathBuilder.createTempFile()
 
@@ -141,7 +141,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "delete asynchronously" in {
+  it should "delete a Nio path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     val context = DefaultCommandContext(deleteCommand(testPath), replyTo)
     val testSource = Source.single(context)
@@ -154,7 +154,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "delete asynchronously with swallowIoExceptions true" in {
+  it should "delete a Nio path with swallowIoExceptions true" in {
     val testPath = DefaultPathBuilder.build("/this/does/not/exist").get
 
     val context = DefaultCommandContext(deleteCommand(testPath, swallowIoExceptions = true), replyTo)
@@ -169,7 +169,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
   }
 
-  it should "delete asynchronously with swallowIoExceptions false" in {
+  it should "delete a Nio path with swallowIoExceptions false" in {
     val testPath = DefaultPathBuilder.build("/this/does/not/exist").get
 
     val context = DefaultCommandContext(deleteCommand(testPath, swallowIoExceptions = false), replyTo)

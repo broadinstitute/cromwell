@@ -27,9 +27,20 @@ class StreamActorHelperSpec extends TestKitSuite with FlatSpecLike with Matchers
     val actor = TestActorRef(new TestStreamActor(1))
     val command = new TestStreamActorCommand
 
-    actor ! EnqueueResponse(Dropped, TestStreamActorContext(command, self))
+    actor ! EnqueueResponse(Dropped, TestStreamActorContext(command, self, None))
 
     expectMsg(Backpressure(command))
+
+    system stop actor
+  }
+
+  it should "send a backpressure message with context when messages are dropped by the queue" in {
+    val actor = TestActorRef(new TestStreamActor(1))
+    val command = new TestStreamActorCommand
+
+    actor ! EnqueueResponse(Dropped, TestStreamActorContext(command, self, Option("context")))
+
+    expectMsg(Backpressure("context" -> command))
 
     system stop actor
   }
@@ -38,7 +49,7 @@ class StreamActorHelperSpec extends TestKitSuite with FlatSpecLike with Matchers
 
 private object TestStreamActor {
   class TestStreamActorCommand
-  case class TestStreamActorContext(request: TestStreamActorCommand, replyTo: ActorRef) extends StreamContext
+  case class TestStreamActorContext(request: TestStreamActorCommand, replyTo: ActorRef, override val clientContext: Option[Any]) extends StreamContext
 }
 
 private class TestStreamActor(queueSize: Int)(implicit override val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[TestStreamActorContext] {
@@ -46,7 +57,11 @@ private class TestStreamActor(queueSize: Int)(implicit override val materializer
   override protected def actorReceive: Receive = {
     case command: TestStreamActorCommand =>
       val replyTo = sender()
-      val commandContext = TestStreamActorContext(command, replyTo)
+      val commandContext = TestStreamActorContext(command, replyTo, None)
+      sendToStream(commandContext)
+    case (userContext: Any, command: TestStreamActorCommand) =>
+      val replyTo = sender()
+      val commandContext = TestStreamActorContext(command, replyTo, Option(userContext))
       sendToStream(commandContext)
   }
 

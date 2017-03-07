@@ -2,7 +2,7 @@ package cromwell.backend.sfs
 
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.PathPair
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
-import cromwell.filesystems.gcs.GcsBatchCommandBuilder
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
 
 import scala.util.{Failure, Try}

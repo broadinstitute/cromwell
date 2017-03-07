@@ -64,19 +64,22 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
     pipe(enqueue) to self
     ()
   }
+  
+  private def backpressure(commandContext: StreamContext) = {
+    val originalRequest = commandContext.clientContext map { _ -> commandContext.request } getOrElse commandContext.request
+    commandContext.replyTo ! Backpressure(originalRequest)
+  }
 
   private def streamReceive: Receive = {
     case EnqueueResponse(Enqueued, commandContext: T @unchecked) => // Good !
-    case EnqueueResponse(Dropped, commandContext) => commandContext.replyTo ! Backpressure(commandContext.request)
+    case EnqueueResponse(Dropped, commandContext) => backpressure(commandContext)
+     
       
       // In any of the cases below, the stream is in a failed state, which will he caught by the watchCompletion hook and the 
       // actor will be restarted
-    case EnqueueResponse(QueueClosed, commandContext) => 
-      commandContext.replyTo ! Backpressure(commandContext.request)
-    case EnqueueResponse(QueueOfferResult.Failure(failure), commandContext) => 
-      commandContext.replyTo ! Backpressure(commandContext.request)
-    case FailedToEnqueue(throwable, commandContext) => 
-      commandContext.replyTo ! Backpressure(commandContext.request)
+    case EnqueueResponse(QueueClosed, commandContext) => backpressure(commandContext)
+    case EnqueueResponse(QueueOfferResult.Failure(failure), commandContext) => backpressure(commandContext)
+    case FailedToEnqueue(throwable, commandContext) => backpressure(commandContext)
       
       // Those 2 cases should never happen, as long as the strategy is Resume, but in case it does...
     case StreamCompleted => restart(new IllegalStateException("Stream was completed unexepectedly"))

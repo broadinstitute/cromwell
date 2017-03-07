@@ -16,7 +16,8 @@ import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.gcs.{GcsBatchCommandBuilder, GcsPath}
+import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.expression.NoFunctions

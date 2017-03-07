@@ -66,7 +66,9 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     ioActorProbe.reply(commandContext -> response)
 
     // delegate should receive the response
-    delegateProbe.expectMsg(commandContext -> response)
+    delegateProbe.expectMsgPF(1 second) {
+      case (contextReceived,  responseReceived) if contextReceived == "context" && responseReceived == response =>
+    }
 
     // And nothing else, meaning the timeout timer has been cancelled
     delegateProbe.expectNoMsg()

@@ -9,7 +9,7 @@ import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.WorkflowLogger
 import cromwell.core.path.Path
-import cromwell.filesystems.gcs.GcsBatchCommandBuilder
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 

@@ -5,7 +5,7 @@ import cromwell.backend._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
 import cromwell.core.CallOutputs
 import cromwell.core.io.AsyncIo
-import cromwell.filesystems.gcs.GcsBatchCommandBuilder
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wdl4s.TaskCall
 
 import scala.concurrent.Future

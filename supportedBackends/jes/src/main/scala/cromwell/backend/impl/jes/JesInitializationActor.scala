@@ -8,8 +8,8 @@ import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthInformati
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.io.AsyncIo
-import cromwell.filesystems.gcs.GcsBatchCommandBuilder
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.JsObject
 import wdl4s.TaskCall
 

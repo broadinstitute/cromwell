@@ -1,8 +1,8 @@
-package cromwell.filesystems.gcs
+package cromwell.filesystems.gcs.batch
 
 import cromwell.core.io._
 import cromwell.core.path.Path
-import cromwell.filesystems.gcs.batch.{GcsBatchCopyCommand, GcsBatchCrc32Command, GcsBatchDeleteCommand, GcsBatchSizeCommand}
+import cromwell.filesystems.gcs.GcsPath
 
 trait GcsBatchCommandBuilder extends DefaultIoCommandBuilder {
   override def sizeCommand(path: Path) = path match {

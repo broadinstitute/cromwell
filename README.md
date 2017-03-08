@@ -1334,7 +1334,14 @@ It supports the following Spark deploy modes:
 *  Cluster deploy mode using Yarn resource manager
 
 ### Configuring Spark Project
-When using Spark backend, copy the Spark configuration in reference.conf (available under `core/src/main/resources`) into the main application.conf (in `src/main/resources`):
+
+Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`
+
+To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
+
+java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar
+
+Spark configuration stanza is as follows: 
 
 ```conf
 Spark {

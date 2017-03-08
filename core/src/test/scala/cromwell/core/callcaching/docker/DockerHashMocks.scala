@@ -3,6 +3,7 @@ package cromwell.core.callcaching.docker
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.Flow
 import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashContext, DockerHashResponse}
+import cromwell.core.callcaching.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
 
 import scala.util.Try
 
@@ -11,7 +12,7 @@ case class MockHttpResponse(httpResponse: Try[HttpResponse], nb: Int)
 class HttpMock[T](responses: MockHttpResponse*) {
   private var responsesLeft = responses.toBuffer
   
-  private def nextResponse(value: (HttpRequest, (T, HttpRequest))): (Try[HttpResponse], (T, HttpRequest)) = value match {
+  private def nextResponse(value: (HttpRequest, ContextWithRequest[T])): (Try[HttpResponse], ContextWithRequest[T]) = value match {
     case (request, context) =>
       responsesLeft.headOption match {
         case Some(mockResponse) =>
@@ -27,7 +28,7 @@ class HttpMock[T](responses: MockHttpResponse*) {
       }
   }
   
-  def httpMock() = Flow[(HttpRequest, (T, HttpRequest))] map nextResponse
+  def httpMock() = Flow[(HttpRequest, ContextWithRequest[T])] map nextResponse
 }
 
 case class MockHashResponse(hashResponse: DockerHashResponse, nb: Int)

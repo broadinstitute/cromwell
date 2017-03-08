@@ -24,8 +24,8 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   val ioActor = TestProbe()
 
   def buildJobPreparationMock(
-                               backpressureTimeout: FiniteDuration,
-                               noResponseTimeout: FiniteDuration,
+                               backpressureTimeoutValue: FiniteDuration,
+                               noResponsTimeoutValue: FiniteDuration,
                                dockerHashCredentials: List[Any],
                                dockerHashingActor: ActorRef,
                                inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.LocallyQualifiedName, WdlValue])]
@@ -50,9 +50,9 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
       serviceRegistryProbe.ref,
       None
     ) {
-      override lazy val dockerNoResponseTimeout = noResponseTimeout
-      override lazy val backpressureWaitTime = backpressureTimeout
+      override protected def backpressureTimeout: FiniteDuration = backpressureTimeoutValue
       override def evaluateInputsAndAttributes = inputsAndAttributes
+      override protected lazy val noResponsTimeout = noResponsTimeoutValue
     })
   }
 }

@@ -4,7 +4,6 @@ import akka.actor.SupervisorStrategy.{Escalate, Restart}
 import akka.actor.{Actor, ActorInitializationException, ActorRef, OneForOneStrategy}
 import akka.event.Logging
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
@@ -12,6 +11,7 @@ import cromwell.core.Dispatcher
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.callcaching.docker.DockerHashActor
 import cromwell.core.callcaching.docker.DockerHashActor.DockerHashContext
+import cromwell.core.callcaching.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
 import cromwell.core.callcaching.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.core.callcaching.docker.registryv2.flows.gcr.GoogleFlow
 import cromwell.core.io.Throttle
@@ -89,9 +89,9 @@ import scala.language.postfixOps
   // Sets the number of requests that the docker actor will accept before it starts backpressuring (modulo the number of in flight requests)
   lazy val dockerActorQueueSize = 500
   
-  lazy val dockerHttpPool = Http().superPool[(DockerHashContext, HttpRequest)]()
-  lazy val googleFlow = new GoogleFlow(dockerHttpPool, gcrQueriesPer100Sec)(ioEc, materializer)
-  lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer)
+  lazy val dockerHttpPool = Http().superPool[ContextWithRequest[DockerHashContext]]()
+  lazy val googleFlow = new GoogleFlow(dockerHttpPool, gcrQueriesPer100Sec)(ioEc, materializer, system.scheduler)
+  lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
   lazy val dockerFlows = Seq(dockerHubFlow, googleFlow)
   lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerCacheEntryTTL, dockerCacheSize)(materializer).withDispatcher(Dispatcher.IoDispatcher))
 

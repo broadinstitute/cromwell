@@ -1,5 +1,6 @@
 package cromwell.core.callcaching.docker.registryv2.flows.gcr
 
+import akka.actor.Scheduler
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition}
 import akka.stream.{ActorMaterializer, FlowShape, ThrottleMode}
 import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashContext, DockerHashResponse, DockerHashUnknownRegistry}
@@ -10,7 +11,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class GoogleFlow(httpClientFlow: HttpDockerFlow, queriesPer100Sec: Int)(implicit ec: ExecutionContext, materializer: ActorMaterializer) extends DockerFlow {
+class GoogleFlow(httpClientFlow: HttpDockerFlow, queriesPer100Sec: Int)(implicit ec: ExecutionContext, materializer: ActorMaterializer, scheduler: Scheduler) extends DockerFlow {
   
   private val gcrFlow = new GcrFlow(httpClientFlow)
   private val usGcrFlow = new GcrUsFlow(httpClientFlow)
@@ -35,7 +36,7 @@ class GoogleFlow(httpClientFlow: HttpDockerFlow, queriesPer100Sec: Int)(implicit
     // If we ever get an image that none of the above flow can process,
     // which shouldn't happen because the caller should have called "accepts" before
     // to make sure this flow can handle the image
-    val failFlow = builder.add(Flow[DockerHashContext].map(dockerContext => (DockerHashUnknownRegistry(dockerContext.dockerImageID), dockerContext)))
+    val failFlow = builder.add(Flow[DockerHashContext].map(dockerContext => (DockerHashUnknownRegistry(dockerContext.request), dockerContext)))
     
     val partition = builder.add(Partition[DockerHashContext](googleFlows.length + 1, mapContextToFlow))
     val merge = builder.add(Merge[(DockerHashResponse, DockerHashContext)](googleFlows.length + 1))

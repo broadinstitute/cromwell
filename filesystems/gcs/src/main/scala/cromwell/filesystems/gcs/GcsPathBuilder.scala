@@ -74,9 +74,8 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
       .build()
   }
 
-  // Create a com.google.api.services.storage.Storage
-  // This is the underlying api used by com.google.cloud.storage
-  // By bypassing com.google.cloud.storage, we can create low level requests that can be batched
+  // Create a com.google.cloud.storage.Storage
+  // This is the "relatively" high level API, and recommended one. The nio implementation sits on top of this.
   val cloudStorage: com.google.cloud.storage.Storage = storageOptions.getService
 
   // The CloudStorageFileSystemProvider constructor is not public. Currently the only way to obtain one is through a CloudStorageFileSystem

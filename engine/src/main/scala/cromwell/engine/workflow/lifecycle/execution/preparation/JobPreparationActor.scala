@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
-import akka.actor.{ActorRef, Cancellable, FSM, Props}
+import akka.actor.{ActorRef, FSM, Props}
 import cromwell.backend._
 import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashBackPressure, DockerHashFailureResponse, DockerHashResponseSuccess}
-import cromwell.core.callcaching.docker._
 import cromwell.core.callcaching._
+import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashResponseSuccess}
+import cromwell.core.callcaching.docker._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
@@ -26,23 +26,24 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
                                      serviceRegistryActor: ActorRef,
                                      ioActor: ActorRef,
                                      backendSingletonActor: Option[ActorRef])
-  extends FSM[JobPreparationActorState, Option[JobPreparationActorData]] with WorkflowLogging {
+  extends FSM[JobPreparationActorState, Option[JobPreparationActorData]] with WorkflowLogging with DockerClientHelper {
 
   lazy val workflowIdForLogging = workflowDescriptor.id
   
-  // Number of attempts to make contact with the docker actor before giving up if no response
-  private [preparation] lazy val maxDockerAttempts = 3
   // Amount of time after which the docker request should be considered lost and sent agagin
-  private [preparation] lazy val dockerNoResponseTimeout = 30 seconds
+  override protected def backpressureTimeout: FiniteDuration = 10 seconds
   // Amount of time to wait when we get a Backpressure response before sending the request again
-  private [preparation] lazy val backpressureWaitTime = 15 seconds
+  override protected def backpressureRandomizerFactor: Double = 0.5D
+  
+  protected lazy val noResponsTimeout: FiniteDuration = 3 minutes
   
   private lazy val workflowDescriptor = executionData.workflowDescriptor
-  private val ec = context.system.dispatcher
   private lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData)
   private lazy val dockerHashCredentials = factory.dockerHashCredentials(initializationData)
   
   startWith(Idle, None)
+  
+  context.become(dockerReceive orElse receive)
 
   when(Idle) {
     case Event(Start, _) =>
@@ -53,19 +54,13 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   }
 
   when(WaitingForDockerHash) {
-    case Event(DockerHashResponseSuccess(dockerHash), Some(data)) =>
+    case Event(DockerHashResponseSuccess(dockerHash, _), Some(data)) =>
       handleDockerHashSuccess(dockerHash, data)
     case Event(failureResponse: DockerHashFailureResponse, Some(data)) =>
       log.warning(failureResponse.reason)
       handleDockerHashFailed(failureResponse.reason, data)
-    case Event(DockerHashBackPressure(request), Some(data)) =>
-      handleDockHashBackPressure(request, data)
-    case Event(DockerNoResponseTimeout, Some(data)) =>
-      if (data.maxAttemptsReached) handleDockerHashFailed("Docker Hash service is unreachable", data)
-      else {
-        dockerHashingActor ! data.dockerHashRequest
-        stay() using data.newAttempt(newRequestLostTimer)
-      }
+    case Event(DockerNoResponseTimeout(dockerHashRequest), Some(data)) =>
+      handleDockerHashFailed(s"Timed out waiting for a hash for docker image: ${dockerHashRequest.dockerImageID.fullName}", data)
   }
   
   whenUnhandled {
@@ -84,8 +79,8 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   private def startPreparation(inputs: Map[Declaration, WdlValue], attributes: Map[LocallyQualifiedName, WdlValue]) = {
     def sendDockerRequest(dockerImageId: DockerImageIdentifierWithoutHash) = {
       val dockerHashRequest = DockerHashRequest(dockerImageId, dockerHashCredentials)
-      val newData = JobPreparationActorData(dockerHashRequest, inputs, attributes, newRequestLostTimer, maxDockerAttempts)
-      dockerHashingActor ! dockerHashRequest
+      val newData = JobPreparationActorData(dockerHashRequest, inputs, attributes)
+      sendDockerCommand(dockerHashRequest, noResponsTimeout)
       goto(WaitingForDockerHash) using Option(newData)
     }
     
@@ -107,23 +102,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
     }
   }
   
-  // Schedule a DockerNoResponseTimeout message to be sent to self
-  private final def newRequestLostTimer = context.system.scheduler.scheduleOnce(dockerNoResponseTimeout, self, DockerNoResponseTimeout)(ec, self)
-  // Schedule a DockerHashRequest to be sent to the docker hashing actor
-  private final def newBackPressureTimer(dockerHashRequest: DockerHashRequest) = context.system.scheduler.scheduleOnce(backpressureWaitTime, dockerHashingActor, dockerHashRequest)(ec, self)
-
-  /*
-   * If we get backpressured, recreate both timers
-   */
-  private def handleDockHashBackPressure(request: DockerHashRequest, data: JobPreparationActorData) = {
-    data.cancelTimers()
-    val requestLostTimer = newRequestLostTimer
-    val backpressureTimer = newBackPressureTimer(data.dockerHashRequest)
-    stay() using data.backpressure(requestLostTimer, backpressureTimer)
-  }
-  
   private def handleDockerHashSuccess(dockerHashResult: DockerHashResult, data: JobPreparationActorData) = {
-    data.cancelTimers()
     val dockerValueWithHash = data.dockerHashRequest.dockerImageID.withHash(dockerHashResult).fullName
     val newRuntimeAttributes = data.attributes updated (RuntimeAttributesKeys.DockerKey, WdlString(dockerValueWithHash))
     // We had to ask for the docker hash, which means the attribute had a floating tag, we're NOT ok for call caching
@@ -132,7 +111,6 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   }
 
   private def handleDockerHashFailed(failure: String, data: JobPreparationActorData) = {
-    data.cancelTimers()
     val response = prepareBackendDescriptor(data.inputs, data.attributes, FloatingDockerTagWithoutHash)
     sendResponseAndStop(response)
   }
@@ -162,39 +140,25 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
       evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation)
     } yield curriedAddDefaultsToAttributes(evaluatedRuntimeAttributes)
   }
+
+  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
+    message match {
+      case request: DockerHashRequest => self ! DockerNoResponseTimeout(request)
+      case other => log.warning(s"Unknown request $other timed out")
+    }
+  }
 }
 
 object JobPreparationActor {
   case class JobPreparationActorData(dockerHashRequest: DockerHashRequest,
                                      inputs: Map[Declaration, WdlValue],
-                                     attributes: Map[LocallyQualifiedName, WdlValue],
-                                     requestLostTimer: Cancellable,
-                                     maxAttempts: Int,
-                                     currentAttempts: Int = 0,
-                                     backpressureTimer: Option[Cancellable] = None
-                                    ) {
-    def cancelTimers(): Unit = {
-      requestLostTimer.cancel()
-      backpressureTimer foreach { _.cancel() }
-      ()
-    }
-    
-    def backpressure(newBackpressureTimer: Cancellable, newRequestLostTimer: Cancellable) = {
-      Option(copy(requestLostTimer = newRequestLostTimer, backpressureTimer = Option(newBackpressureTimer)))
-    }
-    
-    def newAttempt(newBackpressureTimer: Cancellable) = {
-      Option(copy(requestLostTimer = newBackpressureTimer, currentAttempts = currentAttempts + 1))
-    }
-    
-    def maxAttemptsReached = currentAttempts == maxAttempts
-  }
+                                     attributes: Map[LocallyQualifiedName, WdlValue])
 
   sealed trait JobPreparationActorState
   case object Idle extends JobPreparationActorState
   case object WaitingForDockerHash extends JobPreparationActorState
   
-  private case object DockerNoResponseTimeout
+  private case class DockerNoResponseTimeout(dockerHashRequest: DockerHashRequest)
   
   def props(executionData: WorkflowExecutionActorData,
             jobKey: BackendJobDescriptorKey,

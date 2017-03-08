@@ -101,10 +101,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
             case Some(Success(_)) => succeedAndStop(returnCode, callOutputs, destinationDetritus)
             case Some(Failure(failure)) => failAndStop(failure)
             case None =>
-              // Should overwrite be true or false here ?
-              // We don't want to accidentally overwrite user's files
-              // OTOH what if cromwell is stopped in the middle of this and then restarted, it'll try to copy files again
-              // from the beginning, potentially overwriting the first ones.
               val allCopyCommands = allCopyPairs map { case (source, destination) => copyCommand(source, destination, overwrite = true) }
 
               allCopyCommands foreach { sendIoCommand(_) }
@@ -132,13 +128,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       log.warning(s"Backend cache hit copying actor received an unexpected message: $unexpected in state $stateName")
       stay()
   }
-  
+
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
-      import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
-      serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
-      context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty)
-      context stop self
-      stay()
+    import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
+    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
+    context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty)
+    context stop self
+    stay()
   }
   
   def failAndStop(failure: Throwable) = {
@@ -168,14 +164,14 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     val zero = (List.empty[WdlValueSimpleton], Set.empty[PathPair])
 
     val (destinationSimpletons, ioCommands) = wdlValueSimpletons.foldLeft(zero)({
-        case ((simpletons, commands), WdlValueSimpleton(key, wdlFile: WdlFile)) =>
-          val sourcePath = getPath(wdlFile.value).get
-          val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
+      case ((simpletons, commands), WdlValueSimpleton(key, wdlFile: WdlFile)) =>
+        val sourcePath = getPath(wdlFile.value).get
+        val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
 
-          val destinationSimpleton = WdlValueSimpleton(key, WdlFile(destinationPath.pathAsString))
-          
-          (simpletons :+ destinationSimpleton, commands + ((sourcePath, destinationPath)))
-        case ((simpletons, commands), nonFileSimpleton) => (simpletons :+ nonFileSimpleton, commands)
+        val destinationSimpleton = WdlValueSimpleton(key, WdlFile(destinationPath.pathAsString))
+
+        (simpletons :+ destinationSimpleton, commands + ((sourcePath, destinationPath)))
+      case ((simpletons, commands), nonFileSimpleton) => (simpletons :+ nonFileSimpleton, commands)
     })
 
     (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
@@ -205,7 +201,12 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
-    failAndStop(new TimeoutException("Io service is unreachable"))
+    val exceptionMessage = message match {
+      case copyCommand: IoCopyCommand => s"The Cache hit copying actor timed out waiting for a response to copy ${copyCommand.source.pathAsString} to ${copyCommand.destination.pathAsString}"
+      case other => s"The Cache hit copying actor timed out waiting for an unknown I/O operation: $other"
+    }
+    
+    failAndStop(new TimeoutException(exceptionMessage))
     ()
   }
 }

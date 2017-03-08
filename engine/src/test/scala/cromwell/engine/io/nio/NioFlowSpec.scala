@@ -90,7 +90,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val testPath = DefaultPathBuilder.createTempFile()
     val testCopyPath = testPath.sibling(UUID.randomUUID().toString)
 
-    val context = DefaultCommandContext(copyCommand(testPath, testCopyPath), replyTo)
+    val context = DefaultCommandContext(copyCommand(testPath, testCopyPath, overwrite = false), replyTo)
 
     val testSource = Source.single(context)
 
@@ -143,7 +143,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
   it should "delete a Nio path" in {
     val testPath = DefaultPathBuilder.createTempFile()
-    val context = DefaultCommandContext(deleteCommand(testPath), replyTo)
+    val context = DefaultCommandContext(deleteCommand(testPath, swallowIoExceptions = false), replyTo)
     val testSource = Source.single(context)
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)

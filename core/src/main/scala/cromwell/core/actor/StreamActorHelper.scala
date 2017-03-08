@@ -73,7 +73,6 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   private def streamReceive: Receive = {
     case EnqueueResponse(Enqueued, commandContext: T @unchecked) => // Good !
     case EnqueueResponse(Dropped, commandContext) => backpressure(commandContext)
-     
       
       // In any of the cases below, the stream is in a failed state, which will he caught by the watchCompletion hook and the 
       // actor will be restarted

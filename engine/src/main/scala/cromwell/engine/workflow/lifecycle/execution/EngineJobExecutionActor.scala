@@ -356,7 +356,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity): Try[Unit] = {
     val maybeFileHashingActorProps = factory.fileHashingActorProps map {
-      _(jobDescriptor, initializationData, serviceRegistryActor, ioActor)
+      _.apply(jobDescriptor, initializationData, serviceRegistryActor, ioActor)
     }
 
     maybeFileHashingActorProps match {

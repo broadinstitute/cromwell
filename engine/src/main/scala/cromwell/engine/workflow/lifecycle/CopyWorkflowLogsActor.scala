@@ -9,6 +9,7 @@ import cromwell.core._
 import cromwell.core.io._
 import cromwell.core.logging.WorkflowLogger
 import cromwell.core.path.Path
+import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -26,7 +27,7 @@ object CopyWorkflowLogsActor {
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
 // Which could be used for other copying work (outputs, call logs..)
-class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef, override val ioActor: ActorRef) extends Actor with ActorLogging with GcsBatchCommandBuilder with IoClientHelper {
+class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, override val ioActor: ActorRef) extends Actor with ActorLogging with GcsBatchCommandBuilder with IoClientHelper with WorkflowMetadataHelper {
 
   def copyLog(src: Path, dest: Path, workflowId: WorkflowId) = {
     dest.parent.createPermissionedDirectories()
@@ -60,8 +61,8 @@ class CopyWorkflowLogsActor(serviceRegistryActor: ActorRef, override val ioActor
       updateLogsPathInMetadata(workflowId, copy.destination)
       deleteLog(copy.source)
       
-    case (workflowId, IoFailure(copy: IoCopyCommand, failure)) => 
-      // TODO: do we still want to send something to metadata ? If so, what ?
+    case (workflowId: WorkflowId, IoFailure(copy: IoCopyCommand, failure)) =>
+      pushWorkflowFailures(workflowId, List(new IOException("Could not copy workflow logs", failure)))
       log.error(failure, s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}")
       deleteLog(copy.source)
       

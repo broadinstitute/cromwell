@@ -4,6 +4,8 @@ import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.PathPa
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
+import cats.instances.try_._
+import cats.syntax.functor._
 
 import scala.util.{Failure, Try}
 
@@ -15,7 +17,7 @@ class SharedFileSystemCacheHitCopyingActor(standardParams: StandardCacheHitCopyi
         sharedFileSystem.cacheCopy(source, destination)
     }
     
-    TryUtil.sequence(copies.toList) map { _ => () } recoverWith {
+    TryUtil.sequence(copies.toList).void recoverWith {
       case failure =>
         // If one or more of the copies failed, we want to delete all the files that were successfully copied
         // before that. Especially if they've been symlinked, leaving them could lead to rewriting the original

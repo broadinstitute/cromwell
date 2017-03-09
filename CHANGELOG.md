@@ -2,8 +2,15 @@
 
 ## 26
 
-* Added a configuration knob under `system.io` to throttle the number of I/O queries that Cromwell makes.
- This is mostly useful for the JES backend and should be updated to match the GCS quota available for the project. 
+* Added a configuration option under `system.io` to throttle the number of I/O queries that Cromwell makes.
+ This is mostly useful for the JES backend and should be updated to match the GCS quota available for the project.
+ 
+```
+system.io {
+  number-of-requests = 100000
+  per = 100 seconds
+}
+```
 
 ## 25
 

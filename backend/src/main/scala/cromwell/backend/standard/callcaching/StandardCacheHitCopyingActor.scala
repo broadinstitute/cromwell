@@ -3,6 +3,10 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, FSM}
+import cats.instances.list._
+import cats.instances.set._
+import cats.instances.tuple._
+import cats.syntax.foldable._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -29,7 +33,7 @@ trait StandardCacheHitCopyingActorParams {
   def backendInitializationDataOption: Option[BackendInitializationData]
 
   def serviceRegistryActor: ActorRef
-  
+
   def ioActor: ActorRef
 
   def configurationDescriptor: BackendConfigurationDescriptor
@@ -48,16 +52,16 @@ case class DefaultStandardCacheHitCopyingActorParams
 object StandardCacheHitCopyingActor {
   type DetritusMap = Map[String, Path]
   type PathPair = (Path, Path)
-  
+
   sealed trait StandardCacheHitCopyingActorState
   case object Idle extends StandardCacheHitCopyingActorState
   case object WaitingForCopyResponses extends StandardCacheHitCopyingActorState
 
   case class StandardCacheHitCopyingActorData(copyCommandsToWaitFor: Set[IoCopyCommand],
-                                                   copiedJobOutputs: CallOutputs,
-                                                   copiedDetritus: DetritusMap,
-                                                   returnCode: Option[Int]
-                                                  ) {
+                                              copiedJobOutputs: CallOutputs,
+                                              copiedDetritus: DetritusMap,
+                                              returnCode: Option[Int]
+                                             ) {
     def remove(copyCommand: IoCopyCommand) = copy(copyCommandsToWaitFor = copyCommandsToWaitFor filterNot { _ == copyCommand })
   }
 }
@@ -74,18 +78,18 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
-  
+
   lazy val destinationCallRootPath: Path = jobPaths.callRoot
   lazy val destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
   lazy val ioActor = standardParams.ioActor
-  
+
   startWith(Idle, None)
-  
+
   context.become(ioReceive orElse receive)
-  
+
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
-  
+
   when(Idle) {
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
       val sourceCallRootPath = lookupSourceCallRootPath(jobDetritus)
@@ -107,11 +111,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
               goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
           }
-          
+
         case Failure(failure) => failAndStop(failure)
       }
   }
-  
+
   when(WaitingForCopyResponses) {
     case Event(IoSuccess(copyCommand: IoCopyCommand, _), Some(data)) =>
       val newData = data.remove(copyCommand)
@@ -120,7 +124,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     case Event(IoFailure(copyCommand: IoCopyCommand, failure), _) =>
       failAndStop(failure)
   }
-  
+
   whenUnhandled {
     case Event(AbortJobCommand, _) =>
       abort()
@@ -136,13 +140,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     context stop self
     stay()
   }
-  
+
   def failAndStop(failure: Throwable) = {
     context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
     context stop self
     stay()
   }
- 
+
   def abort() = {
     log.warning("{}: Abort not supported during cache hit copying", jobTag)
     context.parent ! AbortedResponse(jobDescriptor.key)
@@ -161,17 +165,15 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies. 
     */
   private def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[PathPair])] = Try {
-    val zero = (List.empty[WdlValueSimpleton], Set.empty[PathPair])
-
-    val (destinationSimpletons, ioCommands) = wdlValueSimpletons.foldLeft(zero)({
-      case ((simpletons, commands), WdlValueSimpleton(key, wdlFile: WdlFile)) =>
+    val (destinationSimpletons, ioCommands): (List[WdlValueSimpleton], Set[PathPair]) = wdlValueSimpletons.toList.foldMap({
+      case WdlValueSimpleton(key, wdlFile: WdlFile) =>
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
 
         val destinationSimpleton = WdlValueSimpleton(key, WdlFile(destinationPath.pathAsString))
 
-        (simpletons :+ destinationSimpleton, commands + ((sourcePath, destinationPath)))
-      case ((simpletons, commands), nonFileSimpleton) => (simpletons :+ nonFileSimpleton, commands)
+        List(destinationSimpleton) -> Set(sourcePath -> destinationPath)
+      case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[PathPair])
     })
 
     (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
@@ -205,7 +207,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case copyCommand: IoCopyCommand => s"The Cache hit copying actor timed out waiting for a response to copy ${copyCommand.source.pathAsString} to ${copyCommand.destination.pathAsString}"
       case other => s"The Cache hit copying actor timed out waiting for an unknown I/O operation: $other"
     }
-    
+
     failAndStop(new TimeoutException(exceptionMessage))
     ()
   }

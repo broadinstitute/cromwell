@@ -453,14 +453,13 @@ java -Dconfig.file=/path/to/application.conf cromwell.jar ...
 
 ## I/O
 
-Cromwell centralizes as many of its I/O operations as possible through a unique entry point. This allows to effectively control and throttle the number of requests and resources allocated to those operations throughout the entire system.
+Cromwell centralizes as many of its I/O operations as possible through a unique entry point. This allows users to effectively control and throttle the number of requests and resources allocated to those operations throughout the entire system.
 It is possible to configure this throttling behavior in the configuration:
 
 ```
-system {
-  io {
-    queries-per-100-seconds = 100000
-  }
+system.io {
+  number-of-requests = 100000
+  per = 100 seconds
 }
 ```
 

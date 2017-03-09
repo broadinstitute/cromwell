@@ -1,0 +1,5 @@
+import "workflow_name_length.wdl"
+
+workflow good_and_short {
+ call workflow_name_length.hippopotomonstrosesquippedaliophobes_look_away_now_because_we_are_on_the_fast_train_to_Chargoggagoggmanchauggagoggchaubunagungamaugg
+}

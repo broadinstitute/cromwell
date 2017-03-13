@@ -362,12 +362,22 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
       importsDir.delete(swallowIOExceptions = true)
       results match {
-        case Success(ns) => ns.validNel
+        case Success(ns) => validateWorkflowNameLengths(ns)
         case Failure(f) => f.getMessage.invalidNel
       }
     }
 
     validateImportsDirectory(w.importsZip) flatMap importsAsNamespace
+  }
+
+  private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): ErrorOr[WdlNamespaceWithWorkflow] = {
+    def allWorkflowNames(n: WdlNamespace): Seq[String] = n.workflows.map(_.unqualifiedName) ++ n.namespaces.flatMap(allWorkflowNames)
+    val tooLong = allWorkflowNames(namespace).filter(_.length >= 100)
+    if (tooLong.nonEmpty) {
+      ("Workflow names must be shorter than 100 characters: " + tooLong.mkString(" ")).invalidNel
+    } else {
+      namespace.validNel
+    }
   }
 
   private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
@@ -381,7 +391,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
             List.empty
           }
           // This .get is ok because we're already in a try/catch.
-          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).get.validNel
+          validateWorkflowNameLengths(WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).get)
       }
     } catch {
       case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel

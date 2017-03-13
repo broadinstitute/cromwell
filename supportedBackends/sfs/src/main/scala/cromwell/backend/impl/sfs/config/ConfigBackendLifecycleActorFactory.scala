@@ -2,9 +2,9 @@ package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.Config
 import cromwell.backend.BackendConfigurationDescriptor
-import cromwell.backend.callcaching.FileHashingActor.FileHashingFunction
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
+import cromwell.backend.standard.callcaching.StandardFileHashingActor
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
@@ -32,12 +32,7 @@ class ConfigBackendLifecycleActorFactory(name: String, val configurationDescript
       classOf[DispatchedConfigAsyncJobExecutionActor]
   }
 
-  override lazy val fileHashingFunction: Option[FileHashingFunction] = {
-    logger.debug(hashingStrategy.toString)
-    Option(FileHashingFunction(hashingStrategy.getHash))
-  }
-
-  override lazy val fileHashingActorCount: Int = 5
+  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[ConfigBackendFileHashingActor])
 
   override val jobExecutionTokenType: JobExecutionTokenType = {
     val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")

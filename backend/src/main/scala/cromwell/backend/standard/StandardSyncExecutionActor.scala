@@ -21,6 +21,7 @@ case class DefaultStandardSyncExecutionActorParams
 (
   override val jobIdKey: String,
   override val serviceRegistryActor: ActorRef,
+  override val ioActor: ActorRef,
   override val jobDescriptor: BackendJobDescriptor,
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
@@ -111,6 +112,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
     DefaultStandardAsyncExecutionActorParams(
       standardParams.jobIdKey,
       standardParams.serviceRegistryActor,
+      standardParams.ioActor,
       standardParams.jobDescriptor,
       standardParams.configurationDescriptor,
       standardParams.backendInitializationDataOption,

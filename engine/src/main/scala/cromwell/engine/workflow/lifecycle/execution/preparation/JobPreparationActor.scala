@@ -24,6 +24,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
                                      dockerHashingActor: ActorRef,
                                      initializationData: Option[BackendInitializationData],
                                      serviceRegistryActor: ActorRef,
+                                     ioActor: ActorRef,
                                      backendSingletonActor: Option[ActorRef])
   extends FSM[JobPreparationActorState, Option[JobPreparationActorData]] with WorkflowLogging {
 
@@ -149,7 +150,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
                                runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
                                callCachingEligibility: CallCachingEligibility) = {
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, runtimeAttributes, inputEvaluation, callCachingEligibility)
-    BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor, backendSingletonActor))
+    BackendJobPreparationSucceeded(jobDescriptor, factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
   }
   
   private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[Declaration, WdlValue]): Try[Map[LocallyQualifiedName, WdlValue]] = {
@@ -201,6 +202,7 @@ object JobPreparationActor {
             dockerHashingActor: ActorRef,
             initializationData: Option[BackendInitializationData],
             serviceRegistryActor: ActorRef,
+            ioActor: ActorRef,
             backendSingletonActor: Option[ActorRef]) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
@@ -210,6 +212,7 @@ object JobPreparationActor {
       dockerHashingActor,
       initializationData,
       serviceRegistryActor,
+      ioActor,
       backendSingletonActor)).withDispatcher(EngineDispatcher)
   }
 }

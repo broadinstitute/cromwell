@@ -13,7 +13,7 @@ object Dependencies {
    */
   lazy val sprayJsonV = "1.3.2"
   lazy val akkaV = "2.4.16"
-  lazy val akkaHttpV = "2.4.8"
+  lazy val akkaHttpV = "2.4.11"
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
@@ -82,7 +82,7 @@ object Dependencies {
 
   private val googleCloudDependencies = List(
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
-    "com.google.cloud" % "google-cloud-nio" % "0.3.0"
+    "com.google.cloud" % "google-cloud-nio" % "0.9.4-alpha"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
@@ -120,8 +120,10 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
     "com.google.guava" % "guava" % "20.0",
+    "com.google.auth" % "google-auth-library-oauth2-http" % "0.6.0",
     "com.typesafe.akka" %% "akka-http-core" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaHttpV,
+    "com.chuusai" %% "shapeless" % "2.3.2",
     "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaHttpV
   ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.

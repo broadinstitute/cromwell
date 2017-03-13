@@ -451,6 +451,20 @@ It is recommended that one copies `src/main/resources/application.conf`, modify 
 java -Dconfig.file=/path/to/application.conf cromwell.jar ...
 ```
 
+## I/O
+
+Cromwell centralizes as many of its I/O operations as possible through a unique entry point. This allows users to effectively control and throttle the number of requests and resources allocated to those operations throughout the entire system.
+It is possible to configure this throttling behavior in the configuration:
+
+```
+system.io {
+  number-of-requests = 100000
+  per = 100 seconds
+}
+```
+
+This is particularly useful when running Cromwell on a JES backend for example, as Google imposes a quota on the number of GCS queries that can be made.
+
 ## Workflow Submission
 
 Cromwell has a configurable cap on the number of workflows running at a time. To set this value provide an integer value to the `system.max-concurrent-workflows` config value.

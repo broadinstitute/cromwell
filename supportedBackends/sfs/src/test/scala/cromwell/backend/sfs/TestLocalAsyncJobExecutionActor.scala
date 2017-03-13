@@ -2,10 +2,11 @@ package cromwell.backend.sfs
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestActorRef
-import cromwell.backend.standard._
 import cromwell.backend.io.WorkflowPathsWithDocker
+import cromwell.backend.standard._
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.core.SimpleIoActor
 
 class TestLocalAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackgroundAsyncJobExecutionActor {
@@ -32,13 +33,14 @@ object TestLocalAsyncJobExecutionActor {
   def createBackendRef(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor)
                       (implicit system: ActorSystem): TestActorRef[StandardSyncExecutionActor] = {
     val emptyActor = system.actorOf(Props.empty)
+    val ioActor = system.actorOf(SimpleIoActor.props)
     val workflowPaths = new WorkflowPathsWithDocker(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
     val initializationData = new StandardInitializationData(workflowPaths,
       StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional),
       classOf[SharedFileSystemExpressionFunctions])
     val asyncClass = classOf[TestLocalAsyncJobExecutionActor]
 
-    val params = DefaultStandardSyncExecutionActorParams(SharedFileSystemAsyncJobExecutionActor.JobIdKey, emptyActor,
+    val params = DefaultStandardSyncExecutionActorParams(SharedFileSystemAsyncJobExecutionActor.JobIdKey, emptyActor, ioActor,
       jobDescriptor, configurationDescriptor, Option(initializationData), None, asyncClass)
 
     TestActorRef(new StandardSyncExecutionActor(params))

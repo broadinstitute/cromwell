@@ -21,8 +21,8 @@ import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
 import net.ceedubs.ficus.Ficus._
-import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlValue, WdlString}
 import org.apache.commons.lang3.StringUtils
+import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
 import wdl4s.{Scope, _}
 
 import scala.annotation.tailrec
@@ -30,6 +30,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
+                                  ioActor: ActorRef,
                                   serviceRegistryActor: ActorRef,
                                   jobStoreActor: ActorRef,
                                   subWorkflowStoreActor: ActorRef,
@@ -481,7 +482,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
             val ejeaProps = EngineJobExecutionActor.props(
-              self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
+              self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, ioActor,
               jobStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingleton, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             context watch ejeaRef
@@ -498,7 +499,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   
   private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     val sweaRef = context.actorOf(
-      SubWorkflowExecutionActor.props(key, data, backendFactories, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
+      SubWorkflowExecutionActor.props(key, data, backendFactories, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
         callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting),
       s"SubWorkflowExecutionActor-${key.tag}"
     )
@@ -767,6 +768,7 @@ object WorkflowExecutionActor {
   private lazy val DefaultMaxRetriesFallbackValue = 10
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
+            ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
@@ -776,7 +778,7 @@ object WorkflowExecutionActor {
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
-    Props(WorkflowExecutionActor(workflowDescriptor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
+    Props(WorkflowExecutionActor(workflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
       callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 

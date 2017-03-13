@@ -21,6 +21,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   executionData.workflowDescriptor returns workflowDescriptor
   val jobKey = mock[BackendJobDescriptorKey]
   val serviceRegistryProbe = TestProbe()
+  val ioActor = TestProbe()
 
   def buildJobPreparationMock(
                                backpressureTimeout: FiniteDuration,
@@ -35,6 +36,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
       any[BackendJobDescriptor],
       any[Option[BackendInitializationData]],
       any[ActorRef],
+      any[ActorRef],
       any[Option[ActorRef]]
     )).thenReturn(Props.empty)
 
@@ -44,6 +46,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
       factory,
       dockerHashingActor,
       None,
+      ioActor.ref,
       serviceRegistryProbe.ref,
       None
     ) {

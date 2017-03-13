@@ -22,6 +22,8 @@ abstract class TestKitSuite(actorSystemName: String = TestKitSuite.randomName,
   }
 
   val emptyActor = system.actorOf(Props.empty)
+  val mockIoActor = system.actorOf(MockIoActor.props())
+  val failIoActor = system.actorOf(FailIoActor.props())
 }
 
 object TestKitSuite {

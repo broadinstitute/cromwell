@@ -48,12 +48,14 @@ import scala.util.matching.Regex
 case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                                ioActor: ActorRef,
                                                 calls: Set[TaskCall],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef,
+                                      ioActor: ActorRef,
                                       backendSingletonActor: Option[ActorRef]): Props = {
     throw new NotImplementedError("this is not implemented")
   }

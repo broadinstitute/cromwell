@@ -50,7 +50,6 @@ class JesJobPaths(val jobKey: BackendJobDescriptorKey, workflowDescriptor: Backe
   )
 
   override lazy val customDetritusPaths: Map[String, Path] = Map(
-    JesJobPaths.GcsExecPathKey -> script,
     JesJobPaths.JesLogPathKey -> jesLogPath
   )
 

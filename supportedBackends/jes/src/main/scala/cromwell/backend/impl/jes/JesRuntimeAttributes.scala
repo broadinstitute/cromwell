@@ -1,9 +1,10 @@
 package cromwell.backend.impl.jes
 
 import cats.data.NonEmptyList
+import cats.syntax.validated._
 import cats.data.Validated._
 import cats.syntax.cartesian._
-import cats.syntax.validated._
+import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
@@ -11,6 +12,7 @@ import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import lenthall.validation.ErrorOr._
 import wdl4s.types._
 import wdl4s.values._
+
 
 case class JesRuntimeAttributes(cpu: Int,
                                 zones: Vector[String],
@@ -24,72 +26,71 @@ case class JesRuntimeAttributes(cpu: Int,
                                 noAddress: Boolean)
 
 object JesRuntimeAttributes {
-  private val MemoryDefaultValue = "2 GB"
 
   val ZonesKey = "zones"
 
   val PreemptibleKey = "preemptible"
-  private val PreemptibleDefaultValue = 0
+  private val preemptibleValidationInstance = new IntRuntimeAttributesValidation(JesRuntimeAttributes.PreemptibleKey)
 
   val BootDiskSizeKey = "bootDiskSizeGb"
-  private val BootDiskSizeDefaultValue = 10
+  private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(JesRuntimeAttributes.BootDiskSizeKey)
 
   val NoAddressKey = "noAddress"
-  private val NoAddressDefaultValue = false
+  private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(JesRuntimeAttributes.NoAddressKey)
 
   val DisksKey = "disks"
-  private val DisksDefaultValue = s"${JesWorkingDisk.Name} 10 SSD"
 
-  private val cpuValidation: RuntimeAttributesValidation[Int] = CpuValidation.default
+  private def cpuValidation(runtimeConfig: Config): RuntimeAttributesValidation[Int] =
+    CpuValidation.default(runtimeConfig)
 
-  private val disksValidation: RuntimeAttributesValidation[Seq[JesAttachedDisk]] =
-    DisksValidation.withDefault(WdlString(DisksDefaultValue))
+  private def disksValidation(runtimeConfig: Config): RuntimeAttributesValidation[Seq[JesAttachedDisk]] = DisksValidation
+    .withDefault(DisksValidation.configDefaultWdlValue(runtimeConfig))
 
-  private def zonesValidation(defaultZones: NonEmptyList[String]): RuntimeAttributesValidation[Vector[String]] =
-    ZonesValidation.withDefault(WdlString(defaultZones.toList.mkString(" ")))
+  private def zonesValidation(defaultZones: NonEmptyList[String]): RuntimeAttributesValidation[Vector[String]] = ZonesValidation
+    .withDefault(Some(WdlString(defaultZones.toList.mkString(" "))))
 
-  private val preemptibleValidation: RuntimeAttributesValidation[Int] =
-    new IntRuntimeAttributesValidation(JesRuntimeAttributes.PreemptibleKey)
-      .withDefault(WdlInteger(PreemptibleDefaultValue))
+  private def preemptibleValidation(runtimeConfig: Config): RuntimeAttributesValidation[Int] = preemptibleValidationInstance
+    .withDefault(preemptibleValidationInstance.configDefaultWdlValue(runtimeConfig))
 
-  private val memoryValidation: RuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.withDefaultMemory(MemorySize.parse(MemoryDefaultValue).get)
+  private def memoryValidation(runtimeConfig: Config): RuntimeAttributesValidation[MemorySize] = {
+    val memoryDefault = MemoryValidation.configDefaultString(runtimeConfig)
+    MemoryValidation.withDefaultMemory(MemorySize.parse(memoryDefault), memoryDefault)
+  }
 
-  private val bootDiskSizeValidation: RuntimeAttributesValidation[Int] =
-    new IntRuntimeAttributesValidation(JesRuntimeAttributes.BootDiskSizeKey)
-      .withDefault(WdlInteger(BootDiskSizeDefaultValue))
+  private def bootDiskSizeValidation(runtimeConfig: Config): RuntimeAttributesValidation[Int] = bootDiskValidationInstance
+    .withDefault(bootDiskValidationInstance.configDefaultWdlValue(runtimeConfig))
 
-  private val noAddressValidation: RuntimeAttributesValidation[Boolean] =
-    new BooleanRuntimeAttributesValidation(JesRuntimeAttributes.NoAddressKey)
-      .withDefault(WdlBoolean(NoAddressDefaultValue))
+  private def noAddressValidation(runtimeConfig: Config): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
+    .withDefault(noAddressValidationInstance.configDefaultWdlValue(runtimeConfig))
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
-  def runtimeAttributesBuilder(jesConfiguration: JesConfiguration): StandardValidatedRuntimeAttributesBuilder =
-    StandardValidatedRuntimeAttributesBuilder.default.withValidation(
-      cpuValidation,
-      disksValidation,
+  def runtimeAttributesBuilder(jesConfiguration: JesConfiguration): StandardValidatedRuntimeAttributesBuilder = {
+    val runtimeConfig = jesConfiguration.runtimeAttributesConfig
+    StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
+      cpuValidation(runtimeConfig),
+      disksValidation(runtimeConfig),
       zonesValidation(jesConfiguration.defaultZones),
-      preemptibleValidation,
-      memoryValidation,
-      bootDiskSizeValidation,
-      noAddressValidation,
+      preemptibleValidation(runtimeConfig),
+      memoryValidation(runtimeConfig),
+      bootDiskSizeValidation(runtimeConfig),
+      noAddressValidation(runtimeConfig),
       dockerValidation
     )
+  }
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes): JesRuntimeAttributes = {
-    val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation, validatedRuntimeAttributes)
+
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Config): JesRuntimeAttributes = {
+    val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
-    val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation, validatedRuntimeAttributes)
-    val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation, validatedRuntimeAttributes)
-    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation, validatedRuntimeAttributes)
-    val disks: Seq[JesAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation, validatedRuntimeAttributes)
+    val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val disks: Seq[JesAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
-    val failOnStderr: Boolean =
-      RuntimeAttributesValidation.extract(FailOnStderrValidation.default, validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode =
-      RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.default, validatedRuntimeAttributes)
-    val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation, validatedRuntimeAttributes)
+    val failOnStderr: Boolean = RuntimeAttributesValidation.extract(FailOnStderrValidation.default(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.default(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
     new JesRuntimeAttributes(
       cpu,

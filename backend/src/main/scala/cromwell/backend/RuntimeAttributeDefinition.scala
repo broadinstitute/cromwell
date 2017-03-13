@@ -47,7 +47,6 @@ object RuntimeAttributeDefinition {
       case (runtimeAttributeDefinition, Success(jsValue)) => runtimeAttributeDefinition.name -> jsValue.convertTo[WdlValue]
       case (RuntimeAttributeDefinition(name, Some(factoryDefault), _), _) => name -> factoryDefault
     }
-
     specifiedAttributes ++ defaults
   }
 }

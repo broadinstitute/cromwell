@@ -1,5 +1,6 @@
 package cromwell.backend.standard
 
+import com.typesafe.config.Config
 import cromwell.backend.validation._
 
 /**
@@ -29,8 +30,8 @@ object StandardValidatedRuntimeAttributesBuilder {
     *
     * Additional runtime attribute validations may be added by calling `withValidation` on the default.
     */
-  lazy val default: StandardValidatedRuntimeAttributesBuilder = {
-    val required = Seq(ContinueOnReturnCodeValidation.default, FailOnStderrValidation.default)
+  def default(backendRuntimeConfig: Config): StandardValidatedRuntimeAttributesBuilder = {
+    val required = Seq(ContinueOnReturnCodeValidation.default(backendRuntimeConfig), FailOnStderrValidation.default(backendRuntimeConfig))
     val custom = Seq.empty
     StandardValidatedRuntimeAttributesBuilderImpl(custom, required)
   }

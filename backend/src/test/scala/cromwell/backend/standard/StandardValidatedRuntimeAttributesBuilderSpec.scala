@@ -1,6 +1,6 @@
 package cromwell.backend.standard
 
-import cromwell.backend.RuntimeAttributeDefinition
+import cromwell.backend.{RuntimeAttributeDefinition, TestConfig}
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.validation._
 import cromwell.core.WorkflowOptions
@@ -153,6 +153,8 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
   val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])
   val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
 
+  val mockBackendRuntimeConfig = TestConfig.mockRuntimeConfig
+
   private def assertRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue],
                                                         expectedRuntimeAttributes: Map[String, Any],
                                                         includeDockerSupport: Boolean = true,
@@ -160,9 +162,9 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
                                                         logger: Logger = defaultLogger): Unit = {
 
     val builder = if (includeDockerSupport) {
-      StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
+      StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig).withValidation(DockerValidation.optional)
     } else {
-      StandardValidatedRuntimeAttributesBuilder.default
+      StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig)
     }
     val runtimeAttributeDefinitions = builder.definitions.toSet
     val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
@@ -189,9 +191,9 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
                                                     logger: Logger = defaultLogger): Unit = {
     val thrown = the[RuntimeException] thrownBy {
       val builder = if (supportsDocker) {
-        StandardValidatedRuntimeAttributesBuilder.default.withValidation(DockerValidation.optional)
+        StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig).withValidation(DockerValidation.optional)
       } else {
-        StandardValidatedRuntimeAttributesBuilder.default
+        StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig)
       }
       val runtimeAttributeDefinitions = builder.definitions.toSet
       val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _

@@ -68,7 +68,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
     * @return runtime attributes builder with possible custom validations
     */
   def runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
-    StandardValidatedRuntimeAttributesBuilder.default
+      StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeConfig)
 
   override protected lazy val runtimeAttributeValidators: Map[String, (Option[WdlValue]) => Boolean] = {
     runtimeAttributesBuilder.validatorMap

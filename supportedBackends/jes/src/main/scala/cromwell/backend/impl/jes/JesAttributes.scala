@@ -47,15 +47,14 @@ object JesAttributes {
     "genomics.auth",
     "genomics.endpoint-url",
     "filesystems.gcs.auth",
-    "genomics-api-queries-per-100-seconds",
-    "genomics.default-zones"
+    "genomics-api-queries-per-100-seconds"
   )
 
   private val context = "Jes"
 
   implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
   
-  def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
+  def apply(googleConfig: GoogleConfiguration, backendConfig: Config, runtimeAttrsConfig: Config): JesAttributes = {
     val configKeys = backendConfig.entrySet().toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, jesKeys, context, Logger)
 
@@ -67,7 +66,7 @@ object JesAttributes {
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
-    val defaultZones = defaultZonesFromConfig(backendConfig)
+    val defaultZones = defaultZonesFromConfig(runtimeAttrsConfig)
 
     (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| defaultZones |@| qpsValidation) map {
       (_, _, _, _, _, _, _)
@@ -86,10 +85,10 @@ object JesAttributes {
   }
 
   def defaultZonesFromConfig(config: Config): ErrorOr[NonEmptyList[String]] = {
-    val zones = config.as[Option[List[String]]]("genomics.default-zones").getOrElse(List("us-central1-b"))
+    val zones = config.getAs[List[String]](ZonesValidation.key)
     zones match {
-      case x :: xs => NonEmptyList(x, xs).validNel
-      case _ => "genomics.default-zones was set but no values were provided".invalidNel
+      case Some(x :: xs) => NonEmptyList(x, xs).validNel
+      case _ => "default-runtime-attributes.zones was set but no values were provided".invalidNel
     }
   }
 

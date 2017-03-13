@@ -67,10 +67,10 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |    }
       |  ]
       |}
-      | """.stripMargin)
+      |""".stripMargin)
 
   val backendConfigTemplate: String =
-    """
+    s"""
       |  // Google project
       |  project = "my-cromwell-workflows"
       |
@@ -89,6 +89,19 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |     endpoint-url = "https://genomics.googleapis.com/"
       |  }
       |
+      |  default-runtime-attributes {
+      |     cpu: 1
+      |     failOnStderr: false
+      |     # Allowed to be a boolean, or a list of Ints, or an Int
+      |     continueOnReturnCode: 0
+      |     memory: "2 GB"
+      |     bootDiskSizeGb: 10
+      |     # Allowed to be a String, or a list of Strings
+      |     disks: "local-disk 10 SSD"
+      |     noAddress: false
+      |     preemptible: 0
+      |     zones: ["us-central1-a", "us-central1-b"]
+      |  }
       |  filesystems {
       |    gcs {
       |      // A reference to a potentially different auth for manipulating files via engine functions.
@@ -117,6 +130,20 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |     auth = "application-default"
       |     // Endpoint for APIs, no reason to change this unless directed by Google.
       |     endpoint-url = "https://genomics.googleapis.com/"
+      |  }
+      |
+      |  default-runtime-attributes {
+      |     cpu: 1
+      |     failOnStderr: false
+      |     # Allowed to be a boolean, or a list of Ints, or an Int
+      |     continueOnReturnCode: 0
+      |     memory: "2 GB"
+      |     bootDiskSizeGb: 10
+      |     # Allowed to be a String, or a list of Strings
+      |     disks: "local-disk 10 SSD"
+      |     noAddress: false
+      |     preemptible: 0
+      |     zones: ["us-central1-a", "us-central1-b"]
       |  }
       |
       |  filesystems {

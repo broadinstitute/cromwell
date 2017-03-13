@@ -4,6 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import lenthall.validation.ErrorOr._
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType, WdlType}
@@ -17,15 +18,19 @@ import scala.util.Try
   *
   * `instance` returns an validation that errors when no attribute is specified.
   *
-  * The default returns a `ContinueOnReturnCodeSet(0)` when no attribute is specified.
+  * `configDefaultWdlValue` returns the value of the attribute as specified by the
+  * reference.conf file, coerced into a WdlValue.
   *
-  * `optional` can be used return the validated value as an `Option`, wrapped in a `Some`, if present, or `None` if not
-  * found.
+  * `default` a validation with the default value specified by the reference.conf file.
+  *
+  * `optional` can be used to return the validated value as an `Option`,
+  * wrapped in a `Some`, if present, or `None` if not found.
   */
 object ContinueOnReturnCodeValidation {
   lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
-  lazy val default: RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(WdlInteger(0))
-  lazy val optional: OptionalRuntimeAttributesValidation[ContinueOnReturnCode] = default.optional
+  def configDefaultWdlValue(runtimeConfig: Config): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
+  def default(runtimeConfig: Config): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(configDefaultWdlValue(runtimeConfig))
+  def optional(runtimeConfig: Config): OptionalRuntimeAttributesValidation[ContinueOnReturnCode] = default(runtimeConfig).optional
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {

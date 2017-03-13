@@ -2,6 +2,7 @@ package cromwell.backend.validation
 
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
@@ -20,16 +21,16 @@ object RuntimeAttributesValidation {
   }
 
   def validateDocker(docker: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
-    validateWithValidation(docker, DockerValidation.optional, onMissingKey)
+    validateWithValidation(docker, DockerValidation.instance.optional, onMissingKey)
   }
 
   def validateFailOnStderr(value: Option[WdlValue], onMissingKey: => ErrorOr[Boolean]): ErrorOr[Boolean] = {
-    validateWithValidation(value, FailOnStderrValidation.default, onMissingKey)
+    validateWithValidation(value, FailOnStderrValidation.instance, onMissingKey)
   }
 
   def validateContinueOnReturnCode(value: Option[WdlValue],
                                    onMissingKey: => ErrorOr[ContinueOnReturnCode]): ErrorOr[ContinueOnReturnCode] = {
-    validateWithValidation(value, ContinueOnReturnCodeValidation.default, onMissingKey)
+    validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
   }
 
   def validateMemory(value: Option[WdlValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
@@ -37,7 +38,7 @@ object RuntimeAttributesValidation {
   }
 
   def validateCpu(cpu: Option[WdlValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
-    validateWithValidation(cpu, CpuValidation.default, onMissingKey)
+    validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
   }
 
   private def validateWithValidation[T](valueOption: Option[WdlValue],
@@ -73,7 +74,7 @@ object RuntimeAttributesValidation {
   }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
-                                 default: WdlValue): RuntimeAttributesValidation[ValidatedType] = {
+                                 default: Option[WdlValue]): RuntimeAttributesValidation[ValidatedType] = {
     new RuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
@@ -92,7 +93,7 @@ object RuntimeAttributesValidation {
 
       override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
-      override protected def staticDefaultOption = Option(default)
+      override protected def staticDefaultOption = default
     }
   }
 
@@ -368,8 +369,32 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param wdlValue The default wdl value.
     * @return The new version of this validation.
     */
-  final def withDefault(wdlValue: WdlValue): RuntimeAttributesValidation[ValidatedType] =
+  final def withDefault(wdlValue: Option[WdlValue]): RuntimeAttributesValidation[ValidatedType] =
     RuntimeAttributesValidation.withDefault(this, wdlValue)
+
+  /**
+    * Returns the value of the default runtime attribute of a
+    * validation key as specified in the reference.conf. Given
+    * a value, this method coerces it into an optional
+    * WDL value. In case the value cannot be coerced into an
+    * acceptable WdlType the value is wrapped into a WdlString
+    * and failed downstream by the ValidatedRuntimeAttributesBuilder.
+    *
+    * @param backendRuntimeDefaults The runtime attributes config of a particular backend.
+    * @return The new version of this validation.
+    */
+  final def configDefaultWdlValue(backendRuntimeDefaults: Config): Option[WdlValue] = {
+    backendRuntimeDefaults.getValue(key).unwrapped() match {
+      case value => this.coercion.collect({
+        case wdlType if wdlType.coerceRawValue(value).isSuccess =>
+          wdlType.coerceRawValue(value).get
+      }).headOption orElse Some(WdlString(value.toString))
+    }
+  }
+
+  final def configDefaultValue(backendRuntimeDefaults: Config): Any = {
+    backendRuntimeDefaults.getValue(key).unwrapped()
+  }
 
   /*
   Methods below provide aliases to expose protected methods to the package.

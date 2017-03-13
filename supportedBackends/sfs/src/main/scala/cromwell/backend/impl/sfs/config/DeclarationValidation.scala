@@ -25,7 +25,7 @@ object DeclarationValidation {
       // Docker and CPU are special keys understood by cromwell.
       case name if name == DockerValidation.instance.key =>
         new DeclarationValidation(declaration, DockerValidation.instance)
-      case name if name == CpuValidation.instance.key => new DeclarationValidation(declaration, CpuValidation.default)
+      case name if name == CpuValidation.instance.key => new DeclarationValidation(declaration, CpuValidation.instance)
       // See MemoryDeclarationValidation for more info
       case name if MemoryDeclarationValidation.isMemoryDeclaration(name) =>
         new MemoryDeclarationValidation(declaration)
@@ -89,7 +89,7 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     */
   protected def default(validation: RuntimeAttributesValidation[_],
                         wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
-    validation.withDefault(wdlExpression.evaluate(NoLookup, NoFunctions).get)
+    validation.withDefault(Some(wdlExpression.evaluate(NoLookup, NoFunctions).get))
   }
 
   /**

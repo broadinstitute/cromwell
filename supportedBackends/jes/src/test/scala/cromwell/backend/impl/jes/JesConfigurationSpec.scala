@@ -42,6 +42,7 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
       |    }
       |  ]
       |}
+      |
     """.stripMargin)
 
   val backendConfig = ConfigFactory.parseString(
@@ -62,7 +63,18 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
       |     auth = "application-default"
       |     // Endpoint for APIs, no reason to change this unless directed by Google.
       |     endpoint-url = "https://genomics.googleapis.com/"
-      |     default-zones = ["us-central1-a", "us-central1-b"]
+      |  }
+      |
+      |  default-runtime-attributes {
+      |      failOnStderr: false
+      |      continueOnReturnCode: 0
+      |      cpu: 1
+      |      memory: "2 GB"
+      |      bootDiskSizeGb: 10
+      |      disks: "local-disk 10 SSD"
+      |      noAddress: false
+      |      preemptible: 3
+      |      zones:["us-central1-a", "us-central1-b"]
       |  }
       |
       |  dockerhub {
@@ -76,6 +88,7 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
       |      auth = "application-default"
       |    }
       |  }
+      |
     """.stripMargin)
 
   it should "fail to instantiate if any required configuration is missing" in {

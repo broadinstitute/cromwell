@@ -4,8 +4,9 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendConfigurationDescriptor
 
 object JesTestConfig {
+
   private val JesBackendConfigString =
-    """
+    s"""
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
@@ -19,6 +20,20 @@ object JesTestConfig {
       |    auth = "application-default"
       |  }
       |}
+      |
+      |default-runtime-attributes {
+      |    cpu: 1
+      |    failOnStderr: false
+      |    continueOnReturnCode: 0
+      |    docker: "ubuntu:latest"
+      |    memory: "2 GB"
+      |    bootDiskSizeGb: 10
+      |    disks: "local-disk 10 SSD"
+      |    noAddress: false
+      |    preemptible: 0
+      |    zones:["us-central1-b", "us-central1-a"]
+      |}
+      |
       |""".stripMargin
 
   private val JesGlobalConfigString =
@@ -44,6 +59,7 @@ object JesTestConfig {
        |    }
        |  }
        |}
+       |
        |""".stripMargin
 
   val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)

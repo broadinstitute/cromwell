@@ -10,7 +10,8 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
 
   val root = configurationDescriptor.backendConfig.getString("root")
-  val jesAttributes = JesAttributes(googleConfig, configurationDescriptor.backendConfig)
+  val runtimeAttributesConfig = configurationDescriptor.backendRuntimeConfig
+  val jesAttributes = JesAttributes(googleConfig, configurationDescriptor.backendConfig, runtimeAttributesConfig)
   val jesAuths = jesAttributes.auths
   val jesComputeServiceAccount = jesAttributes.computeServiceAccount
   val gcsPathBuilderFactory = GcsPathBuilderFactory(jesAuths.gcs, googleConfig.applicationName)

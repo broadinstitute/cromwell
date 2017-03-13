@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import cats.data.NonEmptyList
 import cromwell.backend.impl.jes.io.{DiskType, JesAttachedDisk, JesWorkingDisk}
-import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
@@ -22,7 +22,7 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
   }
 
   val expectedDefaults = new JesRuntimeAttributes(1, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    MemorySize(2, MemoryUnit.GB), Seq(JesWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    MemorySize(2, MemoryUnit.GB), Vector(JesWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {
@@ -54,9 +54,15 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
       assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
-    "validate a valid continueOnReturnCode entry" in {
+    "validate a valid continueOnReturnCode integer entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "continueOnReturnCode" -> WdlInteger(1))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid continueOnReturnCode boolean entry" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "continueOnReturnCode" -> WdlBoolean(false))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeFlag(false))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -184,10 +190,46 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
         "Expecting noAddress runtime attribute to be a Boolean")
     }
 
-    "use reasonable default values" in {
+    "expected override of default runtime attribute values by workflow options" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"))
-      val expectedRuntimeAttributes = expectedDefaults
-      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+
+      val workflowOptionsJson =
+        """{
+          |  "default_runtime_attributes": { "cpu": 2 }
+          |}
+        """.stripMargin.parseJson.asInstanceOf[JsObject]
+
+      val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 2)
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
+    }
+
+    "expected override of default runtime attribute values by task runtime attributes" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlInteger(4))
+
+      val workflowOptionsJson =
+        """{
+          |  "default_runtime_attributes": { "cpu": 2 }
+          |}
+        """.stripMargin.parseJson.asInstanceOf[JsObject]
+
+      val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 4)
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
+    }
+
+    "expected override of invalid default runtime options by task runtime attributes" in {
+      val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlInteger(4))
+
+      val workflowOptionsJson =
+        """{
+          |  "default_runtime_attributes": { "cpu": 2.2 }
+          |}
+        """.stripMargin.parseJson.asInstanceOf[JsObject]
+
+      val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 4)
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
     }
   }
 
@@ -209,7 +251,10 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
       toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
       fail(s"A RuntimeException was expected with message: $exMsg")
     } catch {
-      case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
+      case ex: RuntimeException => {
+        println(s"ex: ${ex}")
+        assert(ex.getMessage.contains(exMsg))
+      }
     }
     ()
   }
@@ -221,16 +266,12 @@ class JesRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
     val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    JesRuntimeAttributes(validatedRuntimeAttributes)
+    JesRuntimeAttributes(validatedRuntimeAttributes, jesConfiguration.runtimeAttributesConfig)
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   private val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
-  private val jesConfiguration = {
-    val config = mock[JesConfiguration]
-    config.defaultZones returns defaultZones
-    config
-  }
+  private val jesConfiguration = new JesConfiguration(JesTestConfig.JesBackendConfigurationDescriptor)
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     JesRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration).definitions.toSet
 }

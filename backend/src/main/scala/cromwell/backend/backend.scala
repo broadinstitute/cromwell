@@ -65,7 +65,10 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
 /**
   * For passing to a BackendActor construction time
   */
-case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config)
+case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config) {
+
+  lazy val backendRuntimeConfig = backendConfig.getConfig("default-runtime-attributes")
+}
 
 final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
   def toPair = name -> value

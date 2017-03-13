@@ -78,4 +78,5 @@ trait ValidatedRuntimeAttributesBuilder {
     val errorOrListOfKeysToAnys: ErrorOr[List[(String, Any)]] = listOfErrorOrKeysToAnys.sequence[ErrorOr, (String, Any)]
     errorOrListOfKeysToAnys map { listOfKeysToAnys => ValidatedRuntimeAttributes(listOfKeysToAnys.toMap) }
   }
+
 }

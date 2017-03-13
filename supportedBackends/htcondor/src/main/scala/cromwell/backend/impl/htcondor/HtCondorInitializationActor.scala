@@ -3,7 +3,7 @@ package cromwell.backend.impl.htcondor
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.impl.htcondor.HtCondorInitializationActor._
 import cromwell.backend.impl.htcondor.HtCondorRuntimeAttributes._
-import cromwell.backend.validation.RuntimeAttributesDefault
+import cromwell.backend.validation.{ContinueOnReturnCodeValidation, RuntimeAttributesDefault}
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
@@ -66,4 +66,10 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WdlValue]] = {
     RuntimeAttributesDefault.workflowOptionsDefault(options, HtCondorRuntimeAttributes.coercionMap)
   }
+
+  override def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
+    val continueOnReturnCodeDefaultValue = HtCondorRuntimeAttributes.staticDefaults.get(ContinueOnReturnCodeKey)
+    ContinueOnReturnCodeValidation.instance.withDefault(continueOnReturnCodeDefaultValue).validateOptionalExpression(wdlExpressionMaybe)
+  }
+
 }

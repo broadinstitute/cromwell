@@ -1,6 +1,5 @@
 package cromwell.backend
 
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.CallCachingEligible
@@ -116,9 +115,6 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
       assertResponse(executionResponse, expectedResponse)
     }
   }
-
-  lazy val emptyBackendConfig = BackendConfigurationDescriptor(
-    ConfigFactory.parseString("{}"), ConfigFactory.load())
 
   def firstJobDescriptorKey(workflowDescriptor: BackendWorkflowDescriptor): BackendJobDescriptorKey = {
     val call = workflowDescriptor.workflow.taskCalls.head

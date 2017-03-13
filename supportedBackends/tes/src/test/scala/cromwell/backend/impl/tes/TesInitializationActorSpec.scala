@@ -50,6 +50,17 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
       |// Polling for completion backs-off gradually for slower-running jobs.
       |// This is the maximum polling interval (in seconds):
       |maximum-polling-interval = 600
+      |
+      |default-runtime-attributes {
+      |    cpu: 1
+      |    failOnStderr: false
+      |    continueOnReturnCode: 0
+      |    memory: "2 GB"
+      |    disk: "2 GB"
+      |    # The keys below have been commented out as they are optional runtime attributes.
+      |    # dockerWorkingDir
+      |    # docker
+      |}
       |""".stripMargin
 
 

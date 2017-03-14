@@ -417,7 +417,7 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
 
 # Configuring Cromwell
 
-Cromwell's default configuration file is located at `src/main/resources/application.conf`.
+Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`.
 
 The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation) which means the configuration file can specify configuration as JSON-like stanzas like:
 
@@ -445,10 +445,11 @@ This allows any value to be overridden on the command line:
 java -Dwebservice.port=8080 cromwell.jar ...
 ```
 
-It is recommended that one copies `src/main/resources/application.conf`, modify it, then link to it via:
+
+To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
 
 ```
-java -Dconfig.file=/path/to/application.conf cromwell.jar ...
+java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar ...
 ```
 
 ## I/O

@@ -9,6 +9,8 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -66,15 +68,18 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   }
 
   private def toWorkflowStoreEntry(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowStoreEntry = {
+    import eu.timepit.refined._
+    val nonEmptyJsonString: String Refined NonEmpty  = refineMV[NonEmpty]("{}")
+
     WorkflowStoreEntry(
       workflowExecutionUuid = WorkflowId.randomId().toString,
-      workflowDefinition = workflowSourceFiles.wdlSource.toClob,
-      workflowInputs = workflowSourceFiles.inputsJson.toClob,
-      workflowOptions = workflowSourceFiles.workflowOptionsJson.toClob,
-      customLabels = workflowSourceFiles.labelsJson.toClob,
+      workflowDefinition = workflowSourceFiles.wdlSource.toClobOption,
+      workflowInputs = workflowSourceFiles.inputsJson.toClobOption,
+      workflowOptions = workflowSourceFiles.workflowOptionsJson.toClobOption,
+      customLabels = workflowSourceFiles.labelsJson.toClob(default = nonEmptyJsonString),
       workflowState = WorkflowStoreState.Submitted.toString,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
-      importsZip = workflowSourceFiles.importsZipFileOption.toBlob
+      importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption
     )
   }
 

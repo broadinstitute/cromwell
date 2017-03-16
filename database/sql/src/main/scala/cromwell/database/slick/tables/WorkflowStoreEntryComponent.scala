@@ -21,7 +21,7 @@ trait WorkflowStoreEntryComponent {
 
     def workflowOptions = column[Option[Clob]]("WORKFLOW_OPTIONS")
 
-    def customLabels = column[Option[Clob]]("CUSTOM_LABELS")
+    def customLabels = column[Clob]("CUSTOM_LABELS")
 
     def workflowState = column[String]("WORKFLOW_STATE", O.Length(15))
 

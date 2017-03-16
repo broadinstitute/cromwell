@@ -19,13 +19,15 @@ resolvers ++= Seq(
 Add the following to `libraryDependencies`:
 
 ```
-"org.broadinstitute" %% "wdl4s" % "0.10",
+"org.broadinstitute" %% "wdl4s" % version,
 ```
 
-Or add a snapshot release in the format `<version>-<git-hash7>-SNAPSHOT`:
+The latest version is ![Latest Version](version.png)
+
+Or add a snapshot release in the format `<version>-<git-hash7>-SNAP`:
 
 ```
-"org.broadinstitute" %% "wdl4s" % "0.10-ace1357-SNAPSHOT",
+"org.broadinstitute" %% "wdl4s" % "0.123-fff0246-SNAP",
 ```
 
 
@@ -35,13 +37,13 @@ To use in your Maven project add the following dependency
 <dependency>
     <groupId>org.broadinstitute</groupId>
     <artifactId>wdl4s_2.11</artifactId>
-    <version>0.10</version>
+    <version>${version}</version>
 </dependency>
 ```
 
 ## Scaladoc
 
-* [0.10](http://broadinstitute.github.io/wdl4s/0.10)
+[![Scaladoc](scaladoc.png)](http://broadinstitute.github.io/wdl4s/latest)
 
 ## Usage
 
@@ -53,11 +55,11 @@ $ sbt "run-main wdl4s.examples.ex1"
 
 ### Loading WDL Code
 
-The main entry point into the parser is the `WdlNamespace` object.  A [WDL](https://github.com/broadinstitute/wdl) file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
+The main entry point into the parser is the `WdlNamespace` object. A [WDL](https://github.com/broadinstitute/wdl) file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
-the [WdlNamespace](http://broadinstitute.github.io/wdl4s/0.10/#wdl4s.WdlNamespace$) object has a few `load…()` functions for turning WDL source into `WdlNamespace` objects.
+the [WdlNamespace](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.WdlNamespace$) object has a few `load…()` functions for turning WDL source into `WdlNamespace` objects.
 
-If the workflow being loaded contains a `workflow` definition, then the `load…()` functions will return a [WdlNamespaceWithWorkflow](http://broadinstitute.github.io/wdl4s/0.10/#wdl4s.WdlNamespaceWithWorkflow) and otherwise they will return a [WdlNamespaceWithoutWorkflow](http://broadinstitute.github.io/wdl4s/0.10/#wdl4s.WdlNamespaceWithoutWorkflow).
+If the workflow being loaded contains a `workflow` definition, then the `load…()` functions will return a [WdlNamespaceWithWorkflow](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.WdlNamespaceWithWorkflow) and otherwise they will return a [WdlNamespaceWithoutWorkflow](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.WdlNamespaceWithoutWorkflow).
 
 Example `src/main/scala/wdl4s/examples/ex1.scala`
 

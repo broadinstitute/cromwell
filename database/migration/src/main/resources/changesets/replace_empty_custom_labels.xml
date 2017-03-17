@@ -3,9 +3,6 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
-    <property name="clob.type" value="LONGTEXT" dbms="hsqldb"/>
-
     <changeSet author="rmunshi" id="replace_empty_custom_labels" dbms="mysql">
         <sqlFile relativeToChangelogFile="true" path="migration/workflow_store/replace_empty_custom_labels.sql" />
     </changeSet>
@@ -13,7 +10,7 @@
     <changeSet id="custom_labels_not_null" author="rmunshi">
         <addNotNullConstraint tableName="WORKFLOW_STORE_ENTRY"
                               columnName="CUSTOM_LABELS"
-                              columnDataType="${clob.type}"
+                              columnDataType="LONGTEXT"
                               defaultNullValue="{}"/>
     </changeSet>
 

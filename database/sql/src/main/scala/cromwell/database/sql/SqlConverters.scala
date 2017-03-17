@@ -32,8 +32,19 @@ object SqlConverters {
     }
   }
 
+  implicit class ClobToRawString(val clob: Clob) extends AnyVal {
+    // yes, it starts at 1
+    def toRawStringOption: Option[String] = Some(toRawString)
+
+    def toRawString: String = clob.getSubString(1, clob.length.toInt)
+
+    def parseSystemTimestampOption: Option[Timestamp] = toRawStringOption map { rawString =>
+      OffsetDateTime.parse(rawString).toSystemTimestamp
+    }
+  }
+
   implicit class StringOptionToClobOption(val strOption: Option[String]) extends AnyVal {
-    def toClob: Option[Clob] = strOption.flatMap(_.toClobOption)
+    def toClobOption: Option[Clob] = strOption.flatMap(_.toClobOption)
   }
 
   implicit class StringToClobOption(val str: String) extends AnyVal {
@@ -42,7 +53,14 @@ object SqlConverters {
     def toClob(default: String Refined NonEmpty): Clob = new SerialClob(default.toString.toCharArray)
   }
 
-  implicit class BlobToBytes(val blobOption: Option[Blob]) extends AnyVal {
+  implicit class BlobToBytes(val blob: Blob) extends AnyVal {
+    // yes, it starts at 1
+    def toBytesOption: Option[Array[Byte]] = Some(toBytes)
+
+    def toBytes: Array[Byte] = blob.getBytes(1, blob.length.toInt)
+  }
+
+  implicit class BlobOptionToBytes(val blobOption: Option[Blob]) extends AnyVal {
     // yes, it starts at 1
     def toBytesOption: Option[Array[Byte]] = blobOption.map(blob => blob.getBytes(1, blob.length.toInt))
 

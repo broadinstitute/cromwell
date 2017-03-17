@@ -58,7 +58,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowStoreEntry.workflowDefinition.toRawString,
       workflowStoreEntry.workflowInputs.toRawString,
       workflowStoreEntry.workflowOptions.toRawString,
-      workflowStoreEntry.customLabels.toString,
+      workflowStoreEntry.customLabels.toRawString,
       workflowStoreEntry.importsZip.toBytesOption
     )
     WorkflowToStart(

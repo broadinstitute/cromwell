@@ -4,7 +4,7 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
-    <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+    <property name="clob.type" value="LONGTEXT" dbms="hsqldb"/>
 
     <changeSet author="rmunshi" id="replace_empty_custom_labels" dbms="mysql">
         <sqlFile relativeToChangelogFile="true" path="migration/workflow_store/replace_empty_custom_labels.sql" />

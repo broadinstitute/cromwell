@@ -30,11 +30,14 @@ object SqlConverters {
   }
 
   implicit class StringOptionToClobOption(val strOption: Option[String]) extends AnyVal {
-    def toClob: Option[Clob] = strOption.flatMap(_.toClob)
+    def toClob: Option[Clob] = strOption.flatMap(_.toClobOption)
   }
 
   implicit class StringToClobOption(val str: String) extends AnyVal {
-    def toClob: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
+    def toClobOption: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
+
+    def toClob: Clob = new SerialClob(str.toCharArray)
+
   }
 
   implicit class BlobToBytes(val blobOption: Option[Blob]) extends AnyVal {

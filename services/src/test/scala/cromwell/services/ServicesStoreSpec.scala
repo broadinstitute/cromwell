@@ -361,7 +361,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val emptyBlob = new SerialBlob(Array.empty[Byte])
 
       val workflowUuid = WorkflowId.randomId().toString
-      val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+      val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
         "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), "{}".toClob)
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
@@ -391,8 +391,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val jobSuccessful = false
       val jobStoreEntry = JobStoreEntry(workflowUuid, callFqn, jobIndex, jobAttempt, jobSuccessful, None, None, None)
       val jobStoreSimpletonEntries = Seq(
-        JobStoreSimpletonEntry("empty", "".toClob, "WdlString"),
-        JobStoreSimpletonEntry("aEntry", "a".toClob, "WdlString")
+        JobStoreSimpletonEntry("empty", "".toClobOption, "WdlString"),
+        JobStoreSimpletonEntry("aEntry", "a".toClobOption, "WdlString")
       )
       val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, jobStoreSimpletonEntries))
 
@@ -418,16 +418,16 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val testWorkflowState = "Testing"
 
       val emptyWorkflowUuid = WorkflowId.randomId().toString
-      val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+      val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
         testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array.empty[Byte]).toBlob, "{}".toClob)
 
       val noneWorkflowUuid = WorkflowId.randomId().toString
-      val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+      val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
         testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, "{}".toClob)
 
       val aByte = 'a'.toByte
       val aByteWorkflowUuid = WorkflowId.randomId().toString
-      val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
+      val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
         testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlob, "{}".toClob)
 
       val workflowStoreEntries = Seq(emptyWorkflowStoreEntry, noneWorkflowStoreEntry, aByteWorkflowStoreEntry)

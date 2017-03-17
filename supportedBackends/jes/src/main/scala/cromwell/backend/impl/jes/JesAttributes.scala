@@ -98,7 +98,7 @@ object JesAttributes {
 
     val qp100s = config.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(GenomicsApiDefaultQps)
     val qpsCandidate = qp100s / 100
-
+    
     refineV[Positive](qpsCandidate) match {
       case Left(_) => s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
       case Right(refined) => refined.validNel

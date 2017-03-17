@@ -4,6 +4,9 @@ import java.sql.{Blob, Clob, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}
 import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
+
 object SqlConverters {
 
   // TODO: Storing times relative to system zone. Look into db/slick using OffsetDateTime, or storing datetimes as UTC?
@@ -36,11 +39,7 @@ object SqlConverters {
   implicit class StringToClobOption(val str: String) extends AnyVal {
     def toClobOption: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
 
-    def toClob(default: String): Clob = {
-      require(default.nonEmpty, "An empty string has been passed in where a non-empty default string is required to convert String objects to Clob.")
-      if(str.isEmpty) new SerialClob(default.toCharArray) else new SerialClob(str.toCharArray)
-    }
-
+    def toClob(default: String Refined NonEmpty): Clob = new SerialClob(default.toString.toCharArray)
   }
 
   implicit class BlobToBytes(val blobOption: Option[Blob]) extends AnyVal {

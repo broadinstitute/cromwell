@@ -1,3 +1,4 @@
+
 import sbt._
 
 object Dependencies {
@@ -108,7 +109,10 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
+  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies ++ List(
+    "org.scala-lang" % "scala-compiler" % Settings.ScalaVersion,
+    "eu.timepit" %% "refined" % "0.7.0"
+  )
 
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",

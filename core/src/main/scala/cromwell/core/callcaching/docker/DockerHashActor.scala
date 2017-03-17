@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Merge, Partition, Sink, Source}
 import com.google.common.cache.CacheBuilder
+import cromwell.core.Dispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.core.callcaching.docker.DockerHashActor._
@@ -114,6 +115,7 @@ final class DockerHashActor(
   override protected def streamSource = Source.queue[DockerHashContext](queueBufferSize, OverflowStrategy.dropNew)
     .via(dockerFlow)
     .alsoTo(updateCacheSink)
+    .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 }
 
 object DockerHashActor {

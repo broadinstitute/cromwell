@@ -1,7 +1,7 @@
 package cromwell.services
 
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.sql.{Connection, JDBCType}
+import java.sql.Connection
 import java.time.OffsetDateTime
 import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 
@@ -253,18 +253,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         }
       }
 
-      var nullTyped = Seq.empty[String]
-
-      schemaMetadata.columnMetadata foreach { column =>
-        if (column.isNullable == Option(false)) {
-          val jdbcType = JDBCType.valueOf(column.sqlType)
-          if (jdbcType == JDBCType.BLOB || jdbcType == JDBCType.CLOB) {
-            nullTyped :+= s"  $jdbcType column ${column.table.name}.${column.name}"
-          }
-        }
-      }
-
-      if (missing.nonEmpty || misnamed.nonEmpty || nullTyped.nonEmpty) {
+      if (missing.nonEmpty || misnamed.nonEmpty) {
         var failMessage = ""
 
         if (misnamed.nonEmpty) {
@@ -275,11 +264,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           failMessage += missing.mkString(
             s"Based on the schema in $schemaManager, please ensure that the following tables/columns exist:\n",
             "\n", "\n")
-        }
-
-        if (nullTyped.nonEmpty) {
-          failMessage += nullTyped.mkString(
-            s"The following columns should not be nullable due to incompatibilities with MySQL:\n", "\n", "\n")
         }
 
         fail(failMessage)
@@ -362,7 +346,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val workflowUuid = WorkflowId.randomId().toString
       val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
-        "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), "{}".toClob)
+        "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), "{}".toClob("{}"))
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
 
@@ -419,16 +403,16 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val emptyWorkflowUuid = WorkflowId.randomId().toString
       val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
-        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array.empty[Byte]).toBlob, "{}".toClob)
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array.empty[Byte]).toBlobOption, "{}".toClob("{}"))
 
       val noneWorkflowUuid = WorkflowId.randomId().toString
       val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
-        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, "{}".toClob)
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, "{}".toClob("{}"))
 
       val aByte = 'a'.toByte
       val aByteWorkflowUuid = WorkflowId.randomId().toString
       val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
-        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlob, "{}".toClob)
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlobOption, "{}".toClob("{}"))
 
       val workflowStoreEntries = Seq(emptyWorkflowStoreEntry, noneWorkflowStoreEntry, aByteWorkflowStoreEntry)
 

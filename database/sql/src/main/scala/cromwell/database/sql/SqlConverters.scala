@@ -36,7 +36,10 @@ object SqlConverters {
   implicit class StringToClobOption(val str: String) extends AnyVal {
     def toClobOption: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
 
-    def toClob: Clob = new SerialClob(str.toCharArray)
+    def toClob(default: String): Clob = {
+      require(default.nonEmpty, "An empty string has been passed in where a non-empty default string is required to convert String objects to Clob.")
+      if(str.isEmpty) new SerialClob(default.toCharArray) else new SerialClob(str.toCharArray)
+    }
 
   }
 
@@ -48,10 +51,17 @@ object SqlConverters {
   }
 
   implicit class BytesOptionToBlob(val bytesOption: Option[Array[Byte]]) extends AnyVal {
-    def toBlob: Option[Blob] = bytesOption.flatMap(_.toBlob)
+    def toBlobOption: Option[Blob] = bytesOption.flatMap(_.toBlobOption)
   }
 
   implicit class BytesToBlob(val bytes: Array[Byte]) extends AnyVal {
-    def toBlob: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
+    def toBlobOption: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
+
+    def toBlob(default: Array[Byte]): Blob = {
+      require(default.nonEmpty, "An empty Array[Byte] has been passed in where a non-empty default Array[Byte] is required to convert Array[Byte] objects to Blob.")
+      if(bytes.isEmpty) { new SerialBlob(default) } else new SerialBlob(bytes)
+    }
   }
+
+
 }

@@ -1,25 +1,21 @@
 task do_release {
    # Repo to release
    String repo
-   # Version number that should be released
+   # Current versino being released
    String releaseV
-   # Next version number after this released is done (in preparation for next release)
-   String nextReleaseV
+   # Next version
+   String nextV
    # Command that will update the appropriate file for the current release
-   String updateVersionForCurrentRelaseCommand
-   # Command that will update the appropriate file for the next release
-   String updateVersionForNextRelaseCommand
-   # A command to optionnally create a fat jar
-   String? assembleJarCommand
+   String updateVersionCommand
    
-   # Commands that will update previously released/pubslished dependencies in this repo
+   # Commands that will update previously released/published dependencies in this repo
    Array[String] dependencyCommands = []
    
    # When true, nothing will be pushed to github, allows for some level of testing
    Boolean dryRun = false
    
    # Can be swapped out to try this on a fork
-   String organization = "broadinstitute"
+   String organization
     
    command {
      set -e
@@ -31,42 +27,62 @@ task do_release {
      git checkout develop
      git pull --rebase
 
-     # Extract current version  
-     currentV=$(grep "git.baseVersion " build.sbt | cut -d "=" -f 2 | tr -d \"\,[:space:])
-
-     echo "Updating ${repo} to ${releaseV}"
-     ${updateVersionForCurrentRelaseCommand}
+     # Expect the version number on develop to be the version TO BE RELEASED
+     echo "Releasing ${organization}/${repo} ${releaseV}${true=" - This a dry run, push commands won't be executed" false = "" dryRun}"
      
-     echo "Update dependencies"
+     echo "Updating dependencies"
      ${sep='\n' dependencyCommands}
      
-     # Make sure it compiles
+     # Make sure tests pass
      sbt update
-     sbt compile
+     JAVA_OPTS=-XX:MaxMetaspaceSize=512m sbt test
      
      git add .
      # If there is nothing to commit, git commit will return 1 which will fail the script.
      # This ensures we only commit if build.sbt was effectively updated
-     git diff-index --quiet HEAD || git commit -m "Update ${repo} version from $currentV to ${releaseV}"
+     git diff-index --quiet HEAD || git commit -m "Update ${repo} version to ${releaseV}"
        
      # wdl4s needs a scala docs update
      if [ ${repo} == "wdl4s" ]; then
+     
+       # Generate new scaladoc
        sbt 'set scalacOptions in (Compile, doc) := List("-skip-packages", "better")' doc
        git checkout gh-pages
        mv target/scala-2.11/api ${releaseV}
        git add ${releaseV}
-       git commit -m "API Docs"
+       
+       # Update latest pointer
+       git rm --ignore-unmatch latest
+       ln -s ${releaseV} latest
+       git add latest
+       
+       git diff-index --quiet HEAD || git commit -m "Update Scaladoc"
        git push ${true="--dry-run" false="" dryRun} origin gh-pages
+       
+       # Update badges on README
        git checkout develop
-       sed -i '' s/$currentV/${releaseV}/g README.md
-       git add README.md
-       git diff-index --quiet HEAD || git commit -m "Update ${repo} API docs references"
+       curl -o scaladoc.png https://img.shields.io/badge/scaladoc-${releaseV}-blue.png
+       curl -o version.png https://img.shields.io/badge/version-${releaseV}-blue.png
+       
+       git add scaladoc.png
+       git add version.png
+       
+       git diff-index --quiet HEAD || git commit -m "Update README badges"
+       git push ${true="--dry-run" false="" dryRun} origin develop
      fi
      
      # Merge develop into master
      git checkout master
      git pull --rebase
      git merge develop
+     
+     # Pin centaur for cromwell
+     if [ ${repo} == "cromwell" ]; then
+        centaurDevelopHEAD=$(git ls-remote git://github.com/${organization}/centaur.git | grep refs/heads/develop | cut -f 1)
+        sed -i '' s/CENTAUR_BRANCH=.*/CENTAUR_BRANCH="$centaurDevelopHEAD"/g .travis.yml
+        git add .travis.yml
+        git commit -m "Pin release to centaur branch"
+     fi 
      
      # Tag the release
      git tag ${releaseV}
@@ -75,20 +91,23 @@ task do_release {
      git push ${true="--dry-run" false="" dryRun} origin master
      git push ${true="--dry-run" false="" dryRun} --tags
      
-     # Assemble jar if required
-     ${default = "" assembleJarCommand}
-     pwd > executionDir.txt
+     # Create and push the hotfix branch
+     git checkout -b ${releaseV}_hotfix
+     git push origin ${releaseV}_hotfix
      
-     # Update build.sbt on develop to point to next release version
+     # Assemble jar for cromwell
+     if [ ${repo} == "cromwell" ]; then
+        sbt -Dproject.version=${releaseV} -Dproject.isSnapshot=false assembly
+     fi  
+     
+     # Update develop to point to next release version
      git checkout develop
-     ${updateVersionForNextRelaseCommand}
+     ${updateVersionCommand}
      git add .
-     git diff-index --quiet HEAD || git commit -m "Update ${repo} version from ${releaseV} to ${nextReleaseV}"
+     git diff-index --quiet HEAD || git commit -m "Update ${repo} version from ${releaseV} to ${nextV}"
      git push ${true="--dry-run" false="" dryRun} origin develop
      
-     # Create and push the hotfix branch
-     git checkout -b ${releaseV}_hotfix ${releaseV}
-     git push origin ${releaseV}_hotfix
+     pwd > executionDir.txt
    }
 
    output {
@@ -103,14 +122,14 @@ task wait_for_artifactory {
     
     command <<<
         checkIfPresent() {
-            isPresent=$(curl -s --head https://artifactory.broadinstitute.org/artifactory/simple/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep "HTTP/1.[01] [23].." > /dev/null)
+            isPresent=$(curl -s --head https://artifactory.broadinstitute.org/artifactory/simple/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep -q "HTTP/1.[01] [23]..")
         }
         
         elapsedTime=0
         checkIfPresent
         
-        # Allow 10 minutes for the file to appear in artifactory
-        while [ $? -ne 0 ] && [ $elapsedTime -lt 600 ]; do
+        # Allow 20 minutes for the file to appear in artifactory
+        while [ $? -ne 0 ] && [ $elapsedTime -lt 1200 ]; do
             sleep 10;
             let "elapsedTime+=10"
             checkIfPresent
@@ -121,31 +140,6 @@ task wait_for_artifactory {
     
     output {
         String publishedVersion = version
-    }
-}
-
-task create_update_version_command {
-    String newVersion
-    String versionFilePath = "build.sbt"
-    
-    command {
-        echo "sed -i '' \"s/git.baseVersion[[:space:]]:=.*/git.baseVersion := \\\"${newVersion}\\\",/g\" ${versionFilePath}"
-    }
-    
-    output {
-      String updateCommand = read_string(stdout())
-    }
-}
-
-task create_update_version_command_for_cromwell {
-    String newVersion
-    
-    command {
-        echo "sed -i '' \"s/cromwellVersion[[:space:]]=.*/cromwellVersion = \\\"${newVersion}\\\"/g\" project/Version.scala"
-    }
-    
-    output {
-      String updateCommand = read_string(stdout())
     }
 }
 
@@ -163,77 +157,149 @@ task create_update_dependency_command {
     }
 }
 
-workflow release_cromwell {
-  # Lenthall
-  String lenthallRelease
-  String lenthallNext
-  Pair[String, String] lenthallAsDependency = ("lenthallV", waitForLenthall.publishedVersion) 
-  
-  # Wdl4s
-  String wdl4sRelease
-  String wdl4sNext
-  Pair[String, String] wdl4sAsDependency = ("wdl4sV", waitForWdl4s.publishedVersion)
-  # Wdl4s depends on lenthall
-  Array[Pair[String, String]] wdl4sDependencies = [lenthallAsDependency]
-  
-  #Wdltool
-  String wdltoolRelease
-  String wdltoolNext
-  # Wdltool depends on wdl4s
-  Array[Pair[String, String]] wdltoolDependencies = [wdl4sAsDependency]
-  
-  # Cromwell
-  String cromwellRelease
-  String cromwellNext
-  # Cromwell depends on lenthall and wdl4s
-  Array[Pair[String, String]] cromwellDependencies = [lenthallAsDependency, wdl4sAsDependency]
+task intVersionPrep {
+    String organization
+    String repo
+    String file
+    String regexPrefix
+    String updateCommandTemplate
     
+    String bash_rematch = "{BASH_REMATCH[1]}"
+    
+    command {
+        curl -o versionFile https://raw.githubusercontent.com/${organization}/${repo}/develop/${file}
+        regex="${regexPrefix}\"([0-9]+)\""
+        
+        if [[ $(cat versionFile) =~ $regex ]]
+        then
+            version="$${bash_rematch}"
+            echo $version > version
+        else
+            exit 1
+        fi
+    }
+    
+    output {
+        Int version = read_int("version")
+        Int nextVersion = version + 1
+        String updateCommand = sub(updateCommandTemplate, "<<VERSION>>", nextVersion)
+    }
+}
+
+task decimalVersionPrep {
+    String organization
+    String repo
+    String file
+    String regexPrefix
+    String updateCommandTemplate
+    
+    String bash_rematch = "{BASH_REMATCH[1]}"
+    command {
+        curl -o versionFile https://raw.githubusercontent.com/${organization}/${repo}/develop/${file}
+        regex="${regexPrefix}\"([0-9]+\.[0-9]+)\""
+        
+        if [[ $(cat versionFile) =~ $regex ]]
+        then
+            version="$${bash_rematch}"
+            echo $version > version
+        else
+            exit 1
+        fi
+    }
+    
+    output {
+        Float version = read_float("version")
+        Float nextVersion = version + 0.01
+        String updateCommand = sub(updateCommandTemplate, "<<VERSION>>", nextVersion)
+    }
+}
+
+workflow release_cromwell {
+  String organization
+    
+  Pair[String, String] lenthallAsDependency = ("lenthallV", waitForLenthall.publishedVersion) 
+  Pair[String, String] wdl4sAsDependency = ("wdl4sV", waitForWdl4s.publishedVersion)
+  
+  Array[Pair[String, String]] wdl4sDependencies = [lenthallAsDependency]
+  Array[Pair[String, String]] wdltoolDependencies = [wdl4sAsDependency]
+  Array[Pair[String, String]] cromwellDependencies = [lenthallAsDependency, wdl4sAsDependency]
+  
+  # Regex to find the line setting the current version
+  String dependencyRegexPrefix = "git\\.baseVersion[[:space:]]:=[[:space:]]"
+  # Template command to update the version
+  String dependencyTemplate = "sed -i '' \"s/git\\.baseVersion[[:space:]]:=.*/git.baseVersion := \\\"<<VERSION>>\\\",/g\" build.sbt"
+  
+  String cromwellTemplate = "sed -i '' \"s/cromwellVersion[[:space:]]=.*/cromwellVersion = \\\"<<VERSION>>\\\"/g\" project/Version.scala"
+  String cromwellRegexPrefix = "cromwellVersion[[:space:]]=[[:space:]]"
+  
+  # Prepare releases by finding out the current version, next version, and update version command
+  call intVersionPrep as lenthallPrep { input: 
+    organization = organization,
+    repo = "lenthall",
+    file = "build.sbt",
+    regexPrefix = dependencyRegexPrefix,
+    updateCommandTemplate = dependencyTemplate
+  }
+  
+  call decimalVersionPrep as wdl4sPrep { input: 
+    organization = organization,
+    repo = "wdl4s",
+    file = "build.sbt",
+    regexPrefix = dependencyRegexPrefix,
+    updateCommandTemplate = dependencyTemplate
+  }
+  
+  call intVersionPrep as wdltoolPrep { input: 
+    organization = organization,
+    repo = "wdltool",
+    file = "build.sbt",
+    regexPrefix = dependencyRegexPrefix,
+    updateCommandTemplate = dependencyTemplate
+  }
+  
+  call intVersionPrep as cromwellPrep { input: 
+    organization = organization,
+    repo = "cromwell",
+    file = "project/Version.scala",
+    regexPrefix = cromwellRegexPrefix,
+    updateCommandTemplate = cromwellTemplate
+  }
+  
   # Release calls  
   call do_release as release_lenthall { input: 
+        organization = organization, 
         repo = "lenthall", 
-        releaseV = lenthallRelease,
-        nextReleaseV = lenthallNext,
-        updateVersionForCurrentRelaseCommand = updateLenthallCurrent.updateCommand,
-        updateVersionForNextRelaseCommand = updateLenthallNext.updateCommand
+        releaseV = lenthallPrep.version,
+        nextV = lenthallPrep.nextVersion,
+        updateVersionCommand = lenthallPrep.updateCommand,
        }
        
   call do_release as release_wdl4s { input: 
+        organization = organization, 
         repo = "wdl4s", 
-        releaseV = wdl4sRelease,
-        nextReleaseV = wdl4sNext,
-        updateVersionForCurrentRelaseCommand = updateWdl4sCurrent.updateCommand,
-        updateVersionForNextRelaseCommand = updateWdl4sNext.updateCommand,
+        releaseV = wdl4sPrep.version,
+        nextV = wdl4sPrep.nextVersion,
+        updateVersionCommand = wdl4sPrep.updateCommand,
         dependencyCommands = wdl4sDependencyCommands.updateCommand
        }
        
-  call do_release as release_wdltool { input: 
+  call do_release as release_wdltool { input:
+         organization = organization, 
         repo = "wdltool", 
-        releaseV = wdl4sRelease,
-        nextReleaseV = wdl4sNext,
-        updateVersionForCurrentRelaseCommand = updateWdltoolCurrent.updateCommand,
-        updateVersionForNextRelaseCommand = updateWdltoolNext.updateCommand,
+        releaseV = wdltoolPrep.version,
+        nextV = wdltoolPrep.nextVersion,
+        updateVersionCommand = wdltoolPrep.updateCommand,
         dependencyCommands = wdltoolDependencyCommands
        }  
        
   call do_release as release_cromwell { input: 
+        organization = organization, 
         repo = "cromwell", 
-        releaseV = cromwellRelease,
-        nextReleaseV = cromwellNext,
-        updateVersionForCurrentRelaseCommand = updateCromwellCurrent.updateCommand,
-        updateVersionForNextRelaseCommand = updateCromwellNext.updateCommand,
-        dependencyCommands = cromwellDependencyCommands.updateCommand,
-        assembleJarCommand = "sbt -Dproject.version=" + cromwellRelease + " -Dproject.isSnapshot=false assembly"
+        releaseV = cromwellPrep.version,
+        nextV = cromwellPrep.nextVersion,
+        updateVersionCommand = cromwellPrep.updateCommand,
+        dependencyCommands = cromwellDependencyCommands.updateCommand
        }
-  
-  call create_update_version_command as updateLenthallCurrent { input: newVersion = lenthallRelease }
-  call create_update_version_command as updateLenthallNext { input: newVersion = lenthallNext }
-  call create_update_version_command as updateWdl4sCurrent { input: newVersion = wdl4sRelease }
-  call create_update_version_command as updateWdl4sNext { input: newVersion = wdl4sNext }
-  call create_update_version_command as updateWdltoolCurrent { input: newVersion = wdltoolRelease }
-  call create_update_version_command as updateWdltoolNext { input: newVersion = wdltoolNext }
-  
-  call create_update_version_command_for_cromwell as updateCromwellCurrent { input: newVersion = cromwellRelease }
-  call create_update_version_command_for_cromwell as updateCromwellNext { input: newVersion = cromwellNext }
   
   call wait_for_artifactory as waitForLenthall { input: repo = "lenthall_2.11", version = release_lenthall.version }
   call wait_for_artifactory as waitForWdl4s { input: repo = "wdl4s_2.11", version = release_wdl4s.version }
@@ -275,6 +341,6 @@ workflow release_cromwell {
   }
   
   output {
-    String cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellRelease + ".jar"
+    String cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
   }
 }

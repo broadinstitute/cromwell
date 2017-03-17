@@ -76,7 +76,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowDefinition = workflowSourceFiles.wdlSource.toClobOption,
       workflowInputs = workflowSourceFiles.inputsJson.toClobOption,
       workflowOptions = workflowSourceFiles.workflowOptionsJson.toClobOption,
-      customLabels = workflowSourceFiles.labelsJson.toClob(nonEmptyJsonString),
+      customLabels = workflowSourceFiles.labelsJson.toClob(default = nonEmptyJsonString),
       workflowState = WorkflowStoreState.Submitted.toString,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
       importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption

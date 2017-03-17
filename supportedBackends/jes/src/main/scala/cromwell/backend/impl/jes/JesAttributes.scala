@@ -92,7 +92,6 @@ object JesAttributes {
       case _ => "genomics.default-zones was set but no values were provided".invalidNel
     }
   }
-
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._
 

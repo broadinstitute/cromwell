@@ -22,8 +22,7 @@ object SqlConverters {
   }
 
   implicit class ClobOptionToRawString(val clobOption: Option[Clob]) extends AnyVal {
-    // yes, it starts at 1
-    def toRawStringOption: Option[String] = clobOption.map(clob => clob.getSubString(1, clob.length.toInt))
+    def toRawStringOption: Option[String] = clobOption.map(_.toRawString)
 
     def toRawString: String = toRawStringOption.getOrElse("")
 
@@ -34,13 +33,7 @@ object SqlConverters {
 
   implicit class ClobToRawString(val clob: Clob) extends AnyVal {
     // yes, it starts at 1
-    def toRawStringOption: Option[String] = Some(toRawString)
-
     def toRawString: String = clob.getSubString(1, clob.length.toInt)
-
-    def parseSystemTimestampOption: Option[Timestamp] = toRawStringOption map { rawString =>
-      OffsetDateTime.parse(rawString).toSystemTimestamp
-    }
   }
 
   implicit class StringOptionToClobOption(val strOption: Option[String]) extends AnyVal {
@@ -55,14 +48,11 @@ object SqlConverters {
 
   implicit class BlobToBytes(val blob: Blob) extends AnyVal {
     // yes, it starts at 1
-    def toBytesOption: Option[Array[Byte]] = Some(toBytes)
-
     def toBytes: Array[Byte] = blob.getBytes(1, blob.length.toInt)
   }
 
   implicit class BlobOptionToBytes(val blobOption: Option[Blob]) extends AnyVal {
-    // yes, it starts at 1
-    def toBytesOption: Option[Array[Byte]] = blobOption.map(blob => blob.getBytes(1, blob.length.toInt))
+    def toBytesOption: Option[Array[Byte]] = blobOption.map(_.toBytes)
 
     def toBytes: Array[Byte] = toBytesOption.getOrElse(Array.empty)
   }
@@ -73,11 +63,6 @@ object SqlConverters {
 
   implicit class BytesToBlob(val bytes: Array[Byte]) extends AnyVal {
     def toBlobOption: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
-
-    def toBlob(default: Array[Byte]): Blob = {
-      require(default.nonEmpty, "An empty Array[Byte] has been passed in where a non-empty default Array[Byte] is required to convert Array[Byte] objects to Blob.")
-      if(bytes.isEmpty) { new SerialBlob(default) } else new SerialBlob(bytes)
-    }
   }
 
 

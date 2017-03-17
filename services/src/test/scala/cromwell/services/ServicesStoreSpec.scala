@@ -1,7 +1,7 @@
 package cromwell.services
 
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.sql.{Connection, JDBCType}
+import java.sql.Connection
 import java.time.OffsetDateTime
 import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 
@@ -14,6 +14,8 @@ import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
@@ -253,18 +255,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         }
       }
 
-      var nullTyped = Seq.empty[String]
-
-      schemaMetadata.columnMetadata foreach { column =>
-        if (column.isNullable == Option(false)) {
-          val jdbcType = JDBCType.valueOf(column.sqlType)
-          if (jdbcType == JDBCType.BLOB || jdbcType == JDBCType.CLOB) {
-            nullTyped :+= s"  $jdbcType column ${column.table.name}.${column.name}"
-          }
-        }
-      }
-
-      if (missing.nonEmpty || misnamed.nonEmpty || nullTyped.nonEmpty) {
+      if (missing.nonEmpty || misnamed.nonEmpty) {
         var failMessage = ""
 
         if (misnamed.nonEmpty) {
@@ -275,11 +266,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           failMessage += missing.mkString(
             s"Based on the schema in $schemaManager, please ensure that the following tables/columns exist:\n",
             "\n", "\n")
-        }
-
-        if (nullTyped.nonEmpty) {
-          failMessage += nullTyped.mkString(
-            s"The following columns should not be nullable due to incompatibilities with MySQL:\n", "\n", "\n")
         }
 
         fail(failMessage)
@@ -358,11 +344,13 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       Tests that we still need our empty blob workaround in `SqlConverters.toBlob`. The current mysql jdbc driver throws
       an exception when serializing an empty blob. If/when this test fails, the workaround should be removed.
       */
+      import eu.timepit.refined._
+      val nonEmptyString: String Refined NonEmpty  = refineMV[NonEmpty]("{}")
       val emptyBlob = new SerialBlob(Array.empty[Byte])
 
       val workflowUuid = WorkflowId.randomId().toString
-      val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
-        "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), "{}".toClob)
+      val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
+        "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), "{}".toClob(nonEmptyString))
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
 
@@ -391,8 +379,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val jobSuccessful = false
       val jobStoreEntry = JobStoreEntry(workflowUuid, callFqn, jobIndex, jobAttempt, jobSuccessful, None, None, None)
       val jobStoreSimpletonEntries = Seq(
-        JobStoreSimpletonEntry("empty", "".toClob, "WdlString"),
-        JobStoreSimpletonEntry("aEntry", "a".toClob, "WdlString")
+        JobStoreSimpletonEntry("empty", "".toClobOption, "WdlString"),
+        JobStoreSimpletonEntry("aEntry", "a".toClobOption, "WdlString")
       )
       val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, jobStoreSimpletonEntries))
 
@@ -415,20 +403,23 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     }
 
     it should "store and retrieve empty blobs" taggedAs DbmsTest in {
+      import eu.timepit.refined._
+
+      val nonEmptyString: String Refined NonEmpty  = refineMV[NonEmpty]("{}")
       val testWorkflowState = "Testing"
 
       val emptyWorkflowUuid = WorkflowId.randomId().toString
-      val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
-        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array.empty[Byte]).toBlob, "{}".toClob)
+      val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array.empty[Byte]).toBlobOption, "{}".toClob(nonEmptyString))
 
       val noneWorkflowUuid = WorkflowId.randomId().toString
-      val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
-        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, "{}".toClob)
+      val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, "{}".toClob(nonEmptyString))
 
       val aByte = 'a'.toByte
       val aByteWorkflowUuid = WorkflowId.randomId().toString
-      val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, "{}".toClob, "{}".toClob, "{}".toClob,
-        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlob, "{}".toClob)
+      val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, "{}".toClobOption, "{}".toClobOption, "{}".toClobOption,
+        testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlobOption, "{}".toClob(nonEmptyString))
 
       val workflowStoreEntries = Seq(emptyWorkflowStoreEntry, noneWorkflowStoreEntry, aByteWorkflowStoreEntry)
 

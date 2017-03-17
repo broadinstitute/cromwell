@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="rmunshi" id="replace_empty_custom_labels" dbms="mysql">
+        <sqlFile relativeToChangelogFile="true" path="migration/workflow_store/replace_empty_custom_labels.sql" />
+    </changeSet>
+
+    <changeSet id="custom_labels_not_null" author="rmunshi">
+        <addNotNullConstraint tableName="WORKFLOW_STORE_ENTRY"
+                              columnName="CUSTOM_LABELS"
+                              columnDataType="LONGTEXT"
+                              defaultNullValue="{}"/>
+    </changeSet>
+
+</databaseChangeLog>

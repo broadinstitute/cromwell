@@ -1,3 +1,4 @@
+
 import sbt._
 
 object Dependencies {
@@ -102,13 +103,18 @@ object Dependencies {
     "mysql" % "mysql-connector-java" % "5.1.39"
   )
 
+  private val refinedTypeDependenciesList = List(
+    "org.scala-lang" % "scala-compiler" % Settings.ScalaVersion,
+    "eu.timepit" %% "refined" % "0.7.0"
+  )
+
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
   val gcsFileSystemDependencies = baseDependencies ++ googleApiClientDependencies ++ googleCloudDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies
+  val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
@@ -136,10 +142,7 @@ object Dependencies {
     "org.mongodb" %% "casbah" % "3.0.0"
   )
 
-  val jesBackendDependencies = List(
-    "org.scala-lang" % "scala-compiler" % Settings.ScalaVersion,
-    "eu.timepit" %% "refined" % "0.7.0"
-  )
+  val jesBackendDependencies = refinedTypeDependenciesList
 
   val tesBackendDependencies = List(
     "io.spray" %% "spray-client" % sprayV

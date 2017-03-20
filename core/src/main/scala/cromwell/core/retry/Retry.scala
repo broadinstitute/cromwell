@@ -33,15 +33,16 @@ object Retry {
     implicit val ec: ExecutionContext = actorSystem.dispatcher
     val delay = backoff.backoffMillis.millis
 
-    if (maxRetries.forall(_ > 0)) {
-      f() recoverWith {
-        case throwable if isFatal(throwable) => Future.failed(CromwellFatalException(throwable))
-        case throwable if !isFatal(throwable) =>
-          val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
+    f() recoverWith {
+      case throwable if isFatal(throwable) => Future.failed(CromwellFatalException(throwable))
+      case throwable if !isFatal(throwable) =>
+        val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
+        
+        if (retriesLeft.forall(_ > 0)) {
           after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal))
-      }
-    } else f() recoverWith {
-      case e: Exception => Future.failed(new CromwellFatalException(e))
+        } else {
+          Future.failed(new CromwellFatalException(throwable))
+        }
     }
   }
 

@@ -6,13 +6,16 @@ import java.util.UUID
 import akka.actor.ActorRef
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
-import cromwell.core.{CromwellFatalException, TestKitSuite}
-import cromwell.core.io.{DefaultIoCommandBuilder, IoAck, IoFailure, IoSuccess}
+import com.google.cloud.storage.StorageException
+import cromwell.core.io._
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.{CromwellFatalException, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoCommandContext
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
+
+import scala.concurrent.Future
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar with DefaultIoCommandBuilder {
 
@@ -183,6 +186,30 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
         assert(failure.failure.isInstanceOf[CromwellFatalException])
         assert(failure.failure.getCause.isInstanceOf[NoSuchFileException])
       case other => fail(s"delete returned an unexpected message")
+    }
+  }
+
+  it should "retry on retryable exceptions" in {
+    val testPath = DefaultPathBuilder.build("does/not/matter").get
+
+    val context = DefaultCommandContext(contentAsStringCommand(testPath), replyTo)
+
+    val testSource = Source.single(context)
+
+    val customFlow = new NioFlow(1, system.scheduler, 3)(system.dispatcher, system) {
+      private var tries = 0
+      override def handleSingleCommand(ioSingleCommand: IoCommand[_]) = {
+        tries += 1
+        if (tries < 3) Future.failed(new StorageException(500, "message"))
+        else Future.successful(IoSuccess(ioSingleCommand, "content"))
+       }
+    }.flow
+    
+    val stream = testSource.via(customFlow).toMat(readSink)(Keep.right)
+
+    stream.run() map {
+      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "content")
+      case _ => fail("read returned an unexpected message")
     }
   }
 

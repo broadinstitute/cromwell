@@ -15,11 +15,11 @@ import scala.io.Codec
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
   */
-class NioFlow(parallelism: Int, scheduler: Scheduler)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
+class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val processCommand: DefaultCommandContext[_] => Future[IoResult] = commandContext => {
     val operationResult = Retry.withRetry(
       () => handleSingleCommand(commandContext.request),
-      maxRetries = Option(3),
+      maxRetries = Option(nbAttempts),
       backoff = IoCommand.defaultBackoff,
       isTransient = IoActor.isTransient,
       isFatal = IoActor.isFatal
@@ -30,7 +30,7 @@ class NioFlow(parallelism: Int, scheduler: Scheduler)(implicit ec: ExecutionCont
     }
   }
   
-  private def handleSingleCommand(ioSingleCommand: IoCommand[_]) = {
+  private [nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]) = {
     ioSingleCommand match {
       case copyCommand: IoCopyCommand => copy(copyCommand) map copyCommand.success
       case writeCommand: IoWriteCommand => write(writeCommand) map writeCommand.success

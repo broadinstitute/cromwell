@@ -1,11 +1,15 @@
 package cromwell.engine.io
 
+import java.net.{SocketException, SocketTimeoutException}
+
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files.File.OpenOptions
+import com.google.cloud.storage.StorageException
 import cromwell.core.TestKitSuite
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.ExecutionContext
@@ -131,5 +135,22 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     }
 
     src.delete()
+  }
+
+  it should "have correct retryable exceptions" in {
+    val retryables = List(
+      new StorageException(500, "message"),
+      new StorageException(502, "message"),
+      new StorageException(503, "message"),
+      new StorageException(504, "message"),
+      new StorageException(408, "message"),
+      new StorageException(429, "message"),
+      BatchFailedException(new Exception),
+      new SocketException(),
+      new SocketTimeoutException()
+    )
+
+    retryables foreach { IoActor.isRetryable(_) shouldBe true }
+    retryables foreach { IoActor.isFatal(_) shouldBe false }
   }
 }

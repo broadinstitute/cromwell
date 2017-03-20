@@ -7,6 +7,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Source}
 import com.google.cloud.storage.StorageException
+import com.typesafe.config.ConfigFactory
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.core.io.{IoAck, IoCommand, Throttle}
@@ -109,14 +110,18 @@ trait IoCommandContext[T] extends StreamContext {
 }
 
 object IoActor {
+  import net.ceedubs.ficus.Ficus._
+  
   /** Flow that can consume an IoCommandContext and produce an IoResult */
   type IoFlow = Flow[IoCommandContext[_], IoResult, NotUsed]
   
   /** Result type of an IoFlow, contains the original command context and the final IoAck response. */
   type IoResult = (IoAck[_], IoCommandContext[_])
   
-  /** Maximum number of times a command will be attempted: First attempt + 3 retries */
-  val MaxAttemptsNumber = 1 + 3
+  private val ioConfig = ConfigFactory.load().getConfig("system.io")
+  
+  /** Maximum number of times a command will be attempted: First attempt + 5 retries */
+  val MaxAttemptsNumber = ioConfig.getOrElse[Int]("nb-attempts", 5)
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
 

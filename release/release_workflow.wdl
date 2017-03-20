@@ -91,6 +91,8 @@ task do_release {
      git push ${true="--dry-run" false="" dryRun} origin master
      git push ${true="--dry-run" false="" dryRun} --tags
      
+     sbt -Dproject.version=${releaseV} -Dproject.isSnapshot=false publish-local
+     
      # Create and push the hotfix branch
      git checkout -b ${releaseV}_hotfix
      git push origin ${releaseV}_hotfix
@@ -121,6 +123,7 @@ task wait_for_artifactory {
     String version
     
     command <<<
+        exit 0
         checkIfPresent() {
             isPresent=$(curl -s --head https://artifactory.broadinstitute.org/artifactory/simple/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep -q "HTTP/1.[01] [23]..")
         }
@@ -157,7 +160,7 @@ task create_update_dependency_command {
     }
 }
 
-task intVersionPrep {
+task versionPrep {
     String organization
     String repo
     String file
@@ -165,51 +168,23 @@ task intVersionPrep {
     String updateCommandTemplate
     
     String bash_rematch = "{BASH_REMATCH[1]}"
-    
-    command {
+    command <<<
         curl -o versionFile https://raw.githubusercontent.com/${organization}/${repo}/develop/${file}
-        regex="${regexPrefix}\"([0-9]+)\""
+        regex="${regexPrefix}\"(([0-9]+\.)?([0-9]+))\""
         
         if [[ $(cat versionFile) =~ $regex ]]
         then
             version="$${bash_rematch}"
             echo $version > version
+            echo $version | perl -ne 'if (/^([0-9]+\.)?([0-9]+)$/) { $incr = $2 + 1; print "$1$incr\n" }' > nextVersion
         else
             exit 1
         fi
-    }
+    >>>
     
     output {
-        Int version = read_int("version")
-        Int nextVersion = version + 1
-        String updateCommand = sub(updateCommandTemplate, "<<VERSION>>", nextVersion)
-    }
-}
-
-task decimalVersionPrep {
-    String organization
-    String repo
-    String file
-    String regexPrefix
-    String updateCommandTemplate
-    
-    String bash_rematch = "{BASH_REMATCH[1]}"
-    command {
-        curl -o versionFile https://raw.githubusercontent.com/${organization}/${repo}/develop/${file}
-        regex="${regexPrefix}\"([0-9]+\.[0-9]+)\""
-        
-        if [[ $(cat versionFile) =~ $regex ]]
-        then
-            version="$${bash_rematch}"
-            echo $version > version
-        else
-            exit 1
-        fi
-    }
-    
-    output {
-        Float version = read_float("version")
-        Float nextVersion = version + 0.01
+        String version = read_string("version")
+        String nextVersion = read_string("nextVersion")
         String updateCommand = sub(updateCommandTemplate, "<<VERSION>>", nextVersion)
     }
 }
@@ -233,7 +208,7 @@ workflow release_cromwell {
   String cromwellRegexPrefix = "cromwellVersion[[:space:]]=[[:space:]]"
   
   # Prepare releases by finding out the current version, next version, and update version command
-  call intVersionPrep as lenthallPrep { input: 
+  call versionPrep as lenthallPrep { input: 
     organization = organization,
     repo = "lenthall",
     file = "build.sbt",
@@ -241,7 +216,7 @@ workflow release_cromwell {
     updateCommandTemplate = dependencyTemplate
   }
   
-  call decimalVersionPrep as wdl4sPrep { input: 
+  call versionPrep as wdl4sPrep { input: 
     organization = organization,
     repo = "wdl4s",
     file = "build.sbt",
@@ -249,7 +224,7 @@ workflow release_cromwell {
     updateCommandTemplate = dependencyTemplate
   }
   
-  call intVersionPrep as wdltoolPrep { input: 
+  call versionPrep as wdltoolPrep { input: 
     organization = organization,
     repo = "wdltool",
     file = "build.sbt",
@@ -257,7 +232,7 @@ workflow release_cromwell {
     updateCommandTemplate = dependencyTemplate
   }
   
-  call intVersionPrep as cromwellPrep { input: 
+  call versionPrep as cromwellPrep { input: 
     organization = organization,
     repo = "cromwell",
     file = "project/Version.scala",

@@ -1,7 +1,7 @@
 task do_release {
    # Repo to release
    String repo
-   # Current versino being released
+   # Current version being released
    String releaseV
    # Next version
    String nextV

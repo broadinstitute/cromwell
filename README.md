@@ -1352,7 +1352,13 @@ It supports the following Spark deploy modes:
 
 ### Configuring Spark Project
 
-When using Spark backend uncomment the following Spark configuration in the application.conf file
+Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`
+
+To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
+
+java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar
+
+Spark configuration stanza is as follows: 
 
 ```conf
 Spark {

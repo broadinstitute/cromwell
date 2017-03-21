@@ -48,7 +48,7 @@ while getopts ":hb:r:c:p:j:t:e:" option; do
 
         j) CROMWELL_JAR="${OPTARG}"
             ;;
-        t) REFRESH_TOKEN=-Dcentaur.optionalToken="${OPTARG}"
+        t) REFRESH_TOKEN=-Dcentaur.optionalToken=$(cat "${OPTARG}")
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;

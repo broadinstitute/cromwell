@@ -1,4 +1,4 @@
 {
-  "release_cromwell.organization": "horneth",
+  "release_cromwell.organization": "broadinstitute",
   "release_cromwell.do_release.dryRun": false
 }

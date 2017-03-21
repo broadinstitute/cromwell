@@ -91,8 +91,6 @@ task do_release {
      git push ${true="--dry-run" false="" dryRun} origin master
      git push ${true="--dry-run" false="" dryRun} --tags
      
-     sbt -Dproject.version=${releaseV} -Dproject.isSnapshot=false publish-local
-     
      # Create and push the hotfix branch
      git checkout -b ${releaseV}_hotfix
      git push origin ${releaseV}_hotfix
@@ -123,7 +121,6 @@ task wait_for_artifactory {
     String version
     
     command <<<
-        exit 0
         checkIfPresent() {
             isPresent=$(curl -s --head https://artifactory.broadinstitute.org/artifactory/simple/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep -q "HTTP/1.[01] [23]..")
         }

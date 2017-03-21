@@ -466,6 +466,19 @@ system.io {
 
 This is particularly useful when running Cromwell on a JES backend for example, as Google imposes a quota on the number of GCS queries that can be made.
 
+### Resilience
+
+I/O operations can fail for a number of reason from network failures to server errors. Some of those errors are not fatal and can be retried.
+Cromwell will retry I/O operations on such retryable errors, up to a number of times. This number (more precisely the number of attempts that will be made) can be set using the following configuration option:
+
+```
+system.io {
+  # Number of times an I/O operation should be attempted before giving up and failing it.
+  nb-attempts = 5
+}
+```
+
+
 ## Workflow Submission
 
 Cromwell has a configurable cap on the number of workflows running at a time. To set this value provide an integer value to the `system.max-concurrent-workflows` config value.

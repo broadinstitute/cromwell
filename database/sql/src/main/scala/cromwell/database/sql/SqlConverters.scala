@@ -43,7 +43,10 @@ object SqlConverters {
   implicit class StringToClobOption(val str: String) extends AnyVal {
     def toClobOption: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
 
-    def toClob(default: String Refined NonEmpty): Clob = new SerialClob(default.toString.toCharArray)
+    def toClob(default: String Refined NonEmpty): Clob = {
+      val nonEmpty = if (str.isEmpty) default.value else str
+      new SerialClob(nonEmpty.toCharArray)
+    }
   }
 
   implicit class BlobToBytes(val blob: Blob) extends AnyVal {

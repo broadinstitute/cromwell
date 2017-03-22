@@ -37,7 +37,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
         val jobStoreResultSimpletons =
           jobOutputs.mapValues(_.wdlValue).simplify.map {
             wdlValueSimpleton => JobStoreSimpletonEntry(
-              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString.toClob,
+              wdlValueSimpleton.simpletonKey, wdlValueSimpleton.simpletonValue.valueString.toClobOption,
               wdlValueSimpleton.simpletonValue.wdlType.toWdlString)
           }
         JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
@@ -49,7 +49,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
           key.attempt,
           jobSuccessful = false,
           returnCode,
-          throwable.getMessage.toClob,
+          throwable.getMessage.toClobOption,
           Option(retryable))
         JobStoreJoin(entry, Seq.empty)
     }

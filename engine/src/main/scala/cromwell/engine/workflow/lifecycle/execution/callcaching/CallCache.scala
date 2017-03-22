@@ -48,13 +48,13 @@ class CallCache(database: CallCachingSqlDatabase) {
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
         case WdlValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClob, wdlPrimitive.wdlType.toWdlString)
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.wdlType.toWdlString)
       }
     }
 
     val jobDetritusToInsert: Iterable[CallCachingDetritusEntry] = {
       jobDetritus map {
-        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.pathAsString.toClob)
+        case (fileName, filePath) => CallCachingDetritusEntry(fileName, filePath.pathAsString.toClobOption)
       }
     }
 

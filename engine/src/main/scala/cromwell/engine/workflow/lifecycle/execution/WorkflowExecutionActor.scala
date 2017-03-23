@@ -574,7 +574,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
 object WorkflowExecutionActor {
   
-  val SweepInterval = 2 seconds
+  val SweepInterval = 1 second
   
   /**
     * States

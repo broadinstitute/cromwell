@@ -77,8 +77,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   def runnableScopes = keysWithStatus(NotStarted) filter arePrerequisitesDone(doneKeys)
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys collect {
-    case k: CallKey if k.scope == key.scope && k.isShard => k
-    case k: DynamicDeclarationKey if k.scope == key.scope && k.isShard => k
+    case k @ (_: CallKey | _:DynamicDeclarationKey) if k.scope == key.scope && k.isShard => k
   }
 
   // Just used to decide whether a collector can be run. In case the shard entries haven't been populated into the

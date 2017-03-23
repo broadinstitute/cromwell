@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
+import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -33,7 +34,7 @@ import scala.util.{Failure, Try}
  * Designed explicitly for the use case of the 'run' functionality in Main. This Actor will start a workflow,
  * print out the outputs when complete and reply with a result.
  */
-class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])
+class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
   extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
 
   override val serverMode = false
@@ -208,7 +209,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 }
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path]): Props = {
+  def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path])(implicit materializer: ActorMaterializer): Props = {
     Props(new SingleWorkflowRunnerActor(source, metadataOutputFile)).withDispatcher(EngineDispatcher)
   }
 

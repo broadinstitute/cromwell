@@ -16,7 +16,7 @@ class CromwellServerSpec extends FlatSpec with Matchers with Mockito with ScalaF
   it should "return 500 errors as Json" in {
     val cromwellSystem = new CromwellSystem {}
 
-    val cromwellServerActor = cromwellSystem.actorSystem.actorOf(CromwellServerActor.props(ConfigFactory.empty()))
+    val cromwellServerActor = cromwellSystem.actorSystem.actorOf(CromwellServerActor.props(ConfigFactory.empty())(cromwellSystem.materializer))
     val response = cromwellServerActor.ask(Timedout(mock[HttpRequest]))
 
     response.futureValue(PatienceConfiguration.Timeout(timeout.duration)) match {

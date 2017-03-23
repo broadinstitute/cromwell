@@ -25,10 +25,11 @@ object ExecutionStore {
   }
 }
 
-case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], hasNewRunnables: Boolean) {
+final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], hasNewRunnables: Boolean) {
 
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
+  lazy val doneKeys = store.filterKeys(_.isDoneOrBypassed).values.toList.flatten
 
   private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
 
@@ -46,10 +47,10 @@ case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus],
       case node: GraphNode => node.upstreamAncestry exists hasFailedScope
     }
 
-    keysWithStatus(NotStarted).exists(jobKey => !upstreamFailed(jobKey.scope)) ||
-      keysWithStatus(QueuedInCromwell).nonEmpty ||
+    keysWithStatus(QueuedInCromwell).nonEmpty ||
       keysWithStatus(Starting).nonEmpty ||
-      keysWithStatus(Running).nonEmpty
+      keysWithStatus(Running).nonEmpty ||
+      keysWithStatus(NotStarted).exists(jobKey => !upstreamFailed(jobKey.scope))
   }
 
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
@@ -67,22 +68,17 @@ case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus],
   override def toString = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
 
   def add(values: Map[JobKey, ExecutionStatus]) = {
-    val hasTerminalStatus = values.values.exists(_.isTerminal)
+    lazy val hasTerminalStatus = values.values.exists(_.isTerminal)
     this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || hasTerminalStatus)
   }
 
   // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
   // assembling the result.
-  def runnableScopes = {
-    val doneKeys = store.filterKeys(_.isDoneOrBypassed).values.toList.flatten
-    keysWithStatus(NotStarted) filter arePrerequisitesDone(doneKeys)
-  }
+  def runnableScopes = keysWithStatus(NotStarted) filter arePrerequisitesDone(doneKeys)
 
-  def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = {
-    store.filterKeys(_.isDoneOrBypassed).values.toList.flatten collect {
-      case k: CallKey if k.scope == key.scope && k.isShard => k
-      case k: DynamicDeclarationKey if k.scope == key.scope && k.isShard => k
-    }
+  def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys collect {
+    case k: CallKey if k.scope == key.scope && k.isShard => k
+    case k: DynamicDeclarationKey if k.scope == key.scope && k.isShard => k
   }
 
   // Just used to decide whether a collector can be run. In case the shard entries haven't been populated into the
@@ -92,7 +88,7 @@ case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus],
     override def attempt: Int = throw new NotImplementedError("We've done something wrong.")
     override def tag: String = throw new NotImplementedError("We've done something wrong.")
   }
-  
+
   private def emulateShardEntries(key: CollectorKey): List[JobKey] = {
     (0 until key.scatterWidth).toList flatMap { i => key.scope match {
       case c: Call => List(TempJobKey(c, Option(i)))
@@ -103,13 +99,11 @@ case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus],
 
   private def arePrerequisitesDone(doneKeys: List[JobKey])(key: JobKey): Boolean = {
     val upstreamAreDone = key.scope.upstream forall {
-      case n: Call => upstreamIsDone(key, n, doneKeys)
-      case n: Scatter => upstreamIsDone(key, n, doneKeys)
-      case n: Declaration => upstreamIsDone(key, n, doneKeys)
+      case n @ (_: Call | _: Scatter | _: Declaration) => upstreamIsDone(key, n, doneKeys)
       case _ => true
     }
 
-    val shardEntriesForCollectorAreDone: Boolean = key match {
+    lazy val shardEntriesForCollectorAreDone: Boolean = key match {
       case collector: CollectorKey => emulateShardEntries(collector).forall(shardKey => doneKeys.exists({ doneKey =>
         shardKey.scope.fullyQualifiedName == doneKey.scope.fullyQualifiedName &&
           shardKey.index == doneKey.index

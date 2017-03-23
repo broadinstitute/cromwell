@@ -53,10 +53,11 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   }
 
   private def robustExecuteOrRecover(mode: ExecutionMode) = {
-    withRetry(() => executeOrRecover(mode), executeOrRecoverBackOff) onComplete {
-      case Success(h) => self ! IssuePollRequest(h)
-      case Failure(t) => self ! FailAndStop(t)
-    }
+//    withRetry(() => executeOrRecover(mode), executeOrRecoverBackOff) onComplete {
+//      case Success(h) => self ! IssuePollRequest(h)
+//      case Failure(t) => self ! FailAndStop(t)
+//    }
+    self ! PollResponseReceived(SuccessfulExecutionHandle(Map.empty, 0, Map.empty, Seq.empty, None))
   }
 
   def pollBackOff: SimpleExponentialBackoff

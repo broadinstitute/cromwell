@@ -336,7 +336,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     val updatedData = callOutputs.foldLeft(data)(foldFunc)
     stay() using updatedData
   }
-  
+
   private def handleCheckRunnable(data: WorkflowExecutionActorData) = {
     data.workflowCompletionStatus match {
       case Some(ExecutionStatus.Done) =>

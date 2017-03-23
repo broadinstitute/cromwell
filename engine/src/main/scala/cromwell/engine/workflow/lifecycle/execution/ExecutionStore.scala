@@ -68,8 +68,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   override def toString = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
 
   def add(values: Map[JobKey, ExecutionStatus]) = {
-    lazy val hasTerminalStatus = values.values.exists(_.isTerminal)
-    this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || hasTerminalStatus)
+    this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminal))
   }
 
   // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when

@@ -474,7 +474,7 @@ Cromwell will retry I/O operations on such retryable errors, up to a number of t
 ```
 system.io {
   # Number of times an I/O operation should be attempted before giving up and failing it.
-  nb-attempts = 5
+  number-of-attempts = 5
 }
 ```
 

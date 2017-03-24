@@ -13,7 +13,7 @@ system.io {
   per = 100 seconds
   
   # Number of times an I/O operation should be attempted before giving up and failing it.
-  nb-attempts = 5
+  number-of-attempts = 5
 }
 ```
 

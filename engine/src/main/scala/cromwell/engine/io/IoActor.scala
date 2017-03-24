@@ -121,7 +121,7 @@ object IoActor {
   private val ioConfig = ConfigFactory.load().getConfig("system.io")
   
   /** Maximum number of times a command will be attempted: First attempt + 5 retries */
-  val MaxAttemptsNumber = ioConfig.getOrElse[Int]("nb-attempts", 5)
+  val MaxAttemptsNumber = ioConfig.getOrElse[Int]("number-of-attempts", 5)
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
 

@@ -52,7 +52,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
     ) {
       override protected def backpressureTimeout: FiniteDuration = backpressureTimeoutValue
       override def evaluateInputsAndAttributes = inputsAndAttributes
-      override protected lazy val noResponsTimeout = noResponsTimeoutValue
+      override protected lazy val noResponseTimeout = noResponsTimeoutValue
     })
   }
 }

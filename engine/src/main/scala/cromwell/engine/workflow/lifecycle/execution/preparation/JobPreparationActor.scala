@@ -35,7 +35,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
   // Amount of time to wait when we get a Backpressure response before sending the request again
   override protected def backpressureRandomizerFactor: Double = 0.5D
   
-  protected lazy val noResponsTimeout: FiniteDuration = 3 minutes
+  protected lazy val noResponseTimeout: FiniteDuration = 3 minutes
   
   private lazy val workflowDescriptor = executionData.workflowDescriptor
   private lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData)
@@ -80,7 +80,7 @@ case class JobPreparationActor(executionData: WorkflowExecutionActorData,
     def sendDockerRequest(dockerImageId: DockerImageIdentifierWithoutHash) = {
       val dockerHashRequest = DockerHashRequest(dockerImageId, dockerHashCredentials)
       val newData = JobPreparationActorData(dockerHashRequest, inputs, attributes)
-      sendDockerCommand(dockerHashRequest, noResponsTimeout)
+      sendDockerCommand(dockerHashRequest, noResponseTimeout)
       goto(WaitingForDockerHash) using Option(newData)
     }
     

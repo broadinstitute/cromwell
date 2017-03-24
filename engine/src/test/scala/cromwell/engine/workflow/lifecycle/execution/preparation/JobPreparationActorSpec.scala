@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
-import cromwell.core.actor.StreamIntegration.Backpressure
+import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashResponseSuccess}
 import cromwell.core.callcaching.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.core.callcaching.{CallCachingEligible, CallCachingIneligible}
@@ -125,7 +125,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     val request = DockerHashRequest(dockerId)
     actor ! Start
     dockerHashingActor.expectMsg(request)
-    dockerHashingActor.reply(Backpressure(request))
+    dockerHashingActor.reply(BackPressure(request))
     // Give a couple of seconds of margin to account for test latency etc...
     dockerHashingActor.expectMsg(backpresureWaitTime.+(2 seconds), request)
   }

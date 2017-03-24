@@ -43,7 +43,7 @@ object HttpFlowWithRetry {
     * the user wishes to use as a context for their specific use case.
     */
   case class ContextWithRequest[T](userContext: T, request: HttpRequest, currentAttempt: Int, backoff: Backoff) {
-    // Backoff is mutable ! This will change every time !
+    // Back off is mutable ! This will change every time !
     def retryIn = backoff.backoffMillis.millis
     
     def withNextAttempt = copy(currentAttempt = currentAttempt + 1)

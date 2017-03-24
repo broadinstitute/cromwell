@@ -3,7 +3,7 @@ package cromwell.core.actor
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import cromwell.core.TestKitSuite
-import cromwell.core.actor.StreamIntegration.Backpressure
+import cromwell.core.actor.StreamIntegration.BackPressure
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
@@ -30,7 +30,7 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     remoteActor.expectMsg(messageToSend)
     
     // remote actor sends a backpressure message
-    remoteActor.reply(Backpressure(messageToSend))
+    remoteActor.reply(BackPressure(messageToSend))
     
     // remote actor expects request again after backpressureTimeout
     remoteActor.expectMsg(backpressureTimeout + margin, messageToSend)
@@ -121,7 +121,7 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     remoteActor.expectMsg(messageToSend)
 
     // remote actor sends a backpressure message
-    remoteActor.reply(Backpressure(messageToSend))
+    remoteActor.reply(BackPressure(messageToSend))
 
     // remote actor expects request again after backpressureTimeout
     remoteActor.expectMsg(backpressureTimeout + margin, messageToSend)

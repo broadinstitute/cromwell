@@ -117,7 +117,7 @@ object CromwellTestKitSpec {
       |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
       |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
       |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
-      |    filter-leeway = 5s
+      |    filter-leeway = 10s
       |    single-expect-default = 5s
       |    default-timeout = 10s
       |  }

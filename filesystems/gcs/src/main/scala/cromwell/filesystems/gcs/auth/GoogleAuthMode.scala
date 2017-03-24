@@ -62,7 +62,7 @@ sealed trait GoogleAuthMode {
 
   private def validate[T](credential: T, validation: () => Any): T = {
     Try(validation()) match {
-      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}")
+      case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
     }
   }

@@ -4,11 +4,13 @@ name := "lenthall"
 
 organization := "org.broadinstitute"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.1"
+
+crossScalaVersions := Seq("2.11.8", "2.12.1")
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
-  git.baseVersion := "0.22",
+  git.baseVersion := "0.23",
 
   // Shorten the git commit hash
   git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) },
@@ -21,8 +23,6 @@ lazy val versionSettings = Seq(
 )
 
 versionWithGit ++ versionSettings
-
-val sprayV = "1.3.4"
 
 val akkaV = "2.4.17"
 
@@ -43,13 +43,8 @@ libraryDependencies ++= Seq(
     exclude("org.typelevel", "cats-laws_2.11")
     exclude("org.typelevel", "cats-kernel-laws_2.11"),
   "ch.qos.logback" % "logback-classic" % "1.2.1" % Provided,
-  "org.webjars" % "swagger-ui" % "2.2.2" % Provided,
-  "io.spray" %% "spray-routing" % sprayV % Provided,
-  "io.spray" %% "spray-http" % sprayV % Provided,
-  "io.spray" %% "spray-can" % sprayV % Provided,
   "com.typesafe.akka" %% "akka-actor" % akkaV % Provided,
-  //---------- Test libraries -------------------//
-  "io.spray" %% "spray-testkit" % sprayV % Test,
+  "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
   "org.scalatest" %% "scalatest" % "3.0.1" % Test
 )
 

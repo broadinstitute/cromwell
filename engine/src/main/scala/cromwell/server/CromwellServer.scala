@@ -7,8 +7,8 @@ import com.typesafe.config.Config
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
-import lenthall.spray.SprayCanHttpService._
-import lenthall.spray.WrappedRoute._
+import cromwell.webservice.SprayCanHttpService._
+import cromwell.webservice.WrappedRoute._
 import net.ceedubs.ficus.Ficus._
 import spray.http._
 import spray.json._

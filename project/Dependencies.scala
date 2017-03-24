@@ -65,6 +65,7 @@ object Dependencies {
   )
 
   private val sprayServerDependencies = List(
+    "org.webjars" % "swagger-ui" % "2.2.2" % Provided,
     "io.spray" %% "spray-can" % sprayV,
     "io.spray" %% "spray-routing-shapeless2" % sprayV,
     "io.spray" %% "spray-http" % sprayV,
@@ -154,7 +155,6 @@ object Dependencies {
   ) ++ sprayServerDependencies
 
   val engineDependencies = List(
-    "org.webjars" % "swagger-ui" % "2.1.1",
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,

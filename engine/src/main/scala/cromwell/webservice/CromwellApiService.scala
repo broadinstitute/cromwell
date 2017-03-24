@@ -8,7 +8,6 @@ import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
-import lenthall.spray.SwaggerUiResourceHttpService
 import spray.http.MediaTypes._
 import spray.http._
 import spray.httpx.SprayJsonSupport._

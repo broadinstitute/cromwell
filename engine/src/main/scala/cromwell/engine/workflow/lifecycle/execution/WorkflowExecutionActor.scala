@@ -201,7 +201,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   whenUnhandled {
-    case Event(CheckRunnable, data) => stay()
+    case Event(CheckRunnable, _) => stay()
     case Event(Terminated(actorRef), stateData) => handleTerminated(actorRef) using stateData.removeEngineJobExecutionActor(actorRef)
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
       if (stateData.hasRunningActors) {

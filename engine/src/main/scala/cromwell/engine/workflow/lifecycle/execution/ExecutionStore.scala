@@ -71,8 +71,6 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminal))
   }
 
-  // Convert the store to a `List` before `collect`ing to sidestep expensive and pointless hashing of `Scope`s when
-  // assembling the result.
   def runnableScopes = keysWithStatus(NotStarted) filter arePrerequisitesDone(doneKeys)
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys collect {
@@ -81,7 +79,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   // Just used to decide whether a collector can be run. In case the shard entries haven't been populated into the
   // execution store yet.
-  private case class TempJobKey(scope: Scope with GraphNode, index: Option[Int]) extends JobKey {
+  private final case class TempJobKey(scope: Scope with GraphNode, index: Option[Int]) extends JobKey {
     // If these are ever used, we've done something wrong...
     override def attempt: Int = throw new NotImplementedError("We've done something wrong.")
     override def tag: String = throw new NotImplementedError("We've done something wrong.")
@@ -102,10 +100,12 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
 
     lazy val shardEntriesForCollectorAreDone: Boolean = key match {
-      case collector: CollectorKey => emulateShardEntries(collector).forall(shardKey => doneKeys.exists({ doneKey =>
-        shardKey.scope.fullyQualifiedName == doneKey.scope.fullyQualifiedName &&
-          shardKey.index == doneKey.index
-      }))
+      case collector: CollectorKey =>
+        emulateShardEntries(collector)
+          .map(shard => (shard.scope.fullyQualifiedName, shard.index))
+          .diff(
+            doneKeys.map(key => (key.scope.fullyQualifiedName, key.index))
+          ).isEmpty
       case _ => true
     }
 

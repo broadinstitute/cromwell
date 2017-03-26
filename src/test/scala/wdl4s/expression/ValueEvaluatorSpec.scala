@@ -80,9 +80,9 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
   def constEval(exprStr: String): WdlValue = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).get
   def constEvalType(exprStr: String): WdlType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
-  def constEvalError(exprStr: String): Unit = {
+  def constEvalError(exprStr: String): Throwable = {
     expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
-      case Failure(ex) => // Expected
+      case Failure(ex) => ex
       case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
   }
@@ -511,5 +511,25 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     val noneWorld = WdlOptionalValue.none(WdlStringType)
     val expectedMessage = "Sorry! Operation + is not supported on empty optional values. You might resolve this using select_first([optional, default]) to guarantee that you have a filled value."
     hello.add(noneWorld) should be(Failure(OptionalNotSuppliedException("+")))
+  }
+
+  "Ternary if blocks" should "evaluate only the LHS if the condition is true" in {
+    constEval(""" if (5 == 4 + 1) then 6 + 7 else fail() """) should be(WdlInteger(13))
+  }
+
+  "Ternary if blocks" should "evaluate only the RHS if the condition is false" in {
+    constEval(""" if 5 + 6 == 7 then fail() else 14 * 15 """) should be(WdlInteger(210))
+  }
+
+  "Ternary if blocks" should "fail to evaluate if the condition is not a boolean" in {
+    constEvalError(""" if 5 + 6 then 6 + 7 else 14 * 15 """).getMessage should be("'if' expression must be given a boolean argument but got: 11")
+  }
+
+  "Ternary if blocks" should "fail to evaluate if the chosen LHS expression fails to evaluate" in {
+    constEvalError(""" if (5 == 4 + 1) then fail() else 13 """).getClass.getSimpleName should be("NoSuchMethodException")
+  }
+
+  "Ternary if blocks" should "fail to evaluate if the chosen RHS expression fails to evaluate" in {
+    constEvalError(""" if (5 == 6 + 1) then 13 else fail() """).getClass.getSimpleName should be("NoSuchMethodException")
   }
 }

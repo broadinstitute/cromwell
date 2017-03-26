@@ -40,15 +40,26 @@ class FileEvaluatorSpec extends FlatSpec with Matchers {
       WdlSingleFile("3")
     ), WdlMapType(WdlFileType, WdlFileType)),
     (""" [read_string("x"), read_string("y")] """, Seq(WdlSingleFile("x"), WdlSingleFile("y")), WdlArrayType(WdlStringType)),
-    (""" {read_int("a"): read_string("x"), 4: read_string("y")} """, Seq(WdlSingleFile("a"), WdlSingleFile("x"), WdlSingleFile("y")), WdlArrayType(WdlStringType)),
+    (""" [fileNameAsStringInput, "${fileNameAsStringInput}.bai"] """, Seq(WdlSingleFile("sommat.bam"), WdlSingleFile("sommat.bam.bai")), WdlArrayType(WdlFileType)),
+    (""" [ fileNameAsStringInput, mapToFileName["Chris"] ] """, Seq(WdlSingleFile("sommat.bam"), WdlSingleFile("sommatStupid.bam")), WdlArrayType(WdlFileType)),
+    (""" {read_int("a"): read_string("x"), 4: read_string("y")} """, Seq(WdlSingleFile("a"), WdlSingleFile("x"), WdlSingleFile("y")), WdlMapType(WdlIntegerType, WdlStringType)),
     (""" glob("out-*.txt") """, Seq(WdlGlobFile("out-*.txt")), WdlFileType),
     (""" glob("out-*.txt")[0] """, Seq(WdlGlobFile("out-*.txt")), WdlFileType),
-    (""" read_tsv("my_file") """, Seq(WdlSingleFile("my_file")), WdlFileType)
+    (""" read_tsv("my_file") """, Seq(WdlSingleFile("my_file")), WdlFileType),
+    (""" if read_int("i.txt") == 10 then "a.txt" else "b.txt" """, Seq(WdlSingleFile("a.txt"), WdlSingleFile("b.txt"), WdlSingleFile("i.txt")), WdlFileType),
+    (""" if "a" == "b" then "a.txt" else "b.txt" """, Seq(WdlSingleFile("b.txt")), WdlFileType),
+    (""" if b then read_string("t") else "nope" """, Seq(WdlSingleFile("t")), WdlStringType)
+  )
+
+  val lookupFunction = Map(
+    "b" -> WdlBoolean(true),
+    "fileNameAsStringInput" -> WdlString("sommat.bam"),
+    "mapToFileName" -> WdlMap(Map(WdlString("Chris") -> WdlString("sommatStupid.bam")))
   )
 
   forAll (expressions) { (expression, files, wdlType) =>
     it should s"evaluate $expression (coerced to: $wdlType) => $files" in {
-      WdlExpression.fromString(expression).evaluateFiles(NoLookup, NoFunctions, wdlType).get shouldEqual files
+      WdlExpression.fromString(expression).evaluateFiles(lookupFunction, NoFunctions, wdlType).get.toSet should be(files.toSet)
     }
   }
 }

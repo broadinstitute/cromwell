@@ -45,6 +45,14 @@ case class TypeEvaluator(override val lookup: String => WdlType, override val fu
         case "UnaryNegation" => for(e <- expression) yield e.unaryMinus.get
         case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
       }
+    case TernaryIf(condition, ifTrue, ifFalse) =>
+      evaluate(condition) flatMap {
+        case WdlBooleanType => for {
+          ifTrueType <- evaluate(ifTrue)
+          ifFalseType <- evaluate(ifFalse)
+        } yield WdlType.lowestCommonSubtype(Seq(ifTrueType, ifFalseType))
+        case other => Failure(new WdlExpressionException("The condition of a ternary 'if' must be a Boolean."))
+      }
     case a: Ast if a.isArrayLiteral =>
       val evaluatedElements = a.getAttribute("values").astListAsVector map evaluate
       for {

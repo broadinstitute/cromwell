@@ -49,4 +49,5 @@ class WdlBoolean private(val value: Boolean) extends WdlPrimitive {
 
   override def not: Try[WdlValue] = Success(WdlBoolean(!value))
   override def toWdlString = value.toString
+  override def toString = s"WdlBoolean($value)"
 }

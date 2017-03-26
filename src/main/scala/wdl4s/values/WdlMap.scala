@@ -33,6 +33,12 @@ object WdlMap {
       case Failure(e) => Failure(e)
     }
   }
+
+  def apply(m: Map[WdlValue, WdlValue]): WdlMap = {
+    val keyType = WdlType.lowestCommonSubtype(m.keys.map(_.wdlType))
+    val valueType = WdlType.lowestCommonSubtype(m.keys.map(_.wdlType))
+    WdlMap(WdlMapType(keyType, valueType), m)
+  }
 }
 
 case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends WdlValue with TsvSerializable {

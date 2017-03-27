@@ -42,7 +42,12 @@ object Test {
     }
 
     /** Call the default non-stack-safe but correct version of this method. */
-    override def tailRecM[A, B](a: A)(f: (A) => Test[Either[A, B]]): Test[B] = defaultTailRecM(a)(f)
+    override def tailRecM[A, B](a: A)(f: (A) => Test[Either[A, B]]): Test[B] = {
+      flatMap(f(a)) {
+        case Right(b) => pure(b)
+        case Left(nextA) => tailRecM(nextA)(f)
+      }
+    }
   }
 }
 
@@ -144,7 +149,7 @@ object Operations {
     */
   def cleanUpImports(submittedWF: SubmittedWorkflow) = {
     submittedWF.workflow.data.zippedImports match {
-      case Some(zipFile) => zipFile.delete(ignoreIOExceptions = true)
+      case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
       case None => //
     }
   }

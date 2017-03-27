@@ -33,7 +33,7 @@ object WorkflowData {
       val zippedDir = imports match {
         case x :: _ => {
           val importsDirName = wdl.getFileName.toString.replaceAll("\\.[^.]*$", "")
-          val importsDir = File.newTempDir(importsDirName + "_imports")
+          val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.toAbsolutePath.toString)
             val destFile = importsDir / srcFile.name

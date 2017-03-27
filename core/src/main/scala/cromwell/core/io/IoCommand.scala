@@ -16,6 +16,7 @@ object IoCommand {
     .setRandomizationFactor(0.2D)
     .setMaxElapsedTimeMillis((10 minutes).toMillis.toInt)
     .build()
+  
   def defaultBackoff = SimpleExponentialBackoff(defaultGoogleBackoff)
   
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
@@ -37,29 +38,41 @@ trait IoCommand[+T] {
 /**
   * Copy source -> destination
   */
-class IoCopyCommand(val source: Path, val destination: Path, val overwrite: Boolean) extends IoCommand[Unit]
+class IoCopyCommand(val source: Path, val destination: Path, val overwrite: Boolean) extends IoCommand[Unit] {
+  override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString} with overwrite = $overwrite"
+}
 
 /**
   * Read file as a string (load the entire content in memory)
   */
-class IoContentAsStringCommand(val file: Path) extends IoCommand[String]
+class IoContentAsStringCommand(val file: Path) extends IoCommand[String] {
+  override def toString = s"read content of ${file.pathAsString}"
+}
 
 /**
   * Return the size of file
   */
-class IoSizeCommand(val file: Path) extends IoCommand[Long]
+class IoSizeCommand(val file: Path) extends IoCommand[Long] {
+  override def toString = s"get size of ${file.pathAsString}"
+}
 
 /**
   * Write content in file
   */
-class IoWriteCommand(val file: Path, val content: String, val openOptions: OpenOptions) extends IoCommand[Unit]
+class IoWriteCommand(val file: Path, val content: String, val openOptions: OpenOptions) extends IoCommand[Unit] {
+  override def toString = s"write to ${file.pathAsString}"
+}
 
 /**
   * Delete file
   */
-class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean) extends IoCommand[Unit]
+class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean) extends IoCommand[Unit] {
+  override def toString = s"delete ${file.pathAsString}"
+}
 
 /**
   * Get Hash value for file
   */
-class IoHashCommand(val file: Path) extends IoCommand[String]
+class IoHashCommand(val file: Path) extends IoCommand[String] {
+  override def toString = s"get hash of ${file.pathAsString}"
+}

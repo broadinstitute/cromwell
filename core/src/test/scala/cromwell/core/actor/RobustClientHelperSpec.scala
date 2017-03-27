@@ -107,7 +107,7 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     val remoteActor = TestProbe()
     val delegateActor = TestProbe()
     
-    val margin = 500 millis
+    val margin = 1 second
     val backpressureTimeout = 1 second
     val noResponseTimeout = 3 seconds
     val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout))
@@ -140,21 +140,21 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
   
   it should "randomize backpressure timings" in {
     val delegateActor = TestProbe()
-    val backpressureTimeout = 20 seconds
+    val backpressureTimeout = 100 seconds
     val noResponseTimeout = 3 seconds
-    val randomizeFactor = 0.2D
+    val randomizeFactor = 0.5D
     
     val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout, randomizeFactor)).underlyingActor
     
     val randomBackpressures = 0 until 10 map { _ =>
       val time = testActor.generateBackpressureTime
-      time.gt(16.seconds) shouldBe true
-      time.lt(24.seconds) shouldBe true
+      time.gt(50.seconds) shouldBe true
+      time.lt(150.seconds) shouldBe true
       time
     }
     
     // They should all be different
-    randomBackpressures.distinct.size shouldBe 10
+    randomBackpressures.distinct.size > 1 shouldBe true
   }
   
   private [actor] object TestActor {

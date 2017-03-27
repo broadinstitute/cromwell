@@ -28,7 +28,7 @@ class CallCacheSpec extends FlatSpec with Matchers with ParallelTestExecution {
 
   "cacheBetweenWf" should "successfully call cache between two workflows" in {
     Workflow.fromPath(CacheBetweenWf) match {
-      case Valid(w) => TestFormulas.runSequentialCachingWorkflows(w, w)
+      case Valid(w) => TestFormulas.runSequentialCachingWorkflows(w, w).run.get
       case Invalid(e) => fail(s"Could not read cacheWithinWf test:\n - ${e.toList.mkString("\n- ")}")
     }
   }

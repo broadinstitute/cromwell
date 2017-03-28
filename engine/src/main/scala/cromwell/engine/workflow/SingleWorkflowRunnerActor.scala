@@ -74,18 +74,18 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
       log.info(s"$Tag workflow finished with status '$WorkflowSucceeded'.")
       serviceRegistryActor ! CheckPendingWrites
-      goto(WaitForFlushedMetadata) using SucceededSwraData(replyTo, id)
+      goto(WaitingForFlushedMetadata) using SucceededSwraData(replyTo, id)
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
       log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
       serviceRegistryActor ! CheckPendingWrites
-      goto(WaitForFlushedMetadata) using FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed"))
+      goto(WaitingForFlushedMetadata) using FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed"))
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
       log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
       serviceRegistryActor ! CheckPendingWrites
-      goto(WaitForFlushedMetadata) using AbortedSwraData(replyTo, id)
+      goto(WaitingForFlushedMetadata) using AbortedSwraData(replyTo, id)
   }
   
-  when (WaitForFlushedMetadata) {
+  when (WaitingForFlushedMetadata) {
     case Event(HasPendingWrites, _) => 
       context.system.scheduler.scheduleOnce(1 second, serviceRegistryActor, CheckPendingWrites)(context.system.dispatcher, self)
       stay()
@@ -222,7 +222,7 @@ object SingleWorkflowRunnerActor {
   case object NotStarted extends RunnerState
   case object SubmittedWorkflow extends RunnerState
   case object RunningWorkflow extends RunnerState
-  case object WaitForFlushedMetadata extends RunnerState
+  case object WaitingForFlushedMetadata extends RunnerState
   case object RequestingOutputs extends RunnerState
   case object RequestingMetadata extends RunnerState
 

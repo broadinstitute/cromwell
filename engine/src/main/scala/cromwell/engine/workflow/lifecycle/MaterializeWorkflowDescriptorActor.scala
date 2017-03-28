@@ -380,24 +380,18 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
-    try {
-      source match {
-        case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
-        case w: WorkflowSourceFilesWithoutImports =>
-          val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-            List(WdlNamespace.fileResolver)
-          } else {
-            List.empty
-          }
-          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers) match {
-            case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
-            case Success(namespace) => validateWorkflowNameLengths(namespace)
-          }
+  private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = source match {
+    case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
+    case w: WorkflowSourceFilesWithoutImports =>
+      val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
+        List(WdlNamespace.fileResolver)
+      } else {
+        List.empty
       }
-    } catch {
-      case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
-    }
+      WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers) match {
+        case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
+        case Success(namespace) => validateWorkflowNameLengths(namespace)
+      }
   }
 
   private def validateRawInputs(json: WdlJson): ErrorOr[Map[String, JsValue]] = {

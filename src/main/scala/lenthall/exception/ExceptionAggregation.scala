@@ -2,7 +2,10 @@ package lenthall.exception
 
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
+
 import lenthall.exception.Aggregation._
+
+import scala.annotation.tailrec
 
 object Aggregation {
   def formatMessageWithList(message: String, list: Traversable[String]) = {
@@ -11,13 +14,31 @@ object Aggregation {
       s"$message:$messages"
     } else message
   }
+
+  def flattenThrowable(throwable: Throwable) = {
+    @tailrec
+    def flattenThrowableRec(toExpand: List[Throwable], flattened: List[Throwable]): List[Throwable] = toExpand match {
+      case Nil => flattened
+      case t :: r =>
+        t match {
+          case aggregated: AggregatedException => flattenThrowableRec(r ++ aggregated.throwables.toList, flattened)
+          case classic => flattenThrowableRec(r, flattened :+ classic)
+        }
+    }
+    
+    flattenThrowableRec(List(throwable), List.empty)
+  }
+  
+  implicit class EnhancedThrowable(val throwable: Throwable) extends AnyVal {
+    def flatten = flattenThrowable(throwable)
+  }
 }
 
 /**
   * When mixed in an Exception class,
   * aggregates multiple error messages into the getMessage method.
   */
-trait MessageAggregation extends Throwable {
+trait MessageAggregation extends Exception {
   def exceptionContext: String
   def errorMessages: Traversable[String]
 

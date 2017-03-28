@@ -176,7 +176,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
-  
+
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
   when(WorkflowUnstartedState) {
@@ -276,17 +276,6 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   onTransition {
-    case fromState -> toState =>
-      workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
-      // This updates the workflow status
-      // Only publish "External" state to metadata service
-      // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
-      if (fromState.workflowState != toState.workflowState) {
-        pushCurrentStateToMetadataService(workflowId, toState.workflowState)
-      }
-  }
-
-  onTransition {
     case (oldState, terminalState: WorkflowActorTerminalState) =>
       workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
       pushWorkflowEnd(workflowId)
@@ -315,16 +304,27 @@ class WorkflowActor(val workflowId: WorkflowId,
         }
 
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
-            case Some(destinationDir) =>
-              workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
-            case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
-              case Failure(f) => log.error(f, "Failed to delete workflow log")
-              case _ =>
-            }
+          case Some(destinationDir) =>
+            workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
+          case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
+            case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>
           }
+          case _ =>
         }
+      }
       context stop self
+  }
+
+  onTransition {
+    case fromState -> toState =>
+      workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
+      // This updates the workflow status
+      // Only publish "External" state to metadata service
+      // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
+      if (fromState.workflowState != toState.workflowState) {
+        pushCurrentStateToMetadataService(workflowId, toState.workflowState)
+      }
   }
 
   private def finalizationSucceeded(data: WorkflowActorData) = {

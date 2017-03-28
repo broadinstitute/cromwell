@@ -11,6 +11,7 @@ import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction, RefreshSummary, ValidateWorkflowIdAndExecute}
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services.metadata.impl.WriteMetadataActor.CheckPendingWrites
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -89,6 +90,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
 
   def receive = {
     case action@PutMetadataAction(events) => writeActor forward action
+    case CheckPendingWrites => writeActor forward CheckPendingWrites
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }

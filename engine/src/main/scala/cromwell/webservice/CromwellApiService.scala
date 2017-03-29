@@ -20,7 +20,7 @@ import scala.util.{Failure, Success, Try}
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromwell"
 
-  override def swaggerUiVersion = "2.2.2"
+  override def swaggerUiVersion = "2.1.1"
 }
 
 trait CromwellApiService extends HttpService with PerRequestCreator {

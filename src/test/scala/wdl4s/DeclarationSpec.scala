@@ -163,6 +163,8 @@ class DeclarationSpec extends FlatSpec with Matchers {
                  |    
                  |    Array[String] arr = [t1.o, t2.o]
                  |    
+                 |    Map[String, String] map = { "key": t1.o }
+                 |    
                  |    scatter(i in arr) {
                  |        call t as t3 { input: i = i }
                  |        String b = i + t3.o

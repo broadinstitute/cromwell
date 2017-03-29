@@ -99,13 +99,8 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           val value = evaluate(kv.asInstanceOf[Ast].getAttribute("value"))
           key -> value
         }
-        val flattenedTries = evaluatedMap flatMap { case (k,v) => Seq(k,v) }
-        flattenedTries partition {_.isSuccess} match {
-          case (_, failures) if failures.nonEmpty =>
-            val message = failures.collect { case f: Failure[_] => f.exception.getMessage }.mkString("\n")
-            Failure(new WdlExpressionException(s"Could not evaluate expression:\n$message"))
-          case (successes, _) =>
-            WdlMapType(WdlAnyType, WdlAnyType).coerceRawValue(evaluatedMap.map({ case (k, v) => k.get -> v.get }).toMap)
+        TryUtil.sequence(evaluatedMap map { tuple => TryUtil.sequenceTuple(tuple) }) flatMap { pairs =>
+          WdlMapType(WdlAnyType, WdlAnyType).coerceRawValue(pairs.toMap)
         }
       case a: Ast if a.isMemberAccess =>
         a.getAttribute("rhs") match {

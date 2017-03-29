@@ -1,20 +1,22 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
-import cromwell.core.callcaching.{CallCachingEligible, CallCachingIneligible}
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashBackPressure, DockerHashFailedResponse, DockerHashResponseSuccess}
+import cromwell.core.actor.StreamIntegration.BackPressure
+import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashResponseSuccess}
 import cromwell.core.callcaching.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
+import cromwell.core.callcaching.{CallCachingEligible, CallCachingIneligible}
 import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
 import org.scalatest.{FlatSpecLike, Matchers}
+import org.specs2.mock.Mockito
 import wdl4s.Declaration
 import wdl4s.values.{WdlString, WdlValue}
 
-import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
-class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender {
+class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender with Mockito {
 
   behavior of "JobPreparationActor"
   
@@ -72,7 +74,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, List.empty, dockerHashingActor.ref, inputsAndAttributes), self)
     actor ! Start
     dockerHashingActor.expectMsgClass(classOf[DockerHashRequest])
-    dockerHashingActor.reply(DockerHashResponseSuccess(hashResult))
+    dockerHashingActor.reply(DockerHashResponseSuccess(hashResult, mock[DockerHashRequest]))
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe finalValue
@@ -87,7 +89,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
 
   it should "make a job ineligible for caching if it can't get the docker hash" in {
     val dockerValue = "ubuntu:latest"
-    val dockerId = DockerImageIdentifier.fromString(dockerValue).get.asInstanceOf[DockerImageIdentifierWithoutHash]
+    val request = DockerHashRequest(DockerImageIdentifier.fromString(dockerValue).get.asInstanceOf[DockerImageIdentifierWithoutHash])
     val attributes = Map (
       "docker" -> WdlString(dockerValue)
     )
@@ -96,7 +98,7 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     val actor = TestActorRef(helper.buildJobPreparationMock(1 minute, 1 minutes, List.empty, dockerHashingActor.ref, inputsAndAttributes), self)
     actor ! Start
     dockerHashingActor.expectMsgClass(classOf[DockerHashRequest])
-    dockerHashingActor.reply(DockerHashFailedResponse(new Exception("Failed to get docker hash - part of test flow"), dockerId))
+    dockerHashingActor.reply(DockerHashFailedResponse(new Exception("Failed to get docker hash - part of test flow"), request))
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
@@ -123,12 +125,12 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     val request = DockerHashRequest(dockerId)
     actor ! Start
     dockerHashingActor.expectMsg(request)
-    dockerHashingActor.reply(DockerHashBackPressure(request))
+    dockerHashingActor.reply(BackPressure(request))
     // Give a couple of seconds of margin to account for test latency etc...
     dockerHashingActor.expectMsg(backpresureWaitTime.+(2 seconds), request)
   }
 
-  it should "automatically re submit the docker request if no answer and finally give up" in {
+  it should "time out if no answer is received from the docker hash actor" in {
     val dockerValue = "ubuntu:latest"
     val dockerId = DockerImageIdentifier.fromString(dockerValue).get.asInstanceOf[DockerImageIdentifierWithoutHash]
     val attributes = Map (
@@ -142,9 +144,6 @@ class JobPreparationActorSpec extends TestKitSuite with FlatSpecLike with Matche
     actor ! Start
     
     within(10 seconds) {
-      dockerHashingActor.expectMsg(request)
-      dockerHashingActor.expectMsg(request)
-      dockerHashingActor.expectMsg(request)
       dockerHashingActor.expectMsg(request)
     }
 

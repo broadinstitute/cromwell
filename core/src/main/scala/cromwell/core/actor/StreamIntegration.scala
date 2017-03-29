@@ -10,6 +10,6 @@ object StreamIntegration {
     def clientContext: Option[Any] = None
   }
   case class EnqueueResponse(response: QueueOfferResult, request: StreamContext)
-  case class Backpressure(request: Any)
+  case class BackPressure(request: Any)
   case class FailedToEnqueue(failure: Throwable, request: StreamContext)
 }

@@ -1,16 +1,15 @@
 package cromwell.core.callcaching.docker
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.pipe
-import akka.stream.QueueOfferResult.{Dropped, Enqueued, QueueClosed}
 import akka.stream._
 import akka.stream.scaladsl.{GraphDSL, Merge, Partition, Sink, Source}
 import com.google.common.cache.CacheBuilder
-import cromwell.core.actor.StreamActorHelper.ActorRestartException
+import cromwell.core.Dispatcher
+import cromwell.core.actor.StreamActorHelper
+import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.core.callcaching.docker.DockerHashActor._
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 final class DockerHashActor(
@@ -18,10 +17,9 @@ final class DockerHashActor(
                            queueBufferSize: Int,
                            cacheEntryTTL: FiniteDuration,
                            cacheSize: Long
-                          )(implicit val materializer: ActorMaterializer) extends Actor with ActorLogging {
+                          )(implicit val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[DockerHashContext] {
 
   implicit val system = context.system
-  implicit val ec = context.dispatcher
   
   /* Use the guava CacheBuilder class that implements a thread safe map with built in cache features.
    * https://google.github.io/guava/releases/20.0/api/docs/com/google/common/cache/CacheBuilder.html
@@ -48,13 +46,6 @@ final class DockerHashActor(
     .expireAfterWrite(cacheEntryTTL._1, cacheEntryTTL._2)
     .maximumSize(cacheSize)
     .build[DockerImageIdentifierWithoutHash, DockerHashResult]()
-  
-  /*
-   * Never fail the stream, if an exception occurs just drop the element
-   * The sender is responsible for sending a new message if it didn't get a response
-   * within a reasonable amount of time
-   */
-  private val decider: Supervision.Decider = _ => Supervision.Resume
 
   /*
    * Intermediate sink responsible for updating the cache as soon as a successful hash is retrieved
@@ -63,13 +54,6 @@ final class DockerHashActor(
     case (response: DockerHashResponseSuccess, dockerHashContext) => 
       cache.put(dockerHashContext.dockerImageID, response.dockerHash)
     case _ => // Only put successful hashes in the cache
-  }
-  
-  /*
-   * Final sink of the stream. Sends the response to the caller.
-   */
-  private val replySink = Sink.foreach[(DockerHashResponse, DockerHashContext)] {
-    case (response, dockerHashContext) => dockerHashContext.replyTo ! response
   }
 
   /*
@@ -105,65 +89,33 @@ final class DockerHashActor(
       partitionFlows.out(i) ~> flows(i) ~> mergeFlows.in(i)
     }
 
-    val noMatch = partitionFlows.out(dockerRegistryFlows.size).map(dockerContext => (DockerHashUnknownRegistry(dockerContext.dockerImageID), dockerContext)).outlet
+    val noMatch = partitionFlows.out(dockerRegistryFlows.size).map(dockerContext => (DockerHashUnknownRegistry(dockerContext.request), dockerContext)).outlet
     
     noMatch ~> mergeFlows.in(dockerRegistryFlows.size)
     
     FlowShape(partitionFlows.in, mergeFlows.out)
   }
 
-  private val queue = Source.queue[DockerHashContext](queueBufferSize, OverflowStrategy.dropNew)
-    .via(dockerFlow)
-    .alsoTo(updateCacheSink)
-    .to(replySink)
-    .withAttributes(ActorAttributes.supervisionStrategy(decider))
-    .run()
-  
-  override def receive: Receive = {
-    // When receiving a request, just enqueue it and pipe the result back to self
-    // Note: could be worth having another actor to send it to, to prevent overflowing this mailbox
+  private def checkCache(dockerHashRequest: DockerHashRequest) = {
+    Option(cache.getIfPresent(dockerHashRequest.dockerImageID)) map { hashResult => 
+      DockerHashResponseSuccess(hashResult, dockerHashRequest) 
+    }
+  }
+
+  override protected def actorReceive: Receive = {
     case request: DockerHashRequest =>
       val replyTo = sender()
-      
-      checkCache(request.dockerImageID) match {
+
+      checkCache(request) match {
         case Some(cacheHit) => replyTo ! cacheHit
         case None => sendToStream(DockerHashContext(request, replyTo))
       }
-    case EnqueueResponse(Enqueued, dockerHashContext) => // All good !
-    case EnqueueResponse(Dropped, dockerHashContext) => dockerHashContext.replyTo ! DockerHashBackPressure(dockerHashContext.request)
-      // In any of the below case, the stream is in a state where it will not be able to receive new elements.
-      // This means something blew off so we can just restart the actor to re-instantiate a new stream
-    case EnqueueResponse(QueueClosed, dockerHashContext) =>
-      val exception = new RuntimeException(s"Failed to enqueue docker hash request ${dockerHashContext.request}. Queue was closed")
-      logAndRestart(exception)
-    case EnqueueResponse(QueueOfferResult.Failure(failure), dockerHashContext) => 
-      logAndRestart(failure)
-    case FailedToEnqueue(throwable, dockerHashContext) =>
-      logAndRestart(throwable)
   }
-  
-  private def logAndRestart(throwable: Throwable) = {
-    log.warning("Failed to process docker hash request", throwable)
-    // Throw the exception that will be caught by supervisor and restart the actor
-    throw DockerHashActorException(throwable)
-  }
-  
-  private def checkCache(dockerImageIdentifierWithoutHash: DockerImageIdentifierWithoutHash) = {
-    Option(cache.getIfPresent(dockerImageIdentifierWithoutHash)) map { hashResult => 
-      DockerHashResponseSuccess(hashResult) 
-    }
-  }
-  
-  private def sendToStream(dockerHashContext: DockerHashContext) = {
-    val enqueue = queue offer dockerHashContext map { result =>
-      EnqueueResponse(result, dockerHashContext)
-    } recoverWith {
-      case t => Future.successful(FailedToEnqueue(t, dockerHashContext))
-    }
 
-    pipe(enqueue) to self
-    ()
-  }
+  override protected def streamSource = Source.queue[DockerHashContext](queueBufferSize, OverflowStrategy.dropNew)
+    .via(dockerFlow)
+    .alsoTo(updateCacheSink)
+    .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 }
 
 object DockerHashActor {
@@ -171,31 +123,30 @@ object DockerHashActor {
   val logger = LoggerFactory.getLogger("DockerRegistry")
 
   /* Response Messages */
-  sealed trait DockerHashResponse
+  sealed trait DockerHashResponse {
+    def request: DockerHashRequest
+  }
   
-  case class DockerHashResponseSuccess(dockerHash: DockerHashResult) extends DockerHashResponse
+  case class DockerHashResponseSuccess(dockerHash: DockerHashResult, request: DockerHashRequest) extends DockerHashResponse
   
   sealed trait DockerHashFailureResponse extends DockerHashResponse {
     def reason: String
   }
-  case class DockerHashFailedResponse(failure: Throwable, dockerIdentifier: DockerImageIdentifierWithoutHash) extends DockerHashFailureResponse {
-    override val reason = s"Failed to get docker hash for ${dockerIdentifier.fullName} ${failure.getMessage}"
+  case class DockerHashFailedResponse(failure: Throwable, request: DockerHashRequest) extends DockerHashFailureResponse {
+    override val reason = s"Failed to get docker hash for ${request.dockerImageID.fullName} ${failure.getMessage}"
   }
-  case class DockerHashUnknownRegistry(dockerImageId: DockerImageIdentifierWithoutHash) extends DockerHashFailureResponse {
-    override val reason = s"Registry ${dockerImageId.host} is not supported"
+  case class DockerHashUnknownRegistry(request: DockerHashRequest) extends DockerHashFailureResponse {
+    override val reason = s"Registry ${request.dockerImageID.host} is not supported"
   }
-  case class DockerHashNotFound(dockerImageId: DockerImageIdentifierWithoutHash) extends DockerHashFailureResponse {
-    override val reason = s"Docker image ${dockerImageId.fullName} not found"
+  case class DockerHashNotFound(request: DockerHashRequest) extends DockerHashFailureResponse {
+    override val reason = s"Docker image ${request.dockerImageID.fullName} not found"
   }
-  case class DockerHashUnauthorized(dockerImageId: DockerImageIdentifierWithoutHash) extends DockerHashFailureResponse {
-    override val reason = s"Unauthorized to get docker hash ${dockerImageId.fullName}"
+  case class DockerHashUnauthorized(request: DockerHashRequest) extends DockerHashFailureResponse {
+    override val reason = s"Unauthorized to get docker hash ${request.dockerImageID.fullName}"
   }
 
-  case class DockerHashBackPressure(originalRequest: DockerHashRequest) extends DockerHashResponse
-  case class DockerHashActorException(failure: Throwable) extends ActorRestartException(failure)
-  
   /* Internal ADTs */
-  case class DockerHashContext(request: DockerHashRequest, replyTo: ActorRef) {
+  case class DockerHashContext(request: DockerHashRequest, replyTo: ActorRef) extends StreamContext {
     val dockerImageID = request.dockerImageID
     val credentials = request.credentials
   }

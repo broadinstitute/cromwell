@@ -29,7 +29,7 @@ class StreamActorHelperSpec extends TestKitSuite with FlatSpecLike with Matchers
 
     actor ! EnqueueResponse(Dropped, TestStreamActorContext(command, self, None))
 
-    expectMsg(Backpressure(command))
+    expectMsg(BackPressure(command))
 
     system stop actor
   }
@@ -40,7 +40,7 @@ class StreamActorHelperSpec extends TestKitSuite with FlatSpecLike with Matchers
 
     actor ! EnqueueResponse(Dropped, TestStreamActorContext(command, self, Option("context")))
 
-    expectMsg(Backpressure("context" -> command))
+    expectMsg(BackPressure("context" -> command))
 
     system stop actor
   }

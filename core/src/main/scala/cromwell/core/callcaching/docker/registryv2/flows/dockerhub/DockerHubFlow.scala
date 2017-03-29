@@ -1,5 +1,6 @@
 package cromwell.core.callcaching.docker.registryv2.flows.dockerhub
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.http.scaladsl.model.{HttpMethod, HttpMethods}
 import akka.stream.ActorMaterializer
@@ -19,8 +20,8 @@ object DockerHubFlow {
   private val ServiceName = Option("registry.docker.io")
 }
 
-class DockerHubFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContext, materializer: ActorMaterializer) 
-  extends DockerRegistryV2AbstractFlow(httpClientFlow)(ec, materializer) {
+class DockerHubFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContext, materializer: ActorMaterializer, scheduler: Scheduler) 
+  extends DockerRegistryV2AbstractFlow(httpClientFlow)(ec, materializer, scheduler) {
 
   override val registryHostName = RegistryHostName
   override val authorizationServerHostName = AuthorizationServerHostName

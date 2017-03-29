@@ -67,7 +67,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   
   private def backpressure(commandContext: StreamContext) = {
     val originalRequest = commandContext.clientContext map { _ -> commandContext.request } getOrElse commandContext.request
-    commandContext.replyTo ! Backpressure(originalRequest)
+    commandContext.replyTo ! BackPressure(originalRequest)
   }
 
   private def streamReceive: Receive = {

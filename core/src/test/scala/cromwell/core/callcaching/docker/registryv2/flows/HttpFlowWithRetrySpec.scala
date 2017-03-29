@@ -17,6 +17,8 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
   behavior of "HttpFlowWithRetry"
 
   implicit val materializer = ActorMaterializer()
+  implicit val scheduler = system.scheduler
+  implicit val ec = system.dispatcher
 
   override protected def afterAll() = {
     materializer.shutdown()
@@ -67,7 +69,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
     stopProbe(probeFailure)
   }
 
-  it should "emit an Http response on failure port if request is not successful and not retryable" in {
+  it should "send back the http response if it is not successful and not retryable" in {
     val mockResponse = HttpResponse(status = StatusCodes.BadRequest)
     
     val httpMock = new HttpMock[Any](MockHttpResponse(Success(mockResponse), 1)).httpMock()
@@ -77,8 +79,8 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeSuccess.expectNoMsg(1 second)
-    probeFailure.expectMsgPF(1 second) {
+    probeFailure.expectNoMsg(1 second)
+    probeSuccess.expectMsgPF(1 second) {
       case (response: HttpResponse, _) => response.status shouldBe StatusCodes.BadRequest
     }
 
@@ -86,7 +88,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
     stopProbe(probeFailure)
   }
 
-  it should "retry a request if it fails" in {
+  it should "fail a request if it fails" in {
     val mockFailure = Failure[HttpResponse](new Exception("Request failed - part of test flow"))
     val mockOK = HttpResponse(status = StatusCodes.OK)
     
@@ -97,9 +99,9 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeFailure.expectNoMsg(1 second)
-    probeSuccess.expectMsgPF(1 second) {
-      case (response: HttpResponse, _) => response.status shouldBe StatusCodes.OK
+    probeSuccess.expectNoMsg(1 second)
+    probeFailure.expectMsgPF(1 second) {
+      case (failure: Throwable, _) => failure shouldBe mockFailure.failed.get
     }
 
     stopProbe(probeSuccess)
@@ -107,12 +109,10 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
   }
   
   it should "retry a request if the response is not a success and is retryable" in {
-    def isRetryable(httpResponse: HttpResponse) = httpResponse.status == StatusCodes.Unauthorized
-    
-    val mockFailure = HttpResponse(status = StatusCodes.Unauthorized)
+    val mockFailure = HttpResponse(status = StatusCodes.RequestTimeout)
     val mockOK = HttpResponse(status = StatusCodes.OK)
     val httpMock = new HttpMock[Any](MockHttpResponse(Success(mockFailure), 1), MockHttpResponse(Success(mockOK), 1)).httpMock()
-    val httpRetryMock = HttpFlowWithRetry[Any](httpMock, isRetryable = isRetryable)
+    val httpRetryMock = HttpFlowWithRetry[Any](httpMock)
 
     val (graph, probeSuccess, probeFailure) = makeRunnableGraph(httpRetryMock)
 
@@ -127,72 +127,50 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
     stopProbe(probeFailure)
   }
 
-  it should "handle flaky connections with a sufficiently large retry buffer" in {
+  it should "exponentially backoff and succeed if response is successful before max attempts" in {
     val mock200 = HttpResponse(status = StatusCodes.OK)
-    val mock429 = HttpResponse(status = StatusCodes.TooManyRequests)
-    
-    // only 20% of requests come back successful, rest are out of quota errors
+    val mock408 = HttpResponse(status = StatusCodes.RequestTimeout)
+
+    val mock408s = MockHttpResponse(Success(mock408), 3)
     val mock200s = MockHttpResponse(Success(mock200), 1)
-    val mock429s = MockHttpResponse(Success(mock429), 5)
 
-    val httpMock = new HttpMock[Any](mock200s, mock429s).httpMock()
-    // Give a retry buffer of 1000 (= queues up to 1000 retry requests before starting dropping them) 
-    val httpRetryMock = new HttpFlowWithRetry[Any](httpMock, retryBufferSize = 1000)
-
-    // Send 1000 requests
-    val nbMessagesToSend = 1000
-    val mockRequest = HttpRequest()
-    val sourceIterator = 1 to nbMessagesToSend map { _ => (mockRequest, ()) } toIterator
-    val source = Source.fromIterator { () => sourceIterator }
-    val (graph, probeSuccess, probeFailure) = makeRunnableGraph(httpRetryMock, source)
+    val httpMock = new HttpMock[Any](mock408s, mock200s).httpMock()
+    // Give a retry buffer of 10 (= queues up to 10 retry requests before starting dropping them)
+    val httpRetryMock = new HttpFlowWithRetry[Any](httpMock, retryBufferSize = 10)
+    
+    val (graph, probeSuccess, probeFailure) = makeRunnableGraph(httpRetryMock)
 
     graph.run()
 
-    probeFailure.expectNoMsg(5 seconds)
-    var successes: Int = 0
-    
-    probeSuccess.receiveWhile(5 seconds, 500 millis, nbMessagesToSend) {
-      case _ => successes += 1
+    probeFailure.expectNoMsg(1 second)
+    // backoff starts at 1 second, multiplier is 3 and default randomization is 20%
+    // which means, worst case scenario, we need to wait
+    // (1 + 0.2) + (3 + 0.6) + (9 + 1.8) = 15.06 -> 20 to account for test latency
+    probeSuccess.expectMsgPF(20 seconds) {
+      case (response: HttpResponse, _) => response.status shouldBe StatusCodes.OK
     }
-
-    // All responses should come back successfully
-    successes == 1000 shouldBe true
 
     stopProbe(probeSuccess)
     stopProbe(probeFailure)
   }
 
-  it should "not deadlock even under high retry pressure" in {
-    val mock200 = HttpResponse(status = StatusCodes.OK)
-    val mock429 = HttpResponse(status = StatusCodes.TooManyRequests)
+  it should "exponentially backoff and fail if response is still unsuccessful after max attempts" in {
+    val mock408 = HttpResponse(status = StatusCodes.RequestTimeout)
 
-    // only 20% of requests come back successful, rest are out of quota errors
-    val mock200s = MockHttpResponse(Success(mock200), 1)
-    val mock429s = MockHttpResponse(Success(mock429), 5)
+    val mock408s = MockHttpResponse(Success(mock408), 1)
 
-    val httpMock = new HttpMock[Any](mock200s, mock429s).httpMock()
+    val httpMock = new HttpMock[Any](mock408s).httpMock()
     // Give a retry buffer of 10 (= queues up to 10 retry requests before starting dropping them)
     val httpRetryMock = new HttpFlowWithRetry[Any](httpMock, retryBufferSize = 10)
 
-    // Send 1000 requests, the retry buffer will overflow, and start dropping requests
-    // Note that this is an extreme case, 80% failure rate with 100 * retry buffer size elements and no throttling
-    val nbMessagesToSend = 1000
-    val mockRequest = HttpRequest()
-    val sourceIterator = 1 to nbMessagesToSend map { _ => (mockRequest, ()) } toIterator
-    val source = Source.fromIterator { () => sourceIterator }
-    val (graph, probeSuccess, probeFailure) = makeRunnableGraph(httpRetryMock, source)
+    val (graph, probeSuccess, probeFailure) = makeRunnableGraph(httpRetryMock)
 
     graph.run()
 
-    probeFailure.expectNoMsg(5 seconds)
-    var successes: Int = 0
-    // The second parameter makes sure that the stream keeps emitting responses at least every 500 milliseconds
-    probeSuccess.receiveWhile(5 seconds, 500 millis, nbMessagesToSend) {
-      case _ => successes += 1
+    probeFailure.expectNoMsg(1 second)
+    probeSuccess.expectMsgPF(20 seconds) {
+      case (response: HttpResponse, _) => response.status shouldBe StatusCodes.RequestTimeout
     }
-
-    // A minimum amount of requests should come back
-    successes > 200 shouldBe true
 
     stopProbe(probeSuccess)
     stopProbe(probeFailure)

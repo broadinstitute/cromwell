@@ -1,5 +1,6 @@
 package cromwell.core.callcaching.docker.registryv2.flows.gcr
 
+import akka.actor.Scheduler
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.stream.ActorMaterializer
 import com.google.auth.oauth2.OAuth2Credentials
@@ -10,7 +11,7 @@ import cromwell.core.callcaching.docker.registryv2.DockerRegistryV2AbstractFlow.
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-abstract class GcrAbstractFlow(httpClientFlow: HttpDockerFlow, host: String)(implicit ec: ExecutionContext, materializer: ActorMaterializer) extends DockerRegistryV2AbstractFlow(httpClientFlow)(ec, materializer) {
+abstract class GcrAbstractFlow(httpClientFlow: HttpDockerFlow, host: String)(implicit ec: ExecutionContext, materializer: ActorMaterializer, scheduler: Scheduler) extends DockerRegistryV2AbstractFlow(httpClientFlow)(ec, materializer, scheduler) {
   
   private val AccessTokenAcceptableTTL = 1.minute
   

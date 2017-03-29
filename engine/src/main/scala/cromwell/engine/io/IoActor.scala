@@ -8,6 +8,7 @@ import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Source}
 import com.google.cloud.storage.StorageException
 import com.typesafe.config.ConfigFactory
+import cromwell.core.Dispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
 import cromwell.core.io.{IoAck, IoCommand, Throttle}
@@ -73,7 +74,7 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
       .via(flow)
   } getOrElse flow
   
-  override protected lazy val streamSource = source.via(throttledFlow)
+  override protected lazy val streamSource = source.via(throttledFlow).withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   override def actorReceive: Receive = {
     /* GCS Batch command with context */

@@ -313,7 +313,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
 
     def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
-      DefaultPathBuilder.createTempFile("", ".zip").write(contents)(OpenOptions.default)
+      DefaultPathBuilder.createTempFile("", ".zip").writeByteArray(contents)(OpenOptions.default)
     }
 
     def unZipFile(f: Path) = Try {

@@ -144,9 +144,14 @@ trait BetterFileMethods {
     betterFile.append(text)(openOptions, codec)
     this
   }
+  
+  final def appendText(text: String)(implicit openOptions: OpenOptions = OpenOptions.append, codec: Codec): this.type = {
+    betterFile.appendText(text)(openOptions, codec)
+    this
+  }
 
-  final def append(bytes: Array[Byte])(implicit openOptions: OpenOptions): this.type = {
-    betterFile.append(bytes)(openOptions)
+  final def appendByteArray(bytes: Array[Byte])(implicit openOptions: OpenOptions): this.type = {
+    betterFile.appendByteArray(bytes)(openOptions)
     this
   }
 
@@ -155,8 +160,8 @@ trait BetterFileMethods {
     this
   }
 
-  final def write(bytes: Array[Byte])(implicit openOptions: OpenOptions): this.type = {
-    betterFile.write(bytes)(openOptions)
+  final def writeByteArray(bytes: Array[Byte])(implicit openOptions: OpenOptions): this.type = {
+    betterFile.writeByteArray(bytes)(openOptions)
     this
   }
 
@@ -165,6 +170,11 @@ trait BetterFileMethods {
     this
   }
 
+  final def writeText(text: String)(implicit openOptions: OpenOptions = OpenOptions.default, codec: Codec): this.type = {
+    betterFile.writeText(text)(openOptions, codec)
+    this
+  }
+  
   final def write(text: String)(implicit openOptions: OpenOptions = OpenOptions.default, codec: Codec): this.type = {
     betterFile.write(text)(openOptions, codec)
     this

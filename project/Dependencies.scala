@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.21"
+  lazy val lenthallV = "0.23-0bebf0c-SNAP"
   lazy val wdl4sV = "0.10-0a75b4f-SNAP"
   lazy val sprayV = "1.3.3"
   /*
@@ -23,8 +23,8 @@ object Dependencies {
   // Internal collections of dependencies
 
   private val catsDependencies = List(
-    "org.typelevel" %% "cats" % "0.7.2",
-    "com.github.benhutchison" %% "mouse" % "0.5"
+    "org.typelevel" %% "cats" % "0.9.0",
+    "com.github.benhutchison" %% "mouse" % "0.6"
   ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.

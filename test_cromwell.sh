@@ -93,7 +93,7 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     echo "Building Cromwell"
     sbt clean assembly >> "${ASSEMBLY_LOG}" 2>&1
     cd ..
-    CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.11 -name "cromwell-*.jar")
+    CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.* -name "cromwell-*.jar")
 fi
 
 echo "Starting Cromwell, jar is ${CROMWELL_JAR}"
@@ -121,10 +121,10 @@ CP=$(sbt "export test:dependency-classpath" --error)
 
 if [[ -n ${EXCLUDE_TAG} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG} tests"
-    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.11/test-classes -oD -PS${TEST_THREAD_COUNT} -l ${EXCLUDE_TAG}"
+    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} -l ${EXCLUDE_TAG}"
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.11/test-classes -oD -PS${TEST_THREAD_COUNT}"
+    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"
 fi
 
 

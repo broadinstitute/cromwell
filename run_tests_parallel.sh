@@ -12,4 +12,4 @@ echo "Running tests with ${THREADS}-way parallelism"
 
 sbt test:compile
 CP=$(sbt "export test:dependency-classpath" --error)
-java -cp $CP org.scalatest.tools.Runner -R target/scala-2.11/test-classes -oD -PS${THREADS}
+java -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${THREADS}

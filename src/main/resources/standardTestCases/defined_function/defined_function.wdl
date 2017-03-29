@@ -12,6 +12,20 @@ task mk_file {
   output { File f = "out" }
 }
 
+task defined_in_task {
+  File? f
+  Boolean is_defined = defined(f)
+  command {
+    ${true="cat" false="echo no file" is_defined} ${f}
+  }
+  runtime {
+    docker: "ubuntu:latest"
+  }
+  output {
+    String out = read_string(stdout())
+  }
+}
+
 # Test the defined function by perhaps calling a function and only following up if the result was
 # defined.
 workflow defined_function {
@@ -28,9 +42,11 @@ workflow defined_function {
       File real_f = select_first([mk_file.f])
       call cat { input: f = real_f }
     }
+    call defined_in_task { input: f = mk_file.f }
   }
   output {
     Array[String?] cat_out = cat.out
     Array[Int] good_indices = select_all(good_index)
+    Array[String] dit_out = defined_in_task.out
   }
 }

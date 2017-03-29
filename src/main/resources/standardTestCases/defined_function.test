@@ -11,4 +11,6 @@ metadata {
   "outputs.defined_function.good_indices.0": 0
   "outputs.defined_function.cat_out.0": "file_0"
   "outputs.defined_function.cat_out.1": "null"
+  "outputs.defined_function.dit_out.0": "file_0"
+  "outputs.defined_function.dit_out.1": "no file"
 }

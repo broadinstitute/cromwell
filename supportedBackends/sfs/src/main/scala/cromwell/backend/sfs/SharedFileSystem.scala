@@ -54,7 +54,7 @@ object SharedFileSystem extends StrictLogging {
   private def localizePathViaHardLink(originalPath: Path, executionPath: Path): Try[Unit] = {
     val action = Try {
       executionPath.parent.createPermissionedDirectories()
-      executionPath.linkTo(originalPath)
+      originalPath.linkTo(executionPath)
     }.void
     logOnFailure(action, "hard link")
   }

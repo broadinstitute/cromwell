@@ -224,7 +224,7 @@ trait Scope {
       }
 
       this match {
-        case s: Scatter if children.contains(node) => withShard(s)
+        case s: Scatter if descendants.contains(node) => withShard(s)
         case other =>
           other.closestCommonScatter(node) match {
             case Some(s: Scatter) => withShard(s)

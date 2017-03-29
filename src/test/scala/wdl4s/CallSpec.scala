@@ -14,6 +14,7 @@ class CallSpec extends WordSpec with Matchers {
     val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.wdlSource(), Seq.empty).get
     val callT = namespace.calls.find(_.unqualifiedName == "t").get
     val callT2 = namespace.calls.find(_.unqualifiedName == "t2").get
+    val callT3 = namespace.calls.find(_.unqualifiedName == "t3").get
     val callV = namespace.calls.find(_.unqualifiedName == "v").get
 
     val inputs = namespace.coerceRawInputs(SampleWdl.TaskDeclarationsWdl.rawInputs).get
@@ -21,6 +22,7 @@ class CallSpec extends WordSpec with Matchers {
     def outputResolver(call: GraphNode, index: Option[Int]): Try[WdlValue] = {
       (call, index) match {
         case (c, Some(2)) if c == callT => Success(WdlCallOutputsObject(callT, Map("o" -> WdlString(s"c ${index.getOrElse(-1)}"))))
+        case (c, Some(2)) if c == callT3 => Success(WdlCallOutputsObject(callT, Map("o" -> WdlString(s"c ${index.getOrElse(-1)}"))))
         case (c, None) if c == callT2 => Success(WdlCallOutputsObject(callT2, Map(
           "outputArray" -> WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(0), WdlInteger(1), WdlInteger(2)))
         )))
@@ -31,7 +33,7 @@ class CallSpec extends WordSpec with Matchers {
     val shardMap = Map(namespace.scatters.head -> 2)
 
     val declarations = callV.evaluateTaskInputs(inputs, NoFunctions, outputResolver, shardMap).get
-    declarations.size shouldBe 11
+    declarations.size shouldBe 12
     declarations.find(_._1.unqualifiedName == "a").get._2 shouldBe WdlString("a")
     declarations.find(_._1.unqualifiedName == "b").get._2 shouldBe WdlString("b")
     declarations.find(_._1.unqualifiedName == "c").get._2 shouldBe WdlString("c 2")
@@ -43,6 +45,7 @@ class CallSpec extends WordSpec with Matchers {
     declarations.find(_._1.unqualifiedName == "i").get._2 shouldBe WdlString("b")
     declarations.find(_._1.unqualifiedName == "j").get._2 shouldBe WdlFile("j")
     declarations.find(_._1.unqualifiedName == "k").get._2 shouldBe WdlArray(WdlArrayType(WdlFileType), Seq(WdlFile("a"), WdlFile("b"), WdlFile("c")))
+    declarations.find(_._1.unqualifiedName == "l").get._2 shouldBe WdlOptionalValue(WdlString("c 2"))
   }
   
   "accumulate input evaluation errors and throw an exception" in {

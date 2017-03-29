@@ -291,6 +291,7 @@ object SampleWdl {
       |   String i
       |   File j
       |   Array[File] k
+      |   String? l
       |
       |   command {
       |     echo ${a}
@@ -314,12 +315,16 @@ object SampleWdl {
       | 
       | scatter (i in t2.outputArray) {
       |   call t {input: s = "c"}
+      |   if (true) {
+      |     call t as t3 {input: s = "c"}
+      |   }
       |   call u as v {input: a = workflowDeclarationFromInput,
       |                       b = workflowDeclaration,
       |                       c = t.o,
       |                       d = i,
       |                       i = "${workflowDeclaration}",
-      |                       k = files }
+      |                       k = files,
+      |                       l = t3.o }
       | }
       |}
     """.

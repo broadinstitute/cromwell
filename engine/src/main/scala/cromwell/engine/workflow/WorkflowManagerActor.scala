@@ -7,10 +7,11 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.async.KnownJobFailureException
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{WorkflowAborted, WorkflowId}
+import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowState}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
@@ -101,9 +102,10 @@ case class WorkflowManagerActorParams(config: Config,
                                       serverMode: Boolean)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper {
 
   private val config = params.config
+  override val serviceRegistryActor = params.serviceRegistryActor
 
   private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
@@ -192,6 +194,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         case None =>
           // All cool, if we got this far the workflow ID was found in the workflow store so this workflow must have never
           // made it to the workflow manager.
+          pushCurrentStateToMetadataService(id, WorkflowAborted)
           replyTo ! WorkflowStoreEngineActor.WorkflowAborted(id)
           stay()
       }

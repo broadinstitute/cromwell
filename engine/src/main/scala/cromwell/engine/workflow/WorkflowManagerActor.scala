@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.async.KnownJobFailureException
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowState}
+import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._

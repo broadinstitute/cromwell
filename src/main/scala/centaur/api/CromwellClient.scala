@@ -1,6 +1,7 @@
 package centaur.api
 
 import java.util.UUID
+import java.util.concurrent.Executors
 
 import akka.http.scaladsl.Http
 import akka.actor.ActorSystem
@@ -11,19 +12,22 @@ import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.util.ByteString
-
 import centaur.api.CromwellStatusJsonSupport._
 import centaur.api.CromwellBackendsJsonSupport._
 import centaur.{CentaurConfig, SubmittedWorkflow, WorkflowStatus}
-
 import spray.json._
+
 import scala.collection.immutable
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Try
 
 object CromwellClient {
+  // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
+  // See https://github.com/akka/akka-http/issues/602
+  // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
+  final implicit val blockingEc = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
+  
   // Akka HTTP needs both the actor system and a materializer
   final implicit val system = ActorSystem("centaur-acting-like-a-system")
   final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))

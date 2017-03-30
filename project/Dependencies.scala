@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.21"
-  lazy val wdl4sV = "0.10"
+  lazy val lenthallV = "0.23-0bebf0c-SNAP"
+  lazy val wdl4sV = "0.10-0a75b4f-SNAP"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -17,14 +17,14 @@ object Dependencies {
   lazy val slickV = "3.1.1"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
-  lazy val betterFilesV = "2.16.0"
-  lazy val catsV = "0.7.2"
+  lazy val betterFilesV = "2.17.1"
+  lazy val catsV = "0.9.0"
 
   // Internal collections of dependencies
 
   private val catsDependencies = List(
-    "org.typelevel" %% "cats" % "0.7.2",
-    "com.github.benhutchison" %% "mouse" % "0.5"
+    "org.typelevel" %% "cats" % catsV,
+    "com.github.benhutchison" %% "mouse" % "0.6"
   ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.

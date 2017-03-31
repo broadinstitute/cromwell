@@ -1,6 +1,6 @@
 package cromwell.database.slick.tables
 
-import slick.driver.JdbcProfile
+import slick.jdbc.JdbcProfile
 
 trait DriverComponent {
   val driver: JdbcProfile

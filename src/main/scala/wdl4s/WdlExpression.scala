@@ -12,7 +12,7 @@ import wdl4s.values._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
 
@@ -126,6 +126,11 @@ object WdlExpression {
           case "UnaryPlus" => s"+$expression"
           case "UnaryNegation" => s"-$expression"
         }
+      case TernaryIf(condition, ifTrue, ifFalse) =>
+        val c = toString(condition, highlighter)
+        val t = toString(ifTrue, highlighter)
+        val f = toString(ifFalse, highlighter)
+        s"if $c then $t else $f"
       case a: Ast if a.isArrayLiteral =>
         val evaluatedElements = a.getAttribute("values").astListAsVector map {x => toString(x, highlighter)}
         s"[${evaluatedElements.mkString(",")}]"
@@ -179,4 +184,14 @@ case class WdlExpression(ast: AstNode) extends WdlValue {
   }
   def topLevelMemberAccesses: Set[MemberAccess] = AstTools.findTopLevelMemberAccesses(ast) map { MemberAccess(_) } toSet
   def variableReferences: Iterable[Terminal] = AstTools.findVariableReferences(ast)
+}
+
+object TernaryIf {
+  def unapply(arg: Ast): Option[(AstNode, AstNode, AstNode)] = {
+    if (arg.getName.equals("TernaryIf")) {
+      Option(arg.getAttribute("cond"), arg.getAttribute("iftrue"), arg.getAttribute("iffalse"))
+    } else {
+      None
+    }
+  }
 }

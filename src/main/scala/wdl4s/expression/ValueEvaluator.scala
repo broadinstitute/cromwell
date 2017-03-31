@@ -7,6 +7,7 @@ import wdl4s.types._
 import wdl4s.values.{WdlValue, _}
 import wdl4s._
 import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
+import wdl4s.TernaryIf
 
 import scala.util.{Failure, Success, Try}
 
@@ -73,6 +74,12 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           case "UnaryPlus" => for(e <- expression) yield e.unaryPlus.get
           case "UnaryNegation" => for(e <- expression) yield e.unaryMinus.get
           case _ => Failure(new WdlExpressionException(s"Invalid operator: ${a.getName}"))
+        }
+      case TernaryIf(condition, ifTrue, ifFalse) =>
+        evaluate(condition) flatMap {
+          case WdlBoolean(true) => evaluate(ifTrue)
+          case WdlBoolean(false) => evaluate(ifFalse)
+          case other => Failure(new WdlExpressionException("'if' expression must be given a boolean argument but got: " + other.toWdlString))
         }
       case a: Ast if a.isArrayLiteral =>
         val evaluatedElements = a.getAttribute("values").astListAsVector map evaluate

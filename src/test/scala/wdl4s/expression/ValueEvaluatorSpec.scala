@@ -1,11 +1,11 @@
 package wdl4s.expression
 
-import wdl4s.WdlExpression
-import wdl4s.types._
-import wdl4s.values._
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.exception.{OptionalNotSuppliedException, VariableNotFoundException}
+import wdl4s.WdlExpression
+import wdl4s.exception.OptionalNotSuppliedException
+import wdl4s.types._
+import wdl4s.values._
 
 import scala.util.{Failure, Success, Try}
 
@@ -13,6 +13,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
 
   def noLookup(String: String): WdlValue = fail("No identifiers should be looked up in this test")
+
   def noTypeLookup(String: String): WdlType = fail("No identifiers should be looked up in this test")
 
   def identifierLookup(name: String): WdlValue = name match {
@@ -53,17 +54,29 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
   class TestValueFunctions extends WdlStandardLibraryFunctions {
     override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError()
+
     override def readFile(path: String): String = throw new NotImplementedError()
+
     override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError()
+
     override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+
     override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+
     override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError())
+
     override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+
     override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
+
     override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError())
+
     override def length(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
+
     override def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
+
     override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+
     override def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
 
     def b(params: Seq[Try[WdlValue]]): Try[WdlValue] =
@@ -75,18 +88,23 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
   class TestTypeFunctions extends WdlStandardLibraryFunctionsType {
     def b(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlIntegerType)
+
     def append(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
   }
 
   def constEval(exprStr: String): WdlValue = expr(exprStr).evaluate(noLookup, new TestValueFunctions()).get
+
   def constEvalType(exprStr: String): WdlType = expr(exprStr).evaluateType(identifierTypeLookup, new TestTypeFunctions).get
+
   def constEvalError(exprStr: String): Throwable = {
     expr(exprStr).evaluate(noLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => ex
       case Success(v) => fail(s"Operation was supposed to fail, instead I got value: $v")
     }
   }
+
   def identifierEval(exprStr: String): WdlPrimitive = expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]].get
+
   def identifierEvalError(exprStr: String): Unit = {
     expr(exprStr).evaluate(identifierLookup, new TestValueFunctions()).asInstanceOf[Try[WdlPrimitive]] match {
       case Failure(ex) => // Expected
@@ -372,9 +390,9 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     (""" "a\nb\t" """, WdlString("a\nb\t")),
     (""" "a\n\"b\t\"" """, WdlString("a\n\"b\t\"")),
     (""" "be \u266f or be \u266e, just don't be \u266d" """, WdlString("be \u266f or be \u266e, just don't be \u266d")),
-    
+
     // Optional types
-      // String
+    // String
     ("s + someStr", WdlString("ssomeStr")),
     ("s + someInt", WdlString("s1")),
     ("s + someFloat", WdlString("s0.5")),
@@ -391,7 +409,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("someStr < s", WdlBoolean(false)),
     ("someStr > s", WdlBoolean(true)),
 
-      // Integer
+    // Integer
     ("a + someIntAsString", WdlString("11")),
     ("a + someInt", WdlInteger(2)),
     ("a * someInt", WdlInteger(1)),
@@ -399,7 +417,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("a == someInt", WdlBoolean(true)),
     ("a > someInt", WdlBoolean(false)),
     ("a < someInt", WdlBoolean(false)),
-    
+
     ("someIntAsString + a", WdlString("11")),
     ("someInt + a", WdlInteger(2)),
     ("someInt * a", WdlInteger(1)),
@@ -407,11 +425,11 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("someInt == a", WdlBoolean(true)),
     ("someInt > a", WdlBoolean(false)),
     ("someInt < a", WdlBoolean(false)),
-    
+
     ("-someInt", WdlInteger(-1)),
     ("+someInt", WdlInteger(1)),
 
-      // Float
+    // Float
     ("f + someFloatAsString", WdlString("0.50.5")),
     ("f + someFloat", WdlFloat(1)),
     ("f * someFloat", WdlFloat(0.25)),
@@ -430,8 +448,8 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
     ("-someFloat", WdlFloat(-0.5)),
     ("+someFloat", WdlFloat(0.5)),
-      
-      // Boolean
+
+    // Boolean
     ("t == someBoolean", WdlBoolean(false)),
     ("t > someBoolean", WdlBoolean(true)),
     ("t < someBoolean", WdlBoolean(false)),
@@ -443,14 +461,14 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     ("someBoolean < t", WdlBoolean(true)),
     ("someBoolean && t", WdlBoolean(false)),
     ("someBoolean || t", WdlBoolean(true)),
-    
+
     ("!someBoolean", WdlBoolean(true)),
-    
-      // File
+
+    // File
     ("etc_f + someStr", WdlFile("/etcsomeStr")),
     ("etc_f == someStr", WdlBoolean(false)),
     ("etc_f == someFile", WdlBoolean(false)),
-    
+
     ("someFile == etc_f", WdlBoolean(false))
   )
 
@@ -531,5 +549,17 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
   "Ternary if blocks" should "fail to evaluate if the chosen RHS expression fails to evaluate" in {
     constEvalError(""" if (5 == 6 + 1) then 13 else fail() """).getClass.getSimpleName should be("NoSuchMethodException")
+  }
+
+  "WdlMaps" should "be coerced to their lowest common WdlType" in {
+    def lookup(str: String) = str match {
+      case "hello" => WdlOptionalValue(WdlString("bonjour"))
+      case _ => fail("Au revoir !")
+    }
+
+    val exp = WdlExpression.fromString("""{ "hello": hello, "goodbye": "goodbye" }""")
+    val evaluated = exp.evaluate(lookup, NoFunctions)
+    evaluated.isSuccess shouldBe true
+    evaluated.get.wdlType shouldBe WdlMapType(WdlStringType, WdlOptionalType(WdlStringType))
   }
 }

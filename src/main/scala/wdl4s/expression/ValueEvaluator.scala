@@ -107,7 +107,10 @@ case class ValueEvaluator(override val lookup: String => WdlValue, override val 
           key -> value
         }
         TryUtil.sequence(evaluatedMap map { tuple => TryUtil.sequenceTuple(tuple) }) flatMap { pairs =>
-          WdlMapType(WdlAnyType, WdlAnyType).coerceRawValue(pairs.toMap)
+          WdlMapType(
+            WdlType.homogeneousTypeFromValues(pairs.map(_._1)),
+            WdlType.homogeneousTypeFromValues(pairs.map(_._2))
+          ).coerceRawValue(pairs.toMap)
         }
       case a: Ast if a.isMemberAccess =>
         a.getAttribute("rhs") match {

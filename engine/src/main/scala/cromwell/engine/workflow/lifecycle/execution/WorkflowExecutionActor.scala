@@ -22,6 +22,8 @@ import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
+import wdl4s.WdlExpression.ScopedLookupFunction
+import wdl4s.expression.WdlFunctions
 import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
 import wdl4s.{Scope, _}
 
@@ -463,7 +465,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       scatterMap
     )
 
-    declaration.requiredExpression.evaluate(lookup, data.expressionLanguageFunctions) match {
+    declaration.evaluate(lookup, data.expressionLanguageFunctions) match {
       case Success(result) => self ! DeclarationEvaluationSucceededResponse(declaration, result)
       case Failure(ex) => self ! DeclarationEvaluationFailedResponse(declaration, ex)
     }
@@ -764,7 +766,11 @@ object WorkflowExecutionActor {
   
   case class StaticDeclarationKey(scope: Declaration, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
   
-  case class DynamicDeclarationKey(scope: Declaration, index: ExecutionIndex, requiredExpression: WdlExpression) extends DeclarationKey
+  case class DynamicDeclarationKey(scope: Declaration, index: ExecutionIndex, requiredExpression: WdlExpression) extends DeclarationKey {
+    def evaluate(lookup: ScopedLookupFunction, wdlFunctions: WdlFunctions[WdlValue]) = {
+      requiredExpression.evaluate(lookup, wdlFunctions) flatMap scope.wdlType.coerceRawValue
+    }
+  }
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
     override val throwables = exceptions.toList

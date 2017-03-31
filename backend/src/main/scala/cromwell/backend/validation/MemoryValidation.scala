@@ -25,13 +25,16 @@ import scala.util.{Failure, Success}
   * `withDefaultMemory` can be used to create a memory validation that defaults to a particular memory size.
   */
 object MemoryValidation {
-  lazy val instance: RuntimeAttributesValidation[MemorySize] = new MemoryValidation
-  lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
-  def configDefaultString(config: Option[Config]): Option[String] = instance.configDefaultValue(config)
-  def withDefaultMemory(memorySize: String): RuntimeAttributesValidation[MemorySize] = {
+  def instance(attributeName: String = RuntimeAttributesKeys.MemoryKey): RuntimeAttributesValidation[MemorySize] =
+    new MemoryValidation(attributeName)
+  def optional(attributeName: String = RuntimeAttributesKeys.MemoryKey): OptionalRuntimeAttributesValidation[MemorySize] =
+    instance(attributeName).optional
+  def configDefaultString(attributeName: String = RuntimeAttributesKeys.MemoryKey, config: Option[Config]): Option[String] =
+    instance(attributeName).configDefaultValue(config)
+  def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String): RuntimeAttributesValidation[MemorySize] = {
     MemorySize.parse(memorySize) match {
-      case Success(memory) => instance.withDefault(WdlInteger(memory.bytes.toInt))
-      case Failure(_) => instance.withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
+      case Success(memory) => instance(attributeName).withDefault(WdlInteger(memory.bytes.toInt))
+      case Failure(_) => instance(attributeName).withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
     }
   }
 
@@ -66,11 +69,11 @@ object MemoryValidation {
   }
 }
 
-class MemoryValidation extends RuntimeAttributesValidation[MemorySize] {
+class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends RuntimeAttributesValidation[MemorySize] {
 
   import MemoryValidation._
 
-  override def key = RuntimeAttributesKeys.MemoryKey
+  override def key = attributeName
 
   override def coercion = Seq(WdlIntegerType, WdlStringType)
 

@@ -1,7 +1,6 @@
 package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.MemorySize
-import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.validation._
 import wdl4s.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
@@ -31,8 +30,8 @@ import wdl4s.{Declaration, NoLookup, WdlExpression}
   *
   * @param declaration The declaration used to create this memory validation.
   */
-class MemoryDeclarationValidation(declaration: Declaration)
-  extends DeclarationValidation(declaration, MemoryValidation.instance) {
+class MemoryDeclarationValidation(declaration: Declaration, attributeName: String, attributeNamePrefix: String)
+  extends DeclarationValidation(declaration, MemoryValidation.instance(attributeName)) {
 
   import MemoryDeclarationValidation._
 
@@ -64,7 +63,7 @@ class MemoryDeclarationValidation(declaration: Declaration)
   }
 
   private lazy val declarationMemoryUnit: MemoryUnit = {
-    val suffix = memoryUnitSuffix(declaration.unqualifiedName)
+    val suffix = memoryUnitSuffix(declaration.unqualifiedName, attributeName, attributeNamePrefix)
     val memoryUnitOption = MemoryUnit.values.find(_.suffixes.map(_.toLowerCase).contains(suffix.toLowerCase))
     memoryUnitOption match {
       case Some(memoryUnit) => memoryUnit
@@ -79,7 +78,7 @@ class MemoryDeclarationValidation(declaration: Declaration)
     * @return The value from the collection wrapped in `Some`, or `None` if the value wasn't found.
     */
   override def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WdlValue] = {
-    RuntimeAttributesValidation.extractOption(MemoryValidation.instance, validatedRuntimeAttributes) map
+    RuntimeAttributesValidation.extractOption(MemoryValidation.instance(attributeName), validatedRuntimeAttributes) map
       coerceMemorySize(declaration.wdlType)
   }
 
@@ -94,11 +93,11 @@ class MemoryDeclarationValidation(declaration: Declaration)
 }
 
 object MemoryDeclarationValidation {
-  def isMemoryDeclaration(name: String): Boolean = {
+  def isMemoryDeclaration(name: String, attributeName: String, attributeNamePrefix: String): Boolean = {
     name match {
-      case MemoryRuntimeAttribute => true
-      case prefixed if prefixed.startsWith(MemoryRuntimeAttributePrefix) =>
-        val suffix = memoryUnitSuffix(name)
+      case `attributeName` => true
+      case prefixed if prefixed.startsWith(attributeNamePrefix) =>
+        val suffix = memoryUnitSuffix(name, attributeName, attributeNamePrefix)
         MemoryUnit.values exists {
           _.suffixes.map(_.toLowerCase).contains(suffix)
         }
@@ -106,10 +105,10 @@ object MemoryDeclarationValidation {
     }
   }
 
-  private def memoryUnitSuffix(name: String) = {
-    if (name == MemoryRuntimeAttribute)
+  private def memoryUnitSuffix(name: String, attributeName: String, attributeNamePrefix: String) = {
+    if (name == attributeName)
       MemoryUnit.Bytes.suffixes.head
     else
-      name.substring(MemoryRuntimeAttributePrefix.length)
+      name.substring(attributeNamePrefix.length)
   }
 }

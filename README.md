@@ -1262,78 +1262,117 @@ The `job-id-regex` should contain one capture group while matching against the w
 
 Allows to execute jobs using HTCondor which is a specialized workload management system for compute-intensive jobs created by the Center for High Throughput Computing in the Department of Computer Sciences at the University of Wisconsin-Madison (UW-Madison).
 
-This backend creates six files in the `<call_dir>` (see previous section):
-
-* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
-* `stdout` - The standard output of the process
-* `stderr` - The standard error of the process
-* `submitfile` - A submit file that HtCondor understands in order to submit a job
-* `submitfile.stdout` - The standard output of the submit file
-* `submitfile.stderr` - The standard error of the submit file
-
-The `script` file contains:
+The backend is specified via the actor factory `ConfigBackendLifecycleActorFactory`:
 
 ```
+backend {
+  providers {
+    HtCondor {
+      config {
+        actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+        # ... other configuration
+      }
+    }
+  }
+}
+```
+
+This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
+
+The CWD will contain a `script.sh` file which will contain the same contents as the Local backend:
+
+```
+#!/bin/sh
 cd <container_call_root>
 <user_command>
 echo $? > rc
 ```
 
-The `submitfile` file contains:
+The job is launched with a configurable script command such as:
 
 ```
-executable=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/script
-output=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stdout
-error=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stderr
-log=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/merge_files.log
+chmod 755 ${script}
+cat > ${cwd}/execution/submitFile <<EOF
+Iwd=${cwd}/execution
+requirements=${nativeSpecs}
+leave_in_queue=true
+request_memory=${memory_mb}
+request_disk=${disk_kb}
+error=${err}
+output=${out}
+log_xml=true
+request_cpus=${cpu}
+executable=${script}
+log=${cwd}/execution/execution.log
 queue
-
+EOF
+condor_submit ${cwd}/execution/submitFile
 ```
 
-### Caching configuration
-This implementation also add basic caching support. It relies in a cache provider to store successful job results.
-By default a MongoDB based cache implementation is provided but there is the option of implementing a new provider based on CacheActorFactory and CacheActor interfaces.
+The HtCondor backend gets the job ID from parsing the `submit.stdout` text file.
 
-From application.conf file:
+Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+The command used to submit the job is specified under the configuration key `backend.providers.HtCondor.config.submit`. It uses the same syntax as a command in WDL, and will be provided the variables:
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `cwd` - The path where the script should be run.
+* `out` - The path to the stdout.
+* `err` - The path to the stderr.
+* `job_name` - A unique name for the job.
+
+This backend also supports docker as optional feature. Configuration key `backend.providers.HtCondor.config.submit-docker` is specified for this end. When the WDL contains a docker runtime attribute, this command will be provided with two additional variables:
+
+* `docker` - The docker image name.
+* `docker_cwd` - The path where `cwd` should be mounted within the docker container.
+
 ```
-cache {
-  provider = "cromwell.backend.impl.htcondor.caching.provider.mongodb.MongoCacheActorFactory"
-  enabled = true
-  forceRewrite = false
-  db {
-    host = "127.0.0.1"
-    port = 27017
-    name = "htcondor"
-    collection = "cache"
+chmod 755 ${script}
+cat > ${cwd}/execution/dockerScript <<EOF
+#!/bin/bash
+docker run --rm -i -v ${cwd}:${docker_cwd} ${docker} /bin/bash ${script}
+EOF
+chmod 755 ${cwd}/execution/dockerScript
+cat > ${cwd}/execution/submitFile <<EOF
+Iwd=${cwd}/execution
+requirements=${nativeSpecs}
+leave_in_queue=true
+request_memory=${memory_mb}
+request_disk=${disk_kb}
+error=${cwd}/execution/stderr
+output=${cwd}/execution/stdout
+log_xml=true
+request_cpus=${cpu}
+executable=${cwd}/execution/dockerScript
+log=${cwd}/execution/execution.log
+queue
+EOF
+condor_submit ${cwd}/execution/submitFile
+```
+
+This backend support additional runtime attributes that are specified in the configuration key `backend.providers.HtCondor.config.runtime-attributes`. It uses the same syntax as specifying runtime attributes in a task in WDL.
+
+There are five special runtime attribute configurations, `cpu`, `memory_mb`, `disk_kb`, `nativeSpecs`, `docker`.
+Optional values are defined with the prefix `?` attached to the type.
+
+```
+backend {
+  providers {
+    HtCondor {
+      config {
+        # ... other configuration
+	    runtime-attributes = """
+	       Int cpu = 1
+	       Float memory_mb = 512.0
+	       Float disk_kb = 256000.0
+	       String? nativeSpecs
+	       String? docker
+	    """
+      }
+    }
   }
 }
-
 ```
-
-* provider: it defines the provider to use based on CacheActorFactory and CacheActor interfaces.
-* enabled: enables or disables cache.
-* forceRewrite: it allows to invalidate the cache entry and store result again.
-* db section: configuration related to MongoDB provider. It may not exist for other implementations.
-
-### Docker
-This backend supports the following optional runtime attributes / workflow options for working with Docker:
-* docker: Docker image to use such as "Ubuntu".
-* dockerWorkingDir: defines the working directory in the container.
-* dockerOutputDir: defiles the output directory in the container when there is the need to define a volume for outputs within the container. By default if this attribute is not set, dockerOutputDir will be the job working directory.
-
-Inputs:
-HtCondor backend analyzes all inputs and do a distinct of the folders in order to mount input folders into the container.
-
-Outputs:
-It will use dockerOutputDir runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no dockerOutputDir defined it will use the current working directory.
-
-### CPU, Memory and Disk
-This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
-* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
-* memory: defines the amount of memory to use. Default value: "512 MB". Type: String. Ex: "4 GB" or "4096 MB"
-* disk: defines the amount of disk to use. Default value: "1024 MB". Type: String. Ex: "1 GB" or "1024 MB"
-
-It they are not set, HtCondor backend will use default values.
 
 ### Native Specifications
 The use of runtime attribute 'nativeSpecs' allows to the user to attach custom HtCondor configuration to tasks.
@@ -1341,11 +1380,14 @@ An example of this is when there is a need to work with 'requirements' or 'rank'
 
 ```
 "runtimeAttributes": {
-    "nativeSpecs": ["requirements = Arch == \"INTEL\"", "rank = Memory >= 64"]
+    cpu = 2
+    memory = "1GB"
+    disk = "1GB"
+    nativeSpecs: "TARGET.Arch == \"INTEL\" && TARGET.Memory >= 64"
 }
 ```
 
-nativeSpecs attribute needs to be specified as an array of strings to work.
+nativeSpecs attribute needs to be specified as String.
 
 ## Spark Backend
 

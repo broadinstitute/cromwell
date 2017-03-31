@@ -7,6 +7,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.parser.MemoryUnit
 import wdl4s.values.{WdlFloat, WdlInteger}
+import ConfigConstants._
 
 class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "MemoryDeclarationValidation"
@@ -40,7 +41,8 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
 
       val configWdlNamespace = new ConfigWdlNamespace(config)
       val runtimeDeclaration = configWdlNamespace.runtimeDeclarations.head
-      val memoryDeclarationValidation = new MemoryDeclarationValidation(runtimeDeclaration)
+      val memoryDeclarationValidation = new MemoryDeclarationValidation(runtimeDeclaration,
+        MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix)
       val attributes = runtimeAmount
         .map(amount => RuntimeAttributesKeys.MemoryKey -> MemorySize(amount.toDouble, MemoryUnit.GB))
         .toMap
@@ -52,7 +54,8 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
       val expectedDefault = expectedDefaultAmount
         .map(amount => WdlInteger(MemorySize(amount.toDouble, MemoryUnit.GB).bytes.toInt))
 
-      MemoryDeclarationValidation.isMemoryDeclaration(runtimeDeclaration.unqualifiedName) should be(true)
+      MemoryDeclarationValidation.isMemoryDeclaration(runtimeDeclaration.unqualifiedName,
+        MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) should be(true)
       default should be(expectedDefault)
       extracted should be(expectedExtracted)
     }
@@ -92,7 +95,8 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
 
       val configWdlNamespace = new ConfigWdlNamespace(config)
       val runtimeDeclaration = configWdlNamespace.runtimeDeclarations.head
-      MemoryDeclarationValidation.isMemoryDeclaration(runtimeDeclaration.unqualifiedName) should be(false)
+      MemoryDeclarationValidation.isMemoryDeclaration(runtimeDeclaration.unqualifiedName,
+        MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) should be(false)
     }
   }
 }

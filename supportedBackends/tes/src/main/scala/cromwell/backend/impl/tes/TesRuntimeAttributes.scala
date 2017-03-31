@@ -39,7 +39,9 @@ object TesRuntimeAttributes {
     .withDefaultDiskSize(DiskSizeValidation.configDefaultString(runtimeConfig) getOrElse DiskSizeDefaultValue)
 
   private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
-    MemoryValidation.withDefaultMemory(MemoryValidation.configDefaultString(runtimeConfig) getOrElse MemoryDefaultValue)
+    MemoryValidation.withDefaultMemory(
+      RuntimeAttributesKeys.MemoryKey,
+      MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
   }
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance

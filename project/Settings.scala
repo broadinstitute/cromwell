@@ -135,6 +135,10 @@ object Settings {
     libraryDependencies ++= databaseMigrationDependencies
   ) ++ commonSettings
 
+  val dockerHashingSettings = List(
+    name := "cromwell-docker-hashing"
+  ) ++ commonSettings
+
   val backendSettings = List(
     name := "cromwell-backend"
   ) ++ commonSettings

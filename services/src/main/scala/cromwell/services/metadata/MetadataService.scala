@@ -158,6 +158,7 @@ object MetadataService {
           emptyCauseList
         }
         message ++ indexedCauseEvents
+
       case other =>
         val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage)))
         val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")

@@ -4,6 +4,13 @@
 
 ### Breaking Changes
 
+* The configuration value 'backend.default' has been replaced with a list of values 'backend.enabled'. The first 
+value in the list is the default. This list defaults to `["Local"]`. An error will be thrown if the old 
+'backend.enabled' value is found.
+
+### Config Changes
+
+* See note above under Breaking Changes regarding 'backend.default'.
 * The update to Slick 3.2 requires a database stanza to
 [switch](http://slick.lightbend.com/doc/3.2.0/upgrade.html#profiles-vs-drivers) from using `driver` to `profile`.
 
@@ -74,6 +81,17 @@ system.io {
   # Number of times an I/O operation should be attempted before giving up and failing it.
   number-of-attempts = 5
 }
+```
+
+* Added a `script-epilogue` configuration option to adjust the logic that runs at the end of the scripts which wrap call executions.
+  This option is adjustable on a per-backend basis.  If unspecified, the default value is `sync`.
+
+### WDL Features
+
+With Cromwell 26, Cromwell will support `if x then y else z` expressions (see: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#if-then-else). For example: 
+```
+Boolean b = true
+String s = if b then "value if True" else "value if False"
 ```
 
 ## 25

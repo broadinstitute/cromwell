@@ -23,13 +23,13 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
   val minimumConf = ConfigFactory.parseString(
     """
       |backend {
-      |  default = "Local"
+      |  enabled = ["Local"]
       |}
     """.stripMargin)
   val differentDefaultBackendConf = ConfigFactory.parseString(
     """
       |backend {
-      |  default = "DefaultBackend"
+      |  enabled = ["DefaultBackend"]
       |  // These providers are empty here because the MaterializeWorkflowDescriptorActor won't introspect them:
       |  providers {
       |    DefaultBackend {}

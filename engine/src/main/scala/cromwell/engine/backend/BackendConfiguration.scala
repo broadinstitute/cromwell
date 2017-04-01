@@ -17,13 +17,20 @@ case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: S
   def asBackendConfigurationDescriptor = BackendConfigurationDescriptor(config, ConfigFactory.load)
 }
 
-object BackendConfiguration {
-  private val BackendConfig = ConfigFactory.load.getConfig("backend")
-  private val DefaultBackendName = BackendConfig.getString("default")
-  private val BackendProviders = BackendConfig.getConfig("providers")
-  private val BackendNames: Set[String] = BackendProviders.entrySet().asScala.map(_.getKey.split("\\.").toSeq.head).toSet
+trait BackendConfiguration {
+  protected def backendConfig: Config
 
-  val AllBackendEntries: List[BackendConfigurationEntry] = BackendNames.toList map { backendName =>
+  require(!backendConfig.hasPath("default"),
+    s"""|The configuration value 'backend.default' has been replaced with a list of values 'backend.enabled'.
+        |The first value in the list is the default. Please update your configuration and restart.
+        |""".stripMargin)
+
+  lazy val EnabledBackendNames = backendConfig.getStringList("enabled").asScala.toList
+  lazy val DefaultBackendName = EnabledBackendNames.headOption.getOrElse(
+    throw new IllegalArgumentException("Specified enabled backends must not be an empty list."))
+  private lazy val BackendProviders = backendConfig.getConfig("providers")
+
+  lazy val AllBackendEntries: List[BackendConfigurationEntry] = EnabledBackendNames map { backendName =>
     val entry = BackendProviders.getConfig(backendName)
     BackendConfigurationEntry(
       backendName,
@@ -32,15 +39,20 @@ object BackendConfiguration {
     )
   }
 
-  val DefaultBackendEntry: BackendConfigurationEntry = AllBackendEntries.find(_.name == DefaultBackendName) getOrElse {
-    throw new IllegalArgumentException(s"Could not find specified default backend name '$DefaultBackendName' " +
-      s"in '${BackendNames.mkString("', '")}'.")
-  }
-
   def backendConfigurationDescriptor(backendName: String): Try[BackendConfigurationDescriptor] = {
     AllBackendEntries.collect({case entry if entry.name.equalsIgnoreCase(backendName) => entry.asBackendConfigurationDescriptor}).headOption match {
       case Some(descriptor) => Success(descriptor)
       case None => Failure(new Exception(s"invalid backend: $backendName"))
     }
   }
+}
+
+object BackendConfiguration {
+  def fromConfig(outerConfig: Config): BackendConfiguration = {
+    new BackendConfiguration {
+      override protected def backendConfig: Config = outerConfig.getConfig("backend")
+    }
+  }
+
+  val Global = fromConfig(ConfigFactory.load)
 }

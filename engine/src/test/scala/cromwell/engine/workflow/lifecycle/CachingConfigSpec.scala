@@ -11,7 +11,7 @@ import scala.util.{Success, Try}
 
 class CachingConfigSpec extends FlatSpec with Matchers {
 
-  val defaultConfig = Map("backend.backend" -> "local")
+  val defaultConfig = Map.empty[String, String]
   val configWithCallCachingOn = defaultConfig + ("call-caching.enabled" -> "true")
   val configWithCallCachingOff = defaultConfig + ("call-caching.enabled" -> "false")
 

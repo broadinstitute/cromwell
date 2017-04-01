@@ -31,5 +31,5 @@ trait CromwellSystem {
     actorSystem.terminate()
   }
 
-  CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)
+  CromwellBackends.initBackends(BackendConfiguration.Global.AllBackendEntries)
 }

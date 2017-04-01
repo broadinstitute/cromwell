@@ -302,9 +302,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     }
 
   val backendResponse = JsObject(Map(
-    "supportedBackends" -> BackendConfiguration.AllBackendEntries.map(_.name).sorted.toJson,
-    "defaultBackend" -> BackendConfiguration.DefaultBackendEntry.name.toJson
+    "supportedBackends" -> BackendConfiguration.Global.EnabledBackendNames.toJson,
+    "defaultBackend" -> BackendConfiguration.Global.DefaultBackendName.toJson
   ))
 
 }
-

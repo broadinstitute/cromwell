@@ -13,12 +13,16 @@ import scala.util.Try
 private [migration] object WdlTransformation {
 
   def inflate(value: String): Try[String] = Try {
-    IOUtils.toString(new GZIPInputStream(new ByteArrayInputStream(Base64.decodeBase64(value))), Charset.defaultCharset)
+    Option(value) match {
+      case Some(v) => IOUtils.toString(new GZIPInputStream(new ByteArrayInputStream(Base64.decodeBase64(v))), Charset.defaultCharset)
+      case None => null
+    }
   } recover {
     case e: IOException => value
   }
 
   def coerceStringToWdl(wdlString: String, wdlType: WdlType) = wdlType match {
+    case _ if wdlString == null => null
     case p: WdlPrimitiveType => p.coerceRawValue(wdlString).get
     case o => o.fromWdlString(wdlString)
   }

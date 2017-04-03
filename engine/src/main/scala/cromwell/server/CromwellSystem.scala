@@ -19,9 +19,16 @@ trait CromwellSystem {
   implicit private final lazy val ec = actorSystem.dispatcher
 
   def shutdownActorSystem(): Future[Terminated] = {
-    Http().shutdownAllConnectionPools() map { _ =>
-      materializer.shutdown()
-    } flatMap { _ => actorSystem.terminate() }
+    Http().shutdownAllConnectionPools() flatMap { _ =>
+      shutdownMaterializerAndActorSystem()
+    } recoverWith {
+      case _ => shutdownMaterializerAndActorSystem()
+    }
+  }
+  
+  private def shutdownMaterializerAndActorSystem() = {
+    materializer.shutdown()
+    actorSystem.terminate()
   }
 
   CromwellBackends.initBackends(BackendConfiguration.AllBackendEntries)

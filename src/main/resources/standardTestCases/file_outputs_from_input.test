@@ -1,0 +1,14 @@
+name: test_file_outputs_from_input
+testFormat: workflowsuccess
+
+files {
+  wdl: file_outputs_from_input/file_outputs_from_input.wdl
+}
+
+metadata {
+  workflowName: file_outputs_from_input_wf
+  status: Succeeded
+  "outputs.file_outputs_from_input_wf.foo": "foo"
+  "outputs.file_outputs_from_input_wf.bar": "bar"
+  "outputs.file_outputs_from_input_wf.baz": "baz"
+}

@@ -76,6 +76,23 @@
         </sql>
     </changeSet>
 
+    <changeSet id="JOB_STORE_RESULT_SIMPLETON_VALUE_NULLABLE" author="mcovarr">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="JOB_STORE_RESULT_SIMPLETON"/>
+        </preConditions>
+        <comment>
+            This changeset is a retroactive insertion into the changeset order to enable migration of
+            null output values in a 0.19 Cromwell installation to the job store simpleton table introduced
+            in pluggable backend Cromwell.  Because this is a retroactive insertion, the "tableExists"
+            precondition keeps this changeset from running on a database that has already been migrated to
+            the pluggable backend schema (this migration is unnecessary in a database that has already been
+            migrated to the pluggable backend schema since a later changeset also drops this constraint).
+        </comment>
+        <dropNotNullConstraint tableName="JOB_STORE_RESULT_SIMPLETON"
+                               columnName="SIMPLETON_VALUE"
+                               columnDataType="LONGTEXT"/>
+    </changeSet>
+
     <changeSet id="JOB_STORE_RESULT_SIMPLETON_MIGRATION" author="mcovarr" >
         <comment>
             Restart/recover migration from 0.19 to 0.21.

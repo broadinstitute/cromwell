@@ -11,6 +11,7 @@ import cromwell.core.Dispatcher
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.callcaching.docker.DockerHashActor
 import cromwell.core.callcaching.docker.DockerHashActor.DockerHashContext
+import cromwell.core.callcaching.docker.local.DockerCliFlow
 import cromwell.core.callcaching.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
 import cromwell.core.callcaching.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.core.callcaching.docker.registryv2.flows.gcr.GoogleFlow
@@ -91,7 +92,12 @@ import scala.language.postfixOps
   lazy val dockerHttpPool = Http().superPool[ContextWithRequest[DockerHashContext]]()
   lazy val googleFlow = new GoogleFlow(dockerHttpPool, gcrQueriesPer100Sec)(ioEc, materializer, system.scheduler)
   lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
-  lazy val dockerFlows = Seq(dockerHubFlow, googleFlow)
+  lazy val dockerCliFlow = new DockerCliFlow()(ioEc, materializer, system.scheduler)
+  lazy val dockerLocalFlows =
+    if (config.getBoolean("docker.hash-lookup.local")) Seq(dockerCliFlow) else Seq.empty
+  lazy val dockerRemoteFlows =
+    if (config.getBoolean("docker.hash-lookup.remote")) Seq(dockerHubFlow, googleFlow) else Seq.empty
+  lazy val dockerFlows = dockerLocalFlows ++ dockerRemoteFlows
   lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerCacheEntryTTL, dockerCacheSize)(materializer).withDispatcher(Dispatcher.IoDispatcher))
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
@@ -118,8 +124,8 @@ import scala.language.postfixOps
     * of Cromwell by passing a Throwable to the guardian.
     */
   override val supervisorStrategy = OneForOneStrategy() {
-    case actorInitializationException: ActorInitializationException => Escalate
-    case restart: ActorRestartException => Restart
+    case _: ActorInitializationException => Escalate
+    case _: ActorRestartException => Restart
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

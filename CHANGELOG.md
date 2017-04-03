@@ -43,6 +43,14 @@ system.io {
 }
 ```
 
+### WDL Features
+
+With Cromwell 26, Cromwell will support `if x then y else z` expressions (see: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#if-then-else). For example: 
+```
+Boolean b = true
+String s = if b then "value if True" else "value if False"
+```
+
 ## 25
 
 ### External Contributors

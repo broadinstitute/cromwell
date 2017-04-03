@@ -77,8 +77,8 @@ object DockerImageIdentifier {
     (tag, hash) match {
       case (None, None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, DefaultDockerTag))
       case (Some(t), None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, t))
-      case (None, Some(h)) => Try(DockerHashResult(h)) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, h, hash) }
-      case (Some(t), Some(h)) => Try(DockerHashResult(h)) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, s"$t@$h", hash) }
+      case (None, Some(h)) => DockerHashResult.fromString(h) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, h, hash) }
+      case (Some(t), Some(h)) => DockerHashResult.fromString(h) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, s"$t@$h", hash) }
     }
   }
 }

@@ -13,7 +13,7 @@ import cromwell.backend._
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
-import cromwell.docker.DockerHashActor.DockerHashResponseSuccess
+import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker.{DockerHashRequest, DockerHashResult}
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
@@ -496,7 +496,7 @@ object EmptyCallCacheWriteActor {
 
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case request @ DockerHashRequest(image, _) => sender ! DockerHashResponseSuccess(DockerHashResult("alg", "hash"), request)
+    case request @ DockerHashRequest(image, _) => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
   }
 }
 

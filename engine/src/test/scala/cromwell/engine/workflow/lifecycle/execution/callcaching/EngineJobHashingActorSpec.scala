@@ -26,7 +26,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     call.task returns task
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns WorkflowId.randomId()
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
   }
 
@@ -40,7 +40,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
         ccReaderProps,
         Set.empty,
         "backend",
-        activity
+        activity,
+        DockerWithHash("ubuntu@sha256:blablabla")
       )
     )
   }
@@ -171,7 +172,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
               callCacheReadingJobActorProps: Props,
               runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
               backendName: String,
-              activity: CallCachingActivity): Props = Props(new EngineJobHashingActorTest(
+              activity: CallCachingActivity,
+              callCachingEligible: CallCachingEligible): Props = Props(new EngineJobHashingActorTest(
       receiver = receiver,
       jobDescriptor = jobDescriptor,
       initializationData = initializationData,
@@ -179,7 +181,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
       callCacheReadingJobActorProps = callCacheReadingJobActorProps,
       runtimeAttributeDefinitions = runtimeAttributeDefinitions,
       backendName = backendName,
-      activity = activity))
+      activity = activity,
+      callCachingEligible = callCachingEligible))
   }
   
   class EngineJobHashingActorTest(receiver: ActorRef,
@@ -189,7 +192,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
                                   callCacheReadingJobActorProps: Props,
                                   runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                   backendName: String,
-                                  activity: CallCachingActivity) extends EngineJobHashingActor(
+                                  activity: CallCachingActivity,
+                                  callCachingEligible: CallCachingEligible) extends EngineJobHashingActor(
     receiver = receiver,
     jobDescriptor = jobDescriptor,
     initializationData = initializationData,
@@ -197,7 +201,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     callCacheReadingJobActorProps = callCacheReadingJobActorProps,
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
     backendName = backendName,
-    activity = activity) {
+    activity = activity,
+    callCachingEligible = callCachingEligible) {
     // override preStart to nothing to prevent the creation of the CCHJA.
     // This way it doesn't interfere with the tests and we can manually inject the messages we want
     override def preStart() =  ()

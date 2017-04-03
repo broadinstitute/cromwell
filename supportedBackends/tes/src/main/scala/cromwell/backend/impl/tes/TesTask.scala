@@ -15,7 +15,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          tesPaths: TesJobPaths,
                          runtimeAttributes: TesRuntimeAttributes,
                          containerWorkDir: Path,
-                         backendEngineFunctions: StandardExpressionFunctions) {
+                         backendEngineFunctions: StandardExpressionFunctions,
+                         dockerImageUsed: String) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.workflow.unqualifiedName
@@ -180,7 +181,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   )
 
   val dockerExecutor = Seq(DockerExecutor(
-    runtimeAttributes.dockerImage,
+    dockerImageUsed,
     Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     Option(tesPaths.containerOutput(containerWorkDir, "stdout")),

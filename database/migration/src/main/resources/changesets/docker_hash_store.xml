@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="tjeandet" id="DOCKER_HASH_STORE_ENTRY">
+        <comment>
+            Temporary storage area for docker hashes from workflows that are still in progress.
+        </comment>
+        <createTable tableName="DOCKER_HASH_STORE_ENTRY">
+            <column autoIncrement="true" name="DOCKER_HASH_STORE_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_DOCKER_HASH_STORE_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DOCKER_TAG" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DOCKER_HASH" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet author="tjeandet" id="docker_hash_store_uuid_unique_constraint">
+        <addUniqueConstraint
+                constraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT"
+                tableName="DOCKER_HASH_STORE_ENTRY"
+                columnNames="WORKFLOW_EXECUTION_UUID, DOCKER_TAG" />
+    </changeSet>
+
+</databaseChangeLog>

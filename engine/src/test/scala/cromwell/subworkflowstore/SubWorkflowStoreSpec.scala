@@ -12,6 +12,7 @@ import cromwell.core.ExecutionIndex._
 import scala.concurrent.duration._
 import SubWorkflowStoreSpec._
 import akka.testkit.TestProbe
+import cromwell.database.sql.SqlDatabase
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
@@ -31,7 +32,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
       lazy val workflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
-      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref))
+      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref, mock[SqlDatabase]))
 
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()

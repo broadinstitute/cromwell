@@ -18,6 +18,8 @@ case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
     case Some(parent) => parent.rootWorkflow
     case None => this
   }
+
+  def isRootWorkflow = rootWorkflow.parentWorkflow.isEmpty
   
   lazy val id = backendDescriptor.id
   lazy val workflow = backendDescriptor.workflow

@@ -34,6 +34,8 @@ object AsyncBackendJobExecutionActor {
 
 trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
 
+  def dockerImageUsed: Option[String]
+
   // The scala package object (scala/package.scala) contains a neat list of runtime errors that are always going to be fatal.
   // We also consider any Error as fatal, and include the CromwellFatalExceptionMarker so we can mark our own fatal exceptions.
   def isFatal(throwable: Throwable): Boolean = throwable match {
@@ -83,7 +85,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
       ()
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, _)) =>
-      completionPromise.success(JobSucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents))
+      completionPromise.success(JobSucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents, dockerImageUsed))
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>
       completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))

@@ -17,7 +17,8 @@ class DataAccessComponent(val driver: JdbcProfile)
     with WorkflowMetadataSummaryEntryComponent
     with WorkflowStoreEntryComponent
     with SubWorkflowStoreEntryComponent
-    with CustomLabelEntryComponent {
+    with CustomLabelEntryComponent
+    with DockerHashStoreEntryComponent {
 
   import driver.api._
 
@@ -27,6 +28,7 @@ class DataAccessComponent(val driver: JdbcProfile)
       callCachingHashEntries.schema ++
       callCachingSimpletonEntries.schema ++
       callCachingAggregationEntries.schema ++
+      dockerHashStoreEntries.schema ++
       jobKeyValueEntries.schema ++
       jobStoreEntries.schema ++
       jobStoreSimpletonEntries.schema ++

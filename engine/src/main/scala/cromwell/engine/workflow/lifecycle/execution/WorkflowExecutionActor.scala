@@ -37,7 +37,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
                                   subWorkflowStoreActor: ActorRef,
                                   callCacheReadActor: ActorRef,
                                   callCacheWriteActor: ActorRef,
-                                  dockerHashActor: ActorRef,
+                                  workflowDockerLookupActor: ActorRef,
                                   jobTokenDispenserActor: ActorRef,
                                   backendSingletonCollection: BackendSingletonCollection,
                                   initializationData: AllBackendInitializationData,
@@ -71,7 +71,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   )
 
   when(WorkflowExecutionPendingState) {
-    case Event(ExecuteWorkflowCommand, stateData) =>
+    case Event(ExecuteWorkflowCommand, _) =>
       scheduleStartRunnableCalls()
       goto(WorkflowExecutionInProgressState)
   }
@@ -91,9 +91,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       
       //Success
         // Job
-    case Event(JobSucceededResponse(jobKey, returnCode, callOutputs, _, _), stateData) =>
-      pushSuccessfulCallMetadata(jobKey, returnCode, callOutputs)
-      handleCallSuccessful(jobKey, callOutputs, stateData, Map.empty)
+    case Event(r: JobSucceededResponse, stateData) =>
+      pushSuccessfulCallMetadata(r.jobKey, r.returnCode, r.jobOutputs)
+      handleCallSuccessful(r.jobKey, r.jobOutputs, stateData, Map.empty)
         // Sub Workflow
     case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), stateData) =>
       pushSuccessfulCallMetadata(jobKey, None, callOutputs)
@@ -141,9 +141,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(SubWorkflowSucceededResponse(subKey, executedKeys, _), stateData) =>
       pushAbortedCallMetadata(subKey)
       handleCallAborted(stateData, subKey, executedKeys)
-    case Event(JobSucceededResponse(jobKey, _, _, _, _), stateData) =>
-      pushAbortedCallMetadata(jobKey)
-      handleCallAborted(stateData, jobKey, Map.empty)
+    case Event(r: JobSucceededResponse, stateData) =>
+      pushAbortedCallMetadata(r.jobKey)
+      handleCallAborted(stateData, r.jobKey, Map.empty)
   }
   
   when(WorkflowExecutionSuccessfulState) {
@@ -173,8 +173,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
       pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
       stay
-    case Event(JobSucceededResponse(jobKey, returnCode, callOutputs, _, _), _) =>
-      pushSuccessfulCallMetadata(jobKey, returnCode, callOutputs)
+    case Event(r: JobSucceededResponse, _) =>
+      pushSuccessfulCallMetadata(r.jobKey, r.returnCode, r.jobOutputs)
       stay
   }
 
@@ -475,8 +475,15 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
             val ejeaProps = EngineJobExecutionActor.props(
-              self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, ioActor,
-              jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, backendSingleton, backendName, workflowDescriptor.callCachingMode)
+              self, jobKey, data, factory, initializationData.get(backendName), restarting,
+              serviceRegistryActor = serviceRegistryActor,
+              ioActor = ioActor,
+              jobStoreActor = jobStoreActor,
+              callCacheReadActor = callCacheReadActor,
+              callCacheWriteActor = callCacheWriteActor,
+              workflowDockerLookupActor = workflowDockerLookupActor,
+              jobTokenDispenserActor = jobTokenDispenserActor,
+              backendSingleton, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             context watch ejeaRef
             pushNewCallMetadata(jobKey, Option(backendName))
@@ -492,9 +499,16 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   
   private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     val sweaRef = context.actorOf(
-      SubWorkflowExecutionActor.props(key, data, backendFactories, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting),
-      s"SubWorkflowExecutionActor-${key.tag}"
+      SubWorkflowExecutionActor.props(key, data, backendFactories,
+        ioActor = ioActor,
+        serviceRegistryActor = serviceRegistryActor,
+        jobStoreActor = jobStoreActor,
+        subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor,
+        callCacheWriteActor = callCacheWriteActor,
+        workflowDockerLookupActor = workflowDockerLookupActor,
+        jobTokenDispenserActor = jobTokenDispenserActor,
+        backendSingletonCollection, initializationData, restarting), s"SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
@@ -773,13 +787,21 @@ object WorkflowExecutionActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             callCacheWriteActor: ActorRef,
-            dockerHashActor: ActorRef,
+            workflowDockerLookupActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
-    Props(WorkflowExecutionActor(workflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-      callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
+    Props(WorkflowExecutionActor(workflowDescriptor,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      workflowDockerLookupActor = workflowDockerLookupActor,
+      jobTokenDispenserActor = jobTokenDispenserActor,
+      backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 
   implicit class EnhancedWorkflowOutputs(val outputs: Map[LocallyQualifiedName, WdlValue]) extends AnyVal {

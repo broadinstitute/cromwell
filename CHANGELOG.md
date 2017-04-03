@@ -50,6 +50,32 @@ database {
 }
 ```
 
+### Call Caching
+
+Cromwell now supports call caching with floating Docker tags (e.g. `docker: "ubuntu:latest"`). Note it is still considered
+a best practice to specify Docker images as hashes where possible, especially for production usages.
+
+Within a single workflow Cromwell will attempt to resolve all floating tags to the same Docker hash, even if Cromwell is restarted
+during the execution of a workflow. In call metadata the `docker` runtime attribute is now the same as the
+value that actually appeared in the WDL:
+
+```
+   "runtimeAttributes": {
+     "docker": "ubuntu:latest",
+     "failOnStderr": "false",
+     "continueOnReturnCode": "0"
+   }
+```
+
+Previous versions of Cromwell rewrote the `docker` value to the hash of the Docker image.
+
+There is a new call-level metadata value `dockerImageUsed` which captures the hash of the Docker image actually used to
+run the call:
+
+```
+   "dockerImageUsed": "library/ubuntu@sha256:382452f82a8bbd34443b2c727650af46aced0f94a44463c62a9848133ecb1aa8"
+```
+
 ### Docker
 
 * The Docker section of the configuration has been slightly reworked 

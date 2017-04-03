@@ -21,11 +21,12 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   val workflowDescriptor = mock[EngineWorkflowDescriptor]
   val backendDescriptor = mock[BackendWorkflowDescriptor]
   workflowDescriptor.backendDescriptor returns backendDescriptor
+  workflowDescriptor.id returns WorkflowId.randomId()
   executionData.workflowDescriptor returns workflowDescriptor
   val jobKey = mock[BackendJobDescriptorKey]
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
-  val dockerHashingActor = TestProbe()
+  val workflowDockerLookupActor = TestProbe()
 
   val workflowId = WorkflowId.randomId()
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
@@ -44,7 +45,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
       inputsAndAttributes = inputsAndAttributes,
       executionData = executionData,
       jobKey = jobKey,
-      dockerHashingActor = dockerHashingActor.ref,
+      workflowDockerLookupActor = workflowDockerLookupActor.ref,
       serviceRegistryActor = serviceRegistryProbe.ref,
       ioActor = ioActor.ref,
       scopedKeyMaker))
@@ -58,13 +59,13 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                    inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.LocallyQualifiedName, WdlValue])],
                                                    executionData: WorkflowExecutionActorData,
                                                    jobKey: BackendJobDescriptorKey,
-                                                   dockerHashingActor: ActorRef,
+                                                   workflowDockerLookupActor: ActorRef,
                                                    serviceRegistryActor: ActorRef,
                                                    ioActor: ActorRef,
                                                    scopedKeyMaker: ScopedKeyMaker) extends JobPreparationActor(executionData = executionData,
                                                                                                   jobKey = jobKey,
                                                                                                   factory = null,
-                                                                                                  dockerHashingActor = dockerHashingActor,
+                                                                                                  workflowDockerLookupActor = workflowDockerLookupActor,
                                                                                                   initializationData = None,
                                                                                                   serviceRegistryActor = serviceRegistryActor,
                                                                                                   ioActor = ioActor,
@@ -76,7 +77,6 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
   override private[preparation] lazy val dockerHashCredentials = dockerHashCredentialsInput
   override private[preparation] lazy val noResponseTimeout = dockerNoResponseTimeoutInput
   override private[preparation] lazy val hasDockerDefinition = true
-  override protected def backpressureTimeout: FiniteDuration = backpressureWaitTimeInput
 
   override def scopedKey(key: String) = scopedKeyMaker.apply(key)
   override def evaluateInputsAndAttributes = inputsAndAttributes

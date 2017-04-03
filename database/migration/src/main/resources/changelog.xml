@@ -64,6 +64,7 @@
     <include file="changesets/failure_metadata_2.xml" relativeToChangelogFile="true" />
     <include file="changesets/call_caching_aggregated_hashes.xml" relativeToChangelogFile="true" />
     <include file="changesets/custom_label_entry.xml" relativeToChangelogFile="true" />
+    <include file="changesets/docker_hash_store.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

@@ -11,7 +11,8 @@ trait SqlDatabase extends AutoCloseable
   with JobStoreSqlDatabase
   with MetadataSqlDatabase
   with WorkflowStoreSqlDatabase
-  with SubWorkflowStoreSqlDatabase {
+  with SubWorkflowStoreSqlDatabase
+  with DockerHashStoreSqlDatabase {
 
   protected val urlKey: String
   protected val originalDatabaseConfig: Config

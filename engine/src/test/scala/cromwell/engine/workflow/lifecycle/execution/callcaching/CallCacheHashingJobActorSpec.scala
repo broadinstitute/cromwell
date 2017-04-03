@@ -29,9 +29,10 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val runtimeAttributes = Map(
       "cpu" -> WdlInteger(1),
       "memory" -> WdlString("3 GB"),
-      "continueOnReturnCode" -> WdlInteger(0)
+      "continueOnReturnCode" -> WdlInteger(0),
+      "docker" -> WdlString("ubuntu:latest")
     )
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
   }
 
@@ -44,7 +45,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       Set.empty,
       "backedName",
       Props.empty,
-      false
+      false,
+      DockerWithHash("ubuntu@sha256:blablablba")
     ), parent.ref)
     watch(testActor)
     expectTerminated(testActor)
@@ -60,10 +62,11 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     )
     // Do not include "memory" on purpose, even though it's in the map of runtime attributes.
     // This way we can verify that only attributes with a RuntimeAttributeDefinition are used for hashing
-    // Vice versa include a "docker" definition even though it's not in the map.
-    // This ensures that we still record the fact that there was no docker attribute with a "N/A" value
+    // Vice versa include a "failOnStderr" definition even though it's not in the map.
+    // This ensures that we still record the fact that there was no failOnStderr attribute with a "N/A" value
     val runtimeAttributeDefinitions = Set(
       RuntimeAttributeDefinition("docker", None, usedInCallCaching = true),
+      RuntimeAttributeDefinition("failOnStderr", None, usedInCallCaching = true),
       RuntimeAttributeDefinition("continueOnReturnCode", Option(WdlInteger(0)), usedInCallCaching = true),
       RuntimeAttributeDefinition("cpu", None, usedInCallCaching = false)
     )
@@ -76,7 +79,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       runtimeAttributeDefinitions,
       "backedName",
       Props.empty,
-      false
+      true,
+      DockerWithHash("ubuntu@sha256:blablablba")
     ), parent.ref)
     
     val expectedInitialHashes = Set(
@@ -88,15 +92,17 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       HashResult(HashKey("input count"), HashValue("C81E728D9D4C2F636F067F89CC14862C")),
       // md5 of 0
       HashResult(HashKey("output count"), HashValue("CFCD208495D565EF66E7DFF9F98764DA")),
-      HashResult(HashKey("runtime attribute: docker"), HashValue("N/A")),
+      HashResult(HashKey("runtime attribute: failOnStderr"), HashValue("N/A")),
       // md5 of 1
       HashResult(HashKey("runtime attribute: cpu", checkForHitOrMiss = false), HashValue("C4CA4238A0B923820DCC509A6F75849B")),
       // md5 of 0
       HashResult(HashKey("runtime attribute: continueOnReturnCode"), HashValue("CFCD208495D565EF66E7DFF9F98764DA")),
       // md5 of "hello" (with quotes)
-      HashResult(HashKey("input: String stringInput"), HashValue("5DEAEE1C1332199E5B5BC7C5E4F7F0C2"))
+      HashResult(HashKey("input: String stringInput"), HashValue("5DEAEE1C1332199E5B5BC7C5E4F7F0C2")),
+      // md5 of ubuntu@sha256:blablablba - make sure we use the dockerWithHash and not the docker runtime attribute
+      HashResult(HashKey("runtime attribute: docker"), HashValue("C811916EA68009B0EFE0A3A86D73280E"))
     )
-    val expectedAggregatedInitialHash = "E2E6048E9EA02819D9D356E71A4F1BBE"
+    val expectedAggregatedInitialHash = "F1A7118BED69B5A976A17C83FBA0D9D6"
     val expectedInitialHashResult = InitialHashingResult(expectedInitialHashes, expectedAggregatedInitialHash)
     parent.expectMsg(expectedInitialHashResult)
     callCacheRead.expectMsg(expectedInitialHashResult)
@@ -119,7 +125,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       Set.empty,
       "backend",
       Props.empty,
-      writeToCache = writeToCache
+      writeToCache = writeToCache,
+      DockerWithHash("ubuntu@256:blablabla")
     ) {
       override def makeFileHashingActor() = testFileHashingActor
       override def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) = {

@@ -1745,7 +1745,7 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 * If call caching is enabled, but one wishes to run a workflow but not add any of the calls into the call cache when they finish, the `write_to_cache` option can be set to `false`.  This value defaults to `true`.
 * If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`
 
-> **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
+> **Note:** If call caching is disabled, the workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
 
 ## Docker Tags
 
@@ -1766,14 +1766,11 @@ When Cromwell finds a job ready to be run, it will first look at its docker runt
 * The job does specify a docker runtime attribute:
     * The docker image uses a hash: All call caching settings apply normally
     * The docker image uses a floating tag:
-        Call caching `reading` will be disabled for this job. Specifically, Cromwell will *not* attempt to find an entry in the cache for this job.
-        Additionally, cromwell will attempt to look up the hash of the image. Upon success, it will replace the user's docker value with the hash.
-        This mechanism ensures that as long as Cromwell is able to lookup the hash, the job is guaranteed to have run on the container with that hash.
-        The docker value with the hash used for the job will be reported in the runtime attributes section of the metadata.
-        If Cromwell fails to lookup the hash (unsupported registry, wrong credentials, ...) it will run the job with the user provided floating tag.
-        If call caching writing is turned on, Cromwell will still write the job in the cache database, using:
-         * the hash if the lookup succeeded
-         * the floating tag otherwise.
+        * Cromwell will attempt to look up the hash of the image. Upon success it will pass both the floating tag and this hash value to the backend.
+        * All backends currently included with Cromwell will utilize this hash value to run the job.
+        * Within a single workflow all floating tags will resolve to the same hash value even if Cromwell is restarted when the workflow is running.
+        * If Cromwell fails to lookup the hash (unsupported registry, wrong credentials, ...) it will run the job with the user provided floating tag.
+        * The actual Docker image (floating tag or hash) used for the job will be reported in the `dockerImageUsed` attribute of the call metadata.
 
 ### Docker Lookup
 

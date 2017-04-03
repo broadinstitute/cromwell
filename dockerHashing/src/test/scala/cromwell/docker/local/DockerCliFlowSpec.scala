@@ -1,7 +1,7 @@
 package cromwell.docker.local
 
 import cromwell.core.Tags.IntegrationTest
-import cromwell.docker.DockerHashActor.{DockerHashNotFound, DockerHashResponseSuccess}
+import cromwell.docker.DockerHashActor.{DockerHashNotFound, DockerHashSuccessResponse}
 import cromwell.docker.{DockerFlow, DockerFlowSpec, DockerHashResult}
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -16,7 +16,7 @@ class DockerCliFlowSpec extends DockerFlowSpec("DockerCliFlowSpec") with FlatSpe
     dockerActor ! makeRequest("ubuntu:latest")
 
     expectMsgPF(30.seconds) {
-      case DockerHashResponseSuccess(DockerHashResult(alg, hash), _) =>
+      case DockerHashSuccessResponse(DockerHashResult(alg, hash), _) =>
         alg shouldBe "sha256"
         hash should not be empty
     }
@@ -26,7 +26,7 @@ class DockerCliFlowSpec extends DockerFlowSpec("DockerCliFlowSpec") with FlatSpe
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
 
     expectMsgPF(30.seconds) {
-      case DockerHashResponseSuccess(DockerHashResult(alg, hash), _) =>
+      case DockerHashSuccessResponse(DockerHashResult(alg, hash), _) =>
         alg shouldBe "sha256"
         hash should not be empty
     }

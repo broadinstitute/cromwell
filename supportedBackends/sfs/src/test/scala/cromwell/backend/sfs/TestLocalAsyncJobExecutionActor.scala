@@ -23,6 +23,8 @@ class TestLocalAsyncJobExecutionActor(override val standardParams: StandardAsync
       SharedFileSystemCommand("/bin/bash", script)
     }
   }
+
+  override def dockerImageUsed: Option[String] = None
 }
 
 object TestLocalAsyncJobExecutionActor {

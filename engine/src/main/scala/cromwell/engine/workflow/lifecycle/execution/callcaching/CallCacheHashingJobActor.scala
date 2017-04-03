@@ -6,8 +6,9 @@ import javax.xml.bind.DatatypeConverter
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
+import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
-import cromwell.core.callcaching.{HashKey, HashResult, HashValue, HashingFailedMessage}
+import cromwell.core.callcaching._
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
@@ -34,7 +35,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                backendName: String,
                                fileHashingActorProps: Props,
-                               writeToCache: Boolean
+                               writeToCache: Boolean,
+                               callCachingEligible: CallCachingEligible
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor = makeFileHashingActor()
@@ -88,7 +90,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   }
 
   whenUnhandled {
-    case Event(Terminated(_), data) =>
+    case Event(Terminated(_), _) =>
       stopAndStay(None)
     case Event(error: HashingFailedMessage, data) =>
       log.error(error.reason, s"Failed to hash ${error.file}")
@@ -120,7 +122,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
     val inputSimpletons = unqualifiedInputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
-      case WdlValueSimpleton(_, f: WdlFile) => true
+      case WdlValueSimpleton(_, _: WdlFile) => true
       case _ => false
     }
 
@@ -150,6 +152,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.call.task.outputs.size.toString.md5HashValue)
 
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
+      case Some(_) if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
+        HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), callCachingEligible.dockerHash.get.md5HashValue)
       case Some(wdlValue) => HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), wdlValue.valueString.md5HashValue)
       case None => HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), UnspecifiedRuntimeAttributeHashValue)
     }}
@@ -180,7 +184,8 @@ object CallCacheHashingJobActor {
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
             fileHashingActorProps: Props,
-            writeToCache: Boolean
+            writeToCache: Boolean,
+            callCachingEligible: CallCachingEligible
            ) = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
@@ -188,7 +193,8 @@ object CallCacheHashingJobActor {
     runtimeAttributeDefinitions,
     backendName,
     fileHashingActorProps,
-    writeToCache
+    writeToCache,
+    callCachingEligible
   ))
 
   sealed trait CallCacheHashingJobActorState

@@ -27,7 +27,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 subWorkflowStoreActor: ActorRef,
                                 callCacheReadActor: ActorRef,
                                 callCacheWriteActor: ActorRef,
-                                dockerHashActor: ActorRef,
+                                workflowDockerLookupActor: ActorRef,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
@@ -41,9 +41,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   override def jobTag: String = key.tag
 
   startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
-  
+
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
-  
+
   when(SubWorkflowPendingState) {
     case Event(Execute, _) =>
       if (restarting) {
@@ -53,9 +53,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         prepareSubWorkflow(createSubWorkflowId())
       }
   }
-  
+
   when(SubWorkflowCheckingStoreState) {
-    case Event(SubWorkflowFound(entry), _) => 
+    case Event(SubWorkflowFound(entry), _) =>
       prepareSubWorkflow(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
     case Event(_: SubWorkflowNotFound, _) =>
       prepareSubWorkflow(createSubWorkflowId())
@@ -63,7 +63,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command, starting sub workflow with fresh ID.")
       prepareSubWorkflow(createSubWorkflowId())
   }
-  
+
   when(SubWorkflowPreparingState) {
     case Event(SubWorkflowPreparationSucceeded(subWorkflowEngineDescriptor, inputs), _) =>
       startSubWorkflow(subWorkflowEngineDescriptor, inputs)
@@ -72,7 +72,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       context stop self
       stay()
   }
-  
+
   when(SubWorkflowRunningState) {
     case Event(WorkflowExecutionSucceededResponse(executedJobKeys, outputs), _) =>
       context.parent ! SubWorkflowSucceededResponse(key, executedJobKeys, outputs)
@@ -84,11 +84,11 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       context.parent ! SubWorkflowAbortedResponse(key, executedJobKeys)
       goto(SubWorkflowAbortedState)
   }
-  
+
   when(SubWorkflowSucceededState) { FSM.NullFunction }
   when(SubWorkflowFailedState) { FSM.NullFunction }
   when(SubWorkflowAbortedState) { FSM.NullFunction }
-  
+
   whenUnhandled {
     case Event(SubWorkflowStoreRegisterSuccess(command), _) =>
       // Nothing to do here
@@ -100,34 +100,34 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   onTransition {
     case (fromState, toState) =>
-      stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) } 
+      stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) }
   }
-  
+
   onTransition {
     case (fromState, subWorkflowTerminalState: SubWorkflowTerminalState) =>
       stateData.subWorkflowId match {
-        case Some(id) => 
+        case Some(id) =>
           pushWorkflowEnd(id)
           pushExecutionEventsToMetadataService(key, eventList)
         case None => jobLogger.error("Sub workflow completed without a Sub Workflow UUID.")
-      } 
+      }
       context stop self
   }
-  
+
   onTransition {
     case fromState -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
-  
+
   private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) = {
     val subWorkflowActor = createSubWorkflowActor(subWorkflowEngineDescriptor)
-    
+
     subWorkflowActor ! WorkflowExecutionActor.ExecuteWorkflowCommand
     context.parent ! JobRunning(key, inputs, Option(subWorkflowActor))
     pushWorkflowRunningMetadata(subWorkflowEngineDescriptor.backendDescriptor, inputs)
-    
+
     goto(SubWorkflowRunningState)
   }
-  
+
   private def prepareSubWorkflow(subWorkflowId: WorkflowId) = {
     createSubWorkflowPreparationActor(subWorkflowId) ! Start
     context.parent ! JobStarting(key)
@@ -135,26 +135,26 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     pushWorkflowStart(subWorkflowId)
     goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorData(Option(subWorkflowId))
   }
-  
+
   def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {
     context.actorOf(
       SubWorkflowPreparationActor.props(data, key, subWorkflowId),
       s"$subWorkflowId-SubWorkflowPreparationActor-${key.tag}"
     )
   }
-  
+
   def createSubWorkflowActor(subWorkflowEngineDescriptor: EngineWorkflowDescriptor) = {
     context.actorOf(
       WorkflowExecutionActor.props(
       subWorkflowEngineDescriptor,
-      ioActor,
-      serviceRegistryActor,
-      jobStoreActor,
-      subWorkflowStoreActor,
-      callCacheReadActor,
-      callCacheWriteActor,
-      dockerHashActor,
-      jobTokenDispenserActor,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      workflowDockerLookupActor = workflowDockerLookupActor,
+      jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
       restarting
@@ -258,7 +258,7 @@ object SubWorkflowExecutionActor {
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
             callCacheWriteActor: ActorRef,
-            dockerHashActor: ActorRef,
+            workflowDockerLookupActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
@@ -267,14 +267,14 @@ object SubWorkflowExecutionActor {
       key,
       data,
       factories,
-      ioActor,
-      serviceRegistryActor,
-      jobStoreActor,
-      subWorkflowStoreActor,
-      callCacheReadActor,
-      callCacheWriteActor,
-      dockerHashActor,
-      jobTokenDispenserActor,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      workflowDockerLookupActor = workflowDockerLookupActor,
+      jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
       restarting)

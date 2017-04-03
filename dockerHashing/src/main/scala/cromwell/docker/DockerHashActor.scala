@@ -52,7 +52,7 @@ final class DockerHashActor(
    * Intermediate sink responsible for updating the cache as soon as a successful hash is retrieved
    */
   private val updateCacheSink = Sink.foreach[(DockerHashResponse, DockerHashContext)] {
-    case (response: DockerHashResponseSuccess, dockerHashContext) => 
+    case (response: DockerHashSuccessResponse, dockerHashContext) => 
       cache.put(dockerHashContext.dockerImageID, response.dockerHash)
     case _ => // Only put successful hashes in the cache
   }
@@ -99,7 +99,7 @@ final class DockerHashActor(
 
   private def checkCache(dockerHashRequest: DockerHashRequest) = {
     Option(cache.getIfPresent(dockerHashRequest.dockerImageID)) map { hashResult => 
-      DockerHashResponseSuccess(hashResult, dockerHashRequest) 
+      DockerHashSuccessResponse(hashResult, dockerHashRequest) 
     }
   }
 
@@ -128,7 +128,7 @@ object DockerHashActor {
     def request: DockerHashRequest
   }
   
-  case class DockerHashResponseSuccess(dockerHash: DockerHashResult, request: DockerHashRequest) extends DockerHashResponse
+  case class DockerHashSuccessResponse(dockerHash: DockerHashResult, request: DockerHashRequest) extends DockerHashResponse
   
   sealed trait DockerHashFailureResponse extends DockerHashResponse {
     def reason: String

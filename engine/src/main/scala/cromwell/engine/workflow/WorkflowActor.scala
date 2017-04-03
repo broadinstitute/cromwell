@@ -180,6 +180,9 @@ class WorkflowActor(val workflowId: WorkflowId,
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
 
+  private val workflowDockerLookupActor = context.actorOf(
+    WorkflowDockerLookupActor.props(workflowId, dockerHashActor, startMode), s"WorkflowDockerLookupActor-$workflowId")
+
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
@@ -218,14 +221,14 @@ class WorkflowActor(val workflowId: WorkflowId,
 
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
-        ioActor,
-        serviceRegistryActor,
-        jobStoreActor,
-        subWorkflowStoreActor,
-        callCacheReadActor,
-        callCacheWriteActor,
-        dockerHashActor,
-        jobTokenDispenserActor,
+        ioActor = ioActor,
+        serviceRegistryActor = serviceRegistryActor,
+        jobStoreActor = jobStoreActor,
+        subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor,
+        callCacheWriteActor = callCacheWriteActor,
+        workflowDockerLookupActor = workflowDockerLookupActor,
+        jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
         restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")

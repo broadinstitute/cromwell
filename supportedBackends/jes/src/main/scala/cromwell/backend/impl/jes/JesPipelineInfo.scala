@@ -26,20 +26,18 @@ trait JesPipelineInfoBuilder {
       .set(Run.NoAddressFieldName, runtimeAttributes.noAddress)
   }
 
-  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes, docker: String): JesPipelineInfo
 }
 
 object NonPreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo = {
-    val dockerImage = runtimeAttributes.dockerImage
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes, dockerImage: String): JesPipelineInfo = {
     val resources = buildResources(runtimeAttributes).setPreemptible(false)
     new NonPreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }
 }
 
 object PreemptibleJesPipelineInfoBuilder extends JesPipelineInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes): JesPipelineInfo = {
-    val dockerImage = runtimeAttributes.dockerImage
+  def build(commandLine: String, runtimeAttributes: JesRuntimeAttributes, dockerImage: String): JesPipelineInfo = {
     val resources = buildResources(runtimeAttributes).setPreemptible(true)
     new PreemptibleJesPipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
   }

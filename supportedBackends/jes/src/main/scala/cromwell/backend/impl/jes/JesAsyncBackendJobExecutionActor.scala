@@ -100,6 +100,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
+  private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  
+  override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
+  
   override val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, ur)) => p < maxPreemption
     case _ => false
@@ -261,6 +265,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val runPipelineParameters = Run.makeRunPipelineRequest(
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
+      dockerImage = jobDockerImage,
       callRootPath = callRootPath.pathAsString,
       commandLine = jesCommandLine,
       logFileName = jesLogFilename,

@@ -133,7 +133,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
+      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
       case Failure(e) =>
         val message = Option(e.getMessage) map {
           ": " + _

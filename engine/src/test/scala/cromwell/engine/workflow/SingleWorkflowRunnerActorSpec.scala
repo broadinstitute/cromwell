@@ -11,6 +11,7 @@ import cromwell.CromwellTestKitSpec._
 import cromwell._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{SimpleIoActor, WorkflowSourceFilesCollection}
+import cromwell.database.sql.SqlDatabase
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -19,6 +20,7 @@ import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowSt
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
+import org.specs2.mock.Mockito
 import spray.json._
 
 import scala.concurrent.Await
@@ -52,8 +54,8 @@ object SingleWorkflowRunnerActorSpec {
   }
 }
 
-abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec {
-  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
+abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with Mockito {
+  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, mock[SqlDatabase]))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val ioActor = system.actorOf(SimpleIoActor.props)
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)

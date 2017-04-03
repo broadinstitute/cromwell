@@ -243,7 +243,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   private def extractToken(jsObject: JsObject): Try[String] = {
     jsObject.fields.get("token") match {
       case Some(token: JsString) => Success(token.value)
-      case Some(other) => Failure(new Exception("Token response contains a non-string token field"))
+      case Some(_) => Failure(new Exception("Token response contains a non-string token field"))
       case None => Failure(new Exception("Token response did not contain a token field"))
     }
   }
@@ -297,7 +297,8 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     */
   private def extractContentDigest(headers: Seq[HttpHeader], dockerHashContext: DockerHashContext) = {
     headers find { _.is(DigestHeaderName) } match {
-      case Some(digestHeader) => Success(DockerHashResponseSuccess(DockerHashResult(digestHeader.value()), dockerHashContext.request))
+      case Some(digestHeader) =>
+        DockerHashResult.fromString(digestHeader.value()) map { DockerHashSuccessResponse(_, dockerHashContext.request)}
       case None => Failure(new Exception("Cannot find digest header"))
     }
   }

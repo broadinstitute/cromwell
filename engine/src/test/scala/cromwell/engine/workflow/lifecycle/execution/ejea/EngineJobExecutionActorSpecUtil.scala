@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core.JobOutput
 import cromwell.core.callcaching._
@@ -46,10 +47,10 @@ private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { sel
 }
 
 private[ejea] trait CanExpectHashingInitialization extends Eventually { self: EngineJobExecutionActorSpec =>
-  def expectHashingActorInitialization(mode: CallCachingMode): Unit = {
+  def expectHashingActorInitialization(mode: CallCachingMode, jobDescriptor: BackendJobDescriptor): Unit = {
     eventually { helper.jobHashingInitializations.hasExactlyOne should be(true) }
     helper.jobHashingInitializations.checkIt { initialization =>
-      initialization._1 should be(helper.backendJobDescriptor)
+      initialization._1 should be(jobDescriptor)
       initialization._2 should be(mode)
     }
   }
@@ -77,7 +78,7 @@ private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: Engine
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
   val successOutputs = Map("a" -> JobOutput(WdlInteger(3)), "b" -> JobOutput(WdlString("bee")))
-  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty)
+  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty, None)
 }
 private[ejea] object HasJobSuccessResponse {
   val SuccessfulCallCacheHashes = CallCacheHashes(

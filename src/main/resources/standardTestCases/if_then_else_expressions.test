@@ -1,0 +1,19 @@
+name: if_then_else_expressions
+testFormat: workflowsuccess
+
+files {
+  wdl: if_then_else_expressions/if_then_else_expressions.wdl
+}
+
+metadata {
+  workflowName: if_then_else_expressions
+  status: Succeeded
+  "calls.if_then_else_expressions.sixVsTen.executionStatus": Done
+  "calls.if_then_else_expressions.fiveVsTen.executionStatus": Done
+  "calls.if_then_else_expressions.only_evaluate_correct_side.executionStatus": Done
+
+  "outputs.if_then_else_expressions.a": 5
+  "outputs.if_then_else_expressions.b": 10
+  "outputs.if_then_else_expressions.c": "f"
+  "outputs.if_then_else_expressions.d": "t"
+}

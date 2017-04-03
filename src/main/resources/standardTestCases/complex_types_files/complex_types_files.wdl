@@ -69,12 +69,10 @@ workflow complex_types_files {
   call maybe_cats { input: opt_file_pair = (make_true.out, make_false.out) }
   Array[File] file_arr = select_all([make_file.out, make_true.out, make_false.out])
   call array_cat { input: file_arr = file_arr }
-  # Fixme ticket: https://github.com/broadinstitute/cromwell/issues/1951
-  # Map[String, File?] file_map = { "always": make_file.out, "truth": make_true.out, "untruth": make_false.out }
-  # call map_cat { input: file_map = file_map }
+  Map[String, File?] file_map = { "always": make_file.out, "truth": make_true.out, "untruth": make_false.out }
+  call map_cat { input: file_map = file_map }
 
   output {
-    Array[String] result = [ maybe_cats.result.left, maybe_cats.result.right, array_cat.result ]
-    # Array[String] result = [ maybe_cats.result.left, maybe_cats.result.right, array_cat.result, map_cat.result ]
+    Array[String] result = [ maybe_cats.result.left, maybe_cats.result.right, array_cat.result, map_cat.result ]
   }
 }

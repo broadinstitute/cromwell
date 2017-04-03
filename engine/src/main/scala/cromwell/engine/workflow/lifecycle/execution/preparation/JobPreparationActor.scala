@@ -4,9 +4,10 @@ import akka.actor.{ActorRef, FSM, Props}
 import cromwell.backend._
 import cromwell.backend.validation.RuntimeAttributesKeys
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.DockerConfiguration
 import cromwell.core.callcaching._
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashResponseSuccess}
-import cromwell.core.callcaching.docker._
+import cromwell.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashResponseSuccess}
+import cromwell.docker._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
@@ -111,8 +112,8 @@ class JobPreparationActor(executionData: WorkflowExecutionActorData,
     }
 
     def handleDockerValue(value: String) = DockerImageIdentifier.fromString(value) match {
-      case Success(dockerImageId: DockerImageIdentifierWithoutHash) => sendDockerRequest(dockerImageId)
-      case Success(dockerImageIdWithHash: DockerImageIdentifierWithHash) =>
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if DockerConfiguration.instance.enabled => sendDockerRequest(dockerImageId)
+      case Success(_) =>
         // If the docker value already has a hash - we're ok for call caching
         val response = prepareBackendDescriptor(inputs, attributes, CallCachingEligible, kvStoreLookupResults.unscoped)
         sendResponseAndStop(response)

@@ -2,6 +2,17 @@
 
 ## 27
 
+### Breaking Changes
+
+* Configuration change: The Docker section of the configuration has been slightly reworked:
+    * An option to disable Docker hash lookup has been added. This option should be used VERY CAREFULLY, especially if call caching is enabled. 
+    If the Docker hash lookup is disabled, and call caching is enabled, the user supplied Docker string from the WDL file will be used to compute call hashes.
+    This opens the door to potential false positives if the Docker image is using a tag, and this tag gets updated.
+    We recommend that you **DO NOT** disable hash lookup when call caching is enabled.
+ 
+    * An option to specify how a Docker hash should be looked up has been added. Two methods are available.
+        "local" will try to look for the image on the machine where cromwell is running. If it can't be found, Cromwell will try to `Docker pull` the image and use the hash from the retrieved image.
+        "remote" will try to look up the image hash directly on the remote repository where the image is located (Docker Hub and GCR are supported)
 
 * The update to Slick 3.2 requires a database stanza to
 [switch](http://slick.lightbend.com/doc/3.2.0/upgrade.html#profiles-vs-drivers) from using `driver` to `profile`.

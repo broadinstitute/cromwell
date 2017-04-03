@@ -11,8 +11,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
-import cromwell.core.callcaching.docker.DockerHashActor.DockerHashResponseSuccess
-import cromwell.core.callcaching.docker.{DockerHashRequest, DockerHashResult}
+import cromwell.docker.DockerHashActor.DockerHashResponseSuccess
+import cromwell.docker.{DockerHashRequest, DockerHashResult}
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.backend.BackendConfigurationEntry

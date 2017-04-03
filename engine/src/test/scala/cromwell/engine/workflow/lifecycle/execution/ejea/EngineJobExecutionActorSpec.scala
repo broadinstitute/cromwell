@@ -56,11 +56,6 @@ trait EngineJobExecutionActorSpec extends CromwellTestKitSpec
     * var callCacheWriteActorCreations: ExpectOne[(CallCacheHashes, SucceededResponse)] = NothingYet
     */
 
-  override def afterAll(): Unit = {
-    system.terminate()
-    super.afterAll()
-  }
-
   // Some helper lists
   val CallCachingModes = List(CallCachingOff, CallCachingActivity(ReadCache), CallCachingActivity(WriteCache), CallCachingActivity(ReadAndWriteCache))
   case class RestartOrExecuteCommandTuple(operationName: String, restarting: Boolean, expectedMessageToBjea: BackendJobExecutionActorCommand)

@@ -40,13 +40,12 @@ import scala.language.postfixOps
   * If any of the actors created by CromwellRootActor fail to initialize the ActorSystem will die, which means that
   * Cromwell will fail to start in a bad state regardless of the entry point.
   */
- abstract class CromwellRootActor extends Actor {
+ abstract class CromwellRootActor(implicit materializer: ActorMaterializer) extends Actor {
   import CromwellRootActor._
 
   private val logger = Logging(context.system, this)
   private val config = ConfigFactory.load()
   private implicit val system = context.system
-  private implicit val materializer = ActorMaterializer()
   
   val serverMode: Boolean
 

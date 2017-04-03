@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
+import akka.stream.ActorMaterializer
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
@@ -275,7 +276,7 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config) extends CromwellRootActor {
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor {
     override val serverMode = true
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
@@ -296,6 +297,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit val ec = system.dispatcher
+  implicit val materializer = twms.materializer
 
   val dummyServiceRegistryActor = system.actorOf(Props.empty)
   val dummyLogCopyRouter = system.actorOf(Props.empty)

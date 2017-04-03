@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor._
 import akka.pattern.ask
+import akka.stream.ActorMaterializer
 import akka.testkit.TestKit
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
@@ -46,7 +47,7 @@ object SingleWorkflowRunnerActorSpec {
   }
 
   class TestSingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
-                                      metadataOutputPath: Option[Path])
+                                      metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
     extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
     override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
   }

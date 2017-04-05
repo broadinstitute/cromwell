@@ -7,6 +7,7 @@ import spray.json.{JsArray, JsNumber}
 import wdl4s.WdlExpression
 import wdl4s.expression.NoFunctions
 
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
 class WdlArrayTypeSpec extends FlatSpec with Matchers  {
@@ -50,6 +51,12 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
     WdlArrayType(WdlIntegerType).coerceRawValue(JsArray(JsNumber(1), JsNumber(2), JsNumber(3))) match {
       case Success(array) => array shouldEqual intArray
       case Failure(f) => fail(s"exception while coercing JsArray: $f")
+    }
+  }
+  it should "coerce a Java List into a WdlArray" in {
+    WdlArrayType(WdlIntegerType).coerceRawValue(List(1,2,3).asJava) match {
+      case Success(array) => array shouldEqual intArray
+      case Failure(f) => fail(s"exception while coercing Java List: $f")
     }
   }
   it should "coerce single values into one-element arrays" in {

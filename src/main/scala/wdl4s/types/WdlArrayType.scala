@@ -4,6 +4,7 @@ import lenthall.util.TryUtil
 import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
 import spray.json.JsArray
 
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
 sealed trait WdlArrayType extends WdlType {
@@ -21,6 +22,7 @@ sealed trait WdlArrayType extends WdlType {
   protected def coercionMaker(allowEmpty: Boolean): PartialFunction[Any, WdlValue] = {
     case s: Seq[Any] if allowEmpty || s.nonEmpty => coerceIterable(s)
     case js: JsArray if allowEmpty || js.elements.nonEmpty => coerceIterable(js.elements)
+    case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala)
     case WdlArray(WdlMaybeEmptyArrayType.EmptyArrayType, _) => WdlArray(WdlArrayType(memberType), Seq.empty)
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType == WdlStringType && memberType == WdlFileType =>
       WdlArray(WdlArrayType(WdlFileType), wdlArray.value.map(str => WdlFile(str.asInstanceOf[WdlString].value)).toList)

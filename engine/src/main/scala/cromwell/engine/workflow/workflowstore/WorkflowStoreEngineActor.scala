@@ -129,6 +129,11 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
     runnableWorkflows map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
+    } recover {
+      case e =>
+        // Log the error but return a successful Future so as not to hang future workflow store polls.
+        log.error(e, "Error trying to fetch new workflows")
+        NoNewWorkflowsToStart
     }
   }
 }

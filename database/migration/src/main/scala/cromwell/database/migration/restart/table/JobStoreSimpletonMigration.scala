@@ -4,6 +4,7 @@ import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
 import wdl4s.types.WdlType
+import wdl4s.values.WdlValue
 
 
 class JobStoreSimpletonMigration extends AbstractRestartMigration {
@@ -45,18 +46,28 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
     lazy val insert = connection.prepareStatement(InsertJobStoreSimpleton)
     query.execute(QueryOutputsForDoneCallsInRunningWorkflows)
     val results = query.getResultSet
+
+    case class JobStoreSimpletonEntry(name: String, valueString: String, typeString: String)
+
+    def buildJobStoreSimpletonEntries(name: String, wdlValue: WdlValue, wdlType: WdlType) = Option(wdlValue) match {
+      case None => List(JobStoreSimpletonEntry(name, null, wdlType.toWdlString))
+      case Some(v) => wdlValue.simplify(name) map { s =>
+        JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.toWdlString, s.simpletonValue.wdlType.toWdlString)
+      }
+    }
+
     while (results.next()) {
       val wdlType = WdlType.fromWdlString(results.getString(4))
       val rawValue = results.getString(3)
       val inflated = inflate(rawValue).get
       val wdlValue = coerceStringToWdl(inflated, wdlType)
       val name = results.getString(2)
-      val simpletons = wdlValue.simplify(name)
-      simpletons foreach { s =>
+      val jobStoreSimpletonEntry = buildJobStoreSimpletonEntries(name, wdlValue, wdlType)
+      jobStoreSimpletonEntry foreach { e =>
         insert.setInt(1, results.getInt(1))
-        insert.setString(2, s.simpletonKey)
-        insert.setString(3, s.simpletonValue.toWdlString)
-        insert.setString(4, s.simpletonValue.wdlType.toWdlString)
+        insert.setString(2, e.name)
+        insert.setString(3, e.valueString)
+        insert.setString(4, e.typeString)
         insert.execute()
       }
     }

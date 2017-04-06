@@ -9,6 +9,7 @@ import centaur.test.metadata.WorkflowMetadata
 import com.typesafe.config.{Config, ConfigFactory}
 import configs.Result
 import configs.syntax._
+import cromwell.api.model.WorkflowSingleSubmission
 
 import scala.util.{Failure, Success, Try}
 
@@ -16,6 +17,8 @@ sealed abstract class Workflow {
   def testName: String
   def data: WorkflowData
   def backends: List[String]
+
+  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(data.wdl, data.inputs, data.options, data.zippedImports, refreshToken)
 }
 
 object Workflow {

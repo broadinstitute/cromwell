@@ -4,12 +4,12 @@ import java.util.UUID
 
 import cats.syntax.functor._
 import cats.syntax.flatMap._
-import centaur._
 import centaur.test.Operations._
 import centaur.test.Test
 import centaur.test.Test.testMonad
 import centaur.test.workflow.Workflow
 import centaur.test.workflow.Workflow.{WorkflowWithMetadata, WorkflowWithoutMetadata}
+import cromwell.api.model.{SubmittedWorkflow, Succeeded, Failed, TerminalStatus}
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -56,7 +56,7 @@ object TestFormulas {
   def runSequentialCachingWorkflows(firstAttempt: Workflow, secondAttempt: Workflow) = {
     for {
       firstWF <- runWorkflowUntilTerminalStatus(firstAttempt, Succeeded)
-      _ <- runSuccessfulWorkflowAndVerifyCacheMetadata(secondAttempt, firstWF.id)
+      _ <- runSuccessfulWorkflowAndVerifyCacheMetadata(secondAttempt, firstWF.id.id)
     } yield ()
   }
 

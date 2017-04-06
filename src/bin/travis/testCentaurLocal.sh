@@ -9,21 +9,70 @@ printTravisHeartbeat() {
     TRAVIS_HEARTBEAT_PID=$!
 }
 
+cromwellLogTail() {
+ (
+   while [ ! -f logs/cromwell.log ];
+   do
+     sleep 2
+     printf "(Cr)"
+   done
+   tail -f logs/cromwell.log &
+   CROMWELL_LOG_TAIL_PID=$!
+ ) &
+ CROMWELL_LOG_WAIT_PID=$!
+}
+
+centaurLogTail() {
+ (
+   while [ ! -f logs/centaur.log ];
+   do
+     sleep 2
+     printf "(Ce)"
+   done
+   tail -f logs/centaur.log &
+   CENTAUR_LOG_TAIL_PID=$!
+ ) &
+ CENTAUR_LOG_WAIT_PID=$!
+}
+
 killTravisHeartbeat() {
     if [ -n "${TRAVIS_HEARTBEAT_PID+set}" ]; then
         kill ${TRAVIS_HEARTBEAT_PID} || true
     fi
 }
 
+killCromwellLogTail() {
+    if [ -n "${CROMWELL_LOG_TAIL_PID+set}" ]; then
+        kill ${CROMWELL_LOG_TAIL_PID} || true
+    else
+        if [ -n "${CROMWELL_LOG_WAIT_PID+set}" ]; then
+            kill ${CROMWELL_LOG_WAIT_PID} || true
+        fi
+    fi
+}
+
+killCentaurLogTail() {
+    if [ -n "${CENTAUR_LOG_TAIL_PID+set}" ]; then
+        kill ${CENTAUR_LOG_TAIL_PID} || true
+    else
+        if [ -n "${CENTAUR_LOG_WAIT_PID+set}" ]; then
+            kill ${CENTAUR_LOG_WAIT_PID} || true
+        fi
+    fi
+}
+
 exitScript() {
-    echo "CROMWELL LOG"
-    cat logs/cromwell.log
     echo "CENTAUR LOG"
     cat logs/centaur.log
     killTravisHeartbeat
+    killCromwellLogTail
+    killCentaurLogTail
 }
 
 trap exitScript EXIT
+trap exitScript TERM
+cromwellLogTail
+centaurLogTail
 printTravisHeartbeat
 
 set -x

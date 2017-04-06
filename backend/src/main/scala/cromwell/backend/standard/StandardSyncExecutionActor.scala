@@ -58,7 +58,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   val jobIdKey: String = standardParams.jobIdKey
   val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
-  context.become(startup orElse super.receive)
+  context.become(startup orElse receive)
 
   private def startup: Receive = {
     case AbortJobCommand =>
@@ -93,14 +93,14 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
 
   override def execute: Future[BackendJobExecutionResponse] = {
     val executorRef = createAsyncRef()
-    context.become(running(executorRef) orElse super.receive)
+    context.become(running(executorRef) orElse receive)
     executorRef ! Execute
     completionPromise.future
   }
 
   override def recover: Future[BackendJobExecutionResponse] = {
     val executorRef = createAsyncRef()
-    context.become(running(executorRef) orElse super.receive)
+    context.become(running(executorRef) orElse receive)
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val kvGet = KvGet(ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey))

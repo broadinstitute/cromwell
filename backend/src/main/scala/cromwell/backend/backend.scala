@@ -5,6 +5,7 @@ import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.CallCachingEligibility
 import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
+import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wdl4s._
 import wdl4s.values.WdlValue
 
@@ -27,7 +28,8 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
                                 runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
                                 inputDeclarations: EvaluatedTaskInputs,
-                                callCachingEligibility: CallCachingEligibility) {
+                                callCachingEligibility: CallCachingEligibility,
+                                prefetchedKvStoreEntries: Map[String, KvResponse]) {
   val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> value }
   val call = key.call
   override val toString = s"${key.mkTag(workflowDescriptor.id)}"
@@ -68,5 +70,3 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
 final case class AttemptedLookupResult(name: String, value: Try[WdlValue]) {
   def toPair = name -> value
 }
-
-case class PreemptedException(msg: String) extends Exception(msg)

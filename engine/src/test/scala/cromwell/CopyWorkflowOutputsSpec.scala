@@ -8,7 +8,7 @@ import org.scalatest.prop.Tables.Table
 
 import scala.language.postfixOps
 
-class CopyWorkflowOutputsSpec extends CromwellTestKitSpec {
+class CopyWorkflowOutputsSpec extends CromwellTestKitWordSpec {
 
   "CopyWorkflowOutputsCall" should {
     "copy workflow outputs" in {

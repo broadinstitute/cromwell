@@ -13,7 +13,7 @@ object SqlKeyValueServiceActor {
   def props(serviceConfig: Config, globalConfig: Config) = Props(SqlKeyValueServiceActor(serviceConfig, globalConfig)).withDispatcher(ServiceDispatcher)
 }
 
-case class SqlKeyValueServiceActor(override val serviceConfig: Config, override val globalConfig: Config)
+final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Config)
   extends KeyValueServiceActor with BackendKeyValueDatabaseAccess with SingletonServicesStore {
   override implicit val ec = context.dispatcher
   private implicit val system = context.system

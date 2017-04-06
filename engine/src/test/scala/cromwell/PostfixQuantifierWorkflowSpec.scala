@@ -5,7 +5,7 @@ import wdl4s.values.WdlString
 import cromwell.util.SampleWdl
 
 
-class PostfixQuantifierWorkflowSpec extends CromwellTestKitSpec {
+class PostfixQuantifierWorkflowSpec extends CromwellTestKitWordSpec {
   "A task which contains a parameter with a zero-or-more postfix quantifier" should {
     "accept an array of size 3" in {
       runWdlAndAssertOutputs(

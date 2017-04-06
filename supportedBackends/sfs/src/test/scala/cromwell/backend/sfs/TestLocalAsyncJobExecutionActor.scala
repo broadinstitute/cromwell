@@ -7,6 +7,7 @@ import cromwell.backend.standard._
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.SimpleIoActor
+import cromwell.services.keyvalue.InMemoryKvServiceActor
 
 class TestLocalAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackgroundAsyncJobExecutionActor {
@@ -32,7 +33,7 @@ object TestLocalAsyncJobExecutionActor {
 
   def createBackendRef(jobDescriptor: BackendJobDescriptor, configurationDescriptor: BackendConfigurationDescriptor)
                       (implicit system: ActorSystem): TestActorRef[StandardSyncExecutionActor] = {
-    val emptyActor = system.actorOf(Props.empty)
+    val serviceRegistryActor = system.actorOf(Props(new InMemoryKvServiceActor)) // We only really need the KV store for now
     val ioActor = system.actorOf(SimpleIoActor.props)
     val workflowPaths = new WorkflowPathsWithDocker(jobDescriptor.workflowDescriptor, configurationDescriptor.backendConfig)
     val initializationData = new StandardInitializationData(workflowPaths,
@@ -40,8 +41,15 @@ object TestLocalAsyncJobExecutionActor {
       classOf[SharedFileSystemExpressionFunctions])
     val asyncClass = classOf[TestLocalAsyncJobExecutionActor]
 
-    val params = DefaultStandardSyncExecutionActorParams(SharedFileSystemAsyncJobExecutionActor.JobIdKey, emptyActor, ioActor,
-      jobDescriptor, configurationDescriptor, Option(initializationData), None, asyncClass)
+    val params = DefaultStandardSyncExecutionActorParams(
+      jobIdKey = SharedFileSystemAsyncJobExecutionActor.JobIdKey,
+      serviceRegistryActor = serviceRegistryActor,
+      ioActor = ioActor,
+      jobDescriptor = jobDescriptor,
+      configurationDescriptor = configurationDescriptor,
+      backendInitializationDataOption = Option(initializationData),
+      backendSingletonActorOption = None,
+      asyncJobExecutionActorClass = asyncClass)
 
     TestActorRef(new StandardSyncExecutionActor(params))
   }

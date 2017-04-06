@@ -4,7 +4,7 @@ import akka.actor.Actor
 import akka.testkit.TestFSMRef
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.jobstore.{Pending => _}
-import cromwell.CromwellTestKitSpec
+import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobExecutionActor
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionActorCommand
 import cromwell.core.callcaching._
@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-trait EngineJobExecutionActorSpec extends CromwellTestKitSpec
+trait EngineJobExecutionActorSpec extends CromwellTestKitWordSpec
   with Matchers with Mockito with BeforeAndAfterAll with BeforeAndAfter {
 
   // If we WANT something to happen, make sure it happens within this window:

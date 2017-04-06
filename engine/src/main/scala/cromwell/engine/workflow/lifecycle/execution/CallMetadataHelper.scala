@@ -82,7 +82,7 @@ trait CallMetadataHelper {
   }
 
   def pushFailedCallMetadata(jobKey: JobKey, returnCode: Option[Int], failure: Throwable, retryableFailure: Boolean) = {
-    val failedState = if (retryableFailure) ExecutionStatus.Preempted else ExecutionStatus.Failed
+    val failedState = if (retryableFailure) ExecutionStatus.RetryableFailure else ExecutionStatus.Failed
     val completionEvents = completedCallMetadataEvents(jobKey, failedState, returnCode)
     val retryableFailureEvent = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure))
     val failureEvents = throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)

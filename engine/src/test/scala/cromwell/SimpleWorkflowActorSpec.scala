@@ -28,7 +28,7 @@ object SimpleWorkflowActorSpec {
     promise: Promise[Unit])
 }
 
-class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
+class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
 
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,

@@ -59,8 +59,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     multiplier = 1.1
   )
 
-  override lazy val retryable: Boolean = false
-
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
 
   override lazy val jobTag = jobDescriptor.key.tag

@@ -6,7 +6,7 @@ import wdl4s.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
 
-class ScatterWorkflowSpec extends CromwellTestKitSpec {
+class ScatterWorkflowSpec extends CromwellTestKitWordSpec {
   "A workflow with a stand-alone scatter block in it" should {
     "run properly" in {
       runWdlAndAssertOutputs(

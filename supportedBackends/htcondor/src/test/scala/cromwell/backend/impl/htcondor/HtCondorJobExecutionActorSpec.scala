@@ -464,7 +464,7 @@ class HtCondorJobExecutionActorSpec extends TestKitSuite("HtCondorJobExecutionAc
 
   class KVServiceActor extends Actor {
     override def receive: Receive = {
-      case KvPut => // Do nothing
+      case _: KvPut => // Do nothing
       case KvGet(kvKey) => sender ! KvPair(kvKey, Option("123"))
     }
   }

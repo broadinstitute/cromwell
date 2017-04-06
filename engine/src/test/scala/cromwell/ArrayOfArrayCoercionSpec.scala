@@ -6,7 +6,7 @@ import wdl4s.values.{WdlArray, WdlString}
 import cromwell.util.SampleWdl
 
 
-class ArrayOfArrayCoercionSpec extends CromwellTestKitSpec {
+class ArrayOfArrayCoercionSpec extends CromwellTestKitWordSpec {
   "A workflow that has an Array[Array[File]] input " should {
     "accept an Array[Array[String]] as the value for the input" in {
       runWdlAndAssertOutputs(

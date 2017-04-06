@@ -7,12 +7,12 @@ import cromwell.core.path.PathBuilder
 import wdl4s._
 
 case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
-                                          backendDescriptor: BackendWorkflowDescriptor,
-                                          backendAssignments: Map[TaskCall, String],
-                                          failureMode: WorkflowFailureMode,
-                                          pathBuilders: List[PathBuilder],
-                                          callCachingMode: CallCachingMode,
-                                          parentWorkflow: Option[EngineWorkflowDescriptor] = None) {
+                                    backendDescriptor: BackendWorkflowDescriptor,
+                                    backendAssignments: Map[TaskCall, String],
+                                    failureMode: WorkflowFailureMode,
+                                    pathBuilders: List[PathBuilder],
+                                    callCachingMode: CallCachingMode,
+                                    parentWorkflow: Option[EngineWorkflowDescriptor] = None) {
   
   val rootWorkflow: EngineWorkflowDescriptor = parentWorkflow match {
     case Some(parent) => parent.rootWorkflow

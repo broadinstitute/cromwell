@@ -243,7 +243,7 @@ object EngineJobHashingActorSpec extends BackendSpec {
     when(task.outputs).thenReturn(List.empty)
     when(call.task).thenReturn(task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
     jobDescriptor
   }
 

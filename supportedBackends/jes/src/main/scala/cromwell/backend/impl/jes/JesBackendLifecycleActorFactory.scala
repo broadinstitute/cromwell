@@ -9,6 +9,7 @@ import cromwell.core.CallOutputs
 import wdl4s.TaskCall
 
 import scala.util.{Success, Try}
+import cromwell.backend.impl.jes.JesBackendLifecycleActorFactory._
 
 case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
@@ -52,11 +53,17 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   
   override def dockerHashCredentials(initializationData: Option[BackendInitializationData]) = {
     Try(BackendInitializationData.as[JesBackendInitializationData](initializationData)) match {
-      case Success(jesData) => 
+      case Success(jesData) =>
         val maybeDockerHubCredentials = jesData.jesConfiguration.dockerCredentials
         val googleCredentials = Option(jesData.gcsCredentials)
         List(maybeDockerHubCredentials, googleCredentials).flatten
       case _ => List.empty[Any]
     }
   }
+  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
+}
+
+object JesBackendLifecycleActorFactory {
+  val preemptionCountKey = "PreemptionCount"
+  val unexpectedRetryCountKey = "UnexpectedRetryCount"
 }

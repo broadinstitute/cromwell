@@ -33,7 +33,7 @@ import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalactic.Equality
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
+import org.scalatest._
 import spray.http.StatusCode
 import spray.json._
 import wdl4s.TaskCall
@@ -288,10 +288,13 @@ object CromwellTestKitSpec {
       result
     }
   }
+
+  def defaultTwms = new CromwellTestKitSpec.TestWorkflowManagerSystem()
 }
 
-abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestKitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
-  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with Eventually {
+abstract class CromwellTestKitWordSpec extends CromwellTestKitSpec with WordSpecLike
+abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = defaultTwms) extends TestKit(twms.actorSystem)
+  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll {
 
   override protected def afterAll() = { twms.shutdownTestActorSystem(); () }
 
@@ -343,7 +346,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
   }
 
   private def buildCromwellRootActor(config: Config) = {
-    TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor")
+    TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor" + UUID.randomUUID().toString)
   }
 
   def runWdl(sampleWdl: SampleWdl,

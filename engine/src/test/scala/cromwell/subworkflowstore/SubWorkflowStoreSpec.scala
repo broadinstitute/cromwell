@@ -1,6 +1,6 @@
 package cromwell.subworkflowstore
 
-import cromwell.CromwellTestKitSpec
+import cromwell.CromwellTestKitWordSpec
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.services.SingletonServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
@@ -24,7 +24,7 @@ object SubWorkflowStoreSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class SubWorkflowStoreSpec extends CromwellTestKitSpec with Matchers with Mockito {
+class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
   "SubWorkflowStore" should {
     "work" in {
       lazy val subWorkflowStore = new SqlSubWorkflowStore(SingletonServicesStore.databaseInterface)

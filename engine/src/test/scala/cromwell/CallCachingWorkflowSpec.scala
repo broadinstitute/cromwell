@@ -11,7 +11,7 @@ import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
 
-class CallCachingWorkflowSpec extends CromwellTestKitSpec {
+class CallCachingWorkflowSpec extends CromwellTestKitWordSpec {
   def cacheHitMessageForCall(name: String) = s"Call Caching: Cache hit. Using UUID\\(.{8}\\):$name\\.*"
 
   val expectedOutputs = Map(

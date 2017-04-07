@@ -8,7 +8,7 @@ import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlInteger, WdlString, WdlValue}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 /**
   * Validates the "memory" runtime attribute as an Integer or String with format '8 GB', returning the value as a
@@ -29,12 +29,11 @@ import scala.util.{Failure, Success, Try}
 object MemoryValidation {
   lazy val instance: RuntimeAttributesValidation[MemorySize] = new MemoryValidation
   lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
-  def configDefaultString(config: Config): String = instance.configDefaultValue(config).toString
-
-  def withDefaultMemory(memorySize: Try[MemorySize], defaultString: String): RuntimeAttributesValidation[MemorySize] = {
-    memorySize match {
-      case Success(memory) => instance.withDefault(Some(WdlInteger(memory.bytes.toInt)))
-      case Failure(_) => instance.withDefault(Some(WdlString(defaultString)))
+  def configDefaultString(config: Config): Option[String] = instance.configDefaultValue(config)
+  def withDefaultMemory(memorySize: String): RuntimeAttributesValidation[MemorySize] = {
+    MemorySize.parse(memorySize) match {
+      case Success(memory) => instance.withDefault(WdlInteger(memory.bytes.toInt))
+      case Failure(_) => instance.withDefault(WdlString(memorySize.toString))
     }
   }
 

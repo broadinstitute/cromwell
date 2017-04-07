@@ -28,9 +28,9 @@ import scala.util.Try
   */
 object ContinueOnReturnCodeValidation {
   lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
+  def default(runtimeConfig: Config): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(
+    configDefaultWdlValue(runtimeConfig) getOrElse WdlInteger(0))
   def configDefaultWdlValue(runtimeConfig: Config): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
-  def default(runtimeConfig: Config): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(configDefaultWdlValue(runtimeConfig))
-  def optional(runtimeConfig: Config): OptionalRuntimeAttributesValidation[ContinueOnReturnCode] = default(runtimeConfig).optional
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {

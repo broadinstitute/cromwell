@@ -116,10 +116,6 @@ class JesConfigurationSpec extends FlatSpec with Matchers with TableDrivenProper
     new JesConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).root shouldBe "gs://my-cromwell-workflows-bucket"
   }
 
-  it should "have the correct default zones" in {
-    new JesConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).defaultZones.toList shouldBe List("us-central1-a", "us-central1-b")
-  }
-
   it should "have correct docker" in {
     val dockerConf = new JesConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).dockerCredentials
     dockerConf shouldBe defined

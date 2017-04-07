@@ -1,7 +1,7 @@
 package cromwell.backend.validation
 
 import com.typesafe.config.Config
-import wdl4s.values.WdlValue
+import wdl4s.values.{WdlBoolean, WdlValue}
 
 /**
   * Validates the "failOnStderr" runtime attribute as a Boolean or a String 'true' or 'false', returning the value as a
@@ -20,9 +20,9 @@ import wdl4s.values.WdlValue
 
 object FailOnStderrValidation {
   lazy val instance: RuntimeAttributesValidation[Boolean] = new FailOnStderrValidation
+  def default(runtimeConfig: Config): RuntimeAttributesValidation[Boolean] = instance.withDefault(
+    configDefaultWdlValue(runtimeConfig) getOrElse WdlBoolean(false))
   def configDefaultWdlValue(runtimeConfig: Config): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
-  def default(runtimeConfig: Config): RuntimeAttributesValidation[Boolean] = instance.withDefault(configDefaultWdlValue(runtimeConfig))
-  def optional(runtimeConfig: Config): OptionalRuntimeAttributesValidation[Boolean] = default(runtimeConfig).optional
 }
 
 class FailOnStderrValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.FailOnStderrKey) {

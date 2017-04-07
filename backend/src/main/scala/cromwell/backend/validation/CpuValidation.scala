@@ -19,11 +19,10 @@ import wdl4s.values.{WdlInteger, WdlValue}
   * `optional` can be used to return the validated value as an `Option`,
   * wrapped in a `Some`, if present, or `None` if not found.
   */
-object CpuValidation {
+object CpuValidation extends {
   lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation
+  lazy val default: WdlValue = WdlInteger(1)
   def configDefaultWdlValue(config: Config): Option[WdlValue] = instance.configDefaultWdlValue(config)
-  def default(config: Config): RuntimeAttributesValidation[Int] = instance.withDefault(configDefaultWdlValue(config))
-  def optional(config: Config): OptionalRuntimeAttributesValidation[Int] = default(config).optional
 }
 
 class CpuValidation extends IntRuntimeAttributesValidation(RuntimeAttributesKeys.CpuKey) {

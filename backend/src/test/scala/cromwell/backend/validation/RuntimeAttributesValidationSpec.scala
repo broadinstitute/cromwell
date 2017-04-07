@@ -3,7 +3,7 @@ package cromwell.backend.validation
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.{MemorySize, TestConfig}
+import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
@@ -333,8 +333,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
       val memoryVal = MemoryValidation.configDefaultString(backendConfig)
-      val memorySize = MemorySize.parse(memoryVal)
-      MemoryValidation.withDefaultMemory(memorySize, memoryVal).runtimeAttributeDefinition.factoryDefault shouldBe Some(WdlInteger(2000000000))
+      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(WdlInteger(2000000000))
     }
 
     "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WdlType" in {
@@ -348,12 +347,10 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
       val memoryVal = MemoryValidation.configDefaultString(backendConfig)
-      val memorySize = MemorySize.parse(memoryVal)
-      MemoryValidation.withDefaultMemory(memorySize, memoryVal).runtimeAttributeDefinition.factoryDefault shouldBe Some(WdlString("blahblah"))
+      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(WdlString("blahblah"))
     }
 
-    //TODO: Unignore once Wdl4sV is updated
-    "should be able to coerce a Java list to a WdlArray" ignore {
+    "should be able to coerce a list of return codes into an WdlArray" in {
       val backendConfig = ConfigFactory.parseString(
         s"""
            |continueOnReturnCode = [0,1,2]

@@ -89,7 +89,7 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     */
   protected def default(validation: RuntimeAttributesValidation[_],
                         wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
-    validation.withDefault(Some(wdlExpression.evaluate(NoLookup, NoFunctions).get))
+    validation.withDefault(wdlExpression.evaluate(NoLookup, NoFunctions).get)
   }
 
   /**

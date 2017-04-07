@@ -68,7 +68,7 @@ class HtCondorInitializationActor(override val workflowDescriptor: BackendWorkfl
   }
 
   override def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WdlValue]): Boolean = {
-    val continueOnReturnCodeDefaultValue = HtCondorRuntimeAttributes.staticDefaults.get(ContinueOnReturnCodeKey)
+    val continueOnReturnCodeDefaultValue = HtCondorRuntimeAttributes.staticDefaults.get(ContinueOnReturnCodeKey).get
     ContinueOnReturnCodeValidation.instance.withDefault(continueOnReturnCodeDefaultValue).validateOptionalExpression(wdlExpressionMaybe)
   }
 

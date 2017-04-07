@@ -51,7 +51,7 @@ class MemoryDeclarationValidation(declaration: Declaration)
     val wdlValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
     val amount: Double = defaultAmount(wdlValue)
     val memorySize = MemorySize(amount, declarationMemoryUnit)
-    validation.withDefault(Some(WdlInteger(memorySize.bytes.toInt)))
+    validation.withDefault(WdlInteger(memorySize.bytes.toInt))
   }
 
   private def defaultAmount(wdlValue: WdlValue): Double = {

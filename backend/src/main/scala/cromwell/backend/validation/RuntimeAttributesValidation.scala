@@ -2,7 +2,7 @@ package cromwell.backend.validation
 
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigException}
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
@@ -74,7 +74,7 @@ object RuntimeAttributesValidation {
   }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
-                                 default: Option[WdlValue]): RuntimeAttributesValidation[ValidatedType] = {
+                                 default: WdlValue): RuntimeAttributesValidation[ValidatedType] = {
     new RuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
@@ -93,7 +93,7 @@ object RuntimeAttributesValidation {
 
       override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
-      override protected def staticDefaultOption = default
+      override protected def staticDefaultOption = Some(default)
     }
   }
 
@@ -369,7 +369,7 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @param wdlValue The default wdl value.
     * @return The new version of this validation.
     */
-  final def withDefault(wdlValue: Option[WdlValue]): RuntimeAttributesValidation[ValidatedType] =
+  final def withDefault(wdlValue: WdlValue): RuntimeAttributesValidation[ValidatedType] =
     RuntimeAttributesValidation.withDefault(this, wdlValue)
 
   /**
@@ -384,17 +384,23 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @return The new version of this validation.
     */
   final def configDefaultWdlValue(backendRuntimeDefaults: Config): Option[WdlValue] = {
-    backendRuntimeDefaults.getValue(key).unwrapped() match {
-      case value => this.coercion.collect({
-        case wdlType if wdlType.coerceRawValue(value).isSuccess =>
-          wdlType.coerceRawValue(value).get
-      }).headOption orElse Some(WdlString(value.toString))
+    if (backendRuntimeDefaults.hasPath(key)) {
+      backendRuntimeDefaults.getValue(key).unwrapped() match {
+        case value => this.coercion.collect({
+          case wdlType if wdlType.coerceRawValue(value).isSuccess =>
+            wdlType.coerceRawValue(value).get
+        }).headOption orElse Some(WdlString(value.toString))
+      }
     }
+    else None
   }
 
-  final def configDefaultValue(backendRuntimeDefaults: Config): Any = {
-    backendRuntimeDefaults.getValue(key).unwrapped()
-  }
+  final def configDefaultValue(backendRuntimeDefaults: Config): Option[String] =
+    try {
+      Some(backendRuntimeDefaults.getValue(key).unwrapped().toString)
+    } catch {
+      case ex: ConfigException => None
+    }
 
   /*
   Methods below provide aliases to expose protected methods to the package.

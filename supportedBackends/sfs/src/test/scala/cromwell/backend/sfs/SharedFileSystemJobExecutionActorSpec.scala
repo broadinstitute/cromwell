@@ -14,7 +14,7 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingEligible
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks

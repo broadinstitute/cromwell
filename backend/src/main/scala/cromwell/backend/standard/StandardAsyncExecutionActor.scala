@@ -189,7 +189,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |${globManipulations(globFiles)}
         |)
-        |sync
         |mv $rcTmpPath $rcPath
         |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
   }

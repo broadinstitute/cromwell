@@ -107,7 +107,7 @@ trait PerRequestCreator {
 
   def perRequest(r: RequestContext,
                  props: Props, message: AnyRef,
-                 timeout: Duration = 1 minutes,
+                 timeout: Duration = 2 minutes,
                  name: String = PerRequestCreator.endpointActorName): Unit = {
     actorRefFactory.actorOf(Props(WithProps(r, props, message, timeout, name)).withDispatcher(ApiDispatcher), name)
     ()

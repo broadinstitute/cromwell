@@ -117,13 +117,13 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
   }
 
-  it should "keep event with later timestamp for the same key in metadata" in {
+  it should "assume the event list is ordered and keep last event if 2 events have same key" in {
     val eventBuilderList = List(
       ("a", "aLater", OffsetDateTime.parse("2000-01-02T12:00:00Z")),
       ("a", "a", OffsetDateTime.parse("2000-01-01T12:00:00Z"))
     )
     val expectedRes =
-      """"a": "aLater"""".stripMargin
+      """"a": "a"""".stripMargin
 
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
   }

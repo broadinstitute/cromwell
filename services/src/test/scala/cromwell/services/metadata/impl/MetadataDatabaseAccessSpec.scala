@@ -82,6 +82,34 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         }
       } yield()).futureValue
     }
+    
+    it should "sort metadata events by timestamp from older to newer" taggedAs DbmsTest in {
+      def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
+        val workflowKey = MetadataKey(id, jobKey = None, key = null)
+        val now = OffsetDateTime.now()
+        val yesterday = now.minusDays(1)
+        val tomorrow = now.plusDays(1)
+
+        val yesterdayEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("A")), yesterday)
+        val nowEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("B")), now)
+        val tomorrowEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("C")), tomorrow)
+        
+        val events = Vector(tomorrowEvent, yesterdayEvent, nowEvent)
+        
+        val expectedEvents = Vector(yesterdayEvent, nowEvent, tomorrowEvent)
+        
+        dataAccess.addMetadataEvents(events) map { _ => expectedEvents }
+      }
+      
+      (for {
+        workflow1Id <- baseWorkflowMetadata(Workflow1Name)
+        expected <- unorderedEvents(workflow1Id)
+        //get metadata when page and pagesize are specified
+        _ <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false)) map { response =>
+          response shouldBe expected
+        }
+      } yield()).futureValue
+    }
 
     it should "create and query a workflow" taggedAs DbmsTest in {
 

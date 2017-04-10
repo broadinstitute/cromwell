@@ -141,7 +141,7 @@ object IoActor {
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable
+    case gcs: StorageException => gcs.isRetryable || gcs.getCode == 410
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true

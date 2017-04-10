@@ -237,7 +237,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
-  def metadataRoute =
+  def metadataRoute = compressResponse() {
     path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
       parameterMultiMap { parameters =>
         val includeKeysOption = NonEmptyList.fromList(parameters.getOrElse("includeKey", List.empty))
@@ -260,6 +260,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         }
       }
     }
+  }
 
   def timingRoute =
     path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>

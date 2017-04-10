@@ -1902,8 +1902,6 @@ When Cromwell finds a job ready to be run, it will first look at its docker runt
         If call caching writing is turned on, Cromwell will still write the job in the cache database, using:
          * the hash if the lookup succeeded
          * the floating tag otherwise.
-         
-Note that although we STRONGLY RECOMMEND to keep docker hash lookup ENABLED, it can be disabled in the configuration using `docker.hash-lookup.enabled`. (See `reference.conf` for more details)
 
 ### Docker Lookup
 

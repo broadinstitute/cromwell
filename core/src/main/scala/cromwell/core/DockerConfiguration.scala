@@ -22,9 +22,8 @@ object DockerConfiguration {
       case "remote" => DockerRemoteLookup
       case other => throw new IllegalArgumentException(s"Unrecognized docker hash lookup method: $other")
     }
-    val enabled = validate { dockerHashLookupConfig.as[Boolean]("enabled") }
-    
-    val dockerConfiguration = (enabled |@| gcrApiQueriesPer100Seconds |@| cacheEntryTtl |@| cacheSize |@| method) map  DockerConfiguration.apply
+
+    val dockerConfiguration = (gcrApiQueriesPer100Seconds |@| cacheEntryTtl |@| cacheSize |@| method) map  DockerConfiguration.apply
     
     dockerConfiguration match {
       case Valid(conf) => conf
@@ -34,7 +33,6 @@ object DockerConfiguration {
 }
 
 case class DockerConfiguration(
-                                enabled: Boolean,
                                 gcrApiQueriesPer100Seconds: Int,
                                 cacheEntryTtl: FiniteDuration,
                                 cacheSize: Long,

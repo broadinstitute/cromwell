@@ -16,6 +16,7 @@ import cromwell.core.{CallOutputs, CromwellAggregatedException, CromwellFatalExc
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import lenthall.util.TryUtil
+import net.ceedubs.ficus.Ficus._
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
@@ -87,6 +88,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** @see [[Command.instantiate]] */
   lazy val backendEngineFunctions: StandardExpressionFunctions =
     standardInitializationData.expressionFunctions(jobPaths)
+
+  lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
   /**
     * Maps WdlFile objects for use in the commandLinePreProcessor.
@@ -189,9 +192,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |${globManipulations(globFiles)}
         |)
-        |sync
+        |SCRIPT_EPILOGUE
         |mv $rcTmpPath $rcPath
-        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
+        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand).replace("SCRIPT_EPILOGUE", scriptEpilogue)
   }
 
   /** The instantiated command. */

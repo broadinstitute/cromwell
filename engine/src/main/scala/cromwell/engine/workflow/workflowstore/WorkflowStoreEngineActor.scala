@@ -3,13 +3,12 @@ package cromwell.engine.workflow.workflowstore
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
+import cromwell.core.WorkflowId
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreActorState
-import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
-import WorkflowStoreEngineActor._
-import cromwell.core.WorkflowId
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
+import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreState.StartableState
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -77,11 +76,19 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
       case cmd @ AbortWorkflow(id, manager) =>
         store.remove(id) map { removed =>
           if (removed) {
-            log.debug(s"Workflow $id aborted and removed from the workflow store.")
             manager ! WorkflowManagerActor.AbortWorkflowCommand(id, sndr)
+            log.debug(s"Workflow $id removed from the workflow store, abort requested.")
           } else {
             sndr ! WorkflowAbortFailed(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           }
+        } recover {
+          case t =>
+            val message = s"Error aborting workflow $id: could not remove from workflow store"
+            log.error(t, message)
+            // A generic exception type like RuntimeException will produce a 500 at the API layer, which seems appropriate
+            // given we don't know much about what went wrong here.  `t.getMessage` so the cause propagates to the client.
+            val e = new RuntimeException(s"$message: ${t.getMessage}", t)
+            sndr ! WorkflowAbortFailed(id, e)
         }
       case cmd @ RemoveWorkflow(id) =>
         store.remove(id) map { removed =>
@@ -90,6 +97,9 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
           } else {
             log.warning(s"Attempted to remove ID {} from the WorkflowStore but it didn't exist", id)
           }
+        } recover {
+          case t =>
+            log.error(t, s"Unable to remove workflow $id from workflow store")
         }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)

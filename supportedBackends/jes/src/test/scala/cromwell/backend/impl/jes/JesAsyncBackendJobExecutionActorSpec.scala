@@ -4,7 +4,7 @@ import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
-import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
@@ -19,8 +19,10 @@ import cromwell.core.callcaching.CallCachingEligible
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.auth.GoogleAuthMode.NoAuthMode
+import cromwell.filesystems.gcs.auth.GoogleAuthMode.MockAuthMode
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
+import cromwell.services.keyvalue.InMemoryKvServiceActor
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
@@ -33,16 +35,19 @@ import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
-  with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec {
+  with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter {
 
-  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(NoAuthMode).withOptions(WorkflowOptions.empty)
+  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(MockAuthMode, "cromwell-test").withOptions(WorkflowOptions.empty)
+
+  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
   import JesTestConfig._
 
-  implicit val Timeout: FiniteDuration = 5.seconds.dilated
+  implicit val Timeout: FiniteDuration = 25.seconds.dilated
 
   val YoSup: String =
     s"""
@@ -93,16 +98,19 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
              promise: Promise[BackendJobExecutionResponse],
              jesConfiguration: JesConfiguration,
              functions: JesExpressionFunctions = TestableJesExpressionFunctions,
-             jesSingletonActor: ActorRef = emptyActor) = {
+             jesSingletonActor: ActorRef = emptyActor,
+             ioActor: ActorRef = mockIoActor) = {
+
       this(
         DefaultStandardAsyncExecutionActorParams(
-          JesAsyncBackendJobExecutionActor.JesOperationIdKey,
-          emptyActor,
-          jobDescriptor,
-          jesConfiguration.configurationDescriptor,
-          Option(buildInitializationData(jobDescriptor, jesConfiguration)),
-          Option(jesSingletonActor),
-          promise
+          jobIdKey = JesAsyncBackendJobExecutionActor.JesOperationIdKey,
+          serviceRegistryActor = kvService,
+          ioActor = ioActor,
+          jobDescriptor = jobDescriptor,
+          configurationDescriptor = jesConfiguration.configurationDescriptor,
+          backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, jesConfiguration)),
+          backendSingletonActorOption = Option(jesSingletonActor),
+          completionPromise = promise
         ),
         functions
       )
@@ -128,7 +136,8 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       |}
     """.stripMargin
 
-  private def buildPreemptibleJobDescriptor(attempt: Int, preemptible: Int): BackendJobDescriptor = {
+  private def buildPreemptibleJobDescriptor(preemptible: Int, previousPreemptions: Int, previousUnexpectedRetries: Int): BackendJobDescriptor = {
+    val attempt = previousPreemptions + previousUnexpectedRetries + 1
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"), Seq.empty[ImportResolver]).get.workflow,
@@ -140,33 +149,44 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val job = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(job, None, attempt)
     val runtimeAttributes = makeRuntimeAttributes(job)
-    BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(Inputs), CallCachingEligible)
+    val prefetchedKvEntries = Map(
+      JesBackendLifecycleActorFactory.preemptionCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), JesBackendLifecycleActorFactory.preemptionCountKey), Some(previousPreemptions.toString)),
+      JesBackendLifecycleActorFactory.unexpectedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), JesBackendLifecycleActorFactory.unexpectedRetryCountKey), Some(previousUnexpectedRetries.toString)))
+    BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(Inputs), CallCachingEligible, prefetchedKvEntries)
   }
 
   private def executionActor(jobDescriptor: BackendJobDescriptor,
                              configurationDescriptor: BackendConfigurationDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
-                             jesSingletonActor: ActorRef): ActorRef = {
+                             jesSingletonActor: ActorRef,
+                             shouldBePreemptible: Boolean): ActorRef = {
 
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job, null)
     val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
     class ExecuteOrRecoverActor extends TestableJesJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
-      override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = Future.successful(handle)
+      override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+        if(preemptible == shouldBePreemptible) Future.successful(handle)
+        else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
+      }
     }
 
     system.actorOf(Props(new ExecuteOrRecoverActor), "ExecuteOrRecoverActor-" + UUID.randomUUID)
   }
 
-  private def runAndFail(attempt: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int): BackendJobExecutionResponse = {
+  private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
     val runStatus = Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val statusPoller = TestProbe()
 
     val promise = Promise[BackendJobExecutionResponse]()
-    val jobDescriptor =  buildPreemptibleJobDescriptor(attempt, preemptible)
-    val backend = executionActor(jobDescriptor, JesBackendConfigurationDescriptor, promise, statusPoller.ref)
+    val jobDescriptor =  buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
+
+    // TODO: Use this to check the new KV entries are there!
+    //val kvProbe = TestProbe()
+
+    val backend = executionActor(jobDescriptor, JesBackendConfigurationDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") {
       case DoPoll(_) => backend ! runStatus
@@ -176,42 +196,58 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int): TestActorRef[TestableJesJobExecutionActor] = {
-    val jobDescriptor = buildPreemptibleJobDescriptor(attempt, preemptible)
-    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    // For this test we say that all previous attempts were preempted:
+    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, attempt - 1, 0)
+    val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(),
+      jesConfiguration,
+      TestableJesExpressionFunctions,
+      emptyActor,
+      failIoActor))
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
   behavior of "JesAsyncBackendJobExecutionActor"
+  
+  val timeout = 25 seconds
 
-  { // Set of "handle call failures appropriately with respect to preemption" tests
+  { // Set of "handle call failures appropriately with respect to preemption and failure" tests
     val expectations = Table(
-      ("attempt", "preemptible", "errorCode", "innerErrorCode", "shouldRetry"),
-      // No preemptible attempts allowed, nothing should be retryable.
-      (1, 0, 10, 13, false),
-      (1, 0, 10, 14, false),
-      (1, 0, 10, 15, false),
-      (1, 0, 11, 13, false),
-      (1, 0, 11, 14, false),
+      ("previous_preemptions", "previous_unexpectedRetries", "preemptible", "errorCode", "innerErrorCode", "shouldRunAsPreemptible", "shouldRetry"),
+      // No preemptible attempts allowed, but standard failures should be retried.
+      (0, 0, 0, 10, 13, false, true), // This is the new "unexpected failure" mode, which is now retried
+      (0, 1, 0, 10, 13, false, true),
+      (0, 2, 0, 10, 13, false, false), // The third unexpected failure is a real failure.
+      (0, 0, 0, 10, 14, false, false), // Usually means "preempted', but this wasn't a preemptible VM, so this should just be a failure.
+      (0, 0, 0, 10, 15, false, false),
+      (0, 0, 0, 11, 13, false, false),
+      (0, 0, 0, 11, 14, false, false),
       // 1 preemptible attempt allowed, but not all failures represent preemptions.
-      (1, 1, 10, 13, true),
-      (1, 1, 10, 14, true),
-      (1, 1, 10, 15, false),
-      (1, 1, 11, 13, false),
-      (1, 1, 11, 14, false),
-      // 1 preemptible attempt allowed, but now on the second attempt nothing should be retryable.
-      (2, 1, 10, 13, false),
-      (2, 1, 10, 14, false),
-      (2, 1, 10, 15, false),
-      (2, 1, 11, 13, false),
-      (2, 1, 11, 14, false)
+      (0, 0, 1, 10, 13, true, true),
+      (0, 1, 1, 10, 13, true, true),
+      (0, 2, 1, 10, 13, true, false),
+      (0, 0, 1, 10, 14, true, true),
+      (0, 0, 1, 10, 15, true, false),
+      (0, 0, 1, 11, 13, true, false),
+      (0, 0, 1, 11, 14, true, false),
+      // 1 preemptible attempt allowed, but since we're now on the second preemption attempt only 13s should be retryable.
+      (1, 0, 1, 10, 13, false, true),
+      (1, 1, 1, 10, 13, false, true),
+      (1, 2, 1, 10, 13, false, false),
+      (1, 0, 1, 10, 14, false, false),
+      (1, 0, 1, 10, 15, false, false),
+      (1, 0, 1, 11, 13, false, false),
+      (1, 0, 1, 11, 14, false, false)
     )
 
-    expectations foreach { case (attempt, preemptible, errorCode, innerErrorCode, shouldRetry) =>
-      it should s"handle call failures appropriately with respect to preemption (attempt=$attempt, preemptible=$preemptible, errorCode=$errorCode, innerErrorCode=$innerErrorCode)" in {
-        runAndFail(attempt, preemptible, errorCode, innerErrorCode).getClass.getSimpleName match {
-          case "JobFailedNonRetryableResponse" => false shouldBe shouldRetry
-          case "JobFailedRetryableResponse" => true shouldBe shouldRetry
-          case huh => fail(s"Unexpected response class name: '$huh'")
+    expectations foreach { case (previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorCode, shouldBePreemptible, shouldRetry) =>
+      val descriptor = s"previousPreemptions=$previousPreemptions, previousUnexpectedRetries=$previousUnexpectedRetries preemptible=$preemptible, errorCode=$errorCode, innerErrorCode=$innerErrorCode"
+      it should s"handle call failures appropriately with respect to preemption and failure ($descriptor)" in {
+        runAndFail(previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorCode, shouldBePreemptible) match {
+          case response: JobFailedNonRetryableResponse =>
+            if(shouldRetry) fail(s"A should-be-retried job ($descriptor) was sent back to the engine with: $response")
+          case response: JobFailedRetryableResponse =>
+            if(!shouldRetry) fail(s"A shouldn't-be-retried job ($descriptor) was sent back to the engine with $response")
+          case huh => fail(s"Unexpected response: $huh")
         }
       }
     }
@@ -225,8 +261,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    executionResult.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    val failedHandle = executionResult.asInstanceOf[FailedNonRetryableExecutionHandle]
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
     failedHandle.returnCode shouldBe None
   }
 
@@ -238,12 +275,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
     retryableHandle.returnCode shouldBe None
-    val preemptedException = retryableHandle.throwable.asInstanceOf[PreemptedException]
-    preemptedException.getMessage should include("will be restarted with a non-preemptible VM")
+    retryableHandle.throwable.getMessage should include("will be restarted with a non-preemptible VM")
   }
 
   it should "restart 1 of 2 unexpected shutdowns with another preemptible VM" in {
@@ -254,12 +290,11 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
     val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    executionResult.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = executionResult.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.throwable.isInstanceOf[PreemptedException] shouldBe true
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
     retryableHandle.returnCode shouldBe None
-    val preemptedException2 = retryableHandle.throwable.asInstanceOf[PreemptedException]
-    preemptedException2.getMessage should include("will be restarted with another preemptible VM")
+    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
   }
 
   it should "handle Failure Status for various errors" in {
@@ -271,7 +306,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     def checkFailedResult(errorCode: Int, errorMessage: Option[String]): ExecutionHandle = {
       val failed =
         Failed(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
-      jesBackend.handleExecutionResult(failed, handle)
+      Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 
     checkFailedResult(10, Option("15: Other type of error."))
@@ -281,7 +316,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     checkFailedResult(10, Option("UnparsableInt: Even weirder error message."))
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     checkFailedResult(10, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(10, Option("Operation canceled at")) shouldBe AbortedExecutionHandle
+    checkFailedResult(1, Option("Operation canceled at")) shouldBe AbortedExecutionHandle
 
     actorRef.stop()
   }
@@ -311,7 +346,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val call = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -371,7 +406,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -411,7 +446,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[TaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
     TestActorRef[TestableJesJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -472,7 +507,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -501,7 +536,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -546,7 +581,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val call = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -579,7 +614,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)
     val key = BackendJobDescriptorKey(job, None, 1)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -601,7 +636,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val job = workflowDescriptor.workflow.taskCalls.head
     val key = BackendJobDescriptorKey(job, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(job)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -623,7 +658,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[TaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](
@@ -655,7 +690,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[TaskCall]
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, CallCachingEligible, Map.empty)
 
     val props = Props(new TestableJesJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
     val testActorRef = TestActorRef[TestableJesJobExecutionActor](

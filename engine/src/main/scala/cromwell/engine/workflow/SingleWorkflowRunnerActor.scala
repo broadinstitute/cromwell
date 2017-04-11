@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
+import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -17,6 +18,7 @@ import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowSt
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
+import cromwell.services.metadata.impl.WriteMetadataActor.{CheckPendingWrites, HasPendingWrites, NoPendingWrites}
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -32,7 +34,7 @@ import scala.util.{Failure, Try}
  * Designed explicitly for the use case of the 'run' functionality in Main. This Actor will start a workflow,
  * print out the outputs when complete and reply with a result.
  */
-class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])
+class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
   extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
 
   override val serverMode = false
@@ -71,17 +73,30 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
       schedulePollRequest()
       stay()
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
-      val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
-        s"CompleteRequest-Workflow-$id-request-${UUID.randomUUID()}")
-      metadataBuilder ! WorkflowOutputs(id)
       log.info(s"$Tag workflow finished with status '$WorkflowSucceeded'.")
-      goto(RequestingOutputs) using SucceededSwraData(replyTo, id)
+      serviceRegistryActor ! CheckPendingWrites
+      goto(WaitingForFlushedMetadata) using SucceededSwraData(replyTo, id)
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
       log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
-      requestMetadataOrIssueReply(FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed")))
+      serviceRegistryActor ! CheckPendingWrites
+      goto(WaitingForFlushedMetadata) using FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed"))
     case Event(RequestComplete((StatusCodes.OK, jsObject: JsObject)), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
       log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
-      requestMetadataOrIssueReply(AbortedSwraData(replyTo, id))
+      serviceRegistryActor ! CheckPendingWrites
+      goto(WaitingForFlushedMetadata) using AbortedSwraData(replyTo, id)
+  }
+  
+  when (WaitingForFlushedMetadata) {
+    case Event(HasPendingWrites, _) => 
+      context.system.scheduler.scheduleOnce(1 second, serviceRegistryActor, CheckPendingWrites)(context.system.dispatcher, self)
+      stay()
+    case Event(NoPendingWrites, data: SucceededSwraData) =>
+      val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
+        s"CompleteRequest-Workflow-${data.id}-request-${UUID.randomUUID()}")
+      metadataBuilder ! WorkflowOutputs(data.id)
+      goto(RequestingOutputs)
+    case Event(NoPendingWrites, data : TerminalSwraData) =>
+      requestMetadataOrIssueReply(data)
   }
 
   when (RequestingOutputs) {
@@ -194,7 +209,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 }
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path]): Props = {
+  def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path])(implicit materializer: ActorMaterializer): Props = {
     Props(new SingleWorkflowRunnerActor(source, metadataOutputFile)).withDispatcher(EngineDispatcher)
   }
 
@@ -208,6 +223,7 @@ object SingleWorkflowRunnerActor {
   case object NotStarted extends RunnerState
   case object SubmittedWorkflow extends RunnerState
   case object RunningWorkflow extends RunnerState
+  case object WaitingForFlushedMetadata extends RunnerState
   case object RequestingOutputs extends RunnerState
   case object RequestingMetadata extends RunnerState
 

@@ -6,8 +6,10 @@ import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import lenthall.exception.ThrowableAggregation
+import lenthall.exception.{MessageAggregation, ThrowableAggregation}
 import wdl4s.values._
+
+import scala.util.Random
 
 
 object MetadataService {
@@ -126,13 +128,41 @@ object MetadataService {
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }
 
-  def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable): List[MetadataEvent] = {
+  def throwableToMetadataEvents(metadataKey: MetadataKey, t: Throwable, failureIndex: Int = Random.nextInt(Int.MaxValue)): List[MetadataEvent] = {
+    val emptyCauseList = List(MetadataEvent.empty(metadataKey.copy(key = metadataKey.key + s"[$failureIndex]:causedBy[]")))
+    val metadataKeyAndFailureIndex = s"${metadataKey.key}[$failureIndex]"
+
     t match {
       case aggregation: ThrowableAggregation =>
-        aggregation.errorMessages.toList map { message => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(s"${aggregation.exceptionContext}: $message")) }
+        val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(aggregation.exceptionContext)))
+        val indexedCauses = aggregation.throwables.toList.zipWithIndex
+        val indexedCauseEvents = if (indexedCauses.nonEmpty) {
+          indexedCauses flatMap { case (cause, index) =>
+            val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")
+            throwableToMetadataEvents(causeKey, cause, index)
+          }
+        } else {
+          emptyCauseList
+        }
+        message ++ indexedCauseEvents
+      case aggregation: MessageAggregation =>
+        val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(aggregation.exceptionContext)))
+        val indexedCauses = aggregation.errorMessages.toList.zipWithIndex
+        val indexedCauseEvents = if (indexedCauses.nonEmpty) {
+          indexedCauses flatMap { case (cause, index) =>
+            val causeMessageKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy[$index]:message")
+            val causeCausedByKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy[$index]:causedBy[]")
+            List(MetadataEvent(causeMessageKey, MetadataValue(cause)), MetadataEvent.empty(causeCausedByKey))
+          }
+        } else {
+          emptyCauseList
+        }
+        message ++ indexedCauseEvents
+
       case other =>
-        val message = List(MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:message"), MetadataValue(t.getMessage)))
-        val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}:causedBy"), cause) } getOrElse List.empty
+        val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage)))
+        val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")
+        val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(causeKey, cause, 0) } getOrElse emptyCauseList
         message ++ cause
     }
   }

@@ -24,8 +24,6 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val jesCallPaths: JesJobPaths = jobPaths.asInstanceOf[JesJobPaths]
 
   lazy val runtimeAttributes = JesRuntimeAttributes(validatedRuntimeAttributes)
-
-  lazy val retryable: Boolean = jobDescriptor.key.attempt <= runtimeAttributes.preemptible
   lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
 
   lazy val callRootPath: Path = jesCallPaths.callExecutionRoot
@@ -37,7 +35,7 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val defaultMonitoringOutputPath: Path = callRootPath.resolve(JesMonitoringLogFile)
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
-  lazy val preemptible: Boolean = jobDescriptor.key.attempt <= maxPreemption
+  def preemptible: Boolean
 
   lazy val jesAttributes: JesAttributes = jesConfiguration.jesAttributes
   lazy val monitoringScript: Option[JesInput] = {

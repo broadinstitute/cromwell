@@ -116,15 +116,20 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
     this.copy(
       executionStore = executionStore.add(diff.executionStoreChanges),
-      engineCallExecutionActors = engineCallExecutionActors ++ diff.engineJobExecutionActorAdditions)
+      engineCallExecutionActors = engineCallExecutionActors ++ diff.engineJobExecutionActorAdditions
+    )
   }
 
   def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
     diffs.foldLeft(this)((newData, diff) => newData.mergeExecutionDiff(diff))
   }
   
+  def resetCheckRunnable = this.copy(executionStore = executionStore.copy(hasNewRunnables = false))
+  
+  def hasNewRunnables = executionStore.hasNewRunnables
+  
   def jobExecutionMap: JobExecutionMap = {
-    downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.unstartedJobs)
+    downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.startedJobs)
   }
   
   def hasRunningActors = backendJobExecutionActors.nonEmpty || subWorkflowExecutionActors.nonEmpty

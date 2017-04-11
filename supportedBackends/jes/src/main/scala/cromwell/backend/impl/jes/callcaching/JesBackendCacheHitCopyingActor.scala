@@ -1,0 +1,6 @@
+package cromwell.backend.impl.jes.callcaching
+
+import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+
+class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with GcsBatchCommandBuilder

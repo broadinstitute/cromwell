@@ -21,8 +21,9 @@ class SharedFileSystemInitializationActor(standardParams: StandardInitialization
     */
   lazy val gcsPathBuilderFactory: Option[GcsPathBuilderFactory] = {
     configurationDescriptor.backendConfig.as[Option[String]]("filesystems.gcs.auth") map { configAuth =>
-      GoogleConfiguration(configurationDescriptor.globalConfig).auth(configAuth) match {
-        case Valid(auth) => GcsPathBuilderFactory(auth)
+      val googleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
+      googleConfiguration.auth(configAuth) match {
+        case Valid(auth) => GcsPathBuilderFactory(auth, googleConfiguration.applicationName)
         case Invalid(error) => throw new MessageAggregation {
           override def exceptionContext: String = "Failed to parse gcs auth configuration"
 

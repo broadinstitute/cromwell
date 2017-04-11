@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor._
 import cats.data.NonEmptyList
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey, JobExecutionMap}
@@ -20,16 +19,19 @@ import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
-import net.ceedubs.ficus.Ficus._
 import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlValue, WdlString}
 import org.apache.commons.lang3.StringUtils
+import wdl4s.WdlExpression.ScopedLookupFunction
+import wdl4s.expression.WdlFunctions
+import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
 import wdl4s.{Scope, _}
 
-import scala.annotation.tailrec
+import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
+                                  ioActor: ActorRef,
                                   serviceRegistryActor: ActorRef,
                                   jobStoreActor: ActorRef,
                                   subWorkflowStoreActor: ActorRef,
@@ -47,13 +49,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   override val workflowIdForCallMetadata = workflowDescriptor.id
 
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
-  private val MaxRetries = ConfigFactory.load().as[Option[Int]]("system.max-retries") match {
-    case Some(value) => value
-    case None =>
-      workflowLogger.warn(s"Failed to load the max-retries value from the configuration. Defaulting back to a value of '$DefaultMaxRetriesFallbackValue'.")
-      DefaultMaxRetriesFallbackValue
-  }
-  
+
   private val backendFactories = TryUtil.sequenceMap(workflowDescriptor.backendAssignments.values.toSet[String] map { backendName =>
     backendName -> CromwellBackends.backendLifecycleFactoryActorByName(backendName)
   } toMap) recover {
@@ -75,11 +71,13 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, stateData) =>
-      val data = startRunnableScopes(stateData)
-      goto(WorkflowExecutionInProgressState) using data
+      scheduleStartRunnableCalls()
+      goto(WorkflowExecutionInProgressState)
   }
 
   when(WorkflowExecutionInProgressState) {
+    case Event(CheckRunnable, data) => handleCheckRunnable(data)
+
     case Event(JobStarting(jobKey), stateData) =>
       pushStartingCallMetadata(jobKey)
       stay() using stateData
@@ -157,6 +155,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     alreadyFailedMopUp
   }
 
+  private def scheduleStartRunnableCalls() = {
+    context.system.scheduler.scheduleOnce(SweepInterval, self, CheckRunnable)
+  }
+
   /**
     * Mop up function to handle a set of incoming results if this workflow has already failed:
     */
@@ -194,6 +196,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   whenUnhandled {
+    case Event(CheckRunnable, _) => stay()
     case Event(Terminated(actorRef), stateData) => handleTerminated(actorRef) using stateData.removeEngineJobExecutionActor(actorRef)
     case Event(EngineLifecycleActorAbortCommand, stateData) =>
       if (stateData.hasRunningActors) {
@@ -250,7 +253,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
           context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
           goto(WorkflowExecutionFailedState) using newData
         case _ =>
-          stay() using startRunnableScopes(newData)
+          stay() using newData
       }
     } else {
       context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)
@@ -299,37 +302,31 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
-    // We start with index 1 for #attempts, hence invariant breaks only if jobKey.attempt > MaxRetries
-    if (jobKey.attempt <= MaxRetries) {
-      val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
-      workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
-      /*  Currently, we update the status of the old key to Preempted, and add a new entry (with the #attempts incremented by 1)
-        * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
-      val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Preempted, newJobKey -> ExecutionStatus.NotStarted))
-      val newData = stateData.mergeExecutionDiff(executionDiff).removeCallExecutionActor(jobKey)
-      stay() using startRunnableScopes(newData)
-    } else {
-      workflowLogger.warn(s"Exhausted maximum number of retries for job ${jobKey.tag}. Failing.")
-      goto(WorkflowExecutionFailedState) using stateData.mergeExecutionDiff(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Failed))).removeCallExecutionActor(jobKey)
-    }
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
+    workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
+    /*  Currently, we update the status of the old key to RetryableFailure, and add a new entry (with the #attempts incremented by 1)
+      * to the execution store with status as NotStarted. This allows startRunnableCalls to re-execute this job */
+    val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.RetryableFailure, newJobKey -> ExecutionStatus.NotStarted))
+    val newData = stateData.mergeExecutionDiff(executionDiff).removeCallExecutionActor(jobKey)
+    stay() using newData
   }
 
   private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
-    handleExecutionSuccess(data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap))
+    stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
   }
   
   private def handleDeclarationEvaluationSuccessful(key: DeclarationKey, value: WdlValue, data: WorkflowExecutionActorData) = {
-    handleExecutionSuccess(data.declarationEvaluationSuccess(key, value))
+    stay() using data.declarationEvaluationSuccess(key, value)
   }
 
   private def handleCallBypassed(callOutputs: Map[CallKey, CallOutputs], data: WorkflowExecutionActorData) = {
     def foldFunc(d: WorkflowExecutionActorData, output: (CallKey, CallOutputs)) = d.callExecutionSuccess(output._1, output._2)
 
     val updatedData = callOutputs.foldLeft(data)(foldFunc)
-    handleExecutionSuccess(updatedData)
+    stay() using updatedData
   }
 
-  private def handleExecutionSuccess(data: WorkflowExecutionActorData) = {
+  private def handleCheckRunnable(data: WorkflowExecutionActorData) = {
     data.workflowCompletionStatus match {
       case Some(ExecutionStatus.Done) =>
         handleWorkflowSuccessful(data)
@@ -337,7 +334,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
         context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in fail-slow mode"))
         goto(WorkflowExecutionFailedState) using data
       case _ =>
-        stay() using startRunnableScopes(data)
+        scheduleStartRunnableCalls()
+        if (data.hasNewRunnables) stay() using startRunnableScopes(data) else stay()
     }
   }
   
@@ -359,11 +357,11 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * Attempt to start all runnable jobs and return updated state data.  This will create a new copy
     * of the state data.
     */
-  @tailrec
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     val runnableScopes = data.executionStore.runnableScopes
     val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
+
     if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))
 
     // Each process returns a Try[WorkflowExecutionDiff], which, upon success, contains potential changes to be made to the execution store.
@@ -413,13 +411,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     // Update the metadata for the jobs we just sent to EJEAs (they'll start off queued up waiting for tokens):
     pushQueuedCallMetadata(diffs)
-    if (diffs.exists(_.containsNewEntry)) {
-      val newData = data.mergeExecutionDiffs(diffs)
-      startRunnableScopes(newData)
-    } else {
-      val result = data.mergeExecutionDiffs(diffs)
-      result
-    }
+    val newData = data.mergeExecutionDiffs(diffs)
+    if (diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
   }
 
   private def isInBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData) = {
@@ -460,7 +453,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       scatterMap
     )
 
-    declaration.requiredExpression.evaluate(lookup, data.expressionLanguageFunctions) match {
+    declaration.evaluate(lookup, data.expressionLanguageFunctions) match {
       case Success(result) => self ! DeclarationEvaluationSucceededResponse(declaration, result)
       case Failure(ex) => self ! DeclarationEvaluationFailedResponse(declaration, ex)
     }
@@ -481,7 +474,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
             val ejeaProps = EngineJobExecutionActor.props(
-              self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor,
+              self, jobKey, data, factory, initializationData.get(backendName), restarting, serviceRegistryActor, ioActor,
               jobStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingleton, backendName, workflowDescriptor.callCachingMode)
             val ejeaRef = context.actorOf(ejeaProps, ejeaName)
             context watch ejeaRef
@@ -498,7 +491,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   
   private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     val sweaRef = context.actorOf(
-      SubWorkflowExecutionActor.props(key, data, backendFactories, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
+      SubWorkflowExecutionActor.props(key, data, backendFactories, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
         callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting),
       s"SubWorkflowExecutionActor-${key.tag}"
     )
@@ -571,6 +564,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
 object WorkflowExecutionActor {
 
+  val SweepInterval = 1 second
+
   /**
     * States
     */
@@ -632,6 +627,8 @@ object WorkflowExecutionActor {
   private case class ScatterCollectionSucceededResponse(collectorKey: CollectorKey, outputs: CallOutputs)
   
   private case class DeclarationEvaluationSucceededResponse(declarationKey: DeclarationKey, value: WdlValue)
+
+  private case object CheckRunnable
 
   private[execution] sealed trait BypassedScopeResults
 
@@ -757,16 +754,19 @@ object WorkflowExecutionActor {
   
   case class StaticDeclarationKey(scope: Declaration, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
   
-  case class DynamicDeclarationKey(scope: Declaration, index: ExecutionIndex, requiredExpression: WdlExpression) extends DeclarationKey
+  case class DynamicDeclarationKey(scope: Declaration, index: ExecutionIndex, requiredExpression: WdlExpression) extends DeclarationKey {
+    def evaluate(lookup: ScopedLookupFunction, wdlFunctions: WdlFunctions[WdlValue]) = {
+      requiredExpression.evaluate(lookup, wdlFunctions) flatMap scope.wdlType.coerceRawValue
+    }
+  }
 
   case class WorkflowExecutionException[T <: Throwable](exceptions: NonEmptyList[T]) extends ThrowableAggregation {
     override val throwables = exceptions.toList
     override val exceptionContext = s"WorkflowExecutionActor"
   }
 
-  private lazy val DefaultMaxRetriesFallbackValue = 10
-
   def props(workflowDescriptor: EngineWorkflowDescriptor,
+            ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
@@ -776,7 +776,7 @@ object WorkflowExecutionActor {
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             restarting: Boolean): Props = {
-    Props(WorkflowExecutionActor(workflowDescriptor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
+    Props(WorkflowExecutionActor(workflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
       callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, initializationData, restarting)).withDispatcher(EngineDispatcher)
   }
 

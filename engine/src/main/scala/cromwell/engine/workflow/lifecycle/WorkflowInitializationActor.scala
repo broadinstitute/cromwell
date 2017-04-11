@@ -43,8 +43,9 @@ object WorkflowInitializationActor {
 
   def props(workflowId: WorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
+            ioActor: ActorRef,
             serviceRegistryActor: ActorRef): Props = {
-    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor, serviceRegistryActor)).withDispatcher(EngineDispatcher)
+    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor, ioActor, serviceRegistryActor)).withDispatcher(EngineDispatcher)
   }
 
   case class BackendActorAndBackend(actor: ActorRef, backend: String)
@@ -52,6 +53,7 @@ object WorkflowInitializationActor {
 
 case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
                                        workflowDescriptor: EngineWorkflowDescriptor,
+                                       ioActor: ActorRef,
                                        serviceRegistryActor: ActorRef)
   extends AbortableWorkflowLifecycleActor[WorkflowInitializationActorState] {
 
@@ -80,7 +82,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
         for {
           (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
-            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, calls, serviceRegistryActor)
+            factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, ioActor, calls, serviceRegistryActor)
           ).get
           actor = context.actorOf(props, backend)
         } yield BackendActorAndBackend(actor, backend)

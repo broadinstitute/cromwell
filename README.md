@@ -417,7 +417,7 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
 
 # Configuring Cromwell
 
-Cromwell's default configuration file is located at `src/main/resources/application.conf`.
+Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`.
 
 The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation) which means the configuration file can specify configuration as JSON-like stanzas like:
 
@@ -445,11 +445,39 @@ This allows any value to be overridden on the command line:
 java -Dwebservice.port=8080 cromwell.jar ...
 ```
 
-It is recommended that one copies `src/main/resources/application.conf`, modify it, then link to it via:
+
+To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
 
 ```
-java -Dconfig.file=/path/to/application.conf cromwell.jar ...
+java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar ...
 ```
+
+## I/O
+
+Cromwell centralizes as many of its I/O operations as possible through a unique entry point. This allows users to effectively control and throttle the number of requests and resources allocated to those operations throughout the entire system.
+It is possible to configure this throttling behavior in the configuration:
+
+```
+system.io {
+  number-of-requests = 100000
+  per = 100 seconds
+}
+```
+
+This is particularly useful when running Cromwell on a JES backend for example, as Google imposes a quota on the number of GCS queries that can be made.
+
+### Resilience
+
+I/O operations can fail for a number of reason from network failures to server errors. Some of those errors are not fatal and can be retried.
+Cromwell will retry I/O operations on such retryable errors, up to a number of times. This number (more precisely the number of attempts that will be made) can be set using the following configuration option:
+
+```
+system.io {
+  # Number of times an I/O operation should be attempted before giving up and failing it.
+  number-of-attempts = 5
+}
+```
+
 
 ## Workflow Submission
 
@@ -1337,7 +1365,13 @@ It supports the following Spark deploy modes:
 
 ### Configuring Spark Project
 
-When using Spark backend uncomment the following Spark configuration in the application.conf file
+Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`
+
+To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
+
+java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar
+
+Spark configuration stanza is as follows: 
 
 ```conf
 Spark {

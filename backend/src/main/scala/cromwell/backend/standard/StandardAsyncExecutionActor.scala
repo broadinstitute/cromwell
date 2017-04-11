@@ -7,15 +7,18 @@ import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
 import cromwell.backend.validation._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import lenthall.util.TryUtil
+import net.ceedubs.ficus.Ficus._
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
@@ -31,6 +34,7 @@ case class DefaultStandardAsyncExecutionActorParams
 (
   override val jobIdKey: String,
   override val serviceRegistryActor: ActorRef,
+  override val ioActor: ActorRef,
   override val jobDescriptor: BackendJobDescriptor,
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val backendInitializationDataOption: Option[BackendInitializationData],
@@ -48,7 +52,7 @@ case class DefaultStandardAsyncExecutionActorParams
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper {
+trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIo with DefaultIoCommandBuilder with KvClient {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   val SIGTERM = 143
@@ -61,8 +65,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   type StandardAsyncRunStatus
 
   /** The pending execution handle for each poll. */
-  type StandardAsyncPendingExecutionHandle =
-    PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus]
+  type StandardAsyncPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus]
 
   /** Standard set of parameters passed to the backend. */
   def standardParams: StandardAsyncExecutionActorParams
@@ -70,6 +73,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
   override lazy val completionPromise: Promise[BackendJobExecutionResponse] = standardParams.completionPromise
+  
+  override lazy val ioActor = standardParams.ioActor
 
   /** Backend initialization data created by the a factory initializer. */
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
@@ -87,6 +92,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** @see [[Command.instantiate]] */
   lazy val backendEngineFunctions: StandardExpressionFunctions =
     standardInitializationData.expressionFunctions(jobPaths)
+
+  lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
   /**
     * Maps WdlFile objects for use in the commandLinePreProcessor.
@@ -176,7 +183,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val globFiles = backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
     s"""|#!/bin/bash
-        |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX) 
+        |tmpDir=$$(mktemp -d $cwd/tmp.XXXXXX)
+        |chmod 777 $$tmpDir
         |export _JAVA_OPTIONS=-Djava.io.tmpdir=$$tmpDir
         |export TMPDIR=$$tmpDir
         |$commandScriptPreamble
@@ -189,9 +197,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |${globManipulations(globFiles)}
         |)
-        |sync
+        |SCRIPT_EPILOGUE
         |mv $rcTmpPath $rcPath
-        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand)
+        |""".stripMargin.replace("INSTANTIATED_COMMAND", instantiatedCommand).replace("SCRIPT_EPILOGUE", scriptEpilogue)
   }
 
   /** The instantiated command. */
@@ -473,15 +481,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     */
   def handleExecutionFailure(runStatus: StandardAsyncRunStatus,
                              handle: StandardAsyncPendingExecutionHandle,
-                             returnCode: Option[Int]): ExecutionHandle = {
-    FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), returnCode)
+                             returnCode: Option[Int]): Future[ExecutionHandle] = {
+    Future.successful(FailedNonRetryableExecutionHandle(new Exception(s"Task failed for unknown reason: $runStatus"), returnCode))
   }
 
   // See executeOrRecoverSuccess
   private var missedAbort = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
-  context.become(standardReceiveBehavior(None) orElse receive)
+  context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(None) orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -495,13 +503,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       }
       postAbort()
     case CheckMissedAbort(jobId: StandardAsyncJob) =>
-      context.become(standardReceiveBehavior(Option(jobId)) orElse receive)
+      context.become(kvClientReceive orElse ioReceive orElse standardReceiveBehavior(Option(jobId)) orElse receive)
       if (missedAbort)
         self ! AbortJobCommand
-    case KvPutSuccess(_) => // expected after the KvPut for the operation ID
   }
-
-  override def retryable = false
 
   override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     val executeOrRecoverFuture = {
@@ -513,7 +518,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       }
     }
 
-    executeOrRecoverFuture map executeOrRecoverSuccess recoverWith {
+    executeOrRecoverFuture flatMap executeOrRecoverSuccess recoverWith {
       case throwable: Throwable => Future failed {
         jobLogger.error(s"Error attempting to $mode", throwable)
         throwable
@@ -521,23 +526,23 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     }
   }
 
-  private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): ExecutionHandle = {
+  private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): Future[ExecutionHandle] = {
     executionHandle match {
-      case handle: PendingExecutionHandle[
-        StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
-        tellKvJobId(handle.pendingJob)
-        jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
-        tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
-        /*
-        NOTE: Because of the async nature of the Scala Futures, there is a point in time where we have submitted this or
-        the prior runnable to the thread pool this actor doesn't know the job id for aborting. These runnables are
-        queued up and may still be run by the thread pool anytime in the future. Issue #1218 may address this
-        inconsistency at a later time. For now, just go back and check if we missed the abort command.
-        */
-        self ! CheckMissedAbort(handle.pendingJob)
-      case _ =>
+      case handle: PendingExecutionHandle[StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
+        tellKvJobId(handle.pendingJob).map { case _ =>
+          jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
+          tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
+          /*
+          NOTE: Because of the async nature of the Scala Futures, there is a point in time where we have submitted this or
+          the prior runnable to the thread pool this actor doesn't know the job id for aborting. These runnables are
+          queued up and may still be run by the thread pool anytime in the future. Issue #1218 may address this
+          inconsistency at a later time. For now, just go back and check if we missed the abort command.
+          */
+          self ! CheckMissedAbort(handle.pendingJob)
+          executionHandle
+        }
+      case _ => Future.successful(executionHandle)
     }
-    executionHandle
   }
 
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
@@ -546,7 +551,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
 
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
-        pollStatusAsync(handle) map {
+        pollStatusAsync(handle) flatMap {
           backendRunStatus =>
             handlePollSuccess(handle, backendRunStatus)
         } recover {
@@ -555,6 +560,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         }
       case successful: SuccessfulExecutionHandle => Future.successful(successful)
       case failed: FailedNonRetryableExecutionHandle => Future.successful(failed)
+      case failedRetryable: FailedRetryableExecutionHandle => Future.successful(failedRetryable)
       case badHandle => Future.failed(new IllegalArgumentException(s"Unexpected execution handle: $badHandle"))
     }
   }
@@ -567,7 +573,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The updated execution handle.
     */
   def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle,
-                        status: StandardAsyncRunStatus): ExecutionHandle = {
+                        status: StandardAsyncRunStatus): Future[ExecutionHandle] = {
     val previousStatus = oldHandle.previousStatus
     if (!(previousStatus contains status)) {
       /*
@@ -584,7 +590,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         val metadata = getTerminalMetadata(status)
         tellMetadata(metadata)
         handleExecutionResult(status, oldHandle)
-      case s => oldHandle.copy(previousStatus = Option(s)) // Copy the current handle with updated previous status.
+      case s => Future.successful(oldHandle.copy(previousStatus = Option(s))) // Copy the current handle with updated previous status.
     }
   }
 
@@ -626,52 +632,39 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The updated execution handle.
     */
   def handleExecutionResult(status: StandardAsyncRunStatus,
-                            oldHandle: StandardAsyncPendingExecutionHandle): ExecutionHandle = {
-    try {
-
-      lazy val returnCodeAsString: Try[String] = Try(jobPaths.returnCode.contentAsString)
-      lazy val returnCodeAsInt: Try[Int] = returnCodeAsString.map(_.trim.toInt)
+                            oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
       lazy val stderrAsOption: Option[Path] = Option(jobPaths.stderr)
+    
+      val stderrSizeAndReturnCode = for {
+        returnCodeAsString <- contentAsStringAsync(jobPaths.returnCode)
+        stderrSize <- sizeAsync(jobPaths.stderr)
+      } yield (stderrSize, returnCodeAsString)
 
-      if (isSuccess(status)) {
-        lazy val stderrLength: Try[Long] = Try(jobPaths.stderr.size)
-        (stderrLength, returnCodeAsString, returnCodeAsInt) match {
-            // Failed to get stderr size -> Retry
-          case (Failure(exception), _, _) =>
-            jobLogger.warn(s"could not get stderr file size, retrying", exception)
-            oldHandle
-            // Failed to get return code content -> Retry
-          case (_, Failure(exception), _) =>
-            jobLogger.warn(s"could not download return code file, retrying", exception)
-            oldHandle
-            // Failed to convert return code content to Int -> Fail
-          case (_, _, Failure(_)) =>
-            FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString.get, stderrAsOption))
-            // Stderr is not empty and failOnStdErr is true -> Fail
-          case (Success(length), _, _) if failOnStdErr && length.intValue > 0 =>
-            FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, length, stderrAsOption), returnCodeAsInt.toOption)
-            // Return code is abort code -> Abort
-          case (_, _, Success(rc)) if isAbort(rc) =>
-            AbortedExecutionHandle
-            // Return code is not valid -> Fail
-          case (_, _, Success(rc)) if !continueOnReturnCode.continueFor(rc) =>
-            FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt.get, stderrAsOption), returnCodeAsInt.toOption)
-            // Otherwise -> Succeed
-          case (_, _, Success(rc)) => 
-            handleExecutionSuccess(status, oldHandle, rc)
-        }
-      } else {
-        handleExecutionFailure(status, oldHandle, returnCodeAsInt.toOption)
+      stderrSizeAndReturnCode flatMap {
+        case (stderrSize, returnCodeAsString) =>
+          val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+          
+          if (isSuccess(status)) {
+            tryReturnCodeAsInt match {
+              case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
+                Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
+              case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
+                Future.successful(AbortedExecutionHandle)
+              case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+                Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
+              case Success(returnCodeAsInt) =>
+                Future.successful(handleExecutionSuccess(status, oldHandle, returnCodeAsInt))
+              case Failure(_) =>
+                Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
+            }
+          } else {
+            handleExecutionFailure(status, oldHandle, tryReturnCodeAsInt.toOption)
+          }
+      } recoverWith {
+        case exception => 
+          if (isSuccess(status)) Future.successful(FailedNonRetryableExecutionHandle(exception))
+          else handleExecutionFailure(status, oldHandle, None)
       }
-    } catch {
-      case exception: Exception if isFatal(exception) =>
-        jobLogger.warn("Caught fatal exception processing job result", exception)
-        FailedNonRetryableExecutionHandle(exception)
-      case exception: Exception =>
-        jobLogger.warn("Caught exception processing job result, retrying", exception)
-        // Return the original handle to try again.
-        oldHandle
-    }
   }
 
   /**
@@ -679,14 +672,14 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @param runningJob The running job.
     */
-  def tellKvJobId(runningJob: StandardAsyncJob): Unit = {
+  def tellKvJobId(runningJob: StandardAsyncJob): Future[KvResponse] = {
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey)
     val kvValue = Option(runningJob.jobId)
     val kvPair = KvPair(scopedKey, kvValue)
     val kvPut = KvPut(kvPair)
-    serviceRegistryActor ! kvPut
+    makeKvRequest(Seq(kvPut)).map(_.head)
   }
 
   /**

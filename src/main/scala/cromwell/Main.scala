@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, TimeoutException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -74,7 +74,7 @@ object Main extends App {
 
     Log.info(s"RUN sub-command")
     commandLine.paths.logMe(Log)
-    val runnerProps = SingleWorkflowRunnerActor.props(commandLine.sourceFiles, commandLine.paths.metadataPath)
+    val runnerProps = SingleWorkflowRunnerActor.props(commandLine.sourceFiles, commandLine.paths.metadataPath)(CromwellSystem.materializer)
 
     val runner = CromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
@@ -86,7 +86,12 @@ object Main extends App {
   private def waitAndExit(futureResult: Future[Any], workflowManagerSystem: CromwellSystem): Unit = {
     Await.ready(futureResult, Duration.Inf)
 
-    workflowManagerSystem.shutdownActorSystem()
+    try {
+      Await.ready(workflowManagerSystem.shutdownActorSystem(), 30 seconds)
+    } catch {
+      case timeout: TimeoutException => Console.err.println("Timed out trying to shutdown actor system")
+      case other: Exception => Console.err.println(s"Unexpected error trying to shutdown actor system: ${other.getMessage}")
+    }
 
     val returnCode = futureResult.value.get match {
       case Success(_) => 0

@@ -42,6 +42,7 @@ cd ..
 TES_CONF="$(pwd)/src/bin/travis/resources/tes.conf"
 git clone https://github.com/ohsu-comp-bio/funnel.git
 cd funnel
+git checkout 7adbf0b
 make
 cd ..
 mkdir logs

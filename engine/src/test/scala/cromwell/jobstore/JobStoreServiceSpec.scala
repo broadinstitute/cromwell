@@ -1,6 +1,6 @@
 package cromwell.jobstore
 
-import cromwell.CromwellTestKitSpec
+import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.jobstore.JobStoreActor._
@@ -21,7 +21,7 @@ object JobStoreServiceSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class JobStoreServiceSpec extends CromwellTestKitSpec with Matchers with Mockito {
+class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
 
   "JobStoreService" should {
     "work" in {

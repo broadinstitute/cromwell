@@ -313,7 +313,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def validateImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
 
     def makeZipFile(contents: Array[Byte]): Try[Path] = Try {
-      DefaultPathBuilder.createTempFile("", ".zip").write(contents)(OpenOptions.default)
+      DefaultPathBuilder.createTempFile("", ".zip").writeByteArray(contents)(OpenOptions.default)
     }
 
     def unZipFile(f: Path) = Try {
@@ -362,7 +362,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       val results = WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers)
       importsDir.delete(swallowIOExceptions = true)
       results match {
-        case Success(ns) => ns.validNel
+        case Success(ns) => validateWorkflowNameLengths(ns)
         case Failure(f) => f.getMessage.invalidNel
       }
     }
@@ -370,22 +370,28 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     validateImportsDirectory(w.importsZip) flatMap importsAsNamespace
   }
 
-  private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = {
-    try {
-      source match {
-        case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
-        case w: WorkflowSourceFilesWithoutImports =>
-          val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
-            List(WdlNamespace.fileResolver)
-          } else {
-            List.empty
-          }
-          // This .get is ok because we're already in a try/catch.
-          WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers).get.validNel
-      }
-    } catch {
-      case e: Exception => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
+  private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): ErrorOr[WdlNamespaceWithWorkflow] = {
+    def allWorkflowNames(n: WdlNamespace): Seq[String] = n.workflows.map(_.unqualifiedName) ++ n.namespaces.flatMap(allWorkflowNames)
+    val tooLong = allWorkflowNames(namespace).filter(_.length >= 100)
+    if (tooLong.nonEmpty) {
+      ("Workflow names must be shorter than 100 characters: " + tooLong.mkString(" ")).invalidNel
+    } else {
+      namespace.validNel
     }
+  }
+
+  private def validateNamespace(source: WorkflowSourceFilesCollection): ErrorOr[WdlNamespaceWithWorkflow] = source match {
+    case w: WorkflowSourceFilesWithDependenciesZip => validateNamespaceWithImports(w)
+    case w: WorkflowSourceFilesWithoutImports =>
+      val importResolvers: Seq[ImportResolver] = if (importLocalFilesystem) {
+        List(WdlNamespace.fileResolver)
+      } else {
+        List.empty
+      }
+      WdlNamespaceWithWorkflow.load(w.wdlSource, importResolvers) match {
+        case Failure(e) => s"Unable to load namespace from workflow: ${e.getMessage}".invalidNel
+        case Success(namespace) => validateWorkflowNameLengths(namespace)
+      }
   }
 
   private def validateRawInputs(json: WdlJson): ErrorOr[Map[String, JsValue]] = {

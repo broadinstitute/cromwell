@@ -3,12 +3,13 @@ package cromwell.server
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorContext, ActorSystem, Props}
+import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
-import lenthall.spray.SprayCanHttpService._
-import lenthall.spray.WrappedRoute._
+import cromwell.webservice.SprayCanHttpService._
+import cromwell.webservice.WrappedRoute._
 import net.ceedubs.ficus.Ficus._
 import spray.http._
 import spray.json._
@@ -25,6 +26,7 @@ object CromwellServer {
     implicit val executionContext = scala.concurrent.ExecutionContext.Implicits.global
 
     val actorSystem: ActorSystem = cromwellSystem.actorSystem
+    implicit val materializer: ActorMaterializer = cromwellSystem.materializer
 
     val service = actorSystem.actorOf(CromwellServerActor.props(cromwellSystem.conf), "cromwell-service")
     val webserviceConf = cromwellSystem.conf.getConfig("webservice")
@@ -51,7 +53,7 @@ object CromwellServer {
   }
 }
 
-class CromwellServerActor(config: Config) extends CromwellRootActor with CromwellApiService with SwaggerService {
+class CromwellServerActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor with CromwellApiService with SwaggerService {
   implicit def executionContext: ExecutionContextExecutor = actorRefFactory.dispatcher
 
   override val serverMode = true
@@ -78,7 +80,7 @@ class CromwellServerActor(config: Config) extends CromwellRootActor with Cromwel
 }
 
 object CromwellServerActor {
-  def props(config: Config): Props = {
+  def props(config: Config)(implicit materializer: ActorMaterializer): Props = {
     Props(new CromwellServerActor(config)).withDispatcher(EngineDispatcher)
   }
 }

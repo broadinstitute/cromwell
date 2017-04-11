@@ -16,8 +16,8 @@ import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{Ma
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle._
-import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import wdl4s.{LocallyQualifiedName => _}
@@ -136,6 +136,7 @@ object WorkflowActor {
             startMode: StartMode,
             wdlSource: WorkflowSourceFilesCollection,
             conf: Config,
+            ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
@@ -145,7 +146,7 @@ object WorkflowActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean): Props = {
-    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, serviceRegistryActor, workflowLogCopyRouter,
+    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, ioActor, serviceRegistryActor, workflowLogCopyRouter,
       jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
@@ -157,6 +158,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                     startMode: StartMode,
                     workflowSources: WorkflowSourceFilesCollection,
                     conf: Config,
+                    ioActor: ActorRef,
                     override val serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
                     jobStoreActor: ActorRef,
@@ -174,7 +176,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
-  
+
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
   when(WorkflowUnstartedState) {
@@ -189,7 +191,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, serviceRegistryActor),
+      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor),
         name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
@@ -209,6 +211,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
+        ioActor,
         serviceRegistryActor,
         jobStoreActor,
         subWorkflowStoreActor,
@@ -273,17 +276,6 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   onTransition {
-    case fromState -> toState =>
-      workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
-      // This updates the workflow status
-      // Only publish "External" state to metadata service
-      // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
-      if (fromState.workflowState != toState.workflowState) {
-        pushCurrentStateToMetadataService(workflowId, toState.workflowState)
-      }
-  }
-
-  onTransition {
     case (oldState, terminalState: WorkflowActorTerminalState) =>
       workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
       pushWorkflowEnd(workflowId)
@@ -312,16 +304,27 @@ class WorkflowActor(val workflowId: WorkflowId,
         }
 
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
-            case Some(destinationDir) =>
-              workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
-            case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
-              case Failure(f) => log.error(f, "Failed to delete workflow log")
-              case _ =>
-            }
+          case Some(destinationDir) =>
+            workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
+          case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
+            case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>
           }
+          case _ =>
         }
+      }
       context stop self
+  }
+
+  onTransition {
+    case fromState -> toState =>
+      workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
+      // This updates the workflow status
+      // Only publish "External" state to metadata service
+      // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
+      if (fromState.workflowState != toState.workflowState) {
+        pushCurrentStateToMetadataService(workflowId, toState.workflowState)
+      }
   }
 
   private def finalizationSucceeded(data: WorkflowActorData) = {
@@ -335,7 +338,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs) = {
-    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, jobExecutionMap, workflowOutputs, stateData.initializationData), name = s"WorkflowFinalizationActor")
+    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, ioActor, jobExecutionMap, workflowOutputs, stateData.initializationData), name = s"WorkflowFinalizationActor")
   }
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.

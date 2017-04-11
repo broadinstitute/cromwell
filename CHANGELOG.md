@@ -1,5 +1,59 @@
 # Cromwell Change Log
 
+## 26
+
+### Breaking Changes
+
+* Failure metadata for calls and workflows was being displayed inconsistently, with different formats depending on the originating Cromwell version. Failures will now always present as an array of JSON objects each representing a failure. Each failure will have a message and a causedBy field. The causedBy field will be an array of similar failure objects. An example is given below:
+
+```
+failures: [{
+  message: "failure1",
+  causedBy: [{
+    message: "cause1",
+    causedBy: []
+   }, {
+    message: "cause2",
+    causedBy: []
+  }]
+ }, {
+  message: "failure2",
+  causedBy: []
+}]
+```
+
+### Additional Upgrade Time
+
+* Upgrading to Cromwell 26 will take additional time due to the migration of failure metadata. Cromwell will automatically run a database query during the upgrade which appears to be roughly linear to the number of rows in the METADATA_ENTRY table. You can estimate upgrade time using the following equation: `time to migrate (in seconds) ~= (rows in METADATA_ENTRY) / 65000` Note that due to differences in hardware and database speed, this is only a rough estimate.
+
+### Config Changes
+
+* Added a configuration option under `system.io` to throttle the number of I/O queries that Cromwell makes, as well as configure retry parameters.
+ This is mostly useful for the JES backend and should be updated to match the GCS quota available for the project.
+ 
+```
+system.io {
+  # Global Throttling - This is mostly useful for GCS and can be adjusted to match
+  # the quota availble on the GCS API
+  number-of-requests = 100000
+  per = 100 seconds
+  
+  # Number of times an I/O operation should be attempted before giving up and failing it.
+  number-of-attempts = 5
+}
+```
+
+* Added a `script-epilogue` configuration option to adjust the logic that runs at the end of the scripts which wrap call executions.
+  This option is adjustable on a per-backend basis.  If unspecified, the default value is `sync`.
+
+### WDL Features
+
+With Cromwell 26, Cromwell will support `if x then y else z` expressions (see: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#if-then-else). For example: 
+```
+Boolean b = true
+String s = if b then "value if True" else "value if False"
+```
+
 ## 25
 
 ### External Contributors

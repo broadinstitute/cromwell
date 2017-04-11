@@ -7,7 +7,7 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.{WorkflowId, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -28,7 +28,7 @@ object SimpleWorkflowActorSpec {
     promise: Promise[Unit])
 }
 
-class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
+class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
 
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
@@ -40,6 +40,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitSpec with BeforeAndAfter {
     val supervisor = TestProbe()
     val workflowActor = TestFSMRef(
       factory = new WorkflowActor(workflowId, StartNewWorkflow, workflowSources, ConfigFactory.load(),
+        ioActor = system.actorOf(SimpleIoActor.props),
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),

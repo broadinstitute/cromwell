@@ -6,6 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -14,7 +15,7 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with WorkflowMetadataHelper {
   implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive = {
@@ -79,6 +80,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)),
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.Status), MetadataValue(WorkflowSubmitted)),
 
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(sourceFiles.wdlSource)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs), MetadataValue(sourceFiles.inputsJson)),

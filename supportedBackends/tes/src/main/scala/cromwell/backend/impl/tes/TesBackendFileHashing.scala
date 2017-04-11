@@ -1,7 +1,7 @@
 package cromwell.backend.impl.tes
 
 import akka.event.LoggingAdapter
-import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
+import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.TryWithResource._
 

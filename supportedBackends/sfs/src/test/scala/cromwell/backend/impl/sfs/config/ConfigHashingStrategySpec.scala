@@ -4,9 +4,9 @@ import java.util.UUID
 
 import akka.event.LoggingAdapter
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.StandardInitializationData
+import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks

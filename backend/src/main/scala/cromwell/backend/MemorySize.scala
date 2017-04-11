@@ -3,13 +3,15 @@ package cromwell.backend
 
 import cats.data.Validated._
 import cats.syntax.cartesian._
+import cats.syntax.either._
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr._
 import mouse.string._
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import wdl4s.parser.MemoryUnit
+
+import scala.language.postfixOps
 
 
 object MemorySize {

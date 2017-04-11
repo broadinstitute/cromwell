@@ -144,7 +144,8 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
                                  calls: Set[TaskCall],
                                  jesConfiguration: JesConfiguration): Props = {
-    val params = JesInitializationActorParams(workflowDescriptor, calls, jesConfiguration, emptyActor)
+    val ioActor = mockIoActor
+    val params = JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor)
     Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 

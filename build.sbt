@@ -20,6 +20,12 @@ lazy val databaseMigration = (project in file("database/migration"))
   .dependsOn(core)
   .withTestSettings
 
+lazy val dockerHashing = (project in file("dockerHashing"))
+  .settings(dockerHashingSettings: _*)
+  .dependsOn(core)
+  .dependsOn(core % "test->test")
+  .withTestSettings
+
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
   .withTestSettings
@@ -43,6 +49,7 @@ lazy val sfsBackend = (project in backendRoot / "sfs")
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(backend % "test->test")
+  .dependsOn(services % "test->test")
 
 lazy val tesBackend = (project in backendRoot / "tes")
   .settings(tesBackendSettings:_*)
@@ -69,11 +76,13 @@ lazy val jesBackend = (project in backendRoot / "jes")
   .dependsOn(gcsFileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(gcsFileSystem % "test->test")
+  .dependsOn(services % "test->test")
 
 lazy val engine = (project in file("engine"))
   .settings(engineSettings: _*)
   .withTestSettings
   .dependsOn(core)
+  .dependsOn(dockerHashing)
   .dependsOn(services)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
@@ -90,6 +99,7 @@ lazy val root = (project in file("."))
   .withTestSettings
   // Full list of all sub-projects to build with the root (ex: include in `sbt test`)
   .aggregate(core)
+  .aggregate(dockerHashing)
   .aggregate(gcsFileSystem)
   .aggregate(databaseSql)
   .aggregate(databaseMigration)

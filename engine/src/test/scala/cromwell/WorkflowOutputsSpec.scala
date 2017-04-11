@@ -5,7 +5,7 @@ import cromwell.util.SampleWdl
 import cromwell.CromwellTestKitSpec.AnyValueIsFine
 
 
-class WorkflowOutputsSpec extends CromwellTestKitSpec {
+class WorkflowOutputsSpec extends CromwellTestKitWordSpec {
   "Workflow outputs" should {
     "use all outputs if none are specified" in {
       runWdlAndAssertOutputs(

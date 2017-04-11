@@ -26,6 +26,7 @@ trait StandardInitializationActorParams {
 case class DefaultInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
+  ioActor: ActorRef,
   calls: Set[TaskCall],
   serviceRegistryActor: ActorRef,
   configurationDescriptor: BackendConfigurationDescriptor

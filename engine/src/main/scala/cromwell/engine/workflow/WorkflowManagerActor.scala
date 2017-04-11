@@ -11,6 +11,7 @@ import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreState}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
@@ -41,6 +42,7 @@ object WorkflowManagerActor {
   case object EngineStatsCommand extends WorkflowManagerActorCommand
 
   def props(workflowStore: ActorRef,
+            ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
             jobStoreActor: ActorRef,
@@ -51,7 +53,7 @@ object WorkflowManagerActor {
             backendSingletonCollection: BackendSingletonCollection,
             abortJobsOnTerminate: Boolean,
             serverMode: Boolean): Props = {
-    val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, serviceRegistryActor,
+    val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, ioActor, serviceRegistryActor,
       workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection,
       abortJobsOnTerminate, serverMode)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
@@ -87,6 +89,7 @@ object WorkflowManagerActor {
 
 case class WorkflowManagerActorParams(config: Config,
                                       workflowStore: ActorRef,
+                                      ioActor: ActorRef,
                                       serviceRegistryActor: ActorRef,
                                       workflowLogCopyRouter: ActorRef,
                                       jobStoreActor: ActorRef,
@@ -99,9 +102,10 @@ case class WorkflowManagerActorParams(config: Config,
                                       serverMode: Boolean)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper {
 
   private val config = params.config
+  override val serviceRegistryActor = params.serviceRegistryActor
 
   private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
@@ -190,6 +194,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         case None =>
           // All cool, if we got this far the workflow ID was found in the workflow store so this workflow must have never
           // made it to the workflow manager.
+          pushCurrentStateToMetadataService(id, WorkflowAborted)
           replyTo ! WorkflowStoreEngineActor.WorkflowAborted(id)
           stay()
       }
@@ -284,7 +289,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       StartNewWorkflow
     }
 
-    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.serviceRegistryActor,
+    val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.ioActor, params.serviceRegistryActor,
       params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor,
       params.dockerHashActor, params.jobTokenDispenserActor,
       params.backendSingletonCollection, params.serverMode)
@@ -301,14 +306,14 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {
-    
+
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
         val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}" } getOrElse ""
         reason.getMessage + stderrMessage
       case reason =>
-      reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
+        reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
     } mkString "\n"
   }
 }

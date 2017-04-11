@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
+import akka.stream.ActorMaterializer
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
@@ -32,7 +33,7 @@ import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalactic.Equality
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, Matchers, OneInstancePerTest, WordSpecLike}
+import org.scalatest._
 import spray.http.StatusCode
 import spray.json._
 import wdl4s.TaskCall
@@ -48,12 +49,14 @@ import scala.util.matching.Regex
 case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                                ioActor: ActorRef,
                                                 calls: Set[TaskCall],
                                                 serviceRegistryActor: ActorRef): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef,
+                                      ioActor: ActorRef,
                                       backendSingletonActor: Option[ActorRef]): Props = {
     throw new NotImplementedError("this is not implemented")
   }
@@ -115,7 +118,7 @@ object CromwellTestKitSpec {
       |    # Some of our tests fire off a message, then expect a particular event message within 3s (the default).
       |    # Especially on CI, the metadata test does not seem to be returning in time. So, overriding the timeouts
       |    # with slightly higher values. Alternatively, could also adjust the akka.test.timefactor only in CI.
-      |    filter-leeway = 5s
+      |    filter-leeway = 10s
       |    single-expect-default = 5s
       |    default-timeout = 10s
       |  }
@@ -273,7 +276,7 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config) extends CromwellRootActor {
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor {
     override val serverMode = true
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
@@ -285,15 +288,19 @@ object CromwellTestKitSpec {
       result
     }
   }
+
+  def defaultTwms = new CromwellTestKitSpec.TestWorkflowManagerSystem()
 }
 
-abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new CromwellTestKitSpec.TestWorkflowManagerSystem()) extends TestKit(twms.actorSystem)
-  with DefaultTimeout with ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with ScalaFutures with OneInstancePerTest with Eventually {
+abstract class CromwellTestKitWordSpec extends CromwellTestKitSpec with WordSpecLike
+abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = defaultTwms) extends TestKit(twms.actorSystem)
+  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll {
 
   override protected def afterAll() = { twms.shutdownTestActorSystem(); () }
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit val ec = system.dispatcher
+  implicit val materializer = twms.materializer
 
   val dummyServiceRegistryActor = system.actorOf(Props.empty)
   val dummyLogCopyRouter = system.actorOf(Props.empty)
@@ -339,7 +346,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = new Cro
   }
 
   private def buildCromwellRootActor(config: Config) = {
-    TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor")
+    TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor" + UUID.randomUUID().toString)
   }
 
   def runWdl(sampleWdl: SampleWdl,
@@ -478,7 +485,7 @@ object EmptyCallCacheReadActor {
 
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case DockerHashRequest(image, _) => sender ! DockerHashResponseSuccess(DockerHashResult("alg", "hash"))
+    case request @ DockerHashRequest(image, _) => sender ! DockerHashResponseSuccess(DockerHashResult("alg", "hash"), request)
   }
 }
 

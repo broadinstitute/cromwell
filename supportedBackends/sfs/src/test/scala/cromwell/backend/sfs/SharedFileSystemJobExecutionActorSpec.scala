@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import akka.testkit.TestDuration
+import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -14,7 +14,7 @@ import cromwell.core.Tags._
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingEligible
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -180,14 +180,17 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         pidField.get(p).toString
       }
 
-    val execute = backend.recover
+    def execute = backend.recover
 
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
     val kvPair = KvPair(scopedKey, Option(pid))
 
-    backendRef ! kvPair
+    val previousKvPutter = TestProbe()
+    val kvPutReq = KvPut(kvPair)
+    backendRef.underlyingActor.serviceRegistryActor.tell(msg = kvPutReq, sender = previousKvPutter.ref)
+    previousKvPutter.expectMsg(KvPutSuccess(kvPutReq))
 
     whenReady(execute, Timeout(10.seconds.dilated)) { executionResponse =>
       if (writeReturnCode) {
@@ -231,7 +234,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
       val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, WorkflowOptions.empty)(call.task.runtimeAttributes.attrs)
 
       val jobDescriptor: BackendJobDescriptor =
-        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnMapToDeclarationMap(symbolMaps), CallCachingEligible)
+        BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnMapToDeclarationMap(symbolMaps), CallCachingEligible, Map.empty)
       val backend = createBackend(jobDescriptor, emptyBackendConfig)
       val response =
         JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), Map("out" -> JobOutput(WdlInteger(shard))), None, Seq.empty)

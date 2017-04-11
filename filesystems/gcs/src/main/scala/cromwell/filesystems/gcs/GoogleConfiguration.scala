@@ -1,10 +1,14 @@
 package cromwell.filesystems.gcs
 
+import java.io.IOException
+
 import cats.data.Validated._
 import cats.instances.list._
 import cats.syntax.cartesian._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.Config
 import cromwell.filesystems.gcs.auth._
@@ -28,6 +32,28 @@ final case class GoogleConfiguration private (applicationName: String, authsByNa
 
 object GoogleConfiguration {
   import scala.collection.JavaConverters._
+  import scala.concurrent.duration._
+  import scala.language.postfixOps
+  
+  lazy val DefaultConnectionTimeout = 3 minutes
+  lazy val DefaultReadTimeout = 3 minutes
+  
+  lazy val DefaultRequestInitializer = GoogleConfiguration.withCustomTimeouts(new GoogleCredential.Builder().build())
+
+  def withCustomTimeouts(httpRequestInitializer: HttpRequestInitializer,
+                         connectionTimeout: FiniteDuration = DefaultConnectionTimeout,
+                         readTimeout: FiniteDuration = DefaultReadTimeout) = {
+    new HttpRequestInitializer() {
+      @throws[IOException]
+      override def initialize(httpRequest: HttpRequest) = {
+        httpRequestInitializer.initialize(httpRequest)
+        httpRequest.setConnectTimeout(connectionTimeout.toMillis.toInt)
+        httpRequest.setReadTimeout(readTimeout.toMillis.toInt)
+        ()
+      }
+    }
+  }
+  
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
   case class GoogleConfigurationException(errorMessages: List[String]) extends MessageAggregation {

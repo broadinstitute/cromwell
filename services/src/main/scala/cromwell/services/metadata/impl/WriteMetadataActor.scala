@@ -5,7 +5,7 @@ import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataEvent
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.MetadataService.{MetadataServiceAction, PutMetadataAction}
 import cromwell.services.metadata.impl.WriteMetadataActor.{WriteMetadataActorData, WriteMetadataActorState}
 import org.slf4j.LoggerFactory
 
@@ -35,9 +35,18 @@ final case class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
     case Event(ScheduledFlushToDb, curData) =>
       log.debug("Initiating periodic metadata flush to DB")
       goto(WritingToDb) using curData
+    case Event(CheckPendingWrites, NoEvents) =>
+      sender() ! NoPendingWrites
+      stay()
+    case Event(CheckPendingWrites, _: HasEvents) =>
+      sender() ! HasPendingWrites
+      stay()
   }
 
   when(WritingToDb) {
+    case Event(CheckPendingWrites, _) => 
+      sender() ! HasPendingWrites
+      stay()
     case Event(ScheduledFlushToDb, curData) => stay using curData
     case Event(PutMetadataAction(events), curData) => stay using curData.addEvents(events)
     case Event(FlushBatchToDb, NoEvents) =>
@@ -71,6 +80,9 @@ object WriteMetadataActor {
   case object DbWriteComplete extends WriteMetadataActorMessage
   case object FlushBatchToDb extends WriteMetadataActorMessage
   case object ScheduledFlushToDb extends WriteMetadataActorMessage
+  case object CheckPendingWrites extends WriteMetadataActorMessage with MetadataServiceAction
+  case object HasPendingWrites extends WriteMetadataActorMessage
+  case object NoPendingWrites extends WriteMetadataActorMessage
 
   sealed trait WriteMetadataActorState
   case object WaitingToWrite extends WriteMetadataActorState

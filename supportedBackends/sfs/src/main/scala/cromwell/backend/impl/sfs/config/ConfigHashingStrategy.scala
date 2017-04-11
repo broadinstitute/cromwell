@@ -4,8 +4,8 @@ import java.io.FileNotFoundException
 
 import akka.event.LoggingAdapter
 import com.typesafe.config.Config
-import cromwell.backend.callcaching.FileHashingActor.SingleFileHashRequest
 import cromwell.backend.standard.StandardInitializationData
+import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.path.{Path, PathFactory}
 import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._

@@ -283,11 +283,13 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       }
     }
     
-    "contain expected default values based on a config file" in {
+    "return default values as WdlValues when they can be coerced into expected WdlTypes" in {
+      val optionalConfig = Option(TestConfig.allRuntimeAttrsConfig)
+
       val defaultVals = Map(
-        "cpu" -> CpuValidation.configDefaultWdlValue(TestConfig.allRuntimeAttrsConfig).get,
-        "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(TestConfig.allRuntimeAttrsConfig).get,
-        "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(TestConfig.allRuntimeAttrsConfig).get
+        "cpu" -> CpuValidation.configDefaultWdlValue(optionalConfig).get,
+        "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(optionalConfig).get,
+        "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(optionalConfig).get
       )
 
       val expectedDefaultVals = Map(
@@ -299,23 +301,23 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       defaultVals shouldBe expectedDefaultVals
     }
 
-    "return default values as WdlString when can't be coerced to valid WdlType" in {
-     val invalidRuntimeValues = ConfigFactory.parseString(
+    "return default values as BadDefaultAttribute when they can't be coerced to expected WdlTypes" in {
+     val optionalInvalidAttrsConfig = Option(ConfigFactory.parseString(
        """
          |cpu = 1.4
          |failOnStderr = "notReal"
          |continueOnReturnCode = 0
-       """.stripMargin)
+       """.stripMargin))
 
      val defaultVals = Map(
-       "cpu" -> CpuValidation.configDefaultWdlValue(invalidRuntimeValues).get,
-       "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(invalidRuntimeValues).get,
-       "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(invalidRuntimeValues).get
+       "cpu" -> CpuValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get,
+       "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get,
+       "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get
      )
 
      val expectedDefaultVals = Map(
-       "cpu" -> WdlString("1.4"),
-       "failOnStderr" -> WdlString("notReal"),
+       "cpu" -> BadDefaultAttribute(WdlString("1.4")),
+       "failOnStderr" -> BadDefaultAttribute(WdlString("notReal")),
        "continueOnReturnCode" -> WdlInteger(0)
      )
 
@@ -332,8 +334,8 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
-      val memoryVal = MemoryValidation.configDefaultString(backendConfig)
-      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(WdlInteger(2000000000))
+      val memoryVal = MemoryValidation.configDefaultString(Some(backendConfig))
+      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WdlInteger(2000000000)))
     }
 
     "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WdlType" in {
@@ -346,17 +348,17 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
-      val memoryVal = MemoryValidation.configDefaultString(backendConfig)
-      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(WdlString("blahblah"))
+      val memoryVal = MemoryValidation.configDefaultString(Some(backendConfig))
+      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(BadDefaultAttribute(WdlString("blahblah")))
     }
 
     "should be able to coerce a list of return codes into an WdlArray" in {
-      val backendConfig = ConfigFactory.parseString(
+      val optinalBackendConfig = Option(ConfigFactory.parseString(
         s"""
            |continueOnReturnCode = [0,1,2]
-           |""".stripMargin)
+           |""".stripMargin))
 
-      ContinueOnReturnCodeValidation.configDefaultWdlValue(backendConfig).get shouldBe WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(0), WdlInteger(1), WdlInteger(2)))
+      ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(0), WdlInteger(1), WdlInteger(2)))
     }
   }
 }

@@ -2,12 +2,12 @@ package cromwell.backend.validation
 
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
-import com.typesafe.config.{Config, ConfigException}
+import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.expression.PureStandardLibraryFunctions
-import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlType}
+import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
 import wdl4s.values._
 import wdl4s.{NoLookup, WdlExpression}
 
@@ -93,7 +93,7 @@ object RuntimeAttributesValidation {
 
       override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
-      override protected def staticDefaultOption = Some(default)
+      override protected def staticDefaultOption = Option(default)
     }
   }
 
@@ -212,6 +212,15 @@ object RuntimeAttributesValidation {
     }
   }
 }
+
+/**
+  * A wrapper class to classify config-based default runtime attributes
+  * that cannot be coerced into an acceptable WdlType.
+  */
+case class BadDefaultAttribute(badDefaultValue: WdlValue) extends WdlValue {
+  val wdlType = WdlStringType
+}
+
 
 /**
   * Performs a validation on a runtime attribute and returns some value.
@@ -376,31 +385,30 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * Returns the value of the default runtime attribute of a
     * validation key as specified in the reference.conf. Given
     * a value, this method coerces it into an optional
-    * WDL value. In case the value cannot be coerced into an
-    * acceptable WdlType the value is wrapped into a WdlString
-    * and failed downstream by the ValidatedRuntimeAttributesBuilder.
+    * WdlValue. In case the value cannot be succesfully coerced
+    * the value is wrapped as a "BadDefaultAttributeValue" type that
+    * is failed downstream by the ValidatedRuntimeAttributesBuilder.
     *
-    * @param backendRuntimeDefaults The runtime attributes config of a particular backend.
+    * @param optionalRuntimeConfig Optional default runtime attributes config of a particular backend.
     * @return The new version of this validation.
     */
-  final def configDefaultWdlValue(backendRuntimeDefaults: Config): Option[WdlValue] = {
-    if (backendRuntimeDefaults.hasPath(key)) {
-      backendRuntimeDefaults.getValue(key).unwrapped() match {
-        case value => this.coercion.collect({
-          case wdlType if wdlType.coerceRawValue(value).isSuccess =>
-            wdlType.coerceRawValue(value).get
-        }).headOption orElse Some(WdlString(value.toString))
-      }
+  final def configDefaultWdlValue(optionalRuntimeConfig: Option[Config]): Option[WdlValue] = {
+    optionalRuntimeConfig flatMap { config =>
+      val value = config.getValue(key).unwrapped()
+      coercion.collectFirst({
+        case wdlType if wdlType.coerceRawValue(value).isSuccess => {
+          wdlType.coerceRawValue(value).get
+        }
+      }) orElse Option(BadDefaultAttribute(WdlString(value.toString)))
     }
-    else None
   }
 
-  final def configDefaultValue(backendRuntimeDefaults: Config): Option[String] =
-    try {
-      Some(backendRuntimeDefaults.getValue(key).unwrapped().toString)
-    } catch {
-      case ex: ConfigException => None
+  final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] = {
+    optionalRuntimeConfig match {
+      case Some(config) if config.hasPath(key) => Option(config.getValue(key).unwrapped().toString)
+      case _ => None
     }
+  }
 
   /*
   Methods below provide aliases to expose protected methods to the package.

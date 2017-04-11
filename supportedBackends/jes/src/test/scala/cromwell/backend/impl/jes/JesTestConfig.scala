@@ -6,7 +6,7 @@ import cromwell.backend.BackendConfigurationDescriptor
 object JesTestConfig {
 
   private val JesBackendConfigString =
-    s"""
+    """
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
@@ -34,6 +34,23 @@ object JesTestConfig {
       |    zones:["us-central1-b", "us-central1-a"]
       |}
       |
+      |""".stripMargin
+
+  private val NoDefaultsConfigString =
+    """
+      |project = "my-cromwell-workflows"
+      |root = "gs://my-cromwell-workflows-bucket"
+      |
+      |genomics {
+      |  auth = "application-default"
+      |  endpoint-url = "https://genomics.googleapis.com/"
+      |}
+      |
+      |filesystems {
+      |  gcs {
+      |    auth = "application-default"
+      |  }
+      |}
       |""".stripMargin
 
   private val JesGlobalConfigString =
@@ -64,5 +81,7 @@ object JesTestConfig {
 
   val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)
   val JesGlobalConfig = ConfigFactory.parseString(JesGlobalConfigString)
+  val JesBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
   val JesBackendConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig)
+  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendNoDefaultConfig, JesGlobalConfig)
 }

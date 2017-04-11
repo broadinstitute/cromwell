@@ -30,7 +30,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   behavior of "SharedFileSystemJobExecutionActor"
 
   lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig).definitions.toSet
+    StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = Map(

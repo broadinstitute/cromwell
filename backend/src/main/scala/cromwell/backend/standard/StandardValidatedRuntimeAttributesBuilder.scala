@@ -30,7 +30,7 @@ object StandardValidatedRuntimeAttributesBuilder {
     *
     * Additional runtime attribute validations may be added by calling `withValidation` on the default.
     */
-  def default(backendRuntimeConfig: Config): StandardValidatedRuntimeAttributesBuilder = {
+  def default(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder = {
     val required = Seq(ContinueOnReturnCodeValidation.default(backendRuntimeConfig), FailOnStderrValidation.default(backendRuntimeConfig))
     val custom = Seq.empty
     StandardValidatedRuntimeAttributesBuilderImpl(custom, required)

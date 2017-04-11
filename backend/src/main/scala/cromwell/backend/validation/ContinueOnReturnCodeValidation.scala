@@ -22,15 +22,12 @@ import scala.util.Try
   * reference.conf file, coerced into a WdlValue.
   *
   * `default` a validation with the default value specified by the reference.conf file.
-  *
-  * `optional` can be used to return the validated value as an `Option`,
-  * wrapped in a `Some`, if present, or `None` if not found.
   */
 object ContinueOnReturnCodeValidation {
   lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] = new ContinueOnReturnCodeValidation
-  def default(runtimeConfig: Config): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(
+  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ContinueOnReturnCode] = instance.withDefault(
     configDefaultWdlValue(runtimeConfig) getOrElse WdlInteger(0))
-  def configDefaultWdlValue(runtimeConfig: Config): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
+  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
 }
 
 class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {

@@ -4,7 +4,7 @@ import com.typesafe.config.ConfigFactory
 
 object TestConfig {
 
-  lazy val mockBackendRuntimeConfigString =
+  lazy val sampleBackendRuntimeConfigString =
     s"""
        |default-runtime-attributes {
        |    failOnStderr: false
@@ -28,11 +28,11 @@ object TestConfig {
        |}
      """.stripMargin
 
-  lazy val mockBackendRuntimeConfig = ConfigFactory.parseString(mockBackendRuntimeConfigString)
+  lazy val sampleBackendRuntimeConfig = ConfigFactory.parseString(sampleBackendRuntimeConfigString)
 
   lazy val allRuntimeAttrsConfig = ConfigFactory.parseString(allBackendRuntimeAttrsString).getConfig("default-runtime-attributes")
 
-  lazy val mockRuntimeConfig = mockBackendRuntimeConfig.getConfig("default-runtime-attributes")
+  lazy val optionalRuntimeConfig = sampleBackendRuntimeConfig.getConfig("default-runtime-attributes")
 
   lazy val globalConfig = ConfigFactory.load()
 
@@ -40,5 +40,5 @@ object TestConfig {
 
   lazy val emptyBackendConfigDescriptor = BackendConfigurationDescriptor(emptyConfig, globalConfig)
 
-  lazy val backendRuntimeConfigDescriptor = BackendConfigurationDescriptor(mockBackendRuntimeConfig, emptyConfig)
+  lazy val backendRuntimeConfigDescriptor = BackendConfigurationDescriptor(sampleBackendRuntimeConfig, emptyConfig)
 }

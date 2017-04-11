@@ -31,9 +31,11 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
     testPredicateBackendWorkflowInitializationActor.continueOnReturnCodePredicate(valueRequired = false)
   }
 
+  val optionalConfig = Option(TestConfig.optionalRuntimeConfig)
+
   it should "continueOnReturnCodePredicate" in {
     testContinueOnReturnCode(None) should be(true)
-    ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(None) should be(true)
+    ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(None) should be(true)
 
     val booleanRows = Table(
       "value",
@@ -67,9 +69,9 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlBoolean(value)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeFlag(value))
     }
@@ -78,9 +80,9 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeFlag(value))
     }
@@ -89,7 +91,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlExpression.fromString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
@@ -97,9 +99,9 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlInteger(value)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -108,9 +110,9 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -119,7 +121,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlExpression.fromString(value.toString)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
@@ -127,9 +129,9 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlArray(WdlArrayType(WdlIntegerType), Seq(WdlInteger(value)))
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -138,9 +140,9 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlArray(WdlArrayType(WdlStringType), Seq(WdlString(value.toString)))
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.right.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -149,7 +151,7 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlArray(WdlArrayType(WdlExpressionType), Seq(WdlExpression.fromString(value.toString)))
       val result = false
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
@@ -157,16 +159,16 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
       val wdlValue = WdlExpression.fromString(expression)
       val result = true
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       // NOTE: expressions are never valid to validate
     }
 
     forAll(invalidWdlValueRows) { wdlValue =>
       val result = false
       testContinueOnReturnCode(Option(wdlValue)) should be(result)
-      ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalExpression(Option(wdlValue)) should be(result)
       val valid =
-        ContinueOnReturnCodeValidation.default(TestConfig.mockRuntimeConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
+        ContinueOnReturnCodeValidation.default(optionalConfig).validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> wdlValue))
       valid.isValid should be(result)
       valid.toEither.left.get.toList should contain theSameElementsAs List(
         "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
@@ -196,7 +198,7 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
   override protected def workflowDescriptor: BackendWorkflowDescriptor =
     throw new NotImplementedError("workflowDescriptor")
 
-  override protected def configurationDescriptor: BackendConfigurationDescriptor = BackendConfigurationDescriptor(TestConfig.mockBackendRuntimeConfig, ConfigFactory.empty())
+  override protected def configurationDescriptor: BackendConfigurationDescriptor = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
 
   override def continueOnReturnCodePredicate(valueRequired: Boolean)
                                             (wdlExpressionMaybe: Option[WdlValue]): Boolean = {

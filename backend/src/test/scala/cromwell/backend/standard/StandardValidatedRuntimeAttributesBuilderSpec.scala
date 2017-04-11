@@ -153,7 +153,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
   val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])
   val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
 
-  val mockBackendRuntimeConfig = TestConfig.mockRuntimeConfig
+  val mockBackendRuntimeConfig = Option(TestConfig.optionalRuntimeConfig)
 
   private def assertRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WdlValue],
                                                         expectedRuntimeAttributes: Map[String, Any],
@@ -162,9 +162,9 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
                                                         logger: Logger = defaultLogger): Unit = {
 
     val builder = if (includeDockerSupport) {
-      StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig).withValidation(DockerValidation.optional)
+      StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig).withValidation(DockerValidation.optional)
     } else {
-      StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig)
+      StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
     }
     val runtimeAttributeDefinitions = builder.definitions.toSet
     val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
@@ -191,9 +191,9 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Ma
                                                     logger: Logger = defaultLogger): Unit = {
     val thrown = the[RuntimeException] thrownBy {
       val builder = if (supportsDocker) {
-        StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig).withValidation(DockerValidation.optional)
+        StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig).withValidation(DockerValidation.optional)
       } else {
-        StandardValidatedRuntimeAttributesBuilder.default(TestConfig.mockRuntimeConfig)
+        StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
       }
       val runtimeAttributeDefinitions = builder.definitions.toSet
       val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _

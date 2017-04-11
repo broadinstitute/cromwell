@@ -13,16 +13,13 @@ import wdl4s.values.{WdlBoolean, WdlValue}
   * reference.conf file, coerced into a WdlValue.
   *
   * `default` a validation with the default value specified by the reference.conf file.
-  *
-  * `optional` can be used to return the validated value as an `Option`,
-  * wrapped in a `Some`, if present, or `None` if not found.
   */
 
 object FailOnStderrValidation {
   lazy val instance: RuntimeAttributesValidation[Boolean] = new FailOnStderrValidation
-  def default(runtimeConfig: Config): RuntimeAttributesValidation[Boolean] = instance.withDefault(
+  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = instance.withDefault(
     configDefaultWdlValue(runtimeConfig) getOrElse WdlBoolean(false))
-  def configDefaultWdlValue(runtimeConfig: Config): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
+  def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WdlValue] = instance.configDefaultWdlValue(runtimeConfig)
 }
 
 class FailOnStderrValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.FailOnStderrKey) {

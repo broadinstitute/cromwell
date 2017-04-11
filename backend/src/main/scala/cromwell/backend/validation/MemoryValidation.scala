@@ -19,8 +19,6 @@ import scala.util.{Failure, Success}
   * `configDefaultWdlValue` returns the value of the attribute as specified by the
   * reference.conf file, coerced into a WdlValue.
   *
-  * `default` a validation with the default value specified by the reference.conf file.
-  *
   * `optional` can be used to return the validated value as an `Option`,
   * wrapped in a `Some`, if present, or `None` if not found.
   *
@@ -29,11 +27,11 @@ import scala.util.{Failure, Success}
 object MemoryValidation {
   lazy val instance: RuntimeAttributesValidation[MemorySize] = new MemoryValidation
   lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
-  def configDefaultString(config: Config): Option[String] = instance.configDefaultValue(config)
+  def configDefaultString(config: Option[Config]): Option[String] = instance.configDefaultValue(config)
   def withDefaultMemory(memorySize: String): RuntimeAttributesValidation[MemorySize] = {
     MemorySize.parse(memorySize) match {
       case Success(memory) => instance.withDefault(WdlInteger(memory.bytes.toInt))
-      case Failure(_) => instance.withDefault(WdlString(memorySize.toString))
+      case Failure(_) => instance.withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
     }
   }
 

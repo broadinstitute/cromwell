@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import java.net.URL
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags._
 import cromwell.filesystems.gcs.GoogleConfiguration
 import lenthall.exception.MessageAggregation
@@ -17,29 +17,11 @@ class JesAttributesSpec extends FlatSpec with Matchers {
   val googleConfig = GoogleConfiguration(JesGlobalConfig)
   val runtimeConfig = ConfigFactory.load()
 
-  val runtimeAttributesConfig: Config = ConfigFactory.parseString(
-    """
-      |default-runtime-attributes {
-      |  cpu: 1
-      |  failOnStderr: false
-      |  # Allowed to be a boolean, or a list of Ints, or an Int
-      |  continueOnReturnCode: 0
-      |  memory: "2 GB"
-      |  bootDiskSizeGb: 10
-      |  # Allowed to be a String, or a list of Strings
-      |  disks: "local-disk 10 SSD"
-      |  noAddress: false
-      |  preemptible: 3
-      |  zones: ["us-central1-a", "us-central1-b"]
-      |}
-      |""".stripMargin)
-
-
   it should "parse correct JES config" taggedAs IntegrationTest in {
 
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val jesAttributes = JesAttributes(googleConfig, backendConfig, runtimeAttributesConfig)
+    val jesAttributes = JesAttributes(googleConfig, backendConfig)
     jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
     jesAttributes.project should be("myProject")
     jesAttributes.executionBucket should be("gs://myBucket")
@@ -50,7 +32,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
   it should "parse correct preemptible config" taggedAs IntegrationTest in {
     val backendConfig = ConfigFactory.parseString(configString(preemptible = "preemptible = 3"))
 
-    val jesAttributes = JesAttributes(googleConfig, backendConfig, runtimeAttributesConfig)
+    val jesAttributes = JesAttributes(googleConfig, backendConfig)
     jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
     jesAttributes.project should be("myProject")
     jesAttributes.executionBucket should be("gs://myBucket")
@@ -60,7 +42,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
   it should "parse compute service account" taggedAs IntegrationTest in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
 
-    val jesAttributes = JesAttributes(googleConfig, backendConfig, runtimeAttributesConfig)
+    val jesAttributes = JesAttributes(googleConfig, backendConfig)
     jesAttributes.computeServiceAccount should be("testing")
   }
 
@@ -76,7 +58,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      JesAttributes(googleConfig, nakedConfig, runtimeAttributesConfig)
+      JesAttributes(googleConfig, nakedConfig)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("No configuration setting found for key 'project'")

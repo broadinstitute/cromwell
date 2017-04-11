@@ -23,7 +23,7 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val jesCallPaths: JesJobPaths = jobPaths.asInstanceOf[JesJobPaths]
 
-  lazy val runtimeAttributes = JesRuntimeAttributes(validatedRuntimeAttributes, jesConfiguration.runtimeAttributesConfig)
+  lazy val runtimeAttributes = JesRuntimeAttributes(validatedRuntimeAttributes, jesConfiguration.runtimeConfig)
 
   lazy val workingDisk: JesAttachedDisk = runtimeAttributes.disks.find(_.name == JesWorkingDisk.Name).get
 

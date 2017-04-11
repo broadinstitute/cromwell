@@ -136,7 +136,6 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       expectedDefaultsPlusUbuntuDocker
     )
   }
-  //TODO: RM add more tests for TES, same as JES?
 
   private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
   private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
@@ -168,16 +167,17 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    TesRuntimeAttributes.runtimeAttributesBuilder(mockConfigurationDescriptor.backendRuntimeConfig).definitions.toSet
+    TesRuntimeAttributes.runtimeAttributesBuilder(mockTesConfiguration.runtimeConfig).definitions.toSet
 
 
   private def toTesRuntimeAttributes(runtimeAttributes: Map[String, WdlValue],
                                      workflowOptions: WorkflowOptions,
                                      tesConfiguration: TesConfiguration): TesRuntimeAttributes = {
-    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder(mockConfigurationDescriptor.backendRuntimeConfig)
+    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
     val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    TesRuntimeAttributes(validatedRuntimeAttributes, tesConfiguration.runtimeAttrsConfig)
+    TesRuntimeAttributes(validatedRuntimeAttributes, tesConfiguration.runtimeConfig
+    )
   }
 }

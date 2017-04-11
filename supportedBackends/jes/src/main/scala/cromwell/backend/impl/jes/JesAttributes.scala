@@ -48,24 +48,21 @@ object JesAttributes {
     "genomics-api-queries-per-100-seconds"
   )
 
-  private val deprecatedJesKeys: Map[String, Option[String]] = Map(
-    "genomics.default-zones" -> Some("default-runtime-attributes.zones")
+  private val deprecatedJesKeys: Map[String, String] = Map(
+    "genomics.default-zones" -> "default-runtime-attributes.zones"
   )
 
   private val context = "Jes"
 
   implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
   
-  def apply(googleConfig: GoogleConfiguration, backendConfig: Config, runtimeAttrsConfig: Config): JesAttributes = {
+  def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
     val configKeys = backendConfig.entrySet().toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, jesKeys, context, Logger)
 
-    def warnDeprecated(keys: Set[String], deprecated: Map[String, Option[String]], context: String, logger: Logger) = {
+    def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
-      deprecatedKeys foreach {
-        case key if deprecated.get(key).isDefined => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}")
-        case key if deprecated.get(key).isEmpty => logger.warn(s"Found deprecated configuration key $key, no longer supported.")
-      }
+      deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
     }
 
     warnDeprecated(configKeys, deprecatedJesKeys, context, Logger)

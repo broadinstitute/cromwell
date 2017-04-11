@@ -28,17 +28,17 @@ object TesRuntimeAttributes {
   val DiskSizeKey = "disk"
   private val DiskSizeDefaultValue = "2 GB"
 
-  private def cpuValidation(runtimeConfig: Config): RuntimeAttributesValidation[Int] = CpuValidation.instance
+  private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWdlValue(runtimeConfig) getOrElse CpuValidation.default)
 
-  private def failOnStderrValidation(runtimeConfig: Config) = FailOnStderrValidation.default(runtimeConfig)
+  private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
-  private def continueOnReturnCodeValidation(runtimeConfig: Config) = ContinueOnReturnCodeValidation.default(runtimeConfig)
+  private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
 
-  private def diskSizeValidation(runtimeConfig: Config): RuntimeAttributesValidation[MemorySize] = DiskSizeValidation
+  private def diskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = DiskSizeValidation
     .withDefaultDiskSize(DiskSizeValidation.configDefaultString(runtimeConfig) getOrElse DiskSizeDefaultValue)
 
-  private def memoryValidation(runtimeConfig: Config): RuntimeAttributesValidation[MemorySize] = {
+  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
     MemoryValidation.withDefaultMemory(MemoryValidation.configDefaultString(runtimeConfig) getOrElse MemoryDefaultValue)
   }
 
@@ -46,7 +46,7 @@ object TesRuntimeAttributes {
 
   private val dockerWorkingDirValidation: OptionalRuntimeAttributesValidation[String] = DockerWorkingDirValidation.optional
 
-  def runtimeAttributesBuilder(backendRuntimeConfig: Config): StandardValidatedRuntimeAttributesBuilder =
+  def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
     StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       cpuValidation(backendRuntimeConfig),
       memoryValidation(backendRuntimeConfig),
@@ -55,7 +55,7 @@ object TesRuntimeAttributes {
       dockerWorkingDirValidation
     )
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Config): TesRuntimeAttributes = {
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): TesRuntimeAttributes = {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
     val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation(backendRuntimeConfig), validatedRuntimeAttributes)
@@ -93,11 +93,11 @@ class DockerWorkingDirValidation extends StringRuntimeAttributesValidation(TesRu
 object DiskSizeValidation {
   lazy val instance: RuntimeAttributesValidation[MemorySize] = new DiskSizeValidation
   lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
-  def configDefaultString(runtimeConfig: Config): Option[String] = instance.configDefaultValue(runtimeConfig)
+  def configDefaultString(runtimeConfig: Option[Config]): Option[String] = instance.configDefaultValue(runtimeConfig)
   def withDefaultDiskSize(memorySize: String): RuntimeAttributesValidation[MemorySize] = {
     MemorySize.parse(memorySize) match {
       case Success(memory) => instance.withDefault(WdlInteger(memory.bytes.toInt))
-      case Failure(_) => instance.withDefault(WdlString(memorySize.toString))
+      case Failure(_) => instance.withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
     }
   }
 

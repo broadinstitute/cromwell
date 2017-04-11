@@ -24,3 +24,4 @@ object TesTestConfig {
 
   val backendConfig = ConfigFactory.parseString(backendConfigString)
 }
+

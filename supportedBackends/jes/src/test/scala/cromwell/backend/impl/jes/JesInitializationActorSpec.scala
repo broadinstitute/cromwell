@@ -70,7 +70,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
       |""".stripMargin)
 
   val backendConfigTemplate: String =
-    s"""
+    """
       |  // Google project
       |  project = "my-cromwell-workflows"
       |

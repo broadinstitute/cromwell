@@ -43,6 +43,9 @@ system.io {
 }
 ```
 
+* Added a `script-epilogue` configuration option to adjust the logic that runs at the end of the scripts which wrap call executions.
+  This option is adjustable on a per-backend basis.  If unspecified, the default value is `sync`.
+
 ### WDL Features
 
 With Cromwell 26, Cromwell will support `if x then y else z` expressions (see: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#if-then-else). For example: 

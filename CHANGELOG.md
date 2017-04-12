@@ -1,5 +1,25 @@
 # Cromwell Change Log
 
+## 27
+
+
+* The update to Slick 3.2 requires a database stanza to
+[switch](http://slick.lightbend.com/doc/3.2.0/upgrade.html#profiles-vs-drivers) from using `driver` to `profile`.
+
+```hocon
+database {
+  #driver = "slick.driver.MySQLDriver$" #old
+  profile = "slick.jdbc.MySQLProfile$"  #new
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
+    user = "user"
+    password = "pass"
+    connectionTimeout = 5000
+  }
+}
+```
+
 ## 26
 
 ### Breaking Changes
@@ -41,17 +61,6 @@ system.io {
   # Number of times an I/O operation should be attempted before giving up and failing it.
   number-of-attempts = 5
 }
-```
-
-* Added a `script-epilogue` configuration option to adjust the logic that runs at the end of the scripts which wrap call executions.
-  This option is adjustable on a per-backend basis.  If unspecified, the default value is `sync`.
-
-### WDL Features
-
-With Cromwell 26, Cromwell will support `if x then y else z` expressions (see: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#if-then-else). For example: 
-```
-Boolean b = true
-String s = if b then "value if True" else "value if False"
 ```
 
 ## 25

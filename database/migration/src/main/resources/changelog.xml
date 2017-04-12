@@ -80,7 +80,7 @@ WHY
     In slick schemas, `index(unique = false)` always creates an index. Depending on the database type,
     `index(unique = true)` sometimes creates a unique _constraint_, not actually an index.
 
-    https://github.com/slick/slick/blob/3.1.1/slick/src/main/scala/slick/driver/HsqldbDriver.scala#L126
+    https://github.com/slick/slick/blob/3.2.0/slick/src/main/scala/slick/jdbc/HsqldbProfile.scala#L127
 
 -*-
 

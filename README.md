@@ -497,18 +497,13 @@ Then, edit the configuration file `database` stanza, as follows:
 
 ```
 database {
-
-  driver = "slick.driver.MySQLDriver$"
+  profile = "slick.jdbc.MySQLProfile$"
   db {
     driver = "com.mysql.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
     connectionTimeout = 5000
-  }
-
-  test {
-    ...
   }
 }
 ```

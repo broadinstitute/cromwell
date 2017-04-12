@@ -14,7 +14,7 @@ object Dependencies {
   lazy val sprayJsonV = "1.3.2"
   lazy val akkaV = "2.4.16"
   lazy val akkaHttpV = "2.4.11"
-  lazy val slickV = "3.1.1"
+  lazy val slickV = "3.2.0"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"

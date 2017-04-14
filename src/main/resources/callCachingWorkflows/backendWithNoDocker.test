@@ -1,0 +1,12 @@
+name: backendWithNoDocker
+backends: [LocalNoDocker]
+
+files {
+  wdl: backendWithNoDocker/backendWithNoDocker.wdl
+}
+
+metadata {
+  workflowName: backend_with_no_docker
+  status: Succeeded
+  "calls.backend_with_no_docker.dockerhub.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:backend_with_no_docker.dockerhub:-1"
+}

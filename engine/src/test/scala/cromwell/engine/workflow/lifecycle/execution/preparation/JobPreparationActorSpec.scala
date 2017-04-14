@@ -2,8 +2,8 @@ package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef}
 import cromwell.core.actor.StreamIntegration.BackPressure
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashResponseSuccess}
-import cromwell.core.callcaching.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
+import cromwell.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashResponseSuccess}
+import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.core.callcaching.{CallCachingEligible, CallCachingIneligible}
 import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}

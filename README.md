@@ -1902,14 +1902,28 @@ When Cromwell finds a job ready to be run, it will first look at its docker runt
         If call caching writing is turned on, Cromwell will still write the job in the cache database, using:
          * the hash if the lookup succeeded
          * the floating tag otherwise.
-         
-Docker registry and access levels supported by Cromwell for docker hash lookup:
 
-|       |       DockerHub    ||       GCR       ||
-|:-----:|:---------:|:-------:|:------:|:-------:|
-|       |   Public  | Private | Public | Private |
-|  JES  |     X     |    X    |    X   |    X    |
-| Other |     X     |         |    X   |         |
+### Docker Lookup
+
+Cromwell provides 2 methods to lookup a docker hash from a docker tag:
+
+* Local
+    In this mode, cromwell will first attempt to find the image on the local machine where it's running using the docker CLI. If the image is present, then its hash will be used.
+    If it's not present, cromwell will execute a `docker pull` to try and retrieve it. If this succeeds, the newly retrieved hash will be used. Otherwise the lookup will be considered failed.
+    Note that cromwell runs the `docker` CLI the same way a human would. This means two things:
+     * The machine Cromwell is running on needs to have docker installed and a docker daemon running.
+     * Whichever credentials (and only those) are available on that machine will be available to pull the image.
+    
+* Remote
+    In this mode, cromwell will attempt to retrieve the hash by contacting the remote docker registry where the image is stored. This currently supports Docker Hub and GCR.
+    
+    Docker registry and access levels supported by Cromwell for docker hash lookup in "remote" mode:
+    
+    |       |       DockerHub    ||       GCR       ||
+    |:-----:|:---------:|:-------:|:------:|:-------:|
+    |       |   Public  | Private | Public | Private |
+    |  JES  |     X     |    X    |    X   |    X    |
+    | Other |     X     |         |    X   |         |
 
 ## Local Filesystem Options
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:

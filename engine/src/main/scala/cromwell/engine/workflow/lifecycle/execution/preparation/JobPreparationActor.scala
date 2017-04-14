@@ -2,12 +2,12 @@ package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.actor.{ActorRef, FSM, Props}
 import cromwell.backend._
-import cromwell.backend.validation.RuntimeAttributesKeys
+import cromwell.backend.validation.{DockerValidation, RuntimeAttributesKeys}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
-import cromwell.core.callcaching.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashResponseSuccess}
-import cromwell.core.callcaching.docker._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashResponseSuccess}
+import cromwell.docker._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationActor.{DockerNoResponseTimeout, _}
@@ -41,6 +41,8 @@ class JobPreparationActor(executionData: WorkflowExecutionActorData,
   private lazy val workflowDescriptor = executionData.workflowDescriptor
   private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData)
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(initializationData)
+  private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
+  private[preparation] lazy val hasDockerDefinition = runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
 
   startWith(Idle, JobPreparationActorNoData)
 
@@ -111,9 +113,10 @@ class JobPreparationActor(executionData: WorkflowExecutionActorData,
     }
 
     def handleDockerValue(value: String) = DockerImageIdentifier.fromString(value) match {
-      case Success(dockerImageId: DockerImageIdentifierWithoutHash) => sendDockerRequest(dockerImageId)
-      case Success(dockerImageIdWithHash: DockerImageIdentifierWithHash) =>
-        // If the docker value already has a hash - we're ok for call caching
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition => sendDockerRequest(dockerImageId)
+      case Success(_) =>
+        // If the docker value already has a hash, or the backend doesn't support docker - 
+        // no need to lookup and we're ok for call caching
         val response = prepareBackendDescriptor(inputs, attributes, CallCachingEligible, kvStoreLookupResults.unscoped)
         sendResponseAndStop(response)
       case Failure(failure) => sendFailureAndStop(failure)
@@ -167,7 +170,7 @@ class JobPreparationActor(executionData: WorkflowExecutionActorData,
 
   private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[Declaration, WdlValue]): Try[Map[LocallyQualifiedName, WdlValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
-    val curriedAddDefaultsToAttributes = addDefaultsToAttributes(factory.runtimeAttributeDefinitions(initializationData), workflowDescriptor.backendDescriptor.workflowOptions) _
+    val curriedAddDefaultsToAttributes = addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
 
     for {
       unevaluatedRuntimeAttributes <- Try(jobKey.call.task.runtimeAttributes)

@@ -1,6 +1,7 @@
 package cromwell.backend.validation
 
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.types.WdlIntegerType
 import wdl4s.values.{WdlInteger, WdlValue}
@@ -10,15 +11,15 @@ import wdl4s.values.{WdlInteger, WdlValue}
   *
   * `instance` returns an validation that errors when no attribute is specified.
   *
-  * The default returns `1` when no attribute is specified.
+  * `default` a hardcoded default WdlValue for Cpu.
   *
-  * `optional` can be used return the validated value as an `Option`, wrapped in a `Some`, if present, or `None` if not
-  * found.
+  * `configDefaultWdlValue` returns the value of the attribute as specified by the
+  * reference.conf file, coerced into a WdlValue.
   */
-object CpuValidation extends {
+object CpuValidation {
   lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation
-  lazy val default: RuntimeAttributesValidation[Int] = instance.withDefault(WdlInteger(1))
-  lazy val optional: OptionalRuntimeAttributesValidation[Int] = default.optional
+  lazy val default: WdlValue = WdlInteger(1)
+  def configDefaultWdlValue(config: Option[Config]): Option[WdlValue] = instance.configDefaultWdlValue(config)
 }
 
 class CpuValidation extends IntRuntimeAttributesValidation(RuntimeAttributesKeys.CpuKey) {

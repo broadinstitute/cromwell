@@ -27,7 +27,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
     new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, pathBuilders)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
-    TesRuntimeAttributes.runtimeAttributesBuilder
+    TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     Future.fromTry(Try {

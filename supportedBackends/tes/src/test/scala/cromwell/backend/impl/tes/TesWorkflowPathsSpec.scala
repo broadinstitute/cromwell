@@ -1,36 +1,16 @@
 package cromwell.backend.impl.tes
 
 import better.files._
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.{JobKey, WorkflowId}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.{Call, Workflow}
 
 class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
-  val configString =
-    """
-      |root = "local-cromwell-executions"
-      |dockerRoot = "cromwell-executions"
-      |
-      |filesystems {
-      |  local {
-      |    localization: [
-      |      "hard-link", "soft-link", "copy"
-      |    ]
-      |  }
-      |  gcs {
-      |    auth = "application-default"
-      |  }
-      |}
-      |""".stripMargin
-
-  val globalConfig = ConfigFactory.load()
-  val backendConfig =  ConfigFactory.parseString(configString)
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
-    val workflowPaths = new TesWorkflowPaths(wd, backendConfig)
+    val workflowPaths = new TesWorkflowPaths(wd, TesTestConfig.backendConfig)
     val id = wd.id
     workflowPaths.workflowRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id").pathAsString
@@ -68,7 +48,7 @@ class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     subWd.breadCrumbs returns List(BackendJobBreadCrumb(rootWorkflow, rootWorkflowId, jobKey))
     subWd.id returns subWorkflowId
     
-    val workflowPaths = new TesWorkflowPaths(subWd, backendConfig)
+    val workflowPaths = new TesWorkflowPaths(subWd, TesTestConfig.backendConfig)
     workflowPaths.workflowRoot.toString shouldBe File(s"local-cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId").pathAsString
     workflowPaths.dockerWorkflowRoot.toString shouldBe s"/cromwell-executions/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
   }

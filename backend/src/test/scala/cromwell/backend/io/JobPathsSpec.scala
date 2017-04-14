@@ -1,7 +1,7 @@
 package cromwell.backend.io
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec, TestConfig}
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.TaskCall
@@ -23,9 +23,8 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
       |        }
     """.stripMargin
 
-  val globalConfig = ConfigFactory.load()
   val backendConfig =  ConfigFactory.parseString(configString)
-  val defaultBackendConfigDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfigDescriptor = BackendConfigurationDescriptor(backendConfig, TestConfig.globalConfig)
 
   "JobPaths" should "provide correct paths for a job" in {
 

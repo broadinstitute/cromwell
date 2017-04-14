@@ -1,11 +1,14 @@
 package cromwell.backend.validation
 
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import lenthall.validation.ErrorOr._
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlInteger, WdlString, WdlValue}
+
+import scala.util.{Failure, Success}
 
 /**
   * Validates the "memory" runtime attribute as an Integer or String with format '8 GB', returning the value as a
@@ -13,17 +16,24 @@ import wdl4s.values.{WdlInteger, WdlString, WdlValue}
   *
   * `instance` returns an validation that errors when no attribute is specified.
   *
-  * There is no default, however `optional` can be used to validate the attribute and return the validated value as an
-  * `Option`, wrapped in an `Some`, if present, or `None` if not found.
+  * `configDefaultWdlValue` returns the value of the attribute as specified by the
+  * reference.conf file, coerced into a WdlValue.
+  *
+  * `optional` can be used to return the validated value as an `Option`,
+  * wrapped in a `Some`, if present, or `None` if not found.
   *
   * `withDefaultMemory` can be used to create a memory validation that defaults to a particular memory size.
   */
 object MemoryValidation {
   lazy val instance: RuntimeAttributesValidation[MemorySize] = new MemoryValidation
   lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
-
-  def withDefaultMemory(memorySize: MemorySize): RuntimeAttributesValidation[MemorySize] =
-    instance.withDefault(WdlInteger(memorySize.bytes.toInt))
+  def configDefaultString(config: Option[Config]): Option[String] = instance.configDefaultValue(config)
+  def withDefaultMemory(memorySize: String): RuntimeAttributesValidation[MemorySize] = {
+    MemorySize.parse(memorySize) match {
+      case Success(memory) => instance.withDefault(WdlInteger(memory.bytes.toInt))
+      case Failure(_) => instance.withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
+    }
+  }
 
   private[validation] val wrongAmountFormat =
     s"Expecting ${RuntimeAttributesKeys.MemoryKey} runtime attribute value greater than 0 but got %s"

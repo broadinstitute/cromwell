@@ -4,10 +4,11 @@ import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, BackendJobExecutionResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{ExecutionMode, JobId, Recover}
-import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionActor, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle, ReturnCodeIsNotAnInt, StderrNonEmpty, SuccessfulExecutionHandle, WrongReturnCode}
+import cromwell.backend.async._
 import cromwell.backend.validation._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
@@ -22,6 +23,7 @@ import net.ceedubs.ficus.Ficus._
 import wdl4s._
 import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
+import _root_.scala.util.Try
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
@@ -643,15 +645,19 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       stderrSizeAndReturnCode flatMap {
         case (stderrSize, returnCodeAsString) =>
           val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
-          
+
+          val config = ConfigFactory.load()
+          val maxRetries = Try(config.getInt("backend.max-job-retries")).getOrElse(0)
+          val RetryableHandleIfPossible = if (jobDescriptor.key.attempt < maxRetries) FailedRetryableExecutionHandle else FailedNonRetryableExecutionHandle
+
           if (isSuccess(status)) {
             tryReturnCodeAsInt match {
               case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
-                Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
+                Future.successful(RetryableHandleIfPossible.apply(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
               case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
                 Future.successful(AbortedExecutionHandle)
               case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-                Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
+                Future.successful(RetryableHandleIfPossible(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               case Success(returnCodeAsInt) =>
                 Future.successful(handleExecutionSuccess(status, oldHandle, returnCodeAsInt))
               case Failure(_) =>

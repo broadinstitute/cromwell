@@ -2,13 +2,17 @@ package cromwell.backend.async
 
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
+import cromwell.backend.BackendJobExecutionActor.JobFailedRetryableResponse
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.services.metadata.MetadataService.MetadataServiceResponse
 
+import _root_.scala.util.Try
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -69,7 +73,10 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
   }
 
   private def failAndStop(t: Throwable) = {
-    completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, t, None))
+    val config = ConfigFactory.load()
+    val maxRetries = Try(config.getInt("backend.max-job-retries")).getOrElse(0)
+    val responseBuilder = if (jobDescriptor.key.attempt < maxRetries) JobFailedRetryableResponse else JobFailedNonRetryableResponse
+    completionPromise.success(responseBuilder.apply(jobDescriptor.key, t, None))
     context.stop(self)
   }
 

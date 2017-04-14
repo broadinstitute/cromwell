@@ -2,6 +2,7 @@ package cromwell.backend
 
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.wdl.OutputEvaluator
@@ -46,8 +47,15 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   }
 
   // We need this for receive because we can't do `onFailure = ExecutionFailure` directly - because BackendJobDescriptor =/= BackendJobDescriptorKey
-  private def executionFailed = (t: Throwable) =>
-    JobFailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+  private def executionFailed = (t: Throwable)  => {
+    val config = ConfigFactory.load()
+    val maxRetries = Try(config.getInt("backend.max-job-retries")).getOrElse(0)
+
+    if (jobDescriptor.key.attempt > maxRetries)
+      JobFailedNonRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+    else
+      JobFailedRetryableResponse(jobKey = jobDescriptor.key, throwable = t, returnCode = None)
+  }
 
   /**
     * Execute a new job.

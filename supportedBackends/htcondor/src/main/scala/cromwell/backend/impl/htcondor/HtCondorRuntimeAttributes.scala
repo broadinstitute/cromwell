@@ -28,7 +28,7 @@ object HtCondorRuntimeAttributes {
   val DiskKey = "disk"
   val NativeSpecsKey = "nativeSpecs"
 
-  val staticDefaults = Map(
+  val staticDefaults: Map[String, WdlValue] = Map(
     FailOnStderrKey -> WdlBoolean(FailOnStderrDefaultValue),
     ContinueOnReturnCodeKey -> WdlInteger(ContinueOnRcDefaultValue),
     CpuKey -> WdlInteger(CpuDefaultValue),

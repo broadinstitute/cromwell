@@ -10,6 +10,7 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
 
   val root = configurationDescriptor.backendConfig.getString("root")
+  val runtimeConfig = configurationDescriptor.backendRuntimeConfig
   val jesAttributes = JesAttributes(googleConfig, configurationDescriptor.backendConfig)
   val jesAuths = jesAttributes.auths
   val jesComputeServiceAccount = jesAttributes.computeServiceAccount
@@ -18,5 +19,4 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val dockerCredentials = DockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined
   val qps = jesAttributes.qps
-  val defaultZones = jesAttributes.defaultZones
 }

@@ -57,12 +57,6 @@ lazy val tesBackend = (project in backendRoot / "tes")
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
 
-lazy val htCondorBackend = (project in backendRoot / "htcondor")
-  .settings(htCondorBackendSettings:_*)
-  .withTestSettings
-  .dependsOn(sfsBackend)
-  .dependsOn(backend % "test->test")
-
 lazy val sparkBackend = (project in backendRoot / "spark")
   .settings(sparkBackendSettings:_*)
   .withTestSettings
@@ -106,7 +100,6 @@ lazy val root = (project in file("."))
   .aggregate(services)
   .aggregate(backend)
   .aggregate(sfsBackend)
-  .aggregate(htCondorBackend)
   .aggregate(sparkBackend)
   .aggregate(jesBackend)
   .aggregate(tesBackend)
@@ -115,7 +108,6 @@ lazy val root = (project in file("."))
   .dependsOn(engine)
   .dependsOn(jesBackend)
   .dependsOn(tesBackend)
-  .dependsOn(htCondorBackend)
   .dependsOn(sparkBackend)
   // Dependencies for tests
   .dependsOn(engine % "test->test")

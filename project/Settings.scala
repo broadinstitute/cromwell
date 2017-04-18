@@ -152,11 +152,6 @@ object Settings {
     libraryDependencies ++= tesBackendDependencies
   ) ++ commonSettings
 
-  val htCondorBackendSettings = List(
-    name := "cromwell-htcondor-backend",
-    libraryDependencies ++= htCondorBackendDependencies
-  ) ++ commonSettings
-
   val sparkBackendSettings = List(
     name := "cromwell-spark-backend",
     libraryDependencies ++= sparkBackendDependencies

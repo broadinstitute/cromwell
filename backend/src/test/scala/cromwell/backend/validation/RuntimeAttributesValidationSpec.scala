@@ -334,8 +334,8 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
-      val memoryVal = MemoryValidation.configDefaultString(Some(backendConfig))
-      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WdlInteger(2000000000)))
+      val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WdlInteger(2000000000)))
     }
 
     "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WdlType" in {
@@ -348,8 +348,8 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
       val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
 
-      val memoryVal = MemoryValidation.configDefaultString(Some(backendConfig))
-      MemoryValidation.withDefaultMemory(memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(BadDefaultAttribute(WdlString("blahblah")))
+      val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(BadDefaultAttribute(WdlString("blahblah")))
     }
 
     "should be able to coerce a list of return codes into an WdlArray" in {

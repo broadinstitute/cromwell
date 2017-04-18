@@ -11,13 +11,14 @@ import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
+import org.specs2.mock.Mockito
 import spray.http.{StatusCode, StatusCodes}
 import spray.json._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLike with Matchers
+class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
   behavior of "MetadataParser"
@@ -102,14 +103,21 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
 
   type EventBuilder = (String, String, OffsetDateTime)
 
-  def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+  def makeEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
     MetadataEvent(MetadataKey(workflow, None, key), Option(value), offsetDateTime)
   }
 
-  def assertMetadataKeyStructure(eventList: List[EventBuilder], expectedJson: String) = {
-    val workflow = WorkflowId.randomId()
+  def makeCallEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+    val jobKey = MetadataJobKey("fqn", None, 1)
+    MetadataEvent(MetadataKey(workflow, Option(jobKey), key), Option(value), offsetDateTime)
+  }
 
-    val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(makeEvent(workflow))
+  def assertMetadataKeyStructure(eventList: List[EventBuilder],
+                                 expectedJson: String,
+                                 workflow: WorkflowId = WorkflowId.randomId(),
+                                 eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent = makeEvent) = {
+
+    val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
     val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
 
     val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
@@ -128,7 +136,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
   }
 
-  it should "use CRDT ordering instead of timestamp for status" in {
+  it should "use CRDT ordering instead of timestamp for workflow state" in {
     val eventBuilderList = List(
       ("status", "Succeeded", OffsetDateTime.now),
       ("status", "Running", OffsetDateTime.now.plusSeconds(1))
@@ -137,6 +145,25 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
       """"status": "Succeeded"""".stripMargin
 
     assertMetadataKeyStructure(eventBuilderList, expectedRes)
+  }
+
+  it should "use CRDT ordering instead of timestamp for call execution status" in {
+    val eventBuilderList = List(
+      ("executionStatus", "Done", OffsetDateTime.now),
+      ("executionStatus", "Running", OffsetDateTime.now.plusSeconds(1))
+    )
+    val workflowId = WorkflowId.randomId()
+    val expectedRes =
+      s""""calls": {
+        |    "fqn": [{
+        |      "attempt": 1,
+        |      "executionStatus": "Done",
+        |      "shardIndex": -1
+        |    }]
+        |  },
+        |  "id": "$workflowId"""".stripMargin
+
+    assertMetadataKeyStructure(eventBuilderList, expectedRes, workflowId, makeCallEvent)
   }
 
   it should "build JSON object structure from dotted key syntax" in {

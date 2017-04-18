@@ -34,7 +34,7 @@ object RuntimeAttributesValidation {
   }
 
   def validateMemory(value: Option[WdlValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
-    validateWithValidation(value, MemoryValidation.instance, onMissingKey)
+    validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
   }
 
   def validateCpu(cpu: Option[WdlValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {

@@ -5,6 +5,7 @@ import wdl4s.expression.NoFunctions
 import wdl4s.types._
 import wdl4s.values.WdlValue
 import wdl4s.{Declaration, NoLookup, WdlExpression}
+import cromwell.backend.impl.sfs.config.ConfigConstants._
 
 /**
   * Creates instances of runtime attribute validations from WDL declarations.
@@ -27,8 +28,10 @@ object DeclarationValidation {
         new DeclarationValidation(declaration, DockerValidation.instance)
       case name if name == CpuValidation.instance.key => new DeclarationValidation(declaration, CpuValidation.instance)
       // See MemoryDeclarationValidation for more info
-      case name if MemoryDeclarationValidation.isMemoryDeclaration(name) =>
-        new MemoryDeclarationValidation(declaration)
+      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
+        new MemoryDeclarationValidation(declaration, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix)
+      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, DiskRuntimeAttribute, DiskRuntimeAttributePrefix) =>
+        new MemoryDeclarationValidation(declaration, DiskRuntimeAttribute, DiskRuntimeAttributePrefix)
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
         val validatedRuntimeAttr = validator(declaration.wdlType, declaration.unqualifiedName)

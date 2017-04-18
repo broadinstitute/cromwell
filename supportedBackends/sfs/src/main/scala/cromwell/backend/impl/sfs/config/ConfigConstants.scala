@@ -25,7 +25,8 @@ object ConfigConstants {
   val MemoryRuntimeAttribute = "memory"
   // See: MemoryDeclarationValidation
   val MemoryRuntimeAttributePrefix = "memory_"
-
+  val DiskRuntimeAttribute = "disk"
+  val DiskRuntimeAttributePrefix = "disk_"
   /*
   List of task names used internally.
   NOTE: underscore separated

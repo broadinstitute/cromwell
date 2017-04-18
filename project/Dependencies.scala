@@ -139,11 +139,6 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV % Test
   ) ++ liquibaseDependencies ++ dbmsDependencies
 
-  val htCondorBackendDependencies = List(
-    "com.twitter" %% "chill" % "0.8.0",
-    "org.mongodb" %% "casbah" % "3.0.0"
-  )
-
   val jesBackendDependencies = refinedTypeDependenciesList
 
   val tesBackendDependencies = List(

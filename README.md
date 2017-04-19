@@ -17,7 +17,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Building](#building)
 * [Installing](#installing)
   * [Upgrading from 0.19 to 0.21](#upgrading-from-019-to-021)
-* [**NEW** Command Line Usage](http://gatkforums.broadinstitute.org/dsde/discussion/8782/command-line-cromwell/) (on the WDL/Cromwell Website)
+* [**NEW** Command Line Usage](http://gatkforums.broadinstitute.org/wdl/discussion/8782/command-line-cromwell) (on the WDL/Cromwell Website)
 * [Getting Started with WDL](#getting-started-with-wdl)
   * [WDL Support](#wdl-support)
 * [Configuring Cromwell](#configuring-cromwell)

@@ -43,12 +43,17 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   // Wraps the Http flow in a retryable flow to enable auto retries
   final private val httpFlowWithRetry = new HttpFlowWithRetry[DockerHashContext](httpClientFlow).flow
 
-  final private val tokenFlow = {
-    val responseHandlerFlow = Flow[(HttpResponse, DockerHashContext)].mapAsync(1)(Function.tupled(tokenResponseHandler))
+  private [registryv2] val tokenFlow = {
+    val responseHandlerFlow = Flow[(HttpResponse, DockerHashContext)]
+      .mapAsync(1)(Function.tupled(tokenResponseHandler))
+      // Map the Try[String] token to a Try[Option[String]].
+      // This allows potential users of this class to override this flow and return an empty token
+      .map { case (tryToken, context) => (tryToken map Option.apply, context) }
+    
     requestTransformFlow(buildTokenRequest, responseHandlerFlow)
   }
 
-  final private val manifestFlow = {
+  private [registryv2] val manifestFlow = {
     val responseHandlerFlow = Flow[(HttpResponse, DockerHashContext)].map(Function.tupled(manifestResponseHandler))
     requestTransformFlow(Function.tupled(buildManifestRequest _), responseHandlerFlow)
   }
@@ -206,7 +211,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   /**
     * Extract the access token from the json body of the http response
     */
-  private def extractToken(jsObject: JsObject) = {
+  private def extractToken(jsObject: JsObject): Try[String] = {
     jsObject.fields.get("token") match {
       case Some(token: JsString) => Success(token.value)
       case Some(other) => Failure(new Exception("Token response contains a non-string token field"))
@@ -224,14 +229,20 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   /**
     * Builds the manifest http request
     */
-  private def buildManifestRequest(token: String, dockerHashContext: DockerHashContext) = {
-    val authorizationHeader = Authorization(OAuth2BearerToken(token))
-
-    val manifestRequest = HttpRequest(
-      method = manifestRequestHttpMethod,
-      uri = buildManifestUri(dockerHashContext.dockerImageID),
-      headers = scala.collection.immutable.Seq(AcceptHeader, authorizationHeader)
-    )
+  private def buildManifestRequest(token: Option[String], dockerHashContext: DockerHashContext) = {
+    val manifestRequest = token match {
+      case Some(authToken) =>
+        HttpRequest(
+          method = manifestRequestHttpMethod,
+          uri = buildManifestUri(dockerHashContext.dockerImageID),
+          headers = scala.collection.immutable.Seq(AcceptHeader, Authorization(OAuth2BearerToken(authToken)))
+        )
+      case None =>
+        HttpRequest(
+          method = manifestRequestHttpMethod,
+          uri = buildManifestUri(dockerHashContext.dockerImageID)
+        )
+    }
 
     (manifestRequest, dockerHashContext)
   }

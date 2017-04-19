@@ -5,12 +5,14 @@ import java.util.concurrent.Executors
 
 import akka.http.scaladsl.Http
 import akka.actor.ActorSystem
+import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
 import akka.http.scaladsl.model.{HttpEntity, _}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.model.headers.HttpEncodings
 import akka.util.ByteString
 import centaur.api.CromwellStatusJsonSupport._
 import centaur.api.CromwellBackendsJsonSupport._
@@ -32,6 +34,19 @@ object CromwellClient {
   final implicit val system = ActorSystem("centaur-acting-like-a-system")
   final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
   final val apiPath = "/api/workflows/v1"
+
+  def decodeResponse(response: HttpResponse): HttpResponse = {
+    val decoder = response.encoding match {
+      case HttpEncodings.gzip ⇒
+        Gzip
+      case HttpEncodings.deflate ⇒
+        Deflate
+      case HttpEncodings.identity ⇒
+        NoCoding
+    }
+
+    decoder.decode(response)
+  }
 
   def submit(workflow: Workflow): Try[SubmittedWorkflow] = {
     val sourceBodyParts = Map(
@@ -66,7 +81,7 @@ object CromwellClient {
   def metadata(workflow: SubmittedWorkflow): Try[WorkflowMetadata] = {
     val workflowMetadata = for {
       response <- Http().singleRequest(HttpRequest(uri = CentaurConfig.cromwellUrl + apiPath + "/" + workflow.id + "/metadata"))
-      entity <- response.toEntity.to[String]
+      entity <- decodeResponse(response).toEntity.to[String]
     } yield WorkflowMetadata.fromMetadataJson(entity).toOption.get
 
     sendReceiveFutureCompletion(workflowMetadata)

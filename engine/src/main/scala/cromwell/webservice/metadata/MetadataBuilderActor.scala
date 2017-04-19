@@ -8,7 +8,6 @@ import cats.instances.list._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.core.ExecutionStatus._
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._

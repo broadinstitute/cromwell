@@ -12,7 +12,7 @@ class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val wd = buildWorkflowDescriptor(TestWorkflows.HelloWorld)
     val call: TaskCall = wd.workflow.taskCalls.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val jobPaths = new TesJobPaths(jobKey, wd, TesTestConfig.backendConfig)
+    val jobPaths = TesJobPaths(jobKey, wd, TesTestConfig.backendConfig)
     val id = wd.id
     jobPaths.callRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello").pathAsString
@@ -34,17 +34,17 @@ class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
       File(s"/cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
 
     val jobKeySharded = BackendJobDescriptorKey(call, Option(0), 1)
-    val jobPathsSharded = new TesJobPaths(jobKeySharded, wd, TesTestConfig.backendConfig)
+    val jobPathsSharded = TesJobPaths(jobKeySharded, wd, TesTestConfig.backendConfig)
     jobPathsSharded.callExecutionRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello/shard-0/execution").pathAsString
 
     val jobKeyAttempt = BackendJobDescriptorKey(call, None, 2)
-    val jobPathsAttempt = new TesJobPaths(jobKeyAttempt, wd, TesTestConfig.backendConfig)
+    val jobPathsAttempt = TesJobPaths(jobKeyAttempt, wd, TesTestConfig.backendConfig)
     jobPathsAttempt.callExecutionRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-2/execution").pathAsString
 
     val jobKeyShardedAttempt = BackendJobDescriptorKey(call, Option(0), 2)
-    val jobPathsShardedAttempt = new TesJobPaths(jobKeyShardedAttempt, wd, TesTestConfig.backendConfig)
+    val jobPathsShardedAttempt = TesJobPaths(jobKeyShardedAttempt, wd, TesTestConfig.backendConfig)
     jobPathsShardedAttempt.callExecutionRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello/shard-0/attempt-2/execution").pathAsString
   }

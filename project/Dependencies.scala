@@ -163,6 +163,7 @@ object Dependencies {
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
+    "com.storm-enroute" %% "scalameter" % "0.8.2",
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies

@@ -1,24 +1,27 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.ActorSystem
-import cromwell.backend.io.JobPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 object JesJobPaths {
+  def apply(workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem): JesJobPaths = {
+    new JesJobPaths(workflowPaths, jobKey)
+  }
+  
   def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
             jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem): JesJobPaths = {
-    new JesJobPaths(jobKey, workflowDescriptor, jesConfiguration)
+    val workflowPath = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
+    new JesJobPaths(workflowPath, jobKey)
   }
 
   val JesLogPathKey = "jesLog"
   val GcsExecPathKey = "gcsExec"
 }
 
-class JesJobPaths(val jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
-                  jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) extends
-  JesWorkflowPaths(workflowDescriptor, jesConfiguration)(actorSystem) with JobPaths {
+class JesJobPaths(override val workflowPaths: JesWorkflowPaths, val jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem) extends JobPaths {
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
@@ -46,7 +49,7 @@ class JesJobPaths(val jobKey: BackendJobDescriptorKey, workflowDescriptor: Backe
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath
   ) ++ (
-    monitoringPath map { p => Map(JesMetadataKeys.MonitoringLog -> p) } getOrElse Map.empty  
+    workflowPaths.monitoringPath map { p => Map(JesMetadataKeys.MonitoringLog -> p) } getOrElse Map.empty  
   )
 
   override lazy val customDetritusPaths: Map[String, Path] = Map(

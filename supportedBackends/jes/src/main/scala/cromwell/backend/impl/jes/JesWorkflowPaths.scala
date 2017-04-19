@@ -52,10 +52,7 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
     getPath(path).get
   }
 
-  override def toJobPaths(jobKey: BackendJobDescriptorKey,
-                          jobWorkflowDescriptor: BackendWorkflowDescriptor): JesJobPaths = {
-    JesJobPaths(jobKey, jobWorkflowDescriptor, jesConfiguration)
-  }
+  override def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JesJobPaths = JesJobPaths(this, jobKey)
   override def config: Config = jesConfiguration.configurationDescriptor.backendConfig
   override def pathBuilders: List[PathBuilder] = List(gcsPathBuilder)
 }

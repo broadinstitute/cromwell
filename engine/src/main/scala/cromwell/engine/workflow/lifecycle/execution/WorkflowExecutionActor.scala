@@ -19,7 +19,6 @@ import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
-import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlValue, WdlString}
 import org.apache.commons.lang3.StringUtils
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.WdlFunctions

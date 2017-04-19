@@ -438,7 +438,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
   }
 
   private def cleanUpJob(jobPaths: JobPathsWithDocker): Unit = {
-    File(jobPaths.workflowRoot).delete(true)
+    File(jobPaths.workflowPaths.workflowRoot).delete(true)
     ()
   }
 
@@ -446,7 +446,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     val backendWorkflowDescriptor = buildWorkflowDescriptor(wdl = wdlSource, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = if (isCluster) BackendConfigurationDescriptor(backendClusterConfig, ConfigFactory.load) else BackendConfigurationDescriptor(backendClientConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), WorkflowOptions.empty, Set.empty)
-    val jobPaths = if (isCluster) new JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendClusterConfig) else new JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendClientConfig)
+    val jobPaths = if (isCluster) JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendClusterConfig) else JobPathsWithDocker(jobDesc.key, backendWorkflowDescriptor, backendClientConfig)
     val executionDir = jobPaths.callExecutionRoot
     val stdout = File(executionDir.toString, "stdout")
     stdout.createIfNotExists(asDirectory = false, createParents = true)

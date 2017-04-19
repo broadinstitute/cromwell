@@ -19,6 +19,6 @@ class TesWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescripto
 
   override def toJobPaths(jobKey: BackendJobDescriptorKey,
                           jobWorkflowDescriptor: BackendWorkflowDescriptor): TesJobPaths = {
-    new TesJobPaths(jobKey, jobWorkflowDescriptor, config, pathBuilders)
+    new TesJobPaths(this, jobKey)
   }
 }

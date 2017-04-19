@@ -11,8 +11,5 @@ object WorkflowPathsWithDocker {
 class WorkflowPathsWithDocker(val workflowDescriptor: BackendWorkflowDescriptor, val config: Config, val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
   val dockerWorkflowRoot: Path = workflowPathBuilder(WorkflowPathsWithDocker.DockerRoot)
 
-  override def toJobPaths(jobKey: BackendJobDescriptorKey,
-                          jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPathsWithDocker = {
-    new JobPathsWithDocker(jobKey, jobWorkflowDescriptor, config, pathBuilders)
-  }
+  override def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPathsWithDocker = new JobPathsWithDocker(this, jobKey)
 }

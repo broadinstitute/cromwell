@@ -104,10 +104,8 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name)
         expected <- unorderedEvents(workflow1Id)
-        //get metadata when page and pagesize are specified
-        _ <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false)) map { response =>
-          response shouldBe expected
-        }
+        response <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false))
+        _ = response shouldBe expected
       } yield()).futureValue
     }
 

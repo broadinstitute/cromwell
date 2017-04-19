@@ -11,11 +11,11 @@ object ExecutionStatus extends Enumeration {
       case QueuedInCromwell => 1
       case Starting => 2
       case Running => 3
-      case Failed => 4
-      case RetryableFailure => 4
-      case Done => 4
       case Aborted => 4
-      case Bypassed => 4
+      case Bypassed => 5
+      case RetryableFailure => 6
+      case Failed => 7
+      case Done => 8
     }
   }
   

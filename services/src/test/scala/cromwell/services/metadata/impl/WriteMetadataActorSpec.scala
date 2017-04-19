@@ -20,26 +20,26 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually {
 
   "WriteMetadataActor" should {
     "start with no events and waiting to write" in {
-      assert(actor.stateName == WaitingToWrite)
-      assert(actor.stateData == NoEvents)
+      actor.stateName shouldBe WaitingToWrite
+      actor.stateData shouldBe NoEvents
     }
 
     "Have one event and be waiting after one event is sent" in {
       actor ! Action
       eventually {
-        assert(actor.stateName == WaitingToWrite)
-        assert(actor.stateData == HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector)))
+        actor.stateName shouldBe WaitingToWrite
+        actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
       }
     }
 
     "Have one event after batch size + 1 is reached" in {
       1 to 10 foreach { _ => actor ! Action }
       eventually {
-        assert(actor.stateName == WritingToDb)
+        actor.stateName shouldBe WritingToDb
       }
       actor ! Action
       eventually {
-        assert(actor.stateData == HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector)))
+        actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
       }
     }
   }

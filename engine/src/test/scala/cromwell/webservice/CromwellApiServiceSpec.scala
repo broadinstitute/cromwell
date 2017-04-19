@@ -21,7 +21,7 @@ import spray.httpx.encoding.Gzip
 import spray.testkit.ScalatestRouteTest
 import spray.routing.Directives._
 
-class CromwellApicServiceSpec extends FlatSpec with ScalatestRouteTest with Matchers with ResponseTransformation {
+class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Matchers with ResponseTransformation {
   import CromwellApiServiceSpec._
 
   val cromwellApiService = new MockApiService()

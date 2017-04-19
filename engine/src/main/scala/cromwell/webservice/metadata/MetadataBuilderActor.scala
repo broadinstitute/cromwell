@@ -216,11 +216,6 @@ object MetadataBuilderActor {
   private def parse(events: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {
     JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents(includeCallsIfEmpty = true, expandedValues))
   }
-
-  implicit class EnhancedMetadataValue(val value: MetadataValue) extends AnyVal {
-    def toWorkflowState: WorkflowState = WorkflowState.fromString(value.value)
-    def toExecutionStatus: ExecutionStatus = value.value.toExecutionStatus
-  }
 }
 
 class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[MetadataBuilderActorState, Option[MetadataBuilderActorData]]

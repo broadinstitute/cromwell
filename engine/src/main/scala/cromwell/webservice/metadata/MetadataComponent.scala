@@ -7,13 +7,13 @@ import spray.json.{JsArray, _}
 
 object MetadataComponent {
   implicit val MetadataComponentMonoid: Monoid[MetadataComponent] = new Monoid[MetadataComponent] {
-    private lazy val stringValueMapSg = implicitly[Semigroup[Map[String, MetadataComponent]]]
-    private lazy val intValueMapSg = implicitly[Semigroup[Map[Int, MetadataComponent]]]
+    private lazy val stringKeyMapSg = implicitly[Semigroup[Map[String, MetadataComponent]]]
+    private lazy val intKeyMapSg = implicitly[Semigroup[Map[Int, MetadataComponent]]]
     
     def combine(f1: MetadataComponent, f2: MetadataComponent): MetadataComponent = {
       (f1, f2) match {
-        case (MetadataObject(v1), MetadataObject(v2)) => MetadataObject(stringValueMapSg.combine(v1, v2))
-        case (MetadataList(v1), MetadataList(v2)) => MetadataList(intValueMapSg.combine(v1, v2))
+        case (MetadataObject(v1), MetadataObject(v2)) => MetadataObject(stringKeyMapSg.combine(v1, v2))
+        case (MetadataList(v1), MetadataList(v2)) => MetadataList(intKeyMapSg.combine(v1, v2))
           // If there's a custom ordering, use it
         case (v1 @ MetadataPrimitive(_, Some(o1)), v2 @ MetadataPrimitive(_, Some(o2))) if o1 == o2 => o1.max(v1, v2)
           // Otherwise assume it's ordered by default and take the new one
@@ -44,7 +44,7 @@ object MetadataPrimitive {
   }
 
   val WorkflowStateOrdering: Ordering[MetadataPrimitive] = Ordering.by { primitive: MetadataPrimitive =>
-    WorkflowState.fromString(primitive.v.asInstanceOf[JsString].value)
+    WorkflowState.withName(primitive.v.asInstanceOf[JsString].value)
   }
 }
 case class MetadataPrimitive(v: JsValue, customOrdering: Option[Ordering[MetadataPrimitive]] = None) extends MetadataComponent

@@ -20,8 +20,8 @@ object MetadataDatabaseAccess {
       // Resolve the status if both `this` and `that` have defined statuses.  This will evaluate to `None`
       // if one or both of the statuses is not defined.
       val resolvedStatus = for {
-        thisStatus <- summary1.workflowStatus map WorkflowState.fromString
-        thatStatus <- summary2.workflowStatus map WorkflowState.fromString
+        thisStatus <- summary1.workflowStatus map WorkflowState.withName
+        thatStatus <- summary2.workflowStatus map WorkflowState.withName
       } yield (thisStatus |+| thatStatus).toString
 
       WorkflowMetadataSummaryEntry(
@@ -149,7 +149,7 @@ trait MetadataDatabaseAccess {
 
   def getWorkflowStatus(id: WorkflowId)
                        (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
-    databaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.fromString }
+    databaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.withName }
   }
 
   def workflowExistsWithId(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {

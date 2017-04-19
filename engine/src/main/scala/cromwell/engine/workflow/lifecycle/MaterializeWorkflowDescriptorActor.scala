@@ -32,6 +32,7 @@ import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlString, WdlValue}
 
+import scala.collection.immutable.ListMap
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -258,7 +259,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def validateBackendAssignments(calls: Set[TaskCall], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[TaskCall, String]] = {
     val callToBackendMap = Try {
-      calls map { call =>
+      ListMap(calls map { call =>
         val backendPriorities = Seq(
           workflowOptions.get(RuntimeBackendKey).toOption,
           assignBackendUsingRuntimeAttrs(call),
@@ -270,7 +271,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           case Some(backendName) => throw new Exception(s"Backend for call ${call.fullyQualifiedName} ('$backendName') not registered in configuration file")
           case None => throw new Exception(s"No backend could be found for call ${call.fullyQualifiedName}")
         }
-      } toMap
+      }:_*)
     }
 
     callToBackendMap match {

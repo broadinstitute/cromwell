@@ -26,6 +26,10 @@ lazy val dockerHashing = (project in file("dockerHashing"))
   .dependsOn(core % "test->test")
   .withTestSettings
 
+lazy val cromwellApiClient = (project in file("cromwellApiClient"))
+  .settings(cromwellApiClientSettings: _*)
+  .withTestSettings
+
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
   .withTestSettings

@@ -15,6 +15,9 @@ object Dependencies {
   lazy val akkaV = "2.4.16"
   lazy val akkaHttpV = "2.4.11"
   lazy val slickV = "3.2.0"
+  // TODO: Re-combine these when cromwell is 2.12:
+  lazy val cromwellApiClientAkkaV = "2.4.17"
+  lazy val cromwellApiClientAkkaHttpV = "10.0.5"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
@@ -138,6 +141,14 @@ object Dependencies {
   val databaseMigrationDependencies = List(
     "com.github.pathikrit" %% "better-files" % betterFilesV % Test
   ) ++ liquibaseDependencies ++ dbmsDependencies
+
+  val cromwellApiClientDependencies = List(
+    "com.typesafe.akka" %% "akka-actor" % cromwellApiClientAkkaV,
+    "com.typesafe.akka" %% "akka-http" % cromwellApiClientAkkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % cromwellApiClientAkkaHttpV,
+    "com.github.pathikrit" %% "better-files" % "3.0.0",
+    "org.scalatest" %% "scalatest" % "3.0.1" % Test
+  )
 
   val jesBackendDependencies = refinedTypeDependenciesList
 

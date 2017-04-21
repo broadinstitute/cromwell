@@ -29,6 +29,9 @@ An option to specify how a Docker hash should be looked up has been added. Two m
     "remote" will try to look up the image hash directly on the remote repository where the image is located (Docker Hub and GCR are supported)
 Note that the "local" option will require docker to be installed on the machine running cromwell, in order for it to call the docker CLI.
 
+### Docker Hash Lookup for public Quay.io images
+
+* Adds hash lookup support for public [quay.io](https://quay.io/) images.
 
 ## 26
 

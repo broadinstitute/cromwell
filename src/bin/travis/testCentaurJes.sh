@@ -44,7 +44,7 @@ set -x
 
 # Unpack our credentials and such
 tar xvf jesConf.tar
-
+cat jes.conf
 # Do a bunch of crap to enable gsutil. It's possible this is overkill but it doesn't take long anyways
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
 CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"

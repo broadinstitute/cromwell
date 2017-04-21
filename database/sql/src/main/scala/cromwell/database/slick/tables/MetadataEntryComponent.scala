@@ -62,10 +62,10 @@ trait MetadataEntryComponent {
   val metadataEntryIdsAutoInc = metadataEntries returning metadataEntries.map(_.metadataEntryId)
 
   val metadataEntriesForWorkflowExecutionUuid = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
+    (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
@@ -76,31 +76,31 @@ trait MetadataEntryComponent {
   )
 
   val metadataEntriesForWorkflowExecutionUuidAndMetadataKey = Compiled(
-    (workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) => for {
+    (workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataEntry.metadataKey === metadataKey
       if metadataEntry.callFullyQualifiedName.isEmpty
       if metadataEntry.jobIndex.isEmpty
       if metadataEntry.jobAttempt.isEmpty
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataEntriesForJobKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Option[Int]],
-     jobAttempt: Rep[Int]) => for {
+     jobAttempt: Rep[Int]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataEntry.callFullyQualifiedName === callFullyQualifiedName
       if (metadataEntry.jobIndex === jobIndex) ||
         (metadataEntry.jobIndex.isEmpty && jobIndex.isEmpty)
       if metadataEntry.jobAttempt === jobAttempt
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataEntriesForJobKeyAndMetadataKey = Compiled(
     (workflowExecutionUuid: Rep[String], metadataKey: Rep[String], callFullyQualifiedName: Rep[String],
-     jobIndex: Rep[Option[Int]], jobAttempt: Rep[Int]) => for {
+     jobIndex: Rep[Option[Int]], jobAttempt: Rep[Int]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataEntry.metadataKey === metadataKey
@@ -108,39 +108,39 @@ trait MetadataEntryComponent {
       if (metadataEntry.jobIndex === jobIndex) ||
         (metadataEntry.jobIndex.isEmpty && jobIndex.isEmpty)
       if metadataEntry.jobAttempt === jobAttempt
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataEntriesForIdGreaterThanOrEqual = Compiled(
     (metadataEntryId: Rep[Long], metadataKey1: Rep[String], metadataKey2: Rep[String], metadataKey3: Rep[String],
-     metadataKey4: Rep[String]) => for {
+     metadataKey4: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.metadataEntryId >= metadataEntryId
       if (metadataEntry.metadataKey === metadataKey1 || metadataEntry.metadataKey === metadataKey2 ||
         metadataEntry.metadataKey === metadataKey3 || metadataEntry.metadataKey === metadataKey4) &&
         (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
           metadataEntry.jobAttempt.isEmpty)
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   def metadataEntriesLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
                                       requireEmptyJobKey: Boolean) = {
-    for {
+    (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
       if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
 
   def metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
                                          requireEmptyJobKey: Boolean) = {
-    for {
+    (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if !metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
       if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
-    } yield metadataEntry
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,

@@ -15,10 +15,13 @@ import spray.json.{JsString, _}
 import spray.routing._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.util.SampleWdl.HelloWorld
+import spray.httpx.ResponseTransformation
 import spray.httpx.SprayJsonSupport._
+import spray.httpx.encoding.Gzip
 import spray.testkit.ScalatestRouteTest
+import spray.routing.Directives._
 
-class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Matchers {
+class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Matchers with ResponseTransformation {
   import CromwellApiServiceSpec._
 
   val cromwellApiService = new MockApiService()
@@ -286,7 +289,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   behavior of "REST API /metadata endpoint"
   it should "return with full metadata from the metadata route" in {
     Get(s"/workflows/$version/${MockApiService.ExistingWorkflowId}/metadata") ~>
-      cromwellApiService.metadataRoute ~>
+      mapHttpResponse(decode(Gzip))(cromwellApiService.metadataRoute) ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
@@ -299,7 +302,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
   it should "return with included metadata from the metadata route" in {
     Get(s"/workflows/$version/${MockApiService.ExistingWorkflowId}/metadata?includeKey=testKey1&includeKey=testKey2a") ~>
-      cromwellApiService.metadataRoute ~>
+      mapHttpResponse(decode(Gzip))(cromwellApiService.metadataRoute) ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
@@ -313,7 +316,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
     it should "return with excluded metadata from the metadata route" in {
      Get(s"/workflows/$version/${MockApiService.ExistingWorkflowId}/metadata?excludeKey=testKey2b&excludeKey=testKey3") ~>
-        cromwellApiService.metadataRoute ~>
+       mapHttpResponse(decode(Gzip))(cromwellApiService.metadataRoute) ~>
         check {
           status should be(StatusCodes.OK)
           val result = responseAs[JsObject]
@@ -327,7 +330,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
   it should "return an error when included and excluded metadata requested from the metadata route" in {
     Get(s"/workflows/$version/${MockApiService.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey2") ~>
-      cromwellApiService.metadataRoute ~>
+      mapHttpResponse(decode(Gzip))(cromwellApiService.metadataRoute) ~>
       check {
         assertResult(StatusCodes.BadRequest) {
           status

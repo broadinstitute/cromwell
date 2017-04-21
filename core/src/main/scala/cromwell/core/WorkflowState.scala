@@ -10,9 +10,9 @@ sealed trait WorkflowState {
 }
 
 object WorkflowState {
-  private lazy val WorkflowState = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded, WorkflowAborting, WorkflowAborted)
+  private lazy val WorkflowStateValues = Seq(WorkflowSubmitted, WorkflowRunning, WorkflowFailed, WorkflowSucceeded, WorkflowAborting, WorkflowAborted)
 
-  def fromString(str: String): WorkflowState = WorkflowState.find(_.toString == str).getOrElse(
+  def withName(str: String): WorkflowState = WorkflowStateValues.find(_.toString == str).getOrElse(
     throw new NoSuchElementException(s"No such WorkflowState: $str"))
 
   implicit val WorkflowStateSemigroup = new Semigroup[WorkflowState] {

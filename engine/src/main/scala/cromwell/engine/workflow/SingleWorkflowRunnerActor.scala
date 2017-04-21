@@ -244,7 +244,7 @@ object SingleWorkflowRunnerActor {
                                    id: WorkflowId) extends TerminalSwraData { override val terminalState = WorkflowAborted }
 
   implicit class EnhancedJsObject(val jsObject: JsObject) extends AnyVal {
-    def state: WorkflowState = WorkflowState.fromString(jsObject.fields("status").asInstanceOf[JsString].value)
+    def state: WorkflowState = WorkflowState.withName(jsObject.fields("status").asInstanceOf[JsString].value)
   }
 
   private val Tag = "SingleWorkflowRunnerActor"

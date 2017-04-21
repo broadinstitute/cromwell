@@ -9,15 +9,16 @@ import cromwell.services.metadata.MetadataService.{MetadataServiceAction, PutMet
 import cromwell.services.metadata.impl.WriteMetadataActor.{WriteMetadataActorData, WriteMetadataActorState}
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-final case class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
+class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
   extends LoggingFSM[WriteMetadataActorState, WriteMetadataActorData] with ActorLogging with
   MetadataDatabaseAccess with SingletonServicesStore {
   import WriteMetadataActor._
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   override def preStart(): Unit = {
     context.system.scheduler.schedule(0.seconds, flushRate, self, ScheduledFlushToDb)
@@ -29,8 +30,8 @@ final case class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
   when(WaitingToWrite) {
     case Event(PutMetadataAction(events), curData) =>
       curData.addEvents(events) match {
-        case data@HasEvents(e) if e.length > batchRate => goto(WritingToDb) using data
-        case e => stay using e
+        case newData: HasEvents if newData.length > batchRate => goto(WritingToDb) using newData
+        case newData => stay using newData
       }
     case Event(ScheduledFlushToDb, curData) =>
       log.debug("Initiating periodic metadata flush to DB")
@@ -73,7 +74,7 @@ final case class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
 }
 
 object WriteMetadataActor {
-  def props(batchRate: Int, flushRate: FiniteDuration) = Props(new WriteMetadataActor(batchRate, flushRate)).withDispatcher(ServiceDispatcher)
+  def props(batchRate: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(batchRate, flushRate)).withDispatcher(ServiceDispatcher)
   private lazy val logger = LoggerFactory.getLogger("WriteMetadataActor")
 
   sealed trait WriteMetadataActorMessage
@@ -102,6 +103,11 @@ object WriteMetadataActor {
           logger.error("Failed processing metadata events. Events will be dropped and not be sent to the database.", f)
           this
       }
+    }
+
+    def length: Int = this match {
+      case NoEvents => 0
+      case HasEvents(e) => e.length
     }
   }
 

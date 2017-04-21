@@ -7,16 +7,23 @@ import cats.data.NonEmptyVector
 import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.MetadataService.PutMetadataAction
-import cromwell.services.metadata.impl.WriteMetadataActor.{HasEvents, NoEvents, WaitingToWrite, WritingToDb}
+import cromwell.services.metadata.impl.WriteMetadataActor._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
+import scala.util.Success
 
-class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually {
+class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually with BeforeAndAfter {
   import WriteMetadataActorSpec.Action
 
-  val actor = TestFSMRef(WriteMetadataActor(10, 1.day)) // A WMA that won't (hopefully!) perform a time based flush during this test
+  var actor: TestFSMRef[WriteMetadataActorState, WriteMetadataActorData, DelayingWriteMetadataActor] = _
+
+  before {
+    actor = TestFSMRef(new DelayingWriteMetadataActor())
+  }
 
   "WriteMetadataActor" should {
     "start with no events and waiting to write" in {
@@ -33,12 +40,29 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually {
     }
 
     "Have one event after batch size + 1 is reached" in {
-      1 to 10 foreach { _ => actor ! Action }
+      1 to WriteMetadataActorSpec.BatchRate foreach { _ => actor ! Action }
+      actor.stateName shouldBe WaitingToWrite
+
       eventually {
-        actor.stateName shouldBe WritingToDb
+        actor.stateData match {
+          case HasEvents(e) => e.toVector.size shouldBe WriteMetadataActorSpec.BatchRate
+          case _ => fail("Expecting the actor to have events queued up")
+        }
       }
       actor ! Action
       eventually {
+        actor.stateName shouldBe WritingToDb
+        actor.underlyingActor.writeToDbInProgress shouldBe true
+        actor.stateData shouldBe NoEvents
+      }
+      actor ! Action
+      eventually {
+        actor.stateName shouldBe WritingToDb
+        actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
+      }
+      actor.underlyingActor.completeWritePromise()
+      eventually {
+        actor.stateName shouldBe WaitingToWrite
         actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
       }
     }
@@ -48,4 +72,30 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually {
 object WriteMetadataActorSpec {
   val Event = MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"), Option(MetadataValue("value")), OffsetDateTime.now)
   val Action = PutMetadataAction(Event)
+
+  val BatchRate: Int = 10
+  val FunctionallyForever: FiniteDuration = 100.days
+}
+
+// A WMA that won't (hopefully!) perform a time based flush during this test
+final class DelayingWriteMetadataActor extends WriteMetadataActor(WriteMetadataActorSpec.BatchRate, WriteMetadataActorSpec.FunctionallyForever) {
+
+  var writeToDbInProgress: Boolean = false
+  var writeToDbCompletionPromise: Option[Promise[Unit]] = None
+
+  override def addMetadataEvents(metadataEvents: Iterable[MetadataEvent])(implicit ec: ExecutionContext): Future[Unit] = {
+    writeToDbCompletionPromise = Option(Promise[Unit]())
+    writeToDbInProgress = true
+    writeToDbCompletionPromise.get.future
+  }
+
+  def completeWritePromise(): Unit = {
+    writeToDbCompletionPromise match {
+      case Some(promise) =>
+        promise.complete(Success(()))
+        writeToDbInProgress = false
+        writeToDbCompletionPromise = None
+      case None => throw new Exception("BAD TEST! Cannot complete the actor's write future if the actor hasn't requested it yet!")
+    }
+  }
 }

@@ -45,5 +45,13 @@ trait WorkflowPaths extends PathFactory {
     * @param jobWorkflowDescriptor The workflow descriptor for the job.
     * @return The paths for the job.
     */
-  def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPaths
+  def toJobPaths(jobKey: BackendJobDescriptorKey, jobWorkflowDescriptor: BackendWorkflowDescriptor): JobPaths = {
+    // If the descriptors are the same, no need to create a new WorkflowPaths
+    if (workflowDescriptor == jobWorkflowDescriptor) toJobPaths(this, jobKey)
+    else toJobPaths(withDescriptor(jobWorkflowDescriptor), jobKey)
+  }
+  
+  protected def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPaths
+  
+  protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths
 }

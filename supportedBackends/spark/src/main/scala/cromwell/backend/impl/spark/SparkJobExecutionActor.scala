@@ -5,7 +5,7 @@ import java.nio.file.attribute.PosixFilePermission
 import akka.actor.Props
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
-import cromwell.backend.io.{JobPathsWithDocker, WorkflowPathsWithDocker}
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
@@ -44,8 +44,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val sparkDeployMode = configurationDescriptor.backendConfig.getString("deployMode").toLowerCase
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, configurationDescriptor.backendConfig)
-  private val jobPaths = new JobPathsWithDocker(workflowPaths, jobDescriptor.key)
+  private val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
 
   // Files
   private val executionDir = jobPaths.callExecutionRoot

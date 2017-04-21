@@ -15,8 +15,8 @@ object TesJobPaths {
   }
 }
 
-class TesJobPaths(override val workflowPaths: TesWorkflowPaths,
-                  val jobKey: BackendJobDescriptorKey) extends JobPaths {
+case class TesJobPaths(override val workflowPaths: TesWorkflowPaths,
+                  jobKey: BackendJobDescriptorKey) extends JobPaths {
 
   import JobPaths._
 

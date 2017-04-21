@@ -13,7 +13,8 @@ object JobPathsWithDocker {
     new JobPathsWithDocker(workflowPaths, jobKey)
   }
 }
-class JobPathsWithDocker(override val workflowPaths: WorkflowPathsWithDocker, val jobKey: BackendJobDescriptorKey) extends JobPaths {
+
+case class JobPathsWithDocker(override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey) extends JobPaths {
   import JobPaths._
   
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }

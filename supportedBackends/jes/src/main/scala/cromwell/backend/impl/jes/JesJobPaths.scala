@@ -7,10 +7,6 @@ import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 object JesJobPaths {
-  def apply(workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem): JesJobPaths = {
-    new JesJobPaths(workflowPaths, jobKey)
-  }
-  
   def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
             jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem): JesJobPaths = {
     val workflowPath = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
@@ -21,7 +17,7 @@ object JesJobPaths {
   val GcsExecPathKey = "gcsExec"
 }
 
-class JesJobPaths(override val workflowPaths: JesWorkflowPaths, val jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem) extends JobPaths {
+case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem) extends JobPaths {
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")

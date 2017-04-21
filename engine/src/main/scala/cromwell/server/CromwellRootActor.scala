@@ -16,6 +16,7 @@ import cromwell.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubFlow
 import cromwell.docker.registryv2.flows.gcr.GoogleFlow
 import cromwell.core.io.Throttle
+import cromwell.docker.registryv2.flows.quay.QuayFlow
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.IoActor
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -90,10 +91,11 @@ import scala.language.postfixOps
   lazy val dockerHttpPool = Http().superPool[ContextWithRequest[DockerHashContext]]()
   lazy val googleFlow = new GoogleFlow(dockerHttpPool, dockerConf.gcrApiQueriesPer100Seconds)(ioEc, materializer, system.scheduler)
   lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
+  lazy val quayFlow = new QuayFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
   lazy val dockerCliFlow = new DockerCliFlow()(ioEc, materializer, system.scheduler)
   lazy val dockerFlows = dockerConf.method match {
     case DockerLocalLookup => Seq(dockerCliFlow)
-    case DockerRemoteLookup => Seq(dockerHubFlow, googleFlow)
+    case DockerRemoteLookup => Seq(dockerHubFlow, googleFlow, quayFlow)
   }
   lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer).withDispatcher(Dispatcher.IoDispatcher))
 

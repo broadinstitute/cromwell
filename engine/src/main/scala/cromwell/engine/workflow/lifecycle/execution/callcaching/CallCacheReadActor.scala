@@ -5,7 +5,6 @@ import akka.pattern.pipe
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashResult
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.ExecutionContext
 
@@ -22,23 +21,38 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
   private var currentRequester: Option[ActorRef] = None
 
   override def receive: Receive = {
-    case CacheLookupRequest(callCacheHashes) =>
-      receiveNewRequest(callCacheHashes)
-    case r: CallCacheReadActorResponse =>
-      currentRequester foreach { _ ! r }
+    case request: CallCacheReadActorRequest => receiveNewRequest(request)
+    case response: CallCacheReadActorResponse =>
+      currentRequester foreach { _ ! response }
       cycleRequestQueue()
     case other =>
       log.error("Unexpected message type to CallCacheReadActor: " + other.getClass.getSimpleName)
   }
 
-  private def runRequest(callCacheHashes: CallCacheHashes): Unit = {
-    val response = cache.callCachingEntryIdsMatchingHashes(callCacheHashes) map {
-      CacheResultMatchesForHashes(callCacheHashes.hashes, _)
-    } recover {
+  private def runRequest(request: CallCacheReadActorRequest): Unit = {
+    val response = request match {
+      case HasMatchingInitialHashLookup(initialHash) =>
+        cache.hasBaseAggregatedHashMatch(initialHash) map {
+          case true => HasMatchingEntries
+          case false => NoMatchingEntries
+        }
+      case HasMatchingInputFilesHashLookup(fileHashes) =>
+        cache.hasKeyValuePairHashMatch(fileHashes) map {
+          case true => HasMatchingEntries
+          case false => NoMatchingEntries
+        }
+      case CacheLookupRequest(aggregatedCallHashes, cacheHitNumber) =>
+        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, cacheHitNumber) map {
+          case Some(nextHit) => CacheLookupNextHit(nextHit)
+          case None => CacheLookupNoHit
+        }
+    }
+    
+    val recovered = response recover {
       case t => CacheResultLookupFailure(t)
     }
 
-    response.pipeTo(self)
+    recovered.pipeTo(self)
     ()
   }
 
@@ -51,22 +65,40 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
       currentRequester = None
   }
 
-  private def receiveNewRequest(callCacheHashes: CallCacheHashes): Unit = currentRequester match {
-    case Some(x) => requestQueue :+= RequestTuple(sender, callCacheHashes)
+  private def receiveNewRequest(request: CallCacheReadActorRequest): Unit = currentRequester match {
+    case Some(x) => requestQueue :+= RequestTuple(sender, request)
     case None =>
       currentRequester = Option(sender)
-      runRequest(callCacheHashes)
+      runRequest(request)
   }
 }
 
 object CallCacheReadActor {
   def props(callCache: CallCache): Props = Props(new CallCacheReadActor(callCache)).withDispatcher(EngineDispatcher)
 
-  private[CallCacheReadActor] case class RequestTuple(requester: ActorRef, hashes: CallCacheHashes)
+  private[CallCacheReadActor] case class RequestTuple(requester: ActorRef, request: CallCacheReadActorRequest)
 
-  case class CacheLookupRequest(callCacheHashes: CallCacheHashes)
+  object AggregatedCallHashes {
+    def apply(baseAggregatedHash: String, inputFilesAggregatedHash: String) = {
+      new AggregatedCallHashes(baseAggregatedHash, Option(inputFilesAggregatedHash))
+    }
+  }
+  case class AggregatedCallHashes(baseAggregatedHash: String, inputFilesAggregatedHash: Option[String])
 
+  sealed trait CallCacheReadActorRequest
+  case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
+  case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
+  case class HasMatchingInputFilesHashLookup(fileHashes: Set[HashResult]) extends CallCacheReadActorRequest
+  
   sealed trait CallCacheReadActorResponse
-  case class CacheResultMatchesForHashes(hashResults: Set[HashResult], cacheResultIds: Set[CallCachingEntryId]) extends CallCacheReadActorResponse
+  // Responses on whether or not there is at least one matching entry (can for initial matches of file matches)
+  case object HasMatchingEntries extends CallCacheReadActorResponse
+  case object NoMatchingEntries extends CallCacheReadActorResponse
+
+  // Responses when asking for the next cache hit
+  case class CacheLookupNextHit(hit: CallCachingEntryId) extends CallCacheReadActorResponse
+  case object CacheLookupNoHit extends CallCacheReadActorResponse
+  
+  // Failure Response
   case class CacheResultLookupFailure(reason: Throwable) extends CallCacheReadActorResponse
 }

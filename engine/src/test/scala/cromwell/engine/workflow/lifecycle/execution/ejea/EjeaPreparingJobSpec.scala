@@ -20,7 +20,7 @@ class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHas
           ejea ! jobPrepSuccessResponse
           expectHashingActorInitialization(mode)
           ejea.stateName should be(CheckingCallCache)
-          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None))
+          ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, Option(helper.ejhaProbe.ref)))
         }
       } else {
         RestartOrExecuteCommandTuples foreach { case RestartOrExecuteCommandTuple(operationName, restarting, expectedMessage) =>

@@ -27,6 +27,8 @@ object ExecutionStore {
 
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap, keys.nonEmpty)
   }
+  
+  val MaxJobsToStartPerTick = 1000
 }
 
 final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], hasNewRunnables: Boolean) {
@@ -65,7 +67,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
 
   def startedJobs: List[BackendJobDescriptorKey] = {
-    store.filterNot(_ == NotStarted).values.toList.flatten collect {
+    store.filterNot({ case (s, _) => s == NotStarted}).values.toList.flatten collect {
       case k: BackendJobDescriptorKey => k
     }
   }
@@ -80,7 +82,14 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminal))
   }
 
-  def runnableScopes = keysWithStatus(NotStarted) filter arePrerequisitesDone
+  /**
+    * Returns the list of jobs ready to be run, along with a Boolean indicating whether or not the list has been truncated.
+    * The size of the list will be MaxJobsToStartPerTick at most. If more jobs where found runnable, the boolean will be true, otherwise false.
+    */
+  def runnableScopes: (List[JobKey], Boolean) = {
+    val readyToStart = keysWithStatus(NotStarted).toStream filter arePrerequisitesDone
+    (readyToStart.take(ExecutionStore.MaxJobsToStartPerTick).toList, readyToStart.size > ExecutionStore.MaxJobsToStartPerTick)
+  }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {
     case k @ (_: CallKey | _:DynamicDeclarationKey) if k.scope == key.scope && k.isShard => k

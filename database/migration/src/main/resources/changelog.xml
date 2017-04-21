@@ -62,6 +62,7 @@
     <include file="changesets/replace_empty_custom_labels.xml" relativeToChangelogFile="true" />
     <include file="changesets/failure_metadata.xml" relativeToChangelogFile="true" />
     <include file="changesets/failure_metadata_2.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_caching_aggregated_hashes.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

@@ -7,6 +7,7 @@ class DataAccessComponent(val driver: JdbcProfile)
     with CallCachingDetritusEntryComponent
     with CallCachingEntryComponent
     with CallCachingHashEntryComponent
+    with CallCachingAggregationEntryComponent
     with CallCachingSimpletonEntryComponent
     with JobKeyValueEntryComponent
     with JobStoreEntryComponent
@@ -24,6 +25,7 @@ class DataAccessComponent(val driver: JdbcProfile)
       callCachingEntries.schema ++
       callCachingHashEntries.schema ++
       callCachingSimpletonEntries.schema ++
+      callCachingAggregationEntries.schema ++
       jobKeyValueEntries.schema ++
       jobStoreEntries.schema ++
       jobStoreSimpletonEntries.schema ++

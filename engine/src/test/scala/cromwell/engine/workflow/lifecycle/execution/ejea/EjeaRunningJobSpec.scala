@@ -53,16 +53,16 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
           eventually { ejea.stateData should be(SucceededResponseData(successResponse, None)) }
           ejea.stateName should be(RunningJob)
           ejea ! hashError
-          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.t))))
+          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
         }
 
         s"Handle receiving HashError then SuccessResponse correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! hashError
-          eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.t)))) }
+          eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))) }
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
-          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.t))))
+          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
         }
       }
     }

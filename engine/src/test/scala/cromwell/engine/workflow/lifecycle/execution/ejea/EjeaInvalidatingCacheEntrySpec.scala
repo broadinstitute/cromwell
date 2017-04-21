@@ -1,13 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cats.data.NonEmptyList
+import akka.actor.ActorRef
 import cromwell.core.callcaching.{CallCachingActivity, ReadCache}
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheHit
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheInvalidatedFailure, CallCacheInvalidatedSuccess, CallCachingEntryId}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheInvalidatedFailure, CallCacheInvalidatedSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 
-class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec with CanExpectFetchCachedResults {
+class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
 
   override implicit val stateUnderTest = InvalidatingCacheEntry
 
@@ -17,26 +17,21 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec with Ca
     val invalidateSuccess = CallCacheInvalidatedSuccess(None)
     val invalidateFailure = CallCacheInvalidatedFailure(invalidationErrorCause)
 
-    val metaInfo31: CallCachingEntryId = CallCachingEntryId(31)
-    val metaInfo32: CallCachingEntryId = CallCachingEntryId(32)
-    val cacheHitWithTwoIds = CacheHit(NonEmptyList.of(metaInfo32, metaInfo31))
-    val cacheHitWithSingleId = CacheHit(NonEmptyList.of(metaInfo31))
-
     List(invalidateSuccess, invalidateFailure) foreach { invalidateActorResponse =>
-      s"try the next available hit when response is $invalidateActorResponse" in {
-        ejea = ejeaInvalidatingCacheEntryState(Option(cacheHitWithTwoIds), restarting = false)
+      s"ask the ejha for the next hit when response is $invalidateActorResponse" in {
+        ejea = ejeaInvalidatingCacheEntryState(Option(helper.ejhaProbe.ref))
         // Send the response from the invalidate actor
         ejea ! invalidateActorResponse
 
         helper.bjeaProbe.expectNoMsg(awaitAlmostNothing)
-        expectFetchCachedResultsActor(cacheHitWithSingleId.cacheResultIds.head)
-        eventually { ejea.stateName should be(FetchingCachedOutputsFromDatabase) }
-        ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, Option(cacheHitWithSingleId)))
+        helper.ejhaProbe.expectMsg(NextHit)
+        eventually { ejea.stateName should be(CheckingCallCache) }
+        ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, Option(helper.ejhaProbe.ref), None))
       }
 
       RestartOrExecuteCommandTuples foreach { case RestartOrExecuteCommandTuple(operationName, restarting, expectedMessage) =>
-        s"$operationName a job if cache invalidation succeeds and there are no other cache hits to try when invalidate response is $invalidateActorResponse" in {
-          ejea = ejeaInvalidatingCacheEntryState(Option(cacheHitWithSingleId), restarting = restarting)
+        s"$operationName a job if there is no ejha when invalidate response is $invalidateActorResponse" in {
+          ejea = ejeaInvalidatingCacheEntryState(None, restarting = restarting)
           // Send the response from the invalidate actor
           ejea ! invalidateActorResponse
 
@@ -48,6 +43,6 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec with Ca
     }
   }
 
-  def standardResponsePendingData(hit: Option[CacheHit]) = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, hit)
-  def ejeaInvalidatingCacheEntryState(hit: Option[CacheHit], restarting: Boolean = false) = helper.buildEJEA(restarting = restarting, callCachingMode = CallCachingActivity(ReadCache)).setStateInline(data = standardResponsePendingData(hit))
+  def standardResponsePendingData(ejha: Option[ActorRef]) = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, ejha)
+  def ejeaInvalidatingCacheEntryState(ejha: Option[ActorRef], restarting: Boolean = false) = helper.buildEJEA(restarting = restarting, callCachingMode = CallCachingActivity(ReadCache)).setStateInline(state = InvalidatingCacheEntry, data = standardResponsePendingData(ejha))
 }

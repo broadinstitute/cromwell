@@ -147,7 +147,8 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http" % cromwellApiClientAkkaHttpV,
     "com.typesafe.akka" %% "akka-http-spray-json" % cromwellApiClientAkkaHttpV,
     "com.github.pathikrit" %% "better-files" % "3.0.0",
-    "org.scalatest" %% "scalatest" % "3.0.1" % Test
+    "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+    "org.pegdown" % "pegdown" % "1.6.0" % Test
   )
 
   val jesBackendDependencies = refinedTypeDependenciesList

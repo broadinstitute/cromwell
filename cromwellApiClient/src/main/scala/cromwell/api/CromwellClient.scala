@@ -4,7 +4,9 @@ import java.net.URL
 
 import akka.http.scaladsl.Http
 import akka.actor.ActorSystem
+import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
 import akka.http.scaladsl.model.{HttpEntity, _}
+import akka.http.scaladsl.model.headers.HttpEncodings
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -23,9 +25,9 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
   private def workflowSpecificEndpoint(workflowId: WorkflowId, endpoint: String) = s"$submitEndpoint/$workflowId/$endpoint"
-  def abortEndpoint(workflowId: WorkflowId) = workflowSpecificEndpoint(workflowId, "abort")
-  def statusEndpoint(workflowId: WorkflowId) = workflowSpecificEndpoint(workflowId, "status")
-  def metadataEndpoint(workflowId: WorkflowId) = workflowSpecificEndpoint(workflowId, "metadata")
+  def abortEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "abort")
+  def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "status")
+  def metadataEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "metadata")
   lazy val backendsEndpoint = s"$submitEndpoint/backends"
 
   import model.CromwellStatusJsonSupport._
@@ -81,7 +83,8 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
     */
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = for {
     response <- Http().singleRequest(request)
-    entity <- Future.fromTry(response.toEntity)
+    decoded <- Future.fromTry(decodeResponse(response))
+    entity <- Future.fromTry(decoded.toEntity)
     unmarshalled <- entity.to[A]
   } yield unmarshalled
 
@@ -100,6 +103,18 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
 
     options map (o => addToken(o.parseJson.asJsObject.convertTo[Map[String, JsValue]]).toJson.toString)
   }
+
+  private val decoders = Map(
+    HttpEncodings.gzip -> Gzip,
+    HttpEncodings.deflate -> Deflate,
+    HttpEncodings.identity -> NoCoding
+  )
+
+  private def decodeResponse(response: HttpResponse): Try[HttpResponse] = {
+    decoders.get(response.encoding) map { decoder =>
+      Try(decoder.decode(response))
+    } getOrElse Failure(UnsuccessfulRequestException(s"No decoder for ${response.encoding}", response))
+  }
 }
 
 object CromwellClient {
@@ -107,11 +122,11 @@ object CromwellClient {
 
     def toEntity: Try[Unmarshal[ResponseEntity]] = response match {
       case HttpResponse(_: StatusCodes.Success, _, entity, _) => Success(Unmarshal(entity))
-      case other => Failure(new UnsuccessfulRequestException(other))
+      case other => Failure(UnsuccessfulRequestException("Unmarshalling error", other))
     }
   }
 
-  final case class UnsuccessfulRequestException(httpResponse: HttpResponse) extends Exception {
-    override def getMessage = httpResponse.toString
+  final case class UnsuccessfulRequestException(message: String, httpResponse: HttpResponse) extends Exception {
+    override def getMessage: String = message + ": " + httpResponse.toString
   }
 }

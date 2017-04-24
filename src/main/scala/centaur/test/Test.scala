@@ -5,10 +5,10 @@ import java.util.UUID
 
 import cats.Monad
 import centaur._
-import centaur.api.CromwellClient._
-import centaur.api._
+import centaur.api.CentaurCromwellClient
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
+import cromwell.api.model.{SubmittedWorkflow, TerminalStatus, WorkflowStatus}
 import spray.json.JsString
 
 import scala.annotation.tailrec
@@ -63,7 +63,7 @@ object Test {
 object Operations {
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
-      override def run: Try[SubmittedWorkflow] = CromwellClient.submit(workflow)
+      override def run: Try[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
     }
   }
 
@@ -76,7 +76,7 @@ object Operations {
     new Test[SubmittedWorkflow] {
       @tailrec
       def doPerform(allowed404s: Int = 2): SubmittedWorkflow = {
-        CromwellClient.status(workflow) match {
+        CentaurCromwellClient.status(workflow) match {
           case Success(s) if s == expectedStatus => workflow
           case Success(s: TerminalStatus) => throw new Exception(s"Unexpected terminal status $s but was waiting for $expectedStatus")
           case Failure(f) if f.getMessage.contains("404 Not Found") && allowed404s > 0 =>
@@ -116,7 +116,7 @@ object Operations {
           }
         }
         cleanUpImports(workflow)
-        CromwellClient.metadata(workflow).map(expectedMetadata.diff(_, workflow.id, cacheHitUUID)).map(checkDiff)
+        CentaurCromwellClient.metadata(workflow).map(expectedMetadata.diff(_, workflow.id.id, cacheHitUUID)).map(checkDiff)
       }
 
       override def run: Try[Unit] = {
@@ -148,7 +148,7 @@ object Operations {
     * Clean up temporary zip files created for Imports testing.
     */
   def cleanUpImports(submittedWF: SubmittedWorkflow) = {
-    submittedWF.workflow.data.zippedImports match {
+    submittedWF.workflow.zippedImports match {
       case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
       case None => //
     }
@@ -157,11 +157,11 @@ object Operations {
   // FIXME: Should be abstracted w/ validateMetadata - ATM still used by the unused caching tests
   def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
-      override def run: Try[WorkflowMetadata] = CromwellClient.metadata(workflow)
+      override def run: Try[WorkflowMetadata] = CentaurCromwellClient.metadata(workflow)
     }
   }
 
   /* Some enhancements of CromwellApi tools specific to these tests */
-  def workflowLengthFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.maxWorkflowLength)
-  def metadataFutureCompletion[T](x: Future[T]) = awaitFutureCompletion(x, CentaurConfig.metadataConsistencyTimeout)
+  def workflowLengthFutureCompletion[T](x: Future[T]) = CentaurCromwellClient.awaitFutureCompletion(x, CentaurConfig.maxWorkflowLength)
+  def metadataFutureCompletion[T](x: Future[T]) = CentaurCromwellClient.awaitFutureCompletion(x, CentaurConfig.metadataConsistencyTimeout)
 }

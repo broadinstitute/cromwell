@@ -5,7 +5,7 @@ import java.nio.file.Path
 import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
-import centaur.api.CromwellBackendsCompanion
+import centaur.api.CentaurCromwellClient
 import centaur.test.{ErrorOr, Test}
 import centaur.test.standard.StandardTestCase
 import centaur.test.workflow.Workflow
@@ -24,7 +24,7 @@ class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecu
     }
   }
 
-  val cromwellBackends = CromwellBackendsCompanion.supportedBackends
+  val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
 
   // Optional test cases are provided by the end user as opposed to the ones built in to the system
   val optionalTestCases = CentaurConfig.optionalTestPath map testCases getOrElse List.empty

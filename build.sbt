@@ -4,6 +4,13 @@ version := "1.0"
 
 scalaVersion := "2.12.1"
 
+resolvers ++= List(
+  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
+  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
+)
+
+val cromwellV = "27-9a9745a-SNAP"
+
 val akkaV = "2.4.17"
 val akkaHttpV = "10.0.5"
 
@@ -25,6 +32,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-http" % akkaHttpV,
   "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
   "com.github.pathikrit" %% "better-files" % "3.0.0",
+  "org.broadinstitute" %% "cromwell-api-client" % cromwellV,
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "3.0.1" % Test,
   "org.pegdown" % "pegdown" % "1.6.0" % Test

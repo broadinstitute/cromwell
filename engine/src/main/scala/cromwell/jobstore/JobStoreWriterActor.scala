@@ -1,96 +1,81 @@
 package cromwell.jobstore
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cromwell.jobstore.JobStoreActor._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.actor.BatchingDbWriter
+import cromwell.core.actor.BatchingDbWriter._
+import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
+import cromwell.jobstore.JobStoreActor._
+import cromwell.jobstore.JobStoreWriterActor._
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-/**
-  * Singleton actor to coordinate writing job statuses to the database.
-  *
-  * State: Represents an actor either doing nothing, or currently writing to the database
-  * Data: If currently writing, the actor stores pending updates in the data. When one write completes, any further writes are written
-  */
-case class JobStoreWriterActor(jsd: JobStore) extends LoggingFSM[JobStoreWriterState, JobStoreWriterData] {
+
+case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: FiniteDuration) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] {
 
   implicit val ec = context.dispatcher
 
-  startWith(Pending, JobStoreWriterData.empty)
+  startWith(WaitingToWrite, NoData)
 
-  when(Pending) {
-    case Event(command: JobStoreWriterCommand, stateData) =>
-      val newData = writeNextOperationToDatabase(stateData.withNewOperation(sender, command))
-      goto(WritingToDatabase) using newData
+  override def preStart(): Unit = {
+    context.system.scheduler.schedule(0.seconds, flushRate, self, ScheduledFlushToDb)
+    super.preStart()
   }
 
-  when(WritingToDatabase) {
-    case Event(command: JobStoreWriterCommand, stateData) =>
-      stay using stateData.withNewOperation(sender, command)
-    case Event(WriteComplete, stateData) =>
-      val newData = writeNextOperationToDatabase(stateData)
-      goto(if (newData.isEmpty) Pending else WritingToDatabase) using newData
+  when(WaitingToWrite) {
+    case Event(command: JobStoreWriterCommand, curData) =>
+      curData.addData(CommandAndReplyTo(command, sender)) match {
+        case newData: HasData[_] if newData.length >= dbBatchSize => goto(WritingToDb) using newData
+        case newData => stay() using newData
+      }
+    case Event(ScheduledFlushToDb, curData) =>
+      log.debug("Initiating periodic job store flush to DB")
+      goto(WritingToDb) using curData
   }
 
-  whenUnhandled {
-    case Event(someMessage, stateData) =>
-      log.error(s"JobStoreWriter: Unexpected message received in state $stateName: $someMessage")
-      stay()
+  when(WritingToDb) {
+    case Event(ScheduledFlushToDb, curData) => stay
+    case Event(command: JobStoreWriterCommand, curData) => stay using curData.addData(CommandAndReplyTo(command, sender))
+    case Event(FlushBatchToDb, NoData) =>
+      log.debug("Attempted job store flush to DB but had nothing to write")
+      goto(WaitingToWrite)
+    case Event(FlushBatchToDb, HasData(data)) =>
+      log.debug("Flushing {} job store commands to the DB", data.length)
+      val completions = data.toVector.collect({ case CommandAndReplyTo(c, _) => c.completion })
+
+      if (completions.nonEmpty) {
+        val workflowCompletions = completions collect { case w: WorkflowCompletion => w }
+        val completedWorkflowIds = workflowCompletions map { _.workflowId } toSet
+        // Filter job completions that also have a corresponding workflow completion; these would just be
+        // immediately deleted anyway.
+        val jobCompletions = completions.toList collect { case j: JobCompletion if !completedWorkflowIds.contains(j.key.workflowId) => j }
+
+        jsd.writeToDatabase(workflowCompletions, jobCompletions, dbBatchSize) onComplete {
+          case Success(_) =>
+            data map { case CommandAndReplyTo(c, r) => r ! JobStoreWriteSuccess(c) }
+            self ! DbWriteComplete
+          case Failure(regerts) =>
+            log.error("Failed to properly job store entries to database", regerts)
+            data map { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
+            self ! DbWriteComplete
+        }
+      }
+      stay using NoData
+    case Event(DbWriteComplete, curData) =>
+      log.debug("Flush of job store commands complete")
+      goto(WaitingToWrite)
   }
 
   onTransition {
-    case (oldState, newState) =>
-      log.debug(s"Transitioning from $oldState to $newState")
-  }
-
-  def writeNextOperationToDatabase(data: JobStoreWriterData): JobStoreWriterData = {
-
-    val newData = data.rolledOver
-
-    val workflowCompletions = newData.currentOperation collect {
-      case (_, RegisterWorkflowCompleted(wfid)) =>  wfid
-    }
-
-    val jobCompletions = newData.currentOperation collect {
-      case (_, RegisterJobCompleted(jobStoreKey, jobResult)) if !workflowCompletions.contains(jobStoreKey.workflowId) => (jobStoreKey, jobResult)
-    }
-
-    if (!(workflowCompletions.isEmpty && jobCompletions.isEmpty)) {
-      jsd.writeToDatabase(jobCompletions.toMap, workflowCompletions) onComplete {
-        case Success(_) =>
-          newData.currentOperation foreach { case (actor, message) =>
-            val msg = JobStoreWriteSuccess(message)
-            actor ! msg
-          }
-          self ! WriteComplete
-        case Failure(reason) =>
-          log.error(s"Failed to write to database: $reason")
-          newData.currentOperation foreach { case (actor, message) => actor ! JobStoreWriteFailure(reason) }
-          self ! WriteComplete
-      }
-    }
-
-    newData
+    case WaitingToWrite -> WritingToDb => self ! FlushBatchToDb
   }
 }
 
 object JobStoreWriterActor {
-  def props(jobStoreDatabase: JobStore): Props = Props(new JobStoreWriterActor(jobStoreDatabase)).withDispatcher(EngineDispatcher)
+
+  case class CommandAndReplyTo(command: JobStoreWriterCommand, replyTo: ActorRef)
+
+  def props(jobStoreDatabase: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration): Props = Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate)).withDispatcher(EngineDispatcher)
 }
-
-object JobStoreWriterData {
-  def empty = JobStoreWriterData(List.empty, List.empty)
-}
-
-case class JobStoreWriterData(currentOperation: List[(ActorRef, JobStoreWriterCommand)], nextOperation: List[(ActorRef, JobStoreWriterCommand)]) {
-  def isEmpty = nextOperation.isEmpty && currentOperation.isEmpty
-  def withNewOperation(sender: ActorRef, command: JobStoreWriterCommand) = this.copy(nextOperation = this.nextOperation :+ ((sender, command)))
-  def rolledOver = JobStoreWriterData(this.nextOperation, List.empty)
-}
-
-sealed trait JobStoreWriterState
-case object Pending extends JobStoreWriterState
-case object WritingToDatabase extends JobStoreWriterState
-
-sealed trait JobStoreWriterInternalMessage
-case object WriteComplete extends JobStoreWriterInternalMessage

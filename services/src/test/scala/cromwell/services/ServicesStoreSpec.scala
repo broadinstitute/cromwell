@@ -64,7 +64,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, Seq()))
         // NOTE: This test just needs to repeatedly read/write from a table that acts as a PK for a FK.
         for {
-          _ <- database.addJobStores(jobStoreJoins)
+          _ <- database.addJobStores(jobStoreJoins, 10)
           queried <- database.queryJobStores(workflowUuid, callFqn, jobIndex, jobAttempt)
           _ = queried.get.jobStoreEntry.workflowExecutionUuid should be(workflowUuid)
         } yield ()
@@ -276,9 +276,9 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         _ <- product match {
           case "HSQL Database Engine" =>
             // HSQLDB doesn't crash because it calls getCharacterStream instead of getSubString.
-            dataAccess.addJobStores(jobStoreJoins)
+            dataAccess.addJobStores(jobStoreJoins, 1)
           case "MySQL" =>
-            dataAccess.addJobStores(jobStoreJoins).failed map { exception =>
+            dataAccess.addJobStores(jobStoreJoins, 1).failed map { exception =>
               exception should be(a[SerialException])
               exception.getMessage should be("Invalid position in SerialClob object set")
             }
@@ -335,7 +335,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, jobStoreSimpletonEntries))
 
       val future = for {
-        _ <- dataAccess.addJobStores(jobStoreJoins)
+        _ <- dataAccess.addJobStores(jobStoreJoins, 1)
         queried <- dataAccess.queryJobStores(workflowUuid, callFqn, jobIndex, jobAttempt)
         _ = {
           val jobStoreJoin = queried.get

@@ -5,21 +5,22 @@ import java.time.OffsetDateTime
 import akka.testkit.TestFSMRef
 import cats.data.NonEmptyVector
 import cromwell.core.WorkflowId
+import cromwell.core.actor.BatchingDbWriter
+import cromwell.core.actor.BatchingDbWriter._
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.MetadataService.PutMetadataAction
-import cromwell.services.metadata.impl.WriteMetadataActor._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Success
 
 class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually with BeforeAndAfter {
   import WriteMetadataActorSpec.Action
 
-  var actor: TestFSMRef[WriteMetadataActorState, WriteMetadataActorData, DelayingWriteMetadataActor] = _
+  var actor: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, DelayingWriteMetadataActor] = _
 
   before {
     actor = TestFSMRef(new DelayingWriteMetadataActor())
@@ -28,14 +29,14 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually wi
   "WriteMetadataActor" should {
     "start with no events and waiting to write" in {
       actor.stateName shouldBe WaitingToWrite
-      actor.stateData shouldBe NoEvents
+      actor.stateData shouldBe NoData
     }
 
     "Have one event and be waiting after one event is sent" in {
       actor ! Action
       eventually {
         actor.stateName shouldBe WaitingToWrite
-        actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
+        actor.stateData shouldBe HasData(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
       }
     }
 
@@ -45,7 +46,7 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually wi
 
       eventually {
         actor.stateData match {
-          case HasEvents(e) => e.toVector.size shouldBe WriteMetadataActorSpec.BatchRate
+          case HasData(e) => e.toVector.size shouldBe WriteMetadataActorSpec.BatchRate
           case _ => fail("Expecting the actor to have events queued up")
         }
       }
@@ -53,17 +54,17 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually wi
       eventually {
         actor.stateName shouldBe WritingToDb
         actor.underlyingActor.writeToDbInProgress shouldBe true
-        actor.stateData shouldBe NoEvents
+        actor.stateData shouldBe NoData
       }
       actor ! Action
       eventually {
         actor.stateName shouldBe WritingToDb
-        actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
+        actor.stateData shouldBe HasData(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
       }
       actor.underlyingActor.completeWritePromise()
       eventually {
         actor.stateName shouldBe WaitingToWrite
-        actor.stateData shouldBe HasEvents(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
+        actor.stateData shouldBe HasData(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
       }
     }
   }

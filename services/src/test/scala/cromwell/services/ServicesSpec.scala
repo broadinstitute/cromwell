@@ -40,7 +40,7 @@ object ServicesSpec {
       |    }
       |
       |    # A dispatcher for engine actors
-      |    # Because backends behaviour is unpredictable (potentially blocking, slow) the engine runs
+      |    # Because backends behavior is unpredictable (potentially blocking, slow) the engine runs
       |    # on its own dispatcher to prevent backends from affecting its performance.
       |    engine-dispatcher {
       |      type = Dispatcher

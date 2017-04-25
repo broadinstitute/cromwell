@@ -20,7 +20,7 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.
 import cromwell.engine.workflow.lifecycle.execution.preparation.{CallPreparation, JobPreparationActor}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.jobstore.JobStoreActor._
-import cromwell.jobstore.{Pending => _, _}
+import cromwell.jobstore._
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.{CallMetadataKeys, MetadataKey}
 import wdl4s.TaskOutput

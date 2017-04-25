@@ -32,7 +32,7 @@ trait JobStoreSimpletonEntryComponent {
       index("UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK", (jobStoreEntryId, simpletonKey), unique = true)
   }
 
-  protected val jobStoreSimpletonEntries = TableQuery[JobStoreSimpletonEntries]
+  val jobStoreSimpletonEntries = TableQuery[JobStoreSimpletonEntries]
 
   val jobStoreSimpletonEntryIdsAutoInc = jobStoreSimpletonEntries returning
     jobStoreSimpletonEntries.map(_.jobStoreSimpletonEntryId)

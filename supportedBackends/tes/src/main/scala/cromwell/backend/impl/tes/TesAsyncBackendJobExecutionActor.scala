@@ -70,7 +70,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
     val localPath = DefaultPathBuilder.get(wdlFile.valueString).toAbsolutePath
     localPath match {
-      case p if p.startsWith(tesJobPaths.DockerRoot) =>
+      case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
         val containerPath = p.pathAsString
         WdlFile(containerPath)
       case p if p.startsWith(tesJobPaths.callExecutionRoot) =>

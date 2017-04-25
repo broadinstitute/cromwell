@@ -24,16 +24,17 @@ object JobPaths {
   }
 }
 
-trait JobPaths { this: WorkflowPaths =>
+trait JobPaths {
   import JobPaths._
 
+  def workflowPaths: WorkflowPaths
   def returnCodeFilename: String = "rc"
   def stdoutFilename: String = "stdout"
   def stderrFilename: String = "stderr"
   def scriptFilename: String = "script"
   
   def jobKey: JobKey
-  lazy val callRoot = callPathBuilder(workflowRoot, jobKey)
+  lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
   lazy val callExecutionRoot = callRoot
   lazy val stdout = callExecutionRoot.resolve(stdoutFilename)
   lazy val stderr = callExecutionRoot.resolve(stderrFilename)

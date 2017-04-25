@@ -44,7 +44,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val sparkDeployMode = configurationDescriptor.backendConfig.getString("deployMode").toLowerCase
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
+  private val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
 
   // Files
   private val executionDir = jobPaths.callExecutionRoot

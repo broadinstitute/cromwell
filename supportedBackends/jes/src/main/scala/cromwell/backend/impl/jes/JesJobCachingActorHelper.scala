@@ -40,7 +40,7 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val jesAttributes: JesAttributes = jesConfiguration.jesAttributes
   lazy val monitoringScript: Option[JesInput] = {
-    jesCallPaths.monitoringPath map { path =>
+    jesCallPaths.workflowPaths.monitoringPath map { path =>
       JesFileInput(s"$MonitoringParamName-in", path.pathAsString,
         JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
     }

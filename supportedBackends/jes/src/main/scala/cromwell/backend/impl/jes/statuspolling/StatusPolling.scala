@@ -42,7 +42,7 @@ private[statuspolling] trait StatusPolling { this: JesPollingActor =>
     completionPromise.future
   }
 
-  // Done so that the specs can override this behaviour
+  // Done so that the specs can override this behavior
   def interpretOperationStatus(op: Operation) = StatusPolling.interpretOperationStatus(op)
 
   def addStatusPollToBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]) =

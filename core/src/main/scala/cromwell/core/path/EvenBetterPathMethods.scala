@@ -38,7 +38,7 @@ trait EvenBetterPathMethods {
 
   // betterFile.symbolicLink calls Files.readSymbolicLink, but then implicitly converts the java.nio.Path returned to a better.File
   // which calls toAbsolutePath. Consequently, if the path was relative, the current directory is used to make it absolute.
-  // This is not the desired behaviour to be able to follow relative symbolic links, so bypass better files method and directly use the java one.
+  // This is not the desired behavior to be able to follow relative symbolic links, so bypass better files method and directly use the java one.
   final def symbolicLinkRelative: Option[Path] = {
     if (betterFile.isSymbolicLink) {
       Option(newPath(Files.readSymbolicLink(betterFile.path)))

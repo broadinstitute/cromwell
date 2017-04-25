@@ -74,14 +74,14 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
     case EnqueueResponse(Enqueued, commandContext: T @unchecked) => // Good !
     case EnqueueResponse(Dropped, commandContext) => backpressure(commandContext)
       
-      // In any of the cases below, the stream is in a failed state, which will he caught by the watchCompletion hook and the 
+      // In any of the cases below, the stream is in a failed state, which will be caught by the watchCompletion hook and the
       // actor will be restarted
     case EnqueueResponse(QueueClosed, commandContext) => backpressure(commandContext)
     case EnqueueResponse(QueueOfferResult.Failure(failure), commandContext) => backpressure(commandContext)
     case FailedToEnqueue(throwable, commandContext) => backpressure(commandContext)
       
       // Those 2 cases should never happen, as long as the strategy is Resume, but in case it does...
-    case StreamCompleted => restart(new IllegalStateException("Stream was completed unexepectedly"))
+    case StreamCompleted => restart(new IllegalStateException("Stream was completed unexpectedly"))
     case StreamFailed(failure) => restart(failure)
   }
 

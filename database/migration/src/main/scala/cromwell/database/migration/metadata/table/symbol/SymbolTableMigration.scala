@@ -24,7 +24,7 @@ trait SymbolTableMigration extends BatchedTaskChange {
 
   override val readCountQuery = SymbolTableMigration.NbRowsQuery
 
-  override val readBatchQuery = """
+  override val readBatchQuery: String = """
       |SELECT
       |    WORKFLOW_EXECUTION_UUID,
       |    SYMBOL_NAME,
@@ -37,12 +37,13 @@ trait SymbolTableMigration extends BatchedTaskChange {
       |   WHERE TMP_SYMBOL_ID >= ? AND TMP_SYMBOL_ID < ?;
     """.stripMargin
 
-  override val migrateBatchQuery = MetadataStatement.InsertSql
+  override val migrateBatchQueries = List(MetadataStatement.InsertSql)
 
   /**
     * Migrate a row to the metadata table
     */
-  override def migrateBatchRow(row: ResultSet, statement: PreparedStatement): Int = {
+  override def migrateBatchRow(row: ResultSet, statements: List[PreparedStatement]): Int = {
+    val statement = statements.head
     // Try to coerce the value to a WdlValue
     val value = for {
       wdlType <- Try(WdlType.fromWdlString(row.getString("WDL_TYPE")))

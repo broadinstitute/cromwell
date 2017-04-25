@@ -14,14 +14,9 @@ import scala.language.postfixOps
 object JesWorkflowPaths {
   private val GcsRootOptionKey = "jes_gcs_root"
   private val AuthFilePathOptionKey = "auth_bucket"
-
-  def apply(workflowDescriptor: BackendWorkflowDescriptor,
-            jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem): JesWorkflowPaths = {
-    new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
-  }
 }
 
-class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
+case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                        jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {
 
   override lazy val executionRootString: String =
@@ -52,10 +47,12 @@ class JesWorkflowPaths(val workflowDescriptor: BackendWorkflowDescriptor,
     getPath(path).get
   }
 
-  override def toJobPaths(jobKey: BackendJobDescriptorKey,
-                          jobWorkflowDescriptor: BackendWorkflowDescriptor): JesJobPaths = {
-    JesJobPaths(jobKey, jobWorkflowDescriptor, jesConfiguration)
+  override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JesJobPaths = {
+    new JesJobPaths(workflowPaths.asInstanceOf[JesWorkflowPaths], jobKey)
   }
+
+  override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
+
   override def config: Config = jesConfiguration.configurationDescriptor.backendConfig
   override def pathBuilders: List[PathBuilder] = List(gcsPathBuilder)
 }

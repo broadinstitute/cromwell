@@ -6,6 +6,7 @@ object Testing {
   lazy val DockerTest = config("docker") extend Test
   lazy val NoDockerTest = config("nodocker") extend Test
   lazy val CromwellIntegrationTest = config("integration") extend Test
+  lazy val CromwellBenchmarkTest = config("benchmark") extend Test
   lazy val CromwellNoIntegrationTest = config("nointegration") extend Test
   lazy val DbmsTest = config("dbms") extend Test
 
@@ -14,10 +15,8 @@ object Testing {
   lazy val DontUseDockerTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", DockerTestTag)
 
   lazy val CromwellIntegrationTestTag = "CromwellIntegrationTest"
-  lazy val UseCromwellIntegrationTaggedTests =
-    Tests.Argument(TestFrameworks.ScalaTest, "-n", CromwellIntegrationTestTag)
-  lazy val DontUseCromwellIntegrationTaggedTests =
-    Tests.Argument(TestFrameworks.ScalaTest, "-l", CromwellIntegrationTestTag)
+  lazy val UseCromwellIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", CromwellIntegrationTestTag)
+  lazy val DontUseCromwellIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", CromwellIntegrationTestTag)
 
   lazy val GcsIntegrationTestTag = "GcsIntegrationTest"
   lazy val UseGcsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", GcsIntegrationTestTag)
@@ -54,7 +53,11 @@ object Testing {
     // `nointegration:test` - Run all tests, except integration
     testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests),
     // `dbms:test` - Run database management tests.
-    testOptions in DbmsTest := (testOptions in AllTests).value ++ Seq(UseDbmsTaggedTests)
+    testOptions in DbmsTest := (testOptions in AllTests).value ++ Seq(UseDbmsTaggedTests),
+    // Add scalameter as a test framework in the CromwellBenchmarkTest scope
+    testFrameworks in CromwellBenchmarkTest += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    // Don't execute benchmarks in parallel
+    parallelExecution in CromwellBenchmarkTest := false
   )
   /*
     TODO: This syntax of test in (NoTests, assembly) isn't correct
@@ -84,6 +87,7 @@ object Testing {
       .configs(DockerTest).settings(inConfig(DockerTest)(Defaults.testTasks): _*)
       .configs(NoDockerTest).settings(inConfig(NoDockerTest)(Defaults.testTasks): _*)
       .configs(CromwellIntegrationTest).settings(inConfig(CromwellIntegrationTest)(Defaults.testTasks): _*)
+      .configs(CromwellBenchmarkTest).settings(inConfig(CromwellBenchmarkTest)(Defaults.testTasks): _*)
       .configs(CromwellNoIntegrationTest).settings(inConfig(CromwellNoIntegrationTest)(Defaults.testTasks): _*)
       .configs(DbmsTest).settings(inConfig(DbmsTest)(Defaults.testTasks): _*)
   }

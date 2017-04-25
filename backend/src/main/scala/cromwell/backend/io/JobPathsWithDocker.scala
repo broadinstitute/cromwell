@@ -4,15 +4,21 @@ import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{Path, PathBuilder}
 
-class JobPathsWithDocker(val jobKey: BackendJobDescriptorKey,
-                         workflowDescriptor: BackendWorkflowDescriptor,
-                         config: Config,
-                         pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPathsWithDocker(
-  workflowDescriptor, config, pathBuilders) with JobPaths {
+object JobPathsWithDocker {
+  def apply(jobKey: BackendJobDescriptorKey,
+            workflowDescriptor: BackendWorkflowDescriptor,
+            config: Config,
+            pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
+    val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, config, pathBuilders)
+    new JobPathsWithDocker(workflowPaths, jobKey)
+  }
+}
+
+case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey) extends JobPaths {
   import JobPaths._
-  
+
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }
-  val callDockerRoot = callPathBuilder(dockerWorkflowRoot, jobKey)
+  val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
   val callInputsRoot = callRoot.resolve("inputs")
 
@@ -30,7 +36,7 @@ class JobPathsWithDocker(val jobKey: BackendJobDescriptorKey,
           *
           * TODO: this assumes that p.startsWith(localExecutionRoot)
           */
-        val subpath = p.subpath(executionRoot.getNameCount, p.getNameCount)
+        val subpath = p.subpath(workflowPaths.executionRoot.getNameCount, p.getNameCount)
         WorkflowPathsWithDocker.DockerRoot.resolve(subpath)
     }
   }

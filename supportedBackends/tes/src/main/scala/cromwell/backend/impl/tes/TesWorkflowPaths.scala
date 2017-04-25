@@ -6,7 +6,7 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{PathBuilder, PathFactory}
 import net.ceedubs.ficus.Ficus._
 
-class TesWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescriptor,
+case class TesWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescriptor,
                        override val config: Config,
                        override val pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
 
@@ -17,8 +17,10 @@ class TesWorkflowPaths(override val workflowDescriptor: BackendWorkflowDescripto
   }
   val dockerWorkflowRoot = workflowPathBuilder(DockerRoot)
 
-  override def toJobPaths(jobKey: BackendJobDescriptorKey,
-                          jobWorkflowDescriptor: BackendWorkflowDescriptor): TesJobPaths = {
-    new TesJobPaths(jobKey, jobWorkflowDescriptor, config, pathBuilders)
+  override def toJobPaths(workflowPaths: WorkflowPaths,
+                          jobKey: BackendJobDescriptorKey): TesJobPaths = {
+    new TesJobPaths(workflowPaths.asInstanceOf[TesWorkflowPaths], jobKey)
   }
+
+  override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
 }

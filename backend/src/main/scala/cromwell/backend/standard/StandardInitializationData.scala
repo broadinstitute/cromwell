@@ -15,7 +15,7 @@ class StandardInitializationData
     standardExpressionFunctionsClass.getConstructor(classOf[StandardExpressionFunctionsParams])
 
   def expressionFunctions(jobPaths: JobPaths): StandardExpressionFunctions = {
-    val pathBuilders = jobPaths.asInstanceOf[WorkflowPaths].pathBuilders
+    val pathBuilders = jobPaths.workflowPaths.pathBuilders
     val callContext = jobPaths.callContext
     val standardParams = DefaultStandardExpressionFunctionsParams(pathBuilders, callContext)
     standardExpressionFunctionsConstructor.newInstance(standardParams)

@@ -1,6 +1,5 @@
 name: write_lines_files
 testFormat: workflowsuccess
-ignore: true
 
 files {
   wdl: write_lines_files/write_lines_files.wdl

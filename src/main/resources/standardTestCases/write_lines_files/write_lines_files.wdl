@@ -15,7 +15,10 @@ task switcho_reverso {
   Array[File] files
 
   command {
-    for f in `tac ${write_lines(files)}`
+    # Do this with F to make sure we get a trailing newline for 'tac':
+    F="${write_lines(files)}"
+    echo "" >> $F
+    for f in $(tac $F)
     do
       cat $f
     done
@@ -24,7 +27,10 @@ task switcho_reverso {
   output {
     Array[String] out = read_lines(stdout())
   }
-  runtime { docker:"ubuntu:latest" }
+  runtime {
+    docker:"ubuntu:latest"
+    failOnStderr: true
+  }
 }
 
 workflow write_lines_files {

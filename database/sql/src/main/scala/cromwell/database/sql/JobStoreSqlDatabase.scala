@@ -7,7 +7,7 @@ import scala.concurrent.{ExecutionContext, Future}
 trait JobStoreSqlDatabase {
   this: SqlDatabase =>
 
-  def addJobStores(jobStoreJoins: Seq[JobStoreJoin])(implicit ec: ExecutionContext): Future[Unit]
+  def addJobStores(jobStoreJoins: Seq[JobStoreJoin], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit]
 
   def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int, jobScatterAttempt: Int)
                     (implicit ec: ExecutionContext): Future[Option[JobStoreJoin]]

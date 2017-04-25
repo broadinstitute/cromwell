@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 import akka.actor.Actor
 import akka.testkit.TestFSMRef
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.jobstore.{Pending => _}
 import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobExecutionActor
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionActorCommand

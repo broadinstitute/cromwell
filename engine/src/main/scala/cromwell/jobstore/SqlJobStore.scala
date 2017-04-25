@@ -3,28 +3,28 @@ package cromwell.jobstore
 import cromwell.Simpletons._
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._
-import cromwell.core.WorkflowId
 import cromwell.core.simpleton.WdlValueBuilder
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.sql.JobStoreSqlDatabase
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
+import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import wdl4s.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
-import cromwell.database.sql.SqlConverters._
 
 class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
-  override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])(implicit ec: ExecutionContext): Future[Unit] = {
+  override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit] = {
     for {
-      _ <- sqlDatabase.addJobStores(jobCompletions.toSeq map toDatabase)
-      _ <- sqlDatabase.removeJobStores(workflowCompletions.map(_.toString))
+      _ <- sqlDatabase.addJobStores(jobCompletions map toDatabase, batchSize)
+      _ <- sqlDatabase.removeJobStores(workflowCompletions.map(_.workflowId.toString))
     } yield ()
   }
 
-  private def toDatabase(jobCompletion: (JobStoreKey, JobResult)): JobStoreJoin = {
+  private def toDatabase(jobCompletion: JobCompletion): JobStoreJoin = {
     jobCompletion match {
-      case (key, JobResultSuccess(returnCode, jobOutputs)) =>
+      case JobCompletion(key, JobResultSuccess(returnCode, jobOutputs)) =>
         val entry = JobStoreEntry(
           key.workflowId.toString,
           key.callFqn,
@@ -41,7 +41,7 @@ class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
               wdlValueSimpleton.simpletonValue.wdlType.toWdlString)
           }
         JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
-      case (key, JobResultFailure(returnCode, throwable, retryable)) =>
+      case JobCompletion(key, JobResultFailure(returnCode, throwable, retryable)) =>
         val entry = JobStoreEntry(
           key.workflowId.toString,
           key.callFqn,

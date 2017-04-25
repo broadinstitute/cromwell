@@ -61,7 +61,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
 
-  override lazy val jobTag = jobDescriptor.key.tag
+  override lazy val jobTag: String = jobDescriptor.key.tag
 
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
@@ -98,7 +98,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       Option(task.name),
       Option(task.description),
       Option(task.project),
-      Option(task.inputs),
+      Option(task.inputs(commandLineValueMapper)),
       Option(task.outputs),
       task.resources,
       task.dockerExecutor

@@ -147,17 +147,19 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
 
-    val writeFunctionFiles = call.task.evaluateFilesFromCommand(jobDescriptor.fullyQualifiedInputs, backendEngineFunctions) map {
-      case (expression, file) =>  expression.toWdlString.md5SumShort -> Seq(file)
+    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
+    val writeFunctionFiles = call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
+      case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
     }
 
     /* Collect all WdlFiles from inputs to the call */
-    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues { _.collectAsSeq { case w: WdlFile => w } }
+    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
+      _.collectAsSeq { case w: WdlFile => w }
+    }
 
     val inputs = (callInputFiles ++ writeFunctionFiles) flatMap {
       case (name, files) => jesInputsFromWdlFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
-
     inputs.toSet
   }
 
@@ -291,8 +293,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
-    def generateJesParameters = Future.fromTry(Try {
-      val jesInputs: Set[JesInput] = generateJesInputs(jobDescriptor) ++ monitoringScript + cmdInput
+    def generateJesParameters = Future.fromTry( Try {
+      val generatedJesInputs = generateJesInputs(jobDescriptor)
+      val jesInputs: Set[JesInput] = generatedJesInputs ++ monitoringScript + cmdInput
       val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
       standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs

@@ -1,4 +1,4 @@
-package service
+package webservice
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.HttpResponse
@@ -6,6 +6,11 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server._
 import spray.json._
 
+trait SwaggerService extends SwaggerUiResourceHttpService {
+  override def swaggerServiceName = "cromiam"
+
+  override def swaggerUiVersion = "2.1.1"
+}
 
 trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJsonProtocol with RouteConcatenation {
 

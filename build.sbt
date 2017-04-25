@@ -38,7 +38,11 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-http" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV,
-    "org.scalatest"     %% "scalatest" % scalaTestV % "test"
+    "com.iheart" %% "ficus" % "1.4.0",
+    "org.webjars" %  "swagger-ui" % "2.1.1",
+    "org.scalatest" %% "scalatest" % scalaTestV % Test,
+    "io.swagger" % "swagger-parser" % "1.0.22" % Test,
+    "org.yaml" % "snakeyaml" % "1.17" % Test
   )
 }
 

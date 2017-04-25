@@ -7,12 +7,12 @@ import akka.http.scaladsl.server.{HttpApp, Route}
 import akka.http.scaladsl.settings.ServerSettings
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import service.CromIamApiService
+import webservice.{CromIamApiService, SwaggerService}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
 
-object CromIamServer extends HttpApp with CromIamApiService {
+object CromIamServer extends HttpApp with CromIamApiService with SwaggerService {
 
   def run() = {
     CromIamServer.startServer(CromIamServer.config.getString("http.interface"), CromIamServer.config.getInt("http.port"), ServerSettings(CromIamServer.config))
@@ -24,7 +24,7 @@ object CromIamServer extends HttpApp with CromIamApiService {
 
   val config = ConfigFactory.load()
   val logger = Logging(system, getClass)
-  val route: Route = allRoutes
+  val route: Route = allRoutes ~ swaggerUiResourceRoute
 
   // Override default shutdownsignal which was just "hit return/enter"
   override def waitForShutdownSignal(actorSystem: ActorSystem)(implicit executionContext: ExecutionContext): Future[Done] = {

@@ -10,12 +10,12 @@ object TesJobPaths {
   workflowDescriptor: BackendWorkflowDescriptor,
   config: Config,
   pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
-    val workflowPaths = new TesWorkflowPaths(workflowDescriptor, config, pathBuilders)
+    val workflowPaths = TesWorkflowPaths(workflowDescriptor, config, pathBuilders)
     new TesJobPaths(workflowPaths, jobKey)
   }
 }
 
-case class TesJobPaths(override val workflowPaths: TesWorkflowPaths,
+case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPaths,
                   jobKey: BackendJobDescriptorKey) extends JobPaths {
 
   import JobPaths._

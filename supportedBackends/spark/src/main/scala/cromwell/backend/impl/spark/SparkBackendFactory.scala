@@ -2,7 +2,7 @@ package cromwell.backend.impl.spark
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import cromwell.backend._
-import cromwell.backend.io.{JobPathsWithDocker, WorkflowPathsWithDocker}
+import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.core.CallContext
 import wdl4s.TaskCall
@@ -23,8 +23,7 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-    val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, configurationDescriptor.backendConfig)
-    val jobPaths = new JobPathsWithDocker(workflowPaths, jobKey)
+    val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toAbsolutePath.toString,

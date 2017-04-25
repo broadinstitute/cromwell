@@ -6,17 +6,17 @@ import cromwell.core.path.{Path, PathBuilder}
 
 object JobPathsWithDocker {
   def apply(jobKey: BackendJobDescriptorKey,
-  workflowDescriptor: BackendWorkflowDescriptor,
-  config: Config,
-  pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
+            workflowDescriptor: BackendWorkflowDescriptor,
+            config: Config,
+            pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
     val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, config, pathBuilders)
     new JobPathsWithDocker(workflowPaths, jobKey)
   }
 }
 
-case class JobPathsWithDocker(override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey) extends JobPaths {
+case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey) extends JobPaths {
   import JobPaths._
-  
+
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }
   val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")

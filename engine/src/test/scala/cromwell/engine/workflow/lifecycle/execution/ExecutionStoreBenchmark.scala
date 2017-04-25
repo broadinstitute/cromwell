@@ -9,7 +9,10 @@ import wdl4s.{TaskCall, WdlNamespaceWithWorkflow}
 import org.scalameter.picklers.Implicits._
 
 /**
-  * Benchmarks the performance of the execution store.
+  * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)
+  * This is not run automatically by "sbt test". To run this test specifically, either use intellij integration, or run
+  * sbt "project engine"  "benchmark:test-only cromwell.engine.workflow.lifecycle.execution.ExecutionStoreBenchmark"
+  * sbt benchmark:test will run all ScalaMeter tests
   */
 object ExecutionStoreBenchmark extends Bench[Double] {
 
@@ -43,6 +46,8 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   } yield new ExecutionStore(finalMap, true)
   
   performance of "ExecutionStore" in {
+    // Measures how fast the execution store can find runnable calls with lots of "Done" calls and "NotStarted" calls.
+    // Other "shapes" would be valuable to get a better sense of how this method behaves in various situations (with Collector Keys etc...)  
     measure method "runnableCalls" in {
       using(executionStores) in { es =>
         es.runnableScopes

@@ -8,7 +8,7 @@ object WorkflowPathsWithDocker {
   val DockerRoot: Path = DefaultPathBuilder.get("/cromwell-executions")
 }
 
-case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDescriptor, config: Config, pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
+final case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDescriptor, config: Config, pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
   val dockerWorkflowRoot: Path = workflowPathBuilder(WorkflowPathsWithDocker.DockerRoot)
 
   override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPathsWithDocker = {

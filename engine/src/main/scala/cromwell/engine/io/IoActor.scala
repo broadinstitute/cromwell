@@ -30,9 +30,10 @@ import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] {
   
   implicit private val system = context.system
+  implicit val ec = context.dispatcher
   
-  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler).flow
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler).flow
+  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -75,7 +76,7 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
       .via(flow)
   } getOrElse flow
   
-  override protected lazy val streamSource = source.via(throttledFlow).withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  override protected lazy val streamSource = source.via(throttledFlow)
   
   override def actorReceive: Receive = {
     /* GCS Batch command with context */

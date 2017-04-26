@@ -20,6 +20,7 @@ final class DockerHashActor(
                           )(implicit val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[DockerHashContext] {
 
   implicit val system = context.system
+  implicit val ec = context.dispatcher
   
   /* Use the guava CacheBuilder class that implements a thread safe map with built in cache features.
    * https://google.github.io/guava/releases/20.0/api/docs/com/google/common/cache/CacheBuilder.html

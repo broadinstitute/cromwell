@@ -19,7 +19,7 @@ object StreamActorHelper {
 
 trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
 
-  implicit val ec: ExecutionContext = context.system.dispatcher
+  implicit def ec: ExecutionContext
 
   implicit def materializer: ActorMaterializer
 

@@ -29,7 +29,7 @@ scalacOptions in (Compile, doc) ++= List(
 
 libraryDependencies ++= {
   val akkaV       = "2.4.17"
-  val akkaHttpV   = "10.0.5"
+  val akkaHttpV   = "10.0.6"
   val scalaTestV  = "3.0.1"
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaV,

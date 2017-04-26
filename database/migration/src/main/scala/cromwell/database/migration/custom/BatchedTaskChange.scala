@@ -34,7 +34,8 @@ trait BatchedTaskChange extends MigrationTaskChange {
   def readBatchQuery: String
 
   /**
-    * Used to prepare the statement that will be passed repeatedly into migrateBatchRow.
+    * Used to prepare query statements that can be passed repeatedly into migrateBatchRow. Examples of
+    * individual elements follow.
     *
     * Example:
     * {{{
@@ -49,7 +50,7 @@ trait BatchedTaskChange extends MigrationTaskChange {
     *   SET [COLUMNS];
     * }}}
     */
-  def migrateBatchQuery: String
+  def migrateBatchQueries: List[String]
 
   /**
     * Migrate a row.
@@ -58,10 +59,10 @@ trait BatchedTaskChange extends MigrationTaskChange {
     * migrateStatement.addBatch(). Return the (estimated) number of rows to be written by this batch.
     *
     * @param readRow          The row to migrate
-    * @param migrateStatement The statement to add a new migrated row
+    * @param migrateStatements The statements used to migrate a row
     * @return The number of rows updated
     */
-  def migrateBatchRow(readRow: ResultSet, migrateStatement: PreparedStatement): Int
+  def migrateBatchRow(readRow: ResultSet, migrateStatements: List[PreparedStatement]): Int
 
   /**
     * Specify the size of a "page".
@@ -77,7 +78,7 @@ trait BatchedTaskChange extends MigrationTaskChange {
     */
   private val writeBatchSize = config.getInt("database.migration.write-batch-size")
 
-  override def migrate(connection: JdbcConnection) = {
+  override def migrate(connection: JdbcConnection): Unit = {
 
     logger.info(s"Running migration $migrationName with a read batch size of " +
       s"$readBatchSize and a write batch size of $writeBatchSize")
@@ -95,7 +96,7 @@ trait BatchedTaskChange extends MigrationTaskChange {
     val pageCount = Math.max(readCount / readBatchSize, 1)
 
     val readBatchStatement = connection.prepareStatement(readBatchQuery)
-    val migrateBatchStatement = connection.prepareStatement(migrateBatchQuery)
+    val migrateBatchStatements = migrateBatchQueries map connection.prepareStatement
 
     val paginator = new QueryPaginator(readBatchStatement, readBatchSize, readCount)
 
@@ -103,13 +104,12 @@ trait BatchedTaskChange extends MigrationTaskChange {
     paginator.zipWithIndex foreach {
       case (resultBatch, page) =>
         // Loop over rows in page
-        new ResultSetIterator(resultBatch).zipWithIndex foreach {
-          case (row, idx) =>
-            batchMigrationCounter += migrateBatchRow(row, migrateBatchStatement)
+        new ResultSetIterator(resultBatch) foreach { row =>
+            batchMigrationCounter += migrateBatchRow(row, migrateBatchStatements)
             // batchMigrationCounter can actually be bigger than writeBatchSize as wdlValues are processed atomically,
             // so this is a best effort
             if (batchMigrationCounter >= writeBatchSize) {
-              migrateBatchStatement.executeBatch()
+              migrateBatchStatements.foreach(_.executeBatch())
               connection.commit()
               batchMigrationCounter = 0
             }
@@ -122,7 +122,7 @@ trait BatchedTaskChange extends MigrationTaskChange {
     }
 
     if (batchMigrationCounter != 0) {
-      migrateBatchStatement.executeBatch()
+      migrateBatchStatements.foreach(_.executeBatch())
       connection.commit()
     }
   }

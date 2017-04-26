@@ -137,7 +137,7 @@ object IoActor {
     case _ => false
   }
 
-  val AdditionalRetryablHttpCodes = List(
+  val AdditionalRetryableHttpCodes = List(
     // HTTP 410: Gone
     // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
     // "You have attempted to use a resumable upload session that is no longer available.
@@ -155,7 +155,7 @@ object IoActor {
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable || AdditionalRetryablHttpCodes.contains(gcs.getCode) || isRetryable(gcs.getCause)
+    case gcs: StorageException => gcs.isRetryable || AdditionalRetryableHttpCodes.contains(gcs.getCode) || isRetryable(gcs.getCause)
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true

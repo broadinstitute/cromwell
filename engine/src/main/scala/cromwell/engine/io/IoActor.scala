@@ -76,7 +76,7 @@ final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val mat
       .via(flow)
   } getOrElse flow
   
-  override protected lazy val streamSource = source.via(throttledFlow)
+  override protected lazy val streamSource = source.via(throttledFlow).withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   override def actorReceive: Receive = {
     /* GCS Batch command with context */

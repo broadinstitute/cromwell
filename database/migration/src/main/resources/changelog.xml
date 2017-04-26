@@ -61,6 +61,7 @@
     <include file="changesets/add_attempt_in_call_caching_entry.xml" relativeToChangelogFile="true" />
     <include file="changesets/replace_empty_custom_labels.xml" relativeToChangelogFile="true" />
     <include file="changesets/failure_metadata.xml" relativeToChangelogFile="true" />
+    <include file="changesets/failure_metadata_2.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

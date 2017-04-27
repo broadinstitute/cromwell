@@ -10,13 +10,14 @@ import cats.syntax.validated._
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.storage.StorageScopes
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigException}
+import cromwell.filesystems.gcs.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
 import cromwell.filesystems.gcs.auth._
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import lenthall.validation.Validation._
-import org.slf4j.LoggerFactory
 import net.ceedubs.ficus.Ficus._
+import org.slf4j.LoggerFactory
 
 final case class GoogleConfiguration private (applicationName: String, authsByName: Map[String, GoogleAuthMode]) {
 
@@ -34,10 +35,10 @@ object GoogleConfiguration {
   import scala.collection.JavaConverters._
   import scala.concurrent.duration._
   import scala.language.postfixOps
-  
+
   lazy val DefaultConnectionTimeout = 3 minutes
   lazy val DefaultReadTimeout = 3 minutes
-  
+
   lazy val DefaultRequestInitializer = GoogleConfiguration.withCustomTimeouts(new GoogleCredential.Builder().build())
 
   def withCustomTimeouts(httpRequestInitializer: HttpRequestInitializer,
@@ -53,7 +54,7 @@ object GoogleConfiguration {
       }
     }
   }
-  
+
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
   case class GoogleConfigurationException(errorMessages: List[String]) extends MessageAggregation {
@@ -66,7 +67,7 @@ object GoogleConfiguration {
     "https://www.googleapis.com/auth/genomics",
     "https://www.googleapis.com/auth/compute"
   ).asJava
-  
+
   def apply(config: Config): GoogleConfiguration = {
 
     val googleConfig = config.getConfig("google")
@@ -76,7 +77,12 @@ object GoogleConfiguration {
     def buildAuth(authConfig: Config): ErrorOr[GoogleAuthMode] = {
 
       def serviceAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
-        ServiceAccountMode(name, authConfig.as[String]("service-account-id"), authConfig.as[String]("pem-file"), GoogleScopes)
+        (authConfig.getAs[String]("pem-file"), authConfig.getAs[String]("json-file")) match {
+          case (Some(pem), None) => ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem), GoogleScopes)
+          case (None, Some(json)) => ServiceAccountMode(name, JsonFileFormat(json), GoogleScopes)
+          case (None, None) => throw new ConfigException.Generic(s"""No credential configuration was found for service account "$name". See reference.conf under the google.auth, service-account section for supported credential formats.""")
+          case (Some(_), Some(_)) => throw new ConfigException.Generic(s"""Both a pem file and a json file were supplied for service account "$name" in the configuration file. Only one credential file can be supplied for the same service account. Please choose between the two.""")
+        }
       }
 
       def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] =  validate {

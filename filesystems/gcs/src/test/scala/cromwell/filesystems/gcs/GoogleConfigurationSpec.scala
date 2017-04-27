@@ -3,6 +3,7 @@ package cromwell.filesystems.gcs
 import better.files.File
 import com.typesafe.config.{ConfigException, ConfigFactory}
 import cromwell.filesystems.gcs.GoogleConfiguration.GoogleConfigurationException
+import cromwell.filesystems.gcs.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
 import cromwell.filesystems.gcs.auth.{ApplicationDefaultMode, RefreshTokenMode, ServiceAccountMode, UserMode}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -12,7 +13,8 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   behavior of "GoogleConfiguration"
 
   it should "parse all manner of well-formed auths" in {
-    val mockFile = File.newTemporaryFile()
+    val pemMockFile = File.newTemporaryFile()
+    val jsonMockFile = File.newTemporaryFile()
 
     val righteousGoogleConfig =
       s"""
@@ -34,14 +36,19 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
         |      name = "name-user"
         |      scheme = "user_account"
         |      user = "me"
-        |      secrets-file = "${mockFile.pathAsString}"
+        |      secrets-file = "${pemMockFile.pathAsString}"
         |      data-store-dir = "/where/the/data/at"
         |    },
         |    {
-        |      name = "name-service"
+        |      name = "name-pem-service"
         |      scheme = "service_account"
         |      service-account-id = "my-google-account"
-        |      pem-file = "${mockFile.pathAsString}"
+        |      pem-file = "${pemMockFile.pathAsString}"
+        |    },
+        |    {
+        |      name = "name-json-service"
+        |      scheme = "service_account"
+        |      json-file = "${jsonMockFile.pathAsString}"
         |    }
         |  ]
         |}
@@ -51,7 +58,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
     val gconf = GoogleConfiguration(ConfigFactory.parseString(righteousGoogleConfig))
 
     gconf.applicationName shouldBe "cromwell"
-    gconf.authsByName should have size 4
+    gconf.authsByName should have size 5
 
     val auths = gconf.authsByName.values
 
@@ -65,15 +72,21 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     val user = (auths collectFirst { case a: UserMode => a }).get
     user.name shouldBe "name-user"
-    user.secretsPath shouldBe mockFile.pathAsString
+    user.secretsPath shouldBe pemMockFile.pathAsString
     user.datastoreDir shouldBe "/where/the/data/at"
 
-    val service = (auths collectFirst { case a: ServiceAccountMode => a }).get
-    service.name shouldBe "name-service"
-    service.accountId shouldBe "my-google-account"
-    service.pemPath shouldBe mockFile.pathAsString
+    val servicePem = (auths collectFirst { case a: ServiceAccountMode if a.name == "name-pem-service" => a }).get
+    servicePem.name shouldBe "name-pem-service"
+    servicePem.fileFormat.asInstanceOf[PemFileFormat].accountId shouldBe "my-google-account"
+    servicePem.fileFormat.file shouldBe pemMockFile.pathAsString
 
-    mockFile.delete(true)
+    val serviceJson = (auths collectFirst { case a: ServiceAccountMode if a.name == "name-json-service" => a }).get
+    serviceJson.name shouldBe "name-json-service"
+    serviceJson.fileFormat.isInstanceOf[JsonFileFormat] shouldBe true
+    serviceJson.fileFormat.file shouldBe jsonMockFile.pathAsString
+
+    pemMockFile.delete(true)
+    jsonMockFile.delete(true)
   }
 
 
@@ -96,6 +109,46 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
   }
 
   it should "not parse a configuration stanza with wrong cromwell auth" in {
+    val doubleServiceAccountCredentials =
+      """
+        |google {
+        |  application-name = "cromwell"
+        |
+        |  auths = [
+        |    {
+        |      name = "service-account"
+        |      scheme = "service-account"
+        |      service-account-id = "my-google-account"
+        |      pem-file = "path/to/file.pem"
+        |      json-file = "path/to/json.pem"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    a[GoogleConfigurationException] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(doubleServiceAccountCredentials))
+    }
+
+    val noServiceAccountCredentials =
+      """
+        |google {
+        |  application-name = "cromwell"
+        |
+        |  auths = [
+        |    {
+        |      name = "service-account"
+        |      scheme = "service-account"
+        |      service-account-id = "my-google-account"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    a[GoogleConfigurationException] shouldBe thrownBy {
+      GoogleConfiguration(ConfigFactory.parseString(noServiceAccountCredentials))
+    }
+    
     val unsupported =
       """
         |google {

@@ -33,6 +33,25 @@ Note that the "local" option will require docker to be installed on the machine 
 
 * Adds hash lookup support for public [quay.io](https://quay.io/) images.
 
+### Support for JSON format credentials
+
+* Adds support for JSON file format for google service account credentials.
+
+```
+google {
+
+  application-name = "cromwell"
+
+  auths = [
+    {
+      name = "service-account"
+      scheme = "service_account"
+      json-file = "/path/to/file.json"
+    }
+  ]
+}
+```
+
 ## 26
 
 ### Breaking Changes

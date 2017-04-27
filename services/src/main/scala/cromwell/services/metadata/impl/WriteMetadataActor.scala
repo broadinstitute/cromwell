@@ -58,7 +58,7 @@ class WriteMetadataActor(batchRate: Int, flushRate: FiniteDuration)
       addMetadataEvents(e.toVector) onComplete {
         case Success(_) => self ! DbWriteComplete
         case Failure(regerts) =>
-          log.error("Failed to properly flush metadata to database", regerts)
+          log.error(regerts, "Failed to properly flush metadata to database")
           self ! DbWriteComplete
       }
 

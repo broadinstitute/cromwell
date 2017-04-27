@@ -8,7 +8,7 @@ import scala.collection.JavaConverters._
 case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extends SyntaxErrorFormatter {
 
   private def pointToSource(t: Terminal): String = s"${line(t)}\n${" " * (t.getColumn - 1)}^"
-  private def line(t:Terminal): String = terminalMap.get(t).get.split("\n")(t.getLine - 1)
+  private def line(t:Terminal): String = terminalMap(t).split("\n")(t.getLine - 1)
 
   def unexpectedEof(method: String, expected: java.util.List[TerminalIdentifier], nt_rules: java.util.List[String]): String = "ERROR: Unexpected end of file"
 
@@ -95,16 +95,17 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def callReferencesBadTaskInput(callInputAst: Ast, taskAst: Ast): String = {
+  def callReferencesAbsentTaskInput(callInputAst: Ast, taskAst: Ast, missingInput: String, callName: String): String = {
     val callParameter: Terminal = callInputAst.getAttribute("key").asInstanceOf[Terminal]
     val taskName: Terminal = taskAst.getAttribute("name").asInstanceOf[Terminal]
-    s"""ERROR: Call references an input on task '${taskName.getSourceString}' that doesn't exist (line ${callParameter.getLine}, col ${callParameter.getColumn})
+    val taskNameString = taskName.getSourceString
+    s"""ERROR: Call supplied an unexpected input: The '$taskNameString' task doesn't have an input called '$missingInput':
         |
         |${pointToSource(callParameter)}
         |
-        |Task defined here (line ${taskName.getLine}, col ${taskName.getColumn}):
-        |
-        |${pointToSource(taskName)}
+        |Options:
+        | - Add the input '$missingInput' to the '$taskNameString' task (defined on line ${taskName.getLine}).
+        | - Remove '$missingInput = ...' from $callName's inputs (on line ${callParameter.getLine}).
      """.stripMargin
   }
 
@@ -187,20 +188,29 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def memberAccessReferencesBadCallInput(ast: Ast, call: Call): String = {
-    val rhsAst = ast.getAttribute("rhs").asInstanceOf[Terminal]
-    s"""ERROR: Expression references input on ${call.callType} that doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+  def memberAccessReferencesAbsentCallOutput(memberAccessAst: Ast, call: Call): String = {
+    val rhsAst = memberAccessAst.getAttribute("rhs").asInstanceOf[Terminal]
+    val memberAccess = MemberAccess(memberAccessAst)
+    val taskName = call.unqualifiedName
+    val goodOutputs = s" (current outputs of '$taskName': " + call.outputs.map("'" + _.unqualifiedName + "'").mkString(", ") + ")"
+
+    s"""ERROR: Call output not found: Call '${memberAccess.lhs}' doesn't have an output '${memberAccess.rhs}' (line ${rhsAst.getLine}, col ${rhsAst.getColumn}).
      |
      |${pointToSource(rhsAst)}
+     |
+     |Options:
+     | - Add the output '${memberAccess.rhs}' to '$taskName'.
+     | - Modify the member access (on line ${rhsAst.getLine}) to use an existing output$goodOutputs.
      """.stripMargin
   }
-  
-  def memberAccessReferencesBadCallOutput(ast: Ast): String = {
+
+  def badOldStyleWorkflowOutput(ast: Ast): String = {
     val rhsAst = ast.getAttribute("fqn").asInstanceOf[Terminal]
-    s"""ERROR: Expression references output on call that doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+
+    s"""ERROR: Old style workflow output references '${rhsAst.getSourceString}' which doesn't exist (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
         |
-     |${pointToSource(rhsAst)}
-     """.stripMargin
+        |${pointToSource(rhsAst)}
+        |""".stripMargin
   }
 
   def variableIsNotAnObject(ast: Ast): String = {
@@ -299,14 +309,18 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def declarationContainsInvalidVariableReference(declarationName: Terminal, variable: Terminal) = {
-    s"""ERROR: Variable ${variable.getSourceString} does not reference any declaration in the task (line ${variable.getLine}, col ${variable.getColumn}):
+  def declarationContainsAbsentReference(declarationName: Terminal, parent: Option[Scope], variable: Terminal) = {
+
+    val (parentName, missingType) = parent match {
+      case Some(t: Task) => (s"task '${t.unqualifiedName}'" , "value")
+      case Some(t: TaskCall) => (s"task '${t.task.unqualifiedName}'" , "value")
+      case Some(other) => ("workflow", "value or call")
+      case None => ("", "")
+    }
+
+    s"""ERROR: Missing $missingType: Couldn't find $missingType with name '${variable.getSourceString}' in $parentName (line ${variable.getLine}):
         |
         |${pointToSource(variable)}
-        |
-        |Declaration starts here (line ${declarationName.getLine}, col ${declarationName.getColumn}):
-        |
-        |${pointToSource(declarationName)}
      """.stripMargin
   }
 

@@ -424,8 +424,9 @@ object WdlNamespace {
       expr <- declaration.expression.toSeq
       variable <- expr.variableReferences
       if declaration.resolveVariable(variable.sourceString).isEmpty
-    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsInvalidVariableReference(
+    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsAbsentReference(
       declarationName(declaration.ast),
+      declaration.parent,
       variable
     ))
 
@@ -477,7 +478,7 @@ object WdlNamespace {
       val lhs = ast.getAttribute("key").sourceString
       call.declarations.find(_.unqualifiedName == lhs) match {
         case Some(_) => None
-        case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesBadTaskInput(ast, call.task.ast)))
+        case None => Option(new SyntaxError(wdlSyntaxErrorFormatter.callReferencesAbsentTaskInput(ast, call.task.ast, lhs, call.unqualifiedName)))
       }
     }
 
@@ -490,15 +491,15 @@ object WdlNamespace {
       * Run for its side effect (i.e. Exception) but we were previously using a Try and immediately calling .get on it
       * so it's the same thing
       */
-
     val invalidMemberAccesses = callInputSections flatMap { ast =>
       ast.getAttribute("value").findTopLevelMemberAccesses flatMap { memberAccessAst =>
         val memberAccess = MemberAccess(memberAccessAst)
+        val requestedValue = memberAccess.rhs
         val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhs)
         resolvedScope match {
-          case Some(c: Call) if c.outputs.exists(_.unqualifiedName == memberAccess.rhs) => None
+          case Some(c: Call) if c.outputs.exists(_.unqualifiedName == requestedValue) => None
           case Some(c: Call) =>
-            Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesBadCallInput(memberAccessAst, c)))
+            Option(new SyntaxError(wdlSyntaxErrorFormatter.memberAccessReferencesAbsentCallOutput(memberAccessAst, c)))
           case Some(s: Scatter) => 
             s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
               case WdlArrayType(WdlObjectType) => None

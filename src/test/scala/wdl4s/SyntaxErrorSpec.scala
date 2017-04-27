@@ -1,13 +1,12 @@
 package wdl4s
 
-import better.files.File
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import wdl4s.util.StringUtil
 
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 class SyntaxErrorSpec extends FlatSpec with Matchers {
   private val psTaskWdl = """
@@ -63,15 +62,14 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Call references an input on task 'cgrep' that doesn't exist (line 7, col 12)
+      """ERROR: Call supplied an unexpected input: The 'cgrep' task doesn't have an input called 'BADin_file':
         |
         |    input: BADin_file=ps.procs
         |           ^
         |
-        |Task defined here (line 2, col 6):
-        |
-        |task cgrep {
-        |     ^
+        |Options:
+        | - Add the input 'BADin_file' to the 'cgrep' task (defined on line 2).
+        | - Remove 'BADin_file = ...' from cgrep's inputs (on line 7).
       """.stripMargin
   }
 
@@ -189,10 +187,14 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Expression references input on call that doesn't exist (line 6, col 23):
+      """ERROR: Call output not found: Call 'ps' doesn't have an output 'BAD' (line 6, col 23).
         |
         |    input: pattern=ps.BAD
         |                      ^
+        |
+        |Options:
+        | - Add the output 'BAD' to 'ps'.
+        | - Modify the member access (on line 6) to use an existing output (current outputs of 'ps': 'procs').
       """.stripMargin
   }
 
@@ -502,7 +504,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   }
 
   case object DeclarationVariableReferenceIntegrity extends ErrorWdl {
-    val testString = "detect when a task declaration references a variable that wasn't declared (1)"
+    val testString = "detect when a task declaration references a value that wasn't declared (1)"
     val wdl =
       """task a {
         |  Int x
@@ -516,20 +518,15 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Variable z does not reference any declaration in the task (line 3, col 15):
+      """ERROR: Missing value: Couldn't find value with name 'z' in task 'a' (line 3):
         |
         |  Int y = x + z
         |              ^
-        |
-        |Declaration starts here (line 3, col 7):
-        |
-        |  Int y = x + z
-        |      ^
       """.stripMargin
   }
 
   case object DeclarationVariableReferenceIntegrity2 extends ErrorWdl {
-    val testString = "detect when a task declaration references a variable that wasn't declared (2)"
+    val testString = "detect when a task declaration references a value that wasn't declared (2)"
     val wdl =
       """task a {
         |  Int x
@@ -544,15 +541,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Variable z does not reference any declaration in the task (line 3, col 15):
+      """ERROR: Missing value: Couldn't find value with name 'z' in task 'a' (line 3):
         |
         |  Int y = x + z
         |              ^
-        |
-        |Declaration starts here (line 3, col 7):
-        |
-        |  Int y = x + z
-        |      ^
       """.stripMargin
   }
 
@@ -699,8 +691,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
   }
 
-  case object WorkflowOutputReferenceNonExistingCall extends ErrorWdl {
-    val testString = "detect when a workflow output references a non existing call"
+  case object OldStyleWorkflowOutputReferenceNonExistingCall extends ErrorWdl {
+    val testString = "detect when an old-style workflow output references a non existing call"
     val wdl =
       """task t {
         | command {...}
@@ -717,10 +709,35 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Expression references output on call that doesn't exist (line 10, col 4):
+      """ERROR: Old style workflow output references 't.o' which doesn't exist (line 10, col 4):
         |
         |   t.o
         |   ^
+      """.stripMargin
+  }
+
+  case object NewStyleWorkflowOutputReferenceNonExistingCall extends ErrorWdl {
+    val testString = "detect when a new-style workflow output references a non existing call"
+    val wdl =
+      """task t {
+        | command {...}
+        | output {
+        |   String o = "output"
+        | }
+        |}
+        |
+        |workflow c {
+        | output {
+        |   String t_o = t.o
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """ERROR: Missing value or call: Couldn't find value or call with name 't' in workflow (line 10):
+        |
+        |   String t_o = t.o
+        |                ^
       """.stripMargin
   }
 
@@ -753,14 +770,16 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     MultipleVariableDeclarationsInScope3,
     MultipleVariableDeclarationsInScope4,
     MultipleVariableDeclarationsInScope5,
-    WorkflowOutputReferenceNonExistingCall
+    OldStyleWorkflowOutputReferenceNonExistingCall,
+    NewStyleWorkflowOutputReferenceNonExistingCall
   )
 
   forAll(syntaxErrorWdlTable) { (errorWdl) =>
     it should errorWdl.testString in {
         WdlNamespace.loadUsingSource(errorWdl.wdl, None, Option(Seq(resolver))) match {
           case Failure(e: SyntaxError) => normalizeErrorMessage(e.getMessage) shouldEqual normalizeErrorMessage(errorWdl.errors)
-          case x => fail(s"Expecting a SyntaxError but got $x")
+          case Failure(x) => throw new Exception(s"Expecting a SyntaxError but got $x", x)
+          case Success(_) => fail("Bad WDL unexpectedly validated.")
       }
     }
   }

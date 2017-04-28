@@ -309,7 +309,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def declarationContainsAbsentReference(declarationName: Terminal, parent: Option[Scope], variable: Terminal) = {
+  def declarationContainsReferenceToAbsentValue(parent: Option[Scope], variable: Terminal) = {
 
     val (parentName, missingType) = parent match {
       case Some(t: Task) => (s"task '${t.unqualifiedName}'" , "value")
@@ -318,11 +318,17 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
       case None => ("", "")
     }
 
-    s"""ERROR: Missing $missingType: Couldn't find $missingType with name '${variable.getSourceString}' in $parentName (line ${variable.getLine}):
-        |
-        |${pointToSource(variable)}
-     """.stripMargin
+    invalidVariableReference(variable, missingType, parentName)
   }
+
+  def scatterCollectionContainsInvalidVariableReference(scatter: Scatter, variable: Terminal) = invalidVariableReference(variable, "value", "workflow")
+
+  private def invalidVariableReference(variable: Terminal, missingType: String, parentName: String) =
+    s"""
+       |ERROR: Missing $missingType: Couldn't find $missingType with name '${variable.getSourceString}' in $parentName (line ${variable.getLine}):
+       |
+       |${pointToSource(variable)}
+       |""".stripMargin
 
   def memoryRuntimeAttributeInvalid(expressionStart: Terminal) = {
     s"""ERROR: 'memory' runtime attribute should have the format "size unit" (e.g. "8 GB").

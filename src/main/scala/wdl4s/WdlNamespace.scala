@@ -77,7 +77,6 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
 
   override def toString: String = s"[WdlNamespace importedAs=$importedAs]"
 
-
   /**
     * Confirm all required inputs are present and attempt to coerce raw inputs to `WdlValue`s.
     * This can fail if required raw inputs are missing or if the values for a specified raw input
@@ -357,7 +356,13 @@ object WdlNamespace {
       declaration <- getDecls(descendant)
       error <- validateDeclaration(declaration, wdlSyntaxErrorFormatter)
     } yield error
-    
+
+    val scatterErrors = for {
+      scatter <- namespace.descendants.collect { case sc: Scatter => sc }
+      expression = scatter.collection
+      badVariable <- referencesToAbsentValues(scatter, expression)
+    } yield new SyntaxError(wdlSyntaxErrorFormatter.scatterCollectionContainsInvalidVariableReference(scatter, badVariable))
+
     def scopeNameAndTerminal(scope: Scope): (String, Terminal) = {
       scope match {
         case ns: WdlNamespace => ("Namespace", imports.find(_.uri == ns.resource).get.namespaceTerminal)
@@ -399,7 +404,7 @@ object WdlNamespace {
       if !task.declarations.map(_.unqualifiedName).contains(variable.getSourceString)
     } yield new SyntaxError(wdlSyntaxErrorFormatter.commandExpressionContainsInvalidVariableReference(task.ast.getAttribute("name").asInstanceOf[Terminal], variable))
 
-    val all = workflowOutputErrors ++ declarationErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
+    val all = workflowOutputErrors ++ declarationErrors ++ scatterErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
 
     all.sortWith({ case (l, r) => l.getMessage < r.getMessage }) match {
       case s: Seq[SyntaxError] if s.nonEmpty => throw s.head
@@ -419,13 +424,17 @@ object WdlNamespace {
 
   private def declarationName(declarationAst: Ast): Terminal = declarationAst.getAttribute("name").asInstanceOf[Terminal]
 
+  /**
+    * Determine the list of references in this expression to values which were never declared
+    */
+  def referencesToAbsentValues(container: Scope, expression: WdlExpression): Iterable[Terminal] =
+    expression.variableReferences filter { variable => container.resolveVariable(variable.sourceString).isEmpty }
+
   def validateDeclaration(declaration: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
     val invalidVariableReferences = for {
       expr <- declaration.expression.toSeq
-      variable <- expr.variableReferences
-      if declaration.resolveVariable(variable.sourceString).isEmpty
-    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsAbsentReference(
-      declarationName(declaration.ast),
+      variable <- referencesToAbsentValues(declaration, expr)
+    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsReferenceToAbsentValue(
       declaration.parent,
       variable
     ))

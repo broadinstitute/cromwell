@@ -478,7 +478,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   }
 
   case object CommandExpressionVariableReferenceIntegrity extends ErrorWdl {
-    val testString = s"detect when expressions in command section reference only inputs of the task"
+    val testString = s"detect when expressions in command section reference missing task inputs"
     val wdl =
       """task a {
         |  Int x
@@ -548,6 +548,35 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
   }
 
+  case object ScatterVariableReferenceIntegrity extends ErrorWdl {
+    val testString = "detect when a scatter is given a missing variable"
+    val wdl =
+      """
+        |workflow scatter_referential_integrity {
+        |	scatter (x in xs) {
+        |	  call foo
+        |	}
+        |}
+        |
+        |task foo {
+        |	command {
+        |	  # no-op
+        |	}
+        |	runtime {
+        |	  docker: "ubuntu:latest"
+        |	}
+        |}
+        |
+      """.stripMargin
+    val errors =
+      """
+        |ERROR: Missing value: Couldn't find value with name 'xs' in workflow (line 3):
+        |
+        |	scatter (x in xs) {
+        |               ^
+      """.stripMargin
+  }
+
   case object MultipleVariableDeclarationsInScope extends ErrorWdl {
     val testString = "detect when a variable is declared more than once (1)"
     val wdl =
@@ -605,7 +634,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
   case object MultipleVariableDeclarationsInScope3 extends ErrorWdl {
     val testString = "detect when a variable is declared more than once (3)"
     val wdl =
-      """workflow c { 
+      """workflow c {
         | output {
         |   String o = "output"
         |   String o = "output2"
@@ -668,7 +697,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |
         |workflow c {
         | call t
-        | 
+        |
         | output {
         |   t.*
         |   t.o
@@ -765,6 +794,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     CommandExpressionVariableReferenceIntegrity,
     DeclarationVariableReferenceIntegrity,
     DeclarationVariableReferenceIntegrity2,
+    ScatterVariableReferenceIntegrity,
     MultipleVariableDeclarationsInScope,
     MultipleVariableDeclarationsInScope2,
     MultipleVariableDeclarationsInScope3,

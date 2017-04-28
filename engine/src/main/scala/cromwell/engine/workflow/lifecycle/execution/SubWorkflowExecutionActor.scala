@@ -92,9 +92,6 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case Event(SubWorkflowStoreRegisterSuccess(command), _) =>
       // Nothing to do here
       stay()
-    case Event(SubWorkflowStoreCompleteSuccess(command), _) =>
-      // Nothing to do here
-      stay()
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command")
       stay()

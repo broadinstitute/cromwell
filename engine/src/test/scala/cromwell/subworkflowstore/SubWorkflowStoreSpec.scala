@@ -72,17 +72,22 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       
       // Delete root workflow
       subWorkflowStoreService ! WorkflowComplete(rootWorkflowId)
-      expectMsgType[SubWorkflowStoreCompleteSuccess](MaxWait)
 
-      // Verify that everything is gone
-      subWorkflowStoreService ! QuerySubWorkflow(rootWorkflowId, jobKey)
-      expectMsgType[SubWorkflowNotFound](MaxWait)
+      // Verify that everything is gone (eventually!)
+      eventually {
+        subWorkflowStoreService ! QuerySubWorkflow(rootWorkflowId, jobKey)
+        expectMsgType[SubWorkflowNotFound](MaxWait)
+      }
 
-      subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
-      expectMsgType[SubWorkflowNotFound](MaxWait)
+      eventually {
+        subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
+        expectMsgType[SubWorkflowNotFound](MaxWait)
+      }
 
-      subWorkflowStoreService ! QuerySubWorkflow(subWorkflowId, jobKey)
-      expectMsgType[SubWorkflowNotFound](MaxWait)
+      eventually {
+        subWorkflowStoreService ! QuerySubWorkflow(subWorkflowId, jobKey)
+        expectMsgType[SubWorkflowNotFound](MaxWait)
+      }
     }
   }
 }

@@ -85,7 +85,9 @@ final case class ServiceAccountMode(override val name: String,
 
   private lazy val _credential: Credentials = {
     val serviceAccount = fileFormat match {
-      case PemFileFormat(accountId, _) => ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes)
+      case PemFileFormat(accountId, _) => 
+        log.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
+        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes)
       case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream).createScoped(scopes)
     }
     

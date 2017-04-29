@@ -1,6 +1,7 @@
 package cromwell.engine.io
 
 import java.net.{SocketException, SocketTimeoutException}
+import javax.net.ssl.SSLException
 
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
@@ -136,12 +137,26 @@ object IoActor {
     case _ => false
   }
 
+  val AdditionalRetryableHttpCodes = List(
+    // HTTP 410: Gone
+    // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
+    // "You have attempted to use a resumable upload session that is no longer available.
+    // If the reported status code was not successful and you still wish to upload the file, you must start a new session."
+    410,
+    // Some 503 errors seem to yield "false" on the "isRetryable" method because they are not retried.
+    // The CloudStorage exception mechanism is not flawless yet (https://github.com/GoogleCloudPlatform/google-cloud-java/issues/1545)
+    // so that could be the cause.
+    // For now explicitly lists 503 as a retryable code here to work around that.
+    503
+  )
+  
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable
+    case gcs: StorageException => gcs.isRetryable || AdditionalRetryableHttpCodes.contains(gcs.getCode) || isRetryable(gcs.getCause)
+    case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true

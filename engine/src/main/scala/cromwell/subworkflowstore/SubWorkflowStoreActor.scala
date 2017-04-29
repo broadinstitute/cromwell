@@ -46,7 +46,7 @@ class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with Actor
 
   private def workflowComplete(replyTo: ActorRef, command: WorkflowComplete) = {
     database.removeSubWorkflowStoreEntries(command.workflowExecutionUuid.toString) onComplete {
-      case Success(_) => replyTo ! SubWorkflowStoreCompleteSuccess(command)
+      case Success(_) => // No-op
       case Failure(ex) => replyTo ! SubWorkflowStoreFailure(command, ex)
     }
   }
@@ -63,7 +63,6 @@ object SubWorkflowStoreActor {
   case class SubWorkflowStoreRegisterSuccess(command: RegisterSubWorkflow) extends SubWorkflowStoreActorResponse
   case class SubWorkflowFound(subWorkflowStoreEntry: SubWorkflowStoreEntry) extends SubWorkflowStoreActorResponse
   case class SubWorkflowNotFound(command: QuerySubWorkflow) extends SubWorkflowStoreActorResponse
-  case class SubWorkflowStoreCompleteSuccess(command: SubWorkflowStoreActorCommand) extends SubWorkflowStoreActorResponse
   
   case class SubWorkflowStoreFailure(command: SubWorkflowStoreActorCommand, failure: Throwable) extends SubWorkflowStoreActorResponse
   

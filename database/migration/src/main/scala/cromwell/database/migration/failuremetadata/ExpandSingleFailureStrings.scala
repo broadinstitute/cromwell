@@ -32,10 +32,10 @@ class ExpandSingleFailureStrings extends BatchedTaskChange {
 
   override val migrateBatchQueries = List(
     // Modify the existing element, changing failures[x] to failures[x]:message
-    s"UPDATE $tableName SET $metadataKeyColumn = ? WHERE $primaryKeyColumn = ?;",
+    s"UPDATE $tableName SET $metadataKeyColumn = ? WHERE $primaryKeyColumn = ?",
     // Insert a new element, to contain the empty causedBy[]
     s"""INSERT INTO $tableName ($workflowIdColumn, $metadataKeyColumn, $callFqnColumn, $jobScatterIndexColumn, $retryAttemptColumn, $metadataTimestampColumn)
-       | VALUES (?, ?, ?, ?, ?, ?);
+       | VALUES (?, ?, ?, ?, ?, ?)
      """.stripMargin
   )
 
@@ -47,7 +47,7 @@ class ExpandSingleFailureStrings extends BatchedTaskChange {
     val oldKey = readRow.getString(metadataKeyColumn)
     val callFqn = readRow.getString(callFqnColumn)
     val jobScatterIndex = readRow.getObject(jobScatterIndexColumn)
-    val retryAttempt = readRow.getInt(retryAttemptColumn)
+    val retryAttempt = readRow.getObject(retryAttemptColumn)
     val metadataTimestamp = readRow.getObject(metadataTimestampColumn)
 
     val modifiedKey = oldKey + ":message"
@@ -61,7 +61,7 @@ class ExpandSingleFailureStrings extends BatchedTaskChange {
     insertStatement.setString(2, insertKey)
     insertStatement.setString(3, callFqn)
     insertStatement.setObject(4, jobScatterIndex)
-    insertStatement.setInt(5, retryAttempt)
+    insertStatement.setObject(5, retryAttempt)
     insertStatement.setObject(6, metadataTimestamp)
     insertStatement.addBatch()
 

@@ -53,7 +53,6 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
 
           // Nothing should happen here:
           helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
-          helper.callCacheWriteActorCreations should be(NothingYet) // Rely on the await timeout from the previous step to allow time to pass
 
           // Send the response from the copying actor
           ejea ! successResponse
@@ -79,7 +78,6 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           ejhaResponse foreach { resp =>
             // Nothing should have happened yet:
             helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
-            helper.callCacheWriteActorCreations should be(NothingYet) // Rely on the await timeout from the previous step to allow time to pass
 
             // Ok, now send the response from the EJHA (if there was one!):
             ejea ! resp
@@ -129,7 +127,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, initialHashData, None))
           }
 
-          s"invalidate a call for caching if backend coping failed (preserving and received hashes) when call caching is $mode, the EJEA has $hashComboName and then gets a success result" in {
+          s"invalidate a call for caching if backend copying failed (preserving and received hashes) when call caching is $mode, the EJEA has $hashComboName and then gets a success result" in {
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
             // Send the response from the EJHA (if there was one!):
             ejhaResponse foreach {
@@ -138,7 +136,6 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
 
             // Nothing should happen here:
             helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
-            helper.callCacheWriteActorCreations should be(NothingYet) // Rely on the await timeout from the previous step to allow time to pass
 
             // Send the response from the copying actor
             ejea ! failureNonRetryableResponse

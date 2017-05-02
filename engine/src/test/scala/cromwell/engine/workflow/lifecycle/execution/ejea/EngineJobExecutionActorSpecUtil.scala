@@ -26,12 +26,6 @@ private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExe
   def expectCacheWrite(expectedResponse: JobSucceededResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
     eventually { ejea.stateName should be(UpdatingCallCache) }
     ejea.stateData should be(SucceededResponseData(expectedResponse, Some(Success(expectedCallCacheHashes))))
-    helper.callCacheWriteActorCreations match {
-      case GotOne(creation) =>
-        creation._1 should be(expectedCallCacheHashes)
-        creation._2 should be(expectedResponse)
-      case _ => fail("Expected exactly one cache write actor creation.")
-    }
     ()
   }
 }

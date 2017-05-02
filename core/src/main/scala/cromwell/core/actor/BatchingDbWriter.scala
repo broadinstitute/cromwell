@@ -1,5 +1,6 @@
 package cromwell.core.actor
 
+import akka.actor.ActorRef
 import cats.data.NonEmptyVector
 import org.slf4j.LoggerFactory
 
@@ -48,4 +49,6 @@ object BatchingDbWriter {
   case object DbWriteComplete extends BatchingDbWriterMessage
   case object FlushBatchToDb extends BatchingDbWriterMessage
   case object ScheduledFlushToDb extends BatchingDbWriterMessage
+
+  case class CommandAndReplyTo[C](command: C, replyTo: ActorRef)
 }

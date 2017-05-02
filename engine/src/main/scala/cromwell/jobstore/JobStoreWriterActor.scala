@@ -1,12 +1,11 @@
 package cromwell.jobstore
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.{LoggingFSM, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
-import cromwell.jobstore.JobStoreWriterActor._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -43,7 +42,7 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
       goto(WaitingToWrite)
     case Event(FlushBatchToDb, HasData(data)) =>
       log.debug("Flushing {} job store commands to the DB", data.length)
-      val completions = data.toVector.collect({ case CommandAndReplyTo(c, _) => c.completion })
+      val completions = data.toVector.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
 
       if (completions.nonEmpty) {
         val workflowCompletions = completions collect { case w: WorkflowCompletion => w }
@@ -54,7 +53,7 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
 
         jsd.writeToDatabase(workflowCompletions, jobCompletions, dbBatchSize) onComplete {
           case Success(_) =>
-            data map { case CommandAndReplyTo(c, r) => r ! JobStoreWriteSuccess(c) }
+            data map { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
             self ! DbWriteComplete
           case Failure(regerts) =>
             log.error("Failed to properly job store entries to database", regerts)
@@ -74,8 +73,6 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
 }
 
 object JobStoreWriterActor {
-
-  case class CommandAndReplyTo(command: JobStoreWriterCommand, replyTo: ActorRef)
 
   def props(jobStoreDatabase: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration): Props = Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate)).withDispatcher(EngineDispatcher)
 }

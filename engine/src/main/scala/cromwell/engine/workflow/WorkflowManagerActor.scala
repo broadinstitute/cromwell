@@ -48,13 +48,14 @@ object WorkflowManagerActor {
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             abortJobsOnTerminate: Boolean,
             serverMode: Boolean): Props = {
     val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, ioActor, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection,
+      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection,
       abortJobsOnTerminate, serverMode)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
@@ -95,6 +96,7 @@ case class WorkflowManagerActorParams(config: Config,
                                       jobStoreActor: ActorRef,
                                       subWorkflowStoreActor: ActorRef,
                                       callCacheReadActor: ActorRef,
+                                      callCacheWriteActor: ActorRef,
                                       dockerHashActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
@@ -290,7 +292,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     }
 
     val wfProps = WorkflowActor.props(workflowId, startMode, workflow.sources, config, params.ioActor, params.serviceRegistryActor,
-      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor,
+      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.callCacheWriteActor,
       params.dockerHashActor, params.jobTokenDispenserActor,
       params.backendSingletonCollection, params.serverMode)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")

@@ -58,6 +58,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec {
   private val ioActor = system.actorOf(SimpleIoActor.props)
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+  private val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
   private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
   private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
 
@@ -71,6 +72,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec {
       jobStoreActor = jobStore,
       subWorkflowStoreActor = subWorkflowStore,
       callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection = BackendSingletonCollection(Map.empty),

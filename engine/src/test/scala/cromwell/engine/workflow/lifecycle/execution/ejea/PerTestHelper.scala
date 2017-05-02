@@ -4,7 +4,6 @@ import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
-import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
@@ -13,7 +12,6 @@ import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
 import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlExpressionMock}
@@ -60,7 +58,6 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[TaskOutput])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
-  var callCacheWriteActorCreations: ExpectOne[(CallCacheHashes, JobSucceededResponse)] = NothingYet
   var invalidateCacheActorCreations: ExpectOne[CallCachingEntryId] = NothingYet
 
   val deathwatch = TestProbe()
@@ -72,6 +69,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val ioActorProbe = TestProbe()
   val jobStoreProbe = TestProbe()
   val callCacheReadActorProbe = TestProbe()
+  val callCacheWriteActorProbe = TestProbe()
   val dockerHashActorProbe = TestProbe()
   val callCacheHitCopyingProbe = TestProbe()
   val jobPreparationProbe = TestProbe()
@@ -137,6 +135,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       ioActor = ioActorProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
       callCacheReadActor = callCacheReadActorProbe.ref,
+      callCacheWriteActor = callCacheWriteActorProbe.ref,
       dockerHashActor = dockerHashActorProbe.ref,
       jobTokenDispenserActor = jobTokenDispenserProbe.ref,
       backendName = "NOT USED",
@@ -160,14 +159,14 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              ioActor: ActorRef,
                              jobStoreActor: ActorRef,
                              callCacheReadActor: ActorRef,
+                             callCacheWriteActor: ActorRef,
                              dockerHashActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
                              backendName: String,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
+                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
   override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = Success(helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity)))
-  override def createSaveCacheResultsActor(hashes: CallCacheHashes, success: JobSucceededResponse) = helper.callCacheWriteActorCreations = helper.callCacheWriteActorCreations.foundOne((hashes, success))
   override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = { helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId) }
   override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref
 }

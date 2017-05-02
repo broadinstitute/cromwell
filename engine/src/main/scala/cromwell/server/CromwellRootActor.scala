@@ -21,7 +21,7 @@ import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.IoActor
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
@@ -81,6 +81,8 @@ import scala.language.postfixOps
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")
+
+  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache), "CallCacheWriteActor")
   
   // Docker Actor
   lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
@@ -110,7 +112,7 @@ import scala.language.postfixOps
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor,
+      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
     dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
     "WorkflowManagerActor")
 

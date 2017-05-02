@@ -7,7 +7,7 @@ import cromwell.database.sql.tables.CallCachingEntry
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CallCachingSqlDatabase {
-  def addCallCaching(callCachingJoin: CallCachingJoin)(implicit ec: ExecutionContext): Future[Unit]
+  def addCallCaching(joins: Seq[CallCachingJoin], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit]
 
   def queryCallCachingEntryIds(hashKeyHashValues: NonEmptyList[(String, String)])
                               (implicit ec: ExecutionContext): Future[Seq[Int]]

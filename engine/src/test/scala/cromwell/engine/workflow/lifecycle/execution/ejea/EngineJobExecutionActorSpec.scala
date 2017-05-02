@@ -39,8 +39,7 @@ trait EngineJobExecutionActorSpec extends CromwellTestKitWordSpec
     List(
       ("FetchCachedResultsActor", helper.fetchCachedResultsActorCreations),
       ("JobHashingActor", helper.jobHashingInitializations),
-      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations),
-      ("CallCacheWriteActor", helper.callCacheWriteActorCreations)) foreach {
+      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations)) foreach {
       case (name, GotTooMany(list)) => fail(s"Too many $name creations (${list.size})")
       case _ => // Fine.
     }

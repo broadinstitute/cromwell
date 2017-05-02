@@ -18,7 +18,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
   val hashError = HashError(new Exception("ARGH!!!"))
 
   "A 'RunningJob' EJEA" should {
-    CallCachingModes foreach { case mode =>
+    CallCachingModes foreach { mode =>
       val andMaybeCallCacheHashes = if (mode.writeToCache) "then CallCacheHashes " else ""
       s"Handle receiving a SucceededResponse ${andMaybeCallCacheHashes}correctly in $mode mode" in {
         ejea = ejeaInRunningState(mode)
@@ -94,7 +94,6 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
       ejea ! abortedResponse
 
       helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "parent wants the response", abortedResponse)
-      helper.callCacheWriteActorCreations should be(NothingYet)
 
       helper.deathwatch.expectTerminated(ejea, awaitTimeout)
       // Make sure nothing was sent to the JobStore or CacheResultSaver in the meanwhile:

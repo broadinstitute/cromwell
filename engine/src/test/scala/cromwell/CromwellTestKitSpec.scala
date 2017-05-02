@@ -18,6 +18,8 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteSuccess
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
@@ -479,8 +481,18 @@ class EmptyCallCacheReadActor extends Actor {
   }
 }
 
+class EmptyCallCacheWriteActor extends Actor {
+  override def receive: Receive = {
+    case SaveCallCacheHashes => sender ! CallCacheWriteSuccess
+  }
+}
+
 object EmptyCallCacheReadActor {
   def props: Props = Props(new EmptyCallCacheReadActor)
+}
+
+object EmptyCallCacheWriteActor {
+  def props: Props = Props(new EmptyCallCacheWriteActor)
 }
 
 class EmptyDockerHashActor extends Actor {

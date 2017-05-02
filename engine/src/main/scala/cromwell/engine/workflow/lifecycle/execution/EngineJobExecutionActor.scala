@@ -27,6 +27,7 @@ import wdl4s.TaskOutput
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
+import CallCacheWriteActor._
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
@@ -38,6 +39,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               ioActor: ActorRef,
                               jobStoreActor: ActorRef,
                               callCacheReadActor: ActorRef,
+                              callCacheWriteActor: ActorRef,
                               dockerHashActor: ActorRef,
                               jobTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
@@ -447,12 +449,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     s"$workflowIdForLogging-BackendCacheHitCopyingActor-$jobTag-${cacheResultId.id}"
   }
 
-  protected def createSaveCacheResultsActor(hashes: CallCacheHashes, success: JobSucceededResponse): Unit = {
-    val callCache = new CallCache(SingletonServicesStore.databaseInterface)
-    context.actorOf(CallCacheWriteActor.props(callCache, workflowIdForLogging, hashes, success), s"CallCacheWriteActor-$tag")
-    ()
-  }
-
   private def invalidateCacheHitAndTransition(cacheId: CallCachingEntryId, data: ResponsePendingData, reason: Throwable) = {
     val invalidationRequired = effectiveCallCachingMode match {
       case CallCachingOff => throw new RuntimeException("Should not be calling invalidateCacheHit if call caching is off!") // Very unexpected. Fail out of this bad-state EJEA.
@@ -474,7 +470,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {
-    createSaveCacheResultsActor(hashes, data.successResponse)
+    callCacheWriteActor ! SaveCallCacheHashes(workflowIdForLogging, hashes, data)
     val updatedData = data.copy(hashes = Option(Success(hashes)))
     goto(UpdatingCallCache) using updatedData
   }
@@ -546,6 +542,7 @@ object EngineJobExecutionActor {
             ioActor: ActorRef,
             jobStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
@@ -562,6 +559,7 @@ object EngineJobExecutionActor {
       ioActor = ioActor,
       jobStoreActor = jobStoreActor,
       callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
       dockerHashActor = dockerHashActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonActor = backendSingletonActor,

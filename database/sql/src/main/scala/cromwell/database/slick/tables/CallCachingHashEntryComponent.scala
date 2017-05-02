@@ -28,7 +28,7 @@ trait CallCachingHashEntryComponent {
       index("UC_CALL_CACHING_HASH_ENTRY_CCEI_HK", (callCachingEntryId, hashKey), unique = true)
   }
 
-  protected val callCachingHashEntries = TableQuery[CallCachingHashEntries]
+  val callCachingHashEntries = TableQuery[CallCachingHashEntries]
 
   val callCachingHashEntryIdsAutoInc = callCachingHashEntries returning
     callCachingHashEntries.map(_.callCachingHashEntryId)

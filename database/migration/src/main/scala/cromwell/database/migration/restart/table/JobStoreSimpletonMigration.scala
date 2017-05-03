@@ -52,7 +52,7 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
     def buildJobStoreSimpletonEntries(name: String, wdlValue: WdlValue, wdlType: WdlType) = Option(wdlValue) match {
       case None => List(JobStoreSimpletonEntry(name, null, wdlType.toWdlString))
       case Some(v) => wdlValue.simplify(name) map { s =>
-        JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.toWdlString, s.simpletonValue.wdlType.toWdlString)
+        JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.valueString, s.simpletonValue.wdlType.toWdlString)
       }
     }
 

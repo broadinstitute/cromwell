@@ -6,34 +6,18 @@
 
 * Call Caching has been improved in this version of Cromwell, specifically the time needed to determine whether or not a job can be cached
  has drastically decreased. To achieve that the database schema has been modified and a migration is required in order to preserve the pre-existing cached jobs.
- This migration is fast, in the order of a few minutes at most. It will only be executed on MySQL. Other databases will lose their previous cached jobs.
+ This migration should not take more than few minutes. It will only be executed on MySQL. Other databases will lose their previous cached jobs.
  In order to run properly on MySQL, the following flag needs to be adjusted: https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_group_concat_max_len
- The following query will give you a minimum to set the group_concat_max_len value:
+ The following query will give you a minimum to set the group_concat_max_len value to:
  
  ```sql
- SELECT GREATEST(MAX(baseAggregation), MAX(filesAggregation)) as group_concat_max_len FROM
-       (
-             SELECT cche.CALL_CACHING_ENTRY_ID, LENGTH(GROUP_CONCAT(
-                               cche.HASH_VALUE ORDER BY cche.HASH_KEY ASC SEPARATOR ''
-                           )) AS baseAggregation
-             FROM CALL_CACHING_HASH_ENTRY cche
-                   JOIN CALL_CACHING_ENTRY cce ON cche.CALL_CACHING_ENTRY_ID = cce.CALL_CACHING_ENTRY_ID
-             WHERE HASH_KEY NOT LIKE 'input: File%'
-             GROUP BY cche.CALL_CACHING_ENTRY_ID
-       ) base
- JOIN (
-            SELECT cche.CALL_CACHING_ENTRY_ID, LENGTH(GROUP_CONCAT(
-                              cche.HASH_VALUE ORDER BY cche.HASH_KEY ASC SEPARATOR ''
-                          )) AS filesAggregation
+SELECT MAX(aggregated) as group_concat_max_len FROM
+      (
+            SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(cche.HASH_VALUE)) AS aggregated
             FROM CALL_CACHING_HASH_ENTRY cche
-                  JOIN CALL_CACHING_ENTRY cce ON cche.CALL_CACHING_ENTRY_ID = cce.CALL_CACHING_ENTRY_ID
-            WHERE HASH_KEY LIKE 'input: File%'
             GROUP BY cche.CALL_CACHING_ENTRY_ID
-      ) files
- ON base.CALL_CACHING_ENTRY_ID = files.CALL_CACHING_ENTRY_ID;
+      ) aggregation
  ```
- 
- To avoid surprises, we recommend rounding this number up to the next order.
 
 ### Breaking Changes
 

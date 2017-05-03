@@ -17,17 +17,25 @@ object Workflow {
     }
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
     val callNames = ast.findAsts(AstNodeName.Call).map {call =>
-      Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task"))
+      ("Call", Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task")))
     }
+    val declarationNames = ast.findAsts(AstNodeName.Declaration).map {decl =>
+      ("Declaration", decl.getAttribute("name"))
+    }
+
     val workflowOutputsWildcards = ast.findAsts(AstNodeName.WorkflowOutputWildcard) map { wfOutput =>
       val wildcard = Option(wfOutput.getAttribute("wildcard")).map(_.sourceString).getOrElse("").nonEmpty
       val outputFqn = name + "." + wfOutput.getAttribute("fqn").sourceString
       WorkflowOutputWildcard(outputFqn, wildcard, wfOutput)
     }
 
-    callNames groupBy { _.sourceString } foreach {
+    (callNames ++ declarationNames) groupBy { _._2.sourceString } foreach {
       case (_, terminals) if terminals.size > 1 =>
-        throw new SyntaxError(wdlSyntaxErrorFormatter.multipleCallsAndHaveSameName(terminals.asInstanceOf[Seq[Terminal]]))
+        val castedToTerminal = terminals map { case (astType, terminalAst) => (astType, terminalAst.asInstanceOf[Terminal])
+
+        }
+
+        throw new SyntaxError(wdlSyntaxErrorFormatter.multipleCallsAndHaveSameName(castedToTerminal))
       case _ =>
     }
 

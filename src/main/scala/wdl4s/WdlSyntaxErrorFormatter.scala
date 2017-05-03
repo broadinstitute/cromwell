@@ -150,15 +150,15 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WdlSource]) extend
      """.stripMargin
   }
 
-  def multipleCallsAndHaveSameName(names: Seq[Terminal]): String = {
-    val duplicatedCallNames = names.map {name =>
-      s"""Call statement here (line ${name.getLine}, column ${name.getColumn}):
+  def multipleCallsAndHaveSameName(names: Seq[(String, Terminal)]): String = {
+    val duplicatedCallNames = names.map { case (astType, name) =>
+      s"""${astType} statement here (line ${name.getLine}, column ${name.getColumn}):
         |
         |${pointToSource(name)}
       """.stripMargin
     }
 
-    s"""ERROR: Two or more calls have the same name:
+    s"""ERROR: Two or more calls or values in the workflow have the same name:
        |
        |${duplicatedCallNames.mkString("\n")}
      """.stripMargin

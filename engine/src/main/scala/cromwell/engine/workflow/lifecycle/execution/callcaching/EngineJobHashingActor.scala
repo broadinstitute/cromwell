@@ -103,7 +103,7 @@ object EngineJobHashingActor {
   case class CacheHit(cacheResultId: CallCachingEntryId) extends EJHAResponse
   case class HashError(reason: Throwable) extends EJHAResponse
   case class FileHashes(hashes: Set[HashResult], aggregatedHash: String)
-  case class CallCacheHashes(initialHashes: Set[HashResult], aggregatedInitialHash: String, fileHashes: Option[FileHashes]) {
+  case class CallCacheHashes(initialHashes: Set[HashResult], aggregatedInitialHash: String, fileHashes: Option[FileHashes]) extends EJHAResponse {
     val hashes = initialHashes ++ fileHashes.map(_.hashes).getOrElse(Set.empty)
   }
 

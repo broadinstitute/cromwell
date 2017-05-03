@@ -6,7 +6,9 @@
 
 * Call Caching has been improved in this version of Cromwell, specifically the time needed to determine whether or not a job can be cached
  has drastically decreased. To achieve that the database schema has been modified and a migration is required in order to preserve the pre-existing cached jobs.
- This migration should not take more than few minutes. It will only be executed on MySQL. Other databases will lose their previous cached jobs.
+ This migration is relatively fast compared to previous migrations. To get an idea of the time needed, look at the size of your `CALL_CACHING_HASH_ENTRY` table.
+ As a landmark, it takes 1 minute for a table with 6 million rows.
+ The migration will only be executed on MySQL. Other databases will lose their previous cached jobs.
  In order to run properly on MySQL, the following flag needs to be adjusted: https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_group_concat_max_len
  The following query will give you a minimum to set the group_concat_max_len value to:
  

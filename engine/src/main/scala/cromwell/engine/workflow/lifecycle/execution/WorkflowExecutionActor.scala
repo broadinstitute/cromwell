@@ -8,7 +8,6 @@ import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey, 
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
-import cromwell.core.WorkflowOptions.WorkflowFailureMode
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
@@ -246,7 +245,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   private def handleExecutionFailure(failedJobKey: JobKey, data: WorkflowExecutionActorData, reason: Throwable, jobExecutionMap: JobExecutionMap) = {
     val newData = data.executionFailed(failedJobKey)
     
-    if (workflowDescriptor.getWorkflowOption(WorkflowFailureMode).contains(ContinueWhilePossible.toString)) {
+    if (workflowDescriptor.failureMode == ContinueWhilePossible) {
       newData.workflowCompletionStatus match {
         case Some(completionStatus) if completionStatus == Failed =>
           context.parent ! WorkflowExecutionFailedResponse(newData.jobExecutionMap, reason)

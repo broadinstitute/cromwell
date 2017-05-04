@@ -3,6 +3,7 @@ package cromwell.engine.io.nio
 import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.scaladsl.Flow
 import cromwell.core.io._
+import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.Retry
 import cromwell.engine.io.IoActor
 import cromwell.engine.io.IoActor.{DefaultCommandContext, IoResult}
@@ -45,11 +46,13 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
   val flow = Flow[DefaultCommandContext[_]].mapAsyncUnordered[IoResult](parallelism)(processCommand)
   
   private def copy(copy: IoCopyCommand) = Future {
+    createDirectoriesForSFSPath(copy.destination)
     copy.source.copyTo(copy.destination, copy.overwrite)
     ()
   }
 
   private def write(write: IoWriteCommand) = Future {
+    createDirectoriesForSFSPath(write.file)
     write.file.write(write.content)(write.openOptions, Codec.UTF8)
     ()
   }
@@ -76,5 +79,9 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
         }
       )
     }
+  }
+  
+  private def createDirectoriesForSFSPath(path: Path) = path match {
+    case _: DefaultPath => path.createPermissionedDirectories()
   }
 }

@@ -83,5 +83,6 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
   
   private def createDirectoriesForSFSPath(path: Path) = path match {
     case _: DefaultPath => path.createPermissionedDirectories()
+    case _ =>
   }
 }

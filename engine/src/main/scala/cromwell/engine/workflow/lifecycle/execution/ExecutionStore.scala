@@ -88,7 +88,11 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     */
   def runnableScopes: (List[JobKey], Boolean) = {
     val readyToStart = keysWithStatus(NotStarted).toStream filter arePrerequisitesDone
-    (readyToStart.take(ExecutionStore.MaxJobsToStartPerTick).toList, readyToStart.size > ExecutionStore.MaxJobsToStartPerTick)
+    // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable scopes
+    val scopesToStartPlusOne = readyToStart.take(ExecutionStore.MaxJobsToStartPerTick + 1).toList
+    // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
+    // Use the fact that we took one more to determine whether or not we truncated the result.
+    (scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
   }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {

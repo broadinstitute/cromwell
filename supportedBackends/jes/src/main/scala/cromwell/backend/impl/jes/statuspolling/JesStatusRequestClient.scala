@@ -1,7 +1,7 @@
 package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.JesApiQueryFailed
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiQueryStatusFailed}
 import cromwell.backend.impl.jes.{Run, RunStatus}
 
 import scala.concurrent.{Future, Promise}
@@ -23,7 +23,7 @@ trait JesStatusRequestClient { this: Actor with ActorLogging =>
     case r: RunStatus =>
       log.debug(s"Polled status received: $r")
       completePromise(Success(r))
-    case JesApiQueryFailed(_, e) =>
+    case JesApiQueryStatusFailed(_, e) =>
       log.debug("JES poll failed!")
       completePromise(Failure(e))
   }

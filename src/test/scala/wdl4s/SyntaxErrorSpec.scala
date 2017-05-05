@@ -273,7 +273,7 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val errors =
-      """ERROR: Two or more calls have the same name:
+      """ERROR: Two or more calls or values in the workflow have the same name:
         |
         |Call statement here (line 6, column 8):
         |
@@ -285,6 +285,72 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
         |  call x
         |       ^
         |
+      """.stripMargin
+  }
+
+  case object MultipleCallStatementsHaveTheSameName2 extends ErrorWdl {
+    val testString = "detect when a workflow has two calls with the same name (2)"
+    val wdl =
+      """workflow c {
+        | scatter (i in [0, 1]) {
+        |   call foo
+        | }
+        |
+        | scatter (i in [0, 1]) {
+        |   call foo
+        | }
+        |}
+        |task foo {
+        |  command {..}
+        |  output { String o = "o" }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Two or more calls or values in the workflow have the same name:
+         |
+         |Call statement here (line 3, column 9):
+         |
+         |   call foo
+         |        ^
+         |
+         |Call statement here (line 7, column 9):
+         |
+         |   call foo
+         |        ^
+      """.stripMargin
+  }
+
+  case object MultipleCallStatementsHaveTheSameName3 extends ErrorWdl {
+    val testString = "detect when a workflow has two calls with the same name (3)"
+    val wdl =
+      """workflow c {
+        | if (true) {
+        |   call foo
+        | }
+        |
+        | if (false) {
+        |   call foo
+        | }
+        |}
+        |task foo {
+        |  command {..}
+        |  output { String o = "o" }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Two or more calls or values in the workflow have the same name:
+         |
+         |Call statement here (line 3, column 9):
+         |
+         |   call foo
+         |        ^
+         |
+         |Call statement here (line 7, column 9):
+         |
+         |   call foo
+         |        ^
       """.stripMargin
   }
 
@@ -720,6 +786,115 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
   }
 
+  case object MultipleVariableDeclarationsInScope6 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (6)"
+    val wdl =
+      """workflow c {
+        | if (true) {
+        |   Int x = 5
+        | }
+        | if (false) {
+        |   Int x = 6
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Two or more calls or values in the workflow have the same name:
+         |
+         |Declaration statement here (line 3, column 8):
+         |
+         |   Int x = 5
+         |       ^
+         |
+         |Declaration statement here (line 6, column 8):
+         |
+         |   Int x = 6
+         |       ^
+      """.stripMargin
+  }
+
+  case object MultipleVariableDeclarationsInScope7 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (7)"
+    val wdl =
+      """workflow c {
+        | Int x = 5
+        | if (false) {
+        |   Int x = 6
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Two or more calls or values in the workflow have the same name:
+         |
+         |Declaration statement here (line 2, column 6):
+         |
+         | Int x = 5
+         |     ^
+         |
+         |Declaration statement here (line 4, column 8):
+         |
+         |   Int x = 6
+         |       ^
+      """.stripMargin
+  }
+
+  case object MultipleVariableDeclarationsInScope8 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (8)"
+    val wdl =
+      """workflow c {
+        | Int x = 5
+        | scatter (i in [0, 1]) {
+        |   Int x = 6
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Two or more calls or values in the workflow have the same name:
+         |
+         |Declaration statement here (line 2, column 6):
+         |
+         | Int x = 5
+         |     ^
+         |
+         |Declaration statement here (line 4, column 8):
+         |
+         |   Int x = 6
+         |       ^
+      """.stripMargin
+  }
+
+  case object MultipleVariableDeclarationsInScope9 extends ErrorWdl {
+    val testString = "detect when a variable is declared more than once (9)"
+    val wdl =
+      """workflow c {
+        | scatter (i in [0, 1]) {
+        |   Int x = 5
+        | }
+        |
+        | scatter (i in [0, 1]) {
+        |   Int x = 6
+        | }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Two or more calls or values in the workflow have the same name:
+         |
+         |Declaration statement here (line 3, column 8):
+         |
+         |   Int x = 5
+         |       ^
+         |
+         |Declaration statement here (line 7, column 8):
+         |
+         |   Int x = 6
+         |       ^
+      """.stripMargin
+  }
+
   case object OldStyleWorkflowOutputReferenceNonExistingCall extends ErrorWdl {
     val testString = "detect when an old-style workflow output references a non existing call"
     val wdl =
@@ -783,6 +958,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     UnexpectedSymbol,
     ExtraneousSymbol,
     MultipleCallStatementsHaveTheSameName,
+    MultipleCallStatementsHaveTheSameName2,
+    MultipleCallStatementsHaveTheSameName3,
     MultipleCallInputSections,
     MapParameterizedTypes,
     TypeMismatch1,
@@ -800,6 +977,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     MultipleVariableDeclarationsInScope3,
     MultipleVariableDeclarationsInScope4,
     MultipleVariableDeclarationsInScope5,
+    MultipleVariableDeclarationsInScope6,
+    MultipleVariableDeclarationsInScope7,
+    MultipleVariableDeclarationsInScope8,
+    MultipleVariableDeclarationsInScope9,
     OldStyleWorkflowOutputReferenceNonExistingCall,
     NewStyleWorkflowOutputReferenceNonExistingCall
   )

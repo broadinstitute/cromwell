@@ -20,7 +20,7 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import cromwell.engine._
-import cromwell.engine.backend.CromwellBackends
+import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -195,7 +195,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
-    val defaultBackendName = conf.as[Option[String]]("backend.default")
+    val defaultBackendName = BackendConfiguration.fromConfig(conf).DefaultBackendName
     val rawInputsValidation = validateRawInputs(sourceFiles.inputsJson)
 
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
@@ -256,19 +256,18 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
-  private def validateBackendAssignments(calls: Set[TaskCall], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[TaskCall, String]] = {
+  private def validateBackendAssignments(calls: Set[TaskCall], workflowOptions: WorkflowOptions,
+                                         defaultBackendName: String): ErrorOr[Map[TaskCall, String]] = {
     val callToBackendMap = Try {
       calls map { call =>
         val backendPriorities = Seq(
           workflowOptions.get(RuntimeBackendKey).toOption,
-          assignBackendUsingRuntimeAttrs(call),
-          defaultBackendName
-        )
+          assignBackendUsingRuntimeAttrs(call))
 
         backendPriorities.flatten.headOption match {
           case Some(backendName) if cromwellBackends.isValidBackendName(backendName) => call -> backendName
           case Some(backendName) => throw new Exception(s"Backend for call ${call.fullyQualifiedName} ('$backendName') not registered in configuration file")
-          case None => throw new Exception(s"No backend could be found for call ${call.fullyQualifiedName}")
+          case None => call -> defaultBackendName
         }
       } toMap
     }

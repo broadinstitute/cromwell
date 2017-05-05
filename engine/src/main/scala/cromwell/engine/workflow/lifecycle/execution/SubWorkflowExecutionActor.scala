@@ -192,7 +192,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
     factories flatMap {
       case (backendName, factory) =>
-        BackendConfiguration.backendConfigurationDescriptor(backendName).toOption map { config =>
+        BackendConfiguration.Global.backendConfigurationDescriptor(backendName).toOption map { config =>
           backendName -> factory.getWorkflowExecutionRootPath(subWorkflowDescriptor, config.backendConfig, initializationData.get(backendName))
         }
     } map {

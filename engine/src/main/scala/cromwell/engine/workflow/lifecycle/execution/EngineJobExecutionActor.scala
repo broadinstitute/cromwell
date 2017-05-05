@@ -13,8 +13,8 @@ import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed}
@@ -28,7 +28,6 @@ import wdl4s.TaskOutput
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
-import CallCacheWriteActor._
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,

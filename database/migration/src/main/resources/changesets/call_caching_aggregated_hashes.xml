@@ -44,13 +44,18 @@
 
     
     <changeSet author="tjeandet" id="call_caching_aggregation_entry_populate_aggregation" dbms="mysql">
-        <preConditions onFail="CONTINUE" onError="MARK_RAN" onFailMessage="The group_concat_max_len value on the MySQL server is too low for this migration to run. Please increase it and restart Cromwell to migrate your call caching data. See https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md for help on what value it should be set to.">
+        <preConditions onFailMessage="The group_concat_max_len value on the MySQL server is too low for this migration to run. Please increase it and restart Cromwell to migrate your call caching data. See https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md for help on what value it should be set to.">
             <sqlCheck expectedResult="1">
                 SELECT @@GLOBAL.group_concat_max_len >= MAX(aggregated) as group_concat_max_len FROM
                 (
                 SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(cche.HASH_VALUE)) AS aggregated
                 FROM CALL_CACHING_HASH_ENTRY cche
                 GROUP BY cche.CALL_CACHING_ENTRY_ID
+
+                -- Handle the case of the CALL_CACHING_HASH_ENTRY table possibly being empty by UNIONing to a fake row.
+                UNION
+
+                SELECT 0, 0 AS aggregated
                 ) aggregation
             </sqlCheck>
         </preConditions>

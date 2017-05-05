@@ -1,0 +1,20 @@
+approve_by_comment: true
+approve_regex: ':\+1:'
+reset_on_push: false
+author_approval: ignored
+reviewers:
+    required: 2
+    members:
+        - Horneth
+        - cjllanwarne
+        - francares
+        - gauravs90
+        - geoffjentry
+        - jainh
+        - jsotobroad
+        - katevoss
+        - kcibul
+        - kshakir
+        - mcovarr
+        - ruchim
+        - danbills

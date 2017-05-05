@@ -22,6 +22,9 @@ import wdl4s.values.WdlFile
   * If it was the last batch and all the files have been hashed, send all the hashes along with the aggregated file hash.
   * If at any point the callCacheReadingJobActor dies (either because it decided this was a CacheMiss or it found a successful
   * CacheHit), either keep hashing the files if writeToCache is true, or die if it's not.
+  * Both this actor and the CCRJA are children of the EJHA. 
+  * The CCRJA reports its findings (cache hit / miss) directly to the EJHA that forwards them to the EJEA.
+  * This actor does not need nor care about cache hit/miss.
   */
 class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                callCacheReadingJobActor: Option[ActorRef],
@@ -216,6 +219,9 @@ object CallCacheHashingJobActor {
                                          ) {
     private val md5Digest = MessageDigest.getInstance("MD5")
 
+    /**
+      * Returns the updated state data along with an optional message to be sent back to CCRJA and parent.
+      */
     def withFileHash(hashResult: HashResult): (CallCacheHashingJobActorData, Option[CCHJAFileHashResponse]) = {
       // Add the hash result to the list of known hash results
       val newFileHashResults = hashResult +: fileHashResults

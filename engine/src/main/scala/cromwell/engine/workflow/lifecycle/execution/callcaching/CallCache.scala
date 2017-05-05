@@ -77,10 +77,15 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
   
   def hasKeyValuePairHashMatch(hashes: Set[HashResult])(implicit ec: ExecutionContext): Future[Boolean] = {
-    val hashKeyValuePairs = NonEmptyList.fromListUnsafe(hashes.toList) map {
-      case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
+    hashes.toList match {
+        // Empty hashes should match nothing
+      case Nil => Future.successful(false)
+      case head :: tail =>
+        val hashKeyValuePairs = NonEmptyList.of(head, tail) map {
+          case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
+        }
+        database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
     }
-    database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
   }
 
   def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, hitNumber: Int)

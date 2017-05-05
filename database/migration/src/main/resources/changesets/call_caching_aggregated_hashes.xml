@@ -42,11 +42,25 @@
         </createIndex>
     </changeSet>
 
-    <changeSet author="tjeandet" id="call_caching_aggregation_entry_base_aggregation" dbms="mysql">
-        <sqlFile relativeToChangelogFile="true" path="call_caching_aggregation/call_caching_base_aggregation.sql" />
-    </changeSet>
     
-    <changeSet author="tjeandet" id="call_caching_aggregation_entry_input_files_aggregation" dbms="mysql">
+    <changeSet author="tjeandet" id="call_caching_aggregation_entry_populate_aggregation" dbms="mysql">
+        <preConditions onFail="CONTINUE" onError="MARK_RAN" onFailMessage="The group_concat_max_len value on the MySQL server is too low for this migration to run. Please increase it and restart Cromwell to migrate your call caching data. See https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md for help on what value it should be set to.">
+            <sqlCheck expectedResult="1">
+                SELECT @@GLOBAL.group_concat_max_len >= MAX(aggregated) as group_concat_max_len FROM
+                (
+                SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(cche.HASH_VALUE)) AS aggregated
+                FROM CALL_CACHING_HASH_ENTRY cche
+                GROUP BY cche.CALL_CACHING_ENTRY_ID
+                ) aggregation
+            </sqlCheck>
+        </preConditions>
+        <comment>This changeset will only be run if the group_concat_max_len flag has a value that will allow it to run successfully</comment>
+        
+        <sqlFile relativeToChangelogFile="true" path="call_caching_aggregation/call_caching_base_aggregation.sql" />
         <sqlFile relativeToChangelogFile="true" path="call_caching_aggregation/call_caching_input_files_aggregation.sql" />
+
+        <rollback>
+            <delete tableName="CALL_CACHING_AGGREGATION_ENTRY" />
+        </rollback>
     </changeSet>
 </databaseChangeLog>

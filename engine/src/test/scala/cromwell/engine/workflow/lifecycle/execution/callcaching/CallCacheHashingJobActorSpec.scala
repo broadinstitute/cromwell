@@ -126,7 +126,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   it should "send hash file requests when receiving a NextBatchOfFileHashesRequest" in {
     val callCacheReadProbe = TestProbe()
     val fileHashingActor = TestProbe()
-    // self acts as the parent
+    
     val cchja = makeCCHJA(Option(callCacheReadProbe.ref), fileHashingActor.ref, TestProbe().ref)
 
     val fileHashRequest1 = mock[SingleFileHashRequest]
@@ -146,7 +146,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   it should "send NoFileHashesResult and stop if there are no input files" in {
     val parent = TestProbe()
     val callCacheReadProbe = TestProbe()
-    // self acts as the parent
+    
     val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, parent.ref)
     parent.watch(cchja)
     
@@ -171,7 +171,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     
     val result: PartialFileHashingResult = PartialFileHashingResult(hashResults)
     val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
-    // self acts as the parent
+    
     val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, TestProbe().ref, writeToCache = true, Option(newData -> Option(result)))
 
     cchja.setState(HashingFiles)

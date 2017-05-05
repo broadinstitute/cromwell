@@ -72,7 +72,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   
   override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
                                (implicit ec: ExecutionContext): Future[Boolean] = {
-    val action = dataAccess.callCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
+    val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
   }

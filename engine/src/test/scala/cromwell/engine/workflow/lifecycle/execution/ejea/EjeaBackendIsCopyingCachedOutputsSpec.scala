@@ -20,7 +20,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
     val hashResultsDataValue = Some(Success(SuccessfulCallCacheHashes))
     val hashErrorDataValue = Some(Failure(hashErrorCause))
 
-    val hashResultsEjhaResponse: Some[CallCacheHashes] = Some(SuccessfulCallCacheHashes)
+    val hashResultsEjhaResponse: Option[CallCacheHashes] = Some(SuccessfulCallCacheHashes)
     val hashErrorEjhaResponse = Some(HashError(hashErrorCause))
 
     case class InitialHashDataAndEjhaResponseCombination(name: String,

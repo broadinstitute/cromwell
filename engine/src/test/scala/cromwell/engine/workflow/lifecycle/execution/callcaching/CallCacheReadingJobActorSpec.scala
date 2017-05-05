@@ -46,7 +46,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
     val parent = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), parent.ref)
     parent.watch(actorUnderTest)
     
@@ -60,7 +60,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
   it should "try to match partial file hashes against DB" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), TestProbe().ref)
 
     actorUnderTest.setState(WaitingForFileHashes)
@@ -77,7 +77,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
   it should "ask for matching cache entries for both aggregated hashes when got both" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), TestProbe().ref)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -97,7 +97,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
   it should "ask for matching cache entries for initial hashes when there is no file input" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), TestProbe().ref)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -116,7 +116,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
     val parent = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), parent.ref)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -136,7 +136,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
     val parent = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), parent.ref)
     parent.watch(actorUnderTest)
     
@@ -152,7 +152,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
   it should "ask callCacheReadActor for next hit when requested (initial hash only)" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), TestProbe().ref)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -167,7 +167,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
   it should "ask callCacheReadActor for next hit when requested (with file hash)" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), TestProbe().ref)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -184,7 +184,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
     val parent = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), parent.ref)
     parent.watch(actorUnderTest)
 
@@ -201,7 +201,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
     val parent = TestProbe()
-    // self acts as the parent
+    
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), parent.ref)
     parent.watch(actorUnderTest)
 

@@ -22,7 +22,7 @@ private[statuspolling] trait RunCreation { this: JesPollingActor =>
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiQueryCreationFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! JesApiRunCreationQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }

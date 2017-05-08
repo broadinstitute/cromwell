@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes.statuspolling
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.RunPipelineRequest
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiQueryCreationFailed}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiRunCreationQueryFailed}
 import cromwell.backend.standard.StandardAsyncJob
 
 import scala.concurrent.{Future, Promise}
@@ -24,7 +24,7 @@ trait JesRunCreationClient { this: Actor with ActorLogging =>
   def runCreationClientReceive: Actor.Receive = {
     case job: StandardAsyncJob =>
       completePromise(Success(job))
-    case JesApiQueryCreationFailed(_, e) => completePromise(Failure(e))
+    case JesApiRunCreationQueryFailed(_, e) => completePromise(Failure(e))
   }
 
   private def completePromise(job: Try[StandardAsyncJob]) = {

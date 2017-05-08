@@ -59,7 +59,6 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
     ()
   } else {
     failure.query.requester ! failure
-    ()
   }
 
   private def handleJesPollingRequest(workPullingJesPollingActor: ActorRef, maxBatchSize: Int) = {

@@ -1,7 +1,7 @@
 UPDATE CALL_CACHING_AGGREGATION_ENTRY ccae
   INNER JOIN (SELECT cche.CALL_CACHING_ENTRY_ID,
                 UPPER(MD5(GROUP_CONCAT(
-                              cche.HASH_VALUE ORDER BY cche.HASH_KEY ASC SEPARATOR ''
+                              CONCAT(cche.HASH_KEY, cche.HASH_VALUE) ORDER BY cche.HASH_KEY ASC SEPARATOR ''
                           ))) as hash_aggregation
               FROM CALL_CACHING_HASH_ENTRY cche
               WHERE HASH_KEY LIKE 'input: File%'

@@ -38,7 +38,6 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   def mockRequest(withSibling: Boolean, symlink: Boolean) = {
     if (withSibling && md5File.notExists) md5File.write(md5FileHash)
-    val request = mock[SingleFileHashRequest]
     val requestFile = if (symlink) {
       val symLink: Path = symLinksDir./(s"symlink-${randomName()}")
       symLink.symbolicLinkTo(file)
@@ -51,10 +50,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
 
-    request.file returns WdlFile(requestFile.pathAsString)
-    request.initializationData returns Option(initData)
-
-    request
+    SingleFileHashRequest(null, null, WdlFile(requestFile.pathAsString), Option(initData))
   }
 
   def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {

@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
+import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashResult
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
@@ -88,7 +89,7 @@ object CallCacheReadActor {
   sealed trait CallCacheReadActorRequest
   case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
   case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
-  case class HasMatchingInputFilesHashLookup(fileHashes: Set[HashResult]) extends CallCacheReadActorRequest
+  case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
   
   sealed trait CallCacheReadActorResponse
   // Responses on whether or not there is at least one matching entry (can for initial matches of file matches)

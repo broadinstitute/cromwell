@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
+import cats.data.NonEmptyList
 import cromwell.backend._
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.core.callcaching.{HashingFailedMessage, _}
@@ -91,7 +92,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       // md5 of "hello" (with quotes)
       HashResult(HashKey("input: String stringInput"), HashValue("5DEAEE1C1332199E5B5BC7C5E4F7F0C2"))
     )
-    val expectedAggregatedInitialHash = "67A8FA54B6D3A57D40AA6FE39C6C3992"
+    val expectedAggregatedInitialHash = "E2E6048E9EA02819D9D356E71A4F1BBE"
     val expectedInitialHashResult = InitialHashingResult(expectedInitialHashes, expectedAggregatedInitialHash)
     parent.expectMsg(expectedInitialHashResult)
     callCacheRead.expectMsg(expectedInitialHashResult)
@@ -129,8 +130,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     
     val cchja = makeCCHJA(Option(callCacheReadProbe.ref), fileHashingActor.ref, TestProbe().ref)
 
-    val fileHashRequest1 = mock[SingleFileHashRequest]
-    val fileHashRequest2 = mock[SingleFileHashRequest]
+    val fileHashRequest1 = SingleFileHashRequest(null, null, null, null)
+    val fileHashRequest2 = SingleFileHashRequest(null, null, null, null)
     cchja.setState(
       WaitingForHashFileRequest,
       CallCacheHashingJobActorData(List(List(fileHashRequest1, fileHashRequest2)), List.empty, None)
@@ -167,7 +168,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
 
   it should "send the PartialFileHashingResult when a batch is complete" in {
     val callCacheReadProbe = TestProbe()
-    val hashResults = Set(mock[HashResult])
+    val hashResults = NonEmptyList.of(mock[HashResult])
     
     val result: PartialFileHashingResult = PartialFileHashingResult(hashResults)
     val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
@@ -186,8 +187,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
 
   it should "send itself a NextBatchOfFileHashesRequest when a batch is complete and there is no CCReader" in {
     val fileHashingActor = TestProbe()
-    val result: PartialFileHashingResult = PartialFileHashingResult(Set(mock[HashResult]))
-    val fileHashRequest = mock[SingleFileHashRequest]
+    val result: PartialFileHashingResult = PartialFileHashingResult(NonEmptyList.of(mock[HashResult]))
+    val fileHashRequest = SingleFileHashRequest(null, null, null, null)
     val newData = CallCacheHashingJobActorData(List(List(fileHashRequest)), List.empty, None)
     // still gives a CCReader when instantiating the actor, but not in the data (above)
     // This ensures the check is done with the data and not the actor attribute, as the data will change if the ccreader dies but the actor attribute
@@ -255,13 +256,22 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   it should "keep going if the read actor dies and writeToCache is on" in {
     val callCacheReadProbe = TestProbe()
     val parent = TestProbe()
-    val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, parent.ref)
+    val fileHasher = TestProbe()
+    val cchja = makeCCHJA(Option(callCacheReadProbe.ref), fileHasher.ref, parent.ref)
     parent.expectMsgClass(classOf[InitialHashingResult])
-    
-    cchja.setState(WaitingForHashFileRequest)
-    system stop callCacheReadProbe.ref
 
-    parent.expectMsg(NoFileHashesResult)
+    val hashKey = HashKey("file")
+    val fileHashRequest: SingleFileHashRequest = SingleFileHashRequest(null, hashKey, null, null)
+    val data = CallCacheHashingJobActorData(List(List(fileHashRequest)), List.empty, Option(callCacheReadProbe.ref))
+    
+    cchja.setState(WaitingForHashFileRequest, data)
+    
+    system stop callCacheReadProbe.ref
+    fileHasher.expectMsg(fileHashRequest)
+    val result: HashResult = HashResult(hashKey, HashValue("fileHash"))
+    fileHasher.reply(FileHashResponse(result))
+
+    parent.expectMsg(CompleteFileHashingResult(Set(result), "45F27DD26834DBACBB05BBB1D651F5D1"))
   }
   
   it should "propagate HashingFailedMessage errors and die" in {

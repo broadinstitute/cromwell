@@ -4,6 +4,7 @@ import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
 
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
+import cats.data.NonEmptyList
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.callcaching.{HashKey, HashResult, HashValue, HashingFailedMessage}
@@ -61,6 +62,9 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
           sendToCCReadActor(NoFileHashesResult, data)
           stopAndStay(Option(NoFileHashesResult))
       }
+    case Event(Terminated(actor), data) if writeToCache =>
+      self ! NextBatchOfFileHashesRequest
+      stay() using data.copy(callCacheReadingJobActor = None)
   }
 
   when(HashingFiles) {
@@ -77,14 +81,13 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
         case (newData, None) =>
           stay() using newData
       }
+    case Event(Terminated(actor), data) if writeToCache =>
+      stay() using data.copy(callCacheReadingJobActor = None)
   }
 
   whenUnhandled {
-    case Event(Terminated(actor), data) if !writeToCache =>
+    case Event(Terminated(actor), data) =>
       stopAndStay(None)
-    case Event(Terminated(actor), data) if writeToCache =>
-      if (stateName == WaitingForHashFileRequest) self ! NextBatchOfFileHashesRequest
-      stay() using data.copy(callCacheReadingJobActor = None)
     case Event(error: HashingFailedMessage, data) =>
       log.error(error.reason, s"Failed to hash ${error.file}")
       sendToCCReadActor(error, data)
@@ -198,7 +201,11 @@ object CallCacheHashingJobActor {
     * If several hash keys are identical, the result of this method is undefined.
     */
   private def calculateHashAggregation(hashes: Iterable[HashResult], messageDigest: MessageDigest) = {
-    val sortedHashes = hashes.toList.filter(_.hashKey.checkForHitOrMiss).sortBy(_.hashKey.key).map(_.hashValue.value.getBytes)
+    val sortedHashes = hashes.toList
+      .filter(_.hashKey.checkForHitOrMiss)
+      .sortBy(_.hashKey.key)
+      .map({ case HashResult(HashKey(hashKey, _), HashValue(hashValue)) => hashKey + hashValue })
+      .map(_.getBytes)
     sortedHashes foreach messageDigest.update
     DatatypeConverter.printHexBinary(messageDigest.digest())
   }
@@ -238,8 +245,12 @@ object CallCacheHashingJobActor {
           else (List(updatedBatch), None)
         case currentBatch :: otherBatches =>
           val updatedBatch = currentBatch.filterNot(_.hashKey == hashResult.hashKey)
-          // If the current batch is empty, we got a partial result, take the first BatchSize of the list
-          if (updatedBatch.isEmpty) (otherBatches, Option(PartialFileHashingResult(newFileHashResults.take(BatchSize).toSet)))
+          // If the current batch is empty, we got a partial result, take the first BatchSize of the list 
+          if (updatedBatch.isEmpty) {
+            // hashResult + fileHashResults.take(BatchSize - 1) -> BatchSize elements
+            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(BatchSize - 1): _*)
+            (otherBatches, Option(PartialFileHashingResult(partialHashes)))
+          }
           // Otherwise just return the updated request list and no message
           else (updatedBatch :: otherBatches, None)
       }
@@ -258,7 +269,7 @@ object CallCacheHashingJobActor {
 
   // File Hashing responses
   sealed trait CCHJAFileHashResponse extends CCHJAResponse
-  case class PartialFileHashingResult(initialHashes: Set[HashResult]) extends CCHJAFileHashResponse
+  case class PartialFileHashingResult(initialHashes: NonEmptyList[HashResult]) extends CCHJAFileHashResponse
 
   sealed trait FinalFileHashingResult extends CCHJAFileHashResponse
   case class CompleteFileHashingResult(fileHashes: Set[HashResult], aggregatedFileHash: String) extends FinalFileHashingResult

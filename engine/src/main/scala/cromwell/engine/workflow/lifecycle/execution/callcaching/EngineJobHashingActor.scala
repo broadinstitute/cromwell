@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
@@ -28,13 +28,15 @@ class EngineJobHashingActor(receiver: ActorRef,
   override val workflowId = jobDescriptor.workflowDescriptor.id
 
   private [callcaching] var initialHash: Option[InitialHashingResult] = None
+  
+  private [callcaching] var callCacheHashingJobActor: ActorRef = _
 
   private [callcaching] val callCacheReadingJobActor = if (activity.readFromCache) {
     Option(context.actorOf(callCacheReadingJobActorProps))
   } else None
 
   override def preStart(): Unit = {
-    context.actorOf(CallCacheHashingJobActor.props(
+    callCacheHashingJobActor = context.actorOf(CallCacheHashingJobActor.props(
       jobDescriptor,
       callCacheReadingJobActor,
       initializationData,
@@ -43,10 +45,14 @@ class EngineJobHashingActor(receiver: ActorRef,
       fileHashingActorProps,
       activity.writeToCache
     ))
+    context.watch(callCacheHashingJobActor)
     super.preStart()
   }
 
   override def receive = {
+    case Terminated(actor) if actor == callCacheHashingJobActor =>
+      receiver ! HashError(new RuntimeException("Hashing Job Actor stopped unexpectedly, disabling call caching."))
+      context stop self
     case initialHashResult: InitialHashingResult => initialHash = Option(initialHashResult)
     case finalFileHashResult: FinalFileHashingResult => sendHashes(finalFileHashResult)
     case CacheMiss => receiver ! CacheMiss
@@ -56,7 +62,7 @@ class EngineJobHashingActor(receiver: ActorRef,
         case Some(readActor) =>
           readActor ! NextHit
         case None =>
-          jobLogger.error("Requested next hit but there's no Call Caching Read Actor !")
+          jobLogger.error("Requested next hit but there's no Call Caching Read Actor!")
           receiver ! HashError(new IllegalStateException("Requested cache hit but there is no cache read actor"))
           context stop self
       }

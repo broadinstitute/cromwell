@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import cats.data.NonEmptyList
 import cromwell.backend._
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.TestKitSuite
@@ -15,12 +16,9 @@ class CallCacheHashingJobActorDataSpec extends TestKitSuite with FlatSpecLike wi
   val fileHash1 = HashResult(HashKey("key"), HashValue("value"))
   val fileHash2 = HashResult(HashKey("key2"), HashValue("value2"))
   val fileHash3 = HashResult(HashKey("key3"), HashValue("value3"))
-  val fileHashRequest1 = mock[SingleFileHashRequest]
-  fileHashRequest1.hashKey returns fileHash1.hashKey
-  val fileHashRequest2 = mock[SingleFileHashRequest]
-  fileHashRequest2.hashKey returns fileHash2.hashKey
-  val fileHashRequest3 = mock[SingleFileHashRequest]
-  fileHashRequest3.hashKey returns fileHash3.hashKey
+  val fileHashRequest1 = SingleFileHashRequest(null, fileHash1.hashKey, null, null)
+  val fileHashRequest2 = SingleFileHashRequest(null, fileHash2.hashKey, null, null)
+  val fileHashRequest3 = SingleFileHashRequest(null, fileHash3.hashKey, null, null)
   
   val testCases = Table(
     ("dataBefore", "dataAfter", "result"),
@@ -42,7 +40,7 @@ class CallCacheHashingJobActorDataSpec extends TestKitSuite with FlatSpecLike wi
       CallCacheHashingJobActorData(
         List.empty, List(fileHash1), None
       ),
-      Option(CompleteFileHashingResult(Set(fileHash1), "2063C1608D6E0BAF80249C42E2BE5804"))
+      Option(CompleteFileHashingResult(Set(fileHash1), "6A02F950958AEDA3DBBF83FBB306A030"))
     ),
     // Last batch and not last value
     (
@@ -62,7 +60,7 @@ class CallCacheHashingJobActorDataSpec extends TestKitSuite with FlatSpecLike wi
       CallCacheHashingJobActorData(
         List(List(fileHashRequest2)), List(fileHash1), None
       ),
-      Option(PartialFileHashingResult(Set(fileHash1)))
+      Option(PartialFileHashingResult(NonEmptyList.of(fileHash1)))
     ),
     // Not last batch and not last value of this batch
     (

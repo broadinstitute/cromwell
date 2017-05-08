@@ -171,9 +171,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   when(BackendIsCopyingCachedOutputs) {
     // Backend copying response:
-    case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), Some(ejha), _)) =>
+    case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _)) =>
       saveCacheResults(hashes, data.withSuccessResponse(response))
-    case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, None, Some(ejha), _)) if effectiveCallCachingMode.writeToCache =>
+    case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, None, _, _)) if effectiveCallCachingMode.writeToCache =>
       // Wait for the CallCacheHashes
       stay using data.withSuccessResponse(response)
     case Event(response: JobSucceededResponse, data: ResponsePendingData) => // bad hashes or cache write off

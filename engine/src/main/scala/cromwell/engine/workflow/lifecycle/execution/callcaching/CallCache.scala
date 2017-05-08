@@ -48,7 +48,7 @@ class CallCache(database: CallCachingSqlDatabase) {
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
       callCacheHashes.hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
     }
-    
+
     val aggregatedHashesToInsert: Option[CallCachingAggregationEntry] = {
       Option(CallCachingAggregationEntry(
         baseAggregation = callCacheHashes.aggregatedInitialHash,
@@ -75,17 +75,12 @@ class CallCache(database: CallCachingSqlDatabase) {
   def hasBaseAggregatedHashMatch(baseAggregatedHash: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash)
   }
-  
-  def hasKeyValuePairHashMatch(hashes: Set[HashResult])(implicit ec: ExecutionContext): Future[Boolean] = {
-    hashes.toList match {
-        // Empty hashes should match nothing
-      case Nil => Future.successful(false)
-      case head :: tail =>
-        val hashKeyValuePairs = NonEmptyList.of(head, tail) map {
-          case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
-        }
-        database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
+
+  def hasKeyValuePairHashMatch(hashes: NonEmptyList[HashResult])(implicit ec: ExecutionContext): Future[Boolean] = {
+    val hashKeyValuePairs = hashes map {
+      case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
     }
+    database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
   }
 
   def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, hitNumber: Int)

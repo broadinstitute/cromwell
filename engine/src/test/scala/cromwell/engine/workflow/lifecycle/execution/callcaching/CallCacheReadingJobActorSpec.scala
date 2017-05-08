@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.testkit.{TestFSMRef, TestProbe}
+import cats.data.NonEmptyList
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{HashKey, HashResult, HashValue, HashingFailedMessage}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult}
@@ -65,7 +66,7 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
 
     actorUnderTest.setState(WaitingForFileHashes)
 
-    val fileHashes = Set(HashResult(HashKey("f1"), HashValue("h1")), HashResult(HashKey("f2"), HashValue("h2")))
+    val fileHashes = NonEmptyList.of(HashResult(HashKey("f1"), HashValue("h1")), HashResult(HashKey("f2"), HashValue("h2")))
     callCacheHashingActor.send(actorUnderTest, PartialFileHashingResult(fileHashes))
     callCacheReadProbe.expectMsg(HasMatchingInputFilesHashLookup(fileHashes))
     

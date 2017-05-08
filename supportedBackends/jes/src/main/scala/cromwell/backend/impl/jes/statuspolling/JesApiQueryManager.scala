@@ -103,7 +103,7 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
           case statusQuery: JesStatusPollQuery =>
             self ! JesApiStatusQueryFailed(statusQuery, new JesApiException(cause))
           case runCreationQuery: JesRunCreationQuery =>
-             self ! JesApiRunCreationQueryFailed(runCreationQuery, new JesApiException(cause))
+            self ! JesApiRunCreationQueryFailed(runCreationQuery, new JesApiException(cause))
         }
       case None =>
         // It managed to die while doing absolutely nothing...!?

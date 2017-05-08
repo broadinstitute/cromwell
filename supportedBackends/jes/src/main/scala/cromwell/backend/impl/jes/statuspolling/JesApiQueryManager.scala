@@ -58,11 +58,8 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
       val delay = nextRequest.backoff.backoffMillis.millis
       context.system.scheduler.scheduleOnce(delay, self, nextRequest)
       ()
-    case JesApiQueryStatusFailed(request, cause) =>
-      request.requester ! JesApiQueryStatusFailed(request, cause)
-      ()
-    case JesApiQueryCreationFailed(request, cause) =>
-      request.requester ! JesApiQueryCreationFailed(request, cause)
+    case failure: JesApiQueryFailed =>
+      failure.query.requester ! failure
       ()
   }
 

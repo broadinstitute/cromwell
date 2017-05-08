@@ -1,0 +1,18 @@
+# Tests that on a shared filesystem Cromwell is correctly localizing input files coming from the same as
+# well as different directories. Tests both docker and non-docker
+
+name: workflow_outputs
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files {
+  wdl: final_workflow_outputs/final_workflow_outputs.wdl
+  options: final_workflow_outputs/final_workflow_outputs.options
+}
+
+metadata {
+  workflowName: wf
+  status: Succeeded
+}
+

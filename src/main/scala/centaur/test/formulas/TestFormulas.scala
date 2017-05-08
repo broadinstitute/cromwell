@@ -2,14 +2,19 @@ package centaur.test.formulas
 
 import java.util.UUID
 
+import cats.syntax.eq._
 import cats.syntax.functor._
 import cats.syntax.flatMap._
+import cats._
 import centaur.test.Operations._
 import centaur.test.Test
 import centaur.test.Test.testMonad
 import centaur.test.workflow.Workflow
 import centaur.test.workflow.Workflow.{WorkflowWithMetadata, WorkflowWithoutMetadata}
 import cromwell.api.model.{SubmittedWorkflow, Succeeded, Failed, TerminalStatus}
+import spray.json._
+import io.circe._, io.circe.parser._
+
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -65,6 +70,22 @@ object TestFormulas {
       testWf <- runWorkflowUntilTerminalStatus(workflow, Succeeded)
       metadata <- retrieveMetadata(testWf)
       _ <- validateNoCacheHits(metadata, workflow.testName)
+    } yield ()
+  }
+
+  def runFinalDirsWorkflow(wf: Workflow, dirOption: String): Test[Unit] =  {
+    import spray.json.DefaultJsonProtocol._
+
+    def dirSize = {
+      val options = wf.data.options.get
+      val outputDir = parse(options).toOption.flatMap(_.\\(dirOption).head.asString).get
+      val dir = new java.io.File(outputDir)
+      dir.listFiles.size
+    }
+
+    for {
+      terminatedWf <- runWorkflowUntilTerminalStatus(wf, Succeeded)
+      _ = if (dirSize == 0) throw new RuntimeException("no files in output dir!") else ()
     } yield ()
   }
 }

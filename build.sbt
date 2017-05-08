@@ -38,4 +38,12 @@ libraryDependencies ++= Seq(
   "org.pegdown" % "pegdown" % "1.6.0" % Test
 )
 
+val circeVersion = "0.8.0-RC1"
+
+libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
+
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
@@ -29,14 +29,12 @@ class EngineJobHashingActor(receiver: ActorRef,
 
   private [callcaching] var initialHash: Option[InitialHashingResult] = None
   
-  private [callcaching] var callCacheHashingJobActor: ActorRef = _
-
   private [callcaching] val callCacheReadingJobActor = if (activity.readFromCache) {
     Option(context.actorOf(callCacheReadingJobActorProps))
   } else None
 
   override def preStart(): Unit = {
-    callCacheHashingJobActor = context.actorOf(CallCacheHashingJobActor.props(
+    context.actorOf(CallCacheHashingJobActor.props(
       jobDescriptor,
       callCacheReadingJobActor,
       initializationData,
@@ -45,14 +43,10 @@ class EngineJobHashingActor(receiver: ActorRef,
       fileHashingActorProps,
       activity.writeToCache
     ))
-    context.watch(callCacheHashingJobActor)
     super.preStart()
   }
 
   override def receive = {
-    case Terminated(actor) if actor == callCacheHashingJobActor =>
-      receiver ! HashError(new RuntimeException("Hashing Job Actor stopped unexpectedly, disabling call caching."))
-      context stop self
     case initialHashResult: InitialHashingResult => initialHash = Option(initialHashResult)
     case finalFileHashResult: FinalFileHashingResult => sendHashes(finalFileHashResult)
     case CacheMiss => receiver ! CacheMiss

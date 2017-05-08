@@ -11,6 +11,7 @@ import cromwell.core.callcaching.{HashKey, HashResult, HashValue, HashingFailedM
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
 import wdl4s.values.WdlFile
 
 /**
@@ -47,6 +48,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   override def preStart(): Unit = {
     if (callCacheReadingJobActor.isEmpty && !writeToCache) {
       log.error("Programmer error ! There is no reason to have a hashing actor if both read and write to cache are off")
+      context.parent ! CacheMiss
       context stop self
     }
     super.preStart()
@@ -62,7 +64,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
           sendToCCReadActor(NoFileHashesResult, data)
           stopAndStay(Option(NoFileHashesResult))
       }
-    case Event(Terminated(actor), data) if writeToCache =>
+    case Event(Terminated(_), data) if writeToCache =>
       self ! NextBatchOfFileHashesRequest
       stay() using data.copy(callCacheReadingJobActor = None)
   }
@@ -81,12 +83,12 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
         case (newData, None) =>
           stay() using newData
       }
-    case Event(Terminated(actor), data) if writeToCache =>
+    case Event(Terminated(_), data) if writeToCache =>
       stay() using data.copy(callCacheReadingJobActor = None)
   }
 
   whenUnhandled {
-    case Event(Terminated(actor), data) =>
+    case Event(Terminated(_), data) =>
       stopAndStay(None)
     case Event(error: HashingFailedMessage, data) =>
       log.error(error.reason, s"Failed to hash ${error.file}")

@@ -8,6 +8,7 @@ import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashR
 import cromwell.core.callcaching.{HashingFailedMessage, _}
 import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CCHJAFileHashResponse, CallCacheHashingJobActorData, CompleteFileHashingResult, HashingFiles, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult, WaitingForHashFileRequest}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -35,6 +36,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   }
 
   it should "die immediately if created without cache read actor and write to cache turned off" in {
+    val parent = TestProbe()
     val testActor = TestFSMRef(new CallCacheHashingJobActor(
       templateJobDescriptor(),
       None,
@@ -43,9 +45,11 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       "backedName",
       Props.empty,
       false
-    ))
+    ), parent.ref)
     watch(testActor)
     expectTerminated(testActor)
+    parent.expectMsgClass(classOf[InitialHashingResult])
+    parent.expectMsg(CacheMiss)
   }
 
   it should "send a correct InitialHashingResult upon starting" in {

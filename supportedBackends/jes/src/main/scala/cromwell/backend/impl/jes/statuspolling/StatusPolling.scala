@@ -11,7 +11,7 @@ import com.google.api.client.http.HttpHeaders
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.RunStatus._
 import cromwell.backend.impl.jes.{JesAsyncBackendJobExecutionActor, Run, RunStatus}
-import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{GoogleJsonException, JesApiException, JesApiQueryFailed, JesStatusPollQuery}
+import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.core.ExecutionEvent
 
 import scala.language.postfixOps
@@ -29,7 +29,7 @@ private[statuspolling] trait StatusPolling { this: JesPollingActor =>
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! JesApiQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! JesApiStatusQueryFailed(originalRequest, new JesApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }

@@ -74,11 +74,9 @@ object TestFormulas {
   }
 
   def runFinalDirsWorkflow(wf: Workflow, dirOption: String): Test[Unit] =  {
-    import spray.json.DefaultJsonProtocol._
-
     def dirSize = {
       val options = wf.data.options.get
-      val outputDir = parse(options).toOption.flatMap(_.\\(dirOption).head.asString).get
+      val outputDir = parse(options).toOption.flatMap(_.findAllByKey(dirOption).head.asString).get
       val dir = new java.io.File(outputDir)
       dir.listFiles.size
     }

@@ -1,9 +1,6 @@
 # Tests that a runtime option to save call logs is copying said logs appropriately.
 
 name: final_call_logs_dir
-testFormat: workflowsuccess
-backends: [Local]
-tags: [localdockertest]
 
 files {
   wdl: final_call_logs_dir/final_call_logs_dir.wdl

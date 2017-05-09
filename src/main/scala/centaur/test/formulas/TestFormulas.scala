@@ -73,17 +73,15 @@ object TestFormulas {
     } yield ()
   }
 
-  def runFinalDirsWorkflow(wf: Workflow, dirOption: String): Test[Unit] =  {
-    def dirSize = {
-      val options = wf.data.options.get
-      val outputDir = parse(options).toOption.flatMap(_.findAllByKey(dirOption).head.asString).get
-      val dir = new java.io.File(outputDir)
-      dir.listFiles.size
-    }
+  def runFinalDirsWorkflow(wf: Workflow, dirOption: String, checkDirSize: String => Int, deletePreExistingFiles: String => Unit): Test[Unit] =  {
+    val options = wf.data.options.get
+    val outputDirectory = parse(options).toOption.flatMap(_.findAllByKey(dirOption).head.asString).get
+
+    deletePreExistingFiles(outputDirectory)
 
     for {
       terminatedWf <- runWorkflowUntilTerminalStatus(wf, Succeeded)
-      _ = if (dirSize == 0) throw new RuntimeException("no files in output dir!") else ()
+      _ = if (checkDirSize(outputDirectory) == 0) throw new RuntimeException("no files in output dir!") else ()
     } yield ()
   }
 }

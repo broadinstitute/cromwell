@@ -49,11 +49,4 @@ trait CallCachingAggregationEntryComponent {
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)
     } yield callCachingAggregationEntry.callCachingEntryId).drop(number - 1).take(1)
   }
-
-  val callCachingAggregatedEntriesForCallCachingEntryId = Compiled(
-    (callCachingEntryId: Rep[Int]) => for {
-      callCachingAggregationEntry <- callCachingAggregationEntries
-      if callCachingAggregationEntry.callCachingAggregationEntryId === callCachingEntryId
-    } yield callCachingAggregationEntry
-  )
 }

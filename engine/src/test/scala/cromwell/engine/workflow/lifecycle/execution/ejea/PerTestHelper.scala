@@ -74,6 +74,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val callCacheHitCopyingProbe = TestProbe()
   val jobPreparationProbe = TestProbe()
   val jobTokenDispenserProbe = TestProbe()
+  val ejhaProbe = TestProbe()
 
   def buildFactory() = new BackendLifecycleActorFactory {
 
@@ -165,8 +166,12 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              backendName: String,
                              callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
+  implicit val system = context.system
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))
-  override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = Success(helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity)))
+  override def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity) = {
+    helper.jobHashingInitializations = helper.jobHashingInitializations.foundOne((jobDescriptor, activity))
+    Success(helper.ejhaProbe.ref)
+  }
   override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = { helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId) }
   override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref
 }

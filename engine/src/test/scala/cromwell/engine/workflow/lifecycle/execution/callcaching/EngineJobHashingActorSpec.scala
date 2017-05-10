@@ -1,264 +1,206 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestProbe}
-import cats.data.NonEmptyList
-import cromwell.CromwellTestKitSpec
+import akka.actor.{Actor, ActorRef, Props}
+import akka.testkit.{TestActorRef, TestProbe}
 import cromwell.backend._
-import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
+import cromwell.core._
 import cromwell.core.callcaching._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, CallCacheHashes}
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s._
-import wdl4s.values.{WdlFile, WdlValue}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NoFileHashesResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
+import org.scalatest.concurrent.Eventually
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.{FlatSpecLike, Matchers}
+import wdl4s.values.WdlValue
+import wdl4s.{Task, TaskCall}
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
-
-class EngineJobHashingActorSpec extends CromwellTestKitSpec
-  with ImplicitSender with WordSpecLike with Matchers with MockitoSugar {
-
-  import EngineJobHashingActorSpec._
-
-  implicit val actorSystem: ActorSystem = system
-
-  val readModes = List(CallCachingActivity(ReadCache), CallCachingActivity(ReadAndWriteCache))
-  val writeModes = List(CallCachingActivity(WriteCache), CallCachingActivity(ReadAndWriteCache))
-  val allModes = List(CallCachingActivity(ReadCache), CallCachingActivity(WriteCache), CallCachingActivity(ReadAndWriteCache))
-
-  "Engine job hashing actor" must {
-    allModes foreach { activity =>
-      val expectation = activity.readWriteMode match {
-        case ReadCache => "cache hit"
-        case WriteCache => "hashes"
-        case ReadAndWriteCache => "cache hit and hashes"
-      }
-
-      s"Respect the CallCachingMode and report back $expectation for the ${activity.readWriteMode} activity" in {
-        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
-        val replyTo = TestProbe()
-        val deathWatch = TestProbe()
-
-        val cacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet) else Map.empty
-        val ejha = createEngineJobHashingActor(
-          replyTo = replyTo.ref,
-          activity = activity,
-          cacheLookupResponses = cacheLookupResponses)
-
-        deathWatch watch ejha
-
-        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(CallCachingEntryId(1))))
-        if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
-          case CallCacheHashes(hashes) => hashes.size should be(4)
-          case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
-        }
-
-        deathWatch.expectTerminated(ejha, 5 seconds)
-      }
-
-      s"Wait for requests to the FileHashingActor for the ${activity.readWriteMode} activity" in {
-        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
-        val replyTo = TestProbe()
-        val fileHashingActor = TestProbe()
-        val deathWatch = TestProbe()
-
-        val initialCacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet) else Map.empty
-        val fileCacheLookupResponses = Map("input: File inputFile1" -> singleCallCachingEntryIdSet, "input: File inputFile2" -> singleCallCachingEntryIdSet)
-
-        val jobDescriptor = templateJobDescriptor(inputs = Map(
-            "inputFile1" -> WdlFile("path"),
-            "inputFile2" -> WdlFile("path")))
-        val ejha = createEngineJobHashingActor(
-          replyTo = replyTo.ref,
-          activity = activity,
-          jobDescriptor = jobDescriptor,
-          fileHashingActor = Option(fileHashingActor.ref),
-          cacheLookupResponses = initialCacheLookupResponses ++ fileCacheLookupResponses)
-
-        deathWatch watch ejha
-
-        twice { iteration =>
-          fileHashingActor.expectMsgPF(max = 5 seconds, hint = s"awaiting file hash request #$iteration") {
-            case SingleFileHashRequest(jobKey, hashKey, file, initializationData) =>
-              file should be(WdlFile("path"))
-              fileHashingActor.send(ejha, FileHashResponse(HashResult(hashKey, HashValue("blah di blah"))))
-            case x => fail(s"SingleFileHashRequest anticipated! Instead got a ${x.getClass.getSimpleName}")
-          }
-        }
-
-        if (activity.readFromCache) replyTo.expectMsg(CacheHit(NonEmptyList.of(CallCachingEntryId(1))))
-        if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
-          case CallCacheHashes(hashes) => hashes.size should be(6)
-          case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
-        }
-
-        deathWatch.expectTerminated(ejha, 5 seconds)
-      }
-
-      s"Cache miss for bad FileHashingActor results but still return hashes in the ${activity.readWriteMode} activity" in {
-        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
-        val replyTo = TestProbe()
-        val fileHashingActor = TestProbe()
-        val deathWatch = TestProbe()
-
-        val initialCacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, singleCallCachingEntryIdSet) else Map.empty
-        val fileCacheLookupResponses = Map("input: File inputFile1" -> Set(CallCachingEntryId(2)), "input: File inputFile2" -> singleCallCachingEntryIdSet)
-
-        val jobDescriptor = templateJobDescriptor(inputs = Map(
-          "inputFile1" -> WdlFile("path"),
-          "inputFile2" -> WdlFile("path")))
-        val ejha = createEngineJobHashingActor(
-          replyTo = replyTo.ref,
-          activity = activity,
-          jobDescriptor = jobDescriptor,
-          fileHashingActor = Option(fileHashingActor.ref),
-          cacheLookupResponses = initialCacheLookupResponses ++ fileCacheLookupResponses)
-
-        deathWatch watch ejha
-
-        // Hello, future Cromwellian! I imagine you're reading this because you've just introduced file hash short-circuiting on cache miss and,
-        // depending on timings, you may not get the second file hash request in read-only mode. You might want to refactor this test to reply
-        // only to the "cache miss" file and then check that the test probe receives the appropriate "cancellation" message.
-        // ... or not! Don't just blindly allow a ghost of the past to tell you what to do! Live your own life and excel!
-        twice { iteration =>
-          fileHashingActor.expectMsgPF(max = 5 seconds, hint = s"awaiting file hash request #$iteration") {
-            case SingleFileHashRequest(jobKey, hashKey, file, initializationData) =>
-              file should be(WdlFile("path"))
-              fileHashingActor.send(ejha, FileHashResponse(HashResult(hashKey, HashValue("blah di blah"))))
-            case x => fail(s"SingleFileHashRequest anticipated! Instead got a ${x.getClass.getSimpleName}")
-          }
-        }
-
-        if (activity.readFromCache) replyTo.expectMsg(CacheMiss)
-        if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
-          case CallCacheHashes(hashes) => hashes.size should be(6)
-          case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
-        }
-
-        deathWatch.expectTerminated(ejha, 5 seconds)
-      }
-
-      s"Detect call cache misses for the ${activity.readWriteMode} activity" in {
-        val singleCallCachingEntryIdSet = Set(CallCachingEntryId(1))
-        val replyTo = TestProbe()
-        val deathWatch = TestProbe()
-
-        val cacheLookupResponses: Map[String, Set[CallCachingEntryId]] = if (activity.readFromCache) standardCacheLookupResponses(singleCallCachingEntryIdSet, singleCallCachingEntryIdSet, Set(CallCachingEntryId(2)), singleCallCachingEntryIdSet) else Map.empty
-        val ejha = createEngineJobHashingActor(
-          replyTo = replyTo.ref,
-          activity = activity,
-          cacheLookupResponses = cacheLookupResponses)
-
-        deathWatch watch ejha
-
-        if (activity.readFromCache) replyTo.expectMsg(CacheMiss)
-        if (activity.writeToCache) replyTo.expectMsgPF(max = 5 seconds, hint = "awaiting cache hit message") {
-          case CallCacheHashes(hashes) => hashes.size should be(4)
-          case x => fail(s"Cache hit anticipated! Instead got a ${x.getClass.getSimpleName}")
-        }
-
-        deathWatch.expectTerminated(ejha, 5 seconds)
-      }
-    }
-  }
-}
-
-object EngineJobHashingActorSpec extends BackendSpec {
-  import org.mockito.Mockito._
-
-  def createEngineJobHashingActor
-  (
-    replyTo: ActorRef,
-    activity: CallCachingActivity,
-    jobDescriptor: BackendJobDescriptor = templateJobDescriptor(),
-    initializationData: Option[BackendInitializationData] = None,
-    fileHashingActor: Option[ActorRef] = None,
-    cacheLookupResponses: Map[String, Set[CallCachingEntryId]] = Map.empty,
-    runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] = Set.empty,
-    backendName: String = "whatever"
-  )(implicit system: ActorSystem) = {
-    val callCacheReadActor = system.actorOf(Props(new PredictableCallCacheReadActor(cacheLookupResponses)))
-    
-    system.actorOf(EngineJobHashingActorTest.props(
-      replyTo = replyTo,
-      activity = activity,
-      jobDescriptor = jobDescriptor,
-      initializationData = initializationData,
-      fileHashingActor = fileHashingActor.getOrElse(emptyActor),
-      callCacheReadActor = callCacheReadActor,
-      runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-      backendName = backendName
-      ))
-  }
-  
-  object EngineJobHashingActorTest {
-    def props(replyTo: ActorRef,
-              activity: CallCachingActivity,
-              jobDescriptor: BackendJobDescriptor,
-              initializationData: Option[BackendInitializationData],
-              fileHashingActor: ActorRef,
-              callCacheReadActor: ActorRef,
-              runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
-              backendName: String
-             ) = Props(new EngineJobHashingActorTest(
-      replyTo,
-      activity,
-      jobDescriptor,
-      initializationData,
-      fileHashingActor,
-      callCacheReadActor,
-      runtimeAttributeDefinitions,
-      backendName
-    ))
-  }
-  
-  class EngineJobHashingActorTest(replyTo: ActorRef,
-                                  activity: CallCachingActivity,
-                                  jobDescriptor: BackendJobDescriptor,
-                                  initializationData: Option[BackendInitializationData],
-                                  fileHashingActor: ActorRef,
-                                  callCacheReadActor: ActorRef,
-                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
-                                  backendName: String
-                                 ) extends EngineJobHashingActor(
-    replyTo,
-    jobDescriptor,
-    initializationData,
-    Props.empty,
-    callCacheReadActor,
-    runtimeAttributeDefinitions,
-    backendName,
-    activity
-  ) {
-    override def makeFileHashingActor(): ActorRef = fileHashingActor
-  }
-
-  def emptyActor(implicit actorSystem: ActorSystem) = actorSystem.actorOf(Props.empty)
+class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
+  behavior of "EngineJobHashingActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
     val task = mock[Task]
     val call = mock[TaskCall]
-    when(task.commandTemplateString).thenReturn("Do the stuff... now!!")
-    when(task.outputs).thenReturn(List.empty)
-    when(call.task).thenReturn(task)
+    task.commandTemplateString returns "Do the stuff... now!!"
+    task.outputs returns List.empty
+    task.fullyQualifiedName returns "workflow.hello"
+    call.task returns task
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
+    workflowDescriptor.id returns WorkflowId.randomId()
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), CallCachingEligible, Map.empty)
     jobDescriptor
   }
 
-  def standardCacheLookupResponses(commandTemplate: Set[CallCachingEntryId],
-                                   inputCount: Set[CallCachingEntryId],
-                                   backendName: Set[CallCachingEntryId],
-                                   outputCount: Set[CallCachingEntryId]) = Map(
-    "command template" -> commandTemplate,
-    "input count" -> inputCount,
-    "backend name" -> backendName,
-    "output count" -> outputCount
-  )
-
-  def twice[A](block: Int => A) = {
-    block(1)
-    block(2)
+  def makeEJHA(receiver: ActorRef, activity: CallCachingActivity, ccReaderProps: Props = Props.empty) = {
+    TestActorRef[EngineJobHashingActor](
+      EngineJobHashingActorTest.props(
+        receiver,
+        templateJobDescriptor(),
+        None,
+        Props.empty,
+        ccReaderProps,
+        Set.empty,
+        "backend",
+        activity
+      )
+    )
   }
+
+  it should "record initial hashes" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(ReadAndWriteCache)
+    val actorUnderTest = makeEJHA(receiver.ref, activity)
+
+    val initialResult: InitialHashingResult = mock[InitialHashingResult]
+    actorUnderTest ! initialResult
+    eventually {
+      actorUnderTest.underlyingActor.initialHash shouldBe Some(initialResult)
+    }
+  }
+
+  it should "create a CCReader actor or not depending on CC activity" in {
+    val activities = Table(
+      ("readWriteMode", "hasCCReadActor"),
+      (ReadCache, true),
+      (WriteCache, false),
+      (ReadAndWriteCache, true)
+    )
+    forAll(activities) { case ((readWriteMode, hasCCReadActor)) =>
+      val receiver = TestProbe()
+      val actorUnderTest = makeEJHA(receiver.ref, CallCachingActivity(readWriteMode))
+      actorUnderTest.underlyingActor.callCacheReadingJobActor.isDefined shouldBe hasCCReadActor
+    }
+  }
+
+  it should "send hashes to receiver when receiving a NoFileHashesResult" in {
+    val receiver = TestProbe()
+    val actorUnderTest = makeEJHA(receiver.ref, CallCachingActivity(ReadAndWriteCache))
+    val initialHashes = Set(HashResult(HashKey("key"), HashValue("value")))
+    val initialAggregatedHash = "aggregatedHash"
+    val initialResult = InitialHashingResult(initialHashes, initialAggregatedHash)
+    actorUnderTest ! initialResult
+    actorUnderTest ! NoFileHashesResult
+    receiver.expectMsg(CallCacheHashes(initialHashes, initialAggregatedHash, None))
+  }
+
+  it should "send hashes to receiver when receiving a CompleteFileHashingResult" in {
+    val receiver = TestProbe()
+    val actorUnderTest = makeEJHA(receiver.ref, CallCachingActivity(ReadAndWriteCache))
+    
+    val initialHashes = Set(HashResult(HashKey("key"), HashValue("value")))
+    val initialAggregatedHash = "aggregatedHash"
+    val initialResult = InitialHashingResult(initialHashes, initialAggregatedHash)
+    val fileHashes = Set(HashResult(HashKey("file key"), HashValue("value")))
+    val fileAggregatedHash = "aggregatedFileHash"
+    val fileResult = CompleteFileHashingResult(fileHashes, fileAggregatedHash)
+    
+    actorUnderTest ! initialResult
+    actorUnderTest ! fileResult
+    receiver.expectMsg(CallCacheHashes(initialHashes, initialAggregatedHash, Option(FileHashes(fileHashes, fileAggregatedHash))))
+  }
+
+  it should "forward CacheMiss to receiver" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(ReadAndWriteCache)
+    val actorUnderTest = makeEJHA(receiver.ref, activity)
+
+    actorUnderTest ! CacheMiss
+    receiver.expectMsg(CacheMiss)
+  }
+
+  it should "forward CacheHit to receiver" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(ReadAndWriteCache)
+    val actorUnderTest = makeEJHA(receiver.ref, activity)
+
+    val cacheHit = mock[CacheHit]
+    actorUnderTest ! cacheHit
+    receiver.expectMsg(cacheHit)
+  }
+
+  it should "forward NextHit to CCRead actor" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(ReadAndWriteCache)
+    val monitorProbe = TestProbe()
+    val ccReadActorProps = Props(new Actor {
+      override def receive: Receive = {
+        case NextHit => monitorProbe.ref forward NextHit
+      }
+    })
+    
+    val actorUnderTest = makeEJHA(receiver.ref, activity, ccReadActorProps)
+
+    actorUnderTest ! NextHit
+    monitorProbe.expectMsg(NextHit)
+  }
+
+  it should "fail if it receives NextHit and doesn't have a CCRead actor" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(WriteCache)
+    val actorUnderTest = makeEJHA(receiver.ref, activity)
+    receiver.watch(actorUnderTest)
+    actorUnderTest ! NextHit
+    receiver.expectMsgClass(classOf[HashError])
+    receiver.expectTerminated(actorUnderTest)
+  }
+
+  it should "fail if it receives a HashingFailedMessage" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(ReadAndWriteCache)
+    val actorUnderTest = makeEJHA(receiver.ref, activity)
+    receiver.watch(actorUnderTest)
+    actorUnderTest ! mock[HashingFailedMessage]
+    receiver.expectMsgClass(classOf[HashError])
+    receiver.expectTerminated(actorUnderTest)
+  }
+
+  it should "fail if it receives a FinalFileHashingResult but has no InitialHashingResult" in {
+    val receiver = TestProbe()
+    val activity = CallCachingActivity(ReadAndWriteCache)
+    val actorUnderTest = makeEJHA(receiver.ref, activity)
+    receiver.watch(actorUnderTest)
+    actorUnderTest ! NoFileHashesResult
+    receiver.expectMsgClass(classOf[HashError])
+    receiver.expectTerminated(actorUnderTest)
+  }
+  
+  object EngineJobHashingActorTest {
+    def props(receiver: ActorRef,
+              jobDescriptor: BackendJobDescriptor,
+              initializationData: Option[BackendInitializationData],
+              fileHashingActorProps: Props,
+              callCacheReadingJobActorProps: Props,
+              runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
+              backendName: String,
+              activity: CallCachingActivity): Props = Props(new EngineJobHashingActorTest(
+      receiver = receiver,
+      jobDescriptor = jobDescriptor,
+      initializationData = initializationData,
+      fileHashingActorProps = fileHashingActorProps,
+      callCacheReadingJobActorProps = callCacheReadingJobActorProps,
+      runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+      backendName = backendName,
+      activity = activity))
+  }
+  
+  class EngineJobHashingActorTest(receiver: ActorRef,
+                                  jobDescriptor: BackendJobDescriptor,
+                                  initializationData: Option[BackendInitializationData],
+                                  fileHashingActorProps: Props,
+                                  callCacheReadingJobActorProps: Props,
+                                  runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
+                                  backendName: String,
+                                  activity: CallCachingActivity) extends EngineJobHashingActor(
+    receiver = receiver,
+    jobDescriptor = jobDescriptor,
+    initializationData = initializationData,
+    fileHashingActorProps = fileHashingActorProps,
+    callCacheReadingJobActorProps = callCacheReadingJobActorProps,
+    runtimeAttributeDefinitions = runtimeAttributeDefinitions,
+    backendName = backendName,
+    activity = activity) {
+    // override preStart to nothing to prevent the creation of the CCHJA.
+    // This way it doesn't interfere with the tests and we can manually inject the messages we want
+    override def preStart() =  ()
+  }
+
 }

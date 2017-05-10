@@ -4,8 +4,8 @@ import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonR
 import cromwell.core.JobOutput
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
@@ -80,7 +80,14 @@ private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty)
 }
 private[ejea] object HasJobSuccessResponse {
-  val SuccessfulCallCacheHashes = CallCacheHashes(Set(HashResult(HashKey("whatever you want"), HashValue("whatever you need"))))
+  val SuccessfulCallCacheHashes = CallCacheHashes(
+    Set(HashResult(HashKey("whatever you want"), HashValue("whatever you need"))),
+    "initialHash",
+    Option(FileHashes(
+      Set(HashResult(HashKey("whatever file you want"), HashValue("whatever file you need"))),
+      "fileHash"
+    ))
+  )
 }
 
 private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =>

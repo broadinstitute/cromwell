@@ -37,6 +37,7 @@ trait IoCommand[+T] {
 
 /**
   * Copy source -> destination
+  * Will create the destination directory if it doesn't exist.
   */
 class IoCopyCommand(val source: Path, val destination: Path, val overwrite: Boolean) extends IoCommand[Unit] {
   override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString} with overwrite = $overwrite"
@@ -58,6 +59,7 @@ class IoSizeCommand(val file: Path) extends IoCommand[Long] {
 
 /**
   * Write content in file
+  * Will create the destination directory if it doesn't exist.
   */
 class IoWriteCommand(val file: Path, val content: String, val openOptions: OpenOptions) extends IoCommand[Unit] {
   override def toString = s"write to ${file.pathAsString}"

@@ -19,8 +19,8 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
                              (implicit ec: ExecutionContext): Future[Unit] = {
 
     // Construct parallel lists of parent entries, hashes, simpletons, and detritus from `CallCachingJoin`s.
-    val (entries, hashes, simpletons, detritus) = joins.toList.foldMap { j =>
-      (List(j.callCachingEntry), List(j.callCachingHashEntries), List(j.callCachingSimpletonEntries), List(j.callCachingDetritusEntries)) }
+    val (entries, hashes, simpletons, detritus, aggregations) = joins.toList.foldMap { j =>
+      (List(j.callCachingEntry), List(j.callCachingHashEntries), List(j.callCachingSimpletonEntries), List(j.callCachingDetritusEntries), List(j.callCachingAggregationEntry.toList)) }
 
     // Use the supplied `assigner` function to assign parent entry row IDs into the parallel `Seq` of children entities.
     def assignEntryIdsToChildren[C](ids: Seq[Int], groupingsOfChildren: Seq[Seq[C]], assigner: (Int, C) => C): Seq[C] = {
@@ -36,6 +36,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     def hashAssigner(id: Int, hash: CallCachingHashEntry) = hash.copy(callCachingEntryId = Option(id))
     def simpletonAssigner(id: Int, simpleton: CallCachingSimpletonEntry) = simpleton.copy(callCachingEntryId = Option(id))
     def detritusAssigner(id: Int, detritus: CallCachingDetritusEntry) = detritus.copy(callCachingEntryId = Option(id))
+    def aggregationAssigner(id: Int, aggregation: CallCachingAggregationEntry) = aggregation.copy(callCachingEntryId = Option(id))
 
     val action = for {
       entryIds <- dataAccess.callCachingEntryIdsAutoInc ++= entries
@@ -48,13 +49,30 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
 
       detritusEntries = assignEntryIdsToChildren(entryIds, detritus, detritusAssigner)
       _ <- batchInsert(detritusEntries, dataAccess.callCachingDetritusEntries)
+
+      aggregationEntries = assignEntryIdsToChildren(entryIds, aggregations, aggregationAssigner)
+      _ <- batchInsert(aggregationEntries, dataAccess.callCachingAggregationEntries)
     } yield ()
     runTransaction(action)
   }
 
-  override def queryCallCachingEntryIds(hashKeyHashValues: NonEmptyList[(String, String)])
-                               (implicit ec: ExecutionContext): Future[Seq[Int]] = {
-    val action = dataAccess.callCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
+  override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String)
+                                   (implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
+    
+    runTransaction(action)
+  }
+
+  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], hitNumber: Int)
+                                         (implicit ec: ExecutionContext): Future[Option[Int]] = {
+    val action = dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
+
+    runTransaction(action)
+  }
+  
+  override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
+                               (implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
   }
@@ -69,7 +87,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
       callCachingDetritusEntries <- dataAccess.
         callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
     } yield callCachingEntryOption.map(
-      CallCachingJoin(_, Seq.empty, callCachingSimpletonEntries, callCachingDetritusEntries))
+      CallCachingJoin(_, Seq.empty, None, callCachingSimpletonEntries, callCachingDetritusEntries))
 
     runTransaction(action)
   }

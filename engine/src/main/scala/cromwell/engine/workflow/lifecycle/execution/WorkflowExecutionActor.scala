@@ -11,6 +11,7 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
+import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.RunnableScopes
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.{ContinueWhilePossible, EngineWorkflowDescriptor}
@@ -357,7 +358,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     * of the state data.
     */
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
-    val runnableScopes = data.executionStore.runnableScopes
+    val RunnableScopes(runnableScopes, truncated) = data.executionStore.runnableScopes
     val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
 
@@ -411,7 +412,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     // Update the metadata for the jobs we just sent to EJEAs (they'll start off queued up waiting for tokens):
     pushQueuedCallMetadata(diffs)
     val newData = data.mergeExecutionDiffs(diffs)
-    if (diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
+    if (truncated || diffs.exists(_.containsNewEntry)) newData else newData.resetCheckRunnable
   }
 
   private def isInBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData) = {

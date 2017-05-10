@@ -43,6 +43,17 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
     successfulDigest.reference shouldBe "sha256:45168651"
     successfulDigest.isInstanceOf[DockerImageIdentifierWithHash] shouldBe true
     successfulDigest.asInstanceOf[DockerImageIdentifierWithHash].hash shouldBe DockerHashResult("sha256", "45168651")
+
+    // With tag + digest
+    val withTagDigest = DockerImageIdentifier.fromString("ubuntu:latest@sha256:45168651")
+    withTagDigest.isSuccess shouldBe true
+    val successfulTagDigest = withTagDigest.get
+    successfulTagDigest.host shouldBe None
+    successfulTagDigest.repository shouldBe "library"
+    successfulTagDigest.image shouldBe "ubuntu"
+    successfulTagDigest.reference shouldBe "latest@sha256:45168651"
+    successfulTagDigest.isInstanceOf[DockerImageIdentifierWithHash] shouldBe true
+    successfulTagDigest.asInstanceOf[DockerImageIdentifierWithHash].hash shouldBe DockerHashResult("sha256", "45168651")
   }
 
   it should "not parse invalid docker images" in {
@@ -51,7 +62,8 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       "NotValid:latest",
       "not:_valid",
       "/not:valid",
-      "not%valid"
+      "not%valid",
+      "not@sha256:digest:tag"
     )
     
     invalid foreach { image =>

@@ -25,8 +25,6 @@ object DockerImageIdentifier {
   // See https://github.com/docker-library/official-images/tree/master/library
   private val DefaultDockerRepo = "library"
   private val DefaultDockerTag = "latest"
-  private val TagSeparator = ":"
-  private val DigestSeparator = "@"
   
   private val DockerStringRegex =
     s"""
@@ -38,28 +36,35 @@ object DockerImageIdentifier {
        )                                        # End capturing group for name
        
        (?:   
-          (                                     # Begin capturing group for tag separator
-            :|@                                 # Tag separator. ':' is followed by a tag, '@' is followed by a digest
-          )                                     # End capturing group for tag separator
+          :                                     # Tag separator. ':' is followed by a tag
        
           (                                     # Begin capturing group for reference 
             [A-Za-z0-9]+(?:[.:_-][A-Za-z0-9]+)* # Reference
           )                                     # End capturing group for reference  
-       )?                                      
+       )?
+       (?:   
+          @                                     # Tag separator '@' is followed by a digest
+             
+          (                                     # Begin capturing group for reference 
+            [A-Za-z0-9]+(?:[.:_-][A-Za-z0-9]+)* # Reference
+          )                                     # End capturing group for reference  
+       )?
        """.trim.r
   
   def fromString(dockerString: String): Try[DockerImageIdentifier] = {
     dockerString match {
         // Just a name means latest tag implicitly
-      case DockerStringRegex(name, null, null) => buildId(name, TagSeparator,  DefaultDockerTag)
-      case DockerStringRegex(name, tagSeparator, reference) => buildId(name, tagSeparator, reference)
+      case DockerStringRegex(name, null, null) => buildId(name, None, None)
+      case DockerStringRegex(name, tag, null) => buildId(name, Option(tag), None)
+      case DockerStringRegex(name, null, hash) => buildId(name, None, Option(hash))
+      case DockerStringRegex(name, tag, hash) => buildId(name, Option(tag), Option(hash))
       case _ => Failure(new IllegalArgumentException(s"Docker image $dockerString has an invalid syntax."))
     }
   }
   
   private def isRegistryHostName(str: String) = str.contains('.')
   
-  private def buildId(name: String, tagSeparator: String, reference: String) = {
+  private def buildId(name: String, tag: Option[String], hash: Option[String]) = {
     val (dockerHost, dockerRepo, dockerImage) = name.split('/').toList match {
       // If just one component (e.g ubuntu), assume default repo
       case image :: Nil => (None, DefaultDockerRepo, image)
@@ -73,11 +78,11 @@ object DockerImageIdentifier {
       case host :: rest if isRegistryHostName(host) => (Option(host), rest.init.mkString("/"), rest.last)
     }
     
-    tagSeparator match {
-      case DigestSeparator => Try(DockerHashResult(reference)) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, reference, hash) }
-      case TagSeparator => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, reference))
-        // Should have been caught by the regex, but in case..
-      case other => Failure(new IllegalArgumentException(s"Invalid separator between image and tag in docker attribute: $other"))
+    (tag, hash) match {
+      case (None, None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, DefaultDockerTag))
+      case (Some(t), None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, t))
+      case (None, Some(h)) => Try(DockerHashResult(h)) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, h, hash) }
+      case (Some(t), Some(h)) => Try(DockerHashResult(h)) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, s"$t@$h", hash) }
     }
   }
 }

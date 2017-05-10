@@ -41,6 +41,15 @@ workflow call_cache_capoeira {
 
     # Different input names? Don't call cache!
     call read_files_inputs_renamed { input: ready = sleep.done, c = make_files.bananeira, d = make_files.balanca }
+    
+    # Like read_files but with 2 Array[File] instead of File
+    call read_array_files { input: ready = sleep.done, a = [make_files.bananeira], b = [make_files.balanca] }
+    
+    # Give the last call a chance to be writen to the call caching DB
+    call sleep as sleep_some_more { input: duration = 5, ready = read_array_files.done }
+    
+    # Same as read_array_files except a is empty and b contains both, in the same order. Don't call cache!
+    call read_array_files as read_array_files_rearranged { input: ready = sleep_some_more.done, a = [], b = [make_files.bananeira, make_files.balanca] }
 
     # Local runtime attributes:
     call read_files_different_docker { input: ready = sleep.done, a = make_files.bananeira, b = make_files.balanca }
@@ -364,4 +373,18 @@ task read_files_failOnStderr_expression {
     }
 }
 
-
+task read_array_files {
+    # 'ready' is ignored, but useful for flow-control
+    Boolean ready
+    Array[File] a
+    Array[File] b
+    command { cat ${sep = " " a} ${sep = " " b} > out }
+    output {
+        Boolean done = true
+        String s = read_string("out") }
+    runtime {
+        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        continueOnReturnCode: 0
+        failOnStderr: !ready
+    }
+}

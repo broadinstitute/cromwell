@@ -53,10 +53,6 @@ object DockerImageIdentifier {
   
   def fromString(dockerString: String): Try[DockerImageIdentifier] = {
     dockerString match {
-        // Just a name means latest tag implicitly
-      case DockerStringRegex(name, null, null) => buildId(name, None, None)
-      case DockerStringRegex(name, tag, null) => buildId(name, Option(tag), None)
-      case DockerStringRegex(name, null, hash) => buildId(name, None, Option(hash))
       case DockerStringRegex(name, tag, hash) => buildId(name, Option(tag), Option(hash))
       case _ => Failure(new IllegalArgumentException(s"Docker image $dockerString has an invalid syntax."))
     }

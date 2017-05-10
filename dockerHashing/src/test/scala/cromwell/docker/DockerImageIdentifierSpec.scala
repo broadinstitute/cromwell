@@ -63,7 +63,8 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       "not:_valid",
       "/not:valid",
       "not%valid",
-      "not@sha256:digest:tag"
+      "not@sha256:digest:tag",
+      "not:sha256:digest@tag"
     )
     
     invalid foreach { image =>

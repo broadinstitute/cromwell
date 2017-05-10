@@ -3,14 +3,16 @@ package cromwell.engine.workflow.lifecycle.execution
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, JobKey}
-import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.FqnIndex
+import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, RunnableScopes}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
 import wdl4s._
 
 import scala.language.postfixOps
 
 object ExecutionStore {
-  type FqnIndex = (String, Option[Int])
+  case class RunnableScopes(scopes: List[JobKey], truncated: Boolean)
+  
+  private type FqnIndex = (String, Option[Int])
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
 
@@ -27,6 +29,8 @@ object ExecutionStore {
 
     new ExecutionStore(keys.flatten.map(_ -> NotStarted).toMap, keys.nonEmpty)
   }
+  
+  val MaxJobsToStartPerTick = 1000
 }
 
 final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionStatus], hasNewRunnables: Boolean) {
@@ -65,7 +69,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
 
   def startedJobs: List[BackendJobDescriptorKey] = {
-    store.filterNot(_ == NotStarted).values.toList.flatten collect {
+    store.filterNot({ case (s, _) => s == NotStarted}).values.toList.flatten collect {
       case k: BackendJobDescriptorKey => k
     }
   }
@@ -80,7 +84,18 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminal))
   }
 
-  def runnableScopes = keysWithStatus(NotStarted) filter arePrerequisitesDone
+  /**
+    * Returns the list of jobs ready to be run, along with a Boolean indicating whether or not the list has been truncated.
+    * The size of the list will be MaxJobsToStartPerTick at most. If more jobs where found runnable, the boolean will be true, otherwise false.
+    */
+  def runnableScopes: RunnableScopes = {
+    val readyToStart = keysWithStatus(NotStarted).toStream filter arePrerequisitesDone
+    // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable scopes
+    val scopesToStartPlusOne = readyToStart.take(ExecutionStore.MaxJobsToStartPerTick + 1).toList
+    // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
+    // Use the fact that we took one more to determine whether or not we truncated the result.
+    RunnableScopes(scopesToStartPlusOne.take(ExecutionStore.MaxJobsToStartPerTick), scopesToStartPlusOne.size > ExecutionStore.MaxJobsToStartPerTick)
+  }
 
   def findCompletedShardsForOutput(key: CollectorKey): List[JobKey] = doneKeys.values.toList collect {
     case k @ (_: CallKey | _:DynamicDeclarationKey) if k.scope == key.scope && k.isShard => k

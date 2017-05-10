@@ -44,8 +44,7 @@ object StandardFileHashingActor {
   case class FileHashingFunction(work: (SingleFileHashRequest, LoggingAdapter) => Try[String])
 
   sealed trait BackendSpecificHasherCommand { def jobKey: JobKey }
-  case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WdlFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
-  case class HashesNoLongerRequired(jobKey: JobKey) extends BackendSpecificHasherCommand
+  final case class SingleFileHashRequest(jobKey: JobKey, hashKey: HashKey, file: WdlFile, initializationData: Option[BackendInitializationData]) extends BackendSpecificHasherCommand
 
   sealed trait BackendSpecificHasherResponse extends SuccessfulHashResultMessage
   case class FileHashResponse(hashResult: HashResult) extends BackendSpecificHasherResponse { override def hashes = Set(hashResult) }
@@ -68,7 +67,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
       customHashStrategy(fileRequest) match {
         case Some(Success(result)) => context.parent ! FileHashResponse(HashResult(fileRequest.hashKey, HashValue(result)))
-        case Some(Failure(failure)) => context.parent ! HashingFailedMessage(fileRequest.hashKey, failure)
+        case Some(Failure(failure)) => context.parent ! HashingFailedMessage(fileRequest.file.value, failure)
         case None => asyncHashing(fileRequest, replyTo)
       }
 
@@ -78,7 +77,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
     // Hash Failure
     case (fileHashRequest: SingleFileHashRequest, response @ IoFailure(_, failure: Throwable)) =>
-      context.parent ! HashingFailedMessage(fileHashRequest.hashKey, failure)
+      context.parent ! HashingFailedMessage(fileHashRequest.file.value, failure)
 
     case other =>
       log.warning(s"Async File hashing actor received unexpected message: $other")
@@ -86,7 +85,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
   def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef) = getPath(fileRequest.file.value) match {
     case Success(gcsPath) => sendIoCommandWithContext(hashCommand(gcsPath), fileRequest)
-    case Failure(failure) => replyTo ! HashingFailedMessage(fileRequest.hashKey, failure)
+    case Failure(failure) => replyTo ! HashingFailedMessage(fileRequest.file.value, failure)
   }
 
   override def receive: Receive = ioReceive orElse fileHashingReceive

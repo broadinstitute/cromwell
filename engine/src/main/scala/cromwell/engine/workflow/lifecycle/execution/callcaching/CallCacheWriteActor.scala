@@ -80,5 +80,6 @@ object CallCacheWriteActor {
   val dbFlushRate = 3 seconds
 }
 
-case object CallCacheWriteSuccess
-case class CallCacheWriteFailure(t: Throwable)
+sealed trait CallCacheWriteResponse
+case object CallCacheWriteSuccess extends CallCacheWriteResponse
+case class CallCacheWriteFailure(t: Throwable) extends CallCacheWriteResponse

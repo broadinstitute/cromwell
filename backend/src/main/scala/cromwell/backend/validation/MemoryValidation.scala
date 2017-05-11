@@ -39,31 +39,31 @@ object MemoryValidation {
   }
 
   private[validation] val wrongAmountFormat =
-    s"Expecting ${RuntimeAttributesKeys.MemoryKey} runtime attribute value greater than 0 but got %s"
+    "Expecting %s runtime attribute value greater than 0 but got %s"
   private[validation] val wrongTypeFormat =
-    s"Expecting ${RuntimeAttributesKeys.MemoryKey} runtime attribute to be an Integer or String with format '8 GB'." +
-      s" Exception: %s"
+    "Expecting %s runtime attribute to be an Integer or String with format '8 GB'." +
+      " Exception: %s"
 
-  private[validation] def validateMemoryString(wdlString: WdlString): ErrorOr[MemorySize] =
-    validateMemoryString(wdlString.value)
+  private[validation] def validateMemoryString(attributeName: String, wdlString: WdlString): ErrorOr[MemorySize] =
+    validateMemoryString(attributeName, wdlString.value)
 
-  private[validation] def validateMemoryString(value: String): ErrorOr[MemorySize] = {
+  private[validation] def validateMemoryString(attributeName: String, value: String): ErrorOr[MemorySize] = {
     MemorySize.parse(value) match {
       case scala.util.Success(memorySize: MemorySize) if memorySize.amount > 0 =>
         memorySize.to(MemoryUnit.GB).validNel
       case scala.util.Success(memorySize: MemorySize) =>
-        wrongAmountFormat.format(memorySize.amount).invalidNel
+        wrongAmountFormat.format(attributeName, memorySize.amount).invalidNel
       case scala.util.Failure(throwable) =>
-        wrongTypeFormat.format(throwable.getMessage).invalidNel
+        wrongTypeFormat.format(attributeName, throwable.getMessage).invalidNel
     }
   }
 
-  private[validation] def validateMemoryInteger(wdlInteger: WdlInteger): ErrorOr[MemorySize] =
-    validateMemoryInteger(wdlInteger.value)
+  private[validation] def validateMemoryInteger(attributeName: String, wdlInteger: WdlInteger): ErrorOr[MemorySize] =
+    validateMemoryInteger(attributeName, wdlInteger.value)
 
-  private[validation] def validateMemoryInteger(value: Int): ErrorOr[MemorySize] = {
+  private[validation] def validateMemoryInteger(attributeName: String, value: Int): ErrorOr[MemorySize] = {
     if (value <= 0)
-      wrongAmountFormat.format(value).invalidNel
+      wrongAmountFormat.format(attributeName, value).invalidNel
     else
       MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
   }
@@ -78,9 +78,9 @@ class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) 
   override def coercion = Seq(WdlIntegerType, WdlStringType)
 
   override protected def validateValue: PartialFunction[WdlValue, ErrorOr[MemorySize]] = {
-    case WdlInteger(value) => MemoryValidation.validateMemoryInteger(value)
-    case WdlString(value) => MemoryValidation.validateMemoryString(value)
+    case WdlInteger(value) => MemoryValidation.validateMemoryInteger(key, value)
+    case WdlString(value) => MemoryValidation.validateMemoryString(key, value)
   }
 
-  override def missingValueMessage: String = wrongTypeFormat.format("Not supported WDL type value")
+  override def missingValueMessage: String = wrongTypeFormat.format(key, "Not supported WDL type value")
 }

@@ -37,7 +37,8 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
     val sourceBodyParts = Map(
       "wdlSource" -> Option(workflowSubmission.wdl),
       "workflowInputs" -> workflowSubmission.inputsJson,
-      "workflowOptions" -> insertSecrets(workflowSubmission.options, workflowSubmission.refreshToken)
+      "workflowOptions" -> insertSecrets(workflowSubmission.options, workflowSubmission.refreshToken),
+      "customLabels" -> workflowSubmission.customLabels
     ) collect { case (name, Some(source)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
 
     val zipBodyParts = Map(
@@ -62,7 +63,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
     val requestEntity = requestEntityForSubmit(workflow)
 
     // Make a set of submissions that represent the batch (so we can zip with the results later):
-    val submissionSet = workflow.inputsBatch.map(inputs => WorkflowSingleSubmission(workflow.wdl, Option(inputs), workflow.options, workflow.zippedImports, workflow.refreshToken))
+    val submissionSet = workflow.inputsBatch.map(inputs => WorkflowSingleSubmission(workflow.wdl, Option(inputs), workflow.options, workflow.customLabels, workflow.zippedImports, workflow.refreshToken))
 
     makeRequest[List[CromwellStatus]](HttpRequest(HttpMethods.POST, batchSubmitEndpoint, List.empty[HttpHeader], requestEntity)) map { statuses =>
       val zipped = submissionSet.zip(statuses)

@@ -1,0 +1,20 @@
+# Tests that a runtime option to save call logs is copying said logs appropriately.
+
+name: final_call_logs_dir_local
+backends: [Local]
+tags: [localdockertest]
+
+testFormat: workflowsuccess
+
+files {
+  wdl: final_call_logs_dir/final_call_logs_dir.wdl
+  options: final_call_logs_dir/final_call_logs_dir_local.options
+}
+
+fileSystemCheck: "local"
+outputExpectations: {
+  "/tmp/call_logs/wf_hello/<<UUID>>/call-hello/execution/stdout": 1
+  "/tmp/call_logs/wf_hello/<<UUID>>/call-hello/execution/stderr": 1
+  "/tmp/logs/workflow.<<UUID>>.log": 1
+  "/tmp/outputs/wf_hello/<<UUID>>/call-hello/execution/test.out": 1
+}

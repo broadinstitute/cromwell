@@ -20,7 +20,7 @@ task find {
   runtime {docker: "ubuntu:precise-20161209"}
 }
 
-workflow floatingTags {
+workflow floating_tags {
   call echo
   call find { input: in_file = echo.out }
   call echo as echoAgain

@@ -13,17 +13,15 @@ import cromwell.api.model.WorkflowSingleSubmission
 
 import scala.util.{Failure, Success, Try}
 
-sealed abstract class Workflow {
-  def testName: String
-  def data: WorkflowData
-  def backends: List[String]
-
-  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(data.wdl, data.inputs, data.options, Option(data.labels) , data.zippedImports, refreshToken)
+final case class Workflow(testName: String,
+                          data: WorkflowData,
+                          metadata: Option[WorkflowMetadata],
+                          directoryContentCounts: Option[DirectoryContentCountCheck],
+                          backends: BackendsRequirement) {
+  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(data.wdl, data.inputs, data.options, Option(data.labels), data.zippedImports, refreshToken)
 }
 
 object Workflow {
-  final case class WorkflowWithMetadata(testName: String, data: WorkflowData, metadata: WorkflowMetadata, backends: List[String]) extends Workflow
-  final case class WorkflowWithoutMetadata(testName: String, data: WorkflowData, backends: List[String]) extends Workflow
 
   def fromPath(path: Path): ErrorOr[Workflow] = {
     Try(ConfigFactory.parseFile(path.toFile)) match {
@@ -36,18 +34,20 @@ object Workflow {
     conf.get[String]("name") match {
       case Result.Success(n) =>
         // If backend is provided, Centaur will only run this test if that backend is available on Cromwell
-        val backends = conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase)
+        val backendsRequirement = BackendsRequirement.fromConfig(conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"), conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase))
         // If basePath is provided it'll be used as basis for finding other files, otherwise use the dir the config was in
         val basePath = conf.get[Path]("basePath") valueOrElse configPath
         val metadata = conf.get[Config]("metadata")
+
+        val directoryContentCheckValidation = DirectoryContentCountCheck.forConfig(n, conf)
         val files = conf.get[Config]("files") match {
           case Result.Success(c) => WorkflowData.fromConfig(c, basePath)
           case Result.Failure(_) => invalidNel(s"No 'files' block in $configPath")
         }
 
         metadata match {
-          case Result.Success(c) => Apply[ErrorOr].map2(files, WorkflowMetadata.fromConfig(c))((f, m) => WorkflowWithMetadata(n, f, m, backends))
-          case Result.Failure(_) => Apply[ErrorOr].map(files)(f => WorkflowWithoutMetadata(n, f, backends))
+          case Result.Success(a) => Apply[ErrorOr].map3(files, directoryContentCheckValidation, WorkflowMetadata.fromConfig(a))((f, d, m) => Workflow(n, f, Option(m), d, backendsRequirement))
+          case Result.Failure(_) => Apply[ErrorOr].map2(files, directoryContentCheckValidation)((f, d) => Workflow(n, f, None, d, backendsRequirement))
         }
 
       case Result.Failure(_) => invalidNel(s"No name for: $configPath")

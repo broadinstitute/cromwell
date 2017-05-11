@@ -1,4 +1,0 @@
-{
-  "backend": "TES",
-  "final_workflow_outputs_dir": "gs://cloud-cromwell-dev/outputs"
-}

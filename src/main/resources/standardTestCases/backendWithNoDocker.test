@@ -1,5 +1,6 @@
 name: backendWithNoDocker
 backends: [LocalNoDocker]
+testFormat: runtwiceexpectingcallcaching
 
 files {
   wdl: backendWithNoDocker/backendWithNoDocker.wdl

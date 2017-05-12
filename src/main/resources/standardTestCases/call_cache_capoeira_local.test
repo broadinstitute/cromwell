@@ -33,4 +33,6 @@ metadata {
   "calls.call_cache_capoeira.read_files_without_continueOnReturnCode.callCaching.hit": true
   "calls.call_cache_capoeira.read_files_without_failOnStderr.callCaching.hit": true
   "calls.call_cache_capoeira.read_files_failOnStderr_expression.callCaching.hit": true
+  "calls.call_cache_capoeira.read_array_files.callCaching.hit": false
+  "calls.call_cache_capoeira.read_array_files_rearranged.callCaching.hit": false
 }

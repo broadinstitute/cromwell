@@ -2,6 +2,8 @@ package centaur.test.formulas
 
 import java.util.UUID
 
+import scala.collection.JavaConverters._
+import centaur.test.CheckFiles
 import cats.syntax.eq._
 import cats.syntax.functor._
 import cats.syntax.flatMap._
@@ -11,9 +13,12 @@ import centaur.test.Test
 import centaur.test.Test.testMonad
 import centaur.test.workflow.Workflow
 import centaur.test.workflow.Workflow.{WorkflowWithMetadata, WorkflowWithoutMetadata}
-import cromwell.api.model.{SubmittedWorkflow, Succeeded, Failed, TerminalStatus}
+import com.google.cloud.storage.Storage.BucketListOption
+import com.google.cloud.storage.{Storage, StorageOptions}
+import cromwell.api.model.{Failed, SubmittedWorkflow, Succeeded, TerminalStatus}
 import spray.json._
-import io.circe._, io.circe.parser._
+import io.circe._
+import io.circe.parser._
 
 
 /**
@@ -73,15 +78,18 @@ object TestFormulas {
     } yield ()
   }
 
-  def runFinalDirsWorkflow(wf: Workflow, dirOption: String, checkDirSize: String => Int, deletePreExistingFiles: String => Unit): Test[Unit] =  {
+  def runFinalDirsWorkflow(wf: Workflow, dirOption: String, checkFiles: CheckFiles): Test[Unit] =  {
     val options = wf.data.options.get
     val outputDirectory = parse(options).toOption.flatMap(_.findAllByKey(dirOption).head.asString).get
 
-    deletePreExistingFiles(outputDirectory)
+    checkFiles.deleteExistingFiles(outputDirectory)
 
     for {
       terminatedWf <- runWorkflowUntilTerminalStatus(wf, Succeeded)
-      _ = if (checkDirSize(outputDirectory) == 0) throw new RuntimeException("no files in output dir!") else ()
+      _ = if (checkFiles.checkDirectorySize(outputDirectory) == 0)
+            throw new RuntimeException("no files in output dir!")
+          else ()
     } yield ()
   }
+
 }

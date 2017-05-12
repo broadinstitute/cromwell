@@ -1,0 +1,4 @@
+{
+  "final_workflow_log_dir": "gs://debtest3/workflowLogDir",
+  "backend": "Jes"
+}

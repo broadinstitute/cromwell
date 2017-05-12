@@ -26,8 +26,12 @@ case class EngineFilesystems(actorSystem: ActorSystem) {
   private val gcsPathBuilderFactory = googleAuthMode map { mode =>
     GcsPathBuilderFactory(mode, googleConf.applicationName)
   }
+  
+  private val defaultFileSystem = if (config.as[Boolean]("engine.filesystems.local.enabled")) {
+    Option(DefaultPathBuilder)
+  } else None
 
   def pathBuildersForWorkflow(workflowOptions: WorkflowOptions): List[PathBuilder] = {
-    List(gcsPathBuilderFactory map { _.withOptions(workflowOptions)(actorSystem) }, Option(DefaultPathBuilder)).flatten
+    List(gcsPathBuilderFactory map { _.withOptions(workflowOptions)(actorSystem) }, defaultFileSystem).flatten
   }
 }

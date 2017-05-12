@@ -34,12 +34,14 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   import model.CromwellBackendsJsonSupport._
 
   private def requestEntityForSubmit(workflowSubmission: WorkflowSubmission) = {
+    import CustomLabelsJsonSupport._
+
     val sourceBodyParts = Map(
       "wdlSource" -> Option(workflowSubmission.wdl),
       "workflowInputs" -> workflowSubmission.inputsJson,
       "workflowOptions" -> insertSecrets(workflowSubmission.options, workflowSubmission.refreshToken),
-      "customLabels" -> workflowSubmission.customLabels
-    ) collect { case (name, Some(source)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
+      "customLabels" -> Option(workflowSubmission.customLabels.toJson.toString)
+    ) collect { case (name, Some(source: String)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
 
     val zipBodyParts = Map(
       "wdlDependencies" -> workflowSubmission.zippedImports

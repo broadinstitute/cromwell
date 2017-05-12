@@ -1,4 +1,4 @@
-package webservice
+package cromiam.webservice
 
 import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{StatusCodes, Uri}
@@ -7,7 +7,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.ConfigFactory
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import webservice.SwaggerUiHttpServiceSpec._
+import cromiam.webservice.SwaggerUiHttpServiceSpec._
 
 trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   def actorRefFactory = system

@@ -1,19 +1,21 @@
-package webservice
+package cromiam.webservice
 
 import akka.actor.ActorSystem
+import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.StatusCodes.Forbidden
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
+import cromiam.server.config.CromIamServerConfig
+import cromiam.webservice.CromIamApiService.CromIamForbidden
 import spray.json._
+
 import scala.concurrent.{ExecutionContextExecutor, Future}
-import webservice.CromIamApiService._
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromiam"
-
   override def swaggerUiVersion = "2.1.1"
 }
 
@@ -23,8 +25,10 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: ActorMaterializer
 
-  def cromwellInterface: String
-  def cromwellPort: Int
+  protected def configuration: CromIamServerConfig
+  protected lazy val UserIdHeader: String = configuration.cromIamConfig.userIdHeader
+
+  val logger: LoggingAdapter
 
   // Header that Akka HTTP adds to every request on receive.
   // We get an warning in logs if we don't strip it out before sending the request to cromwell
@@ -34,7 +38,7 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
 
   private[webservice] def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
     val cromwellRequest = httpRequest
-      .copy(uri = httpRequest.uri.withAuthority(cromwellInterface, cromwellPort))
+      .copy(uri = httpRequest.uri.withAuthority(configuration.cromwellConfig.interface, configuration.cromwellConfig.port))
       .withHeaders(httpRequest.headers.filterNot(header => header.name == timeoutAccessHeader))
 
     Http().singleRequest(cromwellRequest)
@@ -50,9 +54,12 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def statusRoute: Route =
     path("api" / "workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              logger.info(s"Forwarding status request from user=$userId")
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -62,9 +69,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
     path("api" / "workflows" / Segment / "query") { version =>
       parameterSeq { parameters =>
         get {
-          extractRequest { req =>
-            complete {
-              forwardToCromwell(req)
+          optionalHeaderValueByName(UserIdHeader) { userId =>
+            extractRequest { req =>
+              complete {
+                forwardToCromwell(req)
+              }
             }
           }
         }
@@ -74,9 +83,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def queryPostRoute: Route =
     path("api" / "workflows" / Segment / "query") { version =>
       (post & entity(as[Seq[Map[String, String]]])) { parameterMap =>
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -85,9 +96,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def abortRoute: Route =
     path("api" / "workflows" / Segment / Segment / "abort") { (version, possibleWorkflowId) =>
       post {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -96,9 +109,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def submitRoute: Route =
     path("api" / "workflows" / Segment) { version =>
       post {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -107,20 +122,24 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def submitBatchRoute: Route =
     path("api" / "workflows" / Segment / "batch") { version =>
       post {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
-        }
       }
+    }
 
   def workflowOutputsRoute: Route =
     path("api" / "workflows" / Segment / Segment / "outputs") { (version, possibleWorkflowId) =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -129,9 +148,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def workflowLogsRoute: Route =
     path("api" / "workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -140,9 +161,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def metadataRoute: Route =
     path("api" / "workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -151,9 +174,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def timingRoute: Route =
     path("api" / "workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -162,9 +187,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def statsRoute: Route =
     path("api" / "engine" / Segment / "stats") { version =>
       get {
-        extractRequest { req =>
-          complete {
-            HttpResponse(status = Forbidden, entity = CromIamForbidden)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              HttpResponse(status = Forbidden, entity = CromIamForbidden)
+            }
           }
         }
       }
@@ -173,9 +200,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def versionRoute: Route =
     path("api" / "engine" / Segment / "version") { version =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }
@@ -184,9 +213,11 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def backendRoute: Route =
     path("api" / "workflows" / Segment / "backends") { version =>
       get {
-        extractRequest { req =>
-          complete {
-            forwardToCromwell(req)
+        optionalHeaderValueByName(UserIdHeader) { userId =>
+          extractRequest { req =>
+            complete {
+              forwardToCromwell(req)
+            }
           }
         }
       }

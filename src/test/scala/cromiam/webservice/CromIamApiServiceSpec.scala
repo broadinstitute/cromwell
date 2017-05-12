@@ -1,4 +1,4 @@
-package webservice
+package cromiam.webservice
 
 import akka.event.NoLogging
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
@@ -12,9 +12,8 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
   override def testConfigSource = "akka.loglevel = DEBUG"
   val logger = NoLogging
 
-  private def notImplementedError = throw new NotImplementedError("This spec shouldn't need to access the real interface/port")
-  override def cromwellInterface: String = notImplementedError
-  override def cromwellPort: Int = notImplementedError
+  override def configuration = throw new NotImplementedError("This spec shouldn't need to access the real interface/port")
+  override protected lazy val UserIdHeader = "blah"
 
   override def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
     Future.successful(HttpResponse(status = InternalServerError))

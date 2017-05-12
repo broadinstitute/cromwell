@@ -1,33 +1,37 @@
-package server
+package cromiam.server
 
 import akka.Done
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.server.{HttpApp, Route}
-import akka.http.scaladsl.settings.ServerSettings
 import akka.stream.ActorMaterializer
-import com.typesafe.config.{Config, ConfigFactory}
-import webservice.{CromIamApiService, SwaggerService}
+import cats.data.Validated.{Invalid, Valid}
+import com.typesafe.config.ConfigFactory
+import cromiam.server.config.CromIamServerConfig
+import cromiam.webservice.{CromIamApiService, SwaggerService}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 
 
 object CromIamServer extends HttpApp with CromIamApiService with SwaggerService {
 
+  final val configuration: CromIamServerConfig = CromIamServerConfig.getFromConfig(ConfigFactory.load()) match {
+    case Valid(c) => c
+    case Invalid(errors) => throw new Exception("Bad CromIAM configuration:" + errors.toList.mkString("\n", "\n", "\n"))
+  }
+
   def run(): Unit = {
-    CromIamServer.startServer(CromIamServer.config.getString("http.interface"), CromIamServer.config.getInt("http.port"), ServerSettings(CromIamServer.config))
+    CromIamServer.startServer(configuration.cromIamConfig.http.interface, configuration.cromIamConfig.http.port, configuration.cromIamConfig.serverSettings)
   }
 
   override implicit val system: ActorSystem = ActorSystem()
   override implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
   override implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  private val config: Config = ConfigFactory.load()
-  override final val cromwellInterface: String = config.getString("cromwell.interface")
-  override final val cromwellPort: Int = config.getInt("cromwell.port")
 
 
-  val logger = Logging(system, getClass)
+  override val logger = Logging(system, getClass)
+
   override val route: Route = allRoutes ~ swaggerUiResourceRoute
 
   // Override default shutdownsignal which was just "hit return/enter"

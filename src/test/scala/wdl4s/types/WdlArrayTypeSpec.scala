@@ -1,6 +1,6 @@
 package wdl4s.types
 
-import wdl4s.values.{WdlArray, WdlInteger, WdlOptionalValue, WdlString, WdlValue}
+import wdl4s.values.{WdlArray, WdlInteger, WdlMap, WdlOptionalValue, WdlPair, WdlString, WdlValue}
 import wdl4s.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsArray, JsNumber}
@@ -126,6 +126,13 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
     } catch {
       case _: UnsupportedOperationException => // expected
     }
+  }
+  it should "be able to coerce a map into an array of pairs" in {
+    val map = WdlMap(WdlMapType(WdlIntegerType, WdlStringType), Map(WdlInteger(1) -> WdlString("one")))
+    val arrayOfPairsType = WdlArrayType(WdlPairType(WdlIntegerType, WdlStringType))
+    arrayOfPairsType.isCoerceableFrom(map.wdlType) should be(true)
+    arrayOfPairsType.coerceRawValue(map) should be(Success(WdlArray(WdlArrayType(WdlPairType(WdlIntegerType, WdlStringType)), List(WdlPair(WdlInteger(1), WdlString("one"))))))
+
   }
 
   List(WdlStringType, WdlArrayType(WdlIntegerType), WdlPairType(WdlIntegerType, WdlPairType(WdlIntegerType, WdlIntegerType)), WdlOptionalType(WdlStringType)) foreach { desiredMemberType =>

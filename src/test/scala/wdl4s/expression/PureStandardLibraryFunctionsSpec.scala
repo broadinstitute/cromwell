@@ -53,4 +53,20 @@ class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
     val integersExpectation = WdlArray(WdlArrayType(WdlStringType), integers map { i => WdlString("-f " + i)})
     PureStandardLibraryFunctions.prefix(Seq(Success(WdlString("-f ")), Success(integerWdlValues))) should be(Success(integersExpectation))
   }
+
+  behavior of "basename"
+
+  List(
+    ("my.txt", "my.txt", ".txt", "my"),
+    ("/Users/chris/chris.tar.gz", "chris.tar.gz", ".tar.gz", "chris"),
+    ("gs://bucket/charlie.bucket", "charlie.bucket", ".wonka", "charlie.bucket")
+  ) foreach { case (full, baseWithExtension, suffixToStrip, suffixStripped) =>
+    it should s"get the file name for $full" in {
+      PureStandardLibraryFunctions.basename(Seq(Success(WdlString(full)))) should be(Success(WdlString(baseWithExtension)))
+    }
+
+    it should s"get the file name for $full and strip the suffix '$suffixToStrip'" in {
+      PureStandardLibraryFunctions.basename(Seq(Success(WdlString(full)), Success(WdlString(suffixToStrip)))) should be(Success(WdlString(suffixStripped)))
+    }
+  }
 }

@@ -1,4 +1,4 @@
 {
-  "final_workflow_log_dir": "gs://debtest3/workflowLogDir",
+  "final_workflow_log_dir": "gs://cloud-cromwell-dev/workflowLogDir",
   "backend": "Jes"
 }

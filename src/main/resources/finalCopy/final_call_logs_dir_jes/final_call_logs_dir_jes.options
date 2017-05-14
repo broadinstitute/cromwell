@@ -1,4 +1,4 @@
 {
   "backend": "Jes",
-  "final_call_logs_dir": "gs://debtest3/callLogs"
+  "final_call_logs_dir": "gs://cloud-cromwell-dev/callLogs"
 }

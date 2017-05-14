@@ -1,4 +1,4 @@
 {
   "backend": "Jes",
-  "final_workflow_outputs_dir": "gs://debtest3/outputs"
+  "final_workflow_outputs_dir": "gs://cloud-cromwell-dev/outputs"
 }

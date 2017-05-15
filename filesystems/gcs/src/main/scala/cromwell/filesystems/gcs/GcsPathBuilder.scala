@@ -5,7 +5,8 @@ import java.nio.file.spi.FileSystemProvider
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
-import com.google.cloud.RetryParams
+import com.google.api.gax.retrying.RetrySettings
+import com.google.cloud.http.HttpTransportOptions
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.cloud.storage.{BlobId, StorageOptions}
 import com.google.common.base.Preconditions._
@@ -47,15 +48,19 @@ object GcsPathBuilder {
 
 class GcsPathBuilder(authMode: GoogleAuthMode,
                      applicationName: String,
-                     retryParams: RetryParams,
+                     retrySettings: RetrySettings,
                      cloudStorageConfiguration: CloudStorageConfiguration,
                      options: WorkflowOptions) extends PathBuilder {
   authMode.validate(options)
 
+  protected val transportOptions = HttpTransportOptions.newBuilder()
+    .setReadTimeout(3.minutes.toMillis.toInt)
+    .build()
+
   protected val storageOptionsBuilder = StorageOptions.newBuilder()
-                                  .setReadTimeout(3.minutes.toMillis.toInt)
-                                  .setCredentials(authMode.credential(options))
-                                  .setRetryParams(retryParams)
+    .setTransportOptions(transportOptions)
+    .setCredentials(authMode.credential(options))
+    .setRetrySettings(retrySettings)
 
   // Grab the google project from Workflow Options if specified and set
   // that to be the project used by the StorageOptions Builder
@@ -63,13 +68,13 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
 
 
   protected val storageOptions = storageOptionsBuilder.build()
-  
+
   // Create a com.google.api.services.storage.Storage
   // This is the underlying api used by com.google.cloud.storage
   // By bypassing com.google.cloud.storage, we can create low level requests that can be batched
   val apiStorage: com.google.api.services.storage.Storage = {
     new com.google.api.services.storage.Storage
-    .Builder(HttpTransport, JsonFactory, GoogleConfiguration.withCustomTimeouts(storageOptions.getHttpRequestInitializer))
+    .Builder(HttpTransport, JsonFactory, GoogleConfiguration.withCustomTimeouts(transportOptions.getHttpRequestInitializer(storageOptions)))
       .setApplicationName(applicationName)
       .build()
   }
@@ -103,7 +108,7 @@ case class GcsPath private[gcs](nioPath: NioPath,
                                 cloudStorage: com.google.cloud.storage.Storage
                                ) extends Path {
   lazy val blob = BlobId.of(cloudStoragePath.bucket, cloudStoragePath.toRealPath().toString)
-  
+
   override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage)
 
   override def pathAsString: String = java.net.URLDecoder.decode(nioPath.toUri.toString, "UTF-8")

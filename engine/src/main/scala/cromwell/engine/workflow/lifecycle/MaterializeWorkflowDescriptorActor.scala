@@ -30,7 +30,7 @@ import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wdl4s._
 import wdl4s.expression.NoFunctions
-import wdl4s.values.{WdlString, WdlValue}
+import wdl4s.values.{WdlSingleFile, WdlString, WdlValue}
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -251,9 +251,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     for {
       coercedInputs <- validateCoercedInputs(rawInputs, namespace)
-      _ = pushWfInputsToMetadataService(coercedInputs)
-      evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedInputs, pathBuilders)
-      declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedInputs)
+      coercedValidatedFileInputs <- validateWdlFiles(coercedInputs)
+      _ = pushWfInputsToMetadataService(coercedValidatedFileInputs)
+      evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedValidatedFileInputs, pathBuilders)
+      declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedValidatedFileInputs)
       backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions, labels)
     } yield EngineWorkflowDescriptor(namespace, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
@@ -442,6 +443,16 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case Success(r) => r.validNel
       case Failure(e: MessageAggregation) if e.errorMessages.nonEmpty => Invalid(NonEmptyList.fromListUnsafe(e.errorMessages.toList))
       case Failure(e) => e.getMessage.invalidNel
+    }
+  }
+
+  private def validateWdlFiles(workflowInputs: WorkflowCoercedInputs): ErrorOr[WorkflowCoercedInputs] = {
+    val failedFiles = workflowInputs.collect {
+      case (callName, WdlSingleFile(value)) if value.startsWith("\"gs://") => "Invalid value for File input '" + callName + "':"+ value + " starts with a '\"' "
+    }
+    NonEmptyList.fromList(failedFiles.toList) match {
+      case Some(errors) => Invalid(errors)
+      case None => workflowInputs.validNel
     }
   }
 

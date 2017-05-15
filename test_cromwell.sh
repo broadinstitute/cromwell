@@ -52,7 +52,7 @@ while getopts ":hb:r:c:p:j:t:e:" option; do
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
-        e) EXCLUDE_TAG="${OPTARG}"
+        e) EXCLUDE_TAG+=("${OPTARG}")
             ;;
         :) printf "Missing argument for -%s\n" "$OPTARG" >&2
             echo "$usage" >&2
@@ -119,9 +119,13 @@ TEST_STATUS="failed"
 sbt test:compile
 CP=$(sbt "export test:dependency-classpath" --error)
 
-if [[ -n ${EXCLUDE_TAG} ]]; then
-    echo "Running Centaur filtering out ${EXCLUDE_TAG} tests"
-    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} -l ${EXCLUDE_TAG}"
+if [[ -n ${EXCLUDE_TAG[*]} ]]; then
+    echo "Running Centaur filtering out ${EXCLUDE_TAG[*]} tests"
+    EXCLUDE=""
+    for val in "${EXCLUDE_TAG[@]}"; do 
+        EXCLUDE="-l $val "$EXCLUDE
+    done
+    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
 else
     echo "Running Centaur with sbt test"
     TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"

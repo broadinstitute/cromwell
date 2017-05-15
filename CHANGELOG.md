@@ -15,7 +15,7 @@
  ```sql
 SELECT MAX(aggregated) as group_concat_max_len FROM
       (
-            SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(cche.HASH_VALUE)) AS aggregated
+            SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(CONCAT(cche.HASH_KEY, cche.HASH_VALUE))) AS aggregated
             FROM CALL_CACHING_HASH_ENTRY cche
             GROUP BY cche.CALL_CACHING_ENTRY_ID
       ) aggregation

@@ -1,0 +1,8 @@
+# Tests that a runtime option to save call logs is copying said logs appropriately.
+
+name: final_call_logs_dir_local
+
+files {
+  wdl: final_call_logs_dir_local/final_call_logs_dir_local.wdl
+  options: final_call_logs_dir_local/final_call_logs_dir_local.options
+}

@@ -1,0 +1,9 @@
+# Tests that a runtime option to save call logs is copying said logs appropriately.
+
+name: final_call_logs_dir_jes
+backends: [Jes]
+
+files {
+  wdl: final_call_logs_dir_jes/final_call_logs_dir_jes.wdl
+  options: final_call_logs_dir_jes/final_call_logs_dir_jes.options
+}

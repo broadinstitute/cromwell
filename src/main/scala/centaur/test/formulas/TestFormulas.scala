@@ -2,14 +2,24 @@ package centaur.test.formulas
 
 import java.util.UUID
 
+import scala.collection.JavaConverters._
+import centaur.test.CheckFiles
+import cats.syntax.eq._
 import cats.syntax.functor._
 import cats.syntax.flatMap._
+import cats._
 import centaur.test.Operations._
 import centaur.test.Test
 import centaur.test.Test.testMonad
 import centaur.test.workflow.Workflow
 import centaur.test.workflow.Workflow.{WorkflowWithMetadata, WorkflowWithoutMetadata}
-import cromwell.api.model.{SubmittedWorkflow, Succeeded, Failed, TerminalStatus}
+import com.google.cloud.storage.Storage.BucketListOption
+import com.google.cloud.storage.{Storage, StorageOptions}
+import cromwell.api.model.{Failed, SubmittedWorkflow, Succeeded, TerminalStatus}
+import spray.json._
+import io.circe._
+import io.circe.parser._
+
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -67,4 +77,19 @@ object TestFormulas {
       _ <- validateNoCacheHits(metadata, workflow.testName)
     } yield ()
   }
+
+  def runFinalDirsWorkflow(wf: Workflow, dirOption: String, checkFiles: CheckFiles): Test[Unit] =  {
+    val options = wf.data.options.get
+    val outputDirectory = parse(options).toOption.flatMap(_.findAllByKey(dirOption).head.asString).get
+
+    checkFiles.deleteExistingFiles(outputDirectory)
+
+    for {
+      terminatedWf <- runWorkflowUntilTerminalStatus(wf, Succeeded)
+      _ = if (checkFiles.checkDirectorySize(outputDirectory) == 0)
+            throw new RuntimeException("no files in output dir!")
+          else ()
+    } yield ()
+  }
+
 }

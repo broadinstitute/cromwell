@@ -14,6 +14,7 @@ val cromwellV = "27-9a9745a-SNAP"
 val akkaV = "2.4.17"
 val akkaHttpV = "10.0.5"
 
+
 /***
  * by default log buffering is set to true in sbt, which means
  * that for tests executed in parallel you will not see the 
@@ -35,7 +36,16 @@ libraryDependencies ++= Seq(
   "org.broadinstitute" %% "cromwell-api-client" % cromwellV,
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "3.0.1" % Test,
-  "org.pegdown" % "pegdown" % "1.6.0" % Test
+  "org.pegdown" % "pegdown" % "1.6.0" % Test,
+  "com.google.cloud" % "google-cloud-storage" % "1.0.0" exclude("com.google.guava", "guava-jdk5")
 )
+
+val circeVersion = "0.8.0-RC1"
+
+libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")

@@ -16,8 +16,6 @@ object GcsPathBuilderFactory {
     ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
   }
 
-  val DefaultRetryParams = RetrySettings.newBuilder().build()
-
   val DefaultCloudStorageConfiguration = {
     CloudStorageConfiguration.builder()
       .blockSize(UploadBufferBytes)
@@ -30,7 +28,7 @@ object GcsPathBuilderFactory {
 
 case class GcsPathBuilderFactory(authMode: GoogleAuthMode,
                                  applicationName: String,
-                                 retrySettings: RetrySettings = GcsPathBuilderFactory.DefaultRetryParams,
+                                 retrySettings: Option[RetrySettings] = None,
                                  cloudStorageConfiguration: CloudStorageConfiguration = GcsPathBuilderFactory.DefaultCloudStorageConfiguration)
 
   extends PathBuilderFactory {

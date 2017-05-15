@@ -48,7 +48,7 @@ object GcsPathBuilder {
 
 class GcsPathBuilder(authMode: GoogleAuthMode,
                      applicationName: String,
-                     retrySettings: RetrySettings,
+                     retrySettings: Option[RetrySettings],
                      cloudStorageConfiguration: CloudStorageConfiguration,
                      options: WorkflowOptions) extends PathBuilder {
   authMode.validate(options)
@@ -60,7 +60,8 @@ class GcsPathBuilder(authMode: GoogleAuthMode,
   protected val storageOptionsBuilder = StorageOptions.newBuilder()
     .setTransportOptions(transportOptions)
     .setCredentials(authMode.credential(options))
-    .setRetrySettings(retrySettings)
+
+  retrySettings foreach storageOptionsBuilder.setRetrySettings
 
   // Grab the google project from Workflow Options if specified and set
   // that to be the project used by the StorageOptions Builder

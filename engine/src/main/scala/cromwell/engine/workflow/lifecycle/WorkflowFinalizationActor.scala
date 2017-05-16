@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, FSM, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{ActorRef, FSM, OneForOneStrategy, Props}
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.backend._
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -39,13 +40,18 @@ object WorkflowFinalizationActor {
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
   def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, ioActor: ActorRef, jobExecutionMap: JobExecutionMap,
-            workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, ioActor, jobExecutionMap, workflowOutputs, initializationData)).withDispatcher(EngineDispatcher)
+            workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData, copyWorkflowOutputsActor: Option[Props]): Props = {
+    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, ioActor, jobExecutionMap, workflowOutputs, initializationData, copyWorkflowOutputsActor)).withDispatcher(EngineDispatcher)
   }
 }
 
-case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, ioActor: ActorRef,
-                                     jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData)
+case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
+                                     workflowDescriptor: EngineWorkflowDescriptor,
+                                     ioActor: ActorRef,
+                                     jobExecutionMap: JobExecutionMap,
+                                     workflowOutputs: CallOutputs,
+                                     initializationData: AllBackendInitializationData,
+                                     copyWorkflowOutputsActorProps: Option[Props])
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
 
   val tag = self.path.name
@@ -56,6 +62,13 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowD
 
   override def successResponse(data: WorkflowLifecycleActorData) = WorkflowFinalizationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowFinalizationFailedResponse(reasons)
+
+  // If a finalization actor dies, send ourselves the failure and stop the child actor
+  override def supervisorStrategy = OneForOneStrategy() {
+    case failure => 
+      self.tell(FinalizationFailed(failure), sender())
+      Stop
+  }
 
   startWith(FinalizationPendingState, WorkflowLifecycleActorData.empty)
 
@@ -71,15 +84,12 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId, workflowD
         } yield actor
       }
 
-      val engineFinalizationActor = Try {
-        context.actorOf(CopyWorkflowOutputsActor.props(workflowIdForLogging, ioActor, workflowDescriptor, workflowOutputs, initializationData),
-          "CopyWorkflowOutputsActor")
-      }
+      val engineFinalizationActor = Try { copyWorkflowOutputsActorProps.map(context.actorOf(_, "CopyWorkflowOutputsActor")).toList }
 
       val allActors = for {
         backendFinalizationActorsFromTry <- backendFinalizationActors
         engineFinalizationActorFromTry <- engineFinalizationActor
-      } yield backendFinalizationActorsFromTry.toList.+:(engineFinalizationActorFromTry)
+      } yield backendFinalizationActorsFromTry.toList ++ engineFinalizationActorFromTry
 
       allActors match {
         case Failure(ex) =>

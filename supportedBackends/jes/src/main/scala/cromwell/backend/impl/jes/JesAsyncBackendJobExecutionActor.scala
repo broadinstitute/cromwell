@@ -26,7 +26,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
 import wdl4s._
-import wdl4s.expression.NoFunctions
+import wdl4s.expression.PureStandardLibraryFunctions
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -191,7 +191,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[JesFileOutput] = {
-    val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) map relativeLocalizationPath
+    val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, PureStandardLibraryFunctions) map relativeLocalizationPath
 
     val outputs = wdlFileOutputs.distinct flatMap { wdlFile =>
       wdlFile match {

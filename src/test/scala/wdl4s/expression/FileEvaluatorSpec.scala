@@ -48,18 +48,20 @@ class FileEvaluatorSpec extends FlatSpec with Matchers {
     (""" read_tsv("my_file") """, Seq(WdlSingleFile("my_file")), WdlFileType),
     (""" if read_int("i.txt") == 10 then "a.txt" else "b.txt" """, Seq(WdlSingleFile("a.txt"), WdlSingleFile("b.txt"), WdlSingleFile("i.txt")), WdlFileType),
     (""" if "a" == "b" then "a.txt" else "b.txt" """, Seq(WdlSingleFile("b.txt")), WdlFileType),
-    (""" if b then read_string("t") else "nope" """, Seq(WdlSingleFile("t")), WdlStringType)
+    (""" if b then read_string("t") else "nope" """, Seq(WdlSingleFile("t")), WdlStringType),
+    (""" read_string(basename(fileInput, ".txt") + ".bam") """, Seq(WdlSingleFile("input.bam")), WdlStringType)
   )
 
   val lookupFunction = Map(
     "b" -> WdlBoolean(true),
+    "fileInput" -> WdlSingleFile("gs://bucket/path/to/input.txt"),
     "fileNameAsStringInput" -> WdlString("sommat.bam"),
     "mapToFileName" -> WdlMap(Map(WdlString("Chris") -> WdlString("sommatStupid.bam")))
   )
 
   forAll (expressions) { (expression, files, wdlType) =>
     it should s"evaluate $expression (coerced to: $wdlType) => $files" in {
-      WdlExpression.fromString(expression).evaluateFiles(lookupFunction, NoFunctions, wdlType).get.toSet should be(files.toSet)
+      WdlExpression.fromString(expression).evaluateFiles(lookupFunction, PureStandardLibraryFunctions, wdlType).get.toSet should be(files.toSet)
     }
   }
 }

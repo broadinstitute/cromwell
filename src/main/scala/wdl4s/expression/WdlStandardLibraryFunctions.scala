@@ -9,6 +9,7 @@ import wdl4s.{TsvSerializable, WdlExpressionException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
+import lenthall.exception.AggregatedException
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   def fileContentsToString(path: String): String = readFile(path)
@@ -71,6 +72,28 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
       files = glob(globPath(globVal), globVal)
       wdlFiles = files map { WdlFile(_, isGlob = false) }
     } yield WdlArray(WdlArrayType(WdlFileType), wdlFiles)
+  }
+
+  def basename(params: Seq[Try[WdlValue]]): Try[WdlString] = {
+
+    val arguments: Try[(WdlValue, WdlValue)] = params.toList match {
+      case Success(f) :: Nil => Success(f, WdlString(""))
+      case Success(f) :: Success(s) :: Nil => Success(f, s)
+      case s if s.size > 2 || s.size < 1 => Failure(new IllegalArgumentException(s"Bad number of arguments to basename(filename, suffixToStrip = ''): ${params.size}"))
+      case _ =>
+        val failures = params collect {
+          case Failure(e) => e
+        }
+        Failure(AggregatedException("Failures evaluating basename parameters", failures))
+    }
+
+    for {
+      extractedArgs <- arguments
+      fileNameAsString <- WdlStringType.coerceRawValue(extractedArgs._1)
+      suffixAsString <- WdlStringType.coerceRawValue(extractedArgs._2)
+      basename = fileNameAsString.valueString.split('/').last
+      suffixless = basename.stripSuffix(suffixAsString.valueString)
+    } yield WdlString(suffixless)
   }
 
   def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
@@ -148,7 +171,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
       case _ => Failure(new IllegalArgumentException(s"Invalid parameter for engine function seq: $value."))
     }
 
-    extractAndValidateArguments map { intValue => WdlArray(WdlArrayType(WdlIntegerType), (0 until intValue).map(WdlInteger(_))) }
+    extractAndValidateArguments map { intValue => WdlArray(WdlArrayType(WdlIntegerType), (0 until intValue).map(WdlInteger)) }
   }
 
   def sub(params: Seq[Try[WdlValue]]): Try[WdlString] = {
@@ -282,14 +305,14 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
   def className = this.getClass.getCanonicalName
 
   override def readFile(path: String): String = throw new NotImplementedError(s"readFile not available in $className.")
-  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = throw new NotImplementedError(s"read_json not available in $className.")
-  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"write_json not available in $className.")
-  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = throw new NotImplementedError(s"size not available in $className.")
-  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"write_tsv not available in $className.")
-  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"stdout not available in $className.")
+  override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError(s"read_json not available in $className."))
+  override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_json not available in $className."))
+  override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError(s"size not available in $className."))
+  override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_tsv not available in $className."))
+  override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"stdout not available in $className."))
   override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
   override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError(s"writeTempFile not available in $className.")
-  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedError(s"stderr not available in $className.")
+  override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
 }
 
 case object PureStandardLibraryFunctions extends PureStandardLibraryFunctionsLike
@@ -329,6 +352,11 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   }
   def sub(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
   def range(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlIntegerType))
+  def basename(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(fType) :: Nil if WdlStringType.isCoerceableFrom(fType) => Success(WdlStringType)
+    case Success(fType) :: Success(sType) :: Nil if WdlStringType.isCoerceableFrom(fType) && WdlStringType.isCoerceableFrom(sType) => Success(WdlStringType)
+    case _ => Failure(new Exception(s"Unexpected basename arguments: $params"))
+  }
   def transpose(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
     case Success(t @ WdlArrayType(WdlArrayType(wdlType))) :: Nil => Success(t)
     case _ => Failure(new Exception(s"Unexpected transpose target: $params"))
@@ -370,4 +398,5 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def select_all(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
   override def zip(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
   override def cross(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
+  override def basename(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
 }

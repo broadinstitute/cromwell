@@ -220,7 +220,7 @@ task makeGithubRelease {
         curl -X POST --data-binary @${cromwellJar} -H "Authorization: token ${githubToken}" -H "Content-Type: application/octet-stream" $UPLOAD_URL
         
         # Publish the draft
-        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/horneth/cromwell/releases/$RELEASE_ID?access_token=${githubToken}
+        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/${organization}/cromwell/releases/$RELEASE_ID?access_token=${githubToken}
     >>>
     runtime {
         docker: "python:2.7"

@@ -27,7 +27,7 @@ SELECT MAX(aggregated) as group_concat_max_len FROM
 SET GLOBAL group_concat_max_len = value
  ```
  
-Where `value` is replaced with the value you want to set it to.
+ Where `value` is replaced with the value you want to set it to.
  
  Note that the migration will fail if the flag is not set properly.
  

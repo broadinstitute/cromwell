@@ -20,9 +20,17 @@ SELECT MAX(aggregated) as group_concat_max_len FROM
             GROUP BY cche.CALL_CACHING_ENTRY_ID
       ) aggregation
  ```
- 
- Note that the migration will be skipped if the flag is not set properly.
 
+ Here is the SQL command to run to set the group_concat_max_len flag to the proper value:
+ 
+ ```sql
+SET GLOBAL group_concat_max_len = value
+ ```
+ 
+Where `value` is replaced with the value you want to set it to.
+ 
+ Note that the migration will fail if the flag is not set properly.
+ 
 ### Breaking Changes
 
 * The update to Slick 3.2 requires a database stanza to

@@ -195,6 +195,7 @@ task makeGithubRelease {
     
     command <<<
         set -e
+        set -x
         
         # download changelog from master
         curl https://raw.githubusercontent.com/${organization}/cromwell/master/CHANGELOG.md -o CHANGELOG.md

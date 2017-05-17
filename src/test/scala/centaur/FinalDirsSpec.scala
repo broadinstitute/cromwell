@@ -56,9 +56,8 @@ class FinalDirsSpec extends FlatSpec with Matchers with ParallelTestExecution {
   "final outputs on jes backend" should "place files in output dir" in 
     testFinalOutputs(OutputsDirJes, "final_workflow_outputs_dir", Jes)
 
-    //TODO: This is broken and needs to be fixed.  seems to be specific to call_logs_dir option
   "final Call logs dir in Jes" should "place call files in GCS dir when requested" in 
-    ignore //testFinalOutputs(CallLogsDirJes, "final_call_logs_dir", Jes)
+    testFinalOutputs(CallLogsDirJes, "final_call_logs_dir", Jes)
     
 
 

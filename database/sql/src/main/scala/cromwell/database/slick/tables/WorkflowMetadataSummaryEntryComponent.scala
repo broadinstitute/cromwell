@@ -84,7 +84,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       val workflowStatusFilter = workflowStatuses.
         map(workflowStatus => workflowMetadataSummaryEntry.workflowStatus.fold(ifEmpty = exclude)(_ === workflowStatus)).
         reduceLeftOption(_ || _)
-      // Workflows can be queried by multiple labels, the reduceLeftOption ANDs together all workflow IDs that share all the labels.
+      // Workflows can be queried by multiple labels, the reduceLeftOption ANDs together all workflows are associated
+      // to all the labels from the query.
       val labelsFilter = labelKeyLabelValues.map { case (labelKey, labelValue) =>
           existsWorkflowIdLabelKeyAndValue(workflowMetadataSummaryEntry.workflowExecutionUuid, labelKey, labelValue) }.
         reduceLeftOption(_ && _)

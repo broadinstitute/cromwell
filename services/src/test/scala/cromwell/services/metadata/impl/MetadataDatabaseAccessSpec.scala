@@ -213,7 +213,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultByName = response.results groupBy (_.name)
           resultByName.keys.toSet.flatten should equal(Set(Workflow2Name))
         }
-
         // Filter by start date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.StartDate.name -> workflowQueryResult2.start.get.toString))) map { case (response, meta) =>
@@ -222,7 +221,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             case (y, n) => fail(s"Found ${y.size} later workflows and ${n.size} earlier")
           }
         }
-
         // Filter by end date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.EndDate.name -> workflowQueryResult.end.get.toString))) map { case (response, meta) =>

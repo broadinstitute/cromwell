@@ -94,22 +94,29 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
     } yield ()
   }
 
-  private def updateCustomLabelEntry(metadataEntry: MetadataEntry)
+  private def upsertCustomLabelEntry(metadataEntry: MetadataEntry)
                                     (implicit ec: ExecutionContext): DBIO[Unit] = {
+    //Extracting the label key from the MetadataEntry key
     val labelKey = metadataEntry.metadataKey.split("\\:", 2)(1)
     val labelValue = metadataEntry.metadataValue.toRawString
-    val customLabelEntry = buildCustomLabelEntry(labelKey, labelValue, metadataEntry.workflowExecutionUuid)
-    for {
-      _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
-    } yield ()
-  }
-
-  private def buildCustomLabelEntry(labelKey: String, labelValue: String, wfId: String): CustomLabelEntry = {
-    CustomLabelEntry(
-      customLabelKey = labelKey,
-      customLabelValue = labelValue,
-      workflowExecutionUuid = wfId
-    )
+    val customLabelEntry = CustomLabelEntry(labelKey, labelValue, metadataEntry.workflowExecutionUuid)
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
+      } yield ()
+    }
+    else {
+       for {
+         updateCount <- dataAccess.entryByWorkflowUuidLabelKeyLabelValue((
+             metadataEntry.workflowExecutionUuid,
+           labelKey,
+           labelValue)).update(customLabelEntry)
+         _ <- updateCount match {
+           case 0 => dataAccess.customLabelEntryIdsAutoInc += customLabelEntry
+           case _ => assertUpdateCount("upsertCustomLabelEntry", updateCount, 1)
+         }
+       } yield()
+    }
   }
 
   private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)
@@ -131,22 +138,22 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
     }
   }
 
-  override def refreshMetadataSummaryEntries(metadataKey1: String, metadataKey2: String, metadataKey3: String,
-                                             metadataKey4: String, metadataLabelKey: String, buildUpdatedSummary:
+  override def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String,
+                                             statusMetadataKey: String, labelMetadataKey: String, buildUpdatedSummary:
                                              (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
                                                WorkflowMetadataSummaryEntry)
                                             (implicit ec: ExecutionContext): Future[Long] = {
-    val likeMetadataLabelKey = metadataLabelKey + "%"
+    val likeMetadataLabelKey = labelMetadataKey + "%"
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
       previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(0L)
       metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual((
-        previousMetadataEntryId + 1L, metadataKey1, metadataKey2, metadataKey3, metadataKey4, likeMetadataLabelKey)).result
-      metadataByWorkflowUuid = metadataEntries.filterNot(_.metadataKey.contains(metadataLabelKey)).groupBy(_.workflowExecutionUuid)
-      customLabelEntries = metadataEntries.filter(_.metadataKey.contains(metadataLabelKey))
-      _ <- DBIO.sequence(metadataByWorkflowUuid map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      _ <- DBIO.sequence(customLabelEntries map updateCustomLabelEntry)
+        previousMetadataEntryId + 1L, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey)).result
+      metadataWithoutLabels = metadataEntries.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
+      customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
+      _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      _ <- DBIO.sequence(customLabelEntries map upsertCustomLabelEntry)
       maximumMetadataEntryId = previousOrMaximum(previousMetadataEntryId, metadataEntries.map(_.metadataEntryId.get))
       _ <- upsertSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", maximumMetadataEntryId)

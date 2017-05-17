@@ -58,8 +58,6 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     publishWorkflowRoot(workflowPaths.workflowRoot.pathAsString)
-    publishDefaultLabels()
-    publishCustomLabels()
     if (jesConfiguration.needAuthFileUpload) {
       writeAuthenticationFile(workflowPaths) map { _ => Option(initializationData) } recoverWith {
         case failure => Future.failed(new IOException("Failed to upload authentication file", failure)) 

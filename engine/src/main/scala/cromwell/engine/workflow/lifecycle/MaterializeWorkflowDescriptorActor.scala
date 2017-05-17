@@ -175,6 +175,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       (_, _, _)
     } flatMap { case (namespace, workflowOptions, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
+      publishLabelsToMetadata(id, namespace.workflow.unqualifiedName, labels)
       val pathBuilders = EngineFilesystems(context.system).pathBuildersForWorkflow(workflowOptions)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)
     }
@@ -186,6 +187,21 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val nameEvent = MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
 
     serviceRegistryActor ! PutMetadataAction(nameEvent)
+  }
+
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Unit = {
+    val defaultLabels = Map(
+      "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId",
+      "cromwell-workflow-name" -> unqualifiedName
+    )
+    val customLabels = labels.value map {x => x.key -> x.value}
+    labelsToMetadata(defaultLabels ++ customLabels, rootWorkflowId)
+  }
+
+  protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
+    labels foreach { case (k, v) =>
+      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:${k}"), MetadataValue(v)))
+    }
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,

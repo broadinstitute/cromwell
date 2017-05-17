@@ -186,7 +186,49 @@ task versionPrep {
     }
 }
 
+task makeGithubRelease {
+    String githubToken
+    String organization
+    File cromwellJar
+    Int oldVersion
+    Int newVersion
+    
+    command <<<
+        set -e
+        set -x
+        
+        # download changelog from master
+        curl https://raw.githubusercontent.com/${organization}/cromwell/master/CHANGELOG.md -o CHANGELOG.md
+        
+        # Extract the latest piece of the changelog corresponding to this release
+        # head remove the last line, next sed escapes all ", and last sed/tr replaces all new lines with \n so it can be used as a JSON string
+        BODY=$(sed -n '/## ${newVersion}/,/## ${oldVersion}/p' CHANGELOG.md | head -n -1 | sed -e 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
+        
+        # Build the json body for the POST release
+        API_JSON="{\"tag_name\": \"${newVersion}\",\"name\": \"${newVersion}\",\"body\": \"$BODY\",\"draft\": true,\"prerelease\": false}"
+        
+        # POST the release as a draft
+        curl --data "$API_JSON" https://api.github.com/repos/${organization}/cromwell/releases?access_token=${githubToken} -o release_response
+        
+        # parse the response to get the release id and the asset upload url
+        RELEASE_ID=$(python -c "import sys, json; print json.load(sys.stdin)['id']" < release_response)
+        UPLOAD_URL=$(python -c "import sys, json; print json.load(sys.stdin)['upload_url']" < release_response)
+        # Maybe update this when we have basename !
+        UPLOAD_URL=$(sed 's/{.*}/?name=cromwell-${newVersion}.jar/' <<< "$UPLOAD_URL")
+        
+        # Upload the cromwell jar as an asset
+        curl -X POST --data-binary @${cromwellJar} -H "Authorization: token ${githubToken}" -H "Content-Type: application/octet-stream" "$UPLOAD_URL"
+        
+        # Publish the draft
+        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/${organization}/cromwell/releases/"$RELEASE_ID"?access_token=${githubToken}
+    >>>
+    runtime {
+        docker: "python:2.7"
+    }
+}
+
 workflow release_cromwell {
+  String githubToken
   String organization
     
   Pair[String, String] lenthallAsDependency = ("lenthallV", waitForLenthall.publishedVersion) 
@@ -310,6 +352,20 @@ workflow release_cromwell {
        newVersion = versionName,
        dependencyFilePath = "project/Dependencies.scala"
     }
+  }
+  
+  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
+  # Version that was just released
+  Int cromwellVersionAsInt = cromwellPrep.version
+  # Previous version
+  Int cromwellPreviousVersion = cromwellVersionAsInt - 1
+  
+  call makeGithubRelease { input:
+           githubToken = githubToken,
+           organization = organization,
+           cromwellJar = cromwellJar,
+           new_version = cromwellVersionAsInt,
+           old_version = cromwellPreviousVersion
   }
   
   output {

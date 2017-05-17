@@ -1,4 +1,3 @@
 {
-  "backend": "Jes",
   "final_call_logs_dir": "gs://cloud-cromwell-dev/callLogs"
 }

@@ -1,9 +1,0 @@
-# Tests that the runtime option to preserve logs from the workflow is being honored.
-
-name: workflow_log_dir_tes
-backends: [Tes]
-
-files {
-  wdl: final_workflow_log_dir/final_workflow_log_dir.wdl
-  options: final_workflow_log_dir/final_workflow_log_dir_local.options
-}

@@ -1,9 +1,0 @@
-# Tests that a runtime option to save call logs is copying said logs appropriately.
-
-name: final_call_logs_dir_tes
-backends: [Tes]
-
-files {
-  wdl: final_call_logs_dir/final_call_logs_dir.wdl
-  options: final_call_logs_dir/final_call_logs_dir_local.options
-}

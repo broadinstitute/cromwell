@@ -1,9 +1,0 @@
-# Tests that the runtime option to copy outputs from a workflow is being honored.
-
-name: workflow_outputs_tes
-backends: [Tes]
-
-files {
-  wdl: final_workflow_outputs/final_workflow_outputs.wdl
-  options: final_workflow_outputs/final_workflow_outputs_local.options
-}

@@ -24,20 +24,26 @@ case class JesCheckFiles(storage: Storage) extends CheckFiles {
 
 case class LocalCheckFiles() extends CheckFiles {
   def checkDirectorySize: String => Int = {s =>
-    (new java.io.File(s)).listFiles.size
+    val d = new java.io.File(s)
+    if (d.exists && d.isDirectory)
+      d.listFiles.size
+    else 
+      0
   }
 
   def deleteExistingFiles = 
     {directory: String =>
       val dir = new java.io.File(directory)
       def deleteDir(d: File) {
-        d.listFiles.toList.foreach { f =>
+        if (d.exists && d.isDirectory) {
+          d.listFiles.toList.foreach { f =>
 
           //directories must be empty to be deleted
           if (f.isDirectory) 
             deleteDir(f)
 
           f.delete
+          }
         }
       }
 

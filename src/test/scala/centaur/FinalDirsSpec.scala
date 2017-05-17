@@ -31,21 +31,22 @@ class FinalDirsSpec extends FlatSpec with Matchers with ParallelTestExecution {
   import FinalDirsSpec._
 
   case class Backend(id: String, checkFiles: CheckFiles)
-  val Jes = Backend("Jes", JesCheckFiles(StorageOptions.getDefaultInstance.getService))
-  val Local = Backend("Local", LocalCheckFiles())
+  val Jes = Backend("jes", JesCheckFiles(StorageOptions.getDefaultInstance.getService))
+  val Local = Backend("local", LocalCheckFiles())
+  val Tes = Backend("tes", LocalCheckFiles())
 
   val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
 
   "final Outputs on local backend" should "place files in output dir" in
     testFinalOutputs(OutputsDirLocalTest, "final_workflow_outputs_dir", Local)
 
-  "final log dirs on local backend" should "place log files in output dir when requested" in 
+  "final log dirs on local backend" should "place log files in output dir when requested" in
     testFinalOutputs(LogDirLocalTest, "final_workflow_log_dir", Local)
 
   "final call logs dir in local" should "place call files in output dir when requested" in 
     testFinalOutputs(CallLogsDirLocalTest, "final_call_logs_dir", Local)
 
-  "final Logs dir on jes backend" should "place log files in output dir when requested" in 
+  "final Logs dir on jes backend" should "place log files in output dir when requested" in
     testFinalOutputs(LogDirJesTest, "final_workflow_log_dir", Jes)
 
   "final outputs on jes backend" should "place files in output dir" in 
@@ -62,6 +63,6 @@ class FinalDirsSpec extends FlatSpec with Matchers with ParallelTestExecution {
 
       case (Invalid(e), _) => fail(s"Could not read logs test:\n -${e.toList.mkString("\n-")}")
 
-      case (Valid(_), _) => Monad[Test].pure(()) //valid but not proper backend, ignore
+      case (Valid(_), _) => println(s"didn't find ${backend.id} in $cromwellBackends"); ignore
     }
 }

@@ -4,6 +4,6 @@ name: workflow_outputs_local
 backends: [Local]
 
 files {
-  wdl: final_workflow_outputs_local/final_workflow_outputs_local.wdl
-  options: final_workflow_outputs_local/final_workflow_outputs_local.options
+  wdl: final_workflow_outputs/final_workflow_outputs.wdl
+  options: final_workflow_outputs/final_workflow_outputs_local.options
 }

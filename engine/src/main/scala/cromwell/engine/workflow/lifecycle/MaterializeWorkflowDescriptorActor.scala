@@ -448,7 +448,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def validateWdlFiles(workflowInputs: WorkflowCoercedInputs): ErrorOr[WorkflowCoercedInputs] = {
     val failedFiles = workflowInputs.collect {
-      case (callName, WdlSingleFile(value)) if value.startsWith("\"gs://") => "Invalid value for File input '" + callName + "':"+ value + " starts with a '\"' "
+      case (fullyQualifiedName , WdlSingleFile(value)) if value.startsWith("\"gs://") => "Invalid value for File input '" + fullyQualifiedName  + "':"+ value + " starts with a '\"' "
     }
     NonEmptyList.fromList(failedFiles.toList) match {
       case Some(errors) => Invalid(errors)

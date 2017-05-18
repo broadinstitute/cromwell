@@ -4,6 +4,6 @@ name: workflow_outputs_jes
 backends: [Jes]
 
 files {
-  wdl: final_workflow_outputs_jes/final_workflow_outputs_jes.wdl
-  options: final_workflow_outputs_jes/final_workflow_outputs_jes.options
+  wdl: final_workflow_outputs/final_workflow_outputs.wdl
+  options: final_workflow_outputs/final_workflow_outputs_jes.options
 }

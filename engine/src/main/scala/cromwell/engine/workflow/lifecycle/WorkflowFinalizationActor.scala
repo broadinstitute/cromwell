@@ -63,7 +63,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
   override def successResponse(data: WorkflowLifecycleActorData) = WorkflowFinalizationSucceededResponse
   override def failureResponse(reasons: Seq[Throwable]) = WorkflowFinalizationFailedResponse(reasons)
 
-  // If a finalization actor dies, send ourselves the failure and stop the child actor
+  // If an engine or backend finalization actor (children of this actor) dies, send ourselves the failure and stop the child actor
   override def supervisorStrategy = OneForOneStrategy() {
     case failure => 
       self.tell(FinalizationFailed(failure), sender())

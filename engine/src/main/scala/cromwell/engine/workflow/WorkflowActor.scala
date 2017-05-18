@@ -351,13 +351,14 @@ class WorkflowActor(val workflowId: WorkflowId,
       case _ => Option(CopyWorkflowOutputsActor.props(workflowIdForLogging, ioActor, workflowDescriptor, workflowOutputs, stateData.initializationData))
     }
     
-    context.actorOf(WorkflowFinalizationActor.props(workflowId,
-      workflowDescriptor,
-      ioActor,
-      jobExecutionMap,
-      workflowOutputs,
-      stateData.initializationData,
-      copyWorkflowOutputsActorProps
+    context.actorOf(WorkflowFinalizationActor.props(
+      workflowId = workflowId,
+      workflowDescriptor = workflowDescriptor,
+      ioActor = ioActor,
+      jobExecutionMap = jobExecutionMap,
+      workflowOutputs = workflowOutputs,
+      initializationData = stateData.initializationData,
+      copyWorkflowOutputsActor = copyWorkflowOutputsActorProps
     ), name = s"WorkflowFinalizationActor")
   }
   /**

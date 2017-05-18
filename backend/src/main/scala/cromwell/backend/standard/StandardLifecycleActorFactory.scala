@@ -3,7 +3,6 @@ package cromwell.backend.standard
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend._
-import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.backend.standard.callcaching._
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
@@ -183,18 +182,16 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,
                                     initializationData: Option[BackendInitializationData]): Path = {
     initializationData match {
-      // Try to use the initializationData if present to avoid recreating a WorkflowPath
       case Some(data) => data.asInstanceOf[StandardInitializationData].workflowPaths.executionRoot
-      case None => new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot
+      case None => super.getWorkflowExecutionRootPath(workflowDescriptor, backendConfig, initializationData)
     }
   }
 
   override def getWorkflowExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,
                                             initializationData: Option[BackendInitializationData]): Path = {
     initializationData match {
-        // Try to use the initializationData if present to avoid recreating a WorkflowPath
       case Some(data) => data.asInstanceOf[StandardInitializationData].workflowPaths.workflowRoot
-      case None => new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).workflowRoot
+      case None => super.getWorkflowExecutionRootPath(workflowDescriptor, backendConfig, initializationData)
     }
   }
 

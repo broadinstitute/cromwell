@@ -34,7 +34,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   import model.CromwellBackendsJsonSupport._
 
   private def requestEntityForSubmit(workflowSubmission: WorkflowSubmission) = {
-    import CustomLabelsJsonSupport._
+    import cromwell.api.model.LabelsJsonFormatter._
 
     val sourceBodyParts = Map(
       "wdlSource" -> Option(workflowSubmission.wdl),

@@ -34,13 +34,13 @@ trait CustomLabelEntryComponent {
   val customLabelEntryIdsAutoInc = customLabelEntries returning
     customLabelEntries.map(_.customLabelEntryId)
 
-  val entryByWorkflowUuidLabelKeyLabelValue = Compiled(
-    (workflowUuid: Rep[String], labelKey: Rep[String], labelValue: Rep[String]) => for {
+  val existsWorkflowIdLabelKeyAndValue = Compiled(
+    (workflowUuid: Rep[String], labelKey: Rep[String], labelValue: Rep[String]) => (for {
       customLabelEntry <- customLabelEntries
       if customLabelEntry.workflowExecutionUuid === workflowUuid &&
         customLabelEntry.customLabelKey == labelKey &&
         customLabelEntry.customLabelValue == labelValue
-    } yield customLabelEntry
+    } yield ()).exists
   )
 
   def existsWorkflowIdLabelKeyAndValue(workflowId: Rep[String],

@@ -100,23 +100,17 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
     val labelKey = metadataEntry.metadataKey.split("\\:", 2)(1)
     val labelValue = metadataEntry.metadataValue.toRawString
     val customLabelEntry = CustomLabelEntry(labelKey, labelValue, metadataEntry.workflowExecutionUuid)
-    if (useSlickUpserts) {
-      for {
-        _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
-      } yield ()
-    }
-    else {
-       for {
-         updateCount <- dataAccess.entryByWorkflowUuidLabelKeyLabelValue((
-             metadataEntry.workflowExecutionUuid,
-           labelKey,
-           labelValue)).update(customLabelEntry)
-         _ <- updateCount match {
-           case 0 => dataAccess.customLabelEntryIdsAutoInc += customLabelEntry
-           case _ => assertUpdateCount("upsertCustomLabelEntry", updateCount, 1)
-         }
-       } yield()
-    }
+    for {
+      exists <- dataAccess.existsWorkflowIdLabelKeyAndValue((
+        customLabelEntry.workflowExecutionUuid,
+        customLabelEntry.customLabelKey,
+        customLabelEntry.customLabelValue)).result
+      _ <- if (!exists) {
+        dataAccess.customLabelEntryIdsAutoInc += customLabelEntry
+      } else {
+        DBIO.successful(())
+      }
+    } yield ()
   }
 
   private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)

@@ -18,15 +18,15 @@ object FinalDirsSpec {
 
   val OutputsDirLocal= FinalDir.resolve("final_workflow_outputs_local.test")
   val OutputsDirJes= FinalDir.resolve("final_workflow_outputs_jes.test")
-  val OutputsDirTes= FinalDir.resolve("final_workflow_outputs_tes.test")
+  val OutputsDirTes= FinalDir.resolve("final_workflow_outputs_local.test")
 
   val LogDirLocal = FinalDir.resolve("final_workflow_log_dir_local.test")
   val LogDirJes = FinalDir.resolve("final_workflow_log_dir_jes.test")
-  val LogDirTes = FinalDir.resolve("final_workflow_log_dir_tes.test")
+  val LogDirTes = FinalDir.resolve("final_workflow_log_dir_local.test")
 
   val CallLogsDirLocal = FinalDir.resolve("final_call_logs_dir_local.test")
   val CallLogsDirJes = FinalDir.resolve("final_call_logs_dir_jes.test")
-  val CallLogsDirTes = FinalDir.resolve("final_call_logs_dir_tes.test")
+  val CallLogsDirTes = FinalDir.resolve("final_call_logs_dir_local.test")
 }
 
 
@@ -59,7 +59,6 @@ class FinalDirsSpec extends FlatSpec with Matchers with ParallelTestExecution {
   "final Call logs dir in Jes" should "place call files in GCS dir when requested" in 
     testFinalOutputs(CallLogsDirJes, "final_call_logs_dir", Jes)
     
-
 
   "final Call logs dir in Tes" should "place call files in local dir when requested" in 
     testFinalOutputs(OutputsDirTes, "final_workflow_outputs_dir", Tes)

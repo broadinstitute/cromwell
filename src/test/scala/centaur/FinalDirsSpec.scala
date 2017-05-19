@@ -26,7 +26,7 @@ object FinalDirsSpec {
 
   val CallLogsDirLocal = FinalDir.resolve("final_call_logs_dir_local.test")
   val CallLogsDirJes = FinalDir.resolve("final_call_logs_dir_jes.test")
-  val CallLogsDirTes = FinalDir.resolve("final_call_logs_dir_local.test")
+  val CallLogsDirTes = FinalDir.resolve("final_call_logs_dir_tes.test")
 }
 
 

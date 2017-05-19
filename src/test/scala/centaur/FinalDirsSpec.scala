@@ -18,15 +18,15 @@ object FinalDirsSpec {
 
   val OutputsDirLocal= FinalDir.resolve("final_workflow_outputs_local.test")
   val OutputsDirJes= FinalDir.resolve("final_workflow_outputs_jes.test")
-  val OutputsDirTes= FinalDir.resolve("final_workflow_outputs_local.test")
+  val OutputsDirTes= FinalDir.resolve("final_workflow_outputs_tes.test")
 
   val LogDirLocal = FinalDir.resolve("final_workflow_log_dir_local.test")
   val LogDirJes = FinalDir.resolve("final_workflow_log_dir_jes.test")
-  val LogDirTes = FinalDir.resolve("final_workflow_log_dir_local.test")
+  val LogDirTes = FinalDir.resolve("final_workflow_log_dir_tes.test")
 
   val CallLogsDirLocal = FinalDir.resolve("final_call_logs_dir_local.test")
   val CallLogsDirJes = FinalDir.resolve("final_call_logs_dir_jes.test")
-  val CallLogsDirTes = FinalDir.resolve("final_call_logs_dir_local.test")
+  val CallLogsDirTes = FinalDir.resolve("final_call_logs_dir_tes.test")
 }
 
 
@@ -50,6 +50,7 @@ class FinalDirsSpec extends FlatSpec with Matchers with ParallelTestExecution {
     testFinalOutputs(CallLogsDirLocal, "final_call_logs_dir", Local)
 
 
+
   "final Logs dir on jes backend" should "place log files in output dir when requested" in
     testFinalOutputs(LogDirJes, "final_workflow_log_dir", Jes)
 
@@ -60,10 +61,10 @@ class FinalDirsSpec extends FlatSpec with Matchers with ParallelTestExecution {
     testFinalOutputs(CallLogsDirJes, "final_call_logs_dir", Jes)
     
 
-  "final Call logs dir in Tes" should "place call files in local dir when requested" in 
-    testFinalOutputs(OutputsDirTes, "final_workflow_outputs_dir", Tes)
+  "final workflow outputs in Tes" should "place workflow outputs in local dir when requested" in 
+    ignore //TODO: testFinalOutputs(OutputsDirTes, "final_workflow_outputs_dir", Tes)
 
-  "final Logs dir on Tes backend" should "place log files in output dir when requested" in
+  "final Logs dir on Tes backend" should "place log files in Tes output dir when requested" in
     testFinalOutputs(LogDirTes, "final_workflow_log_dir", Tes)
 
   "final Call logs dir in Tes" should "place call files in local tes logs dir when requested" in 

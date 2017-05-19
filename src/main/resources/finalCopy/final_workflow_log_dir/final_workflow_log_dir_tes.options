@@ -1,4 +1,4 @@
 {
-  "backend": "Local",
+  "backend": "TES",
   "final_workflow_log_dir": "/tmp/logs"
 }

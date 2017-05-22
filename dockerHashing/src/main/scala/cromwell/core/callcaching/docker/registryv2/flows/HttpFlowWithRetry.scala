@@ -3,12 +3,13 @@ package cromwell.core.callcaching.docker.registryv2.flows
 import akka.NotUsed
 import akka.actor.Scheduler
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
-import akka.stream.FanOutShape2
+import akka.stream.{ActorMaterializer, FanOutShape2}
 import akka.stream.javadsl.MergePreferred
 import akka.stream.scaladsl.{Flow, GraphDSL, Partition}
 import cromwell.core.callcaching.docker.registryv2.flows.FlowUtils._
 import cromwell.core.callcaching.docker.registryv2.flows.HttpFlowWithRetry._
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -16,6 +17,8 @@ import scala.language.postfixOps
 import scala.util.Try
 
 object HttpFlowWithRetry {
+  val Logger = LoggerFactory.getLogger("HttpLogger")
+  
   def isRetryable(response: HttpResponse) = {
     response.status match {
       case StatusCodes.InternalServerError => true
@@ -68,7 +71,7 @@ case class HttpFlowWithRetry[T](
                             retryBufferSize: Int = 100,
                             requestBackoff: () => Backoff = defaultRequestBackoff,
                             maxAttempts: Int = 3
-                          )(implicit val scheduler: Scheduler, ec: ExecutionContext) {
+                          )(implicit val scheduler: Scheduler, ec: ExecutionContext, mat: ActorMaterializer) {
   
   lazy val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
@@ -143,12 +146,24 @@ case class HttpFlowWithRetry[T](
     * Create a re-submittable request from a failed retryable
     * @return a future that will complete after the appropriate backoff time
     */
-  private def toRetryableRequest(value: (Any, ContextWithRequest[T])) = value match {
-    case (_, contextWithRequest) => 
+  private def toRetryableRequest(value: (HttpResponse, ContextWithRequest[T])) = value match {
+    case (response, contextWithRequest) => 
       val nextRetryIn = contextWithRequest.retryIn
       val nextRequest = (contextWithRequest.request, contextWithRequest.withNextAttempt)
-      akka.pattern.after(nextRetryIn, scheduler) { 
-        Future.successful(nextRequest)
+      // This response will never be consumed by anyone, so discard its content here to avoid pool freeze
+      // http://doc.akka.io/docs/akka-http/10.0.5/scala/http/client-side/request-level.html#using-the-future-based-api-in-actors
+      // https://github.com/akka/akka/issues/19538
+      // https://github.com/akka/akka-http/issues/183
+      // https://github.com/akka/akka-http/issues/117
+      response.discardEntityBytes().future() flatMap { _ =>
+        akka.pattern.after(nextRetryIn, scheduler) {
+          Future.successful(nextRequest)
+        }
+      } recoverWith {
+        case failure =>
+          // Can't do much here except log the error and keep going with the next request
+          Logger.error(s"Failed to discard entity bytes for response $response", failure)
+          Future.successful(nextRequest)
       }
   }
 }

@@ -1,5 +1,7 @@
 package cromwell.backend.wdl
 
+//import java.nio.file.Path
+
 import cromwell.backend.MemorySize
 import cromwell.core.path.PathFactory
 import wdl4s.expression.WdlStandardLibraryFunctions
@@ -8,8 +10,30 @@ import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
 import wdl4s.values._
 
 import scala.util.{Failure, Success, Try}
+//import better.files._
 
-trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions =>
+object ReadLikeFunctions {
+  //def fileIsSmallerThan(file: Path, limit: Int): Try[Boolean] = file.size < limit
+}
+
+trait FileSizeLimitationConfig {
+  val readLinesLimit = 128000
+  val readBoolLimit = 5
+  val readIntLimit = 19
+  val readFloatLimit = 50
+  val readStringLimit = 128000
+  val readJsonLimit = 128000
+  val readTsvLimit = 128000
+  val readMapLimit = 128000
+  val readObjectLimit = 128000
+}
+
+case class FileSizeTooBig(override val getMessage: String) extends Exception
+
+trait ReadLikeFunctions extends PathFactory with FileSizeLimitationConfig { this: WdlStandardLibraryFunctions =>
+
+  def fileSize: WdlValue=> Try[Long] = 
+    w => Try(buildPath(w.valueString).size)
 
   /**
     * Asserts that the parameter list contains a single parameter which will be interpreted
@@ -29,15 +53,30 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
 
   override def readFile(path: String): String = buildPath(path).contentAsString
 
+
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]
     */
   override def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
+      fileName <- extractSingleArgument("read_lines", params)
+      fileSize <- fileSize(singleArgument)
+      _ = if (fileSize > readLinesLimit)
+        throw new FileSizeTooBig(s"read of $singleArgument failed because $fileSize > $readLinesLimit")
       contents <- readContentsFromSingleFileParameter("read_lines", params)
       lines = contents.split("\n")
     } yield WdlArray(WdlArrayType(WdlStringType), lines map WdlString)
   }
+
+  def validateFileSizeIsWithinLimits(filePath: WdlString, limit: Int): Try[Unit] = 
+    fileSize(singleArgument).
+      flatMap{size =>
+         if (size > readLinesLimit) 
+           Try(throw new FileSizeTooBig(s"read of $singleArgument failed because $fileSize > $readLinesLimit"))
+         else
+           Try(())
+      }
+
 
   override def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
     for {
@@ -73,7 +112,11 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   /**
     * Try to read an integer from the file referenced by the specified `WdlValue`.
     */
-  override def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
+  override def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = 
+    for {
+      _ <- validateFileSizeIsWithinLimits(
+      r <- read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
+    } yield 
 
   /**
     * Try to read a float from the file referenced by the specified `WdlValue`.

@@ -1,8 +1,9 @@
 package wdl4s.types
 
 import lenthall.util.TryUtil
-import wdl4s.values.{WdlArray, WdlFile, WdlString, WdlValue}
+import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlPair, WdlString, WdlValue}
 import spray.json.JsArray
+import wdl4s.values.WdlArray.WdlArrayLike
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
@@ -15,26 +16,28 @@ sealed trait WdlArrayType extends WdlType {
   private def coerceIterable(values: Seq[Any]): WdlArray = values match {
     case s:Seq[Any] if s.nonEmpty =>
       val coerced = s.map {memberType.coerceRawValue(_).get}
-      WdlArray(WdlArrayType(coerced.head.wdlType), coerced)
-    case _ => WdlArray(WdlArrayType(memberType), Seq())
+      WdlArray(this, coerced)
+    case _ => WdlArray(this, Seq())
   }
 
-  protected def coercionMaker(allowEmpty: Boolean): PartialFunction[Any, WdlValue] = {
+  private val allowEmpty = !guaranteedNonEmpty
+  override protected def coercion: PartialFunction[Any, WdlValue] = {
     case s: Seq[Any] if allowEmpty || s.nonEmpty => coerceIterable(s)
     case js: JsArray if allowEmpty || js.elements.nonEmpty => coerceIterable(js.elements)
     case javaList: java.util.List[_] if allowEmpty || !javaList.isEmpty => coerceIterable(javaList.asScala)
-    case WdlArray(WdlMaybeEmptyArrayType.EmptyArrayType, _) => WdlArray(WdlArrayType(memberType), Seq.empty)
+    case WdlArray(WdlMaybeEmptyArrayType.EmptyArrayType, _) => WdlArray(this, Seq.empty)
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType == WdlStringType && memberType == WdlFileType =>
-      WdlArray(WdlArrayType(WdlFileType), wdlArray.value.map(str => WdlFile(str.asInstanceOf[WdlString].value)).toList)
+      WdlArray(WdlArrayType(WdlFileType, guaranteedNonEmpty), wdlArray.value.map(str => WdlFile(str.asInstanceOf[WdlString].value)).toList)
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType == memberType => wdlArray
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType == WdlAnyType => coerceIterable(wdlArray.value)
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && wdlArray.wdlType.memberType.isInstanceOf[WdlArrayType] && memberType.isInstanceOf[WdlArrayType] =>
       TryUtil.sequence(wdlArray.value.map(memberType.coerceRawValue)) match {
-        case Success(values) => WdlArray(WdlArrayType(memberType), values)
+        case Success(values) => WdlArray(this, values)
         case Failure(ex) => throw ex
       }
     case wdlArray: WdlArray if (allowEmpty || wdlArray.nonEmpty) && memberType.isCoerceableFrom(wdlArray.wdlType.memberType) =>
       wdlArray.map(v => memberType.coerceRawValue(v).get) // .get because isCoerceableFrom should make it safe
+    case WdlArrayLike(wdlArray) if this.isCoerceableFrom(wdlArray.wdlType) => coercion.apply(wdlArray)
     case wdlValue: WdlValue if memberType.isCoerceableFrom(wdlValue.wdlType) =>
       memberType.coerceRawValue(wdlValue) match {
         case Success(coercedValue) => WdlArray(this, Seq(coercedValue))
@@ -44,16 +47,22 @@ sealed trait WdlArrayType extends WdlType {
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {
     case WdlArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WdlNothingType
+    case mapType: WdlMapType => matchesMapType(mapType)
     case _ => false
   }
 
   def asNonEmptyArrayType = WdlNonEmptyArrayType(memberType)
+
+  private def matchesMapType(wdlMapType: WdlMapType) = (this, wdlMapType) match {
+    case (WdlArrayType(WdlPairType(leftType, rightType)), WdlMapType(keyType, valueType)) => leftType.isCoerceableFrom(keyType) && rightType.isCoerceableFrom(valueType)
+    case _ => false
+  }
+
 }
 
 case class WdlMaybeEmptyArrayType(memberType: WdlType) extends WdlArrayType {
   override val toWdlString: String = s"Array[${memberType.toWdlString}]"
   override val guaranteedNonEmpty = false
-  override protected def coercion = coercionMaker(allowEmpty = true)
 }
 
 object WdlMaybeEmptyArrayType {
@@ -63,7 +72,6 @@ object WdlMaybeEmptyArrayType {
 case class WdlNonEmptyArrayType(memberType: WdlType) extends WdlArrayType {
   override val toWdlString: String = s"Array[${memberType.toWdlString}]+"
   override val guaranteedNonEmpty = true
-  override protected def coercion = coercionMaker(allowEmpty = false)
 }
 
 object WdlArrayType {

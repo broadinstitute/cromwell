@@ -3,6 +3,7 @@ package wdl4s.values
 import lenthall.util.TryUtil
 import wdl4s.TsvSerializable
 import wdl4s.types._
+import wdl4s.values.WdlArray.WdlArrayLike
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -28,9 +29,21 @@ object WdlArray {
       case Failure(f) => throw new UnsupportedOperationException(s"Could not construct array of type $wdlType with this value: $value", f)
     }
   }
+
+  trait WdlArrayLike {
+    def arrayType: WdlArrayType
+    def asArray: WdlArray
+  }
+
+  object WdlArrayLike {
+    def unapply(v: WdlValue): Option[WdlArray] = v match {
+      case wal: WdlArrayLike => Option(wal.asArray)
+      case _ => None
+    }
+  }
 }
 
-sealed abstract case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue with TsvSerializable {
+sealed abstract case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue]) extends WdlValue with WdlArrayLike with TsvSerializable {
 
   val nonEmpty = value.nonEmpty
   override def toWdlString: String = s"[${value.map(_.toWdlString).mkString(", ")}]"
@@ -59,4 +72,8 @@ sealed abstract case class WdlArray(wdlType: WdlArrayType, value: Seq[WdlValue])
   override def collectAsSeq[T <: WdlValue](filterFn: PartialFunction[WdlValue, T]): Seq[T] = {
     value flatMap { _.collectAsSeq(filterFn) }
   }
+
+  // For WdlArrayLike:
+  override val arrayType: WdlArrayType = wdlType
+  override val asArray: WdlArray = this
 }

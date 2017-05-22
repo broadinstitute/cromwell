@@ -2,8 +2,9 @@ package wdl4s.values
 
 import lenthall.util.TryUtil
 import wdl4s.TsvSerializable
-import wdl4s.types.{WdlAnyType, WdlMapType, WdlPrimitiveType, WdlType}
+import wdl4s.types._
 import wdl4s.util.FileUtil
+import wdl4s.values.WdlArray.WdlArrayLike
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -41,7 +42,7 @@ object WdlMap {
   }
 }
 
-case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends WdlValue with TsvSerializable {
+case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends WdlValue with WdlArrayLike with TsvSerializable {
   val typesUsedInKey = value.map { case (k,v) => k.wdlType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != wdlType.keyType)
@@ -83,4 +84,8 @@ case class WdlMap(wdlType: WdlMapType, value: Map[WdlValue, WdlValue]) extends W
     }
     collected.flatten.toSeq
   }
+
+  // For WdlArrayLike:
+  override lazy val arrayType: WdlArrayType = WdlArrayType(WdlPairType(wdlType.keyType, wdlType.valueType))
+  override lazy val asArray: WdlArray = WdlArray(arrayType, value.toSeq map { case (k, v) => WdlPair(k, v) })
 }

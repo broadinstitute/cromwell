@@ -3,7 +3,8 @@ package wdl4s
 import wdl4s.exception.{ScatterIndexNotFound, VariableLookupException, VariableNotFoundException}
 import wdl4s.expression.WdlFunctions
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.values.{WdlArray, WdlValue}
+import wdl4s.values.WdlArray.WdlArrayLike
+import wdl4s.values.WdlValue
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -197,14 +198,14 @@ trait Scope {
       val scatterShard = shards.get(scatter)
 
       (evaluatedCollection, scatterShard) match {
-        case (Success(value: WdlArray), Some(shard)) if 0 <= shard && shard < value.value.size =>
-          value.value.lift(shard) match {
+        case (Success(WdlArrayLike(array)), Some(shard)) if 0 <= shard && shard < array.value.size =>
+          array.value.lift(shard) match {
             case Some(v) => Success(v)
-            case None => Failure(new VariableLookupException(s"Could not find value for shard index $shard in scatter collection $value"))
+            case None => Failure(new VariableLookupException(s"Could not find value for shard index $shard in scatter collection $array"))
           }
-        case (Success(value: WdlArray), Some(shard)) =>
-          Failure(new VariableLookupException(s"Scatter expression (${scatter.collection.toWdlString}) evaluated to an array of ${value.value.size} elements, but element $shard was requested."))
-        case (Success(_: WdlArray), None) =>
+        case (Success(WdlArrayLike(array)), Some(shard)) =>
+          Failure(new VariableLookupException(s"Scatter expression (${scatter.collection.toWdlString}) evaluated to an array of ${array.value.size} elements, but element $shard was requested."))
+        case (Success(_: WdlArrayLike), None) =>
           Failure(ScatterIndexNotFound(s"Could not find the shard mapping to this scatter ${scatter.fullyQualifiedName}"))
         case (Success(value: WdlValue), _) =>
           Failure(new VariableLookupException(s"Expected scatter expression (${scatter.collection.toWdlString}) to evaluate to an Array.  Instead, got a $value"))

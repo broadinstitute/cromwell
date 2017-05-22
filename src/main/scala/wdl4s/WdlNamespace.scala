@@ -513,6 +513,8 @@ object WdlNamespace {
             s.collection.evaluateType(lookupType(s), new WdlStandardLibraryFunctionsType) map {
               case WdlArrayType(WdlObjectType) => None
               case WdlArrayType(_: WdlPairType) if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
+              // Maps get coerced into arrays of pairs, so this is also ok:
+              case _: WdlMapType if memberAccess.rhs == "left" || memberAccess.rhs == "right" => None
               case _ => Option(new SyntaxError(wdlSyntaxErrorFormatter.variableIsNotAnObject(memberAccessAst)))
             } getOrElse None
           case Some(d: Declaration) => d.wdlType match {

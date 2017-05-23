@@ -60,11 +60,11 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
       }
     }
     
-    // Splits successfully `toStrict` responses from failures
+    // Splits successful `toStrict` responses from failures
     val partitionStrictResponse = builder.add(FlowUtils.fanOutTry[HttpResponse, DockerHashContext])
 
-    // Merge failures from retryHttpFlow.out1 (failed http responses) 
-    // and partitionStrictResponse.out1 (failed to `toStrict` the response
+    // Merge failures from retryHttpFlow.out1 (failed http responses)
+    // and partitionStrictResponse.out1 (failed to `toStrict` the response)
     val mergeFailures = builder.add(Merge[(Throwable, DockerHashContext)](2))
     
     strictHttpResponse.outlet ~> partitionStrictResponse.in

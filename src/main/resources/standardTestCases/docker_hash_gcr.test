@@ -1,6 +1,5 @@
 name: docker_hash_gcr
 testFormat: workflowsuccess
-ignore: true
 
 files {
   wdl: docker_hash/docker_hash_gcr.wdl

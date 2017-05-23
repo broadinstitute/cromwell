@@ -399,5 +399,35 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
 
       system.stop(materializeWfActor)
     }
+
+    "identify all malformed input file names in an input json" in {
+      val wdl =
+        """
+          |task bar { command { echo foobar } }
+          |workflow foo {
+          |  File bad_one
+          |  File good_one
+          |  File bad_two
+          |
+          |  call bar
+          |}
+        """.stripMargin
+      val jsonInput = Map("foo.bad_one" -> "\"gs://this/is/a/bad/gcs/path.txt", "foo.good_one" -> "\"/local/path/is/ok.txt", "foo.bad_two" -> "\"gs://another/bad/gcs/path.txt").toJson.toString
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviourActor, workflowId, importLocalFilesystem = false))
+      val sources = WorkflowSourceFilesWithoutImports(wdl, jsonInput, validOptionsFile, validCustomLabelsFile)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should equal("Workflow input processing failed:\nInvalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"' " +
+              "\nInvalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"' ")
+          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) => fail("This materialization should not have succeeded!")
+          case unknown => fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
   }
 }

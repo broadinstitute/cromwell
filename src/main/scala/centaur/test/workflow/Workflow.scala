@@ -18,7 +18,7 @@ sealed abstract class Workflow {
   def data: WorkflowData
   def backends: List[String]
 
-  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(data.wdl, data.inputs, data.options, data.zippedImports, refreshToken)
+  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(data.wdl, data.inputs, data.options, Option(data.labels) , data.zippedImports, refreshToken)
 }
 
 object Workflow {

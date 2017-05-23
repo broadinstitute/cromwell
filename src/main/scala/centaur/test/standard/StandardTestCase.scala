@@ -39,7 +39,7 @@ object StandardTestCase {
   def fromPath(path: Path): ErrorOr[StandardTestCase] = {
     Try(ConfigFactory.parseFile(path.toFile)) match {
       case Success(c) => StandardTestCase.fromConfig(c, path.getParent)
-      case Failure(f) => invalidNel(s"Invalid test config: $path")
+      case Failure(f) => invalidNel(s"Invalid test config: $path due to failure: $f")
     }
   }
 

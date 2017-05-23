@@ -1,0 +1,15 @@
+name: invalid_labels
+testFormat: workflowfailure
+tags: [ labels ]
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  labels: labels/invalid.labels
+}
+
+metadata {
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Invalid label: 0-label-key-1 did not match the regex [a-z]([-a-z0-9]*[a-z0-9])?"
+  "failures.0.causedBy.2.message": "Invalid label: the-maximum-allowed-character-length-for-label-pairs-is-sixty-three was 67 characters. The maximum is 63"
+}

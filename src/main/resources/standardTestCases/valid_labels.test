@@ -1,0 +1,16 @@
+name: valid_labels
+testFormat: workflowsuccess
+tags: [ labels ]
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  labels: labels/valid.labels
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "labels.label-key-1": "label-value-1"
+  "labels.cromwell-workflow-id": "cromwell-<<UUID>>"
+}

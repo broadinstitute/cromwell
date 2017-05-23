@@ -2672,9 +2672,11 @@ Names, ids, and statuses can be given multiple times to include
 workflows with any of the specified names, ids, or statuses. When
 multiple names are specified, any workflow matching one of the names
 will be returned. The same is true for multiple ids or statuses. When
-multiple labels are specified, only workflows matching all of those 
-labels will be returned. When different types of criteria are specified, 
-for example names and statuses, the results must match both the one of 
+more than one label is specified, only workflows associated to all of
+the given labels will be returned. 
+
+When a combination of criteria are specified, for example querying by 
+names and statuses, the results must return workflows that match one of 
 the specified names and one of the statuses. Using page and pagesize will
 enable server side pagination.
 

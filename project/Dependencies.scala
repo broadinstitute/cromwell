@@ -22,10 +22,12 @@ object Dependencies {
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
   lazy val catsV = "0.9.0"
+  lazy val fs2V = "0.9.6"
 
   // Internal collections of dependencies
 
   private val catsDependencies = List(
+    "co.fs2" %% "fs2-io" % fs2V % "test",
     "org.typelevel" %% "cats" % catsV,
     "com.github.benhutchison" %% "mouse" % "0.6"
   ) map (_

@@ -41,59 +41,68 @@ class FileSizeSpec extends FlatSpec with Matchers /*with TryValues*/ {
     }
   }
 
-  def createTempFileOfSize(n: Int): Path = {
-    val tempDir = Files.createTempDir
 
-    val fn = tempDir.toString + "/whatever"
+  def testOverUnder(command: String, n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
 
-    val jPath = Paths.get(fn)
+    def testInner(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue]),g: Try[WdlValue] => Unit) = {
 
-    val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE) )
+      def createTempFileOfSize(n: Int): Path = {
 
-    val start = Stream[Task, Byte](1).repeat.take(n.toLong)
+        val tempDir = Files.createTempDir
+        val fn = tempDir.toString + "/whatever"
+        val jPath = Paths.get(fn)
 
-    (start to end).run.unsafeRunSync 
-    jPath
-  }
+        val start = Stream[Task, Byte](1).repeat.take(n.toLong)
+        val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE) )
 
-  def testInner(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue]),g: Try[WdlValue] => Unit) = {
+        (start to end).run.unsafeRunSync 
 
-    val file = createTempFileOfSize(n)
+        //jPath is now a file of n bytes, we can return it
+        jPath
+      }
 
-    val params = Seq(Try(WdlString(file.toString)))
+      val file = createTempFileOfSize(n)
 
-    f(rlf)(params) match {
-      case t => g(t)
+      val params = Seq(Try(WdlString(file.toString)))
+
+      f(rlf)(params) match {
+        case t => g(t)
+      }
+
+      delete(file)
     }
 
-    delete(file)
+    def testOver(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
+      testInner(n + 1, f, {
+        case Failure(s: FileSizeTooBig) => //success
+        case t => throw new RuntimeException(s"should not have eaten this file that is too big! msg: $t")
+      })
+    }
+
+    def testUnder(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
+      testInner(n - 1, f, {
+        case Success(_) => 
+        case Failure(s:FileSizeTooBig) => throw s
+        case Failure(t) => //we're not testing parsing
+      })
+    }
+
+
+    //construct a test for both over and under
+    List(
+      s"read $command" should "limit according to a setting" in testOver(n + 1, f),
+     it should "allow when under the  limit" in testUnder(n - 1, f)
+   )
   }
 
-  def testOver(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
-    testInner(n + 1, f, {
-      case Failure(s: FileSizeTooBig) => //success
-      case t => throw new RuntimeException(s"should not have eaten this file that is too big! msg: $t")
-    })
-  }
-
-  def testUnder(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
-    testInner(n - 1, f, {
-      case Success(_) => 
-      case Failure(t) => throw t
-    })
-  }
-
-  "read lines" should "limit based upon argument" in 
-    testOver(_readLinesLimit + 1, _.read_lines)
-
-  "read lines" should "allow based upon argument" in 
-    testUnder(_readLinesLimit - 1, _.read_lines)
-
-  "read int" should "limit based upon argument" in 
-    testOver(_readIntLimit + 1, _.read_int)
-
-    /*
-  "read lines" should "allow based upon argument" in 
-    testUnder(_readLinesLimit - 1, _.read_lines)
-    */
+  //test all the functions
+  List[(String, Int, ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue]))](
+    ("lines",  _readLinesLimit,  _.read_lines),
+    ("int",    _readIntLimit,    _.read_int),
+    ("map",    _readMapLimit,    _.read_map),
+    ("float",  _readFloatLimit,  _.read_float),
+    ("String", _readStringLimit, _.read_string),
+    ("tsv",    _readTsvLimit,    _.read_tsv),
+    ("object", _readObjectLimit, _.read_object)
+  ).flatMap{ (testOverUnder _).tupled }
 }

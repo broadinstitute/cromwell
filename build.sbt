@@ -9,7 +9,7 @@ resolvers ++= List(
   "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
 )
 
-val cromwellV = "27-d58e764-SNAP"
+val cromwellV = "27-693cda5-SNAP"
 
 val akkaV = "2.4.17"
 val akkaHttpV = "10.0.5"

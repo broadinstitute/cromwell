@@ -41,7 +41,6 @@ class FileSizeSpec extends FlatSpec with Matchers /*with TryValues*/ {
     }
   }
 
-
   def testOverUnder(command: String, n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
 
     def testInner(n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue]),g: Try[WdlValue] => Unit) = {
@@ -51,24 +50,19 @@ class FileSizeSpec extends FlatSpec with Matchers /*with TryValues*/ {
         val tempDir = Files.createTempDir
         val fn = tempDir.toString + "/whatever"
         val jPath = Paths.get(fn)
-
         val start = Stream[Task, Byte](1).repeat.take(n.toLong)
         val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE) )
-
         (start to end).run.unsafeRunSync 
-
         //jPath is now a file of n bytes, we can return it
         jPath
       }
 
       val file = createTempFileOfSize(n)
-
       val params = Seq(Try(WdlString(file.toString)))
-
+      //apply the test "g"
       f(rlf)(params) match {
         case t => g(t)
       }
-
       delete(file)
     }
 
@@ -86,7 +80,6 @@ class FileSizeSpec extends FlatSpec with Matchers /*with TryValues*/ {
         case Failure(t) => //we're not testing parsing
       })
     }
-
 
     //construct a test for both over and under
     List(

@@ -159,11 +159,11 @@ case class HttpFlowWithRetry[T](
         akka.pattern.after(nextRetryIn, scheduler) {
           Future.successful(nextRequest)
         }
-      } recoverWith {
+      } recover {
         case failure =>
           // Can't do much here except log the error and keep going with the next request
           Logger.error(s"Failed to discard entity bytes for response $response", failure)
-          Future.successful(nextRequest)
+          nextRequest
       }
   }
 }

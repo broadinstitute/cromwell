@@ -90,10 +90,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     */
   def buildFlow() = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
-    
-    // Decouple the token flow from the manifest flow with ".async" 
-    // this way they can run in parallel from each other 
-    // while still maintaining the final ordering
+
     val token = builder.add(tokenFlow)
     val manifest = builder.add(manifestFlow)
     val mergeResponses = builder.add(Merge[(DockerHashResponse, DockerHashContext)](3))

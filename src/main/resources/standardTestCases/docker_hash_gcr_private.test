@@ -1,11 +1,13 @@
 name: docker_hash_gcr_private
 testFormat: workflowsuccess
 backends: [Jes]
+ignore: true
 
 files {
   wdl: docker_hash/docker_hash_gcr_private.wdl
 }
 
 metadata {
-  "calls.docker_hash_gcr_private.gcr.runtimeAttributes.docker": "us.gcr.io/broad-dsde-cromwell-dev/centaur-ubuntu@sha256:e6a276498e10eebc09925a46a3174d4c51d632cde7005580ed0ee0f1fcf0b22c"
+  "calls.docker_hash_gcr_private.gcr.runtimeAttributes.docker": "us.gcr.io/broad-dsde-cromwell-dev/centaur-ubuntu:v0",
+  "calls.docker_hash_gcr_private.gcr.dockerImageUsed": "us.gcr.io/broad-dsde-cromwell-dev/centaur-ubuntu@sha256:e6a276498e10eebc09925a46a3174d4c51d632cde7005580ed0ee0f1fcf0b22c"
 }

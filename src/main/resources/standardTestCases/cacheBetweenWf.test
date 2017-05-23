@@ -1,5 +1,5 @@
 name: cacheBetweenWF
-testFormat: workflowsuccess
+testFormat: runtwiceexpectingcallcaching
 
 files {
   wdl: cacheBetweenWF/cacheBetweenWF.wdl

@@ -94,9 +94,9 @@ object Operations {
     }
   }
 
-  def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata, cacheHitUUID: Option[UUID] = None): Test[Unit] = {
+  def validateMetadata(submittedWorkflow: SubmittedWorkflow, workflowSpec: Workflow, cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
     @tailrec
-    def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[Unit]): Try[Unit] = {
+    def eventually(startTime: OffsetDateTime, timeout: FiniteDuration)(f: => Try[WorkflowMetadata]): Try[WorkflowMetadata] = {
       import scala.concurrent.duration._
 
       f match {
@@ -107,8 +107,8 @@ object Operations {
       }
     }
 
-    new Test[Unit] {
-      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata, cacheHitUUID: Option[UUID] = None): Try[Unit] = {
+    new Test[WorkflowMetadata] {
+      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata, cacheHitUUID: Option[UUID] = None): Try[WorkflowMetadata] = {
         def checkDiff(diffs: Iterable[String]): Unit = {
           diffs match {
             case d if d.nonEmpty => throw new Exception(s"Invalid metadata response:\n -${d.mkString("\n -")}\n")
@@ -116,13 +116,21 @@ object Operations {
           }
         }
         cleanUpImports(workflow)
-        CentaurCromwellClient.metadata(workflow).map(expectedMetadata.diff(_, workflow.id.id, cacheHitUUID)).map(checkDiff)
+
+        for {
+          actualMetadata <- CentaurCromwellClient.metadata(workflow)
+          diffs = expectedMetadata.diff(actualMetadata, workflow.id.id, cacheHitUUID)
+          _ = checkDiff(diffs)
+        } yield actualMetadata
       }
 
-      override def run: Try[Unit] = {
-        eventually(OffsetDateTime.now(), CentaurConfig.metadataConsistencyTimeout) {
-          validateMetadata(workflow, expectedMetadata, cacheHitUUID)
-        }
+      override def run: Try[WorkflowMetadata] = workflowSpec.metadata match {
+        case Some(expectedMetadata) =>
+          eventually(OffsetDateTime.now(), CentaurConfig.metadataConsistencyTimeout) {
+            validateMetadata(submittedWorkflow, expectedMetadata, cacheHitUUID)
+          }
+          // Nothing to wait for, so just return the first metadata we get back:
+        case None => CentaurCromwellClient.metadata(submittedWorkflow)
       }
     }
   }
@@ -130,19 +138,39 @@ object Operations {
   /**
     * Verify that none of the calls within the workflow are cached.
     */
-  def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = {
+  def validateCacheResultField(metadata: WorkflowMetadata, workflowName: String, blacklistedValue: String): Test[Unit] = {
     new Test[Unit] {
       override def run: Try[Unit] = {
-        val cacheHits = metadata.value filter {
-          case (k, JsString(v)) if k.contains("callCaching.result") => v.contains("Cache Hit")
-          case _ => false
+        val badCacheResults = metadata.value collect {
+          case (k, JsString(v)) if k.contains("callCaching.result") && v.contains(blacklistedValue) => s"$k: $v"
         }
 
-        if (cacheHits.isEmpty) Success(())
-        else Failure(new Exception(s"Found unexpected cache hits for $workflowName: \n"))
+        if (badCacheResults.isEmpty) Success(())
+        else Failure(new Exception(s"Found unexpected cache hits for $workflowName:${badCacheResults.mkString("\n", "\n", "\n")}"))
       }
     }
   }
+
+  def validateDirectoryContentsCounts(workflowDefinition: Workflow, submittedWorkflow: SubmittedWorkflow): Test[Unit] = new Test[Unit] {
+    private val workflowId = submittedWorkflow.id.id.toString
+    override def run: Try[Unit] = workflowDefinition.directoryContentCounts match {
+      case None => Success(())
+      case Some(directoryContentCountCheck) =>
+        val counts = directoryContentCountCheck.expectedDrectoryContentsCounts map {
+          case (directory, count) =>
+            val substitutedDir = directory.replaceAll("<<UUID>>", workflowId)
+            (substitutedDir, count, directoryContentCountCheck.checkFiles.countObjectsAtPath(substitutedDir))
+        }
+
+        val badCounts = counts collect {
+          case (directory, expectedCount, actualCount) if expectedCount != actualCount => s"Expected to find $expectedCount item(s) at $directory but got $actualCount"
+        }
+        if (badCounts.isEmpty) Success(()) else Failure(new Exception(badCounts.mkString("\n", "\n", "\n")))
+    }
+  }
+
+  def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Hit")
+  def validateNoCacheMisses(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Miss")
 
   /**
     * Clean up temporary zip files created for Imports testing.

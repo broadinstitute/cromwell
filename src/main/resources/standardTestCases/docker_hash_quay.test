@@ -1,10 +1,12 @@
 name: docker_hash_quay
 testFormat: workflowsuccess
+ignore: true
 
 files {
   wdl: docker_hash/docker_hash_quay.wdl
 }
 
 metadata {
-  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/aptible/ubuntu@sha256:cf53a62c50cd1ec4e48b1c995451b94005d3e85527d06ce9151b51b0f1b6dd87"
+  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/aptible/ubuntu:12.04",
+  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/aptible/ubuntu@sha256:cf53a62c50cd1ec4e48b1c995451b94005d3e85527d06ce9151b51b0f1b6dd87"
 }

@@ -16,11 +16,14 @@ import cromwell.core.callcaching.docker.registryv2.flows.{FlowUtils, HttpFlowWit
 import cromwell.core.callcaching.docker.{DockerFlow, DockerHashResult, DockerImageIdentifierWithoutHash}
 import spray.json._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object DockerRegistryV2AbstractFlow {
   type HttpDockerFlow = Flow[(HttpRequest, ContextWithRequest[DockerHashContext]), (Try[HttpResponse], ContextWithRequest[DockerHashContext]), NotUsed]
+  val StrictTimeout = 30 seconds
   
   val DigestHeaderName = "Docker-Content-Digest".toLowerCase
   val AcceptHeader = HttpHeader.parse("Accept", "application/vnd.docker.distribution.manifest.v2+json") match {
@@ -41,7 +44,36 @@ object DockerRegistryV2AbstractFlow {
   */
 abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContext, materializer: ActorMaterializer, scheduler: Scheduler) extends DockerFlow {
   // Wraps the Http flow in a retryable flow to enable auto retries
-  final private val httpFlowWithRetry = new HttpFlowWithRetry[DockerHashContext](httpClientFlow).flow
+  final private val httpFlowWithRetry = GraphDSL.create() { implicit builder =>
+    import GraphDSL.Implicits._
+    val retryHttpFlow = builder.add(new HttpFlowWithRetry[DockerHashContext](httpClientFlow).flow)
+    
+    // Force the response entity to be strict. This makes sure that whatever happens to the response later we
+    // won't leave it hanging and potentially lock the pool. 
+    // See http://doc.akka.io/docs/akka-http/10.0.5/scala/http/client-side/request-level.html#using-the-future-based-api-in-actors
+    // Note that in this particular case it's ok to force the loading of the entity in memory
+    // because we use HEAD Http method when we only care about the headers. Therefore there's no unnecessary memory usage.
+    /* Returns a (Try[HttpResponse], DockerHashContext) */
+    val strictHttpResponse = retryHttpFlow.out0.mapAsync(1){
+      case (response, context) => response.toStrict(StrictTimeout) map { Success(_) -> context } recoverWith {
+        case failure => Future.successful(Failure(failure) -> context)
+      }
+    }
+    
+    // Splits successful `toStrict` responses from failures
+    val partitionStrictResponse = builder.add(FlowUtils.fanOutTry[HttpResponse, DockerHashContext])
+
+    // Merge failures from retryHttpFlow.out1 (failed http responses)
+    // and partitionStrictResponse.out1 (failed to `toStrict` the response)
+    val mergeFailures = builder.add(Merge[(Throwable, DockerHashContext)](2))
+    
+    strictHttpResponse.outlet ~> partitionStrictResponse.in
+
+    retryHttpFlow.out1 ~> mergeFailures
+    partitionStrictResponse.out1 ~> mergeFailures
+    
+    new FanOutShape2(retryHttpFlow.in, partitionStrictResponse.out0, mergeFailures.out)
+  }
 
   final private val tokenFlow = {
     val responseHandlerFlow = Flow[(HttpResponse, DockerHashContext)].mapAsync(1)(Function.tupled(tokenResponseHandler))
@@ -58,12 +90,9 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     */
   def buildFlow() = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
-    
-    // Decouple the token flow from the manifest flow with ".async" 
-    // this way they can run in parallel from each other 
-    // while still maintaining the final ordering
-    val token = builder.add(tokenFlow.async)
-    val manifest = builder.add(manifestFlow.async)
+
+    val token = builder.add(tokenFlow)
+    val manifest = builder.add(manifestFlow)
     val mergeResponses = builder.add(Merge[(DockerHashResponse, DockerHashContext)](3))
     
     token.out0 ~> manifest.in
@@ -116,7 +145,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
   /**
     * Http method used for the manifest request
     */
-  protected def manifestRequestHttpMethod: HttpMethod = HttpMethods.GET
+  protected def manifestRequestHttpMethod: HttpMethod = HttpMethods.HEAD
 
   /**
     * Generic method to build a flow that creates a request, sends it,

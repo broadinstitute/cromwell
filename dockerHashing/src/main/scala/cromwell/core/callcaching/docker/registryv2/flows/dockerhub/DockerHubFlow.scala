@@ -2,7 +2,6 @@ package cromwell.core.callcaching.docker.registryv2.flows.dockerhub
 
 import akka.actor.Scheduler
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
-import akka.http.scaladsl.model.{HttpMethod, HttpMethods}
 import akka.stream.ActorMaterializer
 import cromwell.core.DockerCredentials
 import cromwell.core.callcaching.docker.DockerHashActor.DockerHashContext
@@ -45,6 +44,4 @@ class DockerHubFlow(httpClientFlow: HttpDockerFlow)(implicit ec: ExecutionContex
       case _ => false
     }
   }
-
-   override def manifestRequestHttpMethod: HttpMethod = HttpMethods.HEAD
 }

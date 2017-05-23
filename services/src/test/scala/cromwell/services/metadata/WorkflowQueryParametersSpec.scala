@@ -3,6 +3,7 @@ package cromwell.services.metadata
 import java.time.OffsetDateTime
 
 import cats.data.Validated._
+import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
 import org.scalatest.{Matchers, WordSpec}
 
@@ -21,6 +22,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.endDate should be('empty)
           r.names should be('empty)
           r.statuses should be('empty)
+          r.labels should be ('empty)
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
       }
@@ -32,6 +34,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         Status.name -> "Succeeded",
         Name.name -> "my_other_workflow",
         Status.name -> "Running",
+        LabelKeyValue.name -> "label-key:label-value",
         StartDate.name -> StartDateString,
         EndDate.name -> EndDateString
       )
@@ -42,6 +45,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.endDate.get.toInstant should equal(OffsetDateTime.parse(EndDateString).toInstant)
           r.names should be(Set("my_workflow", "my_other_workflow"))
           r.statuses should be(Set("Succeeded", "Running"))
+          r.labels should be(Set(Label.safeLabel("label-key", "label-value")))
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
       }
@@ -139,6 +143,38 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         case Invalid(fs) =>
           fs.toList should have size 1
           fs.toList.head should be("Unrecognized status values: Moseying")
+      }
+    }
+
+    "reject labels with invalid format" in {
+      val badLabelKey = "0-label-key"
+      val rawParameters = Seq(
+        LabelKeyValue.name -> "label-key:label-value",
+        LabelKeyValue.name -> s"$badLabelKey:label-value"
+      )
+      val result = WorkflowQueryParameters.runValidation(rawParameters)
+      result match {
+        case Valid(r) =>
+          throw new RuntimeException(s"Unexpected success: $r")
+        case Invalid(fs) =>
+          fs.toList should have size 1
+          fs.toList.head should include(s"Invalid label: $badLabelKey did not match the regex ${Label.LabelRegexPattern}")
+      }
+    }
+
+    "reject bad label syntax" in {
+      val badLabelSyntax = "label-keyLabel-value"
+      val rawParameters = Seq(
+        LabelKeyValue.name -> "label-key:label-value",
+        LabelKeyValue.name -> badLabelSyntax
+      )
+      val result = WorkflowQueryParameters.runValidation(rawParameters)
+      result match {
+        case Valid(r) =>
+          throw new RuntimeException(s"Unexpected success: $r")
+        case Invalid(fs) =>
+          fs.toList should have size 1
+          fs.toList.head should include("Label values do not match allowed pattern label-key:label-value")
       }
     }
 

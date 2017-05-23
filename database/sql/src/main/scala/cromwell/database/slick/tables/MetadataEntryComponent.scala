@@ -113,11 +113,12 @@ trait MetadataEntryComponent {
 
   val metadataEntriesForIdGreaterThanOrEqual = Compiled(
     (metadataEntryId: Rep[Long], metadataKey1: Rep[String], metadataKey2: Rep[String], metadataKey3: Rep[String],
-     metadataKey4: Rep[String]) => (for {
+     metadataKey4: Rep[String], metadataLabelKey: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.metadataEntryId >= metadataEntryId
       if (metadataEntry.metadataKey === metadataKey1 || metadataEntry.metadataKey === metadataKey2 ||
-        metadataEntry.metadataKey === metadataKey3 || metadataEntry.metadataKey === metadataKey4) &&
+        metadataEntry.metadataKey === metadataKey3 || metadataEntry.metadataKey === metadataKey4 ||
+        metadataEntry.metadataKey.like(metadataLabelKey)) &&
         (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
           metadataEntry.jobAttempt.isEmpty)
     } yield metadataEntry).sortBy(_.metadataTimestamp)

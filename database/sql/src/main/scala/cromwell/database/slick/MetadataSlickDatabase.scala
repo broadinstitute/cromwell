@@ -4,7 +4,8 @@ import java.sql.Timestamp
 
 import cats.data.NonEmptyList
 import cromwell.database.sql.MetadataSqlDatabase
-import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.SqlConverters._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -93,6 +94,24 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
     } yield ()
   }
 
+  private def updateCustomLabelEntry(metadataEntry: MetadataEntry)
+                                    (implicit ec: ExecutionContext): DBIO[Unit] = {
+    val labelKey = metadataEntry.metadataKey.split("\\:", 2)(1)
+    val labelValue = metadataEntry.metadataValue.toRawString
+    val customLabelEntry = buildCustomLabelEntry(labelKey, labelValue, metadataEntry.workflowExecutionUuid)
+    for {
+      _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
+    } yield ()
+  }
+
+  private def buildCustomLabelEntry(labelKey: String, labelValue: String, wfId: String): CustomLabelEntry = {
+    CustomLabelEntry(
+      customLabelKey = labelKey,
+      customLabelValue = labelValue,
+      workflowExecutionUuid = wfId
+    )
+  }
+
   private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)
                                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
     if (useSlickUpserts) {
@@ -113,18 +132,21 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
   }
 
   override def refreshMetadataSummaryEntries(metadataKey1: String, metadataKey2: String, metadataKey3: String,
-                                             metadataKey4: String, buildUpdatedSummary:
+                                             metadataKey4: String, metadataLabelKey: String, buildUpdatedSummary:
                                              (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
                                                WorkflowMetadataSummaryEntry)
                                             (implicit ec: ExecutionContext): Future[Long] = {
+    val likeMetadataLabelKey = metadataLabelKey + "%"
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
       previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(0L)
       metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual((
-        previousMetadataEntryId + 1L, metadataKey1, metadataKey2, metadataKey3, metadataKey4)).result
-      metadataByWorkflowUuid = metadataEntries.groupBy(_.workflowExecutionUuid)
+        previousMetadataEntryId + 1L, metadataKey1, metadataKey2, metadataKey3, metadataKey4, likeMetadataLabelKey)).result
+      metadataByWorkflowUuid = metadataEntries.filterNot(_.metadataKey.contains(metadataLabelKey)).groupBy(_.workflowExecutionUuid)
+      customLabelEntries = metadataEntries.filter(_.metadataKey.contains(metadataLabelKey))
       _ <- DBIO.sequence(metadataByWorkflowUuid map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      _ <- DBIO.sequence(customLabelEntries map updateCustomLabelEntry)
       maximumMetadataEntryId = previousOrMaximum(previousMetadataEntryId, metadataEntries.map(_.metadataEntryId.get))
       _ <- upsertSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", maximumMetadataEntryId)
@@ -142,20 +164,22 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
   }
 
   override def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                                      workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                      workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
+                                      startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp], page: Option[Int], pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      startTimestampOption, endTimestampOption, page, pageSize).result
+      labelKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize).result
     runTransaction(action)
   }
 
   override def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                                      workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                                      workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String, String)],
+                                      startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      startTimestampOption, endTimestampOption).result
+      labelKeyLabelValues, startTimestampOption, endTimestampOption).result
     runTransaction(action)
   }
 }

@@ -201,7 +201,7 @@ paths:
             - openid
   '/workflows/{version}/query':
     get:
-      summary: Query workflows by start dates, end dates, names, ids, or statuses.
+      summary: Query workflows by start dates, end dates, names, ids, statuses, or labels.
       parameters:
         - name: version
           description: API Version
@@ -264,6 +264,19 @@ paths:
           description: >
             Returns only workflows with the specified workflow id.  If specified multiple times,
             returns workflows with any of the specified workflow ids.
+        - name: label
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Returns workflows with the specified label keys.  If specified multiple times,
+            returns workflows with all of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
       tags:
         - Workflows
       responses:

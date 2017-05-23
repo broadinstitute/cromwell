@@ -63,7 +63,8 @@ trait MetadataSqlDatabase {
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
     * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
     */
-  def refreshMetadataSummaryEntries(metadataKey1: String, metadataKey2: String, metadataKey3: String, metadataKey4: String,
+  def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String,
+                                    statusMetadataKey: String, labelMetadataKey: String,
                                     buildUpdatedSummary:
                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                       => WorkflowMetadataSummaryEntry)
@@ -72,12 +73,14 @@ trait MetadataSqlDatabase {
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
   def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                             workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
-                             endTimestampOption: Option[Timestamp], page: Option[Int], pageSize: Option[Int])
-                            (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
+                             workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
+                             startTimestampOption: Option[Timestamp], endTimestampOption: Option[Timestamp],
+                             page: Option[Int], pageSize: Option[Int])
+                             (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                             workflowExecutionUuids: Set[String], startTimestampOption: Option[Timestamp],
+                             workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String, String)],
+                             startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp])
-                            (implicit ec: ExecutionContext): Future[Int]
+                             (implicit ec: ExecutionContext): Future[Int]
 }

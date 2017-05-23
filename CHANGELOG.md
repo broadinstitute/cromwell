@@ -81,6 +81,10 @@ google {
 }
 ```
 
+### General Changes
+
+* The `/query` endpoint now supports querying by `label`. See the [README](README.md#get-apiworkflowsversionquery) for more information.
+
 ## 26
 
 ### Breaking Changes

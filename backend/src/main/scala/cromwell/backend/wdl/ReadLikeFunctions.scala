@@ -6,7 +6,6 @@ import wdl4s.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
 import wdl4s.values._
-import cats._, implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -48,7 +47,6 @@ trait ReadLikeFunctions extends PathFactory with FileSizeLimitationConfig { this
     } yield wdlObjects
 
   override def readFile(path: String): String = buildPath(path).contentAsString
-
 
   /**
     * Read all lines from the file referenced by the first parameter and return an Array[String]

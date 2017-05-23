@@ -16,7 +16,7 @@ trait StandardExpressionFunctionsParams {
 }
 
 case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: List[PathBuilder],
-                                                   override val callContext: CallContext
+                                                    override val callContext: CallContext
                                                    ) extends StandardExpressionFunctionsParams
 
 // TODO: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.

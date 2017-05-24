@@ -26,8 +26,9 @@ object Dependencies {
 
   // Internal collections of dependencies
 
+  private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % "test"
+
   private val catsDependencies = List(
-    "co.fs2" %% "fs2-io" % fs2V % "test",
     "org.typelevel" %% "cats" % catsV,
     "com.github.benhutchison" %% "mouse" % "0.6"
   ) map (_
@@ -48,7 +49,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test,
     "org.specs2" %% "specs2-mock" % "3.8.5" % Test
-  ) ++ catsDependencies
+  ) ++ catsDependencies :+ fs2Test
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html

@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.23"
-  lazy val wdl4sV = "0.12-539c486-SNAP"
+  lazy val wdl4sV = "0.12-c29b9b1-SNAP"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -89,7 +89,7 @@ object Dependencies {
 
   private val googleCloudDependencies = List(
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
-    "com.google.cloud" % "google-cloud-nio" % "0.9.4-alpha"
+    "com.google.cloud" % "google-cloud-nio" % "0.17.2-alpha"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),

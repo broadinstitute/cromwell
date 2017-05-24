@@ -50,21 +50,21 @@ database {
 }
 ```
 
-### Local Docker Lookup
+### Docker
 
 * The Docker section of the configuration has been slightly reworked 
 An option to specify how a Docker hash should be looked up has been added. Two methods are available.
     "local" will try to look for the image on the machine where cromwell is running. If it can't be found, Cromwell will try to `pull` the image and use the hash from the retrieved image.
     "remote" will try to look up the image hash directly on the remote repository where the image is located (Docker Hub and GCR are supported)
 Note that the "local" option will require docker to be installed on the machine running cromwell, in order for it to call the docker CLI.
-
-### Docker Hash Lookup for public Quay.io images
-
 * Adds hash lookup support for public [quay.io](https://quay.io/) images.
 
-### Support for JSON format credentials
+### WDL Feature Support
+* Added support for the new WDL `basename` function. Allows WDL authors to get just the file name from a File (i.e. removing the directory path)
+* Allows coercion of `Map` objects into `Array`s of `Pair`s. This also allows WDL authors to directly scatter over WDL `Map`s.
 
-* Adds support for JSON file format for google service account credentials.
+### Miscellaneous
+* Adds support for JSON file format for google service account credentials. As of Cromwell 27, PEM credentials for PAPI are deprecated and support might be removed in a future version.
 
 ```
 google {
@@ -80,6 +80,10 @@ google {
   ]
 }
 ```
+
+### General Changes
+
+* The `/query` endpoint now supports querying by `label`. See the [README](README.md#get-apiworkflowsversionquery) for more information.
 
 ## 26
 

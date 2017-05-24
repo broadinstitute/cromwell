@@ -16,7 +16,8 @@ class DataAccessComponent(val driver: JdbcProfile)
     with SummaryStatusEntryComponent
     with WorkflowMetadataSummaryEntryComponent
     with WorkflowStoreEntryComponent
-    with SubWorkflowStoreEntryComponent {
+    with SubWorkflowStoreEntryComponent
+    with CustomLabelEntryComponent {
 
   import driver.api._
 
@@ -33,5 +34,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       summaryStatusEntries.schema ++
       workflowMetadataSummaryEntries.schema ++
       workflowStoreEntries.schema ++
-      subWorkflowStoreEntries.schema
+      subWorkflowStoreEntries.schema ++
+      customLabelEntries.schema
 }

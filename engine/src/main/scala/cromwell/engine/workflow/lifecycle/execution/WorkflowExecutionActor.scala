@@ -22,7 +22,8 @@ import lenthall.util.TryUtil
 import org.apache.commons.lang3.StringUtils
 import wdl4s.WdlExpression.ScopedLookupFunction
 import wdl4s.expression.WdlFunctions
-import wdl4s.values.{WdlArray, WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
+import wdl4s.values.WdlArray.WdlArrayLike
+import wdl4s.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
 import wdl4s.{Scope, _}
 
 import scala.concurrent.duration._
@@ -538,7 +539,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       Success(WorkflowExecutionDiff(scatterKey.populate(0, Map.empty) + (scatterKey -> ExecutionStatus.Bypassed)))
     } else {
       scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
-        case a: WdlArray =>
+        case WdlArrayLike(a) =>
           WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.knownValues) + (scatterKey -> ExecutionStatus.Done))
         case v: WdlValue => throw new RuntimeException(
           s"Scatter collection must evaluate to an array but instead got ${v.wdlType.toWdlString}")

@@ -6,13 +6,14 @@ import cats.data.Validated._
 import cats.syntax.cartesian._
 import cats.syntax.validated._
 import cromwell.core.WorkflowId
+import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
 import lenthall.validation.ErrorOr._
-
 
 case class WorkflowQueryParameters private(statuses: Set[String],
                                            names: Set[String],
                                            ids: Set[WorkflowId],
+                                           labels: Set[Label],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
@@ -60,9 +61,12 @@ object WorkflowQueryParameters {
       rawParameters groupBy { case (key, _) => key.toLowerCase.capitalize }
 
     val Seq(startDate, endDate) = Seq(StartDate, EndDate) map { _.validate(valuesByCanonicalCapitalization) }
+
     val Seq(statuses, names, ids) = Seq(Status, Name, WorkflowQueryKey.Id) map {
       _.validate(valuesByCanonicalCapitalization)
     }
+
+    val Seq(labels) = Seq(WorkflowQueryKey.LabelKeyValue) map { _.validate(valuesByCanonicalCapitalization) }
 
     val Seq(page, pageSize) = Seq(Page, PageSize) map { _.validate(valuesByCanonicalCapitalization) }
 
@@ -72,10 +76,10 @@ object WorkflowQueryParameters {
       case _ => ().validNel[String]
     }
 
-    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| startDate |@| endDate |@| page |@| pageSize) map {
-      case (_, _, status, name, uuid, start, end, _page, _pageSize) =>
+    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| labels |@| startDate |@| endDate |@| page |@| pageSize) map {
+      case (_, _, status, name, uuid, label, start, end, _page, _pageSize) =>
         val workflowId = uuid map WorkflowId.fromString
-        WorkflowQueryParameters(status.toSet, name.toSet, workflowId.toSet, start, end, _page, _pageSize)
+        WorkflowQueryParameters(status.toSet, name.toSet, workflowId.toSet, label.toSet, start, end, _page, _pageSize)
     }
   }
 

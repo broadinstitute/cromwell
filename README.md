@@ -2662,6 +2662,7 @@ This endpoint allows for querying workflows based on the following criteria:
 * `name`
 * `id`
 * `status`
+* `label`
 * `start` (start datetime with mandatory offset)
 * `end` (end datetime with mandatory offset)
 * `page` (page of results)
@@ -2671,9 +2672,13 @@ Names, ids, and statuses can be given multiple times to include
 workflows with any of the specified names, ids, or statuses. When
 multiple names are specified, any workflow matching one of the names
 will be returned. The same is true for multiple ids or statuses. When
-different types of criteria are specified, for example names and
-statuses, the results must match both the one of the specified names and
-one of the statuses. Using page and pagesize will enable server side pagination.
+more than one label is specified, only workflows associated to all of
+the given labels will be returned. 
+
+When a combination of criteria are specified, for example querying by 
+names and statuses, the results must return workflows that match one of 
+the specified names and one of the statuses. Using page and pagesize will
+enable server side pagination.
 
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
 be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format with *mandatory offset* and `start` cannot be after `end`.
@@ -2722,6 +2727,54 @@ Server: spray-can/1.3.3
       "start": "2015-11-01T07:38:59.000-05:00"
     }
   ]
+}
+```
+
+Labels have to be queried in key and value pairs separated by a colon, i.e. `label-key:label-value`. For example, if a batch of workflows was submitted with the following labels JSON:
+```
+{
+  "label-key-1" : "label-value-1",
+  "label-key-2" : "label-value-2"
+}
+```
+
+A request to query for succeeded workflows with both labels would be:
+
+cURL:
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?status=Succeeded&label=label-key-1:label-value-1&label=label-key-2:label-value-2
+```
+
+HTTPie:
+```
+$ http "http://localhost:8000/api/workflows/v1/query?status=Succeeded&label=label-key-1:label-value-1&label=label-key-2:label-value-2
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 608
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 9 May 2017 20:24:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "results": [
+        {
+            "end": "2017-05-09T16:07:30.515-04:00", 
+            "id": "83fc23d5-48d1-456e-997a-087e55cd2e06", 
+            "name": "wf_hello", 
+            "start": "2017-05-09T16:01:51.940-04:00", 
+            "status": "Succeeded"
+        }, 
+        {
+            "end": "2017-05-09T16:07:13.174-04:00", 
+            "id": "7620a5c6-a5c6-466c-994b-dd8dca917b9b", 
+            "name": "wf_goodbye", 
+            "start": "2017-05-09T16:01:51.939-04:00", 
+            "status": "Succeeded"
+        }
+    ]
 }
 ```
 

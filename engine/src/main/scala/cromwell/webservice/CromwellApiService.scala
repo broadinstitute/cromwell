@@ -2,12 +2,17 @@ package cromwell.webservice
 
 import akka.actor._
 import cats.data.NonEmptyList
+import cats.syntax.cartesian._
+import cats.data.Validated._
+import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.{WorkflowId, WorkflowOptionsJson, WorkflowSourceFilesCollection}
+import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
+import cromwell.core._
+import lenthall.validation.ErrorOr.ErrorOr
 import spray.http.MediaTypes._
 import spray.http._
 import spray.httpx.SprayJsonSupport._
@@ -147,19 +152,32 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
-    def partialSourcesToSourceCollections(partialSources: Try[PartialWorkflowSources], allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-      partialSources flatMap {
-        case PartialWorkflowSources(Some(wdlSource), workflowInputs, workflowInputsAux, workflowOptions, labels, wdlDependencies) =>
-          //The order of addition allows for the expected override of colliding keys.
-          val sortedInputAuxes = workflowInputsAux.toSeq.sortBy(_._1).map(x => Option(x._2))
-          val wfInputs: Try[Seq[WdlJson]] = if (workflowInputs.isEmpty) {
-            if (allowNoInputs) Success(Vector("{}")) else Failure(new IllegalArgumentException("No inputs were provided"))
-          } else Success(workflowInputs map { workflowInputSet =>
-            mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString
-          })
-          wfInputs.map(_.map(x => WorkflowSourceFilesCollection(wdlSource, x, workflowOptions.getOrElse("{}"), labels.getOrElse("{}"), wdlDependencies)))
-        case other => Failure(new IllegalArgumentException(s"Incomplete workflow submission: $other"))
+    def partialSourcesToSourceCollections(partialSources: Try[PartialWorkflowSources], allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
+
+      def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WdlJson]] =
+        (pws.workflowInputs.isEmpty, allowNoInputs) match {
+          case (true, true) => Vector("{}").validNel
+          case (true, false) => "No inputs were provided".invalidNel
+          case _ =>
+            val sortedInputAuxes = pws.workflowInputsAux.toSeq.sortBy { case (index, _) => index } map { case(_, inputJson) => Option(inputJson) }
+            (pws.workflowInputs map { workflowInputSet: WdlJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
       }
+
+      def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
+        WorkflowOptions.fromJsonString(options.getOrElse("{}")) leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
+
+      def validateWdlSource(partialSource: PartialWorkflowSources): ErrorOr[WdlJson] = partialSource.wdlSource match {
+        case Some(src) => src.validNel
+        case _ => s"Incomplete workflow submission: $partialSource".invalidNel
+      }
+
+      for {
+        partialSource <- partialSources
+        workflowSourceFilesCollection <- (validateWdlSource(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions) ).map {
+          (wdlSource, wfInputs, wfOptions) =>
+          wfInputs.map(x => WorkflowSourceFilesCollection(wdlSource, x, wfOptions.asPrettyJson, partialSource.customLabels.getOrElse("{}"), partialSource.zippedImports))
+        }
+      } yield workflowSourceFilesCollection
     }
 
     def fromSubmitRoute(formData: MultipartFormData, allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {

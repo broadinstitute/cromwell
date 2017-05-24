@@ -163,10 +163,46 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "Unexpected body part name: incorrectParameter"
+              |  "message": "Error(s): Unexpected body part name: incorrectParameter"
               |}""".stripMargin) {
           responseAs[String]
         }
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 for a workflow submission with unsupported workflow option keys" in {
+    val options = """
+                    |{
+                    |  "defaultRuntimeOptions": {
+                    |  "cpu":1
+                    |  }
+                    |}
+                    |""".stripMargin
+
+    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowOptions" -> BodyPart(options))
+
+    Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
+      cromwellApiService.submitRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 for a workflow submission with malformed workflow options json" in {
+    val options = s"""
+                     |{"read_from_cache": "true"
+                     |""".stripMargin
+
+    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowOptions" -> BodyPart(options))
+
+    Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
+      cromwellApiService.submitRoute ~>
+      check {
         assertResult(StatusCodes.BadRequest) {
           status
         }
@@ -219,7 +255,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "No inputs were provided"
+              |  "message": "Error(s): Error(s): No inputs were provided"
               |}""".stripMargin) {
           responseAs[String]
         }

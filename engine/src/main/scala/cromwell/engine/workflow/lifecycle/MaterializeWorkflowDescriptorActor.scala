@@ -12,8 +12,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.{OptionNotFoundException, WorkflowId, WorkflowMetadataKeys, WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
-import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging

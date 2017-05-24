@@ -69,7 +69,7 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
   def successResponse(data: WorkflowLifecycleActorData): WorkflowLifecycleSuccessResponse
   def failureResponse(reasons: Seq[Throwable]): WorkflowLifecycleFailureResponse
 
-  override def supervisorStrategy = AllForOneStrategy() {
+  override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy() {
     case ex: ActorInitializationException =>
       context.parent ! failureResponse(Seq(ex))
       context.stop(self)

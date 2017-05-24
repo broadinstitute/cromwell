@@ -9,21 +9,10 @@ import wdl4s.values._
 
 import scala.util.{Failure, Success, Try}
 
-trait FileSizeLimitationConfig {
-  val readLinesLimit = 128000
-  val readBoolLimit = 5
-  val readIntLimit = 19
-  val readFloatLimit = 50
-  val readStringLimit = 128000
-  val readJsonLimit = 128000
-  val readTsvLimit = 128000
-  val readMapLimit = 128000
-  val readObjectLimit = 128000
-}
+trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions =>
 
-case class FileSizeTooBig(override val getMessage: String) extends Exception
-
-trait ReadLikeFunctions extends PathFactory with FileSizeLimitationConfig { this: WdlStandardLibraryFunctions =>
+  val fileSizeLimitationConfig =  FileSizeLimitationConfig.fileSizeLimitationConfig
+  import fileSizeLimitationConfig._
 
   def fileSize: WdlValue=> Try[Long] = 
     w => Try(buildPath(w.valueString).size)
@@ -63,7 +52,8 @@ trait ReadLikeFunctions extends PathFactory with FileSizeLimitationConfig { this
     for {
       fileName <- extractSingleArgument(functionName, params)
       fileSize <- fileSize(fileName)
-      _ = if (fileSize > limit) throw new FileSizeTooBig(s"read of $fileName failed because $fileSize > $limit")
+      _ = if (fileSize > limit)
+            throw new FileSizeTooBig(s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to  $limit bytes are permissible)")
     } yield ()
 
   override def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {

@@ -35,8 +35,9 @@ task only_evaluate_correct_side {
 }
 
 workflow if_then_else_expressions {
-  call expression_locations as fiveVsTen { input: i = 5, j = 10 }
-  call expression_locations as sixVsTen { input: i = 6, j = 10 }
+  Int five = if "A" == "A" then 5 else 6
+  call expression_locations as fiveVsTen { input: i = five, j = 10 }
+  call expression_locations as sixVsTen { input: i = if "A" == "B" then 5 else 6, j = 10 }
   call only_evaluate_correct_side
 
   output {

@@ -183,7 +183,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                     initializationData: Option[BackendInitializationData]): Path = {
     initializationData match {
       case Some(data) => data.asInstanceOf[StandardInitializationData].workflowPaths.executionRoot
-      case None => super.getWorkflowExecutionRootPath(workflowDescriptor, backendConfig, initializationData)
+      case None => super.getExecutionRootPath(workflowDescriptor, backendConfig, initializationData)
     }
   }
 

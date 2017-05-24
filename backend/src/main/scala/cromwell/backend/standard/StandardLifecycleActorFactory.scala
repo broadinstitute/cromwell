@@ -181,12 +181,18 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
 
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,
                                     initializationData: Option[BackendInitializationData]): Path = {
-    initializationData.get.asInstanceOf[StandardInitializationData].workflowPaths.executionRoot
+    initializationData match {
+      case Some(data) => data.asInstanceOf[StandardInitializationData].workflowPaths.executionRoot
+      case None => super.getWorkflowExecutionRootPath(workflowDescriptor, backendConfig, initializationData)
+    }
   }
 
   override def getWorkflowExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,
                                             initializationData: Option[BackendInitializationData]): Path = {
-    initializationData.get.asInstanceOf[StandardInitializationData].workflowPaths.workflowRoot
+    initializationData match {
+      case Some(data) => data.asInstanceOf[StandardInitializationData].workflowPaths.workflowRoot
+      case None => super.getWorkflowExecutionRootPath(workflowDescriptor, backendConfig, initializationData)
+    }
   }
 
   override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):

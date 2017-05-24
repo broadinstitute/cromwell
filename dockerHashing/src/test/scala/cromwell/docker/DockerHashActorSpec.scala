@@ -89,5 +89,16 @@ class DockerHashActorSpec extends DockerFlowSpec("DockerHashActorSpec") with Fla
     expectMsg(responseFailure)
     mockHttpFlow.count() shouldBe 2
   }
+
+
+  it should "not deadlock" taggedAs IntegrationTest in {
+    lazy val dockerActorScale = system.actorOf(DockerHashActor.props(registryFlows, 1000, 20.minutes, 0)(materializer))
+    0 until 400 foreach { _ =>
+      dockerActorScale ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
+    }
+
+    val received = receiveN(400, 1 minute)
+    received foreach { _ shouldBe a[DockerHashResponseSuccess] }
+  }
   
 }

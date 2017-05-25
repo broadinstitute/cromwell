@@ -198,14 +198,23 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
   * [File stdout()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-stdout)
   * [File stderr()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-stderr)
   * [Array\[String\] read_lines(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-read_linesstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Array\[Array\[String\]\] read_tsv(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayarraystring-read_tsvstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Map\[String, String\] read_map(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#mapstring-string-read_mapstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Object read_object(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-read_objectstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Array\[Object\] read_objects(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayobject-read_objectsstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Int read_int(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#int-read_intstringfile)
+    * File reads are limited to 19 B. Configurable via conf file.
   * [String read_string(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#string-read_stringstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Float read_float(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#float-read_floatstringfile)
+    * File reads are limited to 50 B. Configurable via conf file.
   * [Boolean read_boolean(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#boolean-read_booleanstringfile)
+    * File reads are limited to 7 B. Configurable via conf file.
   * [File write_lines(Array\[String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_linesarraystring)
   * [File write_tsv(Array\[Array\[String\]\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_tsvarrayarraystring)
   * [File write_map(Map\[String, String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_mapmapstring-string)

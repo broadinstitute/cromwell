@@ -11,6 +11,12 @@ import scala.util.{Failure, Success, Try}
 
 trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions =>
 
+  val fileSizeLimitationConfig =  FileSizeLimitationConfig.fileSizeLimitationConfig
+  import fileSizeLimitationConfig._
+
+  def fileSize: WdlValue=> Try[Long] = 
+    w => Try(buildPath(w.valueString).size)
+
   /**
     * Asserts that the parameter list contains a single parameter which will be interpreted
     * as a File and attempts to read the contents of that file
@@ -22,10 +28,12 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     } yield string
   }
 
-  private def extractObjects(functionName: String, params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] = for {
-    contents <- readContentsFromSingleFileParameter(functionName, params)
-    wdlObjects <- WdlObject.fromTsv(contents)
-  } yield wdlObjects
+  private def extractObjects(functionName: String, params: Seq[Try[WdlValue]]): Try[Array[WdlObject]] =
+    for {
+      _ <- validateFileSizeIsWithinLimits("read_object", params, readObjectLimit)
+      contents <- readContentsFromSingleFileParameter(functionName, params)
+      wdlObjects <- WdlObject.fromTsv(contents)
+    } yield wdlObjects
 
   override def readFile(path: String): String = buildPath(path).contentAsString
 
@@ -34,13 +42,25 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     */
   override def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
+      _ <- validateFileSizeIsWithinLimits("read_lines", params, readLinesLimit)
       contents <- readContentsFromSingleFileParameter("read_lines", params)
       lines = contents.split("\n")
     } yield WdlArray(WdlArrayType(WdlStringType), lines map WdlString)
   }
 
+  def validateFileSizeIsWithinLimits(functionName: String, params: Seq[Try[WdlValue]], limit: Int): Try[Unit] = 
+    for {
+      fileName <- extractSingleArgument(functionName, params)
+      fileSize <- fileSize(fileName)
+      _ = if (fileSize > limit) {
+        val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
+        throw new FileSizeTooBig(errorMsg)
+      }
+    } yield ()
+
   override def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {
     for {
+      _ <- validateFileSizeIsWithinLimits("read_map", params, readMapLimit)
       contents <- readContentsFromSingleFileParameter("read_map", params)
       wdlMap <- WdlMap.fromTsv(contents)
     } yield wdlMap
@@ -58,13 +78,18 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   /**
     * Try to read a string from the file referenced by the specified `WdlValue`.
     */
-  override def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter("read_string", params).map(s => WdlString(s.trim))
+  override def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] =
+    for {
+      _ <- validateFileSizeIsWithinLimits("read_string", params, readStringLimit)
+      string <- readContentsFromSingleFileParameter("read_string", params)
+    } yield WdlString(string.trim)
 
   /**
     * Read a file in TSV format into an Array[Array[String]]
     */
   override def read_tsv(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
+      _ <- validateFileSizeIsWithinLimits("read_tsv", params, readTsvLimit)
       contents <- readContentsFromSingleFileParameter("read_tsv", params)
       wdlArray = WdlArray.fromTsv(contents)
     } yield wdlArray
@@ -73,12 +98,20 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   /**
     * Try to read an integer from the file referenced by the specified `WdlValue`.
     */
-  override def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
+  override def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = 
+    for {
+      _ <- validateFileSizeIsWithinLimits("read_int", params, readIntLimit)
+      r <- read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
+    } yield r
 
   /**
     * Try to read a float from the file referenced by the specified `WdlValue`.
     */
-  override def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
+  override def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] =
+    for {
+      _ <- validateFileSizeIsWithinLimits("read_float", params, readFloatLimit)
+      s <- read_string(params)
+    } yield WdlFloat(s.value.trim.toDouble)
 
   /**
     * Try to read a boolean from the file referenced by the specified `WdlValue`.

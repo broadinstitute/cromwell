@@ -22,8 +22,11 @@ object Dependencies {
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
   lazy val catsV = "0.9.0"
+  lazy val fs2V = "0.9.6"
 
   // Internal collections of dependencies
+
+  private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % "test"
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats" % catsV,
@@ -46,7 +49,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test,
     "org.specs2" %% "specs2-mock" % "3.8.5" % Test
-  ) ++ catsDependencies
+  ) ++ catsDependencies :+ fs2Test
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html

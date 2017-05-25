@@ -1,7 +1,6 @@
 name: docker_hash_gcr_private
 testFormat: workflowsuccess
 backends: [Jes]
-ignore: true
 
 files {
   wdl: docker_hash/docker_hash_gcr_private.wdl

@@ -1,6 +1,5 @@
 name: floating_tags
 testFormat: runtwiceexpectingcallcaching
-ignore: true
 
 files {
   wdl: floating_tags/floating_tags.wdl

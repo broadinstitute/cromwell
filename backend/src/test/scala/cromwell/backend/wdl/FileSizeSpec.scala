@@ -26,10 +26,10 @@ class FileSizeSpec extends FlatSpec with Matchers {
   val rlf = {
     val path = DefaultPathBuilder.build("/tmp").get
 
-    val dp = DefaultStandardExpressionFunctionsParams(List(cromwell.core.path.DefaultPathBuilder), CallContext(path, "stdout", "stderr" ))
+    val dp = DefaultStandardExpressionFunctionsParams(List(cromwell.core.path.DefaultPathBuilder), CallContext(path, "stdout", "stderr"))
 
     new StandardExpressionFunctions(dp) {
-      override val fileSizeLimitationConfig = 
+      override val fileSizeLimitationConfig =
         new FileSizeLimitationConfig {
           val readLinesLimit = _readLinesLimit
           val readIntLimit = _readIntLimit
@@ -47,7 +47,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
   val tempDir = Files.createTempDir
   tempDir.deleteOnExit
 
-  def testOverUnder(command: String, n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue])) = {
+  def testOverUnder(command: String, n: Int, f: ReadLikeFunctions => (Seq[Try[WdlValue]] => Try[WdlValue])) = {
 
     def testInner(n: Int, test: Try[WdlValue] => Unit) = {
 
@@ -57,8 +57,8 @@ class FileSizeSpec extends FlatSpec with Matchers {
         val jPath = Paths.get(fn)
         jPath.toFile.deleteOnExit
         val start = Stream[Task, Byte](1).repeat.take(size.toLong)
-        val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE) )
-        (start to end).run.unsafeRunSync 
+        val end = fs2.io.file.writeAll[Task](jPath, Seq(CREATE_NEW, WRITE))
+        (start to end).run.unsafeRunSync
         //jPath is now a file of n bytes, we can return it
         jPath
       }
@@ -80,9 +80,9 @@ class FileSizeSpec extends FlatSpec with Matchers {
 
     def testUnder() = {
       testInner(n - 1, {
-        case Success(_) => 
-        case Failure(nfe:NumberFormatException) => //we're not testing parsing
-        case Failure(uoe:UnsupportedOperationException) => //we're not testing tsv compatibility
+        case Success(_) =>
+        case Failure(nfe: NumberFormatException) => //we're not testing parsing
+        case Failure(uoe: UnsupportedOperationException) => //we're not testing tsv compatibility
         case Failure(t) => throw t
       })
     }
@@ -90,18 +90,20 @@ class FileSizeSpec extends FlatSpec with Matchers {
     //construct a test for both over and under
     List(
       s"read $command" should "limit according to a setting" in testOver,
-     it should "allow when under the  limit" in testUnder
-   )
+      it should "allow when under the  limit" in testUnder
+    )
   }
 
   //test all the functions
-  List[(String, Int, ReadLikeFunctions => (Seq[Try[WdlValue]] =>Try[WdlValue]))](
-    ("lines",  _readLinesLimit,  _.read_lines),
-    ("int",    _readIntLimit,    _.read_int),
-    ("map",    _readMapLimit,    _.read_map),
-    ("float",  _readFloatLimit,  _.read_float),
+  List[(String, Int, ReadLikeFunctions => (Seq[Try[WdlValue]] => Try[WdlValue]))](
+    ("lines", _readLinesLimit, _.read_lines),
+    ("int", _readIntLimit, _.read_int),
+    ("map", _readMapLimit, _.read_map),
+    ("float", _readFloatLimit, _.read_float),
     ("String", _readStringLimit, _.read_string),
-    ("tsv",    _readTsvLimit,    _.read_tsv),
+    ("tsv", _readTsvLimit, _.read_tsv),
     ("object", _readObjectLimit, _.read_object)
-  ).flatMap{ (testOverUnder _).tupled }
+  ).flatMap {
+    (testOverUnder _).tupled
+  }
 }

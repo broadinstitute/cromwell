@@ -52,8 +52,10 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     for {
       fileName <- extractSingleArgument(functionName, params)
       fileSize <- fileSize(fileName)
-      _ = if (fileSize > limit)
-            throw new FileSizeTooBig(s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to  $limit bytes are permissible)")
+      _ = if (fileSize > limit) {
+        val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
+        throw new FileSizeTooBig(errorMsg)
+      }
     } yield ()
 
   override def read_map(params: Seq[Try[WdlValue]]): Try[WdlMap] = {

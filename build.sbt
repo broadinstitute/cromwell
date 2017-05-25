@@ -33,6 +33,7 @@ libraryDependencies ++= {
   val scalaTestV  = "3.0.1"
   val catsV = "0.9.0"
   val lenthallV = "0.25-903b3c0-SNAP"
+  val cromwellV = "27-091ed3b-SNAP"
 
   val catsDependencies = List(
     "org.typelevel" %% "cats" % catsV
@@ -60,6 +61,7 @@ libraryDependencies ++= {
     "org.scalatest" %% "scalatest" % scalaTestV % Test,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test,
+    "org.broadinstitute" %% "cromwell-api-client" % cromwellV,
     "org.broadinstitute" %% "lenthall" % lenthallV
   ) ++ catsDependencies
 }

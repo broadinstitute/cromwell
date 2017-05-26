@@ -13,6 +13,5 @@ metadata {
     "failures.0.message": "Couldn't resolve all inputs for missing_input_failure.hello at index None."
     "failures.0.causedBy.0.message": "Input evaluation for Call missing_input_failure.hello failed."
     "failures.0.causedBy.0.causedBy.0.message": "addressee"
-    "failures.0.causedBy.0.causedBy.0.causedBy.0.message": "gs://nonexistingbucket/path/doesnt/exist"
-
+    "failures.0.causedBy.0.causedBy.0.causedBy.0.message": "nonexistingbucket/path/doesnt/exist"
 }

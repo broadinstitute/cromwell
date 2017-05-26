@@ -128,8 +128,8 @@ task wait_for_artifactory {
         elapsedTime=0
         checkIfPresent
         
-        # Allow 20 minutes for the file to appear in artifactory
-        while [ $? -ne 0 ] && [ $elapsedTime -lt 1200 ]; do
+        # Allow 1 hour for the file to appear in artifactory
+        while [ $? -ne 0 ] && [ $elapsedTime -lt 3600 ]; do
             sleep 10;
             let "elapsedTime+=10"
             checkIfPresent
@@ -320,36 +320,36 @@ workflow release_cromwell {
   
   # Generates commands to update wdl4s dependencies
   scatter(wdl4sDependency in wdl4sDependencies) {
-    String depName = wdl4sDependency.left
-    String versionName = wdl4sDependency.right
+    String wdl4sDepName = wdl4sDependency.left
+    String wdl4sVersionName = wdl4sDependency.right
     
     call create_update_dependency_command as wdl4sDependencyCommands { input: 
-       dependencyName = depName,
-       newVersion = versionName,
+       dependencyName = wdl4sDepName,
+       newVersion = wdl4sVersionName,
        dependencyFilePath = "build.sbt"
     }
   }
   
   # Generates commands to update wdltool dependencies
   scatter(wdltoolDependency in wdltoolDependencies) {
-    String depName = wdltoolDependency.left
-    String versionName = wdltoolDependency.right
+    String wdltoolDepName = wdltoolDependency.left
+    String wdltoolVersionName = wdltoolDependency.right
     
     call create_update_dependency_command as wdltoolDependencyCommands { input: 
-       dependencyName = depName,
-       newVersion = versionName,
+       dependencyName = wdltoolDepName,
+       newVersion = wdltoolVersionName,
        dependencyFilePath = "build.sbt"
     }
   }
   
   # Generates commands to update cromwell dependencies
   scatter(cromwellDependency in cromwellDependencies) {
-    String depName = cromwellDependency.left
-    String versionName = cromwellDependency.right
+    String cromwellDepName = cromwellDependency.left
+    String cromwellVersionName = cromwellDependency.right
     
     call create_update_dependency_command as cromwellDependencyCommands { input: 
-       dependencyName = depName,
-       newVersion = versionName,
+       dependencyName = cromwellDepName,
+       newVersion = cromwellVersionName,
        dependencyFilePath = "project/Dependencies.scala"
     }
   }
@@ -364,11 +364,11 @@ workflow release_cromwell {
            githubToken = githubToken,
            organization = organization,
            cromwellJar = cromwellJar,
-           new_version = cromwellVersionAsInt,
-           old_version = cromwellPreviousVersion
+           newVersion = cromwellVersionAsInt,
+           oldVersion = cromwellPreviousVersion
   }
   
   output {
-    String cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
+    File cromwellReleasedJar = cromwellJar
   }
 }

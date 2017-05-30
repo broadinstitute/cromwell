@@ -106,7 +106,7 @@ object Dependencies {
     - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
     - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
      */
-    "mysql" % "mysql-connector-java" % "5.1.39"
+    "mysql" % "mysql-connector-java" % "5.1.42"
   )
 
   private val refinedTypeDependenciesList = List(
@@ -167,7 +167,11 @@ object Dependencies {
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
-    "com.storm-enroute" %% "scalameter" % "0.8.2",
+    "com.storm-enroute" %% "scalameter" % "0.8.2"      
+      exclude("com.fasterxml.jackson.core", "jackson-databind")
+      exclude("com.fasterxml.jackson.module", "jackson-module-scala"),
+    "com.fasterxml.jackson.core" % "jackson-databind" % "2.7.9.1",
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.7.9",
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies

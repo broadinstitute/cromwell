@@ -12,7 +12,7 @@ val wdl4sV = "0.10-f7a345e-SNAP"
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
-  git.baseVersion := "0.11",
+  git.baseVersion := "0.12",
 
   // Shorten the git commit hash
   git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) },

@@ -1,8 +1,7 @@
 package cromwell.engine
 
 import cats.data.NonEmptyList
-import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.database.sql.SqlDatabase
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
@@ -13,12 +12,13 @@ import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, Metad
 import cromwell.services.metadata.impl.ReadMetadataActor
 import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
+import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfter, Matchers}
 import org.specs2.mock.Mockito
-import org.mockito.Mockito._
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter with Mockito {
@@ -158,24 +158,9 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
       }
     }
 
-    "remove workflows which exist" in {
-      val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, database))
-      storeActor ! SubmitWorkflow(helloWorldSourceFiles)
-      val id = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
-      storeActor ! RemoveWorkflow(id)
-      storeActor ! FetchRunnableWorkflows(100)
-      expectMsgPF(10 seconds) {
-        case NoNewWorkflowsToStart => // Great
-        case x => fail(s"Unexpected response from supposedly empty WorkflowStore: $x")
-      }
-    }
-
     "remain responsive if you ask to remove a workflow it doesn't have" in {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, database))
-      val id = WorkflowId.randomId()
-      storeActor ! RemoveWorkflow(id)
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {

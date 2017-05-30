@@ -13,10 +13,10 @@ import scala.language.postfixOps
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor(database: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor {
+class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor {
   import JobStoreActor._
-  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(database, dbBatchSize, dbFlushRate))
-  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(database))
+  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate))
+  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore))
 
   override def receive: Receive = {
     case command: JobStoreWriterCommand => jobStoreWriterActor.tell(command, sender())

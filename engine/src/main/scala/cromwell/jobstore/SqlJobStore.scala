@@ -1,24 +1,34 @@
 package cromwell.jobstore
 
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
+
 import cromwell.Simpletons._
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._
 import cromwell.core.simpleton.WdlValueBuilder
 import cromwell.core.simpleton.WdlValueSimpleton._
-import cromwell.database.sql.JobStoreSqlDatabase
 import cromwell.database.sql.SqlConverters._
+import cromwell.database.sql.SqlDatabase
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
+import org.slf4j.LoggerFactory
 import wdl4s.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class SqlJobStore(sqlDatabase: JobStoreSqlDatabase) extends JobStore {
+class SqlJobStore(sqlDatabase: SqlDatabase) extends JobStore {
+  val log = LoggerFactory.getLogger(classOf[SqlJobStore])
+
   override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit] = {
+    val completedWorkflowIds = workflowCompletions.toList.map(_.workflowId.toString)
     for {
       _ <- sqlDatabase.addJobStores(jobCompletions map toDatabase, batchSize)
-      _ <- sqlDatabase.removeJobStores(workflowCompletions.map(_.workflowId.toString))
+      _ <- completedWorkflowIds traverse sqlDatabase.removeWorkflowStoreEntry
+      _ <- completedWorkflowIds traverse sqlDatabase.removeDockerHashStoreEntries
+      _ <- sqlDatabase.removeJobStores(completedWorkflowIds)
     } yield ()
   }
 

@@ -168,8 +168,10 @@ object Dependencies {
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
     "com.storm-enroute" %% "scalameter" % "0.8.2"      
-      exclude("com.fasterxml.jackson.core", "jackson-databind"),
+      exclude("com.fasterxml.jackson.core", "jackson-databind")
+      exclude("com.fasterxml.jackson.module", "jackson-module-scala"),
     "com.fasterxml.jackson.core" % "jackson-databind" % "2.7.9.1",
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.7.9",
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies

@@ -36,7 +36,7 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
   def serviceRegistryActor: ActorRef
 
   // So... JobPaths doesn't extend WorkflowPaths, but does contain a self-type
-  lazy val workflowPaths: WorkflowPaths = jobPaths.asInstanceOf[WorkflowPaths]
+  lazy val workflowPaths: WorkflowPaths = jobPaths.workflowPaths
 
   def getPath(str: String): Try[Path] = workflowPaths.getPath(str)
 

@@ -3,6 +3,9 @@ package cromwell.jobstore
 import akka.testkit.TestFSMRef
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.WorkflowId
+import cromwell.core.actor.BatchingDbWriter
+import cromwell.core.actor.BatchingDbWriter.{BatchingDbWriterState, WritingToDb}
+import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
 import wdl4s.TaskOutput
@@ -14,18 +17,20 @@ import scala.language.postfixOps
 class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter {
   
   var database: WriteCountingJobStore = _
-  var jobStoreWriter: TestFSMRef[JobStoreWriterState, JobStoreWriterData, JobStoreWriterActor] = _
+  var jobStoreWriter: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, JobStoreWriterActor] = _
   var workflowId: WorkflowId = _
   val successResult: JobResult = JobResultSuccess(Some(0), Map.empty)
+  val flushFrequency = 0.5 second
+  val sleepMillis = flushFrequency.toMillis * 5
 
   before {
     database = WriteCountingJobStore.makeNew
-    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database))
+    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency))
     workflowId = WorkflowId.randomId()
   }
 
-  private def sendRegisterCompletions(attempts: Int): Unit = {
-    0 until attempts foreach { a => jobStoreWriter ! RegisterJobCompleted(jobKey(attempt = a), successResult) }
+  private def sendRegisterCompletion(attempt: Int): Unit = {
+    jobStoreWriter ! RegisterJobCompleted(jobKey(attempt), successResult)
   }
 
   private def jobKey(attempt: Int): JobStoreKey = JobStoreKey(workflowId, s"call.fqn", None, attempt)
@@ -52,26 +57,26 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
       case JobStoreWriteSuccess(RegisterWorkflowCompleted(id)) => id shouldBe workflowId
       case message => fail(s"Unexpected response message: $message")
     }
-    jobStoreWriter.underlyingActor.stateName shouldBe Pending
     ()
   }
 
   "JobStoreWriter" should {
     "be able to collapse writes together if they arrive while a database access is ongoing" in {
 
-      sendRegisterCompletions(attempts = 3)
-
+      // Send a job completion. The database will hang.
+      sendRegisterCompletion(1)
       val writer = jobStoreWriter.underlyingActor
-      writer.stateName shouldBe WritingToDatabase
-      writer.stateData.currentOperation should have size 1
-      writer.stateData.nextOperation should have size 2
+      eventually {
+        writer.stateName shouldBe WritingToDb
+      }
 
-      // The testing DB intentionally blocks after the first write until `continue` is called.
+      // Send some more completions.  These should pile up in the state data.
+      List(2, 3) foreach sendRegisterCompletion
+
+      writer.stateData.length should equal(2)
       database.continue()
 
       assertReceived(expectedJobStoreWriteAcks = 3)
-      writer.stateData.currentOperation shouldBe empty
-      writer.stateData.nextOperation shouldBe empty
 
       assertDb(
         totalWritesCalled = 2,
@@ -82,20 +87,22 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
 
     "be able to skip job-completion writes if the workflow completes, but still respond appropriately" in {
 
-      sendRegisterCompletions(attempts = 2)
+      // Send a job completion. The database will hang.
+      sendRegisterCompletion(1)
+      val writer = jobStoreWriter.underlyingActor
+      eventually {
+        writer.stateName shouldBe WritingToDb
+      }
+
+      // Send some more completions.  These should pile up in the state data.
+      List(2, 3) foreach sendRegisterCompletion
       jobStoreWriter ! RegisterWorkflowCompleted(workflowId)
 
-      val writer = jobStoreWriter.underlyingActor
-      writer.stateName shouldBe WritingToDatabase
-      writer.stateData.currentOperation should have size 1
-      writer.stateData.nextOperation should have size 2
-
+      writer.stateData.length should equal(3)
       // The testing DB intentionally blocks after the first write until `continue` is called.
       database.continue()
 
       assertReceived(expectedJobStoreWriteAcks = 3)
-      writer.stateData.currentOperation shouldBe empty
-      writer.stateData.nextOperation shouldBe empty
 
       assertDb(
         totalWritesCalled = 2,
@@ -114,8 +121,9 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
 
   def continue() = writePromise.trySuccess(())
 
-  override def writeToDatabase(jobCompletions: Map[JobStoreKey, JobResult], workflowCompletions: List[WorkflowId])
+  override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)
                               (implicit ec: ExecutionContext): Future[Unit] = {
+
     totalWritesCalled += 1
     jobCompletionsRecorded += jobCompletions.size
     workflowCompletionsRecorded += workflowCompletions.size

@@ -24,7 +24,7 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
   protected def backpressureTimeout: FiniteDuration = 10 seconds
   protected def backpressureRandomizerFactor: Double = 0.5D
   
-  private [core] def robustReceive: Receive = {
+ def robustReceive: Receive = {
     case BackPressure(request) => 
       val snd = sender()
       newTimer(request, snd, generateBackpressureTime)
@@ -37,7 +37,7 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
     context.system.scheduler.scheduleOnce(in, to, msg)(robustActorHelperEc, self)
   }
   
-  private [core] def robustSend(msg: Any, to: ActorRef, timeout: FiniteDuration = DefaultRequestLostTimeout): Unit = {
+  def robustSend(msg: Any, to: ActorRef, timeout: FiniteDuration = DefaultRequestLostTimeout): Unit = {
     to ! msg
     addTimeout(msg, to, timeout)
   }

@@ -1,7 +1,7 @@
 package cromwell.backend.impl.tes
 
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
+import cromwell.backend.{BackendConfigurationDescriptor, MemorySize, RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
@@ -137,12 +137,15 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     )
   }
 
+  private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
+  private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
+
   private def assertSuccess(runtimeAttributes: Map[String, WdlValue],
                             expectedRuntimeAttributes: TesRuntimeAttributes,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
 
     try {
-      val actualRuntimeAttributes = toTesRuntimeAttributes(runtimeAttributes, workflowOptions)
+      val actualRuntimeAttributes = toTesRuntimeAttributes(runtimeAttributes, workflowOptions, mockTesConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
@@ -154,7 +157,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
                             exMsg: String,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
     try {
-      toTesRuntimeAttributes(runtimeAttributes, workflowOptions)
+      toTesRuntimeAttributes(runtimeAttributes, workflowOptions, mockTesConfiguration)
       fail("A RuntimeException was expected.")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
@@ -164,15 +167,17 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    TesRuntimeAttributes.runtimeAttributesBuilder.definitions.toSet
+    TesRuntimeAttributes.runtimeAttributesBuilder(mockTesConfiguration.runtimeConfig).definitions.toSet
 
 
   private def toTesRuntimeAttributes(runtimeAttributes: Map[String, WdlValue],
-                                     workflowOptions: WorkflowOptions): TesRuntimeAttributes = {
-    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder
+                                     workflowOptions: WorkflowOptions,
+                                     tesConfiguration: TesConfiguration): TesRuntimeAttributes = {
+    val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
     val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    TesRuntimeAttributes(validatedRuntimeAttributes)
+    TesRuntimeAttributes(validatedRuntimeAttributes, tesConfiguration.runtimeConfig
+    )
   }
 }

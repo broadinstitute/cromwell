@@ -3,16 +3,19 @@ package cromwell.jobstore
 import akka.actor.{Actor, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
-import cromwell.jobstore.JobStoreActor.{JobStoreReaderCommand, JobStoreWriterCommand}
+import cromwell.jobstore.JobStore.{Completion, JobCompletion, WorkflowCompletion}
 import wdl4s.TaskOutput
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 /**
   * Joins the service registry API to the JobStoreReaderActor and JobStoreWriterActor.
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor(database: JobStore) extends Actor {
-  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(database))
+class JobStoreActor(database: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor {
+  import JobStoreActor._
+  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(database, dbBatchSize, dbFlushRate))
   val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(database))
 
   override def receive: Receive = {
@@ -24,9 +27,15 @@ class JobStoreActor(database: JobStore) extends Actor {
 object JobStoreActor {
   sealed trait JobStoreCommand
 
-  sealed trait JobStoreWriterCommand extends JobStoreCommand
-  case class RegisterJobCompleted(jobKey: JobStoreKey, jobResult: JobResult) extends JobStoreWriterCommand
-  case class RegisterWorkflowCompleted(workflowId: WorkflowId) extends JobStoreWriterCommand
+  sealed trait JobStoreWriterCommand extends JobStoreCommand {
+    def completion: Completion
+  }
+  case class RegisterJobCompleted(jobKey: JobStoreKey, jobResult: JobResult) extends JobStoreWriterCommand {
+    override def completion = JobCompletion(jobKey, jobResult)
+  }
+  case class RegisterWorkflowCompleted(workflowId: WorkflowId) extends JobStoreWriterCommand {
+    override def completion = WorkflowCompletion(workflowId)
+  }
 
   sealed trait JobStoreWriterResponse
   case class JobStoreWriteSuccess(originalCommand: JobStoreWriterCommand) extends JobStoreWriterResponse
@@ -51,5 +60,11 @@ object JobStoreActor {
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
 
-  def props(database: JobStore) = Props(new JobStoreActor(database)).withDispatcher(EngineDispatcher)
+  def props(database: JobStore) = Props(new JobStoreActor(database, dbBatchSize, dbFlushRate)).withDispatcher(EngineDispatcher)
+
+  val dbFlushRate = 1 second
+
+  // `dbBatchSize` applies to simpletons only.  Batching job store entry writes while returning the inserted IDs works at the
+  // Slick API level, but didn't actually batch the SQL.  Unfortunately these IDs are required to assign into the simpletons.
+  val dbBatchSize = 1000
 }

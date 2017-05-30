@@ -27,7 +27,7 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(startEvents)
   }
 
-  def pushQueuedCallMetadata(diffs: Seq[WorkflowExecutionDiff]) = {
+  def pushQueuedCallMetadata(diffs: List[WorkflowExecutionDiff]) = {
     val startingEvents = for {
       diff <- diffs
       (jobKey, executionState) <- diff.executionStoreChanges if jobKey.isInstanceOf[BackendJobDescriptorKey] && executionState == ExecutionStatus.QueuedInCromwell

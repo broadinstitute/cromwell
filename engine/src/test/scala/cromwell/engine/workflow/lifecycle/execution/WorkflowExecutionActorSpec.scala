@@ -67,12 +67,13 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val workflowId = WorkflowId.randomId()
     val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.HelloWorld.asWorkflowSources(runtime = runtimeSection))
     val callCacheReadActor = TestProbe()
+    val callCacheWriteActor = TestProbe()
     val dockerHashActor = TestProbe()
 
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, restarting = false),
+        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, restarting = false),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)
 
@@ -103,6 +104,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
     val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
+    val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
     val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
     val ioActor = system.actorOf(SimpleIoActor.props)
     val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props)
@@ -118,7 +120,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val engineWorkflowDescriptor = createMaterializedEngineWorkflowDescriptor(workflowId, SampleWdl.SimpleScatterWdl.asWorkflowSources(runtime = runtimeSection))
     val workflowExecutionActor = system.actorOf(
       WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistry, jobStore, subWorkflowStoreActor,
-        callCacheReadActor, dockerHashActor, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, restarting = false),
+        callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, restarting = false),
       "WorkflowExecutionActor")
 
     val scatterLog = "Starting calls: scatter0.inside_scatter:0:1, scatter0.inside_scatter:1:1, scatter0.inside_scatter:2:1, scatter0.inside_scatter:3:1, scatter0.inside_scatter:4:1"

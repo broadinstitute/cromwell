@@ -47,9 +47,10 @@ trait WorkflowOptionsChange extends BatchedTaskChange {
         |  WHERE $primaryKeyColumn >= ? AND $primaryKeyColumn < ? $additionalReadBatchFilters;
         |""".stripMargin
 
-  override def migrateBatchQuery = s"UPDATE $tableName SET $workflowOptionsColumn = ? WHERE $primaryKeyColumn = ?;"
+  override def migrateBatchQueries = List(s"UPDATE $tableName SET $workflowOptionsColumn = ? WHERE $primaryKeyColumn = ?;")
 
-  override def migrateBatchRow(readRow: ResultSet, migrateStatement: PreparedStatement): Int = {
+  override def migrateBatchRow(readRow: ResultSet, migrateStatements: List[PreparedStatement]): Int = {
+    val migrateStatement = migrateStatements.head
     val rowId = readRow.getInt(1)
     val workflowOptionsJson = readRow.getString(2)
     WorkflowOptions.fromJsonString(workflowOptionsJson) match {

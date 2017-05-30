@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.23"
-  lazy val wdl4sV = "0.11"
+  lazy val lenthallV = "0.24"
+  lazy val wdl4sV = "0.12"
   lazy val sprayV = "1.3.3"
   /*
   spray-json is an independent project from the "spray suite"
@@ -13,14 +13,20 @@ object Dependencies {
    */
   lazy val sprayJsonV = "1.3.2"
   lazy val akkaV = "2.4.16"
-  lazy val akkaHttpV = "2.4.11"
-  lazy val slickV = "3.1.1"
+  lazy val akkaHttpV = "2.4.11.2"
+  lazy val slickV = "3.2.0"
+  // TODO: Re-combine these when cromwell is 2.12:
+  lazy val cromwellApiClientAkkaV = "2.4.17"
+  lazy val cromwellApiClientAkkaHttpV = "10.0.6"
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
   lazy val catsV = "0.9.0"
+  lazy val fs2V = "0.9.6"
 
   // Internal collections of dependencies
+
+  private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % "test"
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats" % catsV,
@@ -43,7 +49,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.0.0" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test,
     "org.specs2" %% "specs2-mock" % "3.8.5" % Test
-  ) ++ catsDependencies
+  ) ++ catsDependencies :+ fs2Test
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
@@ -83,7 +89,7 @@ object Dependencies {
 
   private val googleCloudDependencies = List(
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
-    "com.google.cloud" % "google-cloud-nio" % "0.9.4-alpha"
+    "com.google.cloud" % "google-cloud-nio" % "0.17.2-alpha"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
@@ -100,7 +106,7 @@ object Dependencies {
     - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
     - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
      */
-    "mysql" % "mysql-connector-java" % "5.1.39"
+    "mysql" % "mysql-connector-java" % "5.1.42"
   )
 
   private val refinedTypeDependenciesList = List(
@@ -139,9 +145,13 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV % Test
   ) ++ liquibaseDependencies ++ dbmsDependencies
 
-  val htCondorBackendDependencies = List(
-    "com.twitter" %% "chill" % "0.8.0",
-    "org.mongodb" %% "casbah" % "3.0.0"
+  val cromwellApiClientDependencies = List(
+    "com.typesafe.akka" %% "akka-actor" % cromwellApiClientAkkaV,
+    "com.typesafe.akka" %% "akka-http" % cromwellApiClientAkkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % cromwellApiClientAkkaHttpV,
+    "com.github.pathikrit" %% "better-files" % "3.0.0",
+    "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+    "org.pegdown" % "pegdown" % "1.6.0" % Test
   )
 
   val jesBackendDependencies = refinedTypeDependenciesList
@@ -157,6 +167,11 @@ object Dependencies {
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % "1.10",
     "commons-io" % "commons-io" % "2.5",
+    "com.storm-enroute" %% "scalameter" % "0.8.2"      
+      exclude("com.fasterxml.jackson.core", "jackson-databind")
+      exclude("com.fasterxml.jackson.module", "jackson-module-scala"),
+    "com.fasterxml.jackson.core" % "jackson-databind" % "2.7.9.1",
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.7.9",
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ sprayServerDependencies

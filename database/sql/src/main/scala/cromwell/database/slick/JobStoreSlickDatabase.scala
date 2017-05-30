@@ -1,30 +1,35 @@
 package cromwell.database.slick
 
-import cats.instances.future._
-import cats.syntax.functor._
 import cromwell.database.sql.JobStoreSqlDatabase
 import cromwell.database.sql.joins.JobStoreJoin
+import cromwell.database.sql.tables.JobStoreSimpletonEntry
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 
 trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
   this: SlickDatabase =>
 
   import dataAccess.driver.api._
 
-  private def addJobStore(jobStoreJoin: JobStoreJoin)(implicit ec: ExecutionContext): DBIO[Unit] = {
-    for {
-      jobStoreEntryId <- dataAccess.jobStoreEntryIdsAutoInc += jobStoreJoin.jobStoreEntry
-      _ <- dataAccess.jobStoreSimpletonEntryIdsAutoInc ++=
-        jobStoreJoin.jobStoreSimpletonEntries.map(_.copy(jobStoreEntryId = Option(jobStoreEntryId)))
-    } yield ()
-  }
-
-  override def addJobStores(jobStoreJoins: Seq[JobStoreJoin])
+  override def addJobStores(jobStoreJoins: Seq[JobStoreJoin], batchSize: Int)
                            (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = DBIO.sequence(jobStoreJoins map addJobStore)
-    runTransaction(action) void
+
+    def assignJobStoreIdsToSimpletons(jobStoreIds: Seq[Int]): Seq[JobStoreSimpletonEntry] = {
+      val simpletonsByJobStoreEntry = jobStoreJoins map { _.jobStoreSimpletonEntries }
+      val jobStoreIdsAndSimpletons = jobStoreIds.toList zip simpletonsByJobStoreEntry
+      jobStoreIdsAndSimpletons flatMap { case (id, simpletons) => simpletons.map(_.copy(jobStoreEntryId = Option(id))) }
+    }
+
+    val jobStoreEntries = jobStoreJoins map { _.jobStoreEntry }
+
+    val action = for {
+      jobStoreIds <- dataAccess.jobStoreEntryIdsAutoInc ++= jobStoreEntries.toList
+      simpletons = assignJobStoreIdsToSimpletons(jobStoreIds)
+      simpletonInserts = simpletons.grouped(batchSize) map { dataAccess.jobStoreSimpletonEntries ++= _ }
+      _ <- DBIO.sequence(simpletonInserts)
+    } yield ()
+
+    runTransaction(action)
   }
 
   override def queryJobStores(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,

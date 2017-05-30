@@ -31,7 +31,7 @@ trait CallCachingDetritusEntryComponent {
       index("UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK", (callCachingEntryId, detritusKey), unique = true)
   }
 
-  protected val callCachingDetritusEntries = TableQuery[CallCachingDetritusEntries]
+  val callCachingDetritusEntries = TableQuery[CallCachingDetritusEntries]
 
   val callCachingDetritusEntryIdsAutoInc =
     callCachingDetritusEntries returning callCachingDetritusEntries.map(_.callCachingDetritusEntryId)

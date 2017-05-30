@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="tjeandet" id="call_caching_aggregation_entry">
+        <comment>
+            Holds an aggregated version of the hashes for each cache entry.
+            Split into "BaseAggregation" and "InputFilesAggregation"
+            BaseAggregation aggregates all call hashes, except input files.
+            It should be used as a first pass to check if cache hits exist.
+            InputFiles aggregates all hashes from the input files of a call. 
+            It should be used as a second pass to check if cache hits exist, only if the first pass succeeded.
+        </comment>
+        <createTable tableName="CALL_CACHING_AGGREGATION_ENTRY">
+            <column autoIncrement="true" name="CALL_CACHING_AGGREGATION_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_AGGREGATION_ENTRY"/>
+            </column>
+            <column name="CALL_CACHING_ENTRY_ID" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="BASE_AGGREGATION" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="INPUT_FILES_AGGREGATION" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="tjeandet" id="call_caching_aggregation_entry_keys_and_indexes">
+        <addForeignKeyConstraint baseColumnNames="CALL_CACHING_ENTRY_ID"
+                                 baseTableName="CALL_CACHING_AGGREGATION_ENTRY"
+                                 constraintName="FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID"
+                                 referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                                 referencedTableName="CALL_CACHING_ENTRY"/>
+        <createIndex indexName="IX_CALL_CACHING_AGGREGATION_ENTRY_BA_IFA"
+                     tableName="CALL_CACHING_AGGREGATION_ENTRY"
+                     unique="false">
+            <column name="BASE_AGGREGATION"/>
+            <column name="INPUT_FILES_AGGREGATION"/>
+        </createIndex>
+    </changeSet>
+
+    
+    <changeSet author="tjeandet" id="call_caching_aggregation_entry_populate_aggregation" dbms="mysql">
+        <preConditions onFailMessage="The group_concat_max_len value on the MySQL server is too low for this migration to run. Please increase it and restart Cromwell to migrate your call caching data. See https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md for help on what value it should be set to.">
+            <sqlCheck expectedResult="1">
+                SELECT @@GLOBAL.group_concat_max_len >= MAX(aggregated) as group_concat_max_len FROM
+                (
+                SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(CONCAT(cche.HASH_KEY, cche.HASH_VALUE))) AS aggregated
+                FROM CALL_CACHING_HASH_ENTRY cche
+                GROUP BY cche.CALL_CACHING_ENTRY_ID
+
+                -- Handle the case of the CALL_CACHING_HASH_ENTRY table possibly being empty by UNIONing to a fake row.
+                UNION
+
+                SELECT 0, 0 AS aggregated
+                ) aggregation
+            </sqlCheck>
+        </preConditions>
+        <comment>This changeset will only be run if the group_concat_max_len flag has a value that will allow it to run successfully</comment>
+        
+        <sqlFile relativeToChangelogFile="true" path="call_caching_aggregation/call_caching_base_aggregation.sql" />
+        <sqlFile relativeToChangelogFile="true" path="call_caching_aggregation/call_caching_input_files_aggregation.sql" />
+
+        <rollback>
+            <delete tableName="CALL_CACHING_AGGREGATION_ENTRY" />
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

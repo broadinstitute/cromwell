@@ -32,6 +32,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val jobStoreProbe = TestProbe()
   val subWorkflowStoreProbe = TestProbe()
   val callCacheReadActorProbe = TestProbe()
+  val callCacheWriteActorProbe = TestProbe()
   val dockerHashActorProbe = TestProbe()
   val ioActorProbe = TestProbe()
   val jobTokenDispenserProbe = TestProbe()
@@ -70,6 +71,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobStoreProbe.ref,
         subWorkflowStoreProbe.ref,
         callCacheReadActorProbe.ref,
+        callCacheWriteActorProbe.ref,
         dockerHashActorProbe.ref,
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),

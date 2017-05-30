@@ -17,10 +17,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
 * [Building](#building)
 * [Installing](#installing)
   * [Upgrading from 0.19 to 0.21](#upgrading-from-019-to-021)
-* [Command Line Usage](#command-line-usage)
-  * [run](#run)
-  * [server](#server)
-  * [version](#version)
+* [**NEW** Command Line Usage](http://gatkforums.broadinstitute.org/wdl/discussion/8782/command-line-cromwell) (on the WDL/Cromwell Website)
 * [Getting Started with WDL](#getting-started-with-wdl)
   * [WDL Support](#wdl-support)
 * [Configuring Cromwell](#configuring-cromwell)
@@ -139,173 +136,6 @@ OS X users can install Cromwell with Homebrew: `brew install cromwell`.
 
 See the [migration document](MIGRATION.md) for more details.
 
-# Command Line Usage
-
-Run the JAR file with no arguments to get the usage message:
-
-```
-
-
-$ java -jar cromwell.jar
-java -jar cromwell.jar <action> <parameters>
-
-Actions:
-run <WDL file> [<JSON inputs file>] [<JSON workflow options>]
-  [<OUTPUT workflow metadata>] [<Zip of WDL Files>] [<JSON labels file>]
-
-  Given a WDL file and JSON file containing the value of the
-  workflow inputs, this will run the workflow locally and
-  print out the outputs in JSON format.  The workflow
-  options file specifies some runtime configuration for the
-  workflow (see README for details).  The workflow metadata
-  output is an optional file path to output the metadata. The
-  directory of WDL files is optional. However, it is required
-  if the primary workflow imports workflows that are outside
-  of the root directory of the Cromwell project.
-
-  Use a single dash ("-") to skip optional files. Ex:
-    run noinputs.wdl - - metadata.json -
-
-  server
-
-  Starts a web server on port 8000.  See the web server
-  documentation for more details about the API endpoints.
-
-  -version
-
-  Returns the version of the Cromwell engine.
-
-```
-
-## run
-
-Given a WDL file and a JSON inputs file (see `inputs` subcommand), Run the workflow and print the outputs:
-
-```
-$ java -jar cromwell.jar run 3step.wdl inputs.json
-... play-by-play output ...
-{
-  "three_step.ps.procs": "/var/folders/kg/c7vgxnn902lc3qvc2z2g81s89xhzdz/T/stdout1272284837004786003.tmp",
-  "three_step.cgrep.count": 0,
-  "three_step.wc.count": 13
-}
-```
-
-The JSON inputs can be left off if there's a file with the same name as the WDL file but with a `.inputs` extension.  For example, this will assume that `3step.inputs` exists:
-
-```
-$ java -jar cromwell.jar run 3step.wdl
-```
-
-If your workflow has no inputs, you can specify `-` as the value for the inputs parameter:
-
-```
-$ java -jar cromwell.jar run my_workflow.wdl -
-```
-
-The third, optional parameter to the 'run' subcommand is a JSON file of workflow options.  By default, the command line will look for a file with the same name as the WDL file but with the extension `.options`.  But one can also specify a value of `-` manually to specify that there are no workflow options.
-
-See the section [workflow options](#workflow-options) for more details.
-
-```
-$ java -jar cromwell.jar run my_jes_wf.wdl my_jes_wf.json wf_options.json
-```
-
-The fourth, optional parameter to the 'run' subcommand is a path where the workflow metadata will be written.  By default, no workflow metadata will be written.
-
-```
-$ java -jar cromwell.jar run my_wf.wdl - - my_wf.metadata.json
-... play-by-play output ...
-$ cat my_wf.metadata.json
-{
-  "workflowName": "w",
-  "calls": {
-    "w.x": [{
-      "executionStatus": "Done",
-      "stdout": "/Users/jdoe/projects/cromwell/cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x/stdout",
-      "shardIndex": -1,
-      "outputs": {
-        "o": "local\nremote"
-      },
-      "runtimeAttributes": {
-        "failOnStderr": "false",
-        "continueOnReturnCode": "0"
-      },
-      "cache": {
-        "allowResultReuse": true
-      },
-      "inputs": {
-        "remote": "/Users/jdoe/remote.txt",
-        "local": "local.txt"
-      },
-      "returnCode": 0,
-      "backend": "Local",
-      "end": "2016-07-11T10:27:56.074-04:00",
-      "stderr": "/Users/jdoe/projects/cromwell/cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x/stderr",
-      "callRoot": "cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084/call-x",
-      "attempt": 1,
-      "start": "2016-07-11T10:27:55.992-04:00"
-    }]
-  },
-  "outputs": {
-    "w.x.o": "local\nremote"
-  },
-  "workflowRoot": "cromwell-executions/w/a349534f-137b-4809-9425-1893ac272084",
-  "id": "a349534f-137b-4809-9425-1893ac272084",
-  "inputs": {
-    "w.x.remote": "/Users/jdoe/remote.txt",
-    "w.x.local": "local.txt"
-  },
-  "submission": "2016-07-11T10:27:54.907-04:00",
-  "status": "Succeeded",
-  "end": "2016-07-11T10:27:56.108-04:00",
-  "start": "2016-07-11T10:27:54.919-04:00"
-}
-```
-
-The fifth, optional parameter to the 'run' subcommand is a zip file which contains WDL source files. This zip file can be passed
-and your primary workflow can import any WDL's from that collection and re-use those tasks.
-
-For example, consider you have a directory of WDL files:
-```
-my_WDLs
-└──cgrep.wdl
-└──ps.wdl
-└──wc.wdl
-```
-
-If you zip that directory to my_WDLs.zip, you have the option to pass it in as the last parameter in your run command
-and be able to reference these WDLs as imports in your primary WDL. For example, your primary WDL can look like this:
-```
-import "ps.wdl" as ps
-import "cgrep.wdl"
-import "wc.wdl" as wordCount
-
-workflow threestep {
-
-call ps.ps as getStatus
-call cgrep.cgrep { input: str = getStatus.x }
-call wordCount { input: str = ... }
-
-}
-
-```
-The command to run this WDL, without needing any inputs, workflow options or metadata files would look like:
-
-```
-$ java -jar cromwell.jar run threestep.wdl - - - /path/to/my_WDLs.zip
-```
-
-The sixth optional parameter is a path to a labels file. See [Labels](#labels) for information and the expected format.
-
-## server
-
-Start a server on port 8000, the API for the server is described in the [REST API](#rest-api) section.
-
-## version
-
-Returns the version of Cromwell engine.
-
 # Getting Started with WDL
 
 For many examples on how to use WDL see [the WDL site](https://github.com/broadinstitute/wdl#getting-started-with-wdl)
@@ -368,14 +198,23 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
   * [File stdout()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-stdout)
   * [File stderr()](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-stderr)
   * [Array\[String\] read_lines(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-read_linesstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Array\[Array\[String\]\] read_tsv(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayarraystring-read_tsvstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Map\[String, String\] read_map(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#mapstring-string-read_mapstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Object read_object(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#object-read_objectstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Array\[Object\] read_objects(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayobject-read_objectsstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Int read_int(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#int-read_intstringfile)
+    * File reads are limited to 19 B. Configurable via conf file.
   * [String read_string(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#string-read_stringstringfile)
+    * File reads are limited to 128 KB. Configurable via conf file.
   * [Float read_float(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#float-read_floatstringfile)
+    * File reads are limited to 50 B. Configurable via conf file.
   * [Boolean read_boolean(String|File)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#boolean-read_booleanstringfile)
+    * File reads are limited to 7 B. Configurable via conf file.
   * [File write_lines(Array\[String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_linesarraystring)
   * [File write_tsv(Array\[Array\[String\]\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_tsvarrayarraystring)
   * [File write_map(Map\[String, String\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#file-write_mapmapstring-string)
@@ -385,8 +224,8 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
   * [String sub(String, String, String)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#string-substring-string-string)
   * [Array\[Int\] range(Int)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayint-rangeint)
   * [Array\[Array\[X\]\] transpose(Array\[Array\[X\]\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arrayarrayx-transposearrayarrayx)
-  * [Pair(X,Y) zip(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-zipxy)
-  * [Pair(X,Y) cross(X,Y)](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#pairxy-crossxy)
+  * [Array\[Pair\[X,Y\]\] zip(Array\[X\], Array\[Y\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraypairxy-ziparrayx-arrayy)
+  * [Array\[Pair\[X,Y\]\] cross(Array\[X\], Array\[Y\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraypairxy-crossarrayx-arrayy)
   * [Integer length(Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#integer-lengtharrayx)
   * [Array\[String\] prefix(String, Array\[X\])](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#arraystring-prefixstring-arrayx)
 * [Data Types & Serialization](https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#data-types--serialization)
@@ -497,18 +336,13 @@ Then, edit the configuration file `database` stanza, as follows:
 
 ```
 database {
-
-  driver = "slick.driver.MySQLDriver$"
+  profile = "slick.jdbc.MySQLProfile$"
   db {
     driver = "com.mysql.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
     connectionTimeout = 5000
-  }
-
-  test {
-    ...
   }
 }
 ```
@@ -1267,78 +1101,117 @@ The `job-id-regex` should contain one capture group while matching against the w
 
 Allows to execute jobs using HTCondor which is a specialized workload management system for compute-intensive jobs created by the Center for High Throughput Computing in the Department of Computer Sciences at the University of Wisconsin-Madison (UW-Madison).
 
-This backend creates six files in the `<call_dir>` (see previous section):
-
-* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
-* `stdout` - The standard output of the process
-* `stderr` - The standard error of the process
-* `submitfile` - A submit file that HtCondor understands in order to submit a job
-* `submitfile.stdout` - The standard output of the submit file
-* `submitfile.stderr` - The standard error of the submit file
-
-The `script` file contains:
+The backend is specified via the actor factory `ConfigBackendLifecycleActorFactory`:
 
 ```
+backend {
+  providers {
+    HtCondor {
+      config {
+        actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+        # ... other configuration
+      }
+    }
+  }
+}
+```
+
+This backend makes the same assumption about the filesystem that the local backend does: the Cromwell process and the jobs both have read/write access to the CWD of the job.
+
+The CWD will contain a `script.sh` file which will contain the same contents as the Local backend:
+
+```
+#!/bin/sh
 cd <container_call_root>
 <user_command>
 echo $? > rc
 ```
 
-The `submitfile` file contains:
+The job is launched with a configurable script command such as:
 
 ```
-executable=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/script
-output=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stdout
-error=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/stderr
-log=cromwell-executions/test/e950e07d-4132-4fe0-8d86-ab6925dd94ad/call-merge_files/merge_files.log
+chmod 755 ${script}
+cat > ${cwd}/execution/submitFile <<EOF
+Iwd=${cwd}/execution
+requirements=${nativeSpecs}
+leave_in_queue=true
+request_memory=${memory_mb}
+request_disk=${disk_kb}
+error=${err}
+output=${out}
+log_xml=true
+request_cpus=${cpu}
+executable=${script}
+log=${cwd}/execution/execution.log
 queue
-
+EOF
+condor_submit ${cwd}/execution/submitFile
 ```
 
-### Caching configuration
-This implementation also add basic caching support. It relies in a cache provider to store successful job results.
-By default a MongoDB based cache implementation is provided but there is the option of implementing a new provider based on CacheActorFactory and CacheActor interfaces.
+The HtCondor backend gets the job ID from parsing the `submit.stdout` text file.
 
-From application.conf file:
+Since the `script.sh` ends with `echo $? > rc`, the backend will wait for the existence of this file, parse out the return code and determine success or failure and then subsequently post-process.
+
+The command used to submit the job is specified under the configuration key `backend.providers.HtCondor.config.submit`. It uses the same syntax as a command in WDL, and will be provided the variables:
+
+* `script` - A shell script of the job to be run.  This contains the user's command from the `command` section of the WDL code.
+* `cwd` - The path where the script should be run.
+* `out` - The path to the stdout.
+* `err` - The path to the stderr.
+* `job_name` - A unique name for the job.
+
+This backend also supports docker as optional feature. Configuration key `backend.providers.HtCondor.config.submit-docker` is specified for this end. When the WDL contains a docker runtime attribute, this command will be provided with two additional variables:
+
+* `docker` - The docker image name.
+* `docker_cwd` - The path where `cwd` should be mounted within the docker container.
+
 ```
-cache {
-  provider = "cromwell.backend.impl.htcondor.caching.provider.mongodb.MongoCacheActorFactory"
-  enabled = true
-  forceRewrite = false
-  db {
-    host = "127.0.0.1"
-    port = 27017
-    name = "htcondor"
-    collection = "cache"
+chmod 755 ${script}
+cat > ${cwd}/execution/dockerScript <<EOF
+#!/bin/bash
+docker run --rm -i -v ${cwd}:${docker_cwd} ${docker} /bin/bash ${script}
+EOF
+chmod 755 ${cwd}/execution/dockerScript
+cat > ${cwd}/execution/submitFile <<EOF
+Iwd=${cwd}/execution
+requirements=${nativeSpecs}
+leave_in_queue=true
+request_memory=${memory_mb}
+request_disk=${disk_kb}
+error=${cwd}/execution/stderr
+output=${cwd}/execution/stdout
+log_xml=true
+request_cpus=${cpu}
+executable=${cwd}/execution/dockerScript
+log=${cwd}/execution/execution.log
+queue
+EOF
+condor_submit ${cwd}/execution/submitFile
+```
+
+This backend support additional runtime attributes that are specified in the configuration key `backend.providers.HtCondor.config.runtime-attributes`. It uses the same syntax as specifying runtime attributes in a task in WDL.
+
+There are five special runtime attribute configurations, `cpu`, `memory_mb`, `disk_kb`, `nativeSpecs`, `docker`.
+Optional values are defined with the prefix `?` attached to the type.
+
+```
+backend {
+  providers {
+    HtCondor {
+      config {
+        # ... other configuration
+	    runtime-attributes = """
+	       Int cpu = 1
+	       Float memory_mb = 512.0
+	       Float disk_kb = 256000.0
+	       String? nativeSpecs
+	       String? docker
+	    """
+      }
+    }
   }
 }
-
 ```
-
-* provider: it defines the provider to use based on CacheActorFactory and CacheActor interfaces.
-* enabled: enables or disables cache.
-* forceRewrite: it allows to invalidate the cache entry and store result again.
-* db section: configuration related to MongoDB provider. It may not exist for other implementations.
-
-### Docker
-This backend supports the following optional runtime attributes / workflow options for working with Docker:
-* docker: Docker image to use such as "Ubuntu".
-* dockerWorkingDir: defines the working directory in the container.
-* dockerOutputDir: defiles the output directory in the container when there is the need to define a volume for outputs within the container. By default if this attribute is not set, dockerOutputDir will be the job working directory.
-
-Inputs:
-HtCondor backend analyzes all inputs and do a distinct of the folders in order to mount input folders into the container.
-
-Outputs:
-It will use dockerOutputDir runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no dockerOutputDir defined it will use the current working directory.
-
-### CPU, Memory and Disk
-This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
-* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
-* memory: defines the amount of memory to use. Default value: "512 MB". Type: String. Ex: "4 GB" or "4096 MB"
-* disk: defines the amount of disk to use. Default value: "1024 MB". Type: String. Ex: "1 GB" or "1024 MB"
-
-It they are not set, HtCondor backend will use default values.
 
 ### Native Specifications
 The use of runtime attribute 'nativeSpecs' allows to the user to attach custom HtCondor configuration to tasks.
@@ -1346,11 +1219,14 @@ An example of this is when there is a need to work with 'requirements' or 'rank'
 
 ```
 "runtimeAttributes": {
-    "nativeSpecs": ["requirements = Arch == \"INTEL\"", "rank = Memory >= 64"]
+    cpu = 2
+    memory = "1GB"
+    disk = "1GB"
+    nativeSpecs: "TARGET.Arch == \"INTEL\" && TARGET.Memory >= 64"
 }
 ```
 
-nativeSpecs attribute needs to be specified as an array of strings to work.
+nativeSpecs attribute needs to be specified as String.
 
 ## Spark Backend
 
@@ -1878,7 +1754,7 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 * If call caching is enabled, but one wishes to run a workflow but not add any of the calls into the call cache when they finish, the `write_to_cache` option can be set to `false`.  This value defaults to `true`.
 * If call caching is enabled, but you don't want to check the cache for any `call` invocations, set the option `read_from_cache` to `false`.  This value also defaults to `true`
 
-> **Note:** If call caching is disabled, the to workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
+> **Note:** If call caching is disabled, the workflow options `read_from_cache` and `write_to_cache` will be ignored and the options will be treated as though they were 'false'.
 
 ## Docker Tags
 
@@ -1899,22 +1775,33 @@ When Cromwell finds a job ready to be run, it will first look at its docker runt
 * The job does specify a docker runtime attribute:
     * The docker image uses a hash: All call caching settings apply normally
     * The docker image uses a floating tag:
-        Call caching `reading` will be disabled for this job. Specifically, Cromwell will *not* attempt to find an entry in the cache for this job.
-        Additionally, cromwell will attempt to look up the hash of the image. Upon success, it will replace the user's docker value with the hash.
-        This mechanism ensures that as long as Cromwell is able to lookup the hash, the job is guaranteed to have run on the container with that hash.
-        The docker value with the hash used for the job will be reported in the runtime attributes section of the metadata.
-        If Cromwell fails to lookup the hash (unsupported registry, wrong credentials, ...) it will run the job with the user provided floating tag.
-        If call caching writing is turned on, Cromwell will still write the job in the cache database, using:
-         * the hash if the lookup succeeded
-         * the floating tag otherwise.
-         
-Docker registry and access levels supported by Cromwell for docker hash lookup:
+        * Cromwell will attempt to look up the hash of the image. Upon success it will pass both the floating tag and this hash value to the backend.
+        * All backends currently included with Cromwell will utilize this hash value to run the job.
+        * Within a single workflow all floating tags will resolve to the same hash value even if Cromwell is restarted when the workflow is running.
+        * If Cromwell fails to lookup the hash (unsupported registry, wrong credentials, ...) it will run the job with the user provided floating tag.
+        * The actual Docker image (floating tag or hash) used for the job will be reported in the `dockerImageUsed` attribute of the call metadata.
 
-|       |       DockerHub    ||       GCR       ||
-|:-----:|:---------:|:-------:|:------:|:-------:|
-|       |   Public  | Private | Public | Private |
-|  JES  |     X     |    X    |    X   |    X    |
-| Other |     X     |         |    X   |         |
+### Docker Lookup
+
+Cromwell provides 2 methods to lookup a docker hash from a docker tag:
+
+* Local
+    In this mode, cromwell will first attempt to find the image on the local machine where it's running using the docker CLI. If the image is present, then its hash will be used.
+    If it's not present, cromwell will execute a `docker pull` to try and retrieve it. If this succeeds, the newly retrieved hash will be used. Otherwise the lookup will be considered failed.
+    Note that cromwell runs the `docker` CLI the same way a human would. This means two things:
+     * The machine Cromwell is running on needs to have docker installed and a docker daemon running.
+     * Whichever credentials (and only those) are available on that machine will be available to pull the image.
+    
+* Remote
+    In this mode, cromwell will attempt to retrieve the hash by contacting the remote docker registry where the image is stored. This currently supports Docker Hub and GCR.
+    
+    Docker registry and access levels supported by Cromwell for docker hash lookup in "remote" mode:
+    
+    |       |       DockerHub    ||       GCR       ||
+    |:-----:|:---------:|:-------:|:------:|:-------:|
+    |       |   Public  | Private | Public | Private |
+    |  JES  |     X     |    X    |    X   |    X    |
+    | Other |     X     |         |    X   |         |
 
 ## Local Filesystem Options
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
@@ -2781,6 +2668,7 @@ This endpoint allows for querying workflows based on the following criteria:
 * `name`
 * `id`
 * `status`
+* `label`
 * `start` (start datetime with mandatory offset)
 * `end` (end datetime with mandatory offset)
 * `page` (page of results)
@@ -2790,9 +2678,13 @@ Names, ids, and statuses can be given multiple times to include
 workflows with any of the specified names, ids, or statuses. When
 multiple names are specified, any workflow matching one of the names
 will be returned. The same is true for multiple ids or statuses. When
-different types of criteria are specified, for example names and
-statuses, the results must match both the one of the specified names and
-one of the statuses. Using page and pagesize will enable server side pagination.
+more than one label is specified, only workflows associated to all of
+the given labels will be returned. 
+
+When a combination of criteria are specified, for example querying by 
+names and statuses, the results must return workflows that match one of 
+the specified names and one of the statuses. Using page and pagesize will
+enable server side pagination.
 
 Valid statuses are `Submitted`, `Running`, `Aborting`, `Aborted`, `Failed`, and `Succeeded`.  `start` and `end` should
 be in [ISO8601 datetime](https://en.wikipedia.org/wiki/ISO_8601) format with *mandatory offset* and `start` cannot be after `end`.
@@ -2841,6 +2733,54 @@ Server: spray-can/1.3.3
       "start": "2015-11-01T07:38:59.000-05:00"
     }
   ]
+}
+```
+
+Labels have to be queried in key and value pairs separated by a colon, i.e. `label-key:label-value`. For example, if a batch of workflows was submitted with the following labels JSON:
+```
+{
+  "label-key-1" : "label-value-1",
+  "label-key-2" : "label-value-2"
+}
+```
+
+A request to query for succeeded workflows with both labels would be:
+
+cURL:
+```
+$ curl "http://localhost:8000/api/workflows/v1/query?status=Succeeded&label=label-key-1:label-value-1&label=label-key-2:label-value-2
+```
+
+HTTPie:
+```
+$ http "http://localhost:8000/api/workflows/v1/query?status=Succeeded&label=label-key-1:label-value-1&label=label-key-2:label-value-2
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 608
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 9 May 2017 20:24:33 GMT
+Server: spray-can/1.3.3
+
+{
+    "results": [
+        {
+            "end": "2017-05-09T16:07:30.515-04:00", 
+            "id": "83fc23d5-48d1-456e-997a-087e55cd2e06", 
+            "name": "wf_hello", 
+            "start": "2017-05-09T16:01:51.940-04:00", 
+            "status": "Succeeded"
+        }, 
+        {
+            "end": "2017-05-09T16:07:13.174-04:00", 
+            "id": "7620a5c6-a5c6-466c-994b-dd8dca917b9b", 
+            "name": "wf_goodbye", 
+            "start": "2017-05-09T16:01:51.939-04:00", 
+            "status": "Succeeded"
+        }
+    ]
 }
 ```
 

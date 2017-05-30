@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
+import cromwell.core.labels.Label
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.ServicesStore
 import cromwell.services.metadata._
@@ -50,14 +51,18 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       dataAccess.addMetadataEvents(events)
     }
 
-    def baseWorkflowMetadata(name: String): Future[WorkflowId] = {
+    def baseWorkflowMetadata(name: String, labels: Set[Label] = Set.empty): Future[WorkflowId] = {
       val workflowId = WorkflowId.randomId()
+      val defaultLabels = Set(Label.safeLabel("cromwell-workflow-name", name))
+      val labelMetadata = (labels ++ defaultLabels).map(label => (s"${WorkflowMetadataKeys.Labels}:${label.key}", label.value)).toArray
+
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
       def keyAndValue(name: String) = Array(
         (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString),
         (WorkflowMetadataKeys.Status, WorkflowSubmitted.toString),
         (WorkflowMetadataKeys.Name, name)
-      )
+      ) ++ labelMetadata
+
       publishMetadataEvents(workflowKey, keyAndValue(name)).map(_ => workflowId)
     }
 
@@ -82,10 +87,40 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         }
       } yield()).futureValue
     }
+    
+    it should "sort metadata events by timestamp from older to newer" taggedAs DbmsTest in {
+      def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
+        val workflowKey = MetadataKey(id, jobKey = None, key = null)
+        val now = OffsetDateTime.now()
+        val yesterday = now.minusDays(1)
+        val tomorrow = now.plusDays(1)
+
+        val yesterdayEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("A")), yesterday)
+        val nowEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("B")), now)
+        val tomorrowEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("C")), tomorrow)
+        
+        val events = Vector(tomorrowEvent, yesterdayEvent, nowEvent)
+        
+        val expectedEvents = Vector(yesterdayEvent, nowEvent, tomorrowEvent)
+        
+        dataAccess.addMetadataEvents(events) map { _ => expectedEvents }
+      }
+      
+      (for {
+        workflow1Id <- baseWorkflowMetadata(Workflow1Name)
+        expected <- unorderedEvents(workflow1Id)
+        response <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false))
+        _ = response shouldBe expected
+      } yield()).futureValue
+    }
 
     it should "create and query a workflow" taggedAs DbmsTest in {
 
       val randomIds = Seq.fill(10)(WorkflowId.randomId().toString)
+
+      val testLabel1 = Label.safeLabel("testing-key-1", "testing-value-1")
+      val testLabel2 = Label.safeLabel("testing-key-2", "testing-value-2")
+      val testLabel3 = Label.safeLabel("testing-key-3", "testing-value-3")
 
       def succeededWorkflowMetadata(id: WorkflowId): Future[Unit] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
@@ -98,11 +133,11 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       }
 
       (for {
-        workflow1Id <- baseWorkflowMetadata(Workflow1Name)
+        workflow1Id <- baseWorkflowMetadata(Workflow1Name, Set(testLabel1, testLabel2))
         _ <- succeededWorkflowMetadata(workflow1Id)
         // Put a bit of space between the two workflows
         _ = Thread.sleep(50)
-        workflow2Id <- baseWorkflowMetadata(Workflow2Name)
+        workflow2Id <- baseWorkflowMetadata(Workflow2Name, Set(testLabel2, testLabel3))
 
         // refresh the metadata
         _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
@@ -166,6 +201,17 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Status.name -> "Submitted", WorkflowQueryKey.Status.name -> "Succeeded"))) map { case (response, meta) =>
           val resultsByStatus = response.results groupBy (_.status)
           resultsByStatus.keys.toSet.flatten should equal(Set("Submitted", "Succeeded"))
+        }
+        // Filter by label
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.LabelKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, meta) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+        }
+        // Filter by multiple labels
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
+          Seq(testLabel2, testLabel3).map(label => WorkflowQueryKey.LabelKeyValue.name -> s"${label.key}:${label.value}"))) map { case (response, meta) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow2Name))
         }
         // Filter by start date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(

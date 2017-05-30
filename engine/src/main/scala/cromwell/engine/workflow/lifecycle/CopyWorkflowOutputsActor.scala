@@ -1,7 +1,9 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, Props}
-import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationResponse, FinalizationSuccess}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.event.LoggingReceive
+import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
+import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationResponse, FinalizationSuccess, Finalize}
 import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
@@ -14,6 +16,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wdl4s.values.{WdlArray, WdlMap, WdlSingleFile, WdlValue}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 object CopyWorkflowOutputsActor {
   def props(workflowId: WorkflowId, ioActor: ActorRef, workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
@@ -24,13 +27,25 @@ object CopyWorkflowOutputsActor {
 
 class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: ActorRef, val workflowDescriptor: EngineWorkflowDescriptor, workflowOutputs: CallOutputs,
                                initializationData: AllBackendInitializationData)
-  extends EngineWorkflowFinalizationActor with PathFactory with AsyncIo with GcsBatchCommandBuilder {
+  extends Actor with ActorLogging with PathFactory with AsyncIo with GcsBatchCommandBuilder {
 
   implicit val ec = context.dispatcher
   override val pathBuilders = workflowDescriptor.pathBuilders
 
-  override def receive = ioReceive orElse super.receive
-  
+  override def receive = ioReceive orElse LoggingReceive {
+    case Finalize => performActionThenRespond(afterAll()(context.dispatcher), FinalizationFailed)(context.dispatcher)
+  }
+
+  private def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
+                                       onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse)
+                                      (implicit ec: ExecutionContext) = {
+    val respondTo: ActorRef = sender
+    operation onComplete {
+      case Success(r) => respondTo ! r
+      case Failure(t) => respondTo ! onFailure(t)
+    }
+  }
+
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
 
@@ -39,7 +54,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     val copies = outputFilePaths map {
       case (srcPath, dstPath) => 
         dstPath.createDirectories()
-        copyAsync(srcPath, dstPath, overwrite = true)
+        copyAsync(srcPath, dstPath)
     }
     
     Future.sequence(copies)
@@ -86,7 +101,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig, initializationData)
   }
 
-  final override def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
+  /**
+    * Happens after everything else runs
+    */
+  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
     workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir) match {
       case Some(outputs) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
       case None => Future.successful(FinalizationSuccess)

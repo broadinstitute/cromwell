@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 import akka.actor.Actor
 import akka.testkit.TestFSMRef
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.jobstore.{Pending => _}
 import cromwell.CromwellTestKitWordSpec
 import cromwell.backend.BackendJobExecutionActor
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionActorCommand
@@ -40,8 +39,7 @@ trait EngineJobExecutionActorSpec extends CromwellTestKitWordSpec
     List(
       ("FetchCachedResultsActor", helper.fetchCachedResultsActorCreations),
       ("JobHashingActor", helper.jobHashingInitializations),
-      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations),
-      ("CallCacheWriteActor", helper.callCacheWriteActorCreations)) foreach {
+      ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations)) foreach {
       case (name, GotTooMany(list)) => fail(s"Too many $name creations (${list.size})")
       case _ => // Fine.
     }

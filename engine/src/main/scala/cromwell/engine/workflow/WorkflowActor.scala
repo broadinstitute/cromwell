@@ -142,12 +142,18 @@ object WorkflowActor {
             jobStoreActor: ActorRef,
             subWorkflowStoreActor: ActorRef,
             callCacheReadActor: ActorRef,
+            callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean): Props = {
-    Props(new WorkflowActor(workflowId, startMode, wdlSource, conf, ioActor, serviceRegistryActor, workflowLogCopyRouter,
-      jobStoreActor, subWorkflowStoreActor, callCacheReadActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
+    Props(
+      new WorkflowActor(workflowId, startMode, wdlSource, conf,
+        ioActor = ioActor, serviceRegistryActor = serviceRegistryActor, workflowLogCopyRouter = workflowLogCopyRouter,
+        jobStoreActor = jobStoreActor, subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor, callCacheWriteActor = callCacheWriteActor,
+        dockerHashActor = dockerHashActor, jobTokenDispenserActor = jobTokenDispenserActor,
+        backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -164,6 +170,7 @@ class WorkflowActor(val workflowId: WorkflowId,
                     jobStoreActor: ActorRef,
                     subWorkflowStoreActor: ActorRef,
                     callCacheReadActor: ActorRef,
+                    callCacheWriteActor: ActorRef,
                     dockerHashActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
@@ -172,6 +179,9 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
+
+  private val workflowDockerLookupActor = context.actorOf(
+    WorkflowDockerLookupActor.props(workflowId, dockerHashActor, startMode), s"WorkflowDockerLookupActor-$workflowId")
 
   startWith(WorkflowUnstartedState, WorkflowActorData.empty)
 
@@ -211,13 +221,14 @@ class WorkflowActor(val workflowId: WorkflowId,
 
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
-        ioActor,
-        serviceRegistryActor,
-        jobStoreActor,
-        subWorkflowStoreActor,
-        callCacheReadActor,
-        dockerHashActor,
-        jobTokenDispenserActor,
+        ioActor = ioActor,
+        serviceRegistryActor = serviceRegistryActor,
+        jobStoreActor = jobStoreActor,
+        subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor,
+        callCacheWriteActor = callCacheWriteActor,
+        workflowDockerLookupActor = workflowDockerLookupActor,
+        jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
         restarting = restarting), name = s"WorkflowExecutionActor-$workflowId")
@@ -338,7 +349,20 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs) = {
-    context.actorOf(WorkflowFinalizationActor.props(workflowId, workflowDescriptor, ioActor, jobExecutionMap, workflowOutputs, stateData.initializationData), name = s"WorkflowFinalizationActor")
+    val copyWorkflowOutputsActorProps = stateName match {
+      case InitializingWorkflowState => None
+      case _ => Option(CopyWorkflowOutputsActor.props(workflowIdForLogging, ioActor, workflowDescriptor, workflowOutputs, stateData.initializationData))
+    }
+    
+    context.actorOf(WorkflowFinalizationActor.props(
+      workflowId = workflowId,
+      workflowDescriptor = workflowDescriptor,
+      ioActor = ioActor,
+      jobExecutionMap = jobExecutionMap,
+      workflowOutputs = workflowOutputs,
+      initializationData = stateData.initializationData,
+      copyWorkflowOutputsActor = copyWorkflowOutputsActorProps
+    ), name = s"WorkflowFinalizationActor")
   }
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.

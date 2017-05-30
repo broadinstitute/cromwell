@@ -26,6 +26,10 @@ lazy val dockerHashing = (project in file("dockerHashing"))
   .dependsOn(core % "test->test")
   .withTestSettings
 
+lazy val cromwellApiClient = (project in file("cromwellApiClient"))
+  .settings(cromwellApiClientSettings: _*)
+  .withTestSettings
+
 lazy val services = (project in file("services"))
   .settings(servicesSettings:_*)
   .withTestSettings
@@ -53,12 +57,6 @@ lazy val sfsBackend = (project in backendRoot / "sfs")
 
 lazy val tesBackend = (project in backendRoot / "tes")
   .settings(tesBackendSettings:_*)
-  .withTestSettings
-  .dependsOn(sfsBackend)
-  .dependsOn(backend % "test->test")
-
-lazy val htCondorBackend = (project in backendRoot / "htcondor")
-  .settings(htCondorBackendSettings:_*)
   .withTestSettings
   .dependsOn(sfsBackend)
   .dependsOn(backend % "test->test")
@@ -106,16 +104,15 @@ lazy val root = (project in file("."))
   .aggregate(services)
   .aggregate(backend)
   .aggregate(sfsBackend)
-  .aggregate(htCondorBackend)
   .aggregate(sparkBackend)
   .aggregate(jesBackend)
   .aggregate(tesBackend)
   .aggregate(engine)
+  .aggregate(cromwellApiClient)
   // Next level of projects to include in the fat jar (their dependsOn will be transitively included)
   .dependsOn(engine)
   .dependsOn(jesBackend)
   .dependsOn(tesBackend)
-  .dependsOn(htCondorBackend)
   .dependsOn(sparkBackend)
   // Dependencies for tests
   .dependsOn(engine % "test->test")

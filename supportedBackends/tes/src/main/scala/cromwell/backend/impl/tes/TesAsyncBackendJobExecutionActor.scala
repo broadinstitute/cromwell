@@ -58,10 +58,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     maxInterval = 30 seconds,
     multiplier = 1.1
   )
+  
+  private lazy val realDockerImageUsed: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
 
-  override lazy val jobTag = jobDescriptor.key.tag
+  override lazy val jobTag: String = jobDescriptor.key.tag
 
   private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
@@ -70,7 +73,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def mapCommandLineWdlFile(wdlFile: WdlFile): WdlFile = {
     val localPath = DefaultPathBuilder.get(wdlFile.valueString).toAbsolutePath
     localPath match {
-      case p if p.startsWith(tesJobPaths.DockerRoot) =>
+      case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
         val containerPath = p.pathAsString
         WdlFile(containerPath)
       case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
@@ -90,7 +93,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   def createTaskMessage(): TesTaskMessage = {
-    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes, commandDirectory, backendEngineFunctions)
+    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes, commandDirectory,
+      backendEngineFunctions, realDockerImageUsed)
 
     tesJobPaths.script.write(commandScriptContents)
 
@@ -98,7 +102,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       Option(task.name),
       Option(task.description),
       Option(task.project),
-      Option(task.inputs),
+      Option(task.inputs(commandLineValueMapper)),
       Option(task.outputs),
       task.resources,
       task.dockerExecutor

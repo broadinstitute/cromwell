@@ -4,12 +4,13 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.database.sql.SqlDatabase
 
-final case class WorkflowStoreActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+final case class WorkflowStoreActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase) extends Actor with ActorLogging {
   import WorkflowStoreActor._
 
   lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(WorkflowStoreSubmitActor.props(store, serviceRegistryActor))
-  lazy val workflowStoreEngineActor: ActorRef = context.actorOf(WorkflowStoreEngineActor.props(store, serviceRegistryActor))
+  lazy val workflowStoreEngineActor: ActorRef = context.actorOf(WorkflowStoreEngineActor.props(store, serviceRegistryActor, database))
 
   override def receive = {
     case cmd: WorkflowStoreActorSubmitCommand => workflowStoreSubmitActor forward cmd
@@ -29,7 +30,7 @@ object WorkflowStoreActor {
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand
   final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorSubmitCommand
 
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
-    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase) = {
+    Props(WorkflowStoreActor(workflowStoreDatabase, serviceRegistryActor, database)).withDispatcher(EngineDispatcher)
   }
 }

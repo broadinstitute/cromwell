@@ -11,38 +11,49 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry, CallCachingHashEntry, CallCachingSimpletonEntry}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
+import cromwell.database.sql.tables._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.{ExecutionContext, Future}
 
 final case class CallCachingEntryId(id: Int)
-
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
   */
 class CallCache(database: CallCachingSqlDatabase) {
-  def addToCache(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, response: JobSucceededResponse)(implicit ec: ExecutionContext): Future[Unit] = {
-    val metaInfo = CallCachingEntry(
-      workflowExecutionUuid = workflowId.toString,
-      callFullyQualifiedName = response.jobKey.call.fullyQualifiedName,
-      jobIndex = response.jobKey.index.fromIndex,
-      jobAttempt = Option(response.jobKey.attempt),
-      returnCode = response.returnCode,
-      allowResultReuse = true)
-    val hashes = callCacheHashes.hashes
-    import cromwell.core.simpleton.WdlValueSimpleton._
-    val result = response.jobOutputs.mapValues(_.wdlValue).simplify
-    val jobDetritus = response.jobDetritusFiles.getOrElse(Map.empty)
+  def addToCache(bundles: Seq[CallCacheHashBundle], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit] = {
+    val joins = bundles map { b =>
+      val metaInfo = CallCachingEntry(
+        workflowExecutionUuid = b.workflowId.toString,
+        callFullyQualifiedName = b.response.jobKey.call.fullyQualifiedName,
+        jobIndex = b.response.jobKey.index.fromIndex,
+        jobAttempt = Option(b.response.jobKey.attempt),
+        returnCode = b.response.returnCode,
+        allowResultReuse = true)
+      import cromwell.core.simpleton.WdlValueSimpleton._
+      val result = b.response.jobOutputs.mapValues(_.wdlValue).simplify
+      val jobDetritus = b.response.jobDetritusFiles.getOrElse(Map.empty)
+      buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
+    }
 
-    addToCache(metaInfo, hashes, result, jobDetritus)
+    database.addCallCaching(joins, batchSize)
   }
 
-  private def addToCache(callCachingEntry: CallCachingEntry, hashes: Set[HashResult],
-                         result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path])
-                        (implicit ec: ExecutionContext): Future[Unit] = {
+  private def buildCallCachingJoin(callCachingEntry: CallCachingEntry, callCacheHashes: CallCacheHashes,
+                                   result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path])
+                                  (implicit ec: ExecutionContext): CallCachingJoin = {
 
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
-      hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
+      callCacheHashes.hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }
+    }
+
+    val aggregatedHashesToInsert: Option[CallCachingAggregationEntry] = {
+      Option(CallCachingAggregationEntry(
+        baseAggregation = callCacheHashes.aggregatedInitialHash,
+        inputFilesAggregation = callCacheHashes.fileHashes.map(_.aggregatedHash)
+      ))
     }
 
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
@@ -58,23 +69,26 @@ class CallCache(database: CallCachingSqlDatabase) {
       }
     }
 
-    val callCachingJoin =
-      CallCachingJoin(callCachingEntry, hashesToInsert.toSeq, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
-
-    database.addCallCaching(callCachingJoin)
+    CallCachingJoin(callCachingEntry, hashesToInsert.toSeq, aggregatedHashesToInsert, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
   }
 
-  def callCachingEntryIdsMatchingHashes(callCacheHashes: CallCacheHashes)(implicit ec: ExecutionContext): Future[Set[CallCachingEntryId]] = {
-    callCachingEntryIdsMatchingHashes(NonEmptyList.fromListUnsafe(callCacheHashes.hashes.toList))
+  def hasBaseAggregatedHashMatch(baseAggregatedHash: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+    database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash)
   }
 
-  private def callCachingEntryIdsMatchingHashes(hashKeyValuePairs: NonEmptyList[HashResult])
-                                       (implicit ec: ExecutionContext): Future[Set[CallCachingEntryId]] = {
-    val result = database.queryCallCachingEntryIds(hashKeyValuePairs map {
+  def hasKeyValuePairHashMatch(hashes: NonEmptyList[HashResult])(implicit ec: ExecutionContext): Future[Boolean] = {
+    val hashKeyValuePairs = hashes map {
       case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
-    })
+    }
+    database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
+  }
 
-    result.map(_.toSet.map(CallCachingEntryId))
+  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, hitNumber: Int)
+                                       (implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] = {
+    database.findCacheHitForAggregation(
+      baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
+      inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
+      hitNumber).map(_ map CallCachingEntryId.apply)
   }
 
   def fetchCachedResult(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
@@ -84,4 +98,8 @@ class CallCache(database: CallCachingSqlDatabase) {
   def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
     database.invalidateCall(callCachingEntryId.id)
   }
+}
+
+object CallCache {
+  case class CallCacheHashBundle(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, response: JobSucceededResponse)
 }

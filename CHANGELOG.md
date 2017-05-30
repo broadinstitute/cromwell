@@ -1,5 +1,117 @@
 # Cromwell Change Log
 
+## 27
+
+### Migration
+
+* Call Caching has been improved in this version of Cromwell, specifically the time needed to determine whether or not a job can be cached
+ has drastically decreased. To achieve that the database schema has been modified and a migration is required in order to preserve the pre-existing cached jobs.
+ This migration is relatively fast compared to previous migrations. To get an idea of the time needed, look at the size of your `CALL_CACHING_HASH_ENTRY` table.
+ As a benchmark, it takes 1 minute for a table with 6 million rows.
+ The migration will only be executed on MySQL. Other databases will lose their previous cached jobs.
+ In order to run properly on MySQL, **the following flag needs to be adjusted**: https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_group_concat_max_len
+ The following query will give you a minimum to set the group_concat_max_len value to:
+ 
+ ```sql
+SELECT MAX(aggregated) as group_concat_max_len FROM
+      (
+            SELECT cche.CALL_CACHING_ENTRY_ID, SUM(LENGTH(CONCAT(cche.HASH_KEY, cche.HASH_VALUE))) AS aggregated
+            FROM CALL_CACHING_HASH_ENTRY cche
+            GROUP BY cche.CALL_CACHING_ENTRY_ID
+      ) aggregation
+ ```
+
+ Here is the SQL command to run to set the group_concat_max_len flag to the proper value:
+ 
+ ```sql
+SET GLOBAL group_concat_max_len = value
+ ```
+ 
+ Where `value` is replaced with the value you want to set it to.
+ 
+ Note that the migration will fail if the flag is not set properly.
+ 
+### Breaking Changes
+
+* The update to Slick 3.2 requires a database stanza to
+[switch](http://slick.lightbend.com/doc/3.2.0/upgrade.html#profiles-vs-drivers) from using `driver` to `profile`.
+
+```hocon
+database {
+  #driver = "slick.driver.MySQLDriver$" #old
+  profile = "slick.jdbc.MySQLProfile$"  #new
+  db {
+    driver = "com.mysql.jdbc.Driver"
+    url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
+    user = "user"
+    password = "pass"
+    connectionTimeout = 5000
+  }
+}
+```
+
+### Call Caching
+
+Cromwell now supports call caching with floating Docker tags (e.g. `docker: "ubuntu:latest"`). Note it is still considered
+a best practice to specify Docker images as hashes where possible, especially for production usages.
+
+Within a single workflow Cromwell will attempt to resolve all floating tags to the same Docker hash, even if Cromwell is restarted
+during the execution of a workflow. In call metadata the `docker` runtime attribute is now the same as the
+value that actually appeared in the WDL:
+
+```
+   "runtimeAttributes": {
+     "docker": "ubuntu:latest",
+     "failOnStderr": "false",
+     "continueOnReturnCode": "0"
+   }
+```
+
+Previous versions of Cromwell rewrote the `docker` value to the hash of the Docker image.
+
+There is a new call-level metadata value `dockerImageUsed` which captures the hash of the Docker image actually used to
+run the call:
+
+```
+   "dockerImageUsed": "library/ubuntu@sha256:382452f82a8bbd34443b2c727650af46aced0f94a44463c62a9848133ecb1aa8"
+```
+
+### Docker
+
+* The Docker section of the configuration has been slightly reworked 
+An option to specify how a Docker hash should be looked up has been added. Two methods are available.
+    "local" will try to look for the image on the machine where cromwell is running. If it can't be found, Cromwell will try to `pull` the image and use the hash from the retrieved image.
+    "remote" will try to look up the image hash directly on the remote repository where the image is located (Docker Hub and GCR are supported)
+Note that the "local" option will require docker to be installed on the machine running cromwell, in order for it to call the docker CLI.
+* Adds hash lookup support for public [quay.io](https://quay.io/) images.
+
+### WDL Feature Support
+* Added support for the new WDL `basename` function. Allows WDL authors to get just the file name from a File (i.e. removing the directory path)
+* Allows coercion of `Map` objects into `Array`s of `Pair`s. This also allows WDL authors to directly scatter over WDL `Map`s.
+
+### Miscellaneous
+* Adds support for JSON file format for google service account credentials. As of Cromwell 27, PEM credentials for PAPI are deprecated and support might be removed in a future version.
+
+```
+google {
+
+  application-name = "cromwell"
+
+  auths = [
+    {
+      name = "service-account"
+      scheme = "service_account"
+      json-file = "/path/to/file.json"
+    }
+  ]
+}
+```
+
+### General Changes
+
+* The `/query` endpoint now supports querying by `label`. See the [README](README.md#get-apiworkflowsversionquery) for more information.
+* The `read_X` standard library functions limit accepted filesizes.  These differ by type, e.g. read_bool has a smaller limit than read_string.  See reference.conf for default settings.
+
 ## 26
 
 ### Breaking Changes
@@ -41,17 +153,6 @@ system.io {
   # Number of times an I/O operation should be attempted before giving up and failing it.
   number-of-attempts = 5
 }
-```
-
-* Added a `script-epilogue` configuration option to adjust the logic that runs at the end of the scripts which wrap call executions.
-  This option is adjustable on a per-backend basis.  If unspecified, the default value is `sync`.
-
-### WDL Features
-
-With Cromwell 26, Cromwell will support `if x then y else z` expressions (see: https://github.com/broadinstitute/wdl/blob/develop/SPEC.md#if-then-else). For example: 
-```
-Boolean b = true
-String s = if b then "value if True" else "value if False"
 ```
 
 ## 25

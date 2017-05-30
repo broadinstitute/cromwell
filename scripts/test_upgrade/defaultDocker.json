@@ -1,0 +1,5 @@
+{
+  "default_runtime_attributes": {
+    "docker": "library/ubuntu:latest"
+  }
+}

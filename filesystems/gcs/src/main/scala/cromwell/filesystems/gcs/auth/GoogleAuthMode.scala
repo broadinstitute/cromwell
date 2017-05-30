@@ -12,6 +12,7 @@ import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, Use
 import com.google.cloud.NoCredentials
 import cromwell.core.WorkflowOptions
 import cromwell.filesystems.gcs.auth.GoogleAuthMode._
+import cromwell.filesystems.gcs.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -68,17 +69,29 @@ sealed trait GoogleAuthMode {
   }
 }
 
+object ServiceAccountMode {
+  sealed trait CredentialFileFormat {
+    def file: String
+  }
+  case class PemFileFormat(accountId: String, file: String) extends CredentialFileFormat
+  case class JsonFileFormat(file: String) extends CredentialFileFormat
+}
+
 final case class ServiceAccountMode(override val name: String,
-                                    accountId: String,
-                                    pemPath: String,
+                                    fileFormat: CredentialFileFormat,
                                     scopes: java.util.List[String]) extends GoogleAuthMode {
-  private val pemFile = File(pemPath)
-  checkReadable(pemFile)
+  private val credentialsFile = File(fileFormat.file)
+  checkReadable(credentialsFile)
 
   private lazy val _credential: Credentials = {
-    validateCredential(
-      ServiceAccountCredentials.fromPkcs8(accountId, accountId, pemFile.contentAsString, null, scopes)
-    )
+    val serviceAccount = fileFormat match {
+      case PemFileFormat(accountId, _) => 
+        log.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
+        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes)
+      case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream).createScoped(scopes)
+    }
+    
+    validateCredential(serviceAccount)
   }
 
   override def credential(options: WorkflowOptions): Credentials = _credential

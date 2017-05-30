@@ -4,9 +4,6 @@ import java.sql.{Blob, Clob, Timestamp}
 import java.time.{OffsetDateTime, ZoneId}
 import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.collection.NonEmpty
-
 object SqlConverters {
 
   // TODO: Storing times relative to system zone. Look into db/slick using OffsetDateTime, or storing datetimes as UTC?
@@ -41,6 +38,17 @@ object SqlConverters {
   }
 
   implicit class StringToClobOption(val str: String) extends AnyVal {
+    /*
+    Many, many Clob implementations have problems with empty char arrays.
+    http://hg.openjdk.java.net/jdk8/jdk8/jdk/file/687fd7c7986d/src/share/classes/javax/sql/rowset/serial/SerialClob.java#l268
+    http://hg.openjdk.java.net/jdk9/client/jdk/file/1158c3e5bd9c/src/java.sql.rowset/share/classes/javax/sql/rowset/serial/SerialClob.java#l270
+    https://github.com/apache/derby/blob/10.13/java/engine/org/apache/derby/iapi/types/HarmonySerialClob.java#L109
+    https://github.com/arteam/hsqldb/blob/2.3.4/src/org/hsqldb/jdbc/JDBCClob.java#L196
+     */
+
+    import eu.timepit.refined.api.Refined
+    import eu.timepit.refined.collection.NonEmpty
+
     def toClobOption: Option[Clob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
 
     def toClob(default: String Refined NonEmpty): Clob = {
@@ -61,10 +69,17 @@ object SqlConverters {
   }
 
   implicit class BytesOptionToBlob(val bytesOption: Option[Array[Byte]]) extends AnyVal {
+    /*
+    Many, many Blob implementations (but fewer than Clob) have problems with empty byte arrays.
+    http://hg.openjdk.java.net/jdk8/jdk8/jdk/file/687fd7c7986d/src/share/classes/javax/sql/rowset/serial/SerialBlob.java#l178
+    http://hg.openjdk.java.net/jdk9/client/jdk/file/1158c3e5bd9c/src/java.sql.rowset/share/classes/javax/sql/rowset/serial/SerialBlob.java#l178
+    https://github.com/apache/derby/blob/10.13/java/engine/org/apache/derby/iapi/types/HarmonySerialBlob.java#L111
+    OK! -> https://github.com/arteam/hsqldb/blob/2.3.4/src/org/hsqldb/jdbc/JDBCBlob.java#L184
+     */
     def toBlobOption: Option[Blob] = bytesOption.flatMap(_.toBlobOption)
   }
 
-  implicit class BytesToBlob(val bytes: Array[Byte]) extends AnyVal {
+  implicit class BytesToBlobOption(val bytes: Array[Byte]) extends AnyVal {
     def toBlobOption: Option[Blob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
   }
 }

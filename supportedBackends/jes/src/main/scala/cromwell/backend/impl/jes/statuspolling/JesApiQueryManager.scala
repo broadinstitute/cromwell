@@ -52,15 +52,13 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
     case other => log.error(s"Unexpected message to JesPollingManager: $other")
   }
 
-  private def handleQueryFailure(failure: JesApiQueryFailed) = failure match {
-    case JesApiQueryFailed(request, _) if request.failedAttempts < maxRetries =>
-      val nextRequest = request.withFailedAttempt
-      val delay = nextRequest.backoff.backoffMillis.millis
-      context.system.scheduler.scheduleOnce(delay, self, nextRequest)
-      ()
-    case JesApiQueryFailed(request, _) =>
-      request.requester ! failure
-      ()
+  private def handleQueryFailure(failure: JesApiQueryFailed) = if (failure.query.failedAttempts < maxRetries) {
+    val nextRequest = failure.query.withFailedAttempt
+    val delay = nextRequest.backoff.backoffMillis.millis
+    context.system.scheduler.scheduleOnce(delay, self, nextRequest)
+    ()
+  } else {
+    failure.query.requester ! failure
   }
 
   private def handleJesPollingRequest(workPullingJesPollingActor: ActorRef, maxBatchSize: Int) = {
@@ -100,8 +98,11 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
         // Most likely due to an unexpected HTTP error, push the work back on the queue and keep going
         log.error(s"The JES API worker actor $terminee unexpectedly terminated while conducting ${work.workBatch.tail.size + 1} polls. Making a new one...")
         workInProgress -= terminee
-        work.workBatch.toList.foreach { toResubmit =>
-          self ! JesApiQueryFailed(toResubmit, new JesApiException(cause))
+        work.workBatch.toList.foreach {
+          case statusQuery: JesStatusPollQuery =>
+            self ! JesApiStatusQueryFailed(statusQuery, new JesApiException(cause))
+          case runCreationQuery: JesRunCreationQuery =>
+            self ! JesApiRunCreationQueryFailed(runCreationQuery, new JesApiException(cause))
         }
       case None =>
         // It managed to die while doing absolutely nothing...!?
@@ -158,12 +159,24 @@ object JesApiQueryManager {
     override def withFailedAttempt = this.copy(failedAttempts = failedAttempts + 1, backoff = backoff.next)
   }
 
+  trait JesApiQueryFailed {
+    val query: JesApiQuery
+    val cause: JesApiException
+  }
+
+  final case class JesApiStatusQueryFailed(query: JesApiQuery, cause: JesApiException) extends JesApiQueryFailed
+  final case class JesApiRunCreationQueryFailed(query: JesApiQuery, cause: JesApiException) extends JesApiQueryFailed
+
   private[statuspolling] final case class JesPollingWorkBatch(workBatch: NonEmptyList[JesApiQuery])
   private[statuspolling] case object NoWorkToDo
 
   private[statuspolling] final case class RequestJesPollingWork(maxBatchSize: Int)
 
-  final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders) extends IOException with CromwellFatalExceptionMarker
-  final class JesApiException(e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker
-  final case class JesApiQueryFailed(query: JesApiQuery, cause: JesApiException)
+  final case class GoogleJsonException(e: GoogleJsonError, responseHeaders: HttpHeaders) extends IOException with CromwellFatalExceptionMarker {
+    override def getMessage: String = e.getMessage
+  }
+
+  final class JesApiException(e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
+    override def getMessage: String = "Unable to complete JES Api Request"
+  }
 }

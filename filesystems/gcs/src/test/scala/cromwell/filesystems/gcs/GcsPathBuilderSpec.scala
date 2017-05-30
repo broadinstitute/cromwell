@@ -1,6 +1,5 @@
 package cromwell.filesystems.gcs
 
-import com.google.cloud.RetryParams
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -20,7 +19,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     val gcsPathBuilderWithProjectInfo = new GcsPathBuilder(
       GoogleAuthMode.MockAuthMode,
       "cromwell-test",
-      RetryParams.getDefaultInstance,
+      None,
       CloudStorageConfiguration.DEFAULT,
       wfOptionsWithProject
     )
@@ -361,7 +360,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     new GcsPathBuilder(
       GoogleAuthMode.MockAuthMode,
       "cromwell-test",
-      RetryParams.getDefaultInstance,
+      None,
       CloudStorageConfiguration.DEFAULT,
       WorkflowOptions.empty
     )

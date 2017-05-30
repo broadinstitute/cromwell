@@ -23,8 +23,8 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
 
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-    val jobPaths = new JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
-    val callContext = new CallContext(
+    val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
+    val callContext = CallContext(
       jobPaths.callExecutionRoot,
       jobPaths.stdout.toAbsolutePath.toString,
       jobPaths.stderr.toAbsolutePath.toString

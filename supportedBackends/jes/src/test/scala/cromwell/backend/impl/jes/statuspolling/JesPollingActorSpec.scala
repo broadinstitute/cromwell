@@ -119,7 +119,7 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
     resultHandlers.zip(callbackResponses) foreach { case (handler, response) => response match {
       case CallbackSuccess => handler.onSuccess(null, null)
       case CallbackFailure =>
-        val error: GoogleJsonError = null
+        val error: GoogleJsonError = new GoogleJsonError()
         handler.onFailure(error, null)
     }}
   }

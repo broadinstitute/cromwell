@@ -2,11 +2,15 @@ package cromwell.backend.validation
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
+import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+
+  val mockBackendRuntimeConfig = TestConfig.allRuntimeAttrsConfig
 
   "RuntimeAttributesValidation" should {
     "return success when tries to validate a valid Docker entry" in {
@@ -277,6 +281,84 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
         case Valid(x) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Failed to get cpu mandatory key from runtime attributes")
       }
+    }
+    
+    "return default values as WdlValues when they can be coerced into expected WdlTypes" in {
+      val optionalConfig = Option(TestConfig.allRuntimeAttrsConfig)
+
+      val defaultVals = Map(
+        "cpu" -> CpuValidation.configDefaultWdlValue(optionalConfig).get,
+        "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(optionalConfig).get,
+        "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(optionalConfig).get
+      )
+
+      val expectedDefaultVals = Map(
+        "cpu" -> WdlInteger(1),
+        "failOnStderr" -> WdlBoolean(false),
+        "continueOnReturnCode" -> WdlInteger(0)
+      )
+
+      defaultVals shouldBe expectedDefaultVals
+    }
+
+    "return default values as BadDefaultAttribute when they can't be coerced to expected WdlTypes" in {
+     val optionalInvalidAttrsConfig = Option(ConfigFactory.parseString(
+       """
+         |cpu = 1.4
+         |failOnStderr = "notReal"
+         |continueOnReturnCode = 0
+       """.stripMargin))
+
+     val defaultVals = Map(
+       "cpu" -> CpuValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get,
+       "failOnStderr" -> FailOnStderrValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get,
+       "continueOnReturnCode" -> ContinueOnReturnCodeValidation.configDefaultWdlValue(optionalInvalidAttrsConfig).get
+     )
+
+     val expectedDefaultVals = Map(
+       "cpu" -> BadDefaultAttribute(WdlString("1.4")),
+       "failOnStderr" -> BadDefaultAttribute(WdlString("notReal")),
+       "continueOnReturnCode" -> WdlInteger(0)
+     )
+
+     defaultVals shouldBe expectedDefaultVals
+    }
+
+    "should parse memory successfully" in {
+      val backendConfigTemplate: String =
+        s"""
+           |  default-runtime-attributes {
+           |     memory: "2 GB"
+           |  }
+           |""".stripMargin
+
+      val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
+
+      val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WdlInteger(2000000000)))
+    }
+
+    "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WdlType" in {
+      val backendConfigTemplate: String =
+        s"""
+           |  default-runtime-attributes {
+           |     memory: "blahblah"
+           |  }
+           |""".stripMargin
+
+      val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate).getConfig("default-runtime-attributes")
+
+      val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some(BadDefaultAttribute(WdlString("blahblah")))
+    }
+
+    "should be able to coerce a list of return codes into an WdlArray" in {
+      val optinalBackendConfig = Option(ConfigFactory.parseString(
+        s"""
+           |continueOnReturnCode = [0,1,2]
+           |""".stripMargin))
+
+      ContinueOnReturnCodeValidation.configDefaultWdlValue(optinalBackendConfig).get shouldBe WdlArray(WdlArrayType(WdlIntegerType), Array(WdlInteger(0), WdlInteger(1), WdlInteger(2)))
     }
   }
 }

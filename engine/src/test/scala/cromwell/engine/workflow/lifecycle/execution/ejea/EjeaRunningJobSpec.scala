@@ -18,7 +18,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
   val hashError = HashError(new Exception("ARGH!!!"))
 
   "A 'RunningJob' EJEA" should {
-    CallCachingModes foreach { case mode =>
+    CallCachingModes foreach { mode =>
       val andMaybeCallCacheHashes = if (mode.writeToCache) "then CallCacheHashes " else ""
       s"Handle receiving a SucceededResponse ${andMaybeCallCacheHashes}correctly in $mode mode" in {
         ejea = ejeaInRunningState(mode)
@@ -53,16 +53,16 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
           eventually { ejea.stateData should be(SucceededResponseData(successResponse, None)) }
           ejea.stateName should be(RunningJob)
           ejea ! hashError
-          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.t))))
+          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
         }
 
         s"Handle receiving HashError then SuccessResponse correctly in $mode mode" in {
           ejea = ejeaInRunningState(mode)
           ejea ! hashError
-          eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.t)))) }
+          eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))) }
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
-          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.t))))
+          expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
         }
       }
     }
@@ -94,7 +94,6 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
       ejea ! abortedResponse
 
       helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "parent wants the response", abortedResponse)
-      helper.callCacheWriteActorCreations should be(NothingYet)
 
       helper.deathwatch.expectTerminated(ejea, awaitTimeout)
       // Make sure nothing was sent to the JobStore or CacheResultSaver in the meanwhile:

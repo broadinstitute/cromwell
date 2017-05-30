@@ -61,6 +61,10 @@
     <include file="changesets/add_attempt_in_call_caching_entry.xml" relativeToChangelogFile="true" />
     <include file="changesets/replace_empty_custom_labels.xml" relativeToChangelogFile="true" />
     <include file="changesets/failure_metadata.xml" relativeToChangelogFile="true" />
+    <include file="changesets/failure_metadata_2.xml" relativeToChangelogFile="true" />
+    <include file="changesets/call_caching_aggregated_hashes.xml" relativeToChangelogFile="true" />
+    <include file="changesets/custom_label_entry.xml" relativeToChangelogFile="true" />
+    <include file="changesets/docker_hash_store.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 
@@ -80,7 +84,7 @@ WHY
     In slick schemas, `index(unique = false)` always creates an index. Depending on the database type,
     `index(unique = true)` sometimes creates a unique _constraint_, not actually an index.
 
-    https://github.com/slick/slick/blob/3.1.1/slick/src/main/scala/slick/driver/HsqldbDriver.scala#L126
+    https://github.com/slick/slick/blob/3.2.0/slick/src/main/scala/slick/jdbc/HsqldbProfile.scala#L127
 
 -*-
 

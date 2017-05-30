@@ -20,8 +20,8 @@ object MetadataDatabaseAccess {
       // Resolve the status if both `this` and `that` have defined statuses.  This will evaluate to `None`
       // if one or both of the statuses is not defined.
       val resolvedStatus = for {
-        thisStatus <- summary1.workflowStatus map WorkflowState.fromString
-        thatStatus <- summary2.workflowStatus map WorkflowState.fromString
+        thisStatus <- summary1.workflowStatus map WorkflowState.withName
+        thatStatus <- summary2.workflowStatus map WorkflowState.withName
       } yield (thisStatus |+| thatStatus).toString
 
       WorkflowMetadataSummaryEntry(
@@ -144,12 +144,12 @@ trait MetadataDatabaseAccess {
 
   def refreshWorkflowMetadataSummaries()(implicit ec: ExecutionContext): Future[Long] = {
     databaseInterface.refreshMetadataSummaryEntries(WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
-      WorkflowMetadataKeys.Status, MetadataDatabaseAccess.buildUpdatedSummary)
+      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, MetadataDatabaseAccess.buildUpdatedSummary)
   }
 
   def getWorkflowStatus(id: WorkflowId)
                        (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
-    databaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.fromString }
+    databaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.withName }
   }
 
   def workflowExistsWithId(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -158,24 +158,22 @@ trait MetadataDatabaseAccess {
 
   def queryWorkflowSummaries(queryParameters: WorkflowQueryParameters)
                             (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
+
+    val labelsToQuery = queryParameters.labels.map(label => (label.key, label.value))
+
     val workflowSummaries = databaseInterface.queryWorkflowSummaries(
-      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
+      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), labelsToQuery,
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.page, queryParameters.pageSize)
 
     val workflowSummaryCount = databaseInterface.countWorkflowSummaries(
-      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString),
+      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), queryParameters.labels.map(label => (label.key, label.value)),
       queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
 
     workflowSummaryCount flatMap { count =>
       workflowSummaries map { workflows =>
         (WorkflowQueryResponse(workflows.toSeq map { workflow =>
-          MetadataService.WorkflowQueryResult(
-            id = workflow.workflowExecutionUuid,
-            name = workflow.workflowName,
-            status = workflow.workflowStatus,
-            start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
-            end = workflow.endTimestamp map { _.toSystemOffsetDateTime })
+          MetadataService.WorkflowQueryResult(id = workflow.workflowExecutionUuid, name = workflow.workflowName, status = workflow.workflowStatus, start = workflow.startTimestamp map { _.toSystemOffsetDateTime }, end = workflow.endTimestamp map { _.toSystemOffsetDateTime })
         }),
           //only return metadata if page is defined
           queryParameters.page map { _ => QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)) })

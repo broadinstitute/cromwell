@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
+import cromwell.database.sql.SqlDatabase
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -14,7 +15,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryActor: ActorRef)
+final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -64,7 +65,7 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
 
   private def startNewWork(command: WorkflowStoreActorEngineCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
-      case cmd @ FetchRunnableWorkflows(n) =>
+      case FetchRunnableWorkflows(n) =>
         newWorkflowMessage(n) map { nwm =>
           nwm match {
             case NewWorkflowsToStart(workflows) => log.info("{} new workflows fetched", workflows.toList.size)
@@ -73,7 +74,7 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
           }
           sndr ! nwm
         }
-      case cmd @ AbortWorkflow(id, manager) =>
+      case AbortWorkflow(id, manager) =>
         store.remove(id) map { removed =>
           if (removed) {
             manager ! WorkflowManagerActor.AbortWorkflowCommand(id, sndr)
@@ -90,16 +91,15 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
             val e = new RuntimeException(s"$message: ${t.getMessage}", t)
             sndr ! WorkflowAbortFailed(id, e)
         }
-      case cmd @ RemoveWorkflow(id) =>
-        store.remove(id) map { removed =>
-          if (removed) {
-            log.debug("Workflow {} removed from store successfully.", id)
-          } else {
-            log.warning(s"Attempted to remove ID {} from the WorkflowStore but it didn't exist", id)
-          }
-        } recover {
-          case t =>
-            log.error(t, s"Unable to remove workflow $id from workflow store")
+      case RemoveWorkflow(id) =>
+        val cleanup = for {
+          removed <- store.remove(id)
+          _ = if (!removed) log.warning(s"Attempted to remove ID {} from the WorkflowStore but it didn't exist", id)
+          _ <- database.removeDockerHashStoreEntries(id.toString)
+        } yield ()
+
+        cleanup recover {
+          case t => log.error(t, s"Unable to remove workflow $id from workflow store or clean up docker hash entries")
         }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
@@ -149,8 +149,8 @@ final case class WorkflowStoreEngineActor(store: WorkflowStore, serviceRegistryA
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase) = {
+    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, database)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

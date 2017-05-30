@@ -21,6 +21,7 @@ object Run {
 
   def makeRunPipelineRequest(jobDescriptor: BackendJobDescriptor,
                              runtimeAttributes: JesRuntimeAttributes,
+                             dockerImage: String,
                              callRootPath: String,
                              commandLine: String,
                              logFileName: String,
@@ -32,7 +33,7 @@ object Run {
 
     lazy val workflow = jobDescriptor.workflowDescriptor
     val pipelineInfoBuilder = if (preemptible) PreemptibleJesPipelineInfoBuilder else NonPreemptibleJesPipelineInfoBuilder
-    val pipelineInfo = pipelineInfoBuilder.build(commandLine, runtimeAttributes)
+    val pipelineInfo = pipelineInfoBuilder.build(commandLine, runtimeAttributes, dockerImage)
 
     val pipeline = new Pipeline()
       .setProjectId(projectId)
@@ -44,7 +45,7 @@ object Run {
 
     // disks cannot have mount points at runtime, so set them null
     val runtimePipelineResources = {
-      val resources = pipelineInfoBuilder.build(commandLine, runtimeAttributes).resources
+      val resources = pipelineInfoBuilder.build(commandLine, runtimeAttributes, dockerImage).resources
       val disksWithoutMountPoint = resources.getDisks.asScala map {
         _.setMountPoint(null)
       }

@@ -10,6 +10,8 @@ import cromwell.core.actor.StreamIntegration._
 import cromwell.core.actor.TestStreamActor.{TestStreamActorCommand, TestStreamActorContext}
 import org.scalatest.{FlatSpecLike, Matchers}
 
+import scala.concurrent.ExecutionContext
+
 class StreamActorHelperSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender {
   behavior of "StreamActorHelper"
   
@@ -67,4 +69,6 @@ private class TestStreamActor(queueSize: Int)(implicit override val materializer
 
   override protected val streamSource = Source.queue[TestStreamActorContext](queueSize, OverflowStrategy.dropNew)
     .map{ ("hello", _) }
+
+  override implicit def ec: ExecutionContext = context.dispatcher
 }

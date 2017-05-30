@@ -5,7 +5,6 @@ import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.SqlDatabase
 import net.ceedubs.ficus.Ficus._
-import org.slf4j.LoggerFactory
 
 trait ServicesStore {
   def databaseInterface: SqlDatabase
@@ -30,20 +29,45 @@ trait SingletonServicesStore extends ServicesStore {
 
 object SingletonServicesStore {
 
-  private lazy val log = LoggerFactory.getLogger("SingletonServicesStore")
-  private val databaseConfig = {
-    val config = ConfigFactory.load.getConfig("database")
-    if (config.hasPath("config")) {
-      log.warn(
-        """
-          |Use of configuration path 'database.config' is deprecated.
-          |
-          |Move the configuration directly under the 'database' element, and remove the key 'database.config'.
-          |""".stripMargin)
-      config.getConfig(config.getString("config"))
-    } else {
-      config
-    }
+  private val databaseConfig = ConfigFactory.load.getConfig("database")
+
+  if (databaseConfig.hasPath("config")) {
+      val msg = """
+        |*******************************
+        |***** DEPRECATION MESSAGE *****
+        |*******************************
+        |
+        |Use of configuration path 'database.config' has been deprecated.
+        |
+        |Move the configuration directly under the 'database' element, and remove the key 'database.config'.
+        |
+        |""".stripMargin
+    throw new Exception(msg)
+  } else if (databaseConfig.hasPath("driver")) {
+    val msg =
+      """
+      |*******************************
+      |***** DEPRECATION MESSAGE *****
+      |*******************************
+      |
+      |Use of configuration path 'database.driver' has been deprecated. Replace with a "profile" element instead, e.g:
+      |
+      |database {
+      |  #driver = "slick.driver.MySQLDriver$" #old
+      |  profile = "slick.jdbc.MySQLProfile$"  #new
+      |  db {
+      |    driver = "com.mysql.jdbc.Driver"
+      |    url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
+      |    user = "user"
+      |    password = "pass"
+      |    connectionTimeout = 5000
+      |  }
+      |}
+      |
+      |Cromwell thanks you.
+      |""".stripMargin
+    throw
+      new Exception(msg)
   }
 
   import ServicesStore.EnhancedSqlDatabase

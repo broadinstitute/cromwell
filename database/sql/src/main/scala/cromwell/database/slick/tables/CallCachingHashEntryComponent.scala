@@ -28,7 +28,7 @@ trait CallCachingHashEntryComponent {
       index("UC_CALL_CACHING_HASH_ENTRY_CCEI_HK", (callCachingEntryId, hashKey), unique = true)
   }
 
-  protected val callCachingHashEntries = TableQuery[CallCachingHashEntries]
+  val callCachingHashEntries = TableQuery[CallCachingHashEntries]
 
   val callCachingHashEntryIdsAutoInc = callCachingHashEntries returning
     callCachingHashEntries.map(_.callCachingHashEntryId)
@@ -65,16 +65,13 @@ trait CallCachingHashEntryComponent {
   }
 
   /**
-    * Returns the callCachingEntryIds where all the hash keys and hash values exist, and are allowed to be reused.
-    *
-    * @param hashKeyHashValues The hash keys and hash values as tuples.
-    * @return The callCachingEntryIds with all of the hash keys and hash values.
+    * Returns whether or not there exists at least one callCachingEntryId for which all the hash keys and hash values match, and are allowed to be reused.
     */
-  def callCachingEntryIdsForHashKeyHashValues(hashKeyHashValues: NonEmptyList[(String, String)]) = {
-    for {
+  def existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues: NonEmptyList[(String, String)]) = {
+    (for {
       callCachingEntry <- callCachingEntries
       if existsAllCallCachingEntryIdHashKeyHashValues(
         callCachingEntry.callCachingEntryId, hashKeyHashValues) && callCachingEntry.allowResultReuse
-    } yield callCachingEntry.callCachingEntryId
+    } yield callCachingEntry.callCachingEntryId).exists
   }
 }

@@ -11,14 +11,15 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
 import cromwell.backend._
 import cromwell.core._
-import cromwell.core.callcaching.docker.DockerHashActor.DockerHashResponseSuccess
-import cromwell.core.callcaching.docker.{DockerHashRequest, DockerHashResult}
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
+import cromwell.docker.{DockerHashRequest, DockerHashResult}
 import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupRequest, CacheResultMatchesForHashes}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupNoHit, CacheLookupRequest}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteSuccess
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
@@ -31,9 +32,9 @@ import cromwell.util.SampleWdl
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
 import org.scalactic.Equality
+import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest._
 import spray.http.StatusCode
 import spray.json._
 import wdl4s.TaskCall
@@ -99,7 +100,7 @@ object CromwellTestKitSpec {
       |    }
       |
       |    # A dispatcher for engine actors
-      |    # Because backends behaviour is unpredictable (potentially blocking, slow) the engine runs
+      |    # Because backends behavior is unpredictable (potentially blocking, slow) the engine runs
       |    # on its own dispatcher to prevent backends from affecting its performance.
       |    engine-dispatcher {
       |      type = Dispatcher
@@ -315,7 +316,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     }
   }
 
-  // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibilty
+  // Allow to use shouldEqual between 2 WdlValues while acknowledging for edge cases and checking for WdlType compatibility
   implicit val wdlEquality = new Equality[WdlValue] {
     def fileEquality(f1: String, f2: String) =
       DefaultPathBuilder.get(f1).getFileName == DefaultPathBuilder.get(f2).getFileName
@@ -475,7 +476,13 @@ object AlwaysHappyJobStoreActor {
 
 class EmptyCallCacheReadActor extends Actor {
   override def receive: Receive = {
-    case CacheLookupRequest(CallCacheHashes(hashes)) => sender ! CacheResultMatchesForHashes(hashes, Set.empty)
+    case _: CacheLookupRequest => sender ! CacheLookupNoHit
+  }
+}
+
+class EmptyCallCacheWriteActor extends Actor {
+  override def receive: Receive = {
+    case SaveCallCacheHashes => sender ! CallCacheWriteSuccess
   }
 }
 
@@ -483,9 +490,13 @@ object EmptyCallCacheReadActor {
   def props: Props = Props(new EmptyCallCacheReadActor)
 }
 
+object EmptyCallCacheWriteActor {
+  def props: Props = Props(new EmptyCallCacheWriteActor)
+}
+
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case request @ DockerHashRequest(image, _) => sender ! DockerHashResponseSuccess(DockerHashResult("alg", "hash"), request)
+    case request @ DockerHashRequest(image, _) => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
   }
 }
 

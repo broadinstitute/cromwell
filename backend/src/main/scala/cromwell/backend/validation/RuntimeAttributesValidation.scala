@@ -2,11 +2,12 @@ package cromwell.backend.validation
 
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
 import lenthall.validation.ErrorOr._
 import org.slf4j.Logger
 import wdl4s.expression.PureStandardLibraryFunctions
-import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlType}
+import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
 import wdl4s.values._
 import wdl4s.{NoLookup, WdlExpression}
 
@@ -20,24 +21,24 @@ object RuntimeAttributesValidation {
   }
 
   def validateDocker(docker: Option[WdlValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] = {
-    validateWithValidation(docker, DockerValidation.optional, onMissingKey)
+    validateWithValidation(docker, DockerValidation.instance.optional, onMissingKey)
   }
 
   def validateFailOnStderr(value: Option[WdlValue], onMissingKey: => ErrorOr[Boolean]): ErrorOr[Boolean] = {
-    validateWithValidation(value, FailOnStderrValidation.default, onMissingKey)
+    validateWithValidation(value, FailOnStderrValidation.instance, onMissingKey)
   }
 
   def validateContinueOnReturnCode(value: Option[WdlValue],
                                    onMissingKey: => ErrorOr[ContinueOnReturnCode]): ErrorOr[ContinueOnReturnCode] = {
-    validateWithValidation(value, ContinueOnReturnCodeValidation.default, onMissingKey)
+    validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
   }
 
   def validateMemory(value: Option[WdlValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
-    validateWithValidation(value, MemoryValidation.instance, onMissingKey)
+    validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
   }
 
   def validateCpu(cpu: Option[WdlValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
-    validateWithValidation(cpu, CpuValidation.default, onMissingKey)
+    validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
   }
 
   private def validateWithValidation[T](valueOption: Option[WdlValue],
@@ -213,6 +214,15 @@ object RuntimeAttributesValidation {
 }
 
 /**
+  * A wrapper class to classify config-based default runtime attributes
+  * that cannot be coerced into an acceptable WdlType.
+  */
+case class BadDefaultAttribute(badDefaultValue: WdlValue) extends WdlValue {
+  val wdlType = WdlStringType
+}
+
+
+/**
   * Performs a validation on a runtime attribute and returns some value.
   *
   * @tparam ValidatedType The type of the validated value.
@@ -370,6 +380,35 @@ trait RuntimeAttributesValidation[ValidatedType] {
     */
   final def withDefault(wdlValue: WdlValue): RuntimeAttributesValidation[ValidatedType] =
     RuntimeAttributesValidation.withDefault(this, wdlValue)
+
+  /**
+    * Returns the value of the default runtime attribute of a
+    * validation key as specified in the reference.conf. Given
+    * a value, this method coerces it into an optional
+    * WdlValue. In case the value cannot be succesfully coerced
+    * the value is wrapped as a "BadDefaultAttributeValue" type that
+    * is failed downstream by the ValidatedRuntimeAttributesBuilder.
+    *
+    * @param optionalRuntimeConfig Optional default runtime attributes config of a particular backend.
+    * @return The new version of this validation.
+    */
+  final def configDefaultWdlValue(optionalRuntimeConfig: Option[Config]): Option[WdlValue] = {
+    optionalRuntimeConfig flatMap { config =>
+      val value = config.getValue(key).unwrapped()
+      coercion.collectFirst({
+        case wdlType if wdlType.coerceRawValue(value).isSuccess => {
+          wdlType.coerceRawValue(value).get
+        }
+      }) orElse Option(BadDefaultAttribute(WdlString(value.toString)))
+    }
+  }
+
+  final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] = {
+    optionalRuntimeConfig match {
+      case Some(config) if config.hasPath(key) => Option(config.getValue(key).unwrapped().toString)
+      case _ => None
+    }
+  }
 
   /*
   Methods below provide aliases to expose protected methods to the package.

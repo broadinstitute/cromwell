@@ -7,7 +7,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl4s.FullyQualifiedName
 import wdl4s.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile}
+import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,
@@ -15,13 +15,14 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          tesPaths: TesJobPaths,
                          runtimeAttributes: TesRuntimeAttributes,
                          containerWorkDir: Path,
-                         backendEngineFunctions: StandardExpressionFunctions) {
+                         backendEngineFunctions: StandardExpressionFunctions,
+                         dockerImageUsed: String) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.workflow.unqualifiedName
   private val fullyQualifiedTaskName = jobDescriptor.call.fullyQualifiedName
-  val name = fullyQualifiedTaskName
-  val description = jobDescriptor.toString
+  val name: String = fullyQualifiedTaskName
+  val description: String = jobDescriptor.toString
 
   // TODO validate "project" field of workflowOptions
   val project = {
@@ -38,12 +39,18 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     Option(false)
   )
 
-  private val writeFunctionFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor
-    .call
-    .task
-    .evaluateFilesFromCommand(jobDescriptor.fullyQualifiedInputs, backendEngineFunctions)
-    .map {
-    case (expression, file) => expression.toWdlString -> Seq(file)
+  private def writeFunctionFiles(commandLineValueMapper: WdlValue => WdlValue): Map[FullyQualifiedName, Seq[WdlFile]] = {
+    val commandLineMappedInputs = jobDescriptor.inputDeclarations map {
+      case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value)
+    }
+
+    jobDescriptor
+      .call
+      .task
+      .evaluateFilesFromCommand(commandLineMappedInputs, backendEngineFunctions)
+      .map {
+        case (expression, file) => expression.toWdlString -> Seq(file)
+      }
   }
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor
@@ -52,7 +59,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       _.collectAsSeq { case w: WdlFile => w }
     }
 
-  val inputs: Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles)
+  def inputs(commandLineValueMapper: WdlValue => WdlValue): Seq[TaskParameter] = (callInputFiles ++ writeFunctionFiles(commandLineValueMapper))
     .flatMap {
       case (fullyQualifiedName, files) => files.zipWithIndex.map {
         case (f, index) => TaskParameter(
@@ -174,7 +181,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   )
 
   val dockerExecutor = Seq(DockerExecutor(
-    runtimeAttributes.dockerImage,
+    dockerImageUsed,
     Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     Option(tesPaths.containerOutput(containerWorkDir, "stdout")),

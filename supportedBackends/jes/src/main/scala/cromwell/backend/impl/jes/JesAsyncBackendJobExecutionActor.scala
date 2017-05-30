@@ -26,7 +26,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
 import wdl4s._
-import wdl4s.expression.NoFunctions
+import wdl4s.expression.PureStandardLibraryFunctions
 import wdl4s.values._
 
 import scala.collection.JavaConverters._
@@ -100,6 +100,10 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
+  private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  
+  override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
+  
   override val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, ur)) => p < maxPreemption
     case _ => false
@@ -115,7 +119,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def gcsAuthParameter: Option[JesInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.gcsAuthFilePath.pathAsString))
+      Option(JesLiteralInput(ExtraConfigParamName, jesCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
     else None
   }
 
@@ -147,17 +151,19 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private[jes] def generateJesInputs(jobDescriptor: BackendJobDescriptor): Set[JesInput] = {
 
-    val writeFunctionFiles = call.task.evaluateFilesFromCommand(jobDescriptor.fullyQualifiedInputs, backendEngineFunctions) map {
-      case (expression, file) =>  expression.toWdlString.md5SumShort -> Seq(file)
+    val fullyQualifiedPreprocessedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> commandLineValueMapper(value) }
+    val writeFunctionFiles = call.task.evaluateFilesFromCommand(fullyQualifiedPreprocessedInputs, backendEngineFunctions) map {
+      case (expression, file) => expression.toWdlString.md5SumShort -> Seq(file)
     }
 
     /* Collect all WdlFiles from inputs to the call */
-    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues { _.collectAsSeq { case w: WdlFile => w } }
+    val callInputFiles: Map[FullyQualifiedName, Seq[WdlFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
+      _.collectAsSeq { case w: WdlFile => w }
+    }
 
     val inputs = (callInputFiles ++ writeFunctionFiles) flatMap {
       case (name, files) => jesInputsFromWdlFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
-
     inputs.toSet
   }
 
@@ -189,7 +195,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   private[jes] def generateJesOutputs(jobDescriptor: BackendJobDescriptor): Set[JesFileOutput] = {
-    val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) map relativeLocalizationPath
+    val wdlFileOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, PureStandardLibraryFunctions) map relativeLocalizationPath
 
     val outputs = wdlFileOutputs.distinct flatMap { wdlFile =>
       wdlFile match {
@@ -259,6 +265,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val runPipelineParameters = Run.makeRunPipelineRequest(
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
+      dockerImage = jobDockerImage,
       callRootPath = callRootPath.pathAsString,
       commandLine = jesCommandLine,
       logFileName = jesLogFilename,
@@ -291,8 +298,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
-    def generateJesParameters = Future.fromTry(Try {
-      val jesInputs: Set[JesInput] = generateJesInputs(jobDescriptor) ++ monitoringScript + cmdInput
+    def generateJesParameters = Future.fromTry( Try {
+      val generatedJesInputs = generateJesInputs(jobDescriptor)
+      val jesInputs: Set[JesInput] = generatedJesInputs ++ monitoringScript + cmdInput
       val jesOutputs: Set[JesFileOutput] = generateJesOutputs(jobDescriptor) ++ monitoringOutput
 
       standardParameters ++ gcsAuthParameter ++ jesInputs ++ jesOutputs

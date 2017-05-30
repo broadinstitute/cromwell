@@ -7,19 +7,21 @@ import akka.http.scaladsl.Http
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
-import cromwell.core.Dispatcher
+import cromwell.core.{Dispatcher, DockerConfiguration, DockerLocalLookup, DockerRemoteLookup}
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
-import cromwell.core.callcaching.docker.DockerHashActor
-import cromwell.core.callcaching.docker.DockerHashActor.DockerHashContext
-import cromwell.core.callcaching.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
-import cromwell.core.callcaching.docker.registryv2.flows.dockerhub.DockerHubFlow
-import cromwell.core.callcaching.docker.registryv2.flows.gcr.GoogleFlow
+import cromwell.docker.DockerHashActor
+import cromwell.docker.DockerHashActor.DockerHashContext
+import cromwell.docker.local.DockerCliFlow
+import cromwell.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
+import cromwell.docker.registryv2.flows.dockerhub.DockerHubFlow
+import cromwell.docker.registryv2.flows.gcr.GoogleFlow
 import cromwell.core.io.Throttle
+import cromwell.docker.registryv2.flows.quay.QuayFlow
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.IoActor
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
@@ -54,7 +56,7 @@ import scala.language.postfixOps
   lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
-  lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
+  lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, SingletonServicesStore.databaseInterface), "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
@@ -79,20 +81,25 @@ import scala.language.postfixOps
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)
     .props(CallCacheReadActor.props(callCache)),
     "CallCacheReadActor")
+
+  lazy val callCacheWriteActor = context.actorOf(CallCacheWriteActor.props(callCache), "CallCacheWriteActor")
   
   // Docker Actor
   lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
-  lazy val gcrQueriesPer100Sec = config.getAs[Int]("docker.gcr-api-queries-per-100-seconds") getOrElse 1000
-  lazy val dockerCacheEntryTTL = config.as[Option[FiniteDuration]]("docker.cache-entry-ttl").getOrElse(DefaultCacheTTL)
-  lazy val dockerCacheSize = config.getAs[Long]("docker.cache-size") getOrElse 200L
+  lazy val dockerConf = DockerConfiguration.instance
   // Sets the number of requests that the docker actor will accept before it starts backpressuring (modulo the number of in flight requests)
   lazy val dockerActorQueueSize = 500
   
   lazy val dockerHttpPool = Http().superPool[ContextWithRequest[DockerHashContext]]()
-  lazy val googleFlow = new GoogleFlow(dockerHttpPool, gcrQueriesPer100Sec)(ioEc, materializer, system.scheduler)
+  lazy val googleFlow = new GoogleFlow(dockerHttpPool, dockerConf.gcrApiQueriesPer100Seconds)(ioEc, materializer, system.scheduler)
   lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
-  lazy val dockerFlows = Seq(dockerHubFlow, googleFlow)
-  lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerCacheEntryTTL, dockerCacheSize)(materializer).withDispatcher(Dispatcher.IoDispatcher))
+  lazy val quayFlow = new QuayFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
+  lazy val dockerCliFlow = new DockerCliFlow()(ioEc, materializer, system.scheduler)
+  lazy val dockerFlows = dockerConf.method match {
+    case DockerLocalLookup => Seq(dockerCliFlow)
+    case DockerRemoteLookup => Seq(dockerHubFlow, googleFlow, quayFlow)
+  }
+  lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer).withDispatcher(Dispatcher.IoDispatcher))
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
     case (name, factory) => name -> (factory.backendSingletonActorProps map context.actorOf)
@@ -105,7 +112,7 @@ import scala.language.postfixOps
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
-      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor,
+      workflowStoreActor, ioActor, serviceRegistryActor, workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
     dockerHashActor, jobExecutionTokenDispenserActor, backendSingletonCollection, abortJobsOnTerminate, serverMode),
     "WorkflowManagerActor")
 
@@ -118,8 +125,8 @@ import scala.language.postfixOps
     * of Cromwell by passing a Throwable to the guardian.
     */
   override val supervisorStrategy = OneForOneStrategy() {
-    case actorInitializationException: ActorInitializationException => Escalate
-    case restart: ActorRestartException => Restart
+    case _: ActorInitializationException => Escalate
+    case _: ActorRestartException => Restart
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

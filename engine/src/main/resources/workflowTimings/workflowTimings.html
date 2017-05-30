@@ -69,7 +69,7 @@
                     var firstEventStart = null;
                     var finalEventEnd = null;
 
-                    if(callStatus == "Done" || callStatus == "Failed" || callStatus == "Preempted") {
+                    if(callStatus == "Done" || callStatus == "Failed" || callStatus == "RetryableFailure") {
                         executionCallsCount++;
                         for (var executionEventIndex in executionEvents) {
                             var executionEvent = callList[callIndex].executionEvents[executionEventIndex];

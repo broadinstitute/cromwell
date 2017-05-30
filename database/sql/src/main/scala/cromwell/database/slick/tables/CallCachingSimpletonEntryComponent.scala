@@ -32,7 +32,7 @@ trait CallCachingSimpletonEntryComponent {
       index("UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK", (callCachingEntryId, simpletonKey), unique = true)
   }
 
-  protected val callCachingSimpletonEntries = TableQuery[CallCachingSimpletonEntries]
+  val callCachingSimpletonEntries = TableQuery[CallCachingSimpletonEntries]
 
   val callCachingSimpletonEntryIdsAutoInc = callCachingSimpletonEntries returning
     callCachingSimpletonEntries.map(_.callCachingSimpletonEntryId)

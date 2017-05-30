@@ -14,8 +14,11 @@ class JesAttributesSpec extends FlatSpec with Matchers {
 
   behavior of "JesAttributes"
 
+  val googleConfig = GoogleConfiguration(JesGlobalConfig)
+  val runtimeConfig = ConfigFactory.load()
+
   it should "parse correct JES config" taggedAs IntegrationTest in {
-    val googleConfig = GoogleConfiguration(JesGlobalConfig)
+
     val backendConfig = ConfigFactory.parseString(configString())
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
@@ -24,11 +27,9 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     jesAttributes.executionBucket should be("gs://myBucket")
     jesAttributes.maxPollingInterval should be(600)
     jesAttributes.computeServiceAccount should be("default")
-    jesAttributes.defaultZones.toList should be (List("us-central1-a"))
   }
 
   it should "parse correct preemptible config" taggedAs IntegrationTest in {
-    val googleConfig = GoogleConfiguration(JesGlobalConfig)
     val backendConfig = ConfigFactory.parseString(configString(preemptible = "preemptible = 3"))
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
@@ -36,11 +37,9 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     jesAttributes.project should be("myProject")
     jesAttributes.executionBucket should be("gs://myBucket")
     jesAttributes.maxPollingInterval should be(600)
-    jesAttributes.defaultZones.toList should be (List("us-central1-a"))
   }
 
   it should "parse compute service account" taggedAs IntegrationTest in {
-    val googleConfig = GoogleConfiguration(JesGlobalConfig)
     val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
@@ -54,12 +53,9 @@ class JesAttributesSpec extends FlatSpec with Matchers {
           |{
           |   genomics {
           |     endpoint-url = "myEndpoint"
-          |     default-zones = []
           |   }
           |}
         """.stripMargin)
-
-    val googleConfig = GoogleConfiguration(JesGlobalConfig)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
       JesAttributes(googleConfig, nakedConfig)
@@ -70,7 +66,6 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     errorsList should contain("No configuration setting found for key 'genomics.auth'")
     errorsList should contain("No configuration setting found for key 'filesystems'")
     errorsList should contain("URI is not absolute")
-    errorsList should contain("genomics.default-zones was set but no values were provided")
   }
 
   def configString(preemptible: String = "", genomics: String = ""): String =
@@ -86,7 +81,6 @@ class JesAttributesSpec extends FlatSpec with Matchers {
       |     auth = "application-default"
       |    $genomics
       |     endpoint-url = "http://myEndpoint"
-      |     default-zones = ["us-central1-a"]
       |   }
       |
       |   filesystems = {

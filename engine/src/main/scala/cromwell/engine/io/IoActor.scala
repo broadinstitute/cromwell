@@ -1,6 +1,7 @@
 package cromwell.engine.io
 
 import java.net.{SocketException, SocketTimeoutException}
+import javax.net.ssl.SSLException
 
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
@@ -29,9 +30,10 @@ import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 final class IoActor(queueSize: Int, throttle: Option[Throttle])(implicit val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] {
   
   implicit private val system = context.system
+  implicit val ec = context.dispatcher
   
-  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler).flow
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler).flow
+  private [io] lazy val defaultFlow = new NioFlow(parallelism = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = 10, batchSize = 100, context.system.scheduler).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -136,12 +138,26 @@ object IoActor {
     case _ => false
   }
 
+  val AdditionalRetryableHttpCodes = List(
+    // HTTP 410: Gone
+    // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
+    // "You have attempted to use a resumable upload session that is no longer available.
+    // If the reported status code was not successful and you still wish to upload the file, you must start a new session."
+    410,
+    // Some 503 errors seem to yield "false" on the "isRetryable" method because they are not retried.
+    // The CloudStorage exception mechanism is not flawless yet (https://github.com/GoogleCloudPlatform/google-cloud-java/issues/1545)
+    // so that could be the cause.
+    // For now explicitly lists 503 as a retryable code here to work around that.
+    503
+  )
+  
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable
+    case gcs: StorageException => gcs.isRetryable || AdditionalRetryableHttpCodes.contains(gcs.getCode) || isRetryable(gcs.getCause)
+    case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true

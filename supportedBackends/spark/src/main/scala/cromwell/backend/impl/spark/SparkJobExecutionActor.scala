@@ -44,7 +44,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val sparkDeployMode = configurationDescriptor.backendConfig.getString("deployMode").toLowerCase
   override val sharedFileSystemConfig = fileSystemsConfig.getConfig("local")
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
-  private val jobPaths = new JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
+  private val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, configurationDescriptor.backendConfig)
 
   // Files
   private val executionDir = jobPaths.callExecutionRoot
@@ -133,7 +133,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty)
+      case Success(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
       case Failure(e) =>
         val message = Option(e.getMessage) map {
           ": " + _

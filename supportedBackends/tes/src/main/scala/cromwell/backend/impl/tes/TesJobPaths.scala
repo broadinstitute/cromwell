@@ -1,22 +1,29 @@
 package cromwell.backend.impl.tes
 
 import com.typesafe.config.Config
-import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 
-class TesJobPaths(val jobKey: BackendJobDescriptorKey,
-                  workflowDescriptor: BackendWorkflowDescriptor,
-                  config: Config,
-                  pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends TesWorkflowPaths(
-  workflowDescriptor, config, pathBuilders) with JobPaths {
+object TesJobPaths {
+  def apply(jobKey: BackendJobDescriptorKey,
+  workflowDescriptor: BackendWorkflowDescriptor,
+  config: Config,
+  pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
+    val workflowPaths = TesWorkflowPaths(workflowDescriptor, config, pathBuilders)
+    new TesJobPaths(workflowPaths, jobKey)
+  }
+}
+
+case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPaths,
+                  jobKey: BackendJobDescriptorKey) extends JobPaths {
 
   import JobPaths._
 
   override lazy val callExecutionRoot = {
     callRoot.resolve("execution")
   }
-  val callDockerRoot = callPathBuilder(dockerWorkflowRoot, jobKey)
+  val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
   val callInputsDockerRoot = callDockerRoot.resolve("inputs")
   val callInputsRoot = callRoot.resolve("inputs")

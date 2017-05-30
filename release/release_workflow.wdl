@@ -128,8 +128,8 @@ task wait_for_artifactory {
         elapsedTime=0
         checkIfPresent
         
-        # Allow 20 minutes for the file to appear in artifactory
-        while [ $? -ne 0 ] && [ $elapsedTime -lt 1200 ]; do
+        # Allow 1 hour for the file to appear in artifactory
+        while [ $? -ne 0 ] && [ $elapsedTime -lt 3600 ]; do
             sleep 10;
             let "elapsedTime+=10"
             checkIfPresent
@@ -186,7 +186,49 @@ task versionPrep {
     }
 }
 
+task makeGithubRelease {
+    String githubToken
+    String organization
+    File cromwellJar
+    Int oldVersion
+    Int newVersion
+    
+    command <<<
+        set -e
+        set -x
+        
+        # download changelog from master
+        curl https://raw.githubusercontent.com/${organization}/cromwell/master/CHANGELOG.md -o CHANGELOG.md
+        
+        # Extract the latest piece of the changelog corresponding to this release
+        # head remove the last line, next sed escapes all ", and last sed/tr replaces all new lines with \n so it can be used as a JSON string
+        BODY=$(sed -n '/## ${newVersion}/,/## ${oldVersion}/p' CHANGELOG.md | head -n -1 | sed -e 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
+        
+        # Build the json body for the POST release
+        API_JSON="{\"tag_name\": \"${newVersion}\",\"name\": \"${newVersion}\",\"body\": \"$BODY\",\"draft\": true,\"prerelease\": false}"
+        
+        # POST the release as a draft
+        curl --data "$API_JSON" https://api.github.com/repos/${organization}/cromwell/releases?access_token=${githubToken} -o release_response
+        
+        # parse the response to get the release id and the asset upload url
+        RELEASE_ID=$(python -c "import sys, json; print json.load(sys.stdin)['id']" < release_response)
+        UPLOAD_URL=$(python -c "import sys, json; print json.load(sys.stdin)['upload_url']" < release_response)
+        # Maybe update this when we have basename !
+        UPLOAD_URL=$(sed 's/{.*}/?name=cromwell-${newVersion}.jar/' <<< "$UPLOAD_URL")
+        
+        # Upload the cromwell jar as an asset
+        curl -X POST --data-binary @${cromwellJar} -H "Authorization: token ${githubToken}" -H "Content-Type: application/octet-stream" "$UPLOAD_URL"
+        
+        # Publish the draft
+        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/${organization}/cromwell/releases/"$RELEASE_ID"?access_token=${githubToken}
+    >>>
+    runtime {
+        docker: "python:2.7"
+    }
+}
+
 workflow release_cromwell {
+  String githubToken
   String organization
     
   Pair[String, String] lenthallAsDependency = ("lenthallV", waitForLenthall.publishedVersion) 
@@ -278,41 +320,55 @@ workflow release_cromwell {
   
   # Generates commands to update wdl4s dependencies
   scatter(wdl4sDependency in wdl4sDependencies) {
-    String depName = wdl4sDependency.left
-    String versionName = wdl4sDependency.right
+    String wdl4sDepName = wdl4sDependency.left
+    String wdl4sVersionName = wdl4sDependency.right
     
     call create_update_dependency_command as wdl4sDependencyCommands { input: 
-       dependencyName = depName,
-       newVersion = versionName,
+       dependencyName = wdl4sDepName,
+       newVersion = wdl4sVersionName,
        dependencyFilePath = "build.sbt"
     }
   }
   
   # Generates commands to update wdltool dependencies
   scatter(wdltoolDependency in wdltoolDependencies) {
-    String depName = wdltoolDependency.left
-    String versionName = wdltoolDependency.right
+    String wdltoolDepName = wdltoolDependency.left
+    String wdltoolVersionName = wdltoolDependency.right
     
     call create_update_dependency_command as wdltoolDependencyCommands { input: 
-       dependencyName = depName,
-       newVersion = versionName,
+       dependencyName = wdltoolDepName,
+       newVersion = wdltoolVersionName,
        dependencyFilePath = "build.sbt"
     }
   }
   
   # Generates commands to update cromwell dependencies
   scatter(cromwellDependency in cromwellDependencies) {
-    String depName = cromwellDependency.left
-    String versionName = cromwellDependency.right
+    String cromwellDepName = cromwellDependency.left
+    String cromwellVersionName = cromwellDependency.right
     
     call create_update_dependency_command as cromwellDependencyCommands { input: 
-       dependencyName = depName,
-       newVersion = versionName,
+       dependencyName = cromwellDepName,
+       newVersion = cromwellVersionName,
        dependencyFilePath = "project/Dependencies.scala"
     }
   }
   
+  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
+  # Version that was just released
+  Int cromwellVersionAsInt = cromwellPrep.version
+  # Previous version
+  Int cromwellPreviousVersion = cromwellVersionAsInt - 1
+  
+  call makeGithubRelease { input:
+           githubToken = githubToken,
+           organization = organization,
+           cromwellJar = cromwellJar,
+           newVersion = cromwellVersionAsInt,
+           oldVersion = cromwellPreviousVersion
+  }
+  
   output {
-    String cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
+    File cromwellReleasedJar = cromwellJar
   }
 }

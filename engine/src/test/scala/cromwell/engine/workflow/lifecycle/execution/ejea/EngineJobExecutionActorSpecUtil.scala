@@ -1,11 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core.JobOutput
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
@@ -26,12 +27,6 @@ private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExe
   def expectCacheWrite(expectedResponse: JobSucceededResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
     eventually { ejea.stateName should be(UpdatingCallCache) }
     ejea.stateData should be(SucceededResponseData(expectedResponse, Some(Success(expectedCallCacheHashes))))
-    helper.callCacheWriteActorCreations match {
-      case GotOne(creation) =>
-        creation._1 should be(expectedCallCacheHashes)
-        creation._2 should be(expectedResponse)
-      case _ => fail("Expected exactly one cache write actor creation.")
-    }
     ()
   }
 }
@@ -52,10 +47,10 @@ private[ejea] trait CanExpectJobStoreWrites extends CanValidateJobStoreKey { sel
 }
 
 private[ejea] trait CanExpectHashingInitialization extends Eventually { self: EngineJobExecutionActorSpec =>
-  def expectHashingActorInitialization(mode: CallCachingMode): Unit = {
+  def expectHashingActorInitialization(mode: CallCachingMode, jobDescriptor: BackendJobDescriptor): Unit = {
     eventually { helper.jobHashingInitializations.hasExactlyOne should be(true) }
     helper.jobHashingInitializations.checkIt { initialization =>
-      initialization._1 should be(helper.backendJobDescriptor)
+      initialization._1 should be(jobDescriptor)
       initialization._2 should be(mode)
     }
   }
@@ -83,10 +78,17 @@ private[ejea] trait CanExpectCacheInvalidation extends Eventually { self: Engine
 private[ejea] trait HasJobSuccessResponse { self: EngineJobExecutionActorSpec =>
   val successRc = Option(171)
   val successOutputs = Map("a" -> JobOutput(WdlInteger(3)), "b" -> JobOutput(WdlString("bee")))
-  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty)
+  def successResponse = JobSucceededResponse(helper.jobDescriptorKey, successRc, successOutputs, None, Seq.empty, None)
 }
 private[ejea] object HasJobSuccessResponse {
-  val SuccessfulCallCacheHashes = CallCacheHashes(Set(HashResult(HashKey("whatever you want"), HashValue("whatever you need"))))
+  val SuccessfulCallCacheHashes = CallCacheHashes(
+    Set(HashResult(HashKey("whatever you want"), HashValue("whatever you need"))),
+    "initialHash",
+    Option(FileHashes(
+      Set(HashResult(HashKey("whatever file you want"), HashValue("whatever file you need"))),
+      "fileHash"
+    ))
+  )
 }
 
 private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =>

@@ -135,6 +135,18 @@ object Settings {
     libraryDependencies ++= databaseMigrationDependencies
   ) ++ commonSettings
 
+  val cromwellApiClientSettings = List(
+    name := "cromwell-api-client",
+    libraryDependencies ++= cromwellApiClientDependencies,
+    organization := "org.broadinstitute",
+    scalaVersion := "2.12.1",
+    resolvers ++= commonResolvers
+    // scalacOptions ++= compilerSettings,
+    // scalacOptions in (Compile, doc) ++= docSettings,
+    // parallelExecution := false
+  ) ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
+    cromwellVersionWithGit ++ publishingSettings
+
   val dockerHashingSettings = List(
     name := "cromwell-docker-hashing"
   ) ++ commonSettings
@@ -150,11 +162,6 @@ object Settings {
   val tesBackendSettings = List(
     name := "cromwell-tes-backend",
     libraryDependencies ++= tesBackendDependencies
-  ) ++ commonSettings
-
-  val htCondorBackendSettings = List(
-    name := "cromwell-htcondor-backend",
-    libraryDependencies ++= htCondorBackendDependencies
   ) ++ commonSettings
 
   val sparkBackendSettings = List(

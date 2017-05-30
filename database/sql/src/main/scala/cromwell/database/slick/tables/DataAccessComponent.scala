@@ -1,12 +1,13 @@
 package cromwell.database.slick.tables
 
-import slick.driver.JdbcProfile
+import slick.jdbc.JdbcProfile
 
 class DataAccessComponent(val driver: JdbcProfile)
   extends DriverComponent
     with CallCachingDetritusEntryComponent
     with CallCachingEntryComponent
     with CallCachingHashEntryComponent
+    with CallCachingAggregationEntryComponent
     with CallCachingSimpletonEntryComponent
     with JobKeyValueEntryComponent
     with JobStoreEntryComponent
@@ -15,7 +16,9 @@ class DataAccessComponent(val driver: JdbcProfile)
     with SummaryStatusEntryComponent
     with WorkflowMetadataSummaryEntryComponent
     with WorkflowStoreEntryComponent
-    with SubWorkflowStoreEntryComponent {
+    with SubWorkflowStoreEntryComponent
+    with CustomLabelEntryComponent
+    with DockerHashStoreEntryComponent {
 
   import driver.api._
 
@@ -24,6 +27,8 @@ class DataAccessComponent(val driver: JdbcProfile)
       callCachingEntries.schema ++
       callCachingHashEntries.schema ++
       callCachingSimpletonEntries.schema ++
+      callCachingAggregationEntries.schema ++
+      dockerHashStoreEntries.schema ++
       jobKeyValueEntries.schema ++
       jobStoreEntries.schema ++
       jobStoreSimpletonEntries.schema ++
@@ -31,5 +36,6 @@ class DataAccessComponent(val driver: JdbcProfile)
       summaryStatusEntries.schema ++
       workflowMetadataSummaryEntries.schema ++
       workflowStoreEntries.schema ++
-      subWorkflowStoreEntries.schema
+      subWorkflowStoreEntries.schema ++
+      customLabelEntries.schema
 }

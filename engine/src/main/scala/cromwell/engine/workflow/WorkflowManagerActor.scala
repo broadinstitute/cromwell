@@ -224,8 +224,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
           val replyTo = abortingWorkflowToReplyTo(workflowId)
           replyTo ! WorkflowStoreEngineActor.WorkflowAborted(workflowId)
           abortingWorkflowToReplyTo -= workflowId
-        } else {
-          params.workflowStore ! WorkflowStoreActor.RemoveWorkflow(workflowId)
         }
       }
       stay using data.without(workflowActor)

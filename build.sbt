@@ -27,7 +27,7 @@ versionWithGit ++ versionSettings
 
 val sprayJsonV = "1.3.2"
 
-val lenthallV = "0.23"
+val lenthallV = "0.24"
 
 resolvers ++= List(
   "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/"

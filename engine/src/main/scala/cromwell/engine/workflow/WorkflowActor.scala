@@ -22,6 +22,7 @@ import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import wdl4s.{LocallyQualifiedName => _}
 
+import scala.concurrent.Future
 import scala.util.Failure
 
 object WorkflowActor {
@@ -307,16 +308,18 @@ class WorkflowActor(val workflowId: WorkflowId,
           * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
           */
         def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(workflowSources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
-        def bruteForcePathBuilders: List[PathBuilder] = EngineFilesystems(context.system).pathBuildersForWorkflow(bruteForceWorkflowOptions)
+        val system = context.system
+        val ec = context.system.dispatcher
+        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system, ec)
 
         val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
-          case Some(wd) => (wd.backendDescriptor.workflowOptions, wd.pathBuilders)
+          case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))
           case None => (bruteForceWorkflowOptions, bruteForcePathBuilders)
         }
 
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
-            workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pathBuilders))
+            pathBuilders.map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
           case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
             case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>

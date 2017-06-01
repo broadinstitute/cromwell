@@ -13,7 +13,7 @@ import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -34,7 +34,7 @@ class IoActorGcsBatchSpec extends TestKitSuite with FlatSpecLike with Matchers w
   }
   
   lazy val gcsPathBuilder = GcsPathBuilderFactory(ApplicationDefaultMode("default"), "cromwell-test")
-  lazy val pathBuilder: GcsPathBuilder = gcsPathBuilder.withOptions(WorkflowOptions.empty)
+  lazy val pathBuilder: GcsPathBuilder = Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 1 second)
 
   lazy val randomUUID = UUID.randomUUID().toString
 

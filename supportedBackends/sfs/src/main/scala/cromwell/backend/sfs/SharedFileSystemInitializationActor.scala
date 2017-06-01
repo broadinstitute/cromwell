@@ -11,10 +11,11 @@ import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
-import scala.util.Try
 
 class SharedFileSystemInitializationActor(standardParams: StandardInitializationActorParams)
   extends StandardInitializationActor(standardParams) {
+
+  private implicit val system = context.system
 
   /**
     * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
@@ -36,20 +37,22 @@ class SharedFileSystemInitializationActor(standardParams: StandardInitialization
   lazy val pathBuilderFactories: List[PathBuilderFactory] =
     List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
 
-  override lazy val pathBuilders: List[PathBuilder] =
-    pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
+  override lazy val pathBuilders: Future[List[PathBuilder]] = {
+    Future.sequence(pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions) })
+  }
 
-  override lazy val workflowPaths: WorkflowPaths =
-    WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders)
+  override lazy val workflowPaths: Future[WorkflowPaths] = pathBuilders map {
+    WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, _)
+  }
 
   override lazy val expressionFunctions: Class[_ <: StandardExpressionFunctions] =
     classOf[SharedFileSystemExpressionFunctions]
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    Future.fromTry(Try {
-      publishWorkflowRoot(workflowPaths.workflowRoot.pathAsString)
-      workflowPaths.workflowRoot.createPermissionedDirectories()
-      Option(initializationData)
-    })
+    initializationData map { data =>
+      publishWorkflowRoot(data.workflowPaths.workflowRoot.pathAsString)
+      data.workflowPaths.workflowRoot.createPermissionedDirectories()
+      Option(data)
+    }
   }
 }

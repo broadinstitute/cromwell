@@ -11,7 +11,6 @@ import wdl4s.TaskCall
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
-import scala.util.Try
 
 case class TesInitializationActorParams
 (
@@ -48,20 +47,22 @@ class TesInitializationActor(params: TesInitializationActorParams)
   lazy val pathBuilderFactories: List[PathBuilderFactory] =
     List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
 
-  override lazy val pathBuilders: List[PathBuilder] =
-    pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
+  override lazy val pathBuilders: Future[List[PathBuilder]] = {
+    Future.sequence(pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions) })
+  }
 
-  override lazy val workflowPaths: TesWorkflowPaths =
-    new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, pathBuilders)
+  override lazy val workflowPaths: Future[TesWorkflowPaths] = pathBuilders map {
+    new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, _)
+  }
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    Future.fromTry(Try {
-      publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-      workflowPaths.workflowRoot.createPermissionedDirectories()
-      Option(TesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, tesConfiguration))
-    })
+    workflowPaths map { paths =>
+      publishWorkflowRoot(paths.workflowRoot.toString)
+      paths.workflowRoot.createPermissionedDirectories()
+      Option(TesBackendInitializationData(paths, runtimeAttributesBuilder, tesConfiguration))
+    }
   }
 }

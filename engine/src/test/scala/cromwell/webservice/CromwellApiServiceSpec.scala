@@ -28,16 +28,16 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   val version = "v1"
 
   behavior of "REST API /status endpoint"
-  it should "return 200 for get of a known workflow id" in {
-    val workflowId = MockApiService.ExistingWorkflowId
-    Get(s"/workflows/$version/$workflowId/status") ~>
-      cromwellApiService.statusRoute ~>
-      check {
-          status should be(StatusCodes.OK)
-          val result = responseAs[JsObject]
-          result.fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
-      }
-  }
+    it should "return 200 for get of a known workflow id" in {
+      val workflowId = MockApiService.ExistingWorkflowId
+      Get(s"/workflows/$version/$workflowId/status") ~>
+        cromwellApiService.statusRoute ~>
+        check {
+            status should be(StatusCodes.OK)
+            val result = responseAs[JsObject]
+            result.fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
+        }
+    }
 
     it should "return 404 for get of unknown workflow" in {
       val workflowId = MockApiService.UnrecognizedWorkflowId
@@ -51,7 +51,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         }
     }
 
-     it should "return 400 for get of a malformed workflow id's status" in {
+    it should "return 400 for get of a malformed workflow id's status" in {
       Get(s"/workflows/$version/foobar/status") ~>
         cromwellApiService.statusRoute ~>
         check {
@@ -70,35 +70,35 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
     }
 
   behavior of "REST API /abort endpoint"
-  it should "return 404 for abort of unknown workflow" in {
-    val workflowId = MockApiService.UnrecognizedWorkflowId
+    it should "return 404 for abort of unknown workflow" in {
+      val workflowId = MockApiService.UnrecognizedWorkflowId
 
-    Post(s"/workflows/$version/$workflowId/abort") ~>
-      cromwellApiService.abortRoute ~>
-      check {
-        assertResult(StatusCodes.NotFound) {
-          status
+      Post(s"/workflows/$version/$workflowId/abort") ~>
+        cromwellApiService.abortRoute ~>
+        check {
+          assertResult(StatusCodes.NotFound) {
+            status
+          }
         }
-      }
-  }
+    }
 
-  it should "return 400 for abort of a malformed workflow id" in {
-    Post(s"/workflows/$version/foobar/abort") ~>
-      cromwellApiService.abortRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) {
-          status
+    it should "return 400 for abort of a malformed workflow id" in {
+      Post(s"/workflows/$version/foobar/abort") ~>
+        cromwellApiService.abortRoute ~>
+        check {
+          assertResult(StatusCodes.BadRequest) {
+            status
+          }
+          assertResult(
+            """{
+              |  "status": "fail",
+              |  "message": "Invalid workflow ID: 'foobar'."
+              |}""".stripMargin
+          ) {
+            responseAs[String]
+          }
         }
-        assertResult(
-          """{
-            |  "status": "fail",
-            |  "message": "Invalid workflow ID: 'foobar'."
-            |}""".stripMargin
-        ) {
-          responseAs[String]
-        }
-      }
-  }
+    }
 
     it should "return 403 for abort of a workflow in a terminal state" in {
       Post(s"/workflows/$version/${MockApiService.AbortedWorkflowId}/abort") ~>
@@ -255,7 +255,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "Error(s): Error(s): No inputs were provided"
+              |  "message": "Error(s): No inputs were provided"
               |}""".stripMargin) {
           responseAs[String]
         }

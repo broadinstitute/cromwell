@@ -1,10 +1,10 @@
 package cromwell.webservice
 
 import akka.actor._
+import cats.data.Validated.{Invalid, Valid}
 import cats.data.NonEmptyList
-import cats.syntax.cartesian._
-import cats.data.Validated._
 import cats.syntax.validated._
+import cats.syntax.cartesian._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection}
 import cromwell.engine.backend.BackendConfiguration
@@ -152,7 +152,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
-    def partialSourcesToSourceCollections(partialSources: Try[PartialWorkflowSources], allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
+    def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources], allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
 
       def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WdlJson]] =
         (pws.workflowInputs.isEmpty, allowNoInputs) match {
@@ -164,20 +164,21 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
 
       def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
-        WorkflowOptions.fromJsonString(options.getOrElse("{}")) leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
+        WorkflowOptions.fromJsonString(options.getOrElse("{}")).tryToErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
 
       def validateWdlSource(partialSource: PartialWorkflowSources): ErrorOr[WdlJson] = partialSource.wdlSource match {
         case Some(src) => src.validNel
         case _ => s"Incomplete workflow submission: $partialSource".invalidNel
       }
 
-      for {
-        partialSource <- partialSources
-        workflowSourceFilesCollection <- (validateWdlSource(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions) ).map {
-          (wdlSource, wfInputs, wfOptions) =>
-          wfInputs.map(x => WorkflowSourceFilesCollection(wdlSource, x, wfOptions.asPrettyJson, partialSource.customLabels.getOrElse("{}"), partialSource.zippedImports))
-        }
-      } yield workflowSourceFilesCollection
+      partialSources match {
+        case Valid(partialSource) =>
+          (validateWdlSource(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions)) map {
+            case (wdlSource, wfInputs, wfOptions) =>
+              wfInputs.map(x => WorkflowSourceFilesCollection(wdlSource, x, wfOptions.asPrettyJson, partialSource.customLabels.getOrElse("{}"), partialSource.zippedImports))
+          }
+        case Invalid(err) => err.invalid
+      }
     }
 
     def fromSubmitRoute(formData: MultipartFormData, allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
@@ -199,7 +200,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
           throw new IllegalArgumentException(s"Unexpected body part name: ${bodyPart.name.getOrElse("None")}")
         }
       })
-      partialSourcesToSourceCollections(partialSources, allowNoInputs)
+      partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs).errorOrToTry
     }
   }
 

@@ -5,13 +5,10 @@ import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
 import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.SucceededResponseData
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.{SaveCallCacheHashes, _}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -72,9 +69,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
 object CallCacheWriteActor {
   def props(callCache: CallCache): Props = Props(CallCacheWriteActor(callCache)).withDispatcher(EngineDispatcher)
 
-  case class SaveCallCacheHashes(workflowId: WorkflowId, hashes: CallCacheHashes, data: SucceededResponseData) {
-    def bundle = CallCacheHashBundle(workflowId, hashes, data.successResponse)
-  }
+  case class SaveCallCacheHashes(bundle: CallCacheHashBundle)
 
   val dbBatchSize = 100
   val dbFlushRate = 3 seconds

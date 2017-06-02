@@ -129,7 +129,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val initialHashes = calculateInitialHashes(nonFileInputSimpletons, fileInputSimpletons)
 
     val fileHashRequests = fileInputSimpletons collect {
-      case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(s"input: File $name"), x, initializationData)
+      case WdlValueSimpleton(name, x: WdlFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
     }
 
     val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor)
@@ -153,17 +153,17 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
       case Some(_) if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
-        HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), callCachingEligible.dockerHash.get.md5HashValue)
-      case Some(wdlValue) => HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), wdlValue.valueString.md5HashValue)
-      case None => HashResult(HashKey("runtime attribute: " + definition.name, definition.usedInCallCaching), UnspecifiedRuntimeAttributeHashValue)
+        HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), callCachingEligible.dockerHash.get.md5HashValue)
+      case Some(wdlValue) => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), wdlValue.valueString.md5HashValue)
+      case None => HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), UnspecifiedRuntimeAttributeHashValue)
     }}
 
     val inputHashResults = nonFileInputs map {
-      case WdlValueSimpleton(name, value) => HashResult(HashKey(s"input: ${value.wdlType.toWdlString} $name"),  value.toWdlString.md5HashValue)
+      case WdlValueSimpleton(name, value) => HashResult(HashKey("input", s"${value.wdlType.toWdlString} $name"),  value.toWdlString.md5HashValue)
     }
 
     val outputExpressionHashResults = jobDescriptor.call.task.outputs map { output =>
-      HashResult(HashKey(s"output expression: ${output.wdlType.toWdlString} ${output.unqualifiedName}"), output.requiredExpression.valueString.md5HashValue)
+      HashResult(HashKey("output expression", s"${output.wdlType.toWdlString} ${output.unqualifiedName}"), output.requiredExpression.valueString.md5HashValue)
     }
 
     // Build these all together for the final set of initial hashes:
@@ -212,7 +212,7 @@ object CallCacheHashingJobActor {
     val sortedHashes = hashes.toList
       .filter(_.hashKey.checkForHitOrMiss)
       .sortBy(_.hashKey.key)
-      .map({ case HashResult(HashKey(hashKey, _), HashValue(hashValue)) => hashKey + hashValue })
+      .map({ case HashResult(hashKey, HashValue(hashValue)) => hashKey.key + hashValue })
       .map(_.getBytes)
     sortedHashes foreach messageDigest.update
     DatatypeConverter.printHexBinary(messageDigest.digest())

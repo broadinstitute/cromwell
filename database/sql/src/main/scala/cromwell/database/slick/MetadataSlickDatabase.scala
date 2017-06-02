@@ -6,6 +6,7 @@ import cats.data.NonEmptyList
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.SqlConverters._
+import cromwell.database.sql.joins.{AnyMetadataJob, MetadataJob, MetadataJobQueryValue, NoMetadataJob}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -42,7 +43,7 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
   override def queryMetadataEntries(workflowExecutionUuid: String,
                                     callFullyQualifiedName: String,
                                     jobIndex: Option[Int],
-                                    jobAttempt: Int)
+                                    jobAttempt: Option[Int])
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.
       metadataEntriesForJobKey((workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt)).result
@@ -53,7 +54,7 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                     metadataKey: String,
                                     callFullyQualifiedName: String,
                                     jobIndex: Option[Int],
-                                    jobAttempt: Int)
+                                    jobAttempt: Option[Int])
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForJobKeyAndMetadataKey((
       workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt)).result
@@ -62,19 +63,28 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
 
   override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
                                                     metadataKeys: NonEmptyList[String],
-                                                    requireEmptyJobKey: Boolean)
+                                                    metadataJobQueryValue: MetadataJobQueryValue)
                                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
-    val action =
-      dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey).result
+    val action = metadataJobQueryValue match {
+      case MetadataJob(callFqn, jobIndex, jobAttempt) =>
+        dataAccess.metadataEntriesLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
+      case NoMetadataJob => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
+      case AnyMetadataJob => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
+    }
+      
     runTransaction(action)
   }
 
   override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
                                                      metadataKeys: NonEmptyList[String],
-                                                     requireEmptyJobKey: Boolean)
+                                                     metadataJobQueryValue: MetadataJobQueryValue)
                                                     (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
-    val action =
-      dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey).result
+    val action = metadataJobQueryValue match {
+      case MetadataJob(callFqn, jobIndex, jobAttempt) =>
+        dataAccess.metadataEntriesNotLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
+      case NoMetadataJob => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
+      case AnyMetadataJob => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
+    }
     runTransaction(action)
   }
 

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -26,6 +26,9 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
     case response: CallCacheReadActorResponse =>
       currentRequester foreach { _ ! response }
       cycleRequestQueue()
+    case Status.Failure(f) =>
+      currentRequester foreach { _ ! CacheResultLookupFailure(new Exception(s"Call Cache query failure: ${f.getMessage}")) }
+      cycleRequestQueue()
     case other =>
       log.error("Unexpected message type to CallCacheReadActor: " + other.getClass.getSimpleName)
   }
@@ -48,7 +51,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
           case None => CacheLookupNoHit
         }
     }
-    
+
     val recovered = response recover {
       case t => CacheResultLookupFailure(t)
     }
@@ -67,7 +70,7 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
   }
 
   private def receiveNewRequest(request: CallCacheReadActorRequest): Unit = currentRequester match {
-    case Some(x) => requestQueue :+= RequestTuple(sender, request)
+    case Some(_) => requestQueue :+= RequestTuple(sender, request)
     case None =>
       currentRequester = Option(sender)
       runRequest(request)
@@ -90,7 +93,7 @@ object CallCacheReadActor {
   case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
   case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
   case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
-  
+
   sealed trait CallCacheReadActorResponse
   // Responses on whether or not there is at least one matching entry (can for initial matches of file matches)
   case object HasMatchingEntries extends CallCacheReadActorResponse
@@ -99,7 +102,7 @@ object CallCacheReadActor {
   // Responses when asking for the next cache hit
   case class CacheLookupNextHit(hit: CallCachingEntryId) extends CallCacheReadActorResponse
   case object CacheLookupNoHit extends CallCacheReadActorResponse
-  
+
   // Failure Response
   case class CacheResultLookupFailure(reason: Throwable) extends CallCacheReadActorResponse
 }

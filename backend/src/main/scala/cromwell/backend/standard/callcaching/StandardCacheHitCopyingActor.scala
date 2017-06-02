@@ -21,7 +21,6 @@ import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -79,7 +78,7 @@ object StandardCacheHitCopyingActor {
       * returns a pair of the new state data and CommandSetState giving information about what to do next
       */
     def commandComplete(command: IoCommand[_]): (StandardCacheHitCopyingActorData, CommandSetState) = commandsToWaitFor match {
-        // If everything was already done send back current data and AllCommandsDone
+      // If everything was already done send back current data and AllCommandsDone
       case Nil => (this, AllCommandsDone)
       case lastSubset :: Nil =>
         val updatedSubset = lastSubset - command
@@ -95,7 +94,7 @@ object StandardCacheHitCopyingActor {
         else (this.copy(commandsToWaitFor = List(updatedSubset) ++ otherSubsets), StillWaiting)
     }
   }
-  
+
   // Internal ADT to keep track of command set states
   private[callcaching] sealed trait CommandSetState
   private[callcaching] case object StillWaiting extends CommandSetState
@@ -129,28 +128,36 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   when(Idle) {
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
-      val sourceCallRootPath = lookupSourceCallRootPath(jobDetritus)
 
-      val processed = for {
-        (callOutputs, simpletonCopyPairs) <- processSimpletons(simpletons, sourceCallRootPath)
-        (destinationDetritus, detritusCopyPairs) <- processDetritus(jobDetritus)
-      } yield (callOutputs, destinationDetritus, simpletonCopyPairs ++ detritusCopyPairs)
+      // Try to make a Path of the callRootPath from the detritus
+      lookupSourceCallRootPath(jobDetritus) match {
+        case Success(sourceCallRootPath) =>
+          
+          // process simpletons and detritus to get updated paths and corresponding IoCommands
+          val processed = for {
+            (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
+            (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
+          } yield (destinationCallOutputs, destinationDetritus, simpletonIoCommands ++ detritusIoCommands)
 
-      processed match {
-        case Success((callOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
-          duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
-            case Some(Success(_)) => succeedAndStop(returnCode, callOutputs, destinationDetritus)
-            case Some(Failure(failure)) => failAndStop(failure)
-            case None =>
+          processed match {
+            case Success((destinationCallOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
+              duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
+                  // Use the duplicate override if exists
+                case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                case Some(Failure(failure)) => failAndStop(failure)
+                  // Otherwise send the first round of IoCommands (file outputs and detritus) if any
+                case None if detritusAndOutputsIoCommands.nonEmpty =>
+                    detritusAndOutputsIoCommands foreach { sendIoCommand(_) }
 
-              if (detritusAndOutputsIoCommands.nonEmpty) {
-                detritusAndOutputsIoCommands foreach { sendIoCommand(_) }
-                
-                // Add potential additional commands to the list
-                val allCommands = List(detritusAndOutputsIoCommands) ++ additionalIoCommands(simpletons, callOutputs, jobDetritus, destinationDetritus)
-                
-                goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, callOutputs, destinationDetritus, returnCode))
-              } else succeedAndStop(returnCode, callOutputs, destinationDetritus)
+                    // Add potential additional commands to the list
+                  val additionalCommands = additionalIoCommands(sourceCallRootPath, simpletons, destinationCallOutputs, jobDetritus, destinationDetritus)
+                  val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
+
+                    goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, destinationCallOutputs, destinationDetritus, returnCode))
+                case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+              }
+
+            case Failure(failure) => failAndStop(failure)
           }
 
         case Failure(failure) => failAndStop(failure)
@@ -160,11 +167,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   when(WaitingForIoResponses) {
     case Event(IoSuccess(command: IoCommand[_], _), Some(data)) =>
       val (newData, commandState) = data.commandComplete(command)
-      
+
       commandState match {
         case StillWaiting => stay() using Option(newData)
         case AllCommandsDone => succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
-        case NextSubSet(commands) => 
+        case NextSubSet(commands) =>
           commands foreach { sendIoCommand(_) }
           stay() using Option(newData)
       }
@@ -173,16 +180,16 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
 
       val (newData, commandState) = data.commandComplete(command)
-      
+
       commandState match {
-          // If we're still waiting for some responses, go to failed state
+        // If we're still waiting for some responses, go to failed state
         case StillWaiting => goto(FailedState) using Option(newData)
-          // Otherwise we're done
+        // Otherwise we're done
         case _ =>
           context stop self
           stay()
       }
-      // Should not be possible
+    // Should not be possible
     case Event(IoFailure(_: IoCommand[_], failure), None) => failAndStop(failure)
   }
 
@@ -229,11 +236,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  protected def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
-    sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).get recover {
-      case failure =>
-        throw new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}", failure)
-    } get
+  protected def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Try[Path] = {
+    sourceJobDetritusFiles.get(JobPaths.CallRootPathKey) match {
+      case Some(source) => getPath(source)
+      case None => Failure(new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}"))
+    }
   }
 
   private def ioCommandsToCopyPairs(commands: Set[IoCommand[_]]): Set[PathPair] = commands collect {
@@ -292,7 +299,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     * Additional IoCommands that will be sent after (and only after) output and detritus commands complete successfully.
     * See StandardCacheHitCopyingActorData
     */
-  protected def additionalIoCommands(originalSimpletons: Seq[WdlValueSimpleton],
+  protected def additionalIoCommands(sourceCallRootPath: Path,
+                                     originalSimpletons: Seq[WdlValueSimpleton],
                                      newOutputs: CallOutputs,
                                      originalDetritus:  Map[String, String],
                                      newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = List.empty

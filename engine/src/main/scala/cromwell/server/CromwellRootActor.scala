@@ -21,7 +21,7 @@ import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.IoActor
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.lifecycle.CopyWorkflowLogsActor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheDiffActor, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
@@ -107,6 +107,8 @@ import scala.language.postfixOps
   lazy val backendSingletonCollection = BackendSingletonCollection(backendSingletons)
 
   lazy val jobExecutionTokenDispenserActor = context.actorOf(JobExecutionTokenDispenserActor.props)
+  
+  lazy val callCacheDiffActorProps = CallCacheDiffActor.props(serviceRegistryActor)
 
   def abortJobsOnTerminate: Boolean
 

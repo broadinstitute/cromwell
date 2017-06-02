@@ -6,11 +6,13 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core._
+import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection, _}
 import cromwell.engine.backend.BackendConfiguration
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
+import lenthall.exception.AggregatedMessageException
 import lenthall.validation.ErrorOr.ErrorOr
 import org.slf4j.LoggerFactory
 import spray.http.MediaTypes._
@@ -32,6 +34,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def workflowManagerActor: ActorRef
   def workflowStoreActor: ActorRef
   def serviceRegistryActor: ActorRef
+  def callCacheDiffActorProps: Props
 
   def toMap(someInput: Option[String]): Map[String, JsValue] = {
     import spray.json._
@@ -62,11 +65,20 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameters))
   }
 
+  def handleCallCachingDiffRequest(parameters: Seq[(String, String)]): Route = {
+    CallCacheDiffQueryParameter.fromParameters(parameters) match {
+      case Valid(queryParameter) => requestContext => {
+        perRequest(requestContext, callCacheDiffActorProps, queryParameter)
+      }
+      case Invalid(errors) => failBadRequest(AggregatedMessageException("Wrong parameters for call cache diff query", errors.toList))
+    }
+  }
+
   protected def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
     complete((statusCode, APIResponse.fail(t).toJson.prettyPrint))
   }
 
-  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
+  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ callCachingDiffRoute ~
     workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
 
   protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
@@ -130,6 +142,15 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       post {
         withRecognizedWorkflowId(possibleWorkflowId) { id =>
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowAbort(id, workflowManagerActor))
+        }
+      }
+    }
+
+  def callCachingDiffRoute =
+    path("workflows" / Segment / "callcaching" / "diff") { version =>
+      parameterSeq { parameters =>
+        get {
+          handleCallCachingDiffRequest(parameters)
         }
       }
     }

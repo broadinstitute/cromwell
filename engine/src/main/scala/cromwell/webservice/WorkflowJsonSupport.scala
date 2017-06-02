@@ -10,6 +10,7 @@ import MetadataService.{WorkflowQueryResponse, WorkflowQueryResult}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCachingDiff
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
@@ -21,6 +22,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
   implicit val callAttempt = jsonFormat2(CallAttempt)
   implicit val workflowSourceData = jsonFormat4(WorkflowSourceFilesWithoutImports)
+  implicit val callCachingDiff = jsonFormat1(CallCachingDiff)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)

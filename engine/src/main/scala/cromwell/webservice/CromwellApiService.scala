@@ -12,6 +12,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.core._
+import cromwell.webservice.CromwellApiHandler.ApiHandlerCallCachingDiff
 import lenthall.validation.ErrorOr.ErrorOr
 import spray.http.MediaTypes._
 import spray.http._
@@ -32,6 +33,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def workflowManagerActor: ActorRef
   def workflowStoreActor: ActorRef
   def serviceRegistryActor: ActorRef
+  def callCacheReadActor: ActorRef
 
   def toMap(someInput: Option[String]): Map[String, JsValue] = {
     import spray.json._
@@ -62,11 +64,16 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameters))
   }
 
+  def handleCallCachingDiffRequest(parameters: Seq[(String, String)]): Route = {
+    requestContext =>
+      perRequest(requestContext, CromwellApiHandler.props(callCacheReadActor), ApiHandlerCallCachingDiff(parameters))
+  }
+
   protected def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
     complete((statusCode, APIResponse.fail(t).toJson.prettyPrint))
   }
 
-  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
+  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ callCachingDiffRoute ~
     workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
 
   protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
@@ -130,6 +137,15 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       post {
         withRecognizedWorkflowId(possibleWorkflowId) { id =>
           requestContext => perRequest(requestContext, CromwellApiHandler.props(workflowStoreActor), CromwellApiHandler.ApiHandlerWorkflowAbort(id, workflowManagerActor))
+        }
+      }
+    }
+
+  def callCachingDiffRoute =
+    path("workflows" / Segment / "callcaching") { version =>
+      parameterSeq { parameters =>
+        get {
+          handleCallCachingDiffRequest(parameters)
         }
       }
     }

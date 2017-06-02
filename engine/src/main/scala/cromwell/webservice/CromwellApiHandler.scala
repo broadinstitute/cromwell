@@ -8,12 +8,13 @@ import cromwell.core._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheResultLookupFailure, CallCacheDiffRequest, CallCachingDiff}
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
-
+import spray.json._
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
@@ -31,7 +32,7 @@ object CromwellApiHandler {
   final case class ApiHandlerCallOutputs(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
+  final case class ApiHandlerCallCachingDiff(parameters: Seq[(String, String)]) extends ApiHandlerMessage
   case object ApiHandlerEngineStats extends ApiHandlerMessage
 }
 
@@ -74,5 +75,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
     case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(ids) =>
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
       context.parent ! RequestComplete((StatusCodes.OK, responses.toList))
+
+    case ApiHandlerCallCachingDiff(parameters) => requestHandlerActor ! CallCacheDiffRequest(parameters)
+    case callCacheDiff: CallCachingDiff => context.parent ! RequestComplete((StatusCodes.OK, callCacheDiff))
+    case CacheResultLookupFailure(t) => context.parent ! RequestComplete((StatusCodes.OK, APIResponse.fail(t).toJson.prettyPrint))
   }
 }

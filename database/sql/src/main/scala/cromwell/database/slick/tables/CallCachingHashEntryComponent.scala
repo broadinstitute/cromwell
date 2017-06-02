@@ -74,4 +74,65 @@ trait CallCachingHashEntryComponent {
         callCachingEntry.callCachingEntryId, hashKeyHashValues) && callCachingEntry.allowResultReuse
     } yield callCachingEntry.callCachingEntryId).exists
   }
+
+  val callCachingEntriesForWorkflowFqnIndex = Compiled(
+    (
+      callA: (Rep[String], Rep[String],  Rep[Int]),
+      callB: (Rep[String], Rep[String], Rep[Int])
+    ) => {
+
+      // Query that returns the hashes associated with a workflowExecutionUuid / callFqn / jobIndex triplet
+      // The attempt is not part of the filter, which means if there are several attempts stored, all hashes will be returned.
+      // At the time where this is written, hashes for failed (but retried) attempts are not stored. If that behavior were
+      // to change this logic would probably need to be updated.
+      def makeHashQuery(call: (Rep[String], Rep[String],  Rep[Int])) = {
+        val (workflowExecutionUuid, callFqn, jobIndex) = callA
+        for {
+          callCachingEntry <- callCachingEntries
+          if callCachingEntry.workflowExecutionUuid === workflowExecutionUuid
+          if callCachingEntry.callFullyQualifiedName === callFqn
+          if callCachingEntry.jobIndex === jobIndex
+          callCacheHashes <- callCachingHashEntries
+          if callCacheHashes.callCachingEntryId === callCachingEntry.callCachingEntryId
+        } yield callCacheHashes
+      }
+
+      // Hashes for call A
+      val hashEntriesForA = makeHashQuery(callA)
+      // Hashes for call B
+      val hashEntriesForB = makeHashQuery(callB)
+
+      for {
+        simpletons <- hashEntriesForA
+          // Join both hash sets. Full join so we get everything, including hashes in A but not in B and vice versa
+          .joinFull(hashEntriesForB)
+          // Join on hashKeys
+          .on(_.hashKey === _.hashKey)
+          // Only keep hashes for which the values are not the same
+          // Note that because we're dealing with Rep[Option[...]] and not Option[...] 
+          // we can't pattern match the maybeHashes to Some or None
+          .filter({ 
+          case (maybeHashA, maybeHashB) =>
+            // HashKey exists in B but not in A
+            (maybeHashA.isEmpty && maybeHashB.nonEmpty) ||
+            // HashKey exists in A but not in B
+            (maybeHashA.nonEmpty && maybeHashB.isEmpty) ||
+            // HashKey is in both but has different values
+            (for {
+              hashA <- maybeHashA
+              hashB <- maybeHashB
+            } yield hashA.hashValue =!= hashB.hashValue)
+            // Both A and B are null, which should not be possible...  
+            .getOrElse(false)
+          })
+          // Remove duplicates
+          .distinct
+          // Project only hashKey -> hashValue pairs
+          .map({
+            case (maybeHashA, maybeHashB) =>
+              maybeHashA.map(s => s.hashKey -> s.hashValue) -> maybeHashB.map(s => s.hashKey -> s.hashValue)
+          })
+      } yield simpletons
+    }
+  )
 }

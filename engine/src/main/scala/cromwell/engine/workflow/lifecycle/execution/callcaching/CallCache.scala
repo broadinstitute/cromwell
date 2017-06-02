@@ -15,6 +15,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCa
 import cromwell.database.sql.tables._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
+import SqlConverters._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -97,6 +98,10 @@ class CallCache(database: CallCachingSqlDatabase) {
 
   def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
     database.invalidateCall(callCachingEntryId.id)
+  }
+
+  def callCacheDiff(callCachingEntryA: (String, String, Int), callCachingEntryB: (String, String, Int))(implicit ec: ExecutionContext) = {
+    database.diffCallCacheHashes(callCachingEntryA, callCachingEntryB)
   }
 }
 

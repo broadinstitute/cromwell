@@ -430,6 +430,7 @@ object CromwellApiServiceSpec {
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
     override val serviceRegistryActor = actorRefFactory.actorOf(Props.empty)
     override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
+    override val callCacheReadActor = actorRefFactory.actorOf(Props.empty)
 
     override def handleMetadataRequest(message: AnyRef): Route = {
       message match {

@@ -101,4 +101,14 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     
     runTransaction(action)
   }
+
+  override def diffCallCacheHashes(callA: (String, String, Int), callB: (String, String, Int))
+                             (implicit ec: ExecutionContext): Future[Seq[(Option[(String, String)], Option[(String, String)])]] = {
+    val action = for {
+      hashDiff <- dataAccess.
+        callCachingEntriesForWorkflowFqnIndex((callA, callB)).result
+    } yield hashDiff
+
+    runTransaction(action)
+  }
 }

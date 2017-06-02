@@ -103,12 +103,43 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def diffCallCacheHashes(callA: (String, String, Int), callB: (String, String, Int))
-                             (implicit ec: ExecutionContext): Future[Seq[(Option[(String, String)], Option[(String, String)])]] = {
+                             (implicit ec: ExecutionContext): Future[Seq[Map[String, Map[String, Option[String]]]]] = {
+    
+    val callATag = s"${callA._1}:${callA._2}:${callA._3}"
+    val callBTag = s"${callB._1}:${callB._2}:${callB._3}"
+    
     val action = for {
       hashDiff <- dataAccess.
         callCachingEntriesForWorkflowFqnIndex((callA, callB)).result
     } yield hashDiff
 
-    runTransaction(action)
+    runTransaction(action) map { _ map {
+      // If both are Some we assume the keys are the same, as they should be
+      case (Some((keyA, valueA)), Some((_, valueB))) =>
+        Map(
+          keyA -> Map(
+            callATag -> Option(valueA),
+            callBTag -> Option(valueB)
+          )
+        )
+      case (Some((keyA, valueA)), None) =>
+        Map(
+          keyA -> Map(
+            callATag -> Option(valueA),
+            callBTag -> None
+          )
+        )
+      case (None, Some((keyB, valueB))) =>
+        Map(
+          keyB -> Map(
+            callATag -> None,
+            callBTag -> Option(valueB)
+          )
+        )
+        // Should not be possible...
+      case (None, None) =>
+        Map.empty[String, Map[String, Option[String]]]
+    }
+    }
   }
 }

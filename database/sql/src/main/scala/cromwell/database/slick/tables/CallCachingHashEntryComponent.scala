@@ -86,7 +86,7 @@ trait CallCachingHashEntryComponent {
       // At the time where this is written, hashes for failed (but retried) attempts are not stored. If that behavior were
       // to change this logic would probably need to be updated.
       def makeHashQuery(call: (Rep[String], Rep[String],  Rep[Int])) = {
-        val (workflowExecutionUuid, callFqn, jobIndex) = callA
+        val (workflowExecutionUuid, callFqn, jobIndex) = call
         for {
           callCachingEntry <- callCachingEntries
           if callCachingEntry.workflowExecutionUuid === workflowExecutionUuid
@@ -103,7 +103,7 @@ trait CallCachingHashEntryComponent {
       val hashEntriesForB = makeHashQuery(callB)
 
       for {
-        simpletons <- hashEntriesForA
+        hashes <- hashEntriesForA
           // Join both hash sets. Full join so we get everything, including hashes in A but not in B and vice versa
           .joinFull(hashEntriesForB)
           // Join on hashKeys
@@ -132,7 +132,7 @@ trait CallCachingHashEntryComponent {
             case (maybeHashA, maybeHashB) =>
               maybeHashA.map(s => s.hashKey -> s.hashValue) -> maybeHashB.map(s => s.hashKey -> s.hashValue)
           })
-      } yield simpletons
+      } yield hashes
     }
   )
 }

@@ -123,7 +123,7 @@ object CallCacheReadActor {
   case object CacheLookupNoHit extends CallCacheReadActorResponse
   
   // Responses for call cache diff
-  case class CallCachingDiff(diff: Seq[(Option[(String, String)], Option[(String, String)])]) extends CallCacheReadActorResponse
+  case class CallCachingDiff(diff: Seq[Map[String, Map[String, Option[String]]]]) extends CallCacheReadActorResponse
   
   // Failure Response
   case class CacheResultLookupFailure(reason: Throwable) extends CallCacheReadActorResponse

@@ -25,5 +25,5 @@ trait CallCachingSqlDatabase {
                     (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]]
   
   def diffCallCacheHashes(callA: (String, String, Int), callB: (String, String, Int))
-                         (implicit ec: ExecutionContext): Future[Seq[(Option[(String, String)], Option[(String, String)])]]
+                         (implicit ec: ExecutionContext): Future[Seq[Map[String, Map[String, Option[String]]]]]
 }

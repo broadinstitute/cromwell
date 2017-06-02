@@ -3,8 +3,10 @@ package cromwell.filesystems.gcs.auth
 import java.io.FileNotFoundException
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.StatusCodes
 import better.files._
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.http.HttpResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -45,6 +47,17 @@ object GoogleAuthMode {
     override def name = "no_auth"
     override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
       Future.successful(NoCredentials.getInstance())
+    }
+  }
+  
+  def isFatal(ex: Throwable) = {
+    // We wrap the actual exception in a RuntimeException so get the cause
+    ex.getCause match {
+      case http: HttpResponseException =>
+        http.getStatusCode == StatusCodes.Unauthorized.intValue ||
+        http.getStatusCode == StatusCodes.Forbidden.intValue ||
+        http.getStatusCode == StatusCodes.BadRequest.intValue
+      case _ => false
     }
   }
 }
@@ -158,6 +171,7 @@ final case class RefreshTokenMode(name: String,
       () => Future(validateCredential(
         new UserCredentials(clientId, clientSecret, refreshToken, null, GoogleAuthMode.HttpTransportFactory, null)
       )),
+      isFatal = isFatal,
       maxRetries = Option(3)
     )
   }

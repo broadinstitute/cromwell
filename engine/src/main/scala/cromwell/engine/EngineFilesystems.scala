@@ -8,6 +8,9 @@ import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -27,13 +30,10 @@ object EngineFilesystems {
   private val gcsPathBuilderFactory = googleAuthMode map { mode =>
     GcsPathBuilderFactory(mode, googleConf.applicationName)
   }
-  
-  private val defaultFileSystem = if (config.as[Boolean]("engine.filesystems.local.enabled")) {
-    Option(Future.successful(DefaultPathBuilder))
-  } else None
 
-  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[List[PathBuilder]] = {
-    val maybeEventualBuilders = List(gcsPathBuilderFactory map { _.withOptions(workflowOptions) }, defaultFileSystem).flatten
-    Future.sequence(maybeEventualBuilders)
-  }
+  private val defaultFileSystem =
+    Option(DefaultPathBuilder).filter(_ => config.as[Boolean]("engine.filesystems.local.enabled"))
+
+  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[List[PathBuilder]] =
+    gcsPathBuilderFactory.toList.traverse(_.withOptions(workflowOptions)).map(_ ++ defaultFileSystem)
 }

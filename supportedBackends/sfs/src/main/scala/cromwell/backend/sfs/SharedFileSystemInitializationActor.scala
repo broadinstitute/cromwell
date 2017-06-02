@@ -1,11 +1,14 @@
 package cromwell.backend.sfs
 
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardInitializationActor, StandardInitializationActorParams}
 import cromwell.backend.wfs.WorkflowPathBuilder
-import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
@@ -34,12 +37,8 @@ class SharedFileSystemInitializationActor(standardParams: StandardInitialization
     }
   }
 
-  lazy val pathBuilderFactories: List[PathBuilderFactory] =
-    List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
-
-  override lazy val pathBuilders: Future[List[PathBuilder]] = {
-    Future.sequence(pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions) })
-  }
+  override lazy val pathBuilders: Future[List[PathBuilder]] =
+    gcsPathBuilderFactory.toList.traverse(_.withOptions(workflowDescriptor.workflowOptions)).map(_ ++ Option(DefaultPathBuilder))
 
   override lazy val workflowPaths: Future[WorkflowPaths] = pathBuilders map {
     WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, _)

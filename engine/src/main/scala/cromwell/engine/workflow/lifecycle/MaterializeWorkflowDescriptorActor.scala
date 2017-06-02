@@ -139,9 +139,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           // This way we can access it through sender() in the next state and don't have to store the value
           // of replyTo in the data
           pipe(futureDescriptor).to(self, replyTo)
-        case Invalid(error) => workflowInitializationFailed(error, replyTo)
+          goto(MaterializingState)
+        case Invalid(error) => 
+          workflowInitializationFailed(error, replyTo)
+          goto(MaterializationFailedState)
       }
-      goto(MaterializingState)
     case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>
       goto(MaterializationAbortedState)
   }
@@ -182,7 +184,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def workflowInitializationFailed(errors: NonEmptyList[String], replyTo: ActorRef) = {
     sender() ! MaterializeWorkflowDescriptorFailureResponse(
       new IllegalArgumentException with MessageAggregation {
-        val exceptionContext = s"Workflow input processing failed"
+        val exceptionContext = "Workflow input processing failed"
         val errorMessages = errors.toList
       })
   }
@@ -202,9 +204,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation = validateNamespace(sourceFiles)
     val labelsValidation = validateLabels(sourceFiles.labelsJson)
-    (namespaceValidation |@| labelsValidation) map {
-      (_, _)
-    } flatMap { case (namespace, labels) =>
+    
+    (namespaceValidation |@| labelsValidation).tupled flatMap { case (namespace, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       publishLabelsToMetadata(id, namespace.workflow.unqualifiedName, labels)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)

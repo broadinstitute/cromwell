@@ -6,5 +6,5 @@ import cromwell.core.WorkflowOptions
 import scala.concurrent.{ExecutionContext, Future}
 
 case object DefaultPathBuilderFactory extends PathBuilderFactory {
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = Future.successful(DefaultPathBuilder)
+  override def withOptions(options: WorkflowOptions)(implicit actorSystem: ActorSystem, ec: ExecutionContext) = Future.successful(DefaultPathBuilder)
 }

@@ -113,7 +113,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
         callCachingEntriesForWorkflowFqnIndex((callA, callB)).result
     } yield hashDiff
 
-    runTransaction(action) map { _ map {
+    runTransaction(action) map { _.groupBy({
+      case a =>
+    }) map {
       // If both are Some we assume the keys are the same, as they should be
       case (Some((keyA, valueA)), Some((_, valueB))) =>
         Map(

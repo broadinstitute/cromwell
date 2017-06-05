@@ -12,6 +12,8 @@ package object core {
   type FullyQualifiedName = String
   type WorkflowOutputs = Map[FullyQualifiedName, JobOutput]
   type WorkflowOptionsJson = String
+  type WorkflowType = String
+  type WorkflowTypeVersion = String
   type CallOutputs = Map[LocallyQualifiedName, JobOutput]
   type HostInputs = Map[String, WdlValue]
   type EvaluatedRuntimeAttributes = Map[String, WdlValue]

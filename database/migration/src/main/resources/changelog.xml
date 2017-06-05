@@ -65,6 +65,7 @@
     <include file="changesets/call_caching_aggregated_hashes.xml" relativeToChangelogFile="true" />
     <include file="changesets/custom_label_entry.xml" relativeToChangelogFile="true" />
     <include file="changesets/docker_hash_store.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_store_type_and_version.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

@@ -68,7 +68,15 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
       context.parent ! RequestComplete((StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString)))
 
     case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor !
-      WorkflowStoreActor.BatchSubmitWorkflows(sources.map(x => WorkflowSourceFilesCollection(x.wdlSource, x.inputsJson, x.workflowOptionsJson, x.labelsJson, x.importsZipFileOption)))
+      WorkflowStoreActor.BatchSubmitWorkflows(sources.map(w =>
+        WorkflowSourceFilesCollection(
+          wdlSource = w.wdlSource,
+          workflowType = w.workflowType,
+          workflowTypeVersion = w.workflowTypeVersion,
+          inputsJson = w.inputsJson,
+          workflowOptionsJson = w.workflowOptionsJson,
+          labelsJson = w.labelsJson,
+          importsFile = w.importsZipFileOption)))
 
 
     case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(ids) =>

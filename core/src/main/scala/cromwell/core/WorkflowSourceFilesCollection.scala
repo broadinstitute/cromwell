@@ -11,46 +11,45 @@ sealed trait WorkflowSourceFilesCollection {
   def inputsJson: WdlJson
   def workflowOptionsJson: WorkflowOptionsJson
   def labelsJson: WdlJson
-
+  def workflowType: Option[WorkflowType]
+  def workflowTypeVersion: Option[WorkflowTypeVersion]
 
   def importsZipFileOption: Option[Array[Byte]] = this match {
     case _: WorkflowSourceFilesWithoutImports => None
-    case WorkflowSourceFilesWithDependenciesZip(_, _, _, _, importsZip) => Option(importsZip) // i.e. Some(importsZip) if our wiring is correct
+    case w: WorkflowSourceFilesWithDependenciesZip => Option(w.importsZip) // i.e. Some(importsZip) if our wiring is correct
   }
 
   def copyOptions(workflowOptions: WorkflowOptionsJson) = this match {
-    case w: WorkflowSourceFilesWithoutImports => WorkflowSourceFilesWithoutImports(
-      wdlSource = w.wdlSource,
-      inputsJson = w.inputsJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = w.labelsJson)
-
-    case w: WorkflowSourceFilesWithDependenciesZip => WorkflowSourceFilesWithDependenciesZip(
-      wdlSource = w.wdlSource,
-      inputsJson = w.inputsJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = w.labelsJson,
-      importsZip = w.importsZip)
+    case w: WorkflowSourceFilesWithoutImports => w.copy(workflowOptionsJson = workflowOptions)
+    case w: WorkflowSourceFilesWithDependenciesZip => w.copy(workflowOptionsJson = workflowOptions)
   }
 }
 
 object WorkflowSourceFilesCollection {
   def apply(wdlSource: WdlSource,
+            workflowType: Option[WorkflowType],
+            workflowTypeVersion: Option[WorkflowTypeVersion],
             inputsJson: WdlJson,
             workflowOptionsJson: WorkflowOptionsJson,
             labelsJson: WdlJson,
             importsFile: Option[Array[Byte]]): WorkflowSourceFilesCollection = importsFile match {
-    case Some(imports) => WorkflowSourceFilesWithDependenciesZip(wdlSource, inputsJson, workflowOptionsJson, labelsJson, imports)
-    case None => WorkflowSourceFilesWithoutImports(wdlSource, inputsJson, workflowOptionsJson, labelsJson)
+    case Some(imports) =>
+      WorkflowSourceFilesWithDependenciesZip(wdlSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson, imports)
+    case None =>
+      WorkflowSourceFilesWithoutImports(wdlSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson)
   }
 }
 
 final case class WorkflowSourceFilesWithoutImports(wdlSource: WdlSource,
+                                                   workflowType: Option[WorkflowType],
+                                                   workflowTypeVersion: Option[WorkflowTypeVersion],
                                                    inputsJson: WdlJson,
                                                    workflowOptionsJson: WorkflowOptionsJson,
                                                    labelsJson: WdlJson) extends WorkflowSourceFilesCollection
 
 final case class WorkflowSourceFilesWithDependenciesZip(wdlSource: WdlSource,
+                                                        workflowType: Option[WorkflowType],
+                                                        workflowTypeVersion: Option[WorkflowTypeVersion],
                                                         inputsJson: WdlJson,
                                                         workflowOptionsJson: WorkflowOptionsJson,
                                                         labelsJson: WdlJson,

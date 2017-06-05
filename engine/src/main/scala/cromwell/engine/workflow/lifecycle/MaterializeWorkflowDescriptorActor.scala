@@ -204,7 +204,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation = validateNamespace(sourceFiles)
     val labelsValidation = validateLabels(sourceFiles.labelsJson)
-    
+
     (namespaceValidation |@| labelsValidation).tupled flatMap { case (namespace, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       publishLabelsToMetadata(id, namespace.workflow.unqualifiedName, labels)
@@ -249,10 +249,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val backendAssignmentsValidation = validateBackendAssignments(namespace.taskCalls, workflowOptions, defaultBackendName)
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
 
-    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation) map {
-      (_, _, _, _)
-    } flatMap { case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
-      buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, labels, failureMode, pathBuilders, callCachingMode)
+    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation).tupled flatMap {
+      case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
+        buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, labels, failureMode, pathBuilders, callCachingMode)
     }
   }
 

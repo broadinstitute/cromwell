@@ -137,12 +137,27 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   case class PartialWorkflowSources
   (
     wdlSource: Option[WdlSource],
+    workflowType: Option[WorkflowType],
+    workflowTypeVersion: Option[WorkflowTypeVersion],
     workflowInputs: Vector[WdlJson],
     workflowInputsAux: Map[Int, WdlJson],
     workflowOptions: Option[WorkflowOptionsJson],
     customLabels: Option[WdlJson],
     zippedImports: Option[Array[Byte]])
+
   object PartialWorkflowSources {
+    def empty = PartialWorkflowSources(
+      wdlSource = None,
+      // TODO do not hardcode, especially not out here at the boundary layer good gravy
+      workflowType = Option("WDL"),
+      workflowTypeVersion = None,
+      workflowInputs = Vector.empty,
+      workflowInputsAux = Map.empty,
+      workflowOptions = None,
+      customLabels = None,
+      zippedImports = None
+    )
+
     private def workflowInputs(bodyPart: BodyPart): Vector[WdlJson] = {
       import spray.json._
       bodyPart.entity.data.asString.parseJson match {
@@ -175,29 +190,42 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
         case Valid(partialSource) =>
           (validateWdlSource(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions)) map {
             case (wdlSource, wfInputs, wfOptions) =>
-              wfInputs.map(x => WorkflowSourceFilesCollection(wdlSource, x, wfOptions.asPrettyJson, partialSource.customLabels.getOrElse("{}"), partialSource.zippedImports))
+              wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
+                wdlSource = wdlSource,
+                workflowType = partialSource.workflowType,
+                workflowTypeVersion = partialSource.workflowTypeVersion,
+                inputsJson = inputsJson,
+                workflowOptionsJson = wfOptions.asPrettyJson,
+                labelsJson = partialSource.customLabels.getOrElse("{}"),
+                importsFile = partialSource.zippedImports))
           }
         case Invalid(err) => err.invalid
       }
     }
 
     def fromSubmitRoute(formData: MultipartFormData, allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources(None, Vector.empty, Map.empty, None, None, None)) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
-        if (bodyPart.name.contains("wdlSource")) {
-          partialSources.copy(wdlSource = Some(bodyPart.entity.data.asString))
-        } else if (bodyPart.name.contains("workflowInputs")) {
+      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources.empty) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
+        val name = bodyPart.name
+        lazy val data = bodyPart.entity.data
+        if (name.contains("wdlSource")) {
+          partialSources.copy(wdlSource = Option(data.asString))
+        } else if (name.contains("workflowType")) {
+          partialSources.copy(workflowType = Option(data.asString))
+        } else if (name.contains("workflowTypeVersion")) {
+          partialSources.copy(workflowTypeVersion = Option(data.asString))
+        } else if (name.contains("workflowInputs")) {
           partialSources.copy(workflowInputs = workflowInputs(bodyPart))
-        } else if (bodyPart.name.forall(_.startsWith("workflowInputs_"))) {
-          val index = bodyPart.name.get.stripPrefix("workflowInputs_").toInt
-          partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> bodyPart.entity.data.asString))
-        } else if (bodyPart.name.contains("workflowOptions")) {
-          partialSources.copy(workflowOptions = Some(bodyPart.entity.data.asString))
-        } else if (bodyPart.name.contains("wdlDependencies")) {
-          partialSources.copy(zippedImports = Some(bodyPart.entity.data.toByteArray))
-        } else if (bodyPart.name.contains("customLabels")) {
-          partialSources.copy(customLabels = Some(bodyPart.entity.data.asString))
+        } else if (name.forall(_.startsWith("workflowInputs_"))) {
+          val index = name.get.stripPrefix("workflowInputs_").toInt
+          partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.asString))
+        } else if (name.contains("workflowOptions")) {
+          partialSources.copy(workflowOptions = Option(data.asString))
+        } else if (name.contains("wdlDependencies")) {
+          partialSources.copy(zippedImports = Option(data.toByteArray))
+        } else if (name.contains("customLabels")) {
+          partialSources.copy(customLabels = Option(data.asString))
         } else {
-          throw new IllegalArgumentException(s"Unexpected body part name: ${bodyPart.name.getOrElse("None")}")
+          throw new IllegalArgumentException(s"Unexpected body part name: ${name.getOrElse("None")}")
         }
       })
       partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs).errorOrToTry

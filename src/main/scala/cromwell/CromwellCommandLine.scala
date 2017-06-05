@@ -62,8 +62,25 @@ object RunSingle {
 
     val sourceFileCollection = pathParameters.importPath match {
       case Some(p) => (wdl |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
-        WorkflowSourceFilesWithDependenciesZip.apply(w, i, o, l, p.loadBytes) }
-      case None => (wdl |@| inputsJson |@| optionsJson |@| labelsJson) map WorkflowSourceFilesWithoutImports.apply
+        WorkflowSourceFilesWithDependenciesZip.apply(
+          wdlSource = w,
+          workflowType = Option("WDL"),
+          workflowTypeVersion = None,
+          inputsJson = i,
+          workflowOptionsJson = o,
+          labelsJson = l,
+          importsZip = p.loadBytes)
+      }
+      case None => (wdl |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
+        WorkflowSourceFilesWithoutImports.apply(
+          wdlSource = w,
+          workflowType = Option("WDL"),
+          workflowTypeVersion = None,
+          inputsJson = i,
+          workflowOptionsJson = o,
+          labelsJson = l
+        )
+      }
     }
 
     val runSingle: ErrorOr[RunSingle] = for {

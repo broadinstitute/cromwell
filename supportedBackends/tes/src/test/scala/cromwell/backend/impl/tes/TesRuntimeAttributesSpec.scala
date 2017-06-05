@@ -6,7 +6,6 @@ import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import spray.json._
-import wdl4s.parser.MemoryUnit
 import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
@@ -17,9 +16,9 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     "ubuntu:latest",
     None,
     false,
-    1,
-    MemorySize(2, MemoryUnit.GB),
-    MemorySize(2, MemoryUnit.GB)
+    None,
+    None,
+    None
   )
 
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = "ubuntu:latest")
@@ -84,12 +83,12 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid cpu entry" in assertSuccess(
       Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlInteger(2)),
-      expectedDefaultsPlusUbuntuDocker.copy(cpu = 2)
+      expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(2))
     )
 
     "validate a valid cpu string entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "cpu" -> WdlString("2"))
-      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(cpu = 2)
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(cpu = Option(2))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -100,7 +99,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "memory" -> WdlString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize.parse("1 GB").get)
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Option(MemorySize.parse("1 GB").get))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -109,13 +108,13 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertFailure(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
     }
 
-    "validate a valid disks entry" in {
+    "validate a valid disk entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "disk" -> WdlString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(disk = MemorySize.parse("1 GB").get)
+      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(MemorySize.parse("1 GB").get))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "fail to validate an invalid disks entry" in {
+    "fail to validate an invalid disk entry" in {
       val runtimeAttributes = Map("docker" -> WdlString("ubuntu:latest"), "disk" -> WdlString("blah"))
       assertFailure(runtimeAttributes, "Expecting disk runtime attribute to be an Integer or String with format '8 GB'")
     }

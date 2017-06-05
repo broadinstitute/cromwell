@@ -5,7 +5,7 @@ import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.database.sql._
-import cromwell.database.sql.joins.CallCachingJoin
+import cromwell.database.sql.joins.{CallCachingDiffJoin, CallCachingJoin}
 import cromwell.database.sql.tables._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -57,9 +57,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String)
-                                   (implicit ec: ExecutionContext): Future[Boolean] = {
+                                                              (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
-    
+
     runTransaction(action)
   }
 
@@ -69,9 +69,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
 
     runTransaction(action)
   }
-  
+
   override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
-                               (implicit ec: ExecutionContext): Future[Boolean] = {
+                                                            (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
@@ -93,55 +93,37 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def invalidateCall(callCachingEntryId: Int)
-                               (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
+                             (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
     val action = for {
       _ <- dataAccess.allowResultReuseForCallCachingEntryId(callCachingEntryId).update(false)
       callCachingEntryOption <- dataAccess.callCachingEntriesForId(callCachingEntryId).result.headOption
     } yield callCachingEntryOption
-    
+
     runTransaction(action)
   }
 
-  override def diffCallCacheHashes(callA: (String, String, Int), callB: (String, String, Int))
-                             (implicit ec: ExecutionContext): Future[Seq[Map[String, Map[String, Option[String]]]]] = {
+  override def diffCallCacheHashes(workflowIdA: String, callFqnA: String, jobIndexA: Int,
+                                   workflowIdB: String, callFqnB: String, jobIndexB: Int)
+                                  (implicit ec: ExecutionContext): Future[CallCachingDiffJoin] = {
+    val callATag = List(workflowIdA, callFqnA, jobIndexA).mkString(":")
+    val callBTag = List(workflowIdB, callFqnB, jobIndexB).mkString(":")
     
-    val callATag = s"${callA._1}:${callA._2}:${callA._3}"
-    val callBTag = s"${callB._1}:${callB._2}:${callB._3}"
-    
-    val action = for {
-      hashDiff <- dataAccess.
-        callCachingEntriesForWorkflowFqnIndex((callA, callB)).result
-    } yield hashDiff
+    val cacheEntries = for {
+      callCacheEntryA <- dataAccess.callCachingEntriesForWorkflowFqnIndex((workflowIdA, callFqnA, jobIndexA)).result.headOption
+      callCacheEntryB <- dataAccess.callCachingEntriesForWorkflowFqnIndex((workflowIdB, callFqnB, jobIndexB)).result.headOption
+    } yield (callCacheEntryA, callCacheEntryB)
 
-    runTransaction(action) map { _.groupBy({
-      case a =>
-    }) map {
-      // If both are Some we assume the keys are the same, as they should be
-      case (Some((keyA, valueA)), Some((_, valueB))) =>
-        Map(
-          keyA -> Map(
-            callATag -> Option(valueA),
-            callBTag -> Option(valueB)
-          )
-        )
-      case (Some((keyA, valueA)), None) =>
-        Map(
-          keyA -> Map(
-            callATag -> Option(valueA),
-            callBTag -> None
-          )
-        )
-      case (None, Some((keyB, valueB))) =>
-        Map(
-          keyB -> Map(
-            callATag -> None,
-            callBTag -> Option(valueB)
-          )
-        )
-        // Should not be possible...
-      case (None, None) =>
-        Map.empty[String, Map[String, Option[String]]]
+    val hashesDiff = cacheEntries flatMap {
+      case (Some(cacheA), Some(cacheB)) => for {
+        hashes <- dataAccess.callCachingHashDiff((cacheA.callCachingEntryId.get, cacheB.callCachingEntryId.get)).result
+      } yield (cacheA, cacheB, hashes)
+      case (None, Some(_)) => DBIO.failed(new Exception(s"Cannot find a cache entry for $callATag"))
+      case (Some(_), None) => DBIO.failed(new Exception(s"Cannot find a cache entry for $callBTag"))
+      case _ => DBIO.failed(new Exception(s"Cannot find a cache entry for neither $callATag nor $callBTag"))
     }
+
+    runTransaction(hashesDiff) map {
+      case (cacheA, cacheB, diff) => CallCachingDiffJoin(cacheA, cacheB, diff)
     }
   }
 }

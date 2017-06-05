@@ -4,10 +4,11 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.core._
 import cromwell.core.Dispatcher.ApiDispatcher
+import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheResultLookupFailure, CallCacheDiffRequest, CallCachingDiff}
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.webservice.PerRequest.RequestComplete
@@ -32,7 +33,7 @@ object CromwellApiHandler {
   final case class ApiHandlerCallOutputs(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerCallCachingDiff(parameters: Seq[(String, String)]) extends ApiHandlerMessage
+  final case class ApiHandlerCallCachingDiff(queryParameter: CallCacheDiffQueryParameter) extends ApiHandlerMessage
   case object ApiHandlerEngineStats extends ApiHandlerMessage
 }
 
@@ -76,8 +77,8 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
       val responses = ids map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
       context.parent ! RequestComplete((StatusCodes.OK, responses.toList))
 
-    case ApiHandlerCallCachingDiff(parameters) => requestHandlerActor ! CallCacheDiffRequest(parameters)
+    case ApiHandlerCallCachingDiff(queryParameter) => requestHandlerActor ! CallCacheDiffRequest(queryParameter)
     case callCacheDiff: CallCachingDiff => context.parent ! RequestComplete((StatusCodes.OK, callCacheDiff))
-    case CacheResultLookupFailure(t) => context.parent ! RequestComplete((StatusCodes.OK, APIResponse.fail(t).toJson.prettyPrint))
+    case CacheResultLookupFailure(t) => context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.fail(t).toJson.prettyPrint))
   }
 }

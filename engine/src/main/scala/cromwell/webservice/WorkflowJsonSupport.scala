@@ -10,8 +10,9 @@ import MetadataService.{WorkflowQueryResponse, WorkflowQueryResult}
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
+import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCachingDiff
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+import spray.json._
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -22,7 +23,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
   implicit val callAttempt = jsonFormat2(CallAttempt)
   implicit val workflowSourceData = jsonFormat4(WorkflowSourceFilesWithoutImports)
-  implicit val callCachingDiff = jsonFormat1(CallCachingDiff)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)
@@ -30,6 +30,24 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
       case JsString(str) => Paths.get(str)
       case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a File")
     }
+  }
+
+  implicit object callCachingDiffJsonFormat extends RootJsonFormat[CallCachingDiff] {
+    def makeCallObject(cacheEntry: CallCachingEntry) =  JsObject(Map(
+      "workflowId" -> JsString(cacheEntry.workflowExecutionUuid),
+      "callFqn" -> JsString(cacheEntry.callFullyQualifiedName),
+      "jobIndex" -> JsNumber(cacheEntry.jobIndex),
+      "allowResultReuse" -> JsBoolean(cacheEntry.allowResultReuse)
+    ))
+    
+    override def write(obj: CallCachingDiff) = 
+      JsObject(Map(
+        "callA" -> makeCallObject(obj.cacheEntryA),
+        "callB" -> makeCallObject(obj.cacheEntryB),
+        "hashDifferential" -> obj.hashDifferential.toList.toJson
+      ))
+    override def read(json: JsValue): CallCachingDiff = 
+      throw new NotImplementedError(s"Cannot parse json to CallCachingDiff")
   }
 
   implicit val workflowSourceDataWithImports = jsonFormat5(WorkflowSourceFilesWithDependenciesZip)

@@ -1,13 +1,15 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
 import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashResult
+import cromwell.database.sql.joins.CallCachingDiffJoin
+import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 /**
   * Queues up work sent to it because its receive is non-blocking.
@@ -26,7 +28,10 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
     case response: CallCacheReadActorResponse =>
       currentRequester foreach { _ ! response }
       cycleRequestQueue()
-    case other =>
+    case Status.Failure(f) =>
+      currentRequester foreach { _ ! CacheResultLookupFailure(new Exception(s"Call Cache query failure: ${f.getMessage}")) } 
+      cycleRequestQueue()
+    case other => 
       log.error("Unexpected message type to CallCacheReadActor: " + other.getClass.getSimpleName)
   }
 
@@ -47,7 +52,41 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
           case Some(nextHit) => CacheLookupNextHit(nextHit)
           case None => CacheLookupNoHit
         }
-      case CallCacheDiffRequest(parameters) => handleCallCacheDiff(parameters)
+      case CallCacheDiffRequest(parameters) => cache.callCacheDiff(parameters.callA, parameters.callB) map {
+        case CallCachingDiffJoin(cacheEntryA, cacheEntryB, diff) =>
+          val callATag = List(cacheEntryA.workflowExecutionUuid, cacheEntryA.callFullyQualifiedName, cacheEntryA.jobIndex).mkString(":")
+          val callBTag = List(cacheEntryB.workflowExecutionUuid, cacheEntryB.callFullyQualifiedName, cacheEntryB.jobIndex).mkString(":")
+          
+          val formatted = diff map {
+            // If both are Some we assume the keys are the same, as they should be
+            case (Some((keyA, valueA)), Some((_, valueB))) =>
+              Map(
+                keyA -> Map(
+                  callATag -> Option(valueA),
+                  callBTag -> Option(valueB)
+                )
+              )
+            case (Some((keyA, valueA)), None) =>
+              Map(
+                keyA -> Map(
+                  callATag -> Option(valueA),
+                  callBTag -> None
+                )
+              )
+            case (None, Some((keyB, valueB))) =>
+              Map(
+                keyB -> Map(
+                  callATag -> None,
+                  callBTag -> Option(valueB)
+                )
+              )
+            // Should not be possible...
+            case (None, None) =>
+              Map.empty[String, Map[String, Option[String]]]
+          }
+          
+          CallCachingDiff(cacheEntryA, cacheEntryB, formatted)
+      }
     }
     
     val recovered = response recover {
@@ -56,26 +95,6 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
 
     recovered.pipeTo(self)
     ()
-  }
-  
-  private def handleCallCacheDiff(parameters: Seq[(String, String)]) = {
-    val workflowA = parameters.find(_._1 == "workflowA").map(_._2)
-    val workflowB = parameters.find(_._1 == "workflowB").map(_._2)
-    
-    val fqnA = parameters.find(_._1 == "callA").map(_._2)
-    val fqnB = parameters.find(_._1 == "callB").map(_._2)
-    
-    val indexA = parameters.find(_._1 == "indexA").map(_._2.toInt).getOrElse(-1)
-    val indexB = parameters.find(_._1 == "indexB").map(_._2.toInt).getOrElse(-1)
-
-    ((workflowA, fqnA, indexA), (workflowB, fqnB, indexB)) match {
-      case ((Some(wA), Some(cA), iA), (Some(wB), Some(cB), iB)) =>
-        cache.callCacheDiff(
-          (wA, cA, iA),
-          (wB, cB, iB)
-        ) map CallCachingDiff.apply
-      case _ => Future.successful(CacheResultLookupFailure(new Exception(s"Wrong query parameters: $parameters")))
-    }
   }
 
   private def cycleRequestQueue() = requestQueue match {
@@ -111,7 +130,7 @@ object CallCacheReadActor {
   case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
   case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
   case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
-  case class CallCacheDiffRequest(parameters: Seq[(String, String)]) extends CallCacheReadActorRequest
+  case class CallCacheDiffRequest(queryParameter: CallCacheDiffQueryParameter) extends CallCacheReadActorRequest
   
   sealed trait CallCacheReadActorResponse
   // Responses on whether or not there is at least one matching entry (can for initial matches of file matches)
@@ -123,7 +142,10 @@ object CallCacheReadActor {
   case object CacheLookupNoHit extends CallCacheReadActorResponse
   
   // Responses for call cache diff
-  case class CallCachingDiff(diff: Seq[Map[String, Map[String, Option[String]]]]) extends CallCacheReadActorResponse
+  case class CallCachingDiff(cacheEntryA: CallCachingEntry,
+                             cacheEntryB: CallCachingEntry,
+                             hashDifferential: Seq[Map[String, Map[String, Option[String]]]]
+                            ) extends CallCacheReadActorResponse
   
   // Failure Response
   case class CacheResultLookupFailure(reason: Throwable) extends CallCacheReadActorResponse

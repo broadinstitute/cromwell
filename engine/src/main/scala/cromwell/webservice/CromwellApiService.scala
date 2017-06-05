@@ -12,6 +12,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.core._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.webservice.CromwellApiHandler.ApiHandlerCallCachingDiff
 import lenthall.validation.ErrorOr.ErrorOr
 import spray.http.MediaTypes._
@@ -65,8 +66,12 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   def handleCallCachingDiffRequest(parameters: Seq[(String, String)]): Route = {
-    requestContext =>
-      perRequest(requestContext, CromwellApiHandler.props(callCacheReadActor), ApiHandlerCallCachingDiff(parameters))
+    CallCacheDiffQueryParameter.fromParameters(parameters) match {
+      case Success(queryParameter) => requestContext => {
+        perRequest(requestContext, CromwellApiHandler.props(callCacheReadActor), ApiHandlerCallCachingDiff(queryParameter))
+      }
+      case Failure(t) => failBadRequest(t)
+    }
   }
 
   protected def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
@@ -142,7 +147,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     }
 
   def callCachingDiffRoute =
-    path("workflows" / Segment / "callcaching") { version =>
+    path("workflows" / Segment / "callcachingdiff") { version =>
       parameterSeq { parameters =>
         get {
           handleCallCachingDiffRequest(parameters)

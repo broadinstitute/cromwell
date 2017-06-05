@@ -74,41 +74,29 @@ trait CallCachingHashEntryComponent {
         callCachingEntry.callCachingEntryId, hashKeyHashValues) && callCachingEntry.allowResultReuse
     } yield callCachingEntry.callCachingEntryId).exists
   }
+  
+  val callCachingHashDiff = Compiled(
+    (callCachingEntryIdA: Rep[Int], callCachingEntryIdB: Rep[Int]) => {
 
-  val callCachingEntriesForWorkflowFqnIndex = Compiled(
-    (
-      callA: (Rep[String], Rep[String],  Rep[Int]),
-      callB: (Rep[String], Rep[String], Rep[Int])
-    ) => {
-
-      // Query that returns the hashes associated with a workflowExecutionUuid / callFqn / jobIndex triplet
-      // The attempt is not part of the filter, which means if there are several attempts stored, all hashes will be returned.
-      // At the time where this is written, hashes for failed (but retried) attempts are not stored. If that behavior changes
-      // this logic would likely need to be updated.
-      def makeHashQuery(call: (Rep[String], Rep[String],  Rep[Int])) = {
-        val (workflowExecutionUuid, callFqn, jobIndex) = call
+      // Query that returns the hashes associated with a callCachingEntryId
+      def makeHashQuery(callCachingEntryId: Rep[Int]) = {
         for {
-          callCachingEntry <- callCachingEntries
-          if callCachingEntry.workflowExecutionUuid === workflowExecutionUuid
-          if callCachingEntry.callFullyQualifiedName === callFqn
-          if callCachingEntry.jobIndex === jobIndex
           callCacheHashes <- callCachingHashEntries
-          if callCacheHashes.callCachingEntryId === callCachingEntry.callCachingEntryId
-        // Keep the callCachingEntry as well so we can groupBy at the end and get the value for allowResultReuse
-        } yield (callCacheHashes, callCachingEntry)
+          if callCacheHashes.callCachingEntryId === callCachingEntryId
+        } yield callCacheHashes
       }
 
       // Hashes for call A
-      val hashEntriesForA = makeHashQuery(callA)
+      val hashEntriesForA = makeHashQuery(callCachingEntryIdA)
       // Hashes for call B
-      val hashEntriesForB = makeHashQuery(callB)
+      val hashEntriesForB = makeHashQuery(callCachingEntryIdB)
 
       for {
         hashes <- hashEntriesForA
           // Join both hash sets. Full join so we get everything, including hashes in A but not in B and vice versa
           .joinFull(hashEntriesForB)
           // Join on hashKeys
-          .on(_._1.hashKey === _._1.hashKey)
+          .on(_.hashKey === _.hashKey)
           // Only keep hashes for which the values are not the same
           // Note that because we're dealing with Rep[Option[...]] and not Option[...] 
           // we can't pattern match the maybeHashes to Some or None directly
@@ -122,28 +110,17 @@ trait CallCachingHashEntryComponent {
               (for {
                 hashA <- maybeHashA
                 hashB <- maybeHashB
-              } yield hashA._1.hashValue =!= hashB._1.hashValue)
+              } yield hashA.hashValue =!= hashB.hashValue)
                 // Both A and B are null, which should not be possible...  
                 .getOrElse(false)
         })
           // Remove duplicates
           .distinct
-      //          // GroupBy call cache entry
-                .groupBy(_._2)
-        .map(a => {
-          
-        })  
-      //          // Project only hashKey -> hashValue pairs
-      //          .map({
-      //            case (maybeCallCacheEntry, maybeHashes) =>
-      //              for {
-      //                callCacheEntry <- maybeCallCacheEntry
-      //                (maybeHashA, maybeHashB) <- maybeHashes
-      //              } yield (
-      //                  maybeHashA.map(s => s.hashKey -> s.hashValue) -> maybeHashB.map(s => s.hashKey -> s.hashValue)
-      //              )
-      //              
-      //          })
+          // Project only hashKey / hashValues.
+          .map({
+            case (maybeHashA, maybeHashB) =>
+            maybeHashA.map({ hashA => hashA.hashKey -> hashA.hashValue }) -> maybeHashB.map({ hashB => hashB.hashKey -> hashB.hashValue })
+        })
       } yield hashes
     }
   )

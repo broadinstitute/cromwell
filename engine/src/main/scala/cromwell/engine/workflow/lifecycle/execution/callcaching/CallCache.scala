@@ -10,12 +10,11 @@ import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
-import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry, CallCachingHashEntry, CallCachingSimpletonEntry}
+import cromwell.database.sql.tables.{CallCachingDetritusEntry, CallCachingEntry, CallCachingHashEntry, CallCachingSimpletonEntry, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
-import cromwell.database.sql.tables._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
-import SqlConverters._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -100,8 +99,11 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.invalidateCall(callCachingEntryId.id)
   }
 
-  def callCacheDiff(callCachingEntryA: (String, String, Int), callCachingEntryB: (String, String, Int))(implicit ec: ExecutionContext) = {
-    database.diffCallCacheHashes(callCachingEntryA, callCachingEntryB)
+  def callCacheDiff(callA: CallCacheDiffQueryCall, callB: CallCacheDiffQueryCall)(implicit ec: ExecutionContext) = {
+    database.diffCallCacheHashes(
+      callA.workflowId, callA.callFqn, callA.jobIndex.fromIndex,
+      callB.workflowId, callB.callFqn, callB.jobIndex.fromIndex
+    )
   }
 }
 

@@ -15,6 +15,10 @@ trait WorkflowStoreEntryComponent {
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
 
+    def workflowType = column[String]("WORKFLOW_TYPE", O.Length(30))
+
+    def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION")
+
     def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
 
     def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
@@ -29,7 +33,7 @@ trait WorkflowStoreEntryComponent {
 
     def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
-    override def * = (workflowExecutionUuid, workflowDefinition, workflowInputs, workflowOptions, workflowState,
+    override def * = (workflowExecutionUuid, workflowDefinition, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
       submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> (WorkflowStoreEntry.tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)

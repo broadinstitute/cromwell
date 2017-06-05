@@ -4,6 +4,8 @@ import better.files.File
 
 sealed trait WorkflowSubmission {
   val wdl: String
+  val workflowType: Option[String]
+  val workflowTypeVersion: Option[String]
   val inputsJson: Option[String]
   val options: Option[String]
   val customLabels: Option[List[Label]]
@@ -12,6 +14,8 @@ sealed trait WorkflowSubmission {
 }
 
 final case class WorkflowSingleSubmission(wdl: String,
+                                          workflowType: Option[String],
+                                          workflowTypeVersion: Option[String],
                                           inputsJson: Option[String],
                                           options: Option[String],
                                           customLabels: Option[List[Label]],
@@ -19,11 +23,13 @@ final case class WorkflowSingleSubmission(wdl: String,
                                           refreshToken: Option[String]) extends WorkflowSubmission
 
 final case class WorkflowBatchSubmission(wdl: String,
-                                   inputsBatch: List[String],
-                                   options: Option[String],
-                                   customLabels: Option[List[Label]],
-                                   zippedImports: Option[File],
-                                   refreshToken: Option[String]) extends WorkflowSubmission {
+                                         workflowType: Option[String],
+                                         workflowTypeVersion: Option[String],
+                                         inputsBatch: List[String],
+                                         options: Option[String],
+                                         customLabels: Option[List[Label]],
+                                         zippedImports: Option[File],
+                                         refreshToken: Option[String]) extends WorkflowSubmission {
 
-  override val inputsJson: Option[String] = Option(inputsBatch.mkString(start="[", sep=",", end="]"))
+  override val inputsJson: Option[String] = Option(inputsBatch.mkString(start = "[", sep = ",", end = "]"))
 }

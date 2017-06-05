@@ -23,6 +23,7 @@ import scala.language.postfixOps
 
 class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter with Mockito {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources()
+  val helloCwlWorldSourceFiles = HelloWorld.asWorkflowSources(workflowType = Option("CWL"), workflowTypeVersion = Option("v1.0"))
 
   val database: SqlDatabase = mock[SqlDatabase]
   when(database.removeDockerHashStoreEntries(any[String])(any[ExecutionContext])).thenReturn(Future.successful(1))
@@ -69,9 +70,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
     "fetch exactly N workflows" in {
       val store = new InMemoryWorkflowStore
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, database))
-      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
+      storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
-
 
       storeActor ! FetchRunnableWorkflows(2)
       expectMsgPF(10 seconds) {
@@ -82,6 +82,19 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloWorldSourceFiles)
+              state shouldBe WorkflowStoreState.Submitted
+          }
+      }
+
+      storeActor ! FetchRunnableWorkflows(1)
+      expectMsgPF(10 seconds) {
+        case NewWorkflowsToStart(workflowNel) =>
+          workflowNel.toList.size shouldBe 1
+          checkDistinctIds(workflowNel.toList) shouldBe true
+          workflowNel map {
+            case WorkflowToStart(id, sources, state) =>
+              insertedIds.contains(id) shouldBe true
+              sources shouldBe prettyOptions(helloCwlWorldSourceFiles)
               state shouldBe WorkflowStoreState.Submitted
           }
       }
@@ -142,7 +155,6 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
       val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, database))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
-
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {

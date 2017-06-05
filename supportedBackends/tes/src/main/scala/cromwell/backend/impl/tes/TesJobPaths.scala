@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import com.typesafe.config.Config
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
-import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
+import cromwell.core.path._
 
 object TesJobPaths {
   def apply(jobKey: BackendJobDescriptorKey,
@@ -28,18 +28,13 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
   val callInputsDockerRoot = callDockerRoot.resolve("inputs")
   val callInputsRoot = callRoot.resolve("inputs")
 
-  //TODO move to TesConfiguration
-  private def prefixScheme(path: String): String = "file://" + path
-
-  def storageInput(path: String): String = prefixScheme(path)
-
   // Given an output path, return a path localized to the storage file system
   def storageOutput(path: String): String = {
-    prefixScheme(callExecutionRoot.resolve(path).toString)
+    callExecutionRoot.resolve(path).toString
   }
 
   def containerInput(path: String): String = {
-    cleanContainerInputPath(callInputsDockerRoot, DefaultPathBuilder.get(path))
+    cleanContainerInputPath(callInputsDockerRoot, path)
   }
 
   // Given an output path, return a path localized to the container file system
@@ -53,12 +48,15 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
     cwd.resolve(path).toString
   }
 
-  private def cleanContainerInputPath(inputDir: Path, path: Path): String = {
-    path.toAbsolutePath match {
-      case p if p.startsWith(callExecutionRoot) =>
-        callExecutionDockerRoot.resolve(p.getFileName.toString).toString
+  private def cleanContainerInputPath(inputDir: Path, path: String): String = {
+    path match {
+      case p if p.startsWith("gs:") =>
+        inputDir.resolve(p.replaceFirst("gs:/?/?", "")).pathAsString
+      case p if p.startsWith(callExecutionRoot.pathAsString) =>
+        val f = DefaultPathBuilder.get(p)
+        callExecutionDockerRoot.resolve(f.name).pathAsString
       case p =>
-        inputDir + p.toString
+        inputDir.resolve(p).pathAsString
     }
   }
 }

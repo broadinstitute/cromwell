@@ -841,7 +841,7 @@ backend {
     TES {
       actor-factory = "cromwell.backend.impl.tes.TesBackendLifecycleActorFactory"
       config {
-        endpoint = "https://<some-url>/v1/jobs"
+        endpoint = "https://<some-url>/v1/tasks"
         root = "cromwell-executions"
         dockerRoot = "/cromwell-executions"
         concurrent-job-limit = 1000
@@ -859,16 +859,13 @@ This backend supports the following optional runtime attributes / workflow optio
 * docker: Docker image to use such as "Ubuntu".
 * dockerWorkingDir: defines the working directory in the container.
 
-Outputs:
-It will use `dockerOutputDir` runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no `dockerWorkingDir` defined it will use `/cromwell-executions/<workflow_uuid>/call-<call_name>/execution`.
-
 ### CPU, Memory and Disk
 This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
-* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
-* memory: defines the amount of memory to use. Default value: "2 GB". Type: String. Ex: "4 GB" or "4096 MB"
-* disk: defines the amount of disk to use. Default value: "2 GB". Type: String. Ex: "1 GB" or "1024 MB"
+* cpu: defines the amount of CPU to use. Type: Integer. Ex: 4.
+* memory: defines the amount of memory to use. Type: String. Ex: "4 GB" or "4096 MB"
+* disk: defines the amount of disk to use. Type: String. Ex: "1 GB" or "1024 MB"
 
-It they are not set, the TES backend will use default values.
+If they are not set, the TES backend may use default values.
 
 ## Sun GridEngine Backend
 

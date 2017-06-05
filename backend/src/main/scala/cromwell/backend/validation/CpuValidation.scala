@@ -18,6 +18,7 @@ import wdl4s.values.{WdlInteger, WdlValue}
   */
 object CpuValidation {
   lazy val instance: RuntimeAttributesValidation[Int] = new CpuValidation
+  lazy val optional: OptionalRuntimeAttributesValidation[Int] = instance.optional
   lazy val default: WdlValue = WdlInteger(1)
   def configDefaultWdlValue(config: Option[Config]): Option[WdlValue] = instance.configDefaultWdlValue(config)
 }

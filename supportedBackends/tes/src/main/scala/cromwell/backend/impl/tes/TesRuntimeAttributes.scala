@@ -6,43 +6,30 @@ import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.parser.MemoryUnit
-import wdl4s.values.{WdlInteger, WdlString, WdlValue}
-
-import scala.util.{Failure, Success}
+import wdl4s.values.{WdlString, WdlValue}
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
                                 dockerWorkingDir: Option[String],
                                 failOnStderr: Boolean,
-                                cpu: Int,
-                                memory: MemorySize,
-                                disk: MemorySize)
+                                cpu: Option[Int],
+                                memory: Option[MemorySize],
+                                disk: Option[MemorySize])
 
 object TesRuntimeAttributes {
 
   val DockerWorkingDirKey = "dockerWorkingDir"
-
-  private val MemoryDefaultValue = "2 GB"
-
   val DiskSizeKey = "disk"
-  private val DiskSizeDefaultValue = "2 GB"
 
-  private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = CpuValidation.instance
-    .withDefault(CpuValidation.configDefaultWdlValue(runtimeConfig) getOrElse CpuValidation.default)
+  private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int] = CpuValidation.optional
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) = ContinueOnReturnCodeValidation.default(runtimeConfig)
 
-  private def diskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = DiskSizeValidation
-    .withDefaultDiskSize(DiskSizeValidation.configDefaultString(runtimeConfig) getOrElse DiskSizeDefaultValue)
+  private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] = MemoryValidation.optional(DiskSizeKey)
 
-  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
-    MemoryValidation.withDefaultMemory(
-      RuntimeAttributesKeys.MemoryKey,
-      MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
-  }
+  private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] = MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
@@ -60,9 +47,9 @@ object TesRuntimeAttributes {
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, backendRuntimeConfig: Option[Config]): TesRuntimeAttributes = {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val dockerWorkingDir: Option[String] = RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
-    val cpu: Int = RuntimeAttributesValidation.extract(cpuValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val disk: MemorySize = RuntimeAttributesValidation.extract(diskSizeValidation(backendRuntimeConfig), validatedRuntimeAttributes)
+    val cpu: Option[Int] = RuntimeAttributesValidation.extractOption(cpuValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val memory: Option[MemorySize] = RuntimeAttributesValidation.extractOption(memoryValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val disk: Option[MemorySize] = RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode =
@@ -91,58 +78,4 @@ class DockerWorkingDirValidation extends StringRuntimeAttributesValidation(TesRu
     case WdlString(value) => value.validNel
   }
 }
-
-object DiskSizeValidation {
-  lazy val instance: RuntimeAttributesValidation[MemorySize] = new DiskSizeValidation
-  lazy val optional: OptionalRuntimeAttributesValidation[MemorySize] = instance.optional
-  def configDefaultString(runtimeConfig: Option[Config]): Option[String] = instance.configDefaultValue(runtimeConfig)
-  def withDefaultDiskSize(memorySize: String): RuntimeAttributesValidation[MemorySize] = {
-    MemorySize.parse(memorySize) match {
-      case Success(memory) => instance.withDefault(WdlInteger(memory.bytes.toInt))
-      case Failure(_) => instance.withDefault(BadDefaultAttribute(WdlString(memorySize.toString)))
-    }
-  }
-
-  private val wrongAmountFormat =
-    s"Expecting ${TesRuntimeAttributes.DiskSizeKey} runtime attribute value greater than 0 but got %s"
-  private val wrongTypeFormat =
-    s"Expecting ${TesRuntimeAttributes.DiskSizeKey} runtime attribute to be an Integer or String with format '8 GB'." +
-      s" Exception: %s"
-
-  def validateDiskSizeString(wdlString: WdlString): ErrorOr[MemorySize] =
-    validateDiskSizeString(wdlString.value)
-
-  def validateDiskSizeString(value: String): ErrorOr[MemorySize] = {
-    MemorySize.parse(value) match {
-      case scala.util.Success(memorySize: MemorySize) if memorySize.amount > 0 =>
-        memorySize.to(MemoryUnit.GB).validNel
-      case scala.util.Success(memorySize: MemorySize) =>
-        wrongAmountFormat.format(memorySize.amount).invalidNel
-      case scala.util.Failure(throwable) =>
-        wrongTypeFormat.format(throwable.getMessage).invalidNel
-    }
-  }
-
-  def validateDiskSizeInteger(wdlInteger: WdlInteger): ErrorOr[MemorySize] =
-    validateDiskSizeInteger(wdlInteger.value)
-
-  def validateDiskSizeInteger(value: Int): ErrorOr[MemorySize] = {
-    if (value <= 0)
-      wrongAmountFormat.format(value).invalidNel
-    else
-      MemorySize(value.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).validNel
-  }
-}
-
-class DiskSizeValidation extends MemoryValidation {
-  override def key = TesRuntimeAttributes.DiskSizeKey
-
-  override protected def validateValue: PartialFunction[WdlValue, ErrorOr[MemorySize]] = {
-    case WdlInteger(value) => DiskSizeValidation.validateDiskSizeInteger(value)
-    case WdlString(value) => DiskSizeValidation.validateDiskSizeString(value)
-  }
-
-  override def missingValueMessage: String = DiskSizeValidation.wrongTypeFormat.format("Not supported WDL type value")
-}
-
 

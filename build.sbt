@@ -9,7 +9,7 @@ resolvers ++= List(
   "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
 )
 
-val cromwellV = "28-4487a51-SNAP"
+val cromwellV = "28-be90591-SNAP"
 
 val akkaV = "2.4.17"
 val akkaHttpV = "10.0.5"

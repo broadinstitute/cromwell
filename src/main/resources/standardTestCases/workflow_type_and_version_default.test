@@ -1,0 +1,11 @@
+name: workflow_type_and_version_default
+testFormat: workflowsuccess
+
+files {
+  wdl: workflow_type_and_version_default/workflow_type_and_version_default.wdl
+}
+
+metadata {
+  workflowName: workflow_type_and_version_default
+  "submittedFiles.workflowType": WDL
+}

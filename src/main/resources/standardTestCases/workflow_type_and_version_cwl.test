@@ -1,0 +1,15 @@
+name: workflow_type_and_version_cwl
+testFormat: workflowsuccess
+
+files {
+  wdl: workflow_type_and_version_cwl/workflow_type_and_version_cwl.wdl
+}
+
+workflowType: CWL
+workflowTypeVersion: v1.0
+
+metadata {
+  workflowName: workflow_type_and_version_cwl
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+}

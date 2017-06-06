@@ -147,7 +147,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     }
 
   def callCachingDiffRoute =
-    path("workflows" / Segment / "callcachingdiff") { version =>
+    path("workflows" / Segment / "callcaching" / "diff") { version =>
       parameterSeq { parameters =>
         get {
           handleCallCachingDiffRequest(parameters)

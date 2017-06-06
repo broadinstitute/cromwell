@@ -6,6 +6,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core._
+import cromwell.database.slick.CallCachingSlickDatabase.CacheEntriesNotFoundException
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
@@ -15,7 +16,6 @@ import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
-import spray.json._
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
@@ -58,12 +58,13 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
     case WorkflowStoreEngineActor.WorkflowAborted(id) =>
       context.parent ! RequestComplete((StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
     case WorkflowStoreEngineActor.WorkflowAbortFailed(_, e) =>
-      error(e) {
+      val response = error(e) {
         case _: IllegalStateException => RequestComplete((StatusCodes.Forbidden, APIResponse.error(e)))
         case _: WorkflowNotFoundException => RequestComplete((StatusCodes.NotFound, APIResponse.error(e)))
         case _ => RequestComplete((StatusCodes.InternalServerError, APIResponse.error(e)))
       }
 
+      context.parent ! response
     case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowStoreActor.SubmitWorkflow(source)
 
     case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id) =>
@@ -79,6 +80,11 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
 
     case ApiHandlerCallCachingDiff(queryParameter) => requestHandlerActor ! CallCacheDiffRequest(queryParameter)
     case callCacheDiff: CallCachingDiff => context.parent ! RequestComplete((StatusCodes.OK, callCacheDiff))
-    case CacheResultLookupFailure(t) => context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.fail(t).toJson.prettyPrint))
+    case CacheResultLookupFailure(t) => t match {
+      case _: CacheEntriesNotFoundException =>
+        context.parent ! RequestComplete((StatusCodes.NotFound, APIResponse.error(t)))
+      case _ =>
+        context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(t)))
+    }
   }
 }

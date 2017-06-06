@@ -4,11 +4,22 @@ import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
+import cromwell.database.slick.CallCachingSlickDatabase.CacheEntriesNotFoundException
 import cromwell.database.sql._
 import cromwell.database.sql.joins.{CallCachingDiffJoin, CallCachingJoin}
 import cromwell.database.sql.tables._
 
 import scala.concurrent.{ExecutionContext, Future}
+
+object CallCachingSlickDatabase {
+  case class CacheEntriesNotFoundException(queries: NonEmptyList[String]) extends Exception(
+    if (queries.tail.isEmpty) {
+      s"Cannot find a cache entry for ${queries.head}"
+    } else {
+      s"Cannot find cache entries for ${queries.head}, ${queries.tail.mkString(",")}"
+    }
+  )
+}
 
 trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: SlickDatabase =>
@@ -117,9 +128,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
       case (Some(cacheA), Some(cacheB)) => for {
         hashes <- dataAccess.callCachingHashDiff((cacheA.callCachingEntryId.get, cacheB.callCachingEntryId.get)).result
       } yield (cacheA, cacheB, hashes)
-      case (None, Some(_)) => DBIO.failed(new Exception(s"Cannot find a cache entry for $callATag"))
-      case (Some(_), None) => DBIO.failed(new Exception(s"Cannot find a cache entry for $callBTag"))
-      case _ => DBIO.failed(new Exception(s"Cannot find a cache entry for neither $callATag nor $callBTag"))
+      case (None, Some(_)) => DBIO.failed(CacheEntriesNotFoundException(NonEmptyList.of(callATag)))
+      case (Some(_), None) => DBIO.failed(CacheEntriesNotFoundException(NonEmptyList.of(callBTag)))
+      case _ => DBIO.failed(CacheEntriesNotFoundException(NonEmptyList.of(callATag, callBTag)))
     }
 
     runTransaction(hashesDiff) map {

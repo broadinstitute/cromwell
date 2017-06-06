@@ -425,7 +425,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
   behavior of "REST API /callcachingdiff GET endpoint"
   it should "return good results for a good query" in {
-    Get(s"/workflows/$version/callcachingdiff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello") ~>
+    Get(s"/workflows/$version/callcaching/diff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello") ~>
       cromwellApiService.callCachingDiffRoute ~>
       check {
         assertResult(StatusCodes.OK) {
@@ -468,7 +468,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   }
   
   it should "return an error for a bad query" in {
-    Get(s"/workflows/$version/callcachingdiff?missingStuff") ~>
+    Get(s"/workflows/$version/callcaching/diff?missingStuff") ~>
       cromwellApiService.callCachingDiffRoute ~>
       check {
         assertResult(StatusCodes.BadRequest) {

@@ -384,9 +384,9 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/callcaching':
+  '/workflows/{version}/callcaching/diff':
     get:
-      summary: Return the diff of hashes between to calls
+      summary: Return the hash differential between to calls
       parameters:
         - name: version
           description: API Version
@@ -426,6 +426,15 @@ paths:
           in: query
       tags:
         - Workflows
+      responses:
+        '200':
+          description: Successful Request
+        '400':
+          description: Malformed query parameters
+        '404':
+          description: No matching cache entry
+        '500':
+          description: Internal Error
       security:
         - google_oauth:
             - openid

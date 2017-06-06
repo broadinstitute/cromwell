@@ -2,13 +2,16 @@ package cromwell.backend.impl.tes
 
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
-import wdl4s.TaskCall
 import net.ceedubs.ficus.Ficus._
+import wdl4s.TaskCall
 
 import scala.concurrent.Future
 
@@ -44,12 +47,8 @@ class TesInitializationActor(params: TesInitializationActorParams)
     }
   }
 
-  lazy val pathBuilderFactories: List[PathBuilderFactory] =
-    List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
-
-  override lazy val pathBuilders: Future[List[PathBuilder]] = {
-    Future.sequence(pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions) })
-  }
+  override lazy val pathBuilders: Future[List[PathBuilder]] =
+    gcsPathBuilderFactory.toList.traverse(_.withOptions(workflowDescriptor.workflowOptions)).map(_ ++ Option(DefaultPathBuilder))
 
   override lazy val workflowPaths: Future[TesWorkflowPaths] = pathBuilders map {
     new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, _)

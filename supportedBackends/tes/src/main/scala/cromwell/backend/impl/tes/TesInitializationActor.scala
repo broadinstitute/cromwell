@@ -29,6 +29,8 @@ class TesInitializationActor(params: TesInitializationActorParams)
   extends StandardInitializationActor(params) {
 
   private val tesConfiguration = params.tesConfiguration
+  
+  private implicit val system = context.system
 
   /**
     * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.

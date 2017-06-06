@@ -58,7 +58,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           ejea ! successResponse
 
           if (cacheUpdateRequired) {
-            expectCacheWrite(successResponse, finalHashData.get.get)
+            expectCacheWriteForSuccessfulJob(successResponse, finalHashData.get.get)
           } else {
             expectJobStoreWrite(SucceededResponseData(successResponse, finalHashData))
           }
@@ -84,7 +84,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           }
 
           if (cacheUpdateRequired) {
-            expectCacheWrite(successResponse, finalHashData.get.get)
+            expectCacheWriteForSuccessfulJob(successResponse, finalHashData.get.get)
           } else {
             expectJobStoreWrite(SucceededResponseData(successResponse, finalHashData))
           }

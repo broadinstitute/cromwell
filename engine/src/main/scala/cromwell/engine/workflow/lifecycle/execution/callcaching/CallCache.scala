@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.NonEmptyList
-import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
-import cromwell.core.ExecutionIndex.IndexEnhancedIndex
-import cromwell.core.WorkflowId
+import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
 import cromwell.core.callcaching.HashResult
 import cromwell.core.path.Path
 import cromwell.core.simpleton.WdlValueSimpleton
+import cromwell.core.{CallOutputs, FullyQualifiedName, JobOutput, LocallyQualifiedName, WorkflowId}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
@@ -27,14 +27,14 @@ class CallCache(database: CallCachingSqlDatabase) {
     val joins = bundles map { b =>
       val metaInfo = CallCachingEntry(
         workflowExecutionUuid = b.workflowId.toString,
-        callFullyQualifiedName = b.response.jobKey.call.fullyQualifiedName,
-        jobIndex = b.response.jobKey.index.fromIndex,
-        jobAttempt = Option(b.response.jobKey.attempt),
-        returnCode = b.response.returnCode,
-        allowResultReuse = true)
+        callFullyQualifiedName = b.fullyQualifiedName,
+        jobIndex = b.jobIndex.fromIndex,
+        jobAttempt = b.jobAttempt,
+        returnCode = b.returnCode,
+        allowResultReuse = b.allowResultReuse)
       import cromwell.core.simpleton.WdlValueSimpleton._
-      val result = b.response.jobOutputs.mapValues(_.wdlValue).simplify
-      val jobDetritus = b.response.jobDetritusFiles.getOrElse(Map.empty)
+      val result = b.callOutputs.mapValues(_.wdlValue).simplify
+      val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
     }
 
@@ -108,5 +108,44 @@ class CallCache(database: CallCachingSqlDatabase) {
 }
 
 object CallCache {
-  case class CallCacheHashBundle(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, response: JobSucceededResponse)
+  object CallCacheHashBundle {
+    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobSucceededResponse: JobSucceededResponse) = {
+      new CallCacheHashBundle(
+        workflowId,
+        callCacheHashes,
+        jobSucceededResponse.jobKey.call.fullyQualifiedName,
+        jobSucceededResponse.jobKey.index,
+        Option(jobSucceededResponse.jobKey.attempt),
+        jobSucceededResponse.returnCode,
+        true,
+        jobSucceededResponse.jobOutputs,
+        jobSucceededResponse.jobDetritusFiles
+      )
+    }
+
+    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobFailedNonRetryableResponse: JobFailedNonRetryableResponse) = {
+      new CallCacheHashBundle(
+        workflowId,
+        callCacheHashes,
+        jobFailedNonRetryableResponse.jobKey.scope.fullyQualifiedName,
+        jobFailedNonRetryableResponse.jobKey.index,
+        Option(jobFailedNonRetryableResponse.jobKey.attempt),
+        None,
+        false,
+        Map.empty[LocallyQualifiedName, JobOutput],
+        None
+      )
+    }
+  }
+  case class CallCacheHashBundle private (
+                                           workflowId: WorkflowId,
+                                           callCacheHashes: CallCacheHashes,
+                                           fullyQualifiedName: FullyQualifiedName,
+                                           jobIndex: ExecutionIndex,
+                                           jobAttempt: Option[Int],
+                                           returnCode: Option[Int],
+                                           allowResultReuse: Boolean,
+                                           callOutputs: CallOutputs,
+                                           jobDetritusFiles: Option[Map[String, Path]]
+                                         )
 }

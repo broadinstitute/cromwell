@@ -21,7 +21,6 @@ import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import wdl4s.values.WdlFile
 
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -92,26 +91,31 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   when(Idle) {
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
-      val sourceCallRootPath = lookupSourceCallRootPath(jobDetritus)
+      lookupSourceCallRootPath(jobDetritus) match {
+        case Success(sourceCallRootPath) =>
+          val processed = for {
+            (callOutputs, simpletonCopyPairs) <- processSimpletons(simpletons, sourceCallRootPath)
+            (destinationDetritus, detritusCopyPairs) <- processDetritus(jobDetritus)
+          } yield (callOutputs, destinationDetritus, simpletonCopyPairs ++ detritusCopyPairs)
 
-      val processed = for {
-        (callOutputs, simpletonCopyPairs) <- processSimpletons(simpletons, sourceCallRootPath)
-        (destinationDetritus, detritusCopyPairs) <- processDetritus(jobDetritus)
-      } yield (callOutputs, destinationDetritus, simpletonCopyPairs ++ detritusCopyPairs)
+          processed match {
+            case Success((callOutputs, destinationDetritus, allCopyPairs)) =>
+              duplicate(allCopyPairs) match {
+                case Some(Success(_)) => succeedAndStop(returnCode, callOutputs, destinationDetritus)
+                case Some(Failure(failure)) => failAndStop(failure)
+                case None =>
+                  val allCopyCommands = allCopyPairs map { case (source, destination) => copyCommand(source, destination, overwrite = true) }
 
-      processed match {
-        case Success((callOutputs, destinationDetritus, allCopyPairs)) =>
-          duplicate(allCopyPairs) match {
-            case Some(Success(_)) => succeedAndStop(returnCode, callOutputs, destinationDetritus)
-            case Some(Failure(failure)) => failAndStop(failure)
-            case None =>
-              val allCopyCommands = allCopyPairs map { case (source, destination) => copyCommand(source, destination, overwrite = true) }
+                  allCopyCommands foreach {
+                    sendIoCommand(_)
+                  }
 
-              allCopyCommands foreach { sendIoCommand(_) }
+                  goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
+              }
 
-              goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
+            case Failure(failure) => failAndStop(failure)
           }
-
+          
         case Failure(failure) => failAndStop(failure)
       }
   }
@@ -154,11 +158,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
-    sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).get recover {
-      case failure =>
-        throw new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}", failure)
-    } get
+  private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Try[Path] = {
+    sourceJobDetritusFiles.get(JobPaths.CallRootPathKey) match {
+      case Some(source) => getPath(source)
+      case None => Failure(new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}"))
+    }
   }
 
   /**
@@ -193,12 +197,12 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case ((detrituses, commands), detritus) =>
         val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get
         val destinationPath = destinationJobDetritusPaths(detritus)
-        
+
         val newDetrituses = detrituses + (detritus -> destinationPath)
-        
+
         (newDetrituses, commands + ((sourcePath, destinationPath)))
     })
-    
+
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
   }
 

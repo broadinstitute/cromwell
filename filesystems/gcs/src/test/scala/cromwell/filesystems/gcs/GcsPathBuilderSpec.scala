@@ -1,9 +1,10 @@
 package cromwell.filesystems.gcs
 
+import com.google.cloud.NoCredentials
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.auth.{GoogleAuthMode, GoogleAuthModeSpec}
+import cromwell.filesystems.gcs.auth.GoogleAuthModeSpec
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -16,15 +17,15 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
 
     val wfOptionsWithProject = WorkflowOptions.fromMap(Map("google_project" -> "my_project")).get
 
-    val gcsPathBuilderWithProjectInfo = new GcsPathBuilder(
-      GoogleAuthMode.MockAuthMode,
+    val gcsPathBuilderWithProjectInfo = GcsPathBuilder.fromCredentials(
+      NoCredentials.getInstance(),
       "cromwell-test",
       None,
       CloudStorageConfiguration.DEFAULT,
       wfOptionsWithProject
     )
 
-    gcsPathBuilderWithProjectInfo.getProjectId shouldBe "my_project"
+    gcsPathBuilderWithProjectInfo.projectId shouldBe "my_project"
   }
 
   it should behave like truncateCommonRoots(pathBuilder, pathsToTruncate)
@@ -357,8 +358,8 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
   private lazy val pathBuilder = {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
-    new GcsPathBuilder(
-      GoogleAuthMode.MockAuthMode,
+    GcsPathBuilder.fromCredentials(
+      NoCredentials.getInstance(),
       "cromwell-test",
       None,
       CloudStorageConfiguration.DEFAULT,

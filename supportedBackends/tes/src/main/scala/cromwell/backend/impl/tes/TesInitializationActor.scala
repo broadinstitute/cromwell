@@ -2,16 +2,18 @@ package cromwell.backend.impl.tes
 
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilder, PathBuilderFactory}
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
-import wdl4s.TaskCall
 import net.ceedubs.ficus.Ficus._
+import wdl4s.TaskCall
 
 import scala.concurrent.Future
-import scala.util.Try
 
 case class TesInitializationActorParams
 (
@@ -27,6 +29,8 @@ class TesInitializationActor(params: TesInitializationActorParams)
   extends StandardInitializationActor(params) {
 
   private val tesConfiguration = params.tesConfiguration
+  
+  private implicit val system = context.system
 
   /**
     * If the backend sets a gcs authentication mode, try to create a PathBuilderFactory with it.
@@ -45,23 +49,21 @@ class TesInitializationActor(params: TesInitializationActorParams)
     }
   }
 
-  lazy val pathBuilderFactories: List[PathBuilderFactory] =
-    List(gcsPathBuilderFactory, Option(DefaultPathBuilderFactory)).flatten
+  override lazy val pathBuilders: Future[List[PathBuilder]] =
+    gcsPathBuilderFactory.toList.traverse(_.withOptions(workflowDescriptor.workflowOptions)).map(_ ++ Option(DefaultPathBuilder))
 
-  override lazy val pathBuilders: List[PathBuilder] =
-    pathBuilderFactories map { _.withOptions(workflowDescriptor.workflowOptions)(context.system) }
-
-  override lazy val workflowPaths: TesWorkflowPaths =
-    new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, pathBuilders)
+  override lazy val workflowPaths: Future[TesWorkflowPaths] = pathBuilders map {
+    new TesWorkflowPaths(workflowDescriptor, tesConfiguration.configurationDescriptor.backendConfig, _)
+  }
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    Future.fromTry(Try {
-      publishWorkflowRoot(workflowPaths.workflowRoot.toString)
-      workflowPaths.workflowRoot.createPermissionedDirectories()
-      Option(TesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, tesConfiguration))
-    })
+    workflowPaths map { paths =>
+      publishWorkflowRoot(paths.workflowRoot.toString)
+      paths.workflowRoot.createPermissionedDirectories()
+      Option(TesBackendInitializationData(paths, runtimeAttributesBuilder, tesConfiguration))
+    }
   }
 }

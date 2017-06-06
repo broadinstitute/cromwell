@@ -1,18 +1,12 @@
 package cromwell.backend.impl.jes
 
 import akka.actor.ActorSystem
-import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 object JesJobPaths {
-  def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor,
-            jesConfiguration: JesConfiguration)(implicit actorSystem: ActorSystem): JesJobPaths = {
-    val workflowPath = new JesWorkflowPaths(workflowDescriptor, jesConfiguration)
-    new JesJobPaths(workflowPath, jobKey)
-  }
-
   val JesLogPathKey = "jesLog"
   val GcsExecPathKey = "gcsExec"
 }

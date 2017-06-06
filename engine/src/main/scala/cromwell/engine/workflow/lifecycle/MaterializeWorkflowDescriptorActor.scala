@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
-import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
+import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
@@ -21,7 +22,7 @@ import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
-import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorActorData, MaterializeWorkflowDescriptorActorState}
+import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorActorState
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import lenthall.exception.MessageAggregation
@@ -32,6 +33,7 @@ import wdl4s._
 import wdl4s.expression.NoFunctions
 import wdl4s.values.{WdlSingleFile, WdlString, WdlValue}
 
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -72,14 +74,10 @@ object MaterializeWorkflowDescriptorActor {
     override val terminal = true
   }
   case object ReadyToMaterializeState extends MaterializeWorkflowDescriptorActorState
+  case object MaterializingState extends MaterializeWorkflowDescriptorActorState
   case object MaterializationSuccessfulState extends MaterializeWorkflowDescriptorActorTerminalState
   case object MaterializationFailedState extends MaterializeWorkflowDescriptorActorTerminalState
   case object MaterializationAbortedState extends MaterializeWorkflowDescriptorActorTerminalState
-
-  /*
-  Data
-   */
-  case class MaterializeWorkflowDescriptorActorData()
 
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
 
@@ -116,32 +114,50 @@ object MaterializeWorkflowDescriptorActor {
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          val workflowIdForLogging: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
-                                         importLocalFilesystem: Boolean) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, MaterializeWorkflowDescriptorActorData] with LazyLogging with WorkflowLogging {
+                                         importLocalFilesystem: Boolean) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
 
   val tag = self.path.name
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
-
-  startWith(ReadyToMaterializeState, MaterializeWorkflowDescriptorActorData())
+  implicit val ec = context.dispatcher
+  
+  startWith(ReadyToMaterializeState, ())
 
   when(ReadyToMaterializeState) {
     case Event(MaterializeWorkflowDescriptorCommand(workflowSourceFiles, conf), _) =>
-      buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf) match {
-        case Valid(descriptor) =>
-          sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
-          goto(MaterializationSuccessfulState)
-        case Invalid(error) =>
-          sender() ! MaterializeWorkflowDescriptorFailureResponse(
-            new IllegalArgumentException with MessageAggregation {
-              val exceptionContext = s"Workflow input processing failed"
-              val errorMessages = error.toList
-            })
+      val replyTo = sender()
+
+      workflowOptionsAndPathBuilders(workflowSourceFiles) match {
+        case Valid((workflowOptions, pathBuilders)) =>
+          val futureDescriptor = pathBuilders map {
+            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, _)
+          }
+
+          // Pipe the response to self, but make it look like it comes from the sender of the command
+          // This way we can access it through sender() in the next state and don't have to store the value
+          // of replyTo in the data
+          pipe(futureDescriptor).to(self, replyTo)
+          goto(MaterializingState)
+        case Invalid(error) => 
+          workflowInitializationFailed(error, replyTo)
           goto(MaterializationFailedState)
       }
     case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>
       goto(MaterializationAbortedState)
+  }
+
+  when(MaterializingState) {
+    case Event(Valid(descriptor: EngineWorkflowDescriptor), _) =>
+      sender() ! MaterializeWorkflowDescriptorSuccessResponse(descriptor)
+      goto(MaterializationSuccessfulState)
+    case Event(Invalid(error: NonEmptyList[String]@unchecked), _) =>
+      workflowInitializationFailed(error, sender())
+      goto(MaterializationFailedState)
+    case Event(Status.Failure(failure), _) =>
+      workflowInitializationFailed(NonEmptyList.of(failure.getMessage), sender())
+      goto(MaterializationFailedState)
   }
 
   // Let these fall through to the whenUnhandled handler:
@@ -165,18 +181,33 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       stay
   }
 
+  private def workflowInitializationFailed(errors: NonEmptyList[String], replyTo: ActorRef) = {
+    sender() ! MaterializeWorkflowDescriptorFailureResponse(
+      new IllegalArgumentException with MessageAggregation {
+        val exceptionContext = "Workflow input processing failed"
+        val errorMessages = errors.toList
+      })
+  }
+
+  private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
+    val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
+    workflowOptionsValidation map { workflowOptions =>
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system, context.dispatcher)
+      (workflowOptions, pathBuilders)
+    }
+  }
+
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFilesCollection,
-                                      conf: Config): ErrorOr[EngineWorkflowDescriptor] = {
+                                      conf: Config,
+                                      workflowOptions: WorkflowOptions,
+                                      pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val namespaceValidation = validateNamespace(sourceFiles)
-    val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     val labelsValidation = validateLabels(sourceFiles.labelsJson)
-    (namespaceValidation |@| workflowOptionsValidation |@| labelsValidation) map {
-      (_, _, _)
-    } flatMap { case (namespace, workflowOptions, labels) =>
+    
+    (namespaceValidation |@| labelsValidation).tupled flatMap { case (namespace, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       publishLabelsToMetadata(id, namespace.workflow.unqualifiedName, labels)
-      val pathBuilders = EngineFilesystems(context.system).pathBuildersForWorkflow(workflowOptions)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)
     }
   }
@@ -200,7 +231,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
     labels foreach { case (k, v) =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:${k}"), MetadataValue(v)))
+      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$k"), MetadataValue(v)))
     }
   }
 
@@ -471,8 +502,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
 
     modeString flatMap WorkflowFailureMode.tryParse match {
-        case Success(mode) => mode.validNel
-        case Failure(t) => t.getMessage.invalidNel
+      case Success(mode) => mode.validNel
+      case Failure(t) => t.getMessage.invalidNel
     }
   }
 }

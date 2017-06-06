@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import com.google.cloud.NoCredentials
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
@@ -19,7 +20,6 @@ import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.auth.GoogleAuthMode.MockAuthMode
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor._
@@ -41,8 +41,9 @@ import scala.util.{Success, Try}
 class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter {
 
-  val mockPathBuilder: GcsPathBuilder = GcsPathBuilderFactory(MockAuthMode, "cromwell-test").withOptions(WorkflowOptions.empty)
-
+  val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
+    "test-cromwell", None, GcsPathBuilderFactory.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
+  
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
   import JesTestConfig._
@@ -86,7 +87,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   }
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: JesConfiguration) = {
-    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, configuration)(system)
+    val workflowPaths = JesWorkflowPaths(jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration)(system)
     val runtimeAttributesBuilder = JesRuntimeAttributes.runtimeAttributesBuilder(configuration)
     JesBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, null)
   }

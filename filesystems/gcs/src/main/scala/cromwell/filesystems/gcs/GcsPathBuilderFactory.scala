@@ -3,12 +3,15 @@ package cromwell.filesystems.gcs
 import akka.actor.ActorSystem
 import com.google.api.client.googleapis.media.MediaHttpUploader
 import com.google.api.gax.retrying.RetrySettings
+import com.google.auth.Credentials
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 import net.ceedubs.ficus.Ficus._
+
+import scala.concurrent.ExecutionContext
 
 object GcsPathBuilderFactory {
 
@@ -33,5 +36,15 @@ case class GcsPathBuilderFactory(authMode: GoogleAuthMode,
 
   extends PathBuilderFactory {
 
-  def withOptions(options: WorkflowOptions)(implicit actorSystem: ActorSystem) = new GcsPathBuilder(authMode, applicationName, retrySettings, cloudStorageConfiguration, options)
+  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {
+    GcsPathBuilder.fromAuthMode(authMode, applicationName, retrySettings, cloudStorageConfiguration, options)
+  }
+
+  /**
+    * Ignores the authMode and creates a GcsPathBuilder using the passed credentials directly.
+    * Can be used when the Credentials are already available.
+    */
+  def fromCredentials(options: WorkflowOptions, credentials: Credentials) = {
+    GcsPathBuilder.fromCredentials(credentials, applicationName, retrySettings, cloudStorageConfiguration, options)
+  }
 }

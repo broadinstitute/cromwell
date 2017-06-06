@@ -5,6 +5,8 @@ import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardInitializationActorParams, StandardInitializationData, StandardValidatedRuntimeAttributesBuilder}
 import wdl4s.WdlNamespace
 
+import scala.concurrent.Future
+
 /**
   * Extension of the SharedFileSystemBackendInitializationData with declarations of extra runtime attributes, and a
   * wdl namespace containing various tasks for submitting, killing, etc.
@@ -40,9 +42,11 @@ class ConfigInitializationActor(params: StandardInitializationActorParams)
     DeclarationValidation.fromDeclarations(configWdlNamespace.runtimeDeclarations)
   }
 
-  override lazy val initializationData: ConfigInitializationData = {
+  override lazy val initializationData: Future[ConfigInitializationData] = {
     val wdlNamespace = configWdlNamespace.wdlNamespace
-    new ConfigInitializationData(workflowPaths, runtimeAttributesBuilder, declarationValidations, wdlNamespace)
+    workflowPaths map {
+      new ConfigInitializationData(_, runtimeAttributesBuilder, declarationValidations, wdlNamespace)
+    }
   }
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder = {

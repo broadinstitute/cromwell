@@ -58,13 +58,12 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
     case WorkflowStoreEngineActor.WorkflowAborted(id) =>
       context.parent ! RequestComplete((StatusCodes.OK, WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
     case WorkflowStoreEngineActor.WorkflowAbortFailed(_, e) =>
-      val response = error(e) {
+      error(e) {
         case _: IllegalStateException => RequestComplete((StatusCodes.Forbidden, APIResponse.error(e)))
         case _: WorkflowNotFoundException => RequestComplete((StatusCodes.NotFound, APIResponse.error(e)))
         case _ => RequestComplete((StatusCodes.InternalServerError, APIResponse.error(e)))
       }
 
-      context.parent ! response
     case ApiHandlerWorkflowSubmit(source) => requestHandlerActor ! WorkflowStoreActor.SubmitWorkflow(source)
 
     case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id) =>
@@ -80,11 +79,9 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
 
     case ApiHandlerCallCachingDiff(queryParameter) => requestHandlerActor ! CallCacheDiffRequest(queryParameter)
     case callCacheDiff: CallCachingDiff => context.parent ! RequestComplete((StatusCodes.OK, callCacheDiff))
-    case CacheResultLookupFailure(t) => t match {
-      case _: CacheEntriesNotFoundException =>
-        context.parent ! RequestComplete((StatusCodes.NotFound, APIResponse.error(t)))
-      case _ =>
-        context.parent ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(t)))
+    case CacheResultLookupFailure(t) => error(t) {
+      case _: CacheEntriesNotFoundException =>  RequestComplete((StatusCodes.NotFound, APIResponse.error(t)))
+      case _ => RequestComplete((StatusCodes.InternalServerError, APIResponse.error(t)))
     }
   }
 }

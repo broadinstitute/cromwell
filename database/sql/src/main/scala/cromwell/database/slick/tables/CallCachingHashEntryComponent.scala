@@ -111,7 +111,7 @@ trait CallCachingHashEntryComponent {
                 hashA <- maybeHashA
                 hashB <- maybeHashB
               } yield hashA.hashValue =!= hashB.hashValue)
-                // Both A and B are null, which should not be possible...  
+                // A and B have same value (or they're both null but that shouldn't be possible)
                 .getOrElse(false)
         })
           // Remove duplicates

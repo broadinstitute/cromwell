@@ -1,5 +1,60 @@
 # Cromwell Change Log
 
+## 28
+
+### Call Caching
+
+* New endpoint returning the hash differential for 2 calls. 
+
+`GET /api/workflows/:version/callcaching/diff`
+
+The endpoint returns a JSON response such as the following:
+
+```json
+{
+    "callA": {
+        "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+        "callFqn": "wf_hello.hello",
+        "jobIndex": -1,
+        "allowResultReuse": true
+    },
+    "callB": {
+        "workflowId": "7479f8a8-efa4-46e4-af0d-802addc66e5d",
+        "callFqn": "wf_hello.hello",
+        "jobIndex": -1,
+        "allowResultReuse": true
+    },
+    "hashDifferential": [
+        {
+            "command template": {
+            "85174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+            "7479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1": "3C7A0CA3D7A863A486DBF3F7005D4C95"
+        }
+        },
+        {
+            "input count": {
+            "85174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1": "C4CA4238A0B923820DCC509A6F75849B",
+            "7479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1": "C81E728D9D4C2F636F067F89CC14862C"
+        }
+        },
+        {
+            "input: String addressee": {
+            "85174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1": "D4CC65CB9B5F22D8A762532CED87FE8D",
+            "7479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1": "7235E005510D99CB4D5988B21AC97B6D"
+        }
+        },
+        {
+            "input: String addressee2": {
+            "85174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1": null,
+            "7479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1": "116C7E36B4AE3EAFD07FA4C536CE092F"
+        }
+        }
+    ]
+}
+```
+
+See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) for more details.
+
 ## 27
 
 ### Migration

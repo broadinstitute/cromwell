@@ -141,7 +141,7 @@ object CallCacheReadActor {
   case class CacheLookupNextHit(hit: CallCachingEntryId) extends CallCacheReadActorResponse
   case object CacheLookupNoHit extends CallCacheReadActorResponse
   
-  // Responses for call cache diff
+  // Response for call cache diff
   case class CallCachingDiff(cacheEntryA: CallCachingEntry,
                              cacheEntryB: CallCachingEntry,
                              hashDifferential: Seq[Map[String, Map[String, Option[String]]]]

@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import akka.actor.ActorRef
 import cromwell.backend._
-import cromwell.backend.impl.jes.callcaching.{JesBackendCacheHitCopyingActor, JesBackendFileHashingActor}
+import cromwell.backend.impl.jes.callcaching._
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.core.CallOutputs
@@ -44,7 +44,10 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   }
 
   override lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] = {
-    Option(classOf[JesBackendCacheHitCopyingActor])
+    jesConfiguration.jesAttributes.duplicationStrategy match {
+      case CopyCachedOutputs => Option(classOf[JesBackendCacheHitCopyingActor])
+      case UseOriginalCachedOutputs => Option(classOf[JesBackendCacheHitNoCopyActor])
+    }
   }
 
   override def backendSingletonActorProps = Option(JesBackendSingletonActor.props(jesConfiguration.qps))

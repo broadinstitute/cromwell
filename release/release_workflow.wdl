@@ -122,7 +122,7 @@ task wait_for_artifactory {
     
     command <<<
         checkIfPresent() {
-            isPresent=$(curl -s --head https://artifactory.broadinstitute.org/artifactory/simple/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep -q "HTTP/1.[01] [23]..")
+            isPresent=$(curl -s --head https://broadinstitute.jfrog.io/broadinstitute/libs-release-local/org/broadinstitute/${repo}/${version}/ | head -n 1 | grep -q "HTTP/1.[01] [23]..")
         }
         
         elapsedTime=0

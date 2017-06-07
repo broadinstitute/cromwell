@@ -1,9 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import cats.data.Validated.{Invalid, Valid}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
+import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
-import lenthall.exception.AggregatedMessageException
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 
 import scala.util.{Failure, Success, Try}
 
@@ -12,14 +11,14 @@ object CallCacheDiffQueryParameter {
 
   private def missingWorkflowError(attribute: String) = s"missing $attribute query parameter".invalidNel
 
-  private def extractAttribute(parameters: Seq[(String, String)], parameter: String) = {
+  private def extractAttribute(parameters: Seq[(String, String)], parameter: String): Validated[NonEmptyList[String], String] = {
     parameters.find(_._1 == parameter) match {
       case Some((_, value)) => value.validNel
       case None => missingWorkflowError(parameter)
     }
   }
 
-  private def extractIndex(parameters: Seq[(String, String)], parameter: String) = {
+  private def extractIndex(parameters: Seq[(String, String)], parameter: String): Validated[NonEmptyList[String], Option[Int]] = {
     parameters.find(_._1 == parameter) match {
       case Some((_, value)) => Try(value.toInt) match {
         case Success(index) => Option(index).validNel
@@ -29,7 +28,7 @@ object CallCacheDiffQueryParameter {
     }
   }
 
-  def fromParameters(parameters: Seq[(String, String)]) = {
+  def fromParameters(parameters: Seq[(String, String)]): Validated[NonEmptyList[String], CallCacheDiffQueryParameter] = {
     val workflowAValidation = extractAttribute(parameters, "workflowA")
     val workflowBValidation = extractAttribute(parameters, "workflowB")
 
@@ -40,13 +39,12 @@ object CallCacheDiffQueryParameter {
     val indexBValidation = extractIndex(parameters, "indexB")
 
     (workflowAValidation |@| callAValidation |@| indexAValidation |@|
-      workflowBValidation |@| callBValidation |@| indexBValidation).tupled match {
-      case Valid((workflowA, callA, indexA, workflowB, callB, indexB)) =>
-        Success(CallCacheDiffQueryParameter(
+      workflowBValidation |@| callBValidation |@| indexBValidation) map {
+      case ((workflowA, callA, indexA, workflowB, callB, indexB)) =>
+        CallCacheDiffQueryParameter(
           CallCacheDiffQueryCall(workflowA, callA, indexA),
           CallCacheDiffQueryCall(workflowB, callB, indexB)
-        ))
-      case Invalid(errors) => Failure(AggregatedMessageException("Wrong parameters for call cache diff query", errors.toList))
+        )
     }
   }
 }

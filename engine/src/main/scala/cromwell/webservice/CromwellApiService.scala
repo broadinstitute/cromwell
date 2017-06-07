@@ -14,6 +14,7 @@ import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.webservice.CromwellApiHandler.ApiHandlerCallCachingDiff
+import lenthall.exception.AggregatedMessageException
 import lenthall.validation.ErrorOr.ErrorOr
 import spray.http.MediaTypes._
 import spray.http._
@@ -67,10 +68,10 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   def handleCallCachingDiffRequest(parameters: Seq[(String, String)]): Route = {
     CallCacheDiffQueryParameter.fromParameters(parameters) match {
-      case Success(queryParameter) => requestContext => {
+      case Valid(queryParameter) => requestContext => {
         perRequest(requestContext, CromwellApiHandler.props(callCacheReadActor), ApiHandlerCallCachingDiff(queryParameter))
       }
-      case Failure(t) => failBadRequest(t)
+      case Invalid(errors) => failBadRequest(AggregatedMessageException("Wrong parameters for call cache diff query", errors.toList))
     }
   }
 

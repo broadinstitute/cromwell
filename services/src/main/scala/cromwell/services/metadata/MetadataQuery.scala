@@ -9,9 +9,17 @@ import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlOptionalValue, WdlValu
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
-case class MetadataKey(workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String)
+case class MetadataKey private (workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String)
 
 object MetadataKey {
+
+  implicit class KeyMetacharacterEscaper(val key: String) extends AnyVal {
+    // The escapes are necessary on the first arguments to `replaceAll` since they're treated like regular expressions
+    // and square braces are character class delimiters.  Backslashes must be escaped in both parameters.
+    // Ignore the red in some of the "raw" strings, IntelliJ and GitHub don't seem to understand them.
+    def escapeMeta = key.replaceAll(raw"\[", raw"\\[").replaceAll(raw"\]", raw"\\]").replaceAll(":", raw"\\:")
+    def unescapeMeta = key.replaceAll(raw"\\\[", "[").replaceAll(raw"\\\]", "]").replaceAll(raw"\\:", ":")
+  }
 
   val KeySeparator = ':'
 

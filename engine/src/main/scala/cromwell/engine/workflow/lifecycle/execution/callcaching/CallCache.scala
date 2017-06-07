@@ -111,29 +111,29 @@ object CallCache {
   object CallCacheHashBundle {
     def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobSucceededResponse: JobSucceededResponse) = {
       new CallCacheHashBundle(
-        workflowId,
-        callCacheHashes,
-        jobSucceededResponse.jobKey.call.fullyQualifiedName,
-        jobSucceededResponse.jobKey.index,
-        Option(jobSucceededResponse.jobKey.attempt),
-        jobSucceededResponse.returnCode,
-        true,
-        jobSucceededResponse.jobOutputs,
-        jobSucceededResponse.jobDetritusFiles
+        workflowId = workflowId,
+        callCacheHashes = callCacheHashes,
+        fullyQualifiedName = jobSucceededResponse.jobKey.call.fullyQualifiedName,
+        jobIndex = jobSucceededResponse.jobKey.index,
+        jobAttempt = Option(jobSucceededResponse.jobKey.attempt),
+        returnCode = jobSucceededResponse.returnCode,
+        allowResultReuse = true,
+        callOutputs = jobSucceededResponse.jobOutputs,
+        jobDetritusFiles = jobSucceededResponse.jobDetritusFiles
       )
     }
 
     def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobFailedNonRetryableResponse: JobFailedNonRetryableResponse) = {
       new CallCacheHashBundle(
-        workflowId,
-        callCacheHashes,
-        jobFailedNonRetryableResponse.jobKey.scope.fullyQualifiedName,
-        jobFailedNonRetryableResponse.jobKey.index,
-        Option(jobFailedNonRetryableResponse.jobKey.attempt),
-        None,
-        false,
-        Map.empty[LocallyQualifiedName, JobOutput],
-        None
+        workflowId = workflowId,
+        callCacheHashes = callCacheHashes,
+        fullyQualifiedName = jobFailedNonRetryableResponse.jobKey.scope.fullyQualifiedName,
+        jobIndex = jobFailedNonRetryableResponse.jobKey.index,
+        jobAttempt = Option(jobFailedNonRetryableResponse.jobKey.attempt),
+        returnCode = None,
+        allowResultReuse = false,
+        callOutputs = Map.empty[LocallyQualifiedName, JobOutput],
+        jobDetritusFiles = None
       )
     }
   }

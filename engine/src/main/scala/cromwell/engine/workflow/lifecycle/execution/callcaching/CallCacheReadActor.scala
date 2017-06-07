@@ -29,9 +29,9 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
       currentRequester foreach { _ ! response }
       cycleRequestQueue()
     case Status.Failure(f) =>
-      currentRequester foreach { _ ! CacheResultLookupFailure(new Exception(s"Call Cache query failure: ${f.getMessage}")) } 
+      currentRequester foreach { _ ! CacheResultLookupFailure(new Exception(s"Call Cache query failure: ${f.getMessage}")) }
       cycleRequestQueue()
-    case other => 
+    case other =>
       log.error("Unexpected message type to CallCacheReadActor: " + other.getClass.getSimpleName)
   }
 
@@ -54,41 +54,20 @@ class CallCacheReadActor(cache: CallCache) extends Actor with ActorLogging {
         }
       case CallCacheDiffRequest(parameters) => cache.callCacheDiff(parameters.callA, parameters.callB) map {
         case CallCachingDiffJoin(cacheEntryA, cacheEntryB, diff) =>
-          val callATag = List(cacheEntryA.workflowExecutionUuid, cacheEntryA.callFullyQualifiedName, cacheEntryA.jobIndex).mkString(":")
-          val callBTag = List(cacheEntryB.workflowExecutionUuid, cacheEntryB.callFullyQualifiedName, cacheEntryB.jobIndex).mkString(":")
-          
-          val formatted = diff map {
+          val formatted = diff flatMap {
             // If both are Some we assume the keys are the same, as they should be
-            case (Some((keyA, valueA)), Some((_, valueB))) =>
-              Map(
-                keyA -> Map(
-                  callATag -> Option(valueA),
-                  callBTag -> Option(valueB)
-                )
-              )
-            case (Some((keyA, valueA)), None) =>
-              Map(
-                keyA -> Map(
-                  callATag -> Option(valueA),
-                  callBTag -> None
-                )
-              )
-            case (None, Some((keyB, valueB))) =>
-              Map(
-                keyB -> Map(
-                  callATag -> None,
-                  callBTag -> Option(valueB)
-                )
-              )
-            // Should not be possible...
-            case (None, None) =>
-              Map.empty[String, Map[String, Option[String]]]
+            case (maybeKeyValueA, maybeKeyValueB) =>
+              val maybeKey = maybeKeyValueA.map(_._1).orElse(maybeKeyValueB.map(_._1))
+              val maybeValueA = maybeKeyValueA.map(_._2)
+              val maybeValueB = maybeKeyValueB.map(_._2)
+
+              maybeKey map { CallCachingDiffElement(_, maybeValueA, maybeValueB) }
           }
-          
+
           CallCachingDiff(cacheEntryA, cacheEntryB, formatted)
       }
     }
-    
+
     val recovered = response recover {
       case t => CacheResultLookupFailure(t)
     }
@@ -131,7 +110,7 @@ object CallCacheReadActor {
   case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
   case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
   case class CallCacheDiffRequest(queryParameter: CallCacheDiffQueryParameter) extends CallCacheReadActorRequest
-  
+
   sealed trait CallCacheReadActorResponse
   // Responses on whether or not there is at least one matching entry (can for initial matches of file matches)
   case object HasMatchingEntries extends CallCacheReadActorResponse
@@ -140,13 +119,14 @@ object CallCacheReadActor {
   // Responses when asking for the next cache hit
   case class CacheLookupNextHit(hit: CallCachingEntryId) extends CallCacheReadActorResponse
   case object CacheLookupNoHit extends CallCacheReadActorResponse
-  
+
   // Response for call cache diff
+  case class CallCachingDiffElement(hashKey: String, hashValueA: Option[String], hashValueB: Option[String])
   case class CallCachingDiff(cacheEntryA: CallCachingEntry,
                              cacheEntryB: CallCachingEntry,
-                             hashDifferential: Seq[Map[String, Map[String, Option[String]]]]
+                             hashDifferential: Seq[CallCachingDiffElement]
                             ) extends CallCacheReadActorResponse
-  
+
   // Failure Response
   case class CacheResultLookupFailure(reason: Throwable) extends CallCacheReadActorResponse
 }

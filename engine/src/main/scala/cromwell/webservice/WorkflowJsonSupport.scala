@@ -11,7 +11,7 @@ import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
 import cromwell.database.sql.tables.CallCachingEntry
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCachingDiff
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CallCachingDiff, CallCachingDiffElement}
 import spray.json._
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
@@ -32,6 +32,19 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
+
+  implicit object callCachingDiffElementJsonFormat extends RootJsonFormat[CallCachingDiffElement] {
+    override def write(obj: CallCachingDiffElement) =
+      JsObject(Map(
+        obj.hashKey -> JsObject(Map(
+          "callA" -> obj.hashValueA.toJson,
+          "callB" -> obj.hashValueB.toJson
+        ))
+      ))
+    override def read(json: JsValue): CallCachingDiffElement =
+      throw new NotImplementedError(s"Cannot parse json to CallCachingDiffElement")
+  }
+  
   implicit object callCachingDiffJsonFormat extends RootJsonFormat[CallCachingDiff] {
     def makeCallObject(cacheEntry: CallCachingEntry) =  JsObject(Map(
       "workflowId" -> JsString(cacheEntry.workflowExecutionUuid),

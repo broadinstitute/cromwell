@@ -183,7 +183,7 @@ class CallCacheDiffDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       } yield ()
       
       ScalaFutures.whenReady(shouldFail.failed) { e =>
-        e shouldBe a [Exception]
+        e shouldBe an [Exception]
         e.getMessage shouldBe "Cannot find a cache entry for does not:exist:0"
       }
     }
@@ -197,7 +197,7 @@ class CallCacheDiffDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       } yield ()
 
       ScalaFutures.whenReady(shouldFail.failed) { e =>
-        e shouldBe a [Exception]
+        e shouldBe an [Exception]
         e.getMessage shouldBe "Cannot find a cache entry for does not:existB:0"
       }
     }
@@ -211,8 +211,8 @@ class CallCacheDiffDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       } yield ()
 
       ScalaFutures.whenReady(shouldFail.failed) { e =>
-        e shouldBe a [Exception]
-        e.getMessage shouldBe "Cannot find a cache entry for neither does not:exist:0 nor does not:exist either:0"
+        e shouldBe an [Exception]
+        e.getMessage shouldBe "Cannot find cache entries for does not:exist:0, does not:exist either:0"
       }
     }
   }

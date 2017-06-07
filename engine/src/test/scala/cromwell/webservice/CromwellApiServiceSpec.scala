@@ -3,7 +3,7 @@ package cromwell.webservice
 import akka.actor.{Actor, ActorSystem, Props}
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import cromwell.database.sql.tables.CallCachingEntry
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CallCacheDiffRequest, CallCachingDiff}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CallCacheDiffRequest, CallCachingDiff, CallCachingDiffElement}
 
 import scala.util.{Failure, Success, Try}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
@@ -450,11 +450,13 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
             |    "key1": {
             |      "callA": "somehash",
             |      "callB": "someotherhash"
-            |    },
+            |    }
+            |  }, {
             |    "key2": {
             |      "callA": "somehash",
             |      "callB": null
-            |    },
+            |    }
+            |  }, {
             |    "key3": {
             |      "callA": null,
             |      "callB": "someotherhash"
@@ -611,20 +613,9 @@ object CromwellApiServiceSpec {
             allowResultReuse = false
           ),
           Seq (
-            Map(
-              "key1" -> Map(
-                "callA" -> Option("somehash"),
-                "callB" -> Option("someotherhash")
-              ),
-              "key2" -> Map(
-                "callA" -> Option("somehash"),
-                "callB" -> None
-              ),
-              "key3" -> Map(
-                "callA" -> None,
-                "callB" -> Option("someotherhash")
-              )
-            )
+            CallCachingDiffElement("key1", Option("somehash"), Option("someotherhash")),
+            CallCachingDiffElement("key2", Option("somehash"), None),
+            CallCachingDiffElement("key3", None, Option("someotherhash"))
           )
         )
       sender() ! response

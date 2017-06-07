@@ -92,6 +92,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
+  * [GET /api/workflows/:version/callcaching/diff](#get-apiworkflowsversioncallcachingdiff)
   * [GET /api/engine/:version/stats](#get-apiengineversionstats)
   * [GET /api/engine/:version/version](#get-apiengineversionversion)
   * [Error handling](#error-handling)
@@ -3326,59 +3327,6 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /api/engine/:version/stats
-
-This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
-
-cURL:
-```
-$ curl http://localhost:8000/api/engine/v1/stats
-```
-
-HTTPie:
-```
-$ http http://localhost:8000/api/engine/v1/stats
-```
-
-Response:
-```
-"date": "Sun, 18 Sep 2016 14:38:11 GMT",
-"server": "spray-can/1.3.3",
-"content-length": "33",
-"content-type": "application/json; charset=UTF-8"
-
-{
-  "workflows": 3,
-  "jobs": 10
-}
-```
-
-## GET /api/engine/:version/version
-
-This endpoint returns the version of the Cromwell engine.
-
-cURL:
-```
-$ curl http://localhost:8000/api/engine/v1/version
-```
-
-HTTPie:
-```
-$ http http://localhost:8000/api/engine/v1/version
-```
-
-Response:
-```
-"date": "Sun, 18 Sep 2016 14:38:11 GMT",
-"server": "spray-can/1.3.3",
-"content-length": "33",
-"content-type": "application/json; charset=UTF-8"
-
-{
-  "cromwell": 23-8be799a-SNAP
-}
-```
-
 ## GET /api/workflows/:version/callcaching/diff
 
 This endpoint returns the hash differences between 2 *completed* (successfully or not) calls.
@@ -3388,11 +3336,13 @@ The following query parameters are supported:
 |:---------:|:-----------------------------------------------------------------------------------------:|:--------:|
 | workflowA | Workflow ID of the first call                                                             | yes      |
 | callA     | Fully qualified name of the first call. **Including workflow name**. (see example below)  | yes      |
-| indexA    | Shard index of the first call                                                             | no       |
+| indexA    | Shard index of the first call                                                             | depends  |
 | workflowB | Workflow ID of the second call                                                            | yes      |
 | callB     | Fully qualified name of the second call. **Including workflow name**. (see example below) | yes      |
-| indexB    | Shard index of the second call                                                            | no       |
+| indexB    | Shard index of the second call                                                            | depends  |
 
+About the `indexX` parameters: It is required if the call was in a scatter. Otherwise it should *not* be specified.
+If the index parameters is wrongly specified, the call will not be find and the request will result in a 404 response.
 
 cURL:
 
@@ -3538,6 +3488,59 @@ Server: spray-can/1.3.3
     "missing workflowA query parameter",
     "missing callB query parameter"
   ]
+}
+```
+
+## GET /api/engine/:version/stats
+
+This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
+
+cURL:
+```
+$ curl http://localhost:8000/api/engine/v1/stats
+```
+
+HTTPie:
+```
+$ http http://localhost:8000/api/engine/v1/stats
+```
+
+Response:
+```
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
+
+{
+  "workflows": 3,
+  "jobs": 10
+}
+```
+
+## GET /api/engine/:version/version
+
+This endpoint returns the version of the Cromwell engine.
+
+cURL:
+```
+$ curl http://localhost:8000/api/engine/v1/version
+```
+
+HTTPie:
+```
+$ http http://localhost:8000/api/engine/v1/version
+```
+
+Response:
+```
+"date": "Sun, 18 Sep 2016 14:38:11 GMT",
+"server": "spray-can/1.3.3",
+"content-length": "33",
+"content-type": "application/json; charset=UTF-8"
+
+{
+  "cromwell": 23-8be799a-SNAP
 }
 ```
 

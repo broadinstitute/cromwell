@@ -386,7 +386,7 @@ paths:
             - openid
   '/workflows/{version}/callcaching/diff':
     get:
-      summary: Return the hash differential between to calls
+      summary: Return the hash differential between two calls
       parameters:
         - name: version
           description: API Version

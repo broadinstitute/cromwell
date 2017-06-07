@@ -11,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 
 object WdlMap {
   def coerceMap(m: Map[_, _], wdlMapType: WdlMapType): WdlMap = {
-    val coerced = m map { case(k, v) => wdlMapType.keyType.coerceRawValue(k) -> wdlMapType.valueType.coerceRawValue(v) }
+    val coerced: Map[Try[WdlValue], Try[WdlValue]] = m map { case(k, v) => wdlMapType.keyType.coerceRawValue(k) -> wdlMapType.valueType.coerceRawValue(v) }
     val failures = coerced flatMap { case(k,v) => Seq(k,v) } collect { case f:Failure[_] => f }
     failures match {
       case f: Iterable[Failure[_]] if f.nonEmpty =>

@@ -5,11 +5,11 @@ version := "1.0"
 scalaVersion := "2.12.1"
 
 resolvers ++= List(
-  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
-  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
+  "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
+  "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
 )
 
-val cromwellV = "27-091ed3b-SNAP"
+val cromwellV = "28-4487a51-SNAP"
 
 val akkaV = "2.4.17"
 val akkaHttpV = "10.0.5"

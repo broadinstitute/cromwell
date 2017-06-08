@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.SupervisorStrategy.{Escalate, Stop}
+import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
@@ -48,6 +49,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   override val workflowIdForLogging = executionData.workflowDescriptor.id
   override val workflowIdForCallMetadata = executionData.workflowDescriptor.id
+
+  override val supervisorStrategy = OneForOneStrategy() {
+    // If an actor fails to initialize, send the exception to self before stopping it so we can fail the job properly
+    case e: ActorInitializationException => 
+      self ! e
+      Stop
+    case t =>
+      super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
+  }
 
   val jobTag = s"${workflowIdForLogging.shortString}:${jobDescriptorKey.call.fullyQualifiedName}:${jobDescriptorKey.index.fromIndex}:${jobDescriptorKey.attempt}"
   val tag = s"EJEA_$jobTag"
@@ -272,6 +282,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   whenUnhandled {
+    case Event(e: ActorInitializationException, _) =>
+      respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, e, None))
     case Event(msg, _) =>
       log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender, stateName, stateData, msg)
       stay

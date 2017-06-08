@@ -107,9 +107,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
             case None =>
               val allCopyCommands = allCopyPairs map { case (source, destination) => copyCommand(source, destination, overwrite = true) }
 
-              allCopyCommands foreach { sendIoCommand(_) }
-
-              goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
+              if (allCopyCommands.nonEmpty) {
+                allCopyCommands foreach { sendIoCommand(_) }
+                
+                goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
+              } else succeedAndStop(returnCode, callOutputs, destinationDetritus)
           }
 
         case Failure(failure) => failAndStop(failure)
@@ -164,7 +166,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /**
     * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies. 
     */
-  private def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[PathPair])] = Try {
+  protected def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[PathPair])] = Try {
     val (destinationSimpletons, ioCommands): (List[WdlValueSimpleton], Set[PathPair]) = wdlValueSimpletons.toList.foldMap({
       case WdlValueSimpleton(key, wdlFile: WdlFile) =>
         val sourcePath = getPath(wdlFile.value).get
@@ -182,7 +184,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /**
     * Returns a pair of the detritus with copied paths, and copy commands necessary to perform those copies. 
     */
-  private def processDetritus(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[PathPair])] = Try {
+  protected def processDetritus(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[PathPair])] = Try {
     val sourceKeys = sourceJobDetritusFiles.keySet
     val destinationKeys = destinationJobDetritusPaths.keySet
     val fileKeys = sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)

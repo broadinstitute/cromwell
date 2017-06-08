@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{ResponsePendingData, RunningJob, SucceededResponseData}
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{FailedNonRetryableResponseData, ResponsePendingData, RunningJob, SucceededResponseData}
 import cromwell.jobstore.JobResultFailure
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import EngineJobExecutionActorSpec.EnhancedTestEJEA
@@ -31,7 +31,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
 
           // When the hashes arrive, the state and data should update:
           ejea ! SuccessfulCallCacheHashes
-          expectCacheWrite(successResponse, SuccessfulCallCacheHashes)
+          expectCacheWriteForSuccessfulJob(successResponse, SuccessfulCallCacheHashes)
         } else {
           expectJobStoreWrite(SucceededResponseData(successResponse, None))
         }
@@ -44,7 +44,7 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
           eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
           ejea.stateName should be(RunningJob)
           ejea ! successResponse
-          expectCacheWrite(successResponse, SuccessfulCallCacheHashes)
+          expectCacheWriteForSuccessfulJob(successResponse, SuccessfulCallCacheHashes)
         }
 
         s"Handle receiving SuccessResponse then HashError correctly in $mode mode" in {
@@ -64,29 +64,63 @@ class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually wit
           ejea ! successResponse
           expectJobStoreWrite(SucceededResponseData(successResponse, Some(Failure(hashError.reason))))
         }
-      }
-    }
 
-    // What's with all this maker stuff? You can't use the "helper" outside of spec tests so we can't instantiate these responses
-    // yet. So, we take the functions instead and call them when we need them
-    List(("FailedRetryableResponse", failureRetryableResponse _, true),
-         ("FailedNonRetryableResponse", failureNonRetryableResponse _, false)
-    ) foreach { case (name, responseMaker, retryable) =>
-      s"register '$name's with the JobStore" in {
-        ejea = ejeaInRunningState()
-        val response = responseMaker.apply
-        ejea.underlyingActor.receive.isDefinedAt(response) should be(true)
-        ejea ! response
+        s"Handle receiving CallCacheHashes then FailedNonRetryable correctly in $mode mode" in {
+          ejea = ejeaInRunningState(mode)
+          ejea ! SuccessfulCallCacheHashes
+          eventually { ejea.stateData should be(initialData.copy(hashes = Some(Success(SuccessfulCallCacheHashes)))) }
+          ejea.stateName should be(RunningJob)
+          ejea ! failureNonRetryableResponse
+          expectCacheWriteForFailedNonRetryableJob(failureNonRetryableResponse, SuccessfulCallCacheHashes)
+        }
 
-        helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Job Store Write") {
-          case RegisterJobCompleted(jobKey, JobResultFailure(returnCode, reason, isRetryable)) =>
-            validateJobStoreKey(jobKey)
-            returnCode should be(failedRc)
-            reason should be(failureReason)
-            isRetryable should be(retryable)
+        s"Handle receiving FailedNonRetryable then HashError correctly in $mode mode" in {
+          ejea = ejeaInRunningState(mode)
+          ejea ! failureNonRetryableResponse
+          eventually { ejea.stateData should be(FailedNonRetryableResponseData(failureNonRetryableResponse, None)) }
+          ejea.stateName should be(RunningJob)
+          ejea ! hashError
+          helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Job Store Write") {
+            case RegisterJobCompleted(jobKey, JobResultFailure(returnCode, reason, isRetryable)) =>
+              validateJobStoreKey(jobKey)
+              returnCode should be(failedRc)
+              reason should be(failureReason)
+              isRetryable should be(false)
+          }
+        }
+
+        s"Handle receiving HashError then FailedNonRetryable correctly in $mode mode" in {
+          ejea = ejeaInRunningState(mode)
+          ejea ! hashError
+          eventually { ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, Some(Failure(hashError.reason)))) }
+          ejea.stateName should be(RunningJob)
+          ejea ! failureNonRetryableResponse
+          helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Job Store Write") {
+            case RegisterJobCompleted(jobKey, JobResultFailure(returnCode, reason, isRetryable)) =>
+              validateJobStoreKey(jobKey)
+              returnCode should be(failedRc)
+              reason should be(failureReason)
+              isRetryable should be(false)
+          }
         }
       }
     }
+
+    s"register 'FailedRetryableResponse's with the JobStore" in {
+      ejea = ejeaInRunningState()
+      val response = failureRetryableResponse
+      ejea.underlyingActor.receive.isDefinedAt(response) should be(true)
+      ejea ! response
+
+      helper.jobStoreProbe.expectMsgPF(max = awaitTimeout, hint = "Job Store Write") {
+        case RegisterJobCompleted(jobKey, JobResultFailure(returnCode, reason, isRetryable)) =>
+          validateJobStoreKey(jobKey)
+          returnCode should be(failedRc)
+          reason should be(failureReason)
+          isRetryable should be(true)
+      }
+    }
+
 
     "not register aborted jobs in the job store, forward straight to parent instead" in {
       ejea = ejeaInRunningState()

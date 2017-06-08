@@ -12,6 +12,7 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, _}
@@ -23,7 +24,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecu
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
 import cromwell.services.SingletonServicesStore
-import cromwell.services.metadata.{CallMetadataKeys, MetadataKey}
+import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
 import wdl4s.TaskOutput
 
 import scala.concurrent.ExecutionContext
@@ -70,7 +71,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private val callCachingReadResultMetadataKey = CacheMetadataKeyPrefix + "result"
   private val callCachingHitResultMetadataKey = CacheMetadataKeyPrefix + "hit"
   private val callCachingAllowReuseMetadataKey = CacheMetadataKeyPrefix + "allowResultReuse"
-
+  private val callCachingHitFailures = CacheMetadataKeyPrefix + "hitFailures"
+  
   implicit val ec: ExecutionContext = context.dispatcher
 
   override def preStart() = {
@@ -159,7 +161,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         callCachingHitResultMetadataKey -> true,
         callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
       log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
-      makeBackendCopyCacheHit(wdlValueSimpletons, jobDetritus, returnCode, data, cacheResultId)
+      makeBackendCopyCacheHit(wdlValueSimpletons, jobDetritus, returnCode, data, cacheResultId) using data.withCacheDetails(cacheHitDetails)
     case Event(CachedOutputLookupFailed(_, error), data: ResponsePendingData) =>
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
       runJob(data)
@@ -182,7 +184,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(response: BackendJobExecutionResponse, data @ ResponsePendingData(_, _, _, _, Some(cacheHit))) =>
       response match {
-        case f: BackendJobFailedResponse => invalidateCacheHitAndTransition(cacheHit.cacheResultId, data, f.throwable)
+        case f: BackendJobFailedResponse => invalidateCacheHitAndTransition(cacheHit, data, f.throwable)
         case _ => runJob(data)
       }
 
@@ -218,8 +220,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(RunningJob) {
-    case Event(hashes: CallCacheHashes, data: SucceededResponseData) =>
+    // Received new hashes with CacheWriteResponseData data, meaning the job succeeded or failed and won't be retried
+    case Event(hashes: CallCacheHashes, data: CacheWriteResponseData) =>
       saveCacheResults(hashes, data)
+    // Received new hashes with ResponsePendingData data, meaning the job is still running
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
     case Event(CacheMiss, _) =>
@@ -227,32 +231,49 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(_: CacheHit, _) =>
       stay()
 
-    case Event(HashError(t), data: SucceededResponseData) =>
+    case Event(HashError(t), data: CacheWriteResponseData) =>
       disableCallCaching(Option(t))
-      saveJobCompletionToJobStore(data.copy(hashes = Option(Failure(t))))
+      saveJobCompletionToJobStore(data.withHashes(hashes = Failure(t)))
     case Event(HashError(t), data: ResponsePendingData) =>
       disableCallCaching(Option(t))
       stay using data.copy(hashes = Option(Failure(t)))
 
+      // Success
+        // All hashes already retrieved - save to the cache
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _)) if effectiveCallCachingMode.writeToCache =>
       eventList ++= response.executionEvents
       saveCacheResults(hashes, data.withSuccessResponse(response))
+        // Some hashes are still missing - waiting for them
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, None, _, _)) if effectiveCallCachingMode.writeToCache =>
       eventList ++= response.executionEvents
       log.debug(s"Got job result for {}, awaiting hashes", jobTag)
       stay using data.withSuccessResponse(response)
+        // writeToCache is OFF - complete the job
     case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
       eventList ++= response.executionEvents
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
+      
+      // Non-Retryable failure
+        // All hashes already retrieved - save to the cache
+    case Event(response: JobFailedNonRetryableResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _)) if effectiveCallCachingMode.writeToCache =>
+      saveCacheResults(hashes, data.withFailedNonRetryableResponse(response))
+        // Some hashes are still missing - waiting for them
+    case Event(response: JobFailedNonRetryableResponse, data @ ResponsePendingData(_, _, None, _, _)) if effectiveCallCachingMode.writeToCache =>
+      log.debug(s"Got job result for {}, awaiting hashes", jobTag)
+      stay using data.withFailedNonRetryableResponse(response)
+    case Event(response: JobFailedNonRetryableResponse, data: ResponsePendingData) =>
+      saveJobCompletionToJobStore(data.withFailedNonRetryableResponse(response))
+      
+      // Other type of response (retryable failure, abort) - complete the job
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
       saveJobCompletionToJobStore(data.withResponse(response))
   }
 
   // When UpdatingCallCache, the FSM always has SucceededResponseData.
   when(UpdatingCallCache) {
-    case Event(CallCacheWriteSuccess, data: SucceededResponseData) =>
+    case Event(CallCacheWriteSuccess, data: CacheWriteResponseData) =>
       saveJobCompletionToJobStore(data)
-    case Event(CallCacheWriteFailure(reason), data: SucceededResponseData) =>
+    case Event(CallCacheWriteFailure(reason), data: CacheWriteResponseData) =>
       log.error(reason, "{}: Failure writing to call cache: {}", jobTag, reason.getMessage)
       saveJobCompletionToJobStore(data)
   }
@@ -283,7 +304,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case eligible: CallCachingEligible =>
         initializeJobHashing(jobDescriptor, activity, eligible) match {
           case Success(ejha) => goto(CheckingCallCache) using updatedData.withEJHA(ejha)
-          case Failure(failure) => respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey.jobKey, failure, None))
+          case Failure(failure) => respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, failure, None))
         }
       case _ =>
         // If the job is ineligible, turn call caching off
@@ -458,15 +479,32 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def buildCacheHitCopyingActorName(jobDescriptor: BackendJobDescriptor, cacheResultId: CallCachingEntryId) = {
     s"$workflowIdForLogging-BackendCacheHitCopyingActor-$jobTag-${cacheResultId.id}"
   }
+  
+  private def publishHitFailure(cache: EJEACacheHit, failure: Throwable) = {
+    import MetadataKey._
+    import cromwell.services.metadata.MetadataService._
 
-  private def invalidateCacheHitAndTransition(cacheId: CallCachingEntryId, data: ResponsePendingData, reason: Throwable) = {
+    cache.details foreach { details =>
+      val metadataKey = MetadataKey(
+        workflowIdForLogging,
+        Option(MetadataJobKey(jobDescriptorKey.call.fullyQualifiedName, jobDescriptorKey.index, jobDescriptorKey.attempt)),
+        s"$callCachingHitFailures[${cache.hitNumber}]:${details.escapeMeta}"
+      )
+      
+      serviceRegistryActor ! PutMetadataAction(throwableToMetadataEvents(metadataKey, failure))
+    }
+  }
+
+  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: Throwable) = {
+    publishHitFailure(ejeaCacheHit, reason)
+    
     val invalidationRequired = effectiveCallCachingMode match {
       case CallCachingOff => throw new RuntimeException("Should not be calling invalidateCacheHit if call caching is off!") // Very unexpected. Fail out of this bad-state EJEA.
       case activity: CallCachingActivity => activity.options.invalidateBadCacheResults
     }
     if (invalidationRequired) {
       log.error(reason, "Failed copying cache results for job {}, invalidating cache entry.", jobDescriptorKey)
-      invalidateCacheHit(cacheId)
+      invalidateCacheHit(ejeaCacheHit.hit.cacheResultId)
       goto(InvalidatingCacheEntry)
     } else {
       handleCacheInvalidatedResponse(CallCacheInvalidationUnnecessary, data)
@@ -479,9 +517,16 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     ()
   }
 
-  private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {
-    callCacheWriteActor ! SaveCallCacheHashes(workflowIdForLogging, hashes, data)
-    val updatedData = data.copy(hashes = Option(Success(hashes)))
+  private def saveCacheResults(hashes: CallCacheHashes, data: CacheWriteResponseData) = {
+    data match {
+      case jobSucceededData: SucceededResponseData =>
+        callCacheWriteActor ! SaveCallCacheHashes(CallCacheHashBundle(workflowIdForLogging, hashes, jobSucceededData.response))
+      case jobFailedNonRetryableData: FailedNonRetryableResponseData =>
+        callCacheWriteActor ! SaveCallCacheHashes(CallCacheHashBundle(workflowIdForLogging, hashes, jobFailedNonRetryableData.response))
+        writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
+    }
+    
+    val updatedData = data.withHashes(hashes = Success(hashes))
     goto(UpdatingCallCache) using updatedData
   }
 
@@ -577,6 +622,8 @@ object EngineJobExecutionActor {
       backendName = backendName: String,
       callCachingMode = callCachingMode)).withDispatcher(EngineDispatcher)
   }
+  
+  case class EJEACacheHit(hit: CacheHit, hitNumber: Int, details: Option[String])
 
   private[execution] sealed trait EJEAData {
     override def toString = getClass.getSimpleName
@@ -588,35 +635,56 @@ object EngineJobExecutionActor {
                                                     bjeaProps: Props,
                                                     hashes: Option[Try[CallCacheHashes]] = None,
                                                     ejha: Option[ActorRef] = None,
-                                                    cacheHit: Option[CacheHit] = None) extends EJEAData {
+                                                    ejeaCacheHit: Option[EJEACacheHit] = None) extends EJEAData {
 
     def withEJHA(ejha: ActorRef): EJEAData = this.copy(ejha = Option(ejha))
 
 
     def withSuccessResponse(success: JobSucceededResponse) = SucceededResponseData(success, hashes)
+    
+    def withFailedNonRetryableResponse(nonRetryableFailure: JobFailedNonRetryableResponse) = FailedNonRetryableResponseData(nonRetryableFailure, hashes)
 
     def withResponse(response: BackendJobExecutionResponse) = response match {
       case success: JobSucceededResponse => SucceededResponseData(success, hashes)
+      case nonRetryableFailure: JobFailedNonRetryableResponse => FailedNonRetryableResponseData(nonRetryableFailure, hashes)
       case failure => NotSucceededResponseData(failure, hashes)
     }
 
-    def withCacheHit(cacheHit: CacheHit) = this.copy(cacheHit = Option(cacheHit))
+    def withCacheHit(cacheHit: CacheHit) = {
+      val newEjeaCacheHit = ejeaCacheHit map { currentCacheHit =>
+        currentCacheHit.copy(hit = cacheHit, hitNumber = currentCacheHit.hitNumber + 1)
+      } getOrElse EJEACacheHit(cacheHit, 0, None)
+      
+      this.copy(ejeaCacheHit = Option(newEjeaCacheHit))
+    }
+    
+    def withCacheDetails(details: String) = this.copy(ejeaCacheHit = ejeaCacheHit.map(_.copy(details = Option(details))))
   }
 
   private[execution] trait ResponseData extends EJEAData {
     def response: BackendJobExecutionResponse
     def hashes: Option[Try[CallCacheHashes]]
     def dockerImageUsed: Option[String]
+    def withHashes(hashes: Try[CallCacheHashes]): ResponseData
   }
 
-  private[execution] case class SucceededResponseData(successResponse: JobSucceededResponse,
-                                                      hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData {
-    override def response = successResponse
-    override def dockerImageUsed = successResponse.dockerImageUsed
+  private [execution] sealed trait CacheWriteResponseData extends ResponseData
+
+  private[execution] case class SucceededResponseData(response: JobSucceededResponse,
+                                                      hashes: Option[Try[CallCacheHashes]] = None) extends CacheWriteResponseData {
+    override def dockerImageUsed = response.dockerImageUsed
+    override def withHashes(hashes: Try[CallCacheHashes]) = this.copy(hashes = Option(hashes))
   }
 
+  private[execution] case class FailedNonRetryableResponseData(response: JobFailedNonRetryableResponse,
+                                                               hashes: Option[Try[CallCacheHashes]] = None) extends CacheWriteResponseData {
+    override def dockerImageUsed = None
+    override def withHashes(hashes: Try[CallCacheHashes]) = this.copy(hashes = Option(hashes))
+  }
+  
   private[execution] case class NotSucceededResponseData(response: BackendJobExecutionResponse,
                                                          hashes: Option[Try[CallCacheHashes]] = None) extends ResponseData {
     override def dockerImageUsed = None
+    override def withHashes(hashes: Try[CallCacheHashes]) = this.copy(hashes = Option(hashes))
   }
 }

@@ -4,11 +4,22 @@ import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
+import cromwell.database.slick.CallCachingSlickDatabase.CacheEntriesNotFoundException
 import cromwell.database.sql._
-import cromwell.database.sql.joins.CallCachingJoin
+import cromwell.database.sql.joins.{CallCachingDiffJoin, CallCachingJoin}
 import cromwell.database.sql.tables._
 
 import scala.concurrent.{ExecutionContext, Future}
+
+object CallCachingSlickDatabase {
+  case class CacheEntriesNotFoundException(queries: NonEmptyList[String]) extends Exception(
+    if (queries.tail.isEmpty) {
+      s"Cannot find a cache entry for ${queries.head}"
+    } else {
+      s"Cannot find cache entries for ${queries.head}, ${queries.tail.mkString(",")}"
+    }
+  )
+}
 
 trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: SlickDatabase =>
@@ -57,9 +68,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String)
-                                   (implicit ec: ExecutionContext): Future[Boolean] = {
+                                                              (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
-    
+
     runTransaction(action)
   }
 
@@ -69,9 +80,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
 
     runTransaction(action)
   }
-  
+
   override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
-                               (implicit ec: ExecutionContext): Future[Boolean] = {
+                                                            (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
@@ -93,12 +104,37 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def invalidateCall(callCachingEntryId: Int)
-                               (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
+                             (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
     val action = for {
       _ <- dataAccess.allowResultReuseForCallCachingEntryId(callCachingEntryId).update(false)
       callCachingEntryOption <- dataAccess.callCachingEntriesForId(callCachingEntryId).result.headOption
     } yield callCachingEntryOption
-    
+
     runTransaction(action)
+  }
+
+  override def diffCallCacheHashes(workflowIdA: String, callFqnA: String, jobIndexA: Int,
+                                   workflowIdB: String, callFqnB: String, jobIndexB: Int)
+                                  (implicit ec: ExecutionContext): Future[CallCachingDiffJoin] = {
+    val callATag = List(workflowIdA, callFqnA, jobIndexA).mkString(":")
+    val callBTag = List(workflowIdB, callFqnB, jobIndexB).mkString(":")
+    
+    val cacheEntries = for {
+      callCacheEntryA <- dataAccess.callCachingEntriesForWorkflowFqnIndex((workflowIdA, callFqnA, jobIndexA)).result.headOption
+      callCacheEntryB <- dataAccess.callCachingEntriesForWorkflowFqnIndex((workflowIdB, callFqnB, jobIndexB)).result.headOption
+    } yield (callCacheEntryA, callCacheEntryB)
+
+    val hashesDiff = cacheEntries flatMap {
+      case (Some(cacheA), Some(cacheB)) => for {
+        hashes <- dataAccess.callCachingHashDiff((cacheA.callCachingEntryId.get, cacheB.callCachingEntryId.get)).result
+      } yield (cacheA, cacheB, hashes)
+      case (None, Some(_)) => DBIO.failed(CacheEntriesNotFoundException(NonEmptyList.of(callATag)))
+      case (Some(_), None) => DBIO.failed(CacheEntriesNotFoundException(NonEmptyList.of(callBTag)))
+      case _ => DBIO.failed(CacheEntriesNotFoundException(NonEmptyList.of(callATag, callBTag)))
+    }
+
+    runTransaction(hashesDiff) map {
+      case (cacheA, cacheB, diff) => CallCachingDiffJoin(cacheA, cacheB, diff)
+    }
   }
 }

@@ -384,6 +384,60 @@ paths:
       security:
         - google_oauth:
             - openid
+  '/workflows/{version}/callcaching/diff':
+    get:
+      summary: Return the hash differential between two calls
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: workflowA
+          description: Workflow Id of the first workflow
+          required: true
+          type: string
+          in: query
+        - name: callA
+          description: Call FQN (including workflow name) of the first call
+          required: true
+          type: string
+          in: query
+        - name: indexA
+          description: Index of the first call
+          required: false
+          type: int
+          in: query
+        - name: workflowB
+          description: Workflow Id of the second workflow
+          required: true
+          type: string
+          in: query
+        - name: callB
+          description: Call FQN (including workflow name) of the second call
+          required: true
+          type: string
+          in: query
+        - name: indexB
+          description: Index of the second call
+          required: false
+          type: int
+          in: query
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+        '400':
+          description: Malformed query parameters
+        '404':
+          description: No matching cache entry
+        '500':
+          description: Internal Error
+      security:
+        - google_oauth:
+            - openid
   '/workflows/{version}/{id}/metadata':
     get:
       summary: Query for workflow and call-level metadata for a specified workflow

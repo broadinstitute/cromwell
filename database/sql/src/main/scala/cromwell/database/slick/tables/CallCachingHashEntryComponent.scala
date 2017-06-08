@@ -74,4 +74,54 @@ trait CallCachingHashEntryComponent {
         callCachingEntry.callCachingEntryId, hashKeyHashValues) && callCachingEntry.allowResultReuse
     } yield callCachingEntry.callCachingEntryId).exists
   }
+  
+  val callCachingHashDiff = Compiled(
+    (callCachingEntryIdA: Rep[Int], callCachingEntryIdB: Rep[Int]) => {
+
+      // Query that returns the hashes associated with a callCachingEntryId
+      def makeHashQuery(callCachingEntryId: Rep[Int]) = {
+        for {
+          callCacheHashes <- callCachingHashEntries
+          if callCacheHashes.callCachingEntryId === callCachingEntryId
+        } yield callCacheHashes
+      }
+
+      // Hashes for call A
+      val hashEntriesForA = makeHashQuery(callCachingEntryIdA)
+      // Hashes for call B
+      val hashEntriesForB = makeHashQuery(callCachingEntryIdB)
+
+      for {
+        hashes <- hashEntriesForA
+          // Join both hash sets. Full join so we get everything, including hashes in A but not in B and vice versa
+          .joinFull(hashEntriesForB)
+          // Join on hashKeys
+          .on(_.hashKey === _.hashKey)
+          // Only keep hashes for which the values are not the same
+          // Note that because we're dealing with Rep[Option[...]] and not Option[...] 
+          // we can't pattern match the maybeHashes to Some or None directly
+          .filter({
+          case (maybeHashA, maybeHashB) =>
+            // HashKey exists in B but not in A
+            (maybeHashA.isEmpty && maybeHashB.nonEmpty) ||
+              // HashKey exists in A but not in B
+              (maybeHashA.nonEmpty && maybeHashB.isEmpty) ||
+              // HashKey is in both but has different values
+              (for {
+                hashA <- maybeHashA
+                hashB <- maybeHashB
+              } yield hashA.hashValue =!= hashB.hashValue)
+                // A and B have same value (or they're both null but that shouldn't be possible)
+                .getOrElse(false)
+        })
+          // Remove duplicates
+          .distinct
+          // Project only hashKey / hashValues.
+          .map({
+            case (maybeHashA, maybeHashB) =>
+            maybeHashA.map({ hashA => hashA.hashKey -> hashA.hashValue }) -> maybeHashB.map({ hashB => hashB.hashKey -> hashB.hashValue })
+        })
+      } yield hashes
+    }
+  )
 }

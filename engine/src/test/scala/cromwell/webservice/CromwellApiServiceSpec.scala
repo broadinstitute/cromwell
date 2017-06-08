@@ -2,6 +2,8 @@ package cromwell.webservice
 
 import akka.actor.{Actor, ActorSystem, Props}
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.database.sql.tables.CallCachingEntry
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CallCacheDiffRequest, CallCachingDiff, CallCachingDiffElement}
 
 import scala.util.{Failure, Success, Try}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
@@ -420,6 +422,71 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         }
       }
   }
+
+  behavior of "REST API /callcachingdiff GET endpoint"
+  it should "return good results for a good query" in {
+    Get(s"/workflows/$version/callcaching/diff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello") ~>
+      cromwellApiService.callCachingDiffRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        println(responseAs[String])
+        assertResult(
+          """{
+            |  "callA": {
+            |    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+            |    "callFqn": "wf_hello.hello",
+            |    "jobIndex": -1,
+            |    "allowResultReuse": true
+            |  },
+            |  "callB": {
+            |    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+            |    "callFqn": "wf_hello.hello",
+            |    "jobIndex": -1,
+            |    "allowResultReuse": false
+            |  },
+            |  "hashDifferential": [{
+            |    "key1": {
+            |      "callA": "somehash",
+            |      "callB": "someotherhash"
+            |    }
+            |  }, {
+            |    "key2": {
+            |      "callA": "somehash",
+            |      "callB": null
+            |    }
+            |  }, {
+            |    "key3": {
+            |      "callA": null,
+            |      "callB": "someotherhash"
+            |    }
+            |  }]
+            |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
+  
+  it should "return an error for a bad query" in {
+    Get(s"/workflows/$version/callcaching/diff?missingStuff") ~>
+      cromwellApiService.callCachingDiffRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          """{
+            |  "status": "fail",
+            |  "message": "Wrong parameters for call cache diff query:\nmissing workflowA query parameter\nmissing callA query parameter\nmissing workflowB query parameter\nmissing callB query parameter",
+            |  "errors": ["missing workflowA query parameter", "missing callA query parameter", "missing workflowB query parameter", "missing callB query parameter"]
+            |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
 }
 
 object CromwellApiServiceSpec {
@@ -430,6 +497,7 @@ object CromwellApiServiceSpec {
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
     override val serviceRegistryActor = actorRefFactory.actorOf(Props.empty)
     override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
+    override val callCacheReadActor = actorRefFactory.actorOf(Props(new MockCallCacheReadActor()))
 
     override def handleMetadataRequest(message: AnyRef): Route = {
       message match {
@@ -521,6 +589,36 @@ object CromwellApiServiceSpec {
         }
 
         sender ! message
+    }
+  }
+
+  class MockCallCacheReadActor extends Actor {
+    override def receive = {
+      case CallCacheDiffRequest(parameters) =>
+        val response = CallCachingDiff(
+          CallCachingEntry(
+            parameters.callA.workflowId,
+            parameters.callA.callFqn,
+            parameters.callA.jobIndex.getOrElse(-1),
+            None,
+            None,
+            allowResultReuse = true
+          ),
+          CallCachingEntry(
+            parameters.callA.workflowId,
+            parameters.callA.callFqn,
+            parameters.callA.jobIndex.getOrElse(-1),
+            None,
+            None,
+            allowResultReuse = false
+          ),
+          Seq (
+            CallCachingDiffElement("key1", Option("somehash"), Option("someotherhash")),
+            CallCachingDiffElement("key2", Option("somehash"), None),
+            CallCachingDiffElement("key3", None, Option("someotherhash"))
+          )
+        )
+      sender() ! response
     }
   }
 }

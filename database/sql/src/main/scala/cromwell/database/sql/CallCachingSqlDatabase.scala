@@ -1,7 +1,7 @@
 package cromwell.database.sql
 
 import cats.data.NonEmptyList
-import cromwell.database.sql.joins.CallCachingJoin
+import cromwell.database.sql.joins.{CallCachingDiffJoin, CallCachingJoin}
 import cromwell.database.sql.tables.CallCachingEntry
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -23,4 +23,8 @@ trait CallCachingSqlDatabase {
 
   def invalidateCall(callCachingEntryId: Int)
                     (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]]
+  
+  def diffCallCacheHashes(workflowIdA: String, callFqnA: String, jobIndexA: Int,
+                          workflowIdB: String, callFqnB: String, jobIndexB: Int)
+                         (implicit ec: ExecutionContext): Future[CallCachingDiffJoin]
 }

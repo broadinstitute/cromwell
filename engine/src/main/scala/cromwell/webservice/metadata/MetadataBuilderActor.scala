@@ -51,6 +51,8 @@ object MetadataBuilderActor {
   val log = LoggerFactory.getLogger("MetadataBuilder")
 
   private val KeySeparator = MetadataKey.KeySeparator
+  // Split on every unescaped KeySeparator
+  private val KeySplitter = s"(?<!\\\\)$KeySeparator"
   private val bracketMatcher = """\[(\d*)\]""".r
   private val AttemptKey = "attempt"
   private val ShardKey = "shardIndex"
@@ -108,6 +110,8 @@ object MetadataBuilderActor {
   }
   
   private def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
+    import MetadataKey._
+    
     lazy val originalKeyAndPrimitive = (event.key.key, metadataValueToComponent(event.value, customOrdering(event)))
     
     val keyAndPrimitive = if (event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)) {
@@ -119,7 +123,7 @@ object MetadataBuilderActor {
       } yield (keyWithSubWorkflowMetadata, subWorkflowComponent)) getOrElse originalKeyAndPrimitive
     } else originalKeyAndPrimitive
 
-    keyAndPrimitive._1.split(KeySeparator).foldRight(keyAndPrimitive._2)(parseKeyChunk)
+    keyAndPrimitive._1.split(KeySplitter).map(_.unescapeMeta).foldRight(keyAndPrimitive._2)(parseKeyChunk)
   }
 
   /**

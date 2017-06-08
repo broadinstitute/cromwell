@@ -10,7 +10,6 @@ import akka.http.scaladsl.model.headers.HttpEncodings
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.Uri.Query
 import akka.util.ByteString
 import cromwell.api.model._
 import spray.json._
@@ -30,7 +29,6 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "status")
   def metadataEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "metadata")
   lazy val backendsEndpoint = s"$submitEndpoint/backends"
-  lazy val callCachingDiffEndpoint = s"$submitEndpoint/callcaching/diff"
 
   import model.CromwellStatusJsonSupport._
   import model.CromwellBackendsJsonSupport._
@@ -84,22 +82,6 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
         SubmittedWorkflow(WorkflowId.fromString(status.id), cromwellUrl, submission)
       }
     }
-  }
-  
-  def callCachingDiff(callA: CallCachingDiffCallId, callB: CallCachingDiffCallId)(implicit ec: ExecutionContext): Future[CallCachingDiffResponse] = {
-    val parameters = Query(Map(
-      "workflowA" -> callA.workflowId,
-      "callA" -> callA.callFqn,
-      "workflowB" -> callB.workflowId,
-      "callB" -> callB.callFqn
-    ) ++ 
-      callA.jobIndex.map(i => Map("indexA" -> i.toString)).getOrElse(Map.empty) ++
-      callB.jobIndex.map(i => Map("indexB" -> i.toString)).getOrElse(Map.empty)
-    )
-    
-    val uri = Uri(callCachingDiffEndpoint).withQuery(parameters)
-    
-    makeRequest[CallCachingDiffResponse](HttpRequest(uri = uri))
   }
 
   def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = getRequest[CromwellStatus](abortEndpoint(workflowId)) map WorkflowStatus.apply

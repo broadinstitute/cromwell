@@ -32,7 +32,7 @@ libraryDependencies ++= {
   val akkaHttpV   = "10.0.6"
   val scalaTestV  = "3.0.1"
   val catsV = "0.9.0"
-  val lenthallV = "0.24-c8af383-SNAP"
+  val lenthallV = "0.25-903b3c0-SNAP"
 
   val catsDependencies = List(
     "org.typelevel" %% "cats" % catsV
@@ -66,6 +66,6 @@ libraryDependencies ++= {
 
 Revolver.settings
 resolvers ++= List(
-  "Broad Artifactory Releases" at "https://artifactory.broadinstitute.org/artifactory/libs-release/",
-  "Broad Artifactory Snapshots" at "https://artifactory.broadinstitute.org/artifactory/libs-snapshot/"
+  "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
+  "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
 )

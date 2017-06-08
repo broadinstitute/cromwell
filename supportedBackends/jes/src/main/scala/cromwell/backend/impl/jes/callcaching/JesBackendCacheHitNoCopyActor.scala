@@ -14,6 +14,7 @@ class JesBackendCacheHitNoCopyActor(standardParams: StandardCacheHitCopyingActor
   override def receive = {
     case CopyOutputsCommand(simpletons, jobDetritus, returnCode) => 
       val jobOutputs = WdlValueBuilder.toJobOutputs(standardParams.jobDescriptor.call.task.outputs, simpletons)
+      println(jobOutputs)
       val detritusPaths = jobDetritus.filterNot(_._1 == JobPaths.CallRootPathKey).mapValues(getPath) + (JobPaths.CallRootPathKey -> Success(jobPaths.callRoot))
       
       val response = TryUtil.sequenceMap(detritusPaths) match {

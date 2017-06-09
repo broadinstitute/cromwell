@@ -138,7 +138,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
   behavior of "REST API submission endpoint"
   it should "return 201 for a successful workflow submission " in {
-    val bodyParts: Map[String, BodyPart] = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowInputs" -> BodyPart(HelloWorld.rawInputs.toJson.toString()))
+    val bodyParts: Map[String, BodyPart] = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowInputs" -> BodyPart(HelloWorld.rawInputs.toJson.toString()))
     Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitRoute ~>
       check {
@@ -156,7 +156,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   }
 
   it should "return 400 for an unrecognized form data request parameter " in {
-    val bodyParts: Map[String, BodyPart] = Map("incorrectParameter" -> BodyPart(HelloWorld.wdlSource()))
+    val bodyParts: Map[String, BodyPart] = Map("incorrectParameter" -> BodyPart(HelloWorld.workflowSource()))
     Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitRoute ~>
       check {
@@ -182,7 +182,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
                     |}
                     |""".stripMargin
 
-    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowOptions" -> BodyPart(options))
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowOptions" -> BodyPart(options))
 
     Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitRoute ~>
@@ -198,7 +198,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
                      |{"read_from_cache": "true"
                      |""".stripMargin
 
-    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowOptions" -> BodyPart(options))
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowOptions" -> BodyPart(options))
 
     Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitRoute ~>
@@ -225,7 +225,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   behavior of "REST API batch submission endpoint"
   it should "return 200 for a successful workflow submission " in {
     val inputs = HelloWorld.rawInputs.toJson
-    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowInputs" -> BodyPart(s"[$inputs, $inputs]"))
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowInputs" -> BodyPart(s"[$inputs, $inputs]"))
 
     Post(s"/workflows/$version/batch", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitBatchRoute ~>
@@ -247,7 +247,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   }
 
   it should "return 400 for an submission with no inputs" in {
-    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()))
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()))
 
     Post(s"/workflows/$version/batch", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitBatchRoute ~>

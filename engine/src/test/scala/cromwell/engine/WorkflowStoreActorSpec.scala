@@ -125,7 +125,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
           workflowNel.toList.foreach {
             case WorkflowToStart(id, sources, state) =>
               insertedIds.contains(id) should be(true)
-              sources.wdlSource should be(optionedSourceFiles.wdlSource)
+              sources.workflowSource should be(optionedSourceFiles.workflowSource)
               sources.inputsJson should be(optionedSourceFiles.inputsJson)
               state should be(WorkflowStoreState.Submitted)
 

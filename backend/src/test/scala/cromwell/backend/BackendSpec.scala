@@ -23,13 +23,13 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
-  def buildWorkflowDescriptor(wdl: WdlSource,
+  def buildWorkflowDescriptor(workflowSource: WdlSource,
                               inputs: Map[String, WdlValue] = Map.empty,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
+      WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
       inputs,
       options,
       Labels.empty

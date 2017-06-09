@@ -11,7 +11,7 @@ class RestartWorkflowSpec extends CromwellTestKitWordSpec with WorkflowDescripto
   val actorSystem = ActorSystem("RestartWorkflowSpec", ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
   //val localBackend = new OldStyleLocalBackend(CromwellTestkitSpec.DefaultLocalBackendConfigEntry, actorSystem)
   val sources = WorkflowSourceFilesWithoutImports(
-    wdlSource =
+    workflowSource =
       """task a {command{}}
         |workflow w {
         |  call a

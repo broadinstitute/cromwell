@@ -35,8 +35,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   var currentWorkflowId: WorkflowId = _
   val currentLifecycleActor = TestProbe()
-  val wdlSources = ThreeStep.asWorkflowSources(workflowOptions = mockWorkflowOptions)
-  val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = wdlSources)
+  val workflowSources = ThreeStep.asWorkflowSources(workflowOptions = mockWorkflowOptions)
+  val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = workflowSources)
   val supervisorProbe = TestProbe()
   val deathwatch = TestProbe()
   val finalizationProbe = TestProbe()
@@ -55,7 +55,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         finalizationProbe = finalizationProbe,
         workflowId = currentWorkflowId,
         startMode = StartNewWorkflow,
-        workflowSources = wdlSources,
+        workflowSources = workflowSources,
         conf = ConfigFactory.load,
         ioActor = system.actorOf(SimpleIoActor.props),
         serviceRegistryActor = mockServiceRegistryActor,

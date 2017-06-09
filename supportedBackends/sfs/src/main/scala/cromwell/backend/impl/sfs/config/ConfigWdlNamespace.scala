@@ -33,7 +33,7 @@ class ConfigWdlNamespace(backendConfig: Config) {
   private val checkAliveSourceOption = checkAliveCommandOption.map(makeWdlSource(
     CheckAliveTask, _, jobIdRuntimeAttributes))
 
-  private val wdlSource =
+  private val workflowSource =
     s"""
        |${submitSourceOption getOrElse ""}
        |${submitDockerSourceOption getOrElse ""}
@@ -45,9 +45,9 @@ class ConfigWdlNamespace(backendConfig: Config) {
     * The wdl namespace containing the submit, kill, and check alive tasks.
     */
   val wdlNamespace = {
-    WdlNamespace.loadUsingSource(wdlSource, None, None) match {
+    WdlNamespace.loadUsingSource(workflowSource, None, None) match {
       case Success(ns) => ns
-      case Failure(f) => throw new RuntimeException(s"Error parsing generated wdl:\n$wdlSource".stripMargin, f)
+      case Failure(f) => throw new RuntimeException(s"Error parsing generated wdl:\n$workflowSource".stripMargin, f)
     }
   }
 
@@ -73,8 +73,8 @@ object ConfigWdlNamespace {
   }
 
   private def makeTask(taskName: String, command: String, declarations: String): Task = {
-    val wdlSource = makeWdlSource(taskName, command, declarations)
-    val wdlNamespace = WdlNamespace.loadUsingSource(wdlSource, None, None).get
+    val workflowSource = makeWdlSource(taskName, command, declarations)
+    val wdlNamespace = WdlNamespace.loadUsingSource(workflowSource, None, None).get
     wdlNamespace.findTask(taskName).getOrElse(throw new RuntimeException(s"Couldn't find task $taskName"))
   }
 

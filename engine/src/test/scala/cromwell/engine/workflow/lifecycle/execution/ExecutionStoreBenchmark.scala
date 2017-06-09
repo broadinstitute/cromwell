@@ -22,7 +22,7 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   lazy val reporter = new LoggingReporter[Double]
   lazy val persistor = Persistor.None
   
-  val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().wdlSource(), Seq.empty).get
+  val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
   val prepareCall: TaskCall = wdl.workflow.findCallByName("do_prepare").get.asInstanceOf[TaskCall]
   val scatterCall: TaskCall = wdl.workflow.findCallByName("do_scatter").get.asInstanceOf[TaskCall]
   

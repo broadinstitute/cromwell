@@ -20,7 +20,6 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActor, WorkflowMetadataHelper}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
-import wdl4s.{LocallyQualifiedName => _}
 
 import scala.concurrent.Future
 import scala.util.Failure
@@ -135,7 +134,7 @@ object WorkflowActor {
 
   def props(workflowId: WorkflowId,
             startMode: StartMode,
-            wdlSource: WorkflowSourceFilesCollection,
+            workflowSourceFilesCollection: WorkflowSourceFilesCollection,
             conf: Config,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
@@ -149,12 +148,22 @@ object WorkflowActor {
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean): Props = {
     Props(
-      new WorkflowActor(workflowId, startMode, wdlSource, conf,
-        ioActor = ioActor, serviceRegistryActor = serviceRegistryActor, workflowLogCopyRouter = workflowLogCopyRouter,
-        jobStoreActor = jobStoreActor, subWorkflowStoreActor = subWorkflowStoreActor,
-        callCacheReadActor = callCacheReadActor, callCacheWriteActor = callCacheWriteActor,
-        dockerHashActor = dockerHashActor, jobTokenDispenserActor = jobTokenDispenserActor,
-        backendSingletonCollection, serverMode)).withDispatcher(EngineDispatcher)
+      new WorkflowActor(
+        workflowId = workflowId,
+        startMode = startMode,
+        workflowSourceFilesCollection = workflowSourceFilesCollection,
+        conf = conf,
+        ioActor = ioActor,
+        serviceRegistryActor = serviceRegistryActor,
+        workflowLogCopyRouter = workflowLogCopyRouter,
+        jobStoreActor = jobStoreActor,
+        subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor,
+        callCacheWriteActor = callCacheWriteActor,
+        dockerHashActor = dockerHashActor,
+        jobTokenDispenserActor = jobTokenDispenserActor,
+        backendSingletonCollection = backendSingletonCollection,
+        serverMode = serverMode)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -163,7 +172,7 @@ object WorkflowActor {
   */
 class WorkflowActor(val workflowId: WorkflowId,
                     startMode: StartMode,
-                    workflowSources: WorkflowSourceFilesCollection,
+                    workflowSourceFilesCollection: WorkflowSourceFilesCollection,
                     conf: Config,
                     ioActor: ActorRef,
                     override val serviceRegistryActor: ActorRef,
@@ -195,7 +204,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
-      actor ! MaterializeWorkflowDescriptorCommand(workflowSources, conf)
+      actor ! MaterializeWorkflowDescriptorCommand(workflowSourceFilesCollection, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)
   }
@@ -307,7 +316,7 @@ class WorkflowActor(val workflowId: WorkflowId,
           * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
           * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
           */
-        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(workflowSources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
+        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(workflowSourceFilesCollection.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
         val system = context.system
         val ec = context.system.dispatcher
         def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system, ec)
@@ -344,8 +353,8 @@ class WorkflowActor(val workflowId: WorkflowId,
   private def finalizationSucceeded(data: WorkflowActorData) = {
     val finalState = data.lastStateReached match {
       case StateCheckpoint(WorkflowAbortingState, None) => WorkflowAbortedState
-      case StateCheckpoint(state, Some(failures)) => WorkflowFailedState
-      case StateCheckpoint(state, None) => WorkflowSucceededState
+      case StateCheckpoint(_, Some(_)) => WorkflowFailedState
+      case StateCheckpoint(_, None) => WorkflowSucceededState
     }
 
     goto(finalState) using data.copy(currentLifecycleStateActor = None)

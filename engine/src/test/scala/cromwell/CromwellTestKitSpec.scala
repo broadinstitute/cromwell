@@ -359,7 +359,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
              patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WdlValue] = {
     val rootActor = buildCromwellRootActor(config)
     val sources = WorkflowSourceFilesWithoutImports(
-      wdlSource = sampleWdl.wdlSource(runtime),
+      workflowSource = sampleWdl.workflowSource(runtime),
       workflowType = Option("WDL"),
       workflowTypeVersion = None,
       inputsJson = sampleWdl.wdlJson,

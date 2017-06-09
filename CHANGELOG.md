@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 28
+
+### Workflow Submission
+
+The workflow submission parameters `wdlSource` and `wdlDependencies` have been deprecated in favor of `workflowSource` and
+`workflowDependencies` respectively.  The older names are still supported in Cromwell 28 with deprecation warnings but will
+be removed in a future version of Cromwell.
+
 ## 27
 
 ### Migration

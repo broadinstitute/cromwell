@@ -361,7 +361,7 @@ system {
 
 Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
-By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
+By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
 # Security
 
@@ -477,7 +477,7 @@ When Cromwell runs a workflow, it first creates a directory `<cromwell_root>/<wo
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
 
-An example of a workflow output directory for a three-step WDL file might look like this:
+An example of a workflow output directory for a three-step workflow might look like this:
 
 ```
 cromwell-executions/
@@ -1227,7 +1227,7 @@ nativeSpecs attribute needs to be specified as String.
 
 ## Spark Backend
 
-This backend adds support for execution of spark jobs in a workflow using the existing wdl format. 
+This backend adds support for execution of spark jobs in a workflow.
 
 It supports the following Spark deploy modes:
 
@@ -1301,7 +1301,7 @@ Supported runtime attributes for a Spark Job is as follows:
 * appMainClass ( Spark app/job entry point)
 * numberOfExecutors ( Specific to cluster deploy mode)
 
-Sample usage :
+Sample usage:
 
 ```wdl
 task sparkjob_with_yarn_cluster {
@@ -1327,8 +1327,8 @@ Supported File Systems as follows:
 * Network File System
 * Distributed file system
 
-### Sample Wdl
-Next, create a Wdl, and it's json input like so:
+### Sample WDL
+Next, create a WDL, and its json input like so:
 
 ```wdl
 task sparkjob_with_yarn_cluster {
@@ -1682,7 +1682,7 @@ Valid keys and their meanings:
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
     * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
-    * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+    * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the user command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
 
 # Labels
 
@@ -1757,12 +1757,12 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 
 Docker tags are a convenient way to point to a version of an image (ubuntu:14.04), or even the latest version (ubuntu:latest).
 For that purpose, tags are mutable, meaning that the image they point to can change, while the tag name stays the same.
-While this is very convenient in some cases, using mutable, or "floating" tags in WDL affects the reproducibility of the WDL file: the same WDL using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
+While this is very convenient in some cases, using mutable, or "floating" tags in tasks affects the reproducibility of a workflow: the same workflow using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
 This has an even bigger impact when Call Caching is turned on in Cromwell, and could lead to unpredictable behaviors if a tag is updated in the middle of a workflow or even a scatter for example.
 Docker provides another way of identifying an image version, using the specific digest of the image. The digest is guaranteed to be different if 2 images have different byte content. For more information see https://docs.docker.com/registry/spec/api/#/content-digests
 A docker image with digest can be referenced as follows : **ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950**
 The above image refers to a specific image of ubuntu, that does not depend on a floating tag.
-A WDL containing this Docker image run now and a year from now will run in the exact same container.
+A workflow containing this Docker image run now and a year from now will run in the exact same container.
 
 In order to remove unpredictable behaviors, Cromwell takes the following approach regarding floating docker tags.
 
@@ -1834,7 +1834,7 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
 ```
 # Imports
 
-Import statements inside of a WDL file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
+Import statements inside of a workflow file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
 
 In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [run](#run).
 
@@ -1843,7 +1843,7 @@ For example, given a workflow `wf.wdl` and an imports directory `WdlImports.zip`
 java -jar cromwell.jar wf.wdl wf.inputs - - WdlImports.zip
 ```
 
-In Server Mode, you pass in a zip file using the parameter `wdlDependencies` via the [POST /api/workflows/:version](#post-apiworkflowsversion) endpoint.
+In Server Mode, you pass in a zip file using the parameter `workflowDependencies` via the [POST /api/workflows/:version](#post-apiworkflowsversion) endpoint.
 
 
 # Sub Workflows
@@ -2304,7 +2304,7 @@ It's also possible to set the URL query parameter `expandSubWorkflows` to `true`
 
 # REST API
 
-The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
+The `server` subcommand on the executable JAR will start an HTTP server which can accept workflow files to run as well as check status and output of existing workflows.
 
 The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jkbrzt/httpie) and [cURL](https://curl.haxx.se/)
 
@@ -2316,12 +2316,12 @@ All web server requests include an API version in the url. The current version i
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
-* `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowSource` - *Required* Contains the workflow source file to submit for execution.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  For WDL workflows a skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 * `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](#labels) for the expected format.
-* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements.
+* `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements.
 
 Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
 Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
@@ -2332,13 +2332,13 @@ Additionally, although Swagger has a limit of 5 JSON input files, the REST endpo
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+$ curl -v "localhost:8000/api/workflows/v1" -F workflowSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 workflowSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
 ```
 
 Request:
@@ -2354,7 +2354,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --64128d499e9e4616adea7d281f695dca
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task ps {
   command {
@@ -2424,13 +2424,13 @@ To specify workflow options as well:
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+$ curl -v "localhost:8000/api/workflows/v1" -F workflowSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
 ```
 
 HTTPie:
 
 ```
-http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 workflowSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
 ```
 
 Request (some parts truncated for brevity):
@@ -2446,7 +2446,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --f3fd038395644de596c460257626edd7
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task x { ... }
 task y { ... }
@@ -2482,28 +2482,28 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 This endpoint accepts a POST request with a `multipart/form-data`
 encoded body.  The form fields that may be included are:
 
-* `wdlSource` - *Required* Contains the WDL file to submit for
+* `workflowSource` - *Required* Contains the workflow source file to submit for
 execution.
 * `workflowInputs` - *Required* JSON file containing the inputs in a
-JSON array. A skeleton file for a single inputs json element can be
+JSON array. For WDL workflows a skeleton file for a single inputs json element can be
 generated from [wdltool](https://github.com/broadinstitute/wdltool)
 using the "inputs" subcommand. The orderded endpoint responses will
 contain one workflow submission response for each input, respectively.
 * `workflowOptions` - *Optional* JSON file containing options for this
 workflow execution.  See the [run](#run) CLI sub-command for some more
 information about this.
-* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements. Applied equally to all workflowInput sets.
+* `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements. Applied equally to all workflowInput sets.
 
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F workflowSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch workflowSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
 ```
 
 Request:
@@ -2519,7 +2519,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --64128d499e9e4616adea7d281f695dcb
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task ps {
   command {
@@ -2600,13 +2600,13 @@ To specify workflow options as well:
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F workflowSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
 ```
 
 HTTPie:
 
 ```
-http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch workflowSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
 ```
 
 Request (some parts truncated for brevity):
@@ -2622,7 +2622,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --f3fd038395644de596c460257626edd8
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task x { ... }
 task y { ... }

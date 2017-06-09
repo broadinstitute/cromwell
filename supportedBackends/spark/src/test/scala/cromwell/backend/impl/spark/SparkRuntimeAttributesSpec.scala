@@ -98,8 +98,8 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
     )
   }
 
-  private def createRuntimeAttributes(wdlSource: WdlSource, runtimeAttributes: String) = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdlSource, runtime = runtimeAttributes)
+  private def createRuntimeAttributes(workflowSource: WdlSource, runtimeAttributes: String) = {
+    val workflowDescriptor = buildWorkflowDescriptor(workflowSource, runtime = runtimeAttributes)
 
     def createLookup(call: Call): ScopedLookupFunction = {
       val knownInputs = workflowDescriptor.knownValues

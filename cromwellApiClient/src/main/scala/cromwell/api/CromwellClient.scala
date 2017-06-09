@@ -37,7 +37,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
     import cromwell.api.model.LabelsJsonFormatter._
 
     val sourceBodyParts = Map(
-      "wdlSource" -> Option(workflowSubmission.wdl),
+      "workflowSource" -> Option(workflowSubmission.wdl),
       "workflowType" -> workflowSubmission.workflowType,
       "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
       "workflowInputs" -> workflowSubmission.inputsJson,
@@ -45,7 +45,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
       "customLabels" -> Option(workflowSubmission.customLabels.toJson.toString)
     ) collect { case (name, Some(source: String)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
     val zipBodyParts = Map(
-      "wdlDependencies" -> workflowSubmission.zippedImports
+      "workflowDependencies" -> workflowSubmission.zippedImports
     ) collect { case (name, Some(file)) => Multipart.FormData.BodyPart.fromPath(name, MediaTypes.`application/zip`, file.path) }
 
     val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)

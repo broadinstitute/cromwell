@@ -7,7 +7,7 @@ import wdl4s.{WdlJson, WdlSource}
   */
 
 sealed trait WorkflowSourceFilesCollection {
-  def wdlSource: WdlSource
+  def workflowSource: WdlSource
   def inputsJson: WdlJson
   def workflowOptionsJson: WorkflowOptionsJson
   def labelsJson: WdlJson
@@ -26,7 +26,7 @@ sealed trait WorkflowSourceFilesCollection {
 }
 
 object WorkflowSourceFilesCollection {
-  def apply(wdlSource: WdlSource,
+  def apply(workflowSource: WdlSource,
             workflowType: Option[WorkflowType],
             workflowTypeVersion: Option[WorkflowTypeVersion],
             inputsJson: WdlJson,
@@ -34,25 +34,25 @@ object WorkflowSourceFilesCollection {
             labelsJson: WdlJson,
             importsFile: Option[Array[Byte]]): WorkflowSourceFilesCollection = importsFile match {
     case Some(imports) =>
-      WorkflowSourceFilesWithDependenciesZip(wdlSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson, imports)
+      WorkflowSourceFilesWithDependenciesZip(workflowSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson, imports)
     case None =>
-      WorkflowSourceFilesWithoutImports(wdlSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson)
+      WorkflowSourceFilesWithoutImports(workflowSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson)
   }
 }
 
-final case class WorkflowSourceFilesWithoutImports(wdlSource: WdlSource,
+final case class WorkflowSourceFilesWithoutImports(workflowSource: WdlSource,
                                                    workflowType: Option[WorkflowType],
                                                    workflowTypeVersion: Option[WorkflowTypeVersion],
                                                    inputsJson: WdlJson,
                                                    workflowOptionsJson: WorkflowOptionsJson,
                                                    labelsJson: WdlJson) extends WorkflowSourceFilesCollection
 
-final case class WorkflowSourceFilesWithDependenciesZip(wdlSource: WdlSource,
+final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: WdlSource,
                                                         workflowType: Option[WorkflowType],
                                                         workflowTypeVersion: Option[WorkflowTypeVersion],
                                                         inputsJson: WdlJson,
                                                         workflowOptionsJson: WorkflowOptionsJson,
                                                         labelsJson: WdlJson,
                                                         importsZip: Array[Byte]) extends WorkflowSourceFilesCollection {
-  override def toString = s"WorkflowSourceFilesWithDependenciesZip($wdlSource, $inputsJson, $workflowOptionsJson, $labelsJson, <<ZIP BINARY CONTENT>>)"
+  override def toString = s"WorkflowSourceFilesWithDependenciesZip($workflowSource, $inputsJson, $workflowOptionsJson, $labelsJson, <<ZIP BINARY CONTENT>>)"
 }

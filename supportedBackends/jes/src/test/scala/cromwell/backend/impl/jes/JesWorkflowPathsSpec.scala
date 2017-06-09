@@ -17,7 +17,7 @@ class JesWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers 
   it should "map the correct paths" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
-    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.wdlSource())
+    val workflowDescriptor = buildWorkflowDescriptor(SampleWdl.HelloWorld.workflowSource())
     val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
     val workflowPaths = JesWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration)(system)

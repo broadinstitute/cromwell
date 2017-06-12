@@ -78,3 +78,10 @@ class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean) extends 
 class IoHashCommand(val file: Path) extends IoCommand[String] {
   override def toString = s"get hash of ${file.pathAsString}"
 }
+
+/**
+  * Get Hash value for file
+  */
+class IoTouchCommand(val file: Path) extends IoCommand[Unit] {
+  override def toString = s"touch ${file.pathAsString}"
+}

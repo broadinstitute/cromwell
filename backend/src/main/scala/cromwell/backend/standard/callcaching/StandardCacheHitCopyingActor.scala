@@ -55,14 +55,15 @@ object StandardCacheHitCopyingActor {
 
   sealed trait StandardCacheHitCopyingActorState
   case object Idle extends StandardCacheHitCopyingActorState
-  case object WaitingForCopyResponses extends StandardCacheHitCopyingActorState
+  case object WaitingForIoResponses extends StandardCacheHitCopyingActorState
+  case object WaitingForOnSuccessResponse extends StandardCacheHitCopyingActorState
 
-  case class StandardCacheHitCopyingActorData(copyCommandsToWaitFor: Set[IoCopyCommand],
-                                              copiedJobOutputs: CallOutputs,
-                                              copiedDetritus: DetritusMap,
+  case class StandardCacheHitCopyingActorData(commandsToWaitFor: Set[IoCommand[_]],
+                                              newJobOutputs: CallOutputs,
+                                              newDetritus: DetritusMap,
                                               returnCode: Option[Int]
                                              ) {
-    def remove(copyCommand: IoCopyCommand) = copy(copyCommandsToWaitFor = copyCommandsToWaitFor filterNot { _ == copyCommand })
+    def remove(command: IoCommand[_]) = copy(commandsToWaitFor = commandsToWaitFor filterNot { _ == command })
   }
 }
 
@@ -89,7 +90,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
-
+  
   when(Idle) {
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
       val sourceCallRootPath = lookupSourceCallRootPath(jobDetritus)
@@ -100,17 +101,16 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       } yield (callOutputs, destinationDetritus, simpletonCopyPairs ++ detritusCopyPairs)
 
       processed match {
-        case Success((callOutputs, destinationDetritus, allCopyPairs)) =>
-          duplicate(allCopyPairs) match {
+        case Success((callOutputs, destinationDetritus, allIoCommands)) =>
+          duplicate(ioCommandsToCopyPairs(allIoCommands)) match {
             case Some(Success(_)) => succeedAndStop(returnCode, callOutputs, destinationDetritus)
             case Some(Failure(failure)) => failAndStop(failure)
             case None =>
-              val allCopyCommands = allCopyPairs map { case (source, destination) => copyCommand(source, destination, overwrite = true) }
 
-              if (allCopyCommands.nonEmpty) {
-                allCopyCommands foreach { sendIoCommand(_) }
+              if (allIoCommands.nonEmpty) {
+                allIoCommands foreach { sendIoCommand(_) }
                 
-                goto(WaitingForCopyResponses) using Option(StandardCacheHitCopyingActorData(allCopyCommands, callOutputs, destinationDetritus, returnCode))
+                goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allIoCommands, callOutputs, destinationDetritus, returnCode))
               } else succeedAndStop(returnCode, callOutputs, destinationDetritus)
           }
 
@@ -118,12 +118,33 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       }
   }
 
-  when(WaitingForCopyResponses) {
-    case Event(IoSuccess(copyCommand: IoCopyCommand, _), Some(data)) =>
-      val newData = data.remove(copyCommand)
-      if (newData.copyCommandsToWaitFor.isEmpty) succeedAndStop(data.returnCode, data.copiedJobOutputs, data.copiedDetritus)
+  when(WaitingForIoResponses) {
+    case Event(IoSuccess(command: IoCommand[_], _), Some(data)) =>
+      val newData = data.remove(command)
+      if (newData.commandsToWaitFor.isEmpty) {
+        onSuccessIoCommand(data) match {
+          case Some(successCommand) =>
+            sendIoCommand(successCommand)
+            goto(WaitingForOnSuccessResponse)
+          case None => succeedAndStop(data.returnCode, data.newJobOutputs, data.newDetritus)
+        }
+      }
       else stay() using Option(newData)
-    case Event(IoFailure(copyCommand: IoCopyCommand, failure), _) =>
+    case Event(IoFailure(_: IoCommand[_], failure), None) =>
+      failAndStop(failure)
+    case Event(IoFailure(_: IoCommand[_], failure), Some(data)) =>
+      if (data.commandsToWaitFor.isEmpty) failAndStop(failure)
+      else {
+        context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+        // Wait for the other responses to avoid them being sent to dead letter
+        stay()
+      }
+  }
+  
+  when(WaitingForOnSuccessResponse) {
+    case Event(IoSuccess(_: IoCommand[_], _), Some(data)) =>
+      succeedAndStop(data.returnCode, data.newJobOutputs, data.newDetritus)
+    case Event(IoFailure(_: IoCommand[_], failure), _) =>
       failAndStop(failure)
   }
 
@@ -162,34 +183,42 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         throw new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}", failure)
     } get
   }
+  
+  private def ioCommandsToCopyPairs(commands: Set[IoCommand[_]]): Set[PathPair] = commands collect {
+    case copyCommad: IoCopyCommand => copyCommad.source -> copyCommad.destination
+  }
 
   /**
     * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies. 
     */
-  protected def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[PathPair])] = Try {
-    val (destinationSimpletons, ioCommands): (List[WdlValueSimpleton], Set[PathPair]) = wdlValueSimpletons.toList.foldMap({
+  protected def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
+    val (destinationSimpletons, ioCommands): (List[WdlValueSimpleton], Set[IoCommand[_]]) = wdlValueSimpletons.toList.foldMap({
       case WdlValueSimpleton(key, wdlFile: WdlFile) =>
         val sourcePath = getPath(wdlFile.value).get
         val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
 
         val destinationSimpleton = WdlValueSimpleton(key, WdlFile(destinationPath.pathAsString))
 
-        List(destinationSimpleton) -> Set(sourcePath -> destinationPath)
-      case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[PathPair])
+        List(destinationSimpleton) -> Set(copyCommand(sourcePath, destinationPath, overwrite = true))
+      case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
     (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
   }
 
+  protected final def detritusFileKeys(sourceJobDetritusFiles: Map[String, String]) = {
+    val sourceKeys = sourceJobDetritusFiles.keySet
+    val destinationKeys = destinationJobDetritusPaths.keySet
+    sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
+  }
+  
   /**
     * Returns a pair of the detritus with copied paths, and copy commands necessary to perform those copies. 
     */
-  protected def processDetritus(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[PathPair])] = Try {
-    val sourceKeys = sourceJobDetritusFiles.keySet
-    val destinationKeys = destinationJobDetritusPaths.keySet
-    val fileKeys = sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
+  protected def processDetritus(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[IoCommand[_]])] = Try {
+    val fileKeys = detritusFileKeys(sourceJobDetritusFiles)
 
-    val zero = (Map.empty[String, Path], Set.empty[PathPair])
+    val zero = (Map.empty[String, Path], Set.empty[IoCommand[_]])
 
     val (destinationDetritus, ioCommands) = fileKeys.foldLeft(zero)({
       case ((detrituses, commands), detritus) =>
@@ -198,11 +227,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         
         val newDetrituses = detrituses + (detritus -> destinationPath)
         
-        (newDetrituses, commands + ((sourcePath, destinationPath)))
+        (newDetrituses, commands + copyCommand(sourcePath, destinationPath, overwrite = true))
     })
     
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
   }
+  
+  protected def onSuccessIoCommand(data: StandardCacheHitCopyingActorData): Option[IoCommand[_]] = None
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     val exceptionMessage = message match {

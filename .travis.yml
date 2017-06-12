@@ -21,7 +21,8 @@ before_install:
   - openssl aes-256-cbc -K "$encrypted_5ebd3ff04788_key" -iv "$encrypted_5ebd3ff04788_iv" -in src/bin/travis/resources/jesConf.tar.enc -out jesConf.tar -d || true
 env:
   global:
-    - CENTAUR_BRANCH=develop
+    - CENTAUR_BRANCH=js_green_integration
+    - INTEGRATION_TESTS_DIR=src/main/resources/integrationTestCases
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt

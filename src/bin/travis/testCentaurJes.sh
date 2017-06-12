@@ -42,6 +42,36 @@ printTravisHeartbeat
 
 set -x
 
+PROGNAME="$(basename $0)"
+RUN_INTEGRATION_TESTS=0
+
+usage="
+$PROGNAME [-i ]
+
+Builds and runs specified branch of Cromwell and runs Centaur against it.
+
+Arguments:
+    -i    Flag that if supplied, will run centaur integration tests instead of standardtests
+"
+
+while getopts ":hi" option; do
+    case "$option" in
+        h) echo "$usage"
+            exit
+            ;;
+        i) RUN_INTEGRATION_TESTS=1
+            ;;
+        :) printf "Missing argument for -%s\n" "$OPTARG" >&2
+            echo "$usage" >&2
+            exit 1
+            ;;
+        \?) printf "Illegal option: -%s\n" "$OPTARG" >&2
+            echo "$usage" >&2
+            exit 1
+            ;;
+        esac
+done
+
 # Unpack our credentials and such
 tar xvf jesConf.tar
 
@@ -63,10 +93,18 @@ gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e
 echo "RUNNING TRAVIS CENTAUR"
 sbt assembly
 
+
 # Update the inputs file with stuff specific to this run
 sed -i "s/CENTAUR_BRANCH/${CENTAUR_BRANCH}/g" src/bin/travis/resources/centaur.inputs
 CROMWELL_JAR=cromwell_${TRAVIS_BUILD_ID}.jar
 sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.inputs
+
+# pass integration directory to the inputs json otherwise remove it from the inputs file
+if [ $RUN_INTEGRATION_TESTS -ne 1 ]; then
+    sed -i "/INTEGRATION_TESTS_DIR/d" src/bin/travis/resources/centaur.inputs
+else
+    sed -i "s|INTEGRATION_TESTS_DIR|$INTEGRATION_TESTS_DIR|g" src/bin/travis/resources/centaur.inputs
+fi
 
 # Upload the built Cromwell jar to GCS so we can use it in our centaur test. Set an exit trap to clean it up on failure
 JAR_GCS_PATH=gs://cloud-cromwell-dev/travis-centaur/${CROMWELL_JAR}

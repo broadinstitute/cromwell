@@ -13,7 +13,7 @@ task centaur {
         cd centaur
         git checkout ${centaur_branch}
         cd ..
-        centaur/test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root -t${token} -elocaldockertest -p100 ${ "-i " + integration_dir}
+        centaur/test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root -t${token} -elocaldockertest -p100 ${ "-i" + integration_dir}
     >>>
 
     output {

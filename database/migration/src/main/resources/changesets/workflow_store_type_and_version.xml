@@ -14,10 +14,4 @@
         </addColumn>
     </changeSet>
 
-    <changeSet author="mcovarr" id="not-null-workflow-store-type">
-        <addNotNullConstraint columnDataType="VARCHAR(30)"
-                              columnName="WORKFLOW_TYPE"
-                              defaultNullValue="WDL"
-                              tableName="WORKFLOW_STORE_ENTRY"/>
-    </changeSet>
 </databaseChangeLog>

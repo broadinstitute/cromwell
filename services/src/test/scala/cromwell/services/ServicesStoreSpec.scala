@@ -621,5 +621,5 @@ object ServicesStoreSpec {
     }
   }
 
-  private val WdlWorkflowType = "WDL"
+  private val WdlWorkflowType = Option("WDL")
 }

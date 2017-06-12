@@ -6,7 +6,7 @@ case class WorkflowStoreEntry
 (
   workflowExecutionUuid: String,
   workflowDefinition: Option[Clob],
-  workflowType: String,
+  workflowType: Option[String],
   workflowTypeVersion: Option[String],
   workflowInputs: Option[Clob],
   workflowOptions: Option[Clob],

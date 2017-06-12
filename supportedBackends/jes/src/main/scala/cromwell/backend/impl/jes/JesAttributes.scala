@@ -47,8 +47,8 @@ object JesAttributes {
     "genomics.auth",
     "genomics.endpoint-url",
     "filesystems.gcs.auth",
-    "genomics-api-queries-per-100-seconds",
-    "caching.duplication-strategy"
+    "filesystems.gcs.caching.duplication-strategy",
+    "genomics-api-queries-per-100-seconds"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -78,9 +78,9 @@ object JesAttributes {
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
-    val duplicationStrategy = validate { backendConfig.as[Option[String]]("caching.duplication-strategy").getOrElse("copy") match {
+    val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
       case "copy" => CopyCachedOutputs
-      case "original" => UseOriginalCachedOutputs
+      case "reference" => UseOriginalCachedOutputs
       case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other")
     } }
 

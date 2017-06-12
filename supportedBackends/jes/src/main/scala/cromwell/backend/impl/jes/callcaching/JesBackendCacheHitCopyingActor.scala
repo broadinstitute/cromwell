@@ -43,8 +43,9 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
     val originalExecutionRoot = sourceJobDetritusFiles(JobPaths.CallRootPathKey)
     val content =
       s"""
-         |This directory does not contain any output file because this call has been successfully cached, and Cromwell is configured to not copy outputs during call caching.
-         |Please find the original outputs at this location: ${originalExecutionRoot.pathAsString}
+         |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
+         |Cromwell is configured to not copy outputs during call caching. To change this, edit the caching.duplication-strategy stanza in your backend configuration.
+         |The original outputs can be found at this location: ${originalExecutionRoot.pathAsString}
       """.stripMargin
 
     Option(writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain"))))

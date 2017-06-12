@@ -67,7 +67,7 @@ do
 	echo -n "submitting job ${i}a and ${i}b..."
 	RESULT_FILE="$OUT_DIR/submitResult_${i}_ab.json"
 	curl -X POST --header "Accept: application/json" "http://localhost:8000/api/workflows/v1/batch" \
-	  -F wdlSource=@scatter_files.wdl \
+	  -F workflowSource=@scatter_files.wdl \
 	  -F workflowInputs=@scatter_files_input_part1_ab.json \
 	  -F workflowInputs_2=@scatter_files_input_part2.json \
 	  -F workflowInputs_3=@scatter_files_input_part3.json \
@@ -80,7 +80,7 @@ do
 	echo -n "submitting job ${i}c..."
 	RESULT_FILE="$OUT_DIR/submitResult_${i}_c.json"
 	curl -X POST --header "Accept: application/json" "http://localhost:8000/api/workflows/v1/batch" \
-	  -F wdlSource=@scatter_files.wdl \
+	  -F workflowSource=@scatter_files.wdl \
 	  -F workflowInputs=@scatter_files_input_part1_c.json \
 	  -F workflowInputs_2=@scatter_files_input_part2.json \
 	  -F workflowInputs_3=@scatter_files_input_part3.json \
@@ -125,7 +125,7 @@ i=3
 echo -n "submitting job ${i}a and ${i}b..."
 RESULT_FILE="$OUT_DIR/submitResult_${i}_ab.json"
 curl -X POST --header "Accept: application/json" "http://localhost:8000/api/workflows/v1/batch" \
-  -F wdlSource=@scatter_files.wdl \
+  -F workflowSource=@scatter_files.wdl \
   -F workflowInputs=@scatter_files_input_part1_ab.json \
   -F workflowInputs_2=@scatter_files_input_part2.json \
   -F workflowInputs_3=@scatter_files_input_part3.json \
@@ -138,7 +138,7 @@ echo "done (Response in: $RESULT_FILE)."
 echo -n "submitting job ${i}c..."
 RESULT_FILE="$OUT_DIR/submitResult_${i}_c.json"
 curl -X POST --header "Accept: application/json" "http://localhost:8000/api/workflows/v1/batch" \
-  -F wdlSource=@scatter_files.wdl \
+  -F workflowSource=@scatter_files.wdl \
   -F workflowInputs=@scatter_files_input_part1_c.json \
   -F workflowInputs_2=@scatter_files_input_part2.json \
   -F workflowInputs_3=@scatter_files_input_part3.json \

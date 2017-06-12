@@ -15,7 +15,7 @@ trait WorkflowStoreEntryComponent {
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
 
-    def workflowType = column[String]("WORKFLOW_TYPE", O.Length(30))
+    def workflowType = column[Option[String]]("WORKFLOW_TYPE", O.Length(30))
 
     def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION")
 

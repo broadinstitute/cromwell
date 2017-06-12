@@ -58,33 +58,33 @@ paths:
           type: string
           in: path
           default: v1
-        - name: wdlSource
-          description: WDL Source
+        - name: workflowSource
+          description: Workflow source file
           required: true
           type: file
           in: formData
         - name: workflowInputs
-          description: WDL Inputs JSON, 1
+          description: Workflow Inputs JSON, 1
           required: false
           type: file
           in: formData
         - name: workflowInputs_2
-          description: WDL Inputs JSON, 2
+          description: Workflow Inputs JSON, 2
           required: false
           type: file
           in: formData
         - name: workflowInputs_3
-          description: WDL Inputs JSON, 3
+          description: Workflow Inputs JSON, 3
           required: false
           type: file
           in: formData
         - name: workflowInputs_4
-          description: WDL Inputs JSON, 4
+          description: Workflow Inputs JSON, 4
           required: false
           type: file
           in: formData
         - name: workflowInputs_5
-          description: WDL Inputs JSON, 5
+          description: Workflow Inputs JSON, 5
           required: false
           type: file
           in: formData
@@ -93,13 +93,23 @@ paths:
           required: false
           type: file
           in: formData
+        - name: workflowType
+          description: Type of workflow
+          required: false
+          type: string
+          in: formData
+        - name: workflowTypeVersion
+          description: Version of workflow type
+          required: false
+          type: string
+          in: formData
         - name: customLabels
           description: Custom Labels JSON
           required: false
           type: file
           in: formData
         - name: workflowDependencies
-          description: Zip file containing WDL dependencies
+          description: Zip file containing workflow dependencies
           required: false
           type: file
           in: formData
@@ -129,13 +139,13 @@ paths:
           type: string
           in: path
           default: v1
-        - name: wdlSource
-          description: WDL Source
+        - name: workflowSource
+          description: Workflow Source
           required: true
           type: file
           in: formData
         - name: workflowInputs
-          description: WDL Inputs JSON as an array
+          description: Workflow Inputs JSON as an array
           required: true
           type: file
           in: formData
@@ -144,13 +154,23 @@ paths:
           required: false
           type: file
           in: formData
+        - name: workflowType
+          description: Type of workflow
+          required: false
+          type: string
+          in: formData
+        - name: workflowTypeVersion
+          description: Version of workflow type
+          required: false
+          type: string
+          in: formData
         - name: customLabels
           description: Custom Labels JSON
           required: false
           type: file
           in: formData
         - name: workflowDependencies
-          description: Zip file containing WDL dependencies
+          description: Zip file containing workflow dependencies
           required: false
           type: file
           in: formData

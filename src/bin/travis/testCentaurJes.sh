@@ -98,7 +98,7 @@ sbt assembly
 sed -i "s/CENTAUR_BRANCH/${CENTAUR_BRANCH}/g" src/bin/travis/resources/centaur.inputs
 CROMWELL_JAR=cromwell_${TRAVIS_BUILD_ID}.jar
 sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.inputs
-
+echo $INTEGRATION_TESTS_DIR
 # pass integration directory to the inputs json otherwise remove it from the inputs file
 if [ $RUN_INTEGRATION_TESTS -ne 1 ]; then
     sed -i "/INTEGRATION_DIR/d" src/bin/travis/resources/centaur.inputs

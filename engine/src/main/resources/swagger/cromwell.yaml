@@ -219,6 +219,35 @@ paths:
       security:
         - google_oauth:
             - openid
+ '/workflows/${version}/{id}/addLabels':
+    post:
+      summary: Add custom labels to an existing workflow.
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: labels
+          description: Custom Labels
+          required: true
+          type: string
+          in: addLabels
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+        '400':
+          description: Malformed Workflow ID
+        '404':
+          description: Workflow ID Not Found
+        '500':
+          description: Internal Error
+        curity:
+        - google_oauth:
+            - openid
   '/workflows/{version}/query':
     get:
       summary: Query workflows by start dates, end dates, names, ids, statuses, or labels.
@@ -942,3 +971,14 @@ definitions:
       cromwell:
         type: string
         description: The version of the Cromwell Engine
+  LabelResponse:
+    required:
+      - id
+      - labels
+    properties:
+      id:
+        type: string
+        description: The identifier of the workflow
+      labels:
+        type: string
+        description: The custom labels as json

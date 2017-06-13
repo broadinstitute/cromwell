@@ -3,7 +3,6 @@ package cromwell.backend
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
-import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import lenthall.exception.AggregatedException
 import org.scalatest.Matchers
@@ -31,8 +30,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
       WorkflowId.randomId(),
       WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
       inputs,
-      options,
-      Labels.empty
+      options
     )
   }
 

@@ -70,7 +70,7 @@ object Run {
         "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
         "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
         "wdl-task-name" -> jobDescriptor.call.task.name
-      ) ++ subWorkflowLabels ++ aliasLabels ++ jobDescriptor.workflowDescriptor.customLabels
+      ) ++ subWorkflowLabels ++ aliasLabels
     }
 
     val svcAccount = new ServiceAccount().setEmail(computeServiceAccount).setScopes(GenomicsScopes)

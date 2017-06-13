@@ -6,7 +6,7 @@ import java.time.OffsetDateTime
 import cromwell.core._
 import cromwell.engine._
 import cromwell.services.metadata.MetadataService
-import MetadataService.{WorkflowQueryResponse, WorkflowQueryResult}
+import MetadataService._
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
@@ -45,5 +45,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
 
   implicit val workflowQueryResult = jsonFormat5(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat1(WorkflowQueryResponse)
+
+  implicit val labelResponse = jsonFormat2(LabelUpdateSuccess)
 }
 

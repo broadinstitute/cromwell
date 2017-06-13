@@ -208,7 +208,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     (namespaceValidation |@| labelsValidation).tupled flatMap { case (namespace, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       publishLabelsToMetadata(id, namespace.workflow.unqualifiedName, labels)
-      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)
+      buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, conf, pathBuilders)
     }
   }
 
@@ -221,12 +221,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Unit = {
-    val defaultLabels = Map(
-      "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId",
-      "cromwell-workflow-name" -> unqualifiedName
-    )
     val customLabels = labels.value map {x => x.key -> x.value}
-    labelsToMetadata(defaultLabels ++ customLabels, rootWorkflowId)
+    labelsToMetadata(customLabels.toMap, rootWorkflowId)
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
@@ -239,7 +235,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       sourceFiles: WorkflowSourceFilesCollection,
                                       namespace: WdlNamespaceWithWorkflow,
                                       workflowOptions: WorkflowOptions,
-                                      labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
     val defaultBackendName = conf.as[Option[String]]("backend.default")
@@ -251,7 +246,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation).tupled flatMap {
       case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
-        buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, labels, failureMode, pathBuilders, callCachingMode)
+        buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, failureMode, pathBuilders, callCachingMode)
     }
   }
 
@@ -260,7 +255,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       rawInputs: Map[String, JsValue],
                                       backendAssignments: Map[TaskCall, String],
                                       workflowOptions: WorkflowOptions,
-                                      labels: Labels,
                                       failureMode: WorkflowFailureMode,
                                       pathBuilders: List[PathBuilder],
                                       callCachingMode: CallCachingMode): ErrorOr[EngineWorkflowDescriptor] = {
@@ -285,7 +279,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ = pushWfInputsToMetadataService(coercedValidatedFileInputs)
       evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedValidatedFileInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedValidatedFileInputs)
-      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions, labels)
+      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions)
     } yield EngineWorkflowDescriptor(namespace, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 

@@ -6,7 +6,7 @@ import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataEvent
-import cromwell.services.metadata.MetadataService.{MetadataServiceAction, PutMetadataAction}
+import cromwell.services.metadata.MetadataService._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -41,6 +41,12 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(CheckPendingWrites, _: HasData[_]) =>
       sender() ! HasPendingWrites
       stay()
+    case Event(AddLabelsToWorkflowMetadata(id, events, labels), _) =>
+      addMetadataEvents(events) onComplete {
+        case Success(_) => sender() ! LabelUpdateSuccess(id.toString, labels.asMap)
+        case Failure(err) => sender() ! LabelUpdateFailure(id.toString, err)
+      }
+      stay()
   }
 
   when(WritingToDb) {
@@ -67,6 +73,12 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(DbWriteComplete, curData) =>
       log.debug("Flush of metadata events complete")
       goto(WaitingToWrite) using curData
+    case Event(AddLabelsToWorkflowMetadata(id, events, labels), curData) =>
+      addMetadataEvents(events) onComplete {
+        case Success(_) => sender() ! LabelUpdateSuccess(id.toString, labels.asMap)
+        case Failure(err) => sender() ! LabelUpdateFailure(id.toString, err)
+      }
+      stay() using curData
   }
 
   onTransition {

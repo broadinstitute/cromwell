@@ -3,7 +3,6 @@ package cromwell.backend
 import com.typesafe.config.Config
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
-import cromwell.core.labels.Labels
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wdl4s._
@@ -36,24 +35,15 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
 }
 
 object BackendWorkflowDescriptor {
-  def apply(id: WorkflowId,
-            workflow: Workflow,
-            knownValues: Map[FullyQualifiedName, WdlValue],
-            workflowOptions: WorkflowOptions,
-            customLabels: Labels) = {
-    new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, customLabels, List.empty)
+  def apply(id: WorkflowId, workflow: Workflow, knownValues: Map[FullyQualifiedName, WdlValue], workflowOptions: WorkflowOptions) = {
+    new BackendWorkflowDescriptor(id, workflow, knownValues, workflowOptions, List.empty)
   }
 }
 
 /**
   * For passing to a BackendActor construction time
   */
-case class BackendWorkflowDescriptor(id: WorkflowId,
-                                     workflow: Workflow,
-                                     knownValues: Map[FullyQualifiedName, WdlValue],
-                                     workflowOptions: WorkflowOptions,
-                                     customLabels: Labels,
-                                     breadCrumbs: List[BackendJobBreadCrumb]) {
+case class BackendWorkflowDescriptor(id: WorkflowId, workflow: Workflow, knownValues: Map[FullyQualifiedName, WdlValue], workflowOptions: WorkflowOptions, breadCrumbs: List[BackendJobBreadCrumb]) {
   
   val rootWorkflow = breadCrumbs.headOption.map(_.workflow).getOrElse(workflow)
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)

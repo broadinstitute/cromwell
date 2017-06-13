@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
+import cromwell.core.labels.Labels
 import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.{MessageAggregation, ThrowableAggregation}
@@ -62,6 +63,7 @@ object MetadataService {
   }
 
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
+  case class AddLabelsToWorkflowMetadata(workflowId: WorkflowId, events: Iterable[MetadataEvent], labels: Labels) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
                                              expandSubWorkflows: Boolean)
@@ -104,6 +106,9 @@ object MetadataService {
 
   final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
+  final case class LabelUpdateSuccess(id: String, labels: Map[String, String]) extends MetadataServiceResponse
+  final case class LabelUpdateFailure(id: String, reason: Throwable) extends MetadataServiceFailure
 
   def wdlValueToMetadataEvents(metadataKey: MetadataKey, wdlValue: WdlValue): Iterable[MetadataEvent] = wdlValue match {
     case WdlArray(_, valueSeq) =>

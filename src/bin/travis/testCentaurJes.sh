@@ -101,7 +101,7 @@ sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.input
 echo $INTEGRATION_TESTS_DIR
 # pass integration directory to the inputs json otherwise remove it from the inputs file
 if [ $RUN_INTEGRATION_TESTS -ne 1 ]; then
-    sed -i "/INTEGRATION_DIR/d" src/bin/travis/resources/centaur.inputs
+    sed -i "/INTEGRATION_TESTS_DIR/d" src/bin/travis/resources/centaur.inputs
 else
     sed -i "s|INTEGRATION_TESTS_DIR|$INTEGRATION_TESTS_DIR|g" src/bin/travis/resources/centaur.inputs
 fi

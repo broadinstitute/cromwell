@@ -13,12 +13,20 @@ import cromwell.api.model.WorkflowSingleSubmission
 
 import scala.util.{Failure, Success, Try}
 
-final case class Workflow(testName: String,
-                          data: WorkflowData,
-                          metadata: Option[WorkflowMetadata],
-                          directoryContentCounts: Option[DirectoryContentCountCheck],
-                          backends: BackendsRequirement) {
-  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(data.wdl, data.inputs, data.options, Option(data.labels), data.zippedImports, refreshToken)
+final case class Workflow private(testName: String,
+                                  data: WorkflowData,
+                                  metadata: Option[WorkflowMetadata],
+                                  directoryContentCounts: Option[DirectoryContentCountCheck],
+                                  backends: BackendsRequirement) {
+  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
+    wdl = data.wdl,
+    workflowType = data.workflowType,
+    workflowTypeVersion = data.workflowTypeVersion,
+    inputsJson = data.inputs,
+    options = data.options,
+    customLabels = Option(data.labels),
+    zippedImports = data.zippedImports,
+    refreshToken = refreshToken)
 }
 
 object Workflow {
@@ -41,7 +49,7 @@ object Workflow {
 
         val directoryContentCheckValidation = DirectoryContentCountCheck.forConfig(n, conf)
         val files = conf.get[Config]("files") match {
-          case Result.Success(c) => WorkflowData.fromConfig(c, basePath)
+          case Result.Success(f) => WorkflowData.fromConfig(filesConfig = f, fullConfig = conf, basePath = basePath)
           case Result.Failure(_) => invalidNel(s"No 'files' block in $configPath")
         }
 

@@ -12,48 +12,68 @@ import cromwell.api.model.Label
 import spray.json._
 
 
-case class WorkflowData(wdl: String, inputs: Option[String], options: Option[String], labels: List[Label], zippedImports: Option[File])
+case class WorkflowData(wdl: String,
+                        workflowType: Option[String],
+                        workflowTypeVersion: Option[String],
+                        inputs: Option[String],
+                        options: Option[String],
+                        labels: List[Label],
+                        zippedImports: Option[File])
 
 object WorkflowData {
-  def fromConfig(conf: Config, basePath: Path): ErrorOr[WorkflowData] = {
-    conf.get[Path]("wdl") match {
-      case Success(wdl) => Valid(WorkflowData(basePath.resolve(wdl), conf, basePath))
+  def fromConfig(filesConfig: Config, fullConfig: Config, basePath: Path): ErrorOr[WorkflowData] = {
+    filesConfig.get[Path]("wdl") match {
+      case Success(wdl) => Valid(WorkflowData(
+        wdl = basePath.resolve(wdl),
+        filesConfig = filesConfig,
+        fullConfig = fullConfig,
+        basePath = basePath))
       case Failure(_) => invalidNel("No wdl path provided")
     }
   }
 
-  def apply(wdl: Path, conf: Config, basePath: Path): WorkflowData = {
-    def getOptionalPath(name: String) = conf.get[Option[Path]](name) valueOrElse None map basePath.resolve
+  def apply(wdl: Path, filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
+    def getOptionalPath(name: String) = filesConfig.get[Option[Path]](name) valueOrElse None map basePath.resolve
 
-    def getImports = conf.get[List[Path]]("imports") match {
+    def getImports = filesConfig.get[List[Path]]("imports") match {
       case Success(paths) => zipImports(paths map basePath.resolve)
       case Failure(_) => None
     }
 
     def zipImports(imports: List[Path]): Option[File] = {
       val zippedDir = imports match {
-        case x :: _ => {
+        case Nil => None
+        case _ =>
           val importsDirName = wdl.getFileName.toString.replaceAll("\\.[^.]*$", "")
           val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.toAbsolutePath.toString)
             val destFile = importsDir / srcFile.name
-            srcFile.copyTo(destFile, true) }
+            srcFile.copyTo(destFile, overwrite = true) }
 
           Option(importsDir.zip())
-        }
-        case Nil => None
       }
       zippedDir
     }
 
     def getLabels: List[Label] = {
       import cromwell.api.model.LabelsJsonFormatter._
-      getOptionalPath("labels") map { _.slurp } map { _.parseJson.convertTo[List[Label]] } getOrElse List.empty
+      getOptionalPath("labels") map { _.slurp.parseJson.convertTo[List[Label]] } getOrElse List.empty
     }
 
+    val workflowType = fullConfig.get[Option[String]]("workflowType").value
+    val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
+
     // TODO: The slurps can throw - not a high priority but see #36
-    WorkflowData(wdl.slurp, getOptionalPath("inputs") map { _.slurp }, getOptionalPath("options") map { _.slurp }, getLabels, getImports)
+    WorkflowData(
+      wdl = wdl.slurp,
+      workflowType = workflowType,
+      workflowTypeVersion = workflowTypeVersion,
+      inputs = getOptionalPath("inputs") map { _.slurp },
+      options = getOptionalPath("options") map { _.slurp },
+      labels = getLabels,
+      zippedImports = getImports
+    )
   }
 
   implicit class EnhancedPath(val path: Path) extends AnyVal {

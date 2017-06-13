@@ -22,7 +22,7 @@ if [ "$TRAVIS_EVENT_TYPE" == "cron" ]; then
     fi
 else
     if [ "$BUILD_TYPE" = "centaurJes" ]; then
-        "${SCRIPT_DIR}"/testCentaurJes.sh runIntegrationTest
+        "${SCRIPT_DIR}"/testCentaurJes.sh src/main/resources/integrationTestCases
     else
         exit 0
     fi

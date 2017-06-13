@@ -20,7 +20,7 @@ before_install:
 env:
   global:
     - CENTAUR_BRANCH=js_green_integration
-    - INTEGRATION_TESTS_FOLDER=src/main/resources/integrationTestCases
+    - INTEGRATION_TESTS_DIR=src/main/resources/integrationTestCases
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt

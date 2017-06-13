@@ -123,7 +123,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     case Event(IoSuccess(command: IoCommand[_], _), Some(data)) =>
       val newData = data.remove(command)
       if (newData.commandsToWaitFor.isEmpty) {
-        onSuccessIoCommand(data) match {
+        onSuccessIoCommand(newData) match {
           case Some(successCommand) =>
             sendIoCommand(successCommand)
             goto(WaitingForOnSuccessResponse)

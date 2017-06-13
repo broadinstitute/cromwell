@@ -44,7 +44,7 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
     val content =
       s"""
          |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
-         |Cromwell is configured to not copy outputs during call caching. To change this, edit the caching.duplication-strategy stanza in your backend configuration.
+         |Cromwell is configured to not copy outputs during call caching. To change this, edit the filesystems.gcs.caching.duplication-strategy field in your backend configuration.
          |The original outputs can be found at this location: ${originalExecutionRoot.pathAsString}
       """.stripMargin
 

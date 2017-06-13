@@ -80,7 +80,7 @@ class IoHashCommand(val file: Path) extends IoCommand[String] {
 }
 
 /**
-  * Get Hash value for file
+  * Touch a file
   */
 class IoTouchCommand(val file: Path) extends IoCommand[Unit] {
   override def toString = s"touch ${file.pathAsString}"

@@ -81,7 +81,7 @@ object JesAttributes {
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
       case "copy" => CopyCachedOutputs
       case "reference" => UseOriginalCachedOutputs
-      case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other")
+      case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
     } }
 
 

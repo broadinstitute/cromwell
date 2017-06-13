@@ -56,6 +56,7 @@ object StandardCacheHitCopyingActor {
   sealed trait StandardCacheHitCopyingActorState
   case object Idle extends StandardCacheHitCopyingActorState
   case object WaitingForIoResponses extends StandardCacheHitCopyingActorState
+  case object FailedState extends StandardCacheHitCopyingActorState
   case object WaitingForOnSuccessResponse extends StandardCacheHitCopyingActorState
 
   case class StandardCacheHitCopyingActorData(commandsToWaitFor: Set[IoCommand[_]],
@@ -63,7 +64,7 @@ object StandardCacheHitCopyingActor {
                                               newDetritus: DetritusMap,
                                               returnCode: Option[Int]
                                              ) {
-    def remove(command: IoCommand[_]) = copy(commandsToWaitFor = commandsToWaitFor filterNot { _ == command })
+    def remove(command: IoCommand[_]) = copy(commandsToWaitFor = commandsToWaitFor - command)
   }
 }
 
@@ -90,7 +91,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
-  
+
   when(Idle) {
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
       val sourceCallRootPath = lookupSourceCallRootPath(jobDetritus)
@@ -132,13 +133,20 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       else stay() using Option(newData)
     case Event(IoFailure(_: IoCommand[_], failure), None) =>
       failAndStop(failure)
-    case Event(IoFailure(_: IoCommand[_], failure), Some(data)) =>
-      if (data.commandsToWaitFor.isEmpty) failAndStop(failure)
-      else {
-        context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
-        // Wait for the other responses to avoid them being sent to dead letter
-        stay()
-      }
+    case Event(IoFailure(_: IoCommand[_], failure), Some(data)) if data.commandsToWaitFor.nonEmpty =>
+      context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+      // Wait for the other responses to avoid them being sent to dead letter
+      goto(FailedState)
+    case Event(IoFailure(_: IoCommand[_], failure), Some(_)) =>
+      failAndStop(failure)
+  }
+  
+  when(FailedState) {
+    case Event(IoFailure(_: IoCommand[_], _), Some(data)) if data.commandsToWaitFor.nonEmpty =>
+      stay()
+    case Event(IoFailure(_: IoCommand[_], _), Some(_)) =>
+      context stop self
+      stay()
   }
   
   when(WaitingForOnSuccessResponse) {
@@ -185,7 +193,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
   
   private def ioCommandsToCopyPairs(commands: Set[IoCommand[_]]): Set[PathPair] = commands collect {
-    case copyCommad: IoCopyCommand => copyCommad.source -> copyCommad.destination
+    case copyCommand: IoCopyCommand => copyCommand.source -> copyCommand.destination
   }
 
   /**

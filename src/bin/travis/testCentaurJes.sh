@@ -43,6 +43,7 @@ printTravisHeartbeat
 set -x
 
 PROGNAME="$(basename $0)"
+RUN_INTEGRATION_TESTS=0
 
 usage="
 $PROGNAME [-i ]

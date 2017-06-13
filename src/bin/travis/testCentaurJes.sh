@@ -71,9 +71,9 @@ sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.input
 
 # pass integration directory to the inputs json otherwise remove it from the inputs file
 if [ -z "$1" ]; then
-    sed -i "/INTEGRATION_DIR/d" src/bin/travis/resources/centaur.inputs
+    sed -i "\INTEGRATION_DIR\d" src/bin/travis/resources/centaur.inputs
 else
-    sed -i "s/INTEGRATION_DIR/$1/g" src/bin/travis/resources/centaur.inputs
+    sed -i "s|INTEGRATION_DIR|$1|g" src/bin/travis/resources/centaur.inputs
 fi
 
 # Upload the built Cromwell jar to GCS so we can use it in our centaur test. Set an exit trap to clean it up on failure

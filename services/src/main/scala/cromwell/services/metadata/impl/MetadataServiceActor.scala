@@ -6,15 +6,13 @@ import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
 import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.core.labels.{Label, Labels}
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
+import cromwell.core.WorkflowId
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.WriteMetadataActor.CheckPendingWrites
 import net.ceedubs.ficus.Ficus._
-import spray.json.{JsObject, JsString, JsValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

@@ -144,7 +144,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     */
   protected def buildTokenRequestUri(dockerImageID: DockerImageIdentifierWithoutHash): String = {
     val service = serviceName map { name => s"service=$name&" } getOrElse ""
-    s"https://$authorizationServerHostName/token?${service}scope=repository:${dockerImageID.name}:pull"
+    s"https://$authorizationServerHostName/token?${service}scope=repository:${dockerImageID.nameWithDefaultRepository}:pull"
   }
 
   /**
@@ -252,7 +252,7 @@ abstract class DockerRegistryV2AbstractFlow(httpClientFlow: HttpDockerFlow)(impl
     * Builds the manifest URI to be queried based on a DockerImageID
     */
   private def buildManifestUri(dockerImageID: DockerImageIdentifierWithoutHash): String = {
-    s"https://$registryHostName/v2/${dockerImageID.name}/manifests/${dockerImageID.reference}"
+    s"https://$registryHostName/v2/${dockerImageID.nameWithDefaultRepository}/manifests/${dockerImageID.reference}"
   }
 
   /**

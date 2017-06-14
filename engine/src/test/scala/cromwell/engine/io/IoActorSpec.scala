@@ -7,6 +7,7 @@ import akka.testkit.{ImplicitSender, TestActorRef}
 import better.files.File.OpenOptions
 import com.google.cloud.storage.StorageException
 import cromwell.core.TestKitSuite
+import cromwell.core.io.DefaultIoCommand._
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
@@ -34,7 +35,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     val src = DefaultPathBuilder.createTempFile()
     val dst: Path = src.parent.resolve(src.name + "-dst")
     
-    val copyCommand = new IoCopyCommand(src, dst, overwrite = true)
+    val copyCommand = DefaultIoCopyCommand(src, dst, overwrite = true)
     
     testActor ! copyCommand
     expectMsgPF(5 seconds) {
@@ -52,7 +53,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
 
     val src = DefaultPathBuilder.createTempFile()
 
-    val writeCommand = new IoWriteCommand(src, "hello", OpenOptions.default)
+    val writeCommand = DefaultIoWriteCommand(src, "hello", OpenOptions.default)
 
     testActor ! writeCommand
     expectMsgPF(5 seconds) {
@@ -69,7 +70,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
 
     val src = DefaultPathBuilder.createTempFile()
 
-    val deleteCommand = new IoDeleteCommand(src, swallowIOExceptions = false)
+    val deleteCommand = DefaultIoDeleteCommand(src, swallowIOExceptions = false)
 
     testActor ! deleteCommand
     expectMsgPF(5 seconds) {
@@ -86,7 +87,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
 
-    val readCommand = new IoContentAsStringCommand(src)
+    val readCommand = DefaultIoContentAsStringCommand(src)
 
     testActor ! readCommand
     expectMsgPF(5 seconds) {
@@ -105,7 +106,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
 
-    val sizeCommand = new IoSizeCommand(src)
+    val sizeCommand = DefaultIoSizeCommand(src)
 
     testActor ! sizeCommand
     expectMsgPF(5 seconds) {
@@ -124,13 +125,30 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
 
-    val hashCommand = new IoHashCommand(src)
+    val hashCommand = DefaultIoHashCommand(src)
 
     testActor ! hashCommand
     expectMsgPF(5 seconds) {
       case response: IoSuccess[_] =>
         response.command.isInstanceOf[IoHashCommand] shouldBe true
         response.result.asInstanceOf[String] shouldBe "5d41402abc4b2a76b9719d911017c592"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
+  it should "touch a file (local)" in {
+    val testActor = TestActorRef(new IoActor(1, None))
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val touchCommand = DefaultIoTouchCommand(src)
+
+    testActor ! touchCommand
+    expectMsgPF(5 seconds) {
+      case _: IoSuccess[_] =>
       case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
     }
 

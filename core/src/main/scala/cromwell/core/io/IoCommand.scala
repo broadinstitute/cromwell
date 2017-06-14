@@ -39,21 +39,21 @@ trait IoCommand[+T] {
   * Copy source -> destination
   * Will create the destination directory if it doesn't exist.
   */
-class IoCopyCommand(val source: Path, val destination: Path, val overwrite: Boolean) extends IoCommand[Unit] {
+abstract class IoCopyCommand(val source: Path, val destination: Path, val overwrite: Boolean) extends IoCommand[Unit] {
   override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString} with overwrite = $overwrite"
 }
 
 /**
   * Read file as a string (load the entire content in memory)
   */
-class IoContentAsStringCommand(val file: Path) extends IoCommand[String] {
+abstract class IoContentAsStringCommand(val file: Path) extends IoCommand[String] {
   override def toString = s"read content of ${file.pathAsString}"
 }
 
 /**
   * Return the size of file
   */
-class IoSizeCommand(val file: Path) extends IoCommand[Long] {
+abstract class IoSizeCommand(val file: Path) extends IoCommand[Long] {
   override def toString = s"get size of ${file.pathAsString}"
 }
 
@@ -61,27 +61,27 @@ class IoSizeCommand(val file: Path) extends IoCommand[Long] {
   * Write content in file
   * Will create the destination directory if it doesn't exist.
   */
-class IoWriteCommand(val file: Path, val content: String, val openOptions: OpenOptions) extends IoCommand[Unit] {
+abstract class IoWriteCommand(val file: Path, val content: String, val openOptions: OpenOptions) extends IoCommand[Unit] {
   override def toString = s"write to ${file.pathAsString}"
 }
 
 /**
   * Delete file
   */
-class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean) extends IoCommand[Unit] {
+abstract class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean) extends IoCommand[Unit] {
   override def toString = s"delete ${file.pathAsString}"
 }
 
 /**
   * Get Hash value for file
   */
-class IoHashCommand(val file: Path) extends IoCommand[String] {
+abstract class IoHashCommand(val file: Path) extends IoCommand[String] {
   override def toString = s"get hash of ${file.pathAsString}"
 }
 
 /**
   * Touch a file
   */
-class IoTouchCommand(val file: Path) extends IoCommand[Unit] {
+abstract class IoTouchCommand(val file: Path) extends IoCommand[Unit] {
   override def toString = s"touch ${file.pathAsString}"
 }

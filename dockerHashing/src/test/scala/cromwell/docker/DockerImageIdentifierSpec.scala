@@ -8,19 +8,17 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
   
   it should "parse valid docker images" in {
     val valid = Table(
-      ("sourceString",                            "host",              "repo",          "image",     "reference"),
-      
+      ("sourceString",                            "host",             "repo",                 "image",     "reference"),
       // Without tags -> latest
-      ("ubuntu",                                  None,               "library",        "ubuntu",     "latest"),
-      ("broad/cromwell",                          None,               "broad",          "cromwell",   "latest"),
-      ("index.docker.io/ubuntu",         Option("index.docker.io"),   "library",        "ubuntu",     "latest"),
-      ("broad/cromwell/submarine",                None,               "broad/cromwell", "submarine",  "latest"),
-      ("gcr.io/google/alpine",              Option("gcr.io"),         "google",         "alpine",     "latest"),
-
+      ("ubuntu",                                  None,               None,                   "ubuntu",     "latest"),
+      ("broad/cromwell",                          None,               Some("broad"),          "cromwell",   "latest"),
+      ("index.docker.io/ubuntu",         Option("index.docker.io"),   None,                   "ubuntu",     "latest"),
+      ("broad/cromwell/submarine",                None,               Some("broad/cromwell"), "submarine",  "latest"),
+      ("gcr.io/google/alpine",              Option("gcr.io"),         Some("google"),         "alpine",     "latest"),
       // With tags
-      ("ubuntu:latest",                           None,               "library",        "ubuntu",     "latest"),
-      ("ubuntu:1235-SNAP",                        None,               "library",        "ubuntu",     "1235-SNAP"),
-      ("ubuntu:V3.8-5_1",                         None,               "library",        "ubuntu",     "V3.8-5_1")
+      ("ubuntu:latest",                           None,               None,                   "ubuntu",     "latest"),
+      ("ubuntu:1235-SNAP",                        None,               None,                   "ubuntu",     "1235-SNAP"),
+      ("ubuntu:V3.8-5_1",                         None,               None,                   "ubuntu",     "V3.8-5_1")
     )
     
     forAll(valid) { (dockerString, host, repo, image, reference) =>
@@ -38,7 +36,7 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
     withDigest.isSuccess shouldBe true
     val successfulDigest = withDigest.get
     successfulDigest.host shouldBe None
-    successfulDigest.repository shouldBe "library"
+    successfulDigest.repository shouldBe None
     successfulDigest.image shouldBe "ubuntu"
     successfulDigest.reference shouldBe "sha256:45168651"
     successfulDigest.isInstanceOf[DockerImageIdentifierWithHash] shouldBe true
@@ -49,7 +47,7 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
     withTagDigest.isSuccess shouldBe true
     val successfulTagDigest = withTagDigest.get
     successfulTagDigest.host shouldBe None
-    successfulTagDigest.repository shouldBe "library"
+    successfulTagDigest.repository shouldBe None
     successfulTagDigest.image shouldBe "ubuntu"
     successfulTagDigest.reference shouldBe "latest@sha256:45168651"
     successfulTagDigest.isInstanceOf[DockerImageIdentifierWithHash] shouldBe true

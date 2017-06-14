@@ -13,6 +13,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
 import wdl4s.values.WdlFile
 
+import scala.language.postfixOps
 import scala.util.Success
 
 class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with GcsBatchCommandBuilder {
@@ -33,10 +34,14 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
   override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = cachingStrategy match {
     case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
     case UseOriginalCachedOutputs =>
-      val touchCommands: Set[IoCommand[_]] = detritusFileKeys(sourceJobDetritusFiles) map { key =>
-        touchCommand(getPath(sourceJobDetritusFiles(key)).get)
+      // apply getPath on each detritus string file
+      val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>
+        key -> getPath(sourceJobDetritusFiles(key))
+      } toMap
+
+      TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") map { newDetritus =>
+        newDetritus -> newDetritus.values.map(touchCommand).toSet
       }
-      TryUtil.sequenceMap(sourceJobDetritusFiles.mapValues(getPath), "Failed to make paths out of job detritus") map { _ -> touchCommands }
   }
 
   override protected def additionalIoCommands(newOutputs: CallOutputs, newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {

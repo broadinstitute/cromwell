@@ -124,7 +124,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     val mixedResponses = results collect {
       case msg: DockerHashSuccessResponse => msg
       // Scoop out the request here since we can't match the exception on the whole message.
-      case msg: WorkflowDockerLookupFailure if msg.reason.getMessage == "Failed to get docker hash for library/ubuntu:older Lookup failed" => msg.request
+      case msg: WorkflowDockerLookupFailure if msg.reason.getMessage == "Failed to get docker hash for ubuntu:older Lookup failed" => msg.request
     }
 
     Set(LatestSuccessResponse, OlderRequest) should equal(mixedResponses)

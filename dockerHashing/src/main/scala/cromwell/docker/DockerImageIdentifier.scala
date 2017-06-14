@@ -4,26 +4,29 @@ import scala.util.{Failure, Success, Try}
 
 sealed trait DockerImageIdentifier {
   def host: Option[String]
-  def repository: String
+  def repository: Option[String]
   def image: String
   def reference: String
 
-  lazy val name = s"$repository/$image"
+  // The name of the image with a repository prefix iff a repository was explicitly specified.
+  lazy val name = repository map { r => s"$r/$image" } getOrElse image
+  // The name of the image with a repository prefix if a repository was specified, or with a default repository prefix of
+  // "library" if no repository was specified.
+  lazy val nameWithDefaultRepository = repository.getOrElse("library") + s"/$image"
   lazy val hostAsString = host map { h => s"$h/" } getOrElse ""
-  lazy val fullName = s"$hostAsString$repository/$image:$reference"
+  // The full name of this image, including a repository prefix only if a repository was explicitly specified.
+  lazy val fullName = s"$hostAsString$name:$reference"
 }
 
-case class DockerImageIdentifierWithoutHash(host: Option[String], repository: String, image: String, reference: String) extends DockerImageIdentifier {
-  def withHash(hash: DockerHashResult) =  DockerImageIdentifierWithHash(host, repository, image, reference, hash)
+case class DockerImageIdentifierWithoutHash(host: Option[String], repository: Option[String], image: String, reference: String) extends DockerImageIdentifier {
+  def withHash(hash: DockerHashResult) = DockerImageIdentifierWithHash(host, repository, image, reference, hash)
 }
 
-case class DockerImageIdentifierWithHash(host: Option[String], repository: String, image: String, reference: String, hash: DockerHashResult) extends DockerImageIdentifier {
-  override lazy val fullName: String = s"$hostAsString$repository/$image@${hash.algorithmAndHash}"
+case class DockerImageIdentifierWithHash(host: Option[String], repository: Option[String], image: String, reference: String, hash: DockerHashResult) extends DockerImageIdentifier {
+  override lazy val fullName: String = s"$hostAsString$name@${hash.algorithmAndHash}"
 }
 
 object DockerImageIdentifier {
-  // See https://github.com/docker-library/official-images/tree/master/library
-  private val DefaultDockerRepo = "library"
   private val DefaultDockerTag = "latest"
   
   private val DockerStringRegex =
@@ -61,17 +64,21 @@ object DockerImageIdentifier {
   private def isRegistryHostName(str: String) = str.contains('.')
   
   private def buildId(name: String, tag: Option[String], hash: Option[String]) = {
-    val (dockerHost, dockerRepo, dockerImage) = name.split('/').toList match {
-      // If just one component (e.g ubuntu), assume default repo
-      case image :: Nil => (None, DefaultDockerRepo, image)
+    val (dockerHost, dockerRepo, dockerImage): (Option[String], Option[String], String) = name.split('/').toList match {
+      // If just one component (e.g ubuntu)
+      case image :: Nil => (None, None, image)
       // If repo/image (e.g broadinstitute/cromwell) without host
-      case repo :: image :: Nil if !isRegistryHostName(repo) => (None, repo, image)
+      case repo :: image :: Nil if !isRegistryHostName(repo) => (None, Option(repo), image)
       // If host/image (e.g index.docker.io/ubuntu), assume default repo
-      case host :: image :: Nil if isRegistryHostName(host) => (Option(host), DefaultDockerRepo, image)
+      case host :: image :: Nil if isRegistryHostName(host) => (Option(host), None, image)
       // Not a host followed more than one components
-      case nothost :: rest if !isRegistryHostName(nothost) => (None, s"$nothost/${rest.init.mkString("/")}", rest.last)
+      case nothost :: rest if !isRegistryHostName(nothost) =>
+        val repo = s"$nothost/${rest.init.mkString("/")}"
+        (None, Option(repo), rest.last)
       // A host followed more than one components (e.g gcr.io/google-containers/alpine-with-bash)
-      case host :: rest if isRegistryHostName(host) => (Option(host), rest.init.mkString("/"), rest.last)
+      case host :: rest if isRegistryHostName(host) =>
+        val repo = rest.init.mkString("/")
+        (Option(host), Option(repo), rest.last)
     }
     
     (tag, hash) match {

@@ -59,13 +59,48 @@ object StandardCacheHitCopyingActor {
   case object FailedState extends StandardCacheHitCopyingActorState
   case object WaitingForOnSuccessResponse extends StandardCacheHitCopyingActorState
 
-  case class StandardCacheHitCopyingActorData(commandsToWaitFor: Set[IoCommand[_]],
+  // TODO: this mechanism here is very close to the one in CallCacheHashingJobActorData
+  // Abstracting it might be valuable
+  /**
+    * The head subset of commandsToWaitFor is sent to the IoActor as a bulk.
+    * When a response comes back, the corresponding command is removed from the head set.
+    * When the head set is empty, it is removed and the next subset is sent, until there is no subset left.
+    * If at any point a response comes back as a failure. Other responses for the current set will be awaited for 
+    * but subsequent sets will not be sent and the actor will send back a failure message.
+    */
+  case class StandardCacheHitCopyingActorData(commandsToWaitFor: List[Set[IoCommand[_]]],
                                               newJobOutputs: CallOutputs,
                                               newDetritus: DetritusMap,
                                               returnCode: Option[Int]
                                              ) {
-    def remove(command: IoCommand[_]) = copy(commandsToWaitFor = commandsToWaitFor - command)
+
+    /**
+      * Removes the command from commandsToWaitFor
+      * returns a pair of the new state data and CommandSetState giving information about what to do next
+      */
+    def commandComplete(command: IoCommand[_]): (StandardCacheHitCopyingActorData, CommandSetState) = commandsToWaitFor match {
+        // If everything was already done send back current data and AllCommandsDone
+      case Nil => (this, AllCommandsDone)
+      case lastSubset :: Nil =>
+        val updatedSubset = lastSubset - command
+        // If the last subset is now empty, we're done
+        if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = List.empty), AllCommandsDone)
+        // otherwise update commandsToWaitFor and keep waiting
+        else (this.copy(commandsToWaitFor = List(updatedSubset)), StillWaiting)
+      case currentSubset :: otherSubsets =>
+        val updatedSubset = currentSubset - command
+        // This subset is done but there are other ones, remove it from commandsToWaitFor and return the next round of commands
+        if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = otherSubsets), NextSubSet(otherSubsets.head))
+        // otherwise update the head susbset and keep waiting  
+        else (this.copy(commandsToWaitFor = List(updatedSubset) ++ otherSubsets), StillWaiting)
+    }
   }
+  
+  // Internal ADT to keep track of command set states
+  private[callcaching] sealed trait CommandSetState
+  private[callcaching] case object StillWaiting extends CommandSetState
+  private[callcaching] case object AllCommandsDone extends CommandSetState
+  private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 }
 
 class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with DefaultIoCommandBuilder
@@ -102,16 +137,19 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       } yield (callOutputs, destinationDetritus, simpletonCopyPairs ++ detritusCopyPairs)
 
       processed match {
-        case Success((callOutputs, destinationDetritus, allIoCommands)) =>
-          duplicate(ioCommandsToCopyPairs(allIoCommands)) match {
+        case Success((callOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
+          duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
             case Some(Success(_)) => succeedAndStop(returnCode, callOutputs, destinationDetritus)
             case Some(Failure(failure)) => failAndStop(failure)
             case None =>
 
-              if (allIoCommands.nonEmpty) {
-                allIoCommands foreach { sendIoCommand(_) }
+              if (detritusAndOutputsIoCommands.nonEmpty) {
+                detritusAndOutputsIoCommands foreach { sendIoCommand(_) }
                 
-                goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allIoCommands, callOutputs, destinationDetritus, returnCode))
+                // Add potential additional commands to the list
+                val allCommands = List(detritusAndOutputsIoCommands) ++ additionalIoCommands(callOutputs, destinationDetritus)
+                
+                goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, callOutputs, destinationDetritus, returnCode))
               } else succeedAndStop(returnCode, callOutputs, destinationDetritus)
           }
 
@@ -121,39 +159,45 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   when(WaitingForIoResponses) {
     case Event(IoSuccess(command: IoCommand[_], _), Some(data)) =>
-      val newData = data.remove(command)
-      if (newData.commandsToWaitFor.isEmpty) {
-        onSuccessIoCommand(newData) match {
-          case Some(successCommand) =>
-            sendIoCommand(successCommand)
-            goto(WaitingForOnSuccessResponse)
-          case None => succeedAndStop(data.returnCode, data.newJobOutputs, data.newDetritus)
-        }
+      val (newData, commandState) = data.commandComplete(command)
+      
+      commandState match {
+        case StillWaiting => stay() using Option(newData)
+        case AllCommandsDone => succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
+        case NextSubSet(commands) => 
+          commands foreach { sendIoCommand(_) }
+          stay() using Option(newData)
       }
-      else stay() using Option(newData)
-    case Event(IoFailure(_: IoCommand[_], failure), None) =>
-      failAndStop(failure)
-    case Event(IoFailure(_: IoCommand[_], failure), Some(data)) if data.commandsToWaitFor.nonEmpty =>
+    case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
+      // any failure is fatal
       context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
-      // Wait for the other responses to avoid them being sent to dead letter
-      goto(FailedState)
-    case Event(IoFailure(_: IoCommand[_], failure), Some(_)) =>
-      failAndStop(failure)
+
+      val (newData, commandState) = data.commandComplete(command)
+      
+      commandState match {
+          // If we're still waiting for some responses, go to failed state
+        case StillWaiting => goto(FailedState) using Option(newData)
+          // Otherwise we're done
+        case _ =>
+          context stop self
+          stay()
+      }
+      // Should not be possible
+    case Event(IoFailure(_: IoCommand[_], failure), None) => failAndStop(failure)
   }
-  
+
   when(FailedState) {
-    case Event(IoFailure(_: IoCommand[_], _), Some(data)) if data.commandsToWaitFor.nonEmpty =>
-      stay()
-    case Event(IoFailure(_: IoCommand[_], _), Some(_)) =>
-      context stop self
-      stay()
-  }
-  
-  when(WaitingForOnSuccessResponse) {
-    case Event(IoSuccess(_: IoCommand[_], _), Some(data)) =>
-      succeedAndStop(data.returnCode, data.newJobOutputs, data.newDetritus)
-    case Event(IoFailure(_: IoCommand[_], failure), _) =>
-      failAndStop(failure)
+    // At this point success or failure doesn't matter, we've already failed this hit
+    case Event(response: IoAck[_], Some(data)) =>
+      val (newData, commandState) = data.commandComplete(response.command)
+      commandState match {
+        // If we're still waiting for some responses, stay
+        case StillWaiting => stay() using Option(newData)
+        // Otherwise we're done
+        case _ =>
+          context stop self
+          stay()
+      }
   }
 
   whenUnhandled {
@@ -191,7 +235,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         throw new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}", failure)
     } get
   }
-  
+
   private def ioCommandsToCopyPairs(commands: Set[IoCommand[_]]): Set[PathPair] = commands collect {
     case copyCommand: IoCopyCommand => copyCommand.source -> copyCommand.destination
   }
@@ -219,7 +263,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     val destinationKeys = destinationJobDetritusPaths.keySet
     sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
   }
-  
+
   /**
     * Returns a pair of the detritus with copied paths, and copy commands necessary to perform those copies. 
     */
@@ -232,16 +276,20 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case ((detrituses, commands), detritus) =>
         val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get
         val destinationPath = destinationJobDetritusPaths(detritus)
-        
+
         val newDetrituses = detrituses + (detritus -> destinationPath)
-        
+
         (newDetrituses, commands + copyCommand(sourcePath, destinationPath, overwrite = true))
     })
-    
+
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
   }
-  
-  protected def onSuccessIoCommand(data: StandardCacheHitCopyingActorData): Option[IoCommand[_]] = None
+
+  /**
+    * Additional IoCommands that will be sent after (and only after) output and detritus commands complete successfully.
+    * See StandardCacheHitCopyingActorData
+    */
+  protected def additionalIoCommands(newOutputs: CallOutputs, newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = List.empty
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     val exceptionMessage = message match {

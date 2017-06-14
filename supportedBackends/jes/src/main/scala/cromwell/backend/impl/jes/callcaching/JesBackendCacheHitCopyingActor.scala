@@ -5,6 +5,7 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.jes.JesBackendInitializationData
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
+import cromwell.core.CallOutputs
 import cromwell.core.io.IoCommand
 import cromwell.core.path.Path
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
@@ -38,9 +39,8 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
       TryUtil.sequenceMap(sourceJobDetritusFiles.mapValues(getPath), "Failed to make paths out of job detritus") map { _ -> touchCommands }
   }
 
-  override protected def onSuccessIoCommand(data: StandardCacheHitCopyingActor.StandardCacheHitCopyingActorData): Option[IoCommand[_]] = {
-    val sourceJobDetritusFiles = data.newDetritus
-    val originalExecutionRoot = sourceJobDetritusFiles(JobPaths.CallRootPathKey)
+  override protected def additionalIoCommands(newOutputs: CallOutputs, newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {
+    val originalExecutionRoot = newDetritus(JobPaths.CallRootPathKey)
     val content =
       s"""
          |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
@@ -48,6 +48,6 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
          |The original outputs can be found at this location: ${originalExecutionRoot.pathAsString}
       """.stripMargin
 
-    Option(writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain"))))
+    List(Set(writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
   }
 }

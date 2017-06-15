@@ -166,17 +166,17 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
 
     val placeholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
 
-    /**
-      * Makes a diff object out of a key and a pair of values.
-      * Values are Option[Option[MetadataValue]] for the following reason:
-      *
-      * The outer option represents whether or not this key had a corresponding hash metadata entry for the given call
-      * If the above is true, the inner value is the metadata value for this entry, which is nullable, hence an Option.
-      * The first outer option will determine whether the resulting json value will be null (no hash entry for this key),
-      * or the actual value.
-      * If the metadata value (inner option) happens to be None, it's an error, as we don't expect to publish null hash values.
-      * In that case we replace it with the placeholderMissingHashValue.
-      */
+    /*
+     * Makes a diff object out of a key and a pair of values.
+     * Values are Option[Option[MetadataValue]] for the following reason:
+     *
+     * The outer option represents whether or not this key had a corresponding hash metadata entry for the given call
+     * If the above is true, the inner value is the metadata value for this entry, which is nullable, hence an Option.
+     * The first outer option will determine whether the resulting json value will be null (no hash entry for this key),
+     * or the actual value.
+     * If the metadata value (inner option) happens to be None, it's an error, as we don't expect to publish null hash values.
+     * In that case we replace it with the placeholderMissingHashValue.
+     */
     def makeHashDiffObject(key: String, valueA: Option[Option[MetadataValue]], valueB: Option[Option[MetadataValue]]) = {
       def makeFinalValue(value: Option[Option[MetadataValue]]) = value match {
         case Some(Some(metadataValue)) => MetadataPrimitive(metadataValue)

@@ -147,7 +147,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                 detritusAndOutputsIoCommands foreach { sendIoCommand(_) }
                 
                 // Add potential additional commands to the list
-                val allCommands = List(detritusAndOutputsIoCommands) ++ additionalIoCommands(callOutputs, destinationDetritus)
+                val allCommands = List(detritusAndOutputsIoCommands) ++ additionalIoCommands(simpletons, callOutputs, jobDetritus, destinationDetritus)
                 
                 goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, callOutputs, destinationDetritus, returnCode))
               } else succeedAndStop(returnCode, callOutputs, destinationDetritus)
@@ -229,7 +229,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  private def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
+  protected def lookupSourceCallRootPath(sourceJobDetritusFiles: Map[String, String]): Path = {
     sourceJobDetritusFiles.get(JobPaths.CallRootPathKey).map(getPath).get recover {
       case failure =>
         throw new RuntimeException(s"${JobPaths.CallRootPathKey} wasn't found for call ${jobDescriptor.call.fullyQualifiedName}", failure)
@@ -258,6 +258,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, destinationSimpletons), ioCommands)
   }
 
+  /**
+    * Returns the file (and ONLY the file detritus) intersection between the cache hit and this call.
+    */
   protected final def detritusFileKeys(sourceJobDetritusFiles: Map[String, String]) = {
     val sourceKeys = sourceJobDetritusFiles.keySet
     val destinationKeys = destinationJobDetritusPaths.keySet
@@ -289,11 +292,15 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     * Additional IoCommands that will be sent after (and only after) output and detritus commands complete successfully.
     * See StandardCacheHitCopyingActorData
     */
-  protected def additionalIoCommands(newOutputs: CallOutputs, newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = List.empty
+  protected def additionalIoCommands(originalSimpletons: Seq[WdlValueSimpleton],
+                                     newOutputs: CallOutputs,
+                                     originalDetritus:  Map[String, String],
+                                     newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = List.empty
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     val exceptionMessage = message match {
       case copyCommand: IoCopyCommand => s"The Cache hit copying actor timed out waiting for a response to copy ${copyCommand.source.pathAsString} to ${copyCommand.destination.pathAsString}"
+      case touchCommand: IoTouchCommand => s"The Cache hit copying actor timed out waiting for a response to touch ${touchCommand.file.pathAsString}"
       case other => s"The Cache hit copying actor timed out waiting for an unknown I/O operation: $other"
     }
 

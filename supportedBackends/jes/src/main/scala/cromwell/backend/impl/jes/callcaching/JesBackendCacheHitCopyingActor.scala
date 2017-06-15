@@ -42,13 +42,17 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
         key -> getPath(sourceJobDetritusFiles(key))
       } toMap
 
+      // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
       TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") map { newDetritus =>
-        newDetritus -> newDetritus.values.map(touchCommand).toSet
+        (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) -> newDetritus.values.map(touchCommand).toSet
       }
   }
 
-  override protected def additionalIoCommands(newOutputs: CallOutputs, newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {
-    val originalExecutionRoot = newDetritus(JobPaths.CallRootPathKey)
+  override protected def additionalIoCommands(originalSimpletons: Seq[WdlValueSimpleton],
+                                              newOutputs: CallOutputs,
+                                              originalDetritus:  Map[String, String],
+                                              newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {
+    val originalExecutionRoot = lookupSourceCallRootPath(originalDetritus)
     val content =
       s"""
          |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.

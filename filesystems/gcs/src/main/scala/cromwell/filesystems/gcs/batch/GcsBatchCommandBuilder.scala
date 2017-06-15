@@ -24,4 +24,9 @@ trait GcsBatchCommandBuilder extends DefaultIoCommandBuilder {
     case gcsPath: GcsPath => GcsBatchCrc32Command(gcsPath)
     case _ => super.hashCommand(path)
   }
+
+  override def touchCommand(path: Path) =  path match {
+    case gcsPath: GcsPath => GcsBatchTouchCommand(gcsPath)
+    case _ => super.touchCommand(path)
+  }
 }

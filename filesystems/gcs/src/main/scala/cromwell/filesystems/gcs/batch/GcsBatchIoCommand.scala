@@ -90,3 +90,7 @@ case class GcsBatchSizeCommand(override val file: GcsPath) extends IoSizeCommand
 case class GcsBatchCrc32Command(override val file: GcsPath) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): String = response.getCrc32c
 }
+
+case class GcsBatchTouchCommand(override val file: GcsPath) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
+  override def mapGoogleResponse(response: StorageObject): Unit = ()
+}

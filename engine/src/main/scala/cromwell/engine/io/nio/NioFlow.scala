@@ -39,6 +39,7 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
       case sizeCommand: IoSizeCommand => size(sizeCommand) map sizeCommand.success
       case readAsStringCommand: IoContentAsStringCommand => readAsString(readAsStringCommand) map readAsStringCommand.success
       case hashCommand: IoHashCommand => hash(hashCommand) map hashCommand.success
+      case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
       case _ => Future.failed(new NotImplementedError("Method not implemented"))
     }
   }
@@ -79,6 +80,10 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
         }
       )
     }
+  }
+
+  private def touch(touch: IoTouchCommand) = Future {
+    touch.file.touch()
   }
   
   private def createDirectoriesForSFSPath(path: Path) = path match {

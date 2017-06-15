@@ -8,6 +8,27 @@ The workflow submission parameters `wdlSource` and `wdlDependencies` have been d
 `workflowDependencies` respectively.  The older names are still supported in Cromwell 28 with deprecation warnings but will
 be removed in a future version of Cromwell.
 
+### JES Backend
+
+The JES backend now supports a `filesystems.gcs.caching.duplication-strategy` configuration entry.
+It can be set to specify the desired behavior of Cromwell regarding call outputs when a call finds a hit in the cache.
+The default value is `copy` which will copy all output files to the new call directory.
+A second value is allowed, `reference`, that will instead point to the original output files, without copying them.
+
+```hocon
+filesystems {
+  gcs {
+    auth = "application-default"
+    
+    caching {
+      duplication-strategy = "reference"
+    }
+  }
+}
+```
+
+A placeholder file will be placed in the execution folder of the cached call to explain the absence of output files and point to the location of the original ones.
+
 ## 27
 
 ### Migration

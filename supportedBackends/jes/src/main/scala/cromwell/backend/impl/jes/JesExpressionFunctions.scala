@@ -2,14 +2,16 @@ package cromwell.backend.impl.jes
 
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidGcsPath, PossiblyValidRelativeGcsPath, ValidFullGcsPath}
 
 class JesExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
   extends StandardExpressionFunctions(standardParams) {
 
-  override def preMapping(str: String) =
-    if (!GcsPathBuilder.isValidGcsUrl(str)) {
-      callContext.root.resolve(str.stripPrefix("/")).pathAsString
-    } else {
-      str
+  override def preMapping(str: String) = {
+    GcsPathBuilder.validateGcsPath(str) match {
+      case ValidFullGcsPath => str
+      case PossiblyValidRelativeGcsPath => callContext.root.resolve(str.stripPrefix("/")).pathAsString
+      case invalid: InvalidGcsPath => throw new IllegalArgumentException(invalid.errorMessage)
     }
+  }
 }

@@ -19,6 +19,7 @@ import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Try
 
 object GcsPathBuilder {
@@ -37,8 +38,39 @@ object GcsPathBuilder {
     checkNotNull(uri.getHost, s"%s does not have a host", uri)
   }
 
-  def isValidGcsUrl(str: String): Boolean = {
-    Try(checkValid(getUri(str))).isSuccess
+  sealed trait GcsPathValidation
+  case object ValidFullGcsPath extends GcsPathValidation
+  case object PossiblyValidRelativeGcsPath extends GcsPathValidation
+  sealed trait InvalidGcsPath extends GcsPathValidation {
+    def pathString: String
+    def errorMessage: String
+  }
+  final case class InvalidFullGcsPath(pathString: String) extends InvalidGcsPath {
+    override def errorMessage = {
+      val prefix = s"""
+      |The bucket name in GCS path '$pathString' is not compatible with URI host name standards.
+      |URI host name compatibility is a requirement for Cromwell's GCS filesystem support.
+      |Google also generally advises against the use of underscores in GCS bucket names, as well as against
+      |the use of periods or dashes in certain patterns as described here:
+      |https://cloud.google.com/storage/docs/naming.
+      """.stripMargin.replaceAll("\n", " ").trim
+      val underscoreWarning = if (pathString.contains("_")) s"In particular, the bucket name in '$pathString' may contain an underscore which is not a valid character in a URI host." else ""
+      List(prefix, underscoreWarning).mkString(" ")
+    }
+  }
+  final case class UnparseableGcsPath(pathString: String, throwable: Throwable) extends InvalidGcsPath {
+    override def errorMessage: String =
+      List(s"The specified GCS path '$pathString' does not parse as a URI.", throwable.getMessage).mkString("\n")
+  }
+
+  def validateGcsPath(string: String): GcsPathValidation = {
+    Try {
+      val uri = getUri(string)
+      if (uri.getScheme == null) PossiblyValidRelativeGcsPath
+      else if (uri.getScheme == "gs") {
+        if (uri.getHost == null) InvalidFullGcsPath(string) else ValidFullGcsPath
+      } else InvalidFullGcsPath(string)
+    } recover { case t => UnparseableGcsPath(string, t) } get
   }
 
   def isGcsPath(nioPath: NioPath): Boolean = {

@@ -12,8 +12,8 @@ task sub {
     String myBamString = "myfilename.bam"
     File myBamFile
     String swappedStr = sub(myBamString, ".bam$", ".txt")
-    # at this point myBamFile is not localized so path must be removed
-    String swappedFile = sub(sub(sub(myBamFile, "file:", ""), "/.*/",""), ".bam$", ".txt")
+    # At this point myBamFile is not localized so the protocol and path must be removed.
+    String swappedFile = sub(sub(sub(myBamFile, "^[a-z0-9]+:", ""), "/.*/",""), ".bam$", ".txt")
 
     command {
       echo ${sub(myBamString, ".bam$", ".txt")}

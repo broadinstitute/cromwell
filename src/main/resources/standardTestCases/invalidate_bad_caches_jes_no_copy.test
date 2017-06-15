@@ -1,10 +1,9 @@
-name: invalidate_bad_caches_jes
+name: invalidate_bad_caches_jes_no_copy
 testFormat: workflowsuccess
-backends: [Jes]
+backends: [Jes-Caching-No-Copy]
 
 files {
-  wdl: invalidate_bad_caches/invalidate_bad_caches.wdl
-  inputs: invalidate_bad_caches/jes.inputs
+  wdl: invalidate_bad_caches/invalidate_bad_caches_no_copy.wdl
 }
 
 metadata {

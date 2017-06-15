@@ -1,0 +1,21 @@
+name: fofn_caching
+testFormat: runtwiceexpectingcallcaching
+backends: [Jes-Caching-No-Copy]
+
+files {
+  wdl: fofn_caching/fofn_caching.wdl
+}
+
+metadata {
+  workflowName: fofn_caching
+  status: Succeeded
+  # We expect this to cache hit, because the backend is re-using original file paths,
+  # so the fofn will have the same content hence the same hash.
+  # Which means the whole call should be strictly similar to the first run
+  "calls.fofn_caching.use_fofn.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:fofn_caching.use_fofn:-1"
+}
+
+fileSystemCheck: "gcs"
+outputExpectations {
+  "gs://cloud-cromwell-dev/cromwell_execution/travis/fofn_caching/<<UUID>>/call-use_fofn/call_caching_placeholder.txt": 1
+}

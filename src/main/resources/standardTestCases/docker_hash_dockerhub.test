@@ -7,5 +7,5 @@ files {
 
 metadata {
   "calls.docker_hash_dockerhub.dockerhub.runtimeAttributes.docker": "ubuntu:precise-20161209",
-  "calls.docker_hash_dockerhub.dockerhub.dockerImageUsed": "library/ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7"
+  "calls.docker_hash_dockerhub.dockerhub.dockerImageUsed": "ubuntu@sha256:abdc090336ba4503bd72d0961a4f3d45134900d9a793d3f0c06a64d2555fbab7"
 }

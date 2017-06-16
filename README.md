@@ -3015,11 +3015,18 @@ Content-Type: application/json; charset=UTF-8
 Content-Length: 7286
 {
   "workflowName": "sc_test",
+  "submittedFiles": {
+      "inputs": "{}",
+      "workflow": "task do_prepare {\n    File input_file\n    command {\n        split -l 1 ${input_file} temp_ && ls -1 temp_?? > files.list\n    }\n    output {\n        Array[File] split_files = read_lines(\"files.list\")\n    }\n}\n# count the number of words in the input file, writing the count to an output file overkill in this case, but simulates a real scatter-gather that would just return an Int (map)\ntask do_scatter {\n    File input_file\n    command {\n        wc -w ${input_file} > output.txt\n    }\n    output {\n        File count_file = \"output.txt\"\n    }\n}\n# aggregate the results back together (reduce)\ntask do_gather {\n    Array[File] input_files\n    command <<<\n        cat ${sep = ' ' input_files} | awk '{s+=$$1} END {print s}'\n    >>>\n    output {\n        Int sum = read_int(stdout())\n    }\n}\nworkflow sc_test {\n    call do_prepare\n    scatter(f in do_prepare.split_files) {\n        call do_scatter {\n            input: input_file = f\n        }\n    }\n    call do_gather {\n        input: input_files = do_scatter.count_file\n    }\n}",
+      "options": "{\n\n}",
+      "workflowType": "WDL"
+  },
   "calls": {
     "sc_test.do_prepare": [
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/stdout",
+        "backendStatus": "Done",
         "shardIndex": -1,
         "outputs": {
           "split_files": [
@@ -3034,6 +3041,30 @@ Content-Length: 7286
             "failOnStderr": "true",
             "continueOnReturnCode": "0"
         },
+        "callCaching": {
+            "allowResultReuse": true,
+            "hit": false,
+            "result": "Cache Miss",
+            "hashes": {
+              "output count": "C4CA4238A0B923820DCC509A6F75849B",
+              "runtime attribute": {
+                "docker": "N/A",
+                "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                "failOnStderr": "68934A3E9455FA72420237EB05902327"
+              },
+              "output expression": {
+                "Array": "D856082E6599CF6EC9F7F42013A2EC4C"
+              },
+              "input count": "C4CA4238A0B923820DCC509A6F75849B",
+              "backend name": "509820290D57F333403F490DDE7316F4",
+              "command template": "9F5F1F24810FACDF917906BA4EBA807D",
+              "input": {
+                "File input_file": "11fa6d7ed15b42f2f73a455bf5864b49"
+              }
+            },
+            "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
+        "jobId": "34479",
         "returnCode": 0,
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
@@ -3047,15 +3078,40 @@ Content-Length: 7286
       {
         "executionStatus": "Preempted",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stdout",
+        "backendStatus": "Preempted",
         "shardIndex": 0,
         "outputs": {},
         "runtimeAttributes": {
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "a53794d214dc5dedbcecdf827bf683a2"
+            }
+          },
+         "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_file": "f"
         },
+        "jobId": "34496",
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stderr",
@@ -3066,6 +3122,7 @@ Content-Length: 7286
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/stdout",
+        "backendStatus": "Done",
         "shardIndex": 0,
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt"
@@ -3074,10 +3131,34 @@ Content-Length: 7286
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "a53794d214dc5dedbcecdf827bf683a2"
+            }
+          },
+         "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_file": "f"
         },
         "returnCode": 0,
+        "jobId": "34965",
         "end": "2016-02-04T13:47:56.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/stderr",
         "attempt": 2,
@@ -3087,6 +3168,7 @@ Content-Length: 7286
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/stdout",
+        "backendStatus": "Done",
         "shardIndex": 1,
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
@@ -3095,10 +3177,34 @@ Content-Length: 7286
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "d3410ade53df34c78488544285cf743c"
+            }
+          },
+         "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_file": "f"
         },
         "returnCode": 0,
+        "jobId": "34495",
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/stderr",
@@ -3111,6 +3217,7 @@ Content-Length: 7286
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_gather/stdout",
+        "backendStatus": "Done",
         "shardIndex": -1,
         "outputs": {
           "sum": 12
@@ -3119,6 +3226,29 @@ Content-Length: 7286
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "e0ef752ab4824939d7947f6012b7c141"
+            }
+          },
+          "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_files": [
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
@@ -3126,6 +3256,7 @@ Content-Length: 7286
           ]
         },
         "returnCode": 0,
+        "jobId": "34494",
         "backend": "Local",
         "end": "2016-02-04T13:47:57.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_gather/stderr",
@@ -3149,6 +3280,10 @@ Content-Length: 7286
   "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
   "inputs": {
     "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
+  },
+  "labels": {
+    "cromwell-workflow-name": "sc_test",
+    "cromwell-workflow-id": "cromwell-17633f21-11a9-414f-a95b-2e21431bd67d"
   },
   "submission": "2016-02-04T13:47:55.000-05:00",
   "status": "Succeeded",
@@ -3339,7 +3474,7 @@ The following query parameters are supported:
 | indexB    | Shard index of the second call                                                            | depends  |
 
 About the `indexX` parameters: It is required if the call was in a scatter. Otherwise it should *not* be specified.
-If the index parameters is wrongly specified, the call will not be find and the request will result in a 404 response.
+If the index parameters is wrongly specified, the call will not be found and the request will result in a 404 response.
 
 cURL:
 
@@ -3363,12 +3498,14 @@ Server: spray-can/1.3.3
 
 {
   "callA": {
+    "executionStatus": "Done",
     "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
     "callFqn": "wf_hello.hello",
     "jobIndex": -1,
     "allowResultReuse": true
   },
   "callB": {
+    "executionStatus": "Done",
     "workflowId": "7479f8a8-efa4-46e4-af0d-802addc66e5d",
     "callFqn": "wf_hello.hello",
     "jobIndex": -1,

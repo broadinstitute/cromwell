@@ -4,6 +4,40 @@
 
 ### Call Caching
 
+* Hash values calculated by Cromwell for a call when call caching is enabled are now published to the metadata.
+e.g: 
+
+```json
+...
+"callCaching": {
+    "allowResultReuse": true,
+    "hit": false,
+    "result": "Cache Miss",
+    "hashes": {
+      "output count": "C4CA4238A0B923820DCC509A6F75849B",
+      "runtime attribute": {
+        "docker": "N/A",
+        "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+        "failOnStderr": "68934A3E9455FA72420237EB05902327"
+      },
+      "output expression": {
+        "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+      },
+      "input count": "C4CA4238A0B923820DCC509A6F75849B",
+      "backend name": "509820290D57F333403F490DDE7316F4",
+      "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+      "input": {
+        "File input_file": "d3410ade53df34c78488544285cf743c"
+      }
+    },
+    "effectiveCallCachingMode": "ReadAndWriteCache"
+    },
+...
+```
+
+It is published even if the call failed. However if the call is attempted multiple times (because it has been preempted for example),
+since hash values are strictly identical for all attempts, they will only be published in the last attempt section of the metadata for this call.
+
 * New endpoint returning the hash differential for 2 calls. 
 
 `GET /api/workflows/:version/callcaching/diff`
@@ -13,12 +47,14 @@ The endpoint returns a JSON response such as the following:
 ```json
 {
     "callA": {
+        "executionStatus": "Done",
         "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
         "callFqn": "wf_hello.hello",
         "jobIndex": -1,
         "allowResultReuse": true
     },
     "callB": {
+        "executionStatus": "Done",
         "workflowId": "7479f8a8-efa4-46e4-af0d-802addc66e5d",
         "callFqn": "wf_hello.hello",
         "jobIndex": -1,

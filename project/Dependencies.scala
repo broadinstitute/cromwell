@@ -127,7 +127,8 @@ object Dependencies {
     "com.google.guava" % "guava" % "22.0",
     "com.google.auth" % "google-auth-library-oauth2-http" % "0.7.0",
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV,
-    "com.chuusai" %% "shapeless" % "2.3.2"
+    "com.chuusai" %% "shapeless" % "2.3.2",
+    "com.github.scopt" %% "scopt" % "3.6.0"
   ) ++ baseDependencies ++ googleApiClientDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies

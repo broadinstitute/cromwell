@@ -6,6 +6,9 @@
 
 * Request timeouts for HTTP requests on the REST API now return a 503 status code instead of 500. The response for a request timeout is no longer in JSON format.
 
+* Command line usage has been extensively revised for Cromwell 29.  Please see the
+[README](https://github.com/broadinstitute/cromwell#command-line-usage) for details.
+
 ## 28
 
 ### Bug Fixes

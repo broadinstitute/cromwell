@@ -396,7 +396,13 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       ))
     )
 
-    val workflowDescriptor = BackendWorkflowDescriptor(WorkflowId.randomId(), WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).workflowSource, Seq.empty[ImportResolver]).get.workflow, inputs, NoOptions, Labels.empty)
+    val workflowDescriptor = BackendWorkflowDescriptor(
+      WorkflowId.randomId(),
+      WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).workflowSource, Seq.empty[ImportResolver]).get.workflow,
+      inputs,
+      NoOptions,
+      Labels.empty
+    )
 
     val job = workflowDescriptor.workflow.taskCalls.head
     val runtimeAttributes = makeRuntimeAttributes(job)

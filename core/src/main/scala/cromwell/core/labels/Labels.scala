@@ -11,7 +11,7 @@ case class Labels(value: Vector[Label]) {
 
   def asMap = (value map { label => label.key -> label.value }).toMap
 
-  def asJesLabels = asMap.asJava
+  def asJavaMap = asMap.asJava
 
   def ++(that: Labels) = Labels(value ++ that.value)
 }

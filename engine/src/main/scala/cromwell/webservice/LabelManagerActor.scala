@@ -1,8 +1,10 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import cromwell.core.labels.Labels
+import cats.data.Validated.{Invalid, Valid}
+import cromwell.core.labels.{Label, Labels}
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelManagerActor._
 import cromwell.webservice.PerRequest.RequestComplete
@@ -29,8 +31,12 @@ object LabelManagerActor {
   def processLabelsResponse(workflowId: String, labels: Map[String, String]): JsObject = {
     JsObject(Map(
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
-      WorkflowMetadataKeys.Labels -> JsObject(labels map { case (k, v) => k -> JsString(v) })
+      WorkflowMetadataKeys.Labels -> JsObject(labels mapValues JsString.apply)
     ))
+  }
+
+  private def toMetadataEvents(labels: Labels): Seq[MetadataEvent] = {
+    labels map { case (k, v) => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$k"), MetadataValue(v)) }
   }
 }
 
@@ -41,15 +47,14 @@ class LabelManagerActor(serviceRegistryActor: ActorRef) extends Actor with Actor
   import WorkflowJsonSupport._
 
   def receive = {
-    case add: AddLabelsToWorkflowMetadata =>
-      serviceRegistryActor ! add
+    case add: LabelAddition =>
+      serviceRegistryActor ! PutMetadataAction(toMetadataEvents(add.labels))
     case LabelUpdateSuccess(id, labels) =>
       val response = processLabelsResponse(id, labels)
       context.parent ! RequestComplete((StatusCodes.OK, response))
     case failure: LabelUpdateFailure =>
       val response = APIResponse.fail(new RuntimeException(s"Can't find metadata service to update labels for ${failure.id} due to ${failure.reason.getMessage}"))
       context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
-    case random => log.error("Unexpected message to LabelManagerActor: {}", random)
   }
 
 }

@@ -16,6 +16,7 @@ import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
+import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -107,6 +108,28 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, ur)) => p < maxPreemption
     case _ => false
+  }
+
+  lazy val labels: Labels = {
+    val workflow = jobDescriptor.workflowDescriptor
+    val call = jobDescriptor.call
+    val subWorkflow = workflow.workflow
+    val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
+      Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
+    else
+      Labels.empty
+
+    val alias = call.unqualifiedName
+    val aliasLabels = if (!alias.equals(call.task.name))
+      Labels("wdl-call-alias" -> alias)
+    else
+      Labels.empty
+
+    Labels(
+      "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
+      "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
+      "wdl-task-name" -> call.task.name
+    ) ++ subWorkflowLabels ++ aliasLabels ++ workflow.customLabels
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {

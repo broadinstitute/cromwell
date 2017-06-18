@@ -26,7 +26,12 @@ class SubWorkflowPreparationActor(executionData: WorkflowExecutionActorData,
   def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse = {
     val oldBackendDescriptor = workflowDescriptor.backendDescriptor
 
-    val newBackendDescriptor = oldBackendDescriptor.copy(id = subWorkflowId, workflow = callKey.scope.calledWorkflow, knownValues = workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }), breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, callKey))
+    val newBackendDescriptor = oldBackendDescriptor.copy(
+      id = subWorkflowId,
+      workflow = callKey.scope.calledWorkflow,
+      knownValues = workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, callKey)
+    )
     val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))
     SubWorkflowPreparationSucceeded(engineDescriptor, inputEvaluation)
   }

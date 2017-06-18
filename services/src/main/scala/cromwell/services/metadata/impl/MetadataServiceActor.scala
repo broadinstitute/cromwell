@@ -90,7 +90,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
 
   def receive = {
     case action@PutMetadataAction(events) => writeActor forward action
-    case action@AddLabelsToWorkflowMetadata(id, events, labels) => writeActor forward action
+    case action@LabelAddition => writeActor forward action
     case CheckPendingWrites => writeActor forward CheckPendingWrites
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action

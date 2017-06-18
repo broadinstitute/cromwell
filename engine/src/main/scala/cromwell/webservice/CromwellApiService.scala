@@ -83,7 +83,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ callCachingDiffRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute ~ addLabelRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute ~ addLabelsRoute
 
   protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -160,16 +160,15 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     }
 
 
-  def addLabelRoute =
+  def addLabelsRoute =
     path("workflows" / Segment / Segment / "addLabels") { (version, possibleWorkflowId) =>
       entity(as[Map[String, String]]) { parameterMap =>
-        post {
+        patch {
           withRecognizedWorkflowId(possibleWorkflowId) { id =>
             requestContext =>
               Labels.validateMapOfLabels(parameterMap) match {
                 case Valid(labels) =>
-                  val events = labels.value map { l: Label => MetadataEvent(MetadataKey(id, None, s"${WorkflowMetadataKeys.Labels}:${l.key}"), MetadataValue(l.value)) }
-                  perRequest(requestContext, labelManagerActorProps, AddLabelsToWorkflowMetadata(id, events, labels))
+                  perRequest(requestContext, labelManagerActorProps, LabelAddition(id, labels))
                 case Invalid(err) => failBadRequest(new IllegalArgumentException(err.toList.mkString(",")))(requestContext)
               }
           }

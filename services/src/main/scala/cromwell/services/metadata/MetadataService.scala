@@ -63,7 +63,7 @@ object MetadataService {
   }
 
   case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
-  case class AddLabelsToWorkflowMetadata(workflowId: WorkflowId, events: Iterable[MetadataEvent], labels: Labels) extends MetadataServiceAction
+  case class LabelAddition(workflowId: WorkflowId, labels: Labels) extends MetadataServiceAction
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
                                              expandSubWorkflows: Boolean)

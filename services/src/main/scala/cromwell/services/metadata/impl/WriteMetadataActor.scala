@@ -41,8 +41,8 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(CheckPendingWrites, _: HasData[_]) =>
       sender() ! HasPendingWrites
       stay()
-    case Event(AddLabelsToWorkflowMetadata(id, events, labels), _) =>
-      addMetadataEvents(events) onComplete {
+    case Event(LabelAddition(id, labels), _) =>
+      addMetadataEvents(labels) onComplete {
         case Success(_) => sender() ! LabelUpdateSuccess(id.toString, labels.asMap)
         case Failure(err) => sender() ! LabelUpdateFailure(id.toString, err)
       }
@@ -63,22 +63,17 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
       // blech
       val events = e.toVector.collect({ case e: MetadataEvent => e })
       addMetadataEvents(events) onComplete {
-        case Success(_) => self ! DbWriteComplete
+        case Success(_) =>
+          if(sender().equals())
+          self ! DbWriteComplete
         case Failure(regerts) =>
           log.error(regerts, "Failed to properly flush metadata to database")
           self ! DbWriteComplete
       }
-
       stay using NoData
     case Event(DbWriteComplete, curData) =>
       log.debug("Flush of metadata events complete")
       goto(WaitingToWrite) using curData
-    case Event(AddLabelsToWorkflowMetadata(id, events, labels), curData) =>
-      addMetadataEvents(events) onComplete {
-        case Success(_) => sender() ! LabelUpdateSuccess(id.toString, labels.asMap)
-        case Failure(err) => sender() ! LabelUpdateFailure(id.toString, err)
-      }
-      stay() using curData
   }
 
   onTransition {

@@ -6,7 +6,7 @@ import cats.data.NonEmptyList
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.SqlConverters._
-import cromwell.database.sql.joins.{AnyMetadataJob, MetadataJob, MetadataJobQueryValue, NoMetadataJob}
+import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -66,10 +66,10 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                                     metadataJobQueryValue: MetadataJobQueryValue)
                                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = metadataJobQueryValue match {
-      case MetadataJob(callFqn, jobIndex, jobAttempt) =>
+      case CallQuery(callFqn, jobIndex, jobAttempt) =>
         dataAccess.metadataEntriesLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
-      case NoMetadataJob => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
-      case AnyMetadataJob => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
+      case WorkflowQuery => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
+      case CallOrWorkflowQuery => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
     }
       
     runTransaction(action)
@@ -80,10 +80,10 @@ trait MetadataSlickDatabase extends MetadataSqlDatabase {
                                                      metadataJobQueryValue: MetadataJobQueryValue)
                                                     (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = metadataJobQueryValue match {
-      case MetadataJob(callFqn, jobIndex, jobAttempt) =>
+      case CallQuery(callFqn, jobIndex, jobAttempt) =>
         dataAccess.metadataEntriesNotLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
-      case NoMetadataJob => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
-      case AnyMetadataJob => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
+      case WorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
+      case CallOrWorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
     }
     runTransaction(action)
   }

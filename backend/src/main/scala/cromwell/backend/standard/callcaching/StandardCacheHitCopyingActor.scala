@@ -147,7 +147,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                 case Some(Failure(failure)) => failAndStop(failure)
                   // Otherwise send the first round of IoCommands (file outputs and detritus) if any
                 case None if detritusAndOutputsIoCommands.nonEmpty =>
-                    detritusAndOutputsIoCommands foreach { sendIoCommand(_) }
+                    detritusAndOutputsIoCommands foreach sendIoCommand
 
                     // Add potential additional commands to the list
                   val additionalCommands = additionalIoCommands(sourceCallRootPath, simpletons, destinationCallOutputs, jobDetritus, destinationDetritus)
@@ -172,7 +172,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         case StillWaiting => stay() using Option(newData)
         case AllCommandsDone => succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
         case NextSubSet(commands) =>
-          commands foreach { sendIoCommand(_) }
+          commands foreach sendIoCommand
           stay() using Option(newData)
       }
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>

@@ -21,57 +21,59 @@ import spray.httpx.SprayJsonSupport._
 import scala.language.postfixOps
 
 object CallCacheDiffActor {
+  private val PlaceholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
+
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState
   case object WaitingForMetadata extends CallCacheDiffActorState
 
   sealed trait CallCacheDiffActorData
-  case object CallCacheDiffActorNoData extends CallCacheDiffActorData
-  case class CallCacheDiffActorWithRequest(queryA: MetadataQuery,
-                                           queryB: MetadataQuery,
-                                           responseA: Option[MetadataLookupResponse],
-                                           responseB: Option[MetadataLookupResponse],
-                                           replyTo: ActorRef
-                                          ) extends CallCacheDiffActorData
+  case object CallCacheDiffNoData extends CallCacheDiffActorData
+  case class CallCacheDiffWithRequest(queryA: MetadataQuery,
+                                      queryB: MetadataQuery,
+                                      responseA: Option[MetadataLookupResponse],
+                                      responseB: Option[MetadataLookupResponse],
+                                      replyTo: ActorRef
+                                     ) extends CallCacheDiffActorData
 
   def props(serviceRegistryActor: ActorRef) = Props(new CallCacheDiffActor(serviceRegistryActor))
 }
 
 class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {
-  startWith(Idle, CallCacheDiffActorNoData)
+  startWith(Idle, CallCacheDiffNoData)
 
   when(Idle) {
-    case Event(CallCacheDiffQueryParameter(callA, callB), CallCacheDiffActorNoData) =>
+    case Event(CallCacheDiffQueryParameter(callA, callB), CallCacheDiffNoData) =>
       val queryA = makeMetadataQuery(callA)
       val queryB = makeMetadataQuery(callB)
       serviceRegistryActor ! GetMetadataQueryAction(queryA)
       serviceRegistryActor ! GetMetadataQueryAction(queryB)
-      goto(WaitingForMetadata) using CallCacheDiffActorWithRequest(queryA, queryB, None, None, sender())
+      goto(WaitingForMetadata) using CallCacheDiffWithRequest(queryA, queryB, None, None, sender())
   }
 
   when(WaitingForMetadata) {
     // First Response
     // Response A
-    case Event(response: MetadataLookupResponse, data @ CallCacheDiffActorWithRequest(queryA, _, None, None, _)) if queryA == response.query =>
+    case Event(response: MetadataLookupResponse, data @ CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == response.query =>
       stay() using data.copy(responseA = Option(response))
     // Response B
-    case Event(response: MetadataLookupResponse, data @ CallCacheDiffActorWithRequest(_, queryB, None, None, _)) if queryB == response.query =>
+    case Event(response: MetadataLookupResponse, data @ CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == response.query =>
       stay() using data.copy(responseB = Option(response))
     // Second Response
     // Response A
-    case Event(response: MetadataLookupResponse, CallCacheDiffActorWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == response.query =>
+    case Event(response: MetadataLookupResponse, CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == response.query =>
       buildDiffAndRespond(queryA, queryB, response, responseB, replyTo)
     // Response B
-    case Event(response: MetadataLookupResponse, CallCacheDiffActorWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == response.query =>
+    case Event(response: MetadataLookupResponse, CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == response.query =>
       buildDiffAndRespond(queryA, queryB, responseA, response, replyTo)
-    case Event(MetadataServiceKeyLookupFailed(_, failure), data: CallCacheDiffActorWithRequest) =>
+    case Event(MetadataServiceKeyLookupFailed(_, failure), data: CallCacheDiffWithRequest) =>
       data.replyTo ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(failure)))
       context stop self
       stay()
   }
 
   /**
-    * Builds a response ans sends it back as Json.
+    * Builds a response and sends it back as Json.
     * The response is structured in the following way
     * {
     *   "callA": {
@@ -145,9 +147,36 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
   }
 
   /**
+    * Makes a diff object out of a key and a pair of values.
+    * Values are Option[Option[MetadataValue]] for the following reason:
+    *
+    * The outer option represents whether or not this key had a corresponding hash metadata entry for the given call
+    * If the above is true, the inner value is the metadata value for this entry, which is nullable, hence an Option.
+    * The first outer option will determine whether the resulting json value will be null (no hash entry for this key),
+    * or the actual value.
+    * If the metadata value (inner option) happens to be None, it's an error, as we don't expect to publish null hash values.
+    * In that case we replace it with the placeholderMissingHashValue.
+    */
+  private def makeHashDiffObject(key: String, valueA: Option[Option[MetadataValue]], valueB: Option[Option[MetadataValue]]) = {
+    def makeFinalValue(value: Option[Option[MetadataValue]]) = value match {
+      case Some(Some(metadataValue)) => MetadataPrimitive(metadataValue)
+      case Some(None) => PlaceholderMissingHashValue
+      case None => MetadataNull
+    }
+
+    MetadataObject(key.trim ->
+      MetadataObject(
+        "callA" -> makeFinalValue(valueA),
+        "callB" -> makeFinalValue(valueB)
+      )
+    )
+  }
+
+  /**
     * Creates the hash differential between 2 list of events
     */
-  def diffHashes(eventsA: Seq[MetadataEvent], eventsB: Seq[MetadataEvent]): MetadataComponent = {
+  private def diffHashes(eventsA: Seq[MetadataEvent], eventsB: Seq[MetadataEvent]): MetadataComponent = {
+    val hashesKey = CallCachingKeys.HashesKey + MetadataKey.KeySeparator
     // Collect hashes events and map their key to only keep the meaningful part of the key
     // Then map the result to get a Map of hashKey -> Option[MetadataValue]. This will allow for fast lookup when
     // comparing the 2 hash sets.
@@ -155,7 +184,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     // case we don't expect it to be (we should never publish a hash metadata event with a null value)
     // If that happens we will place a placeholder value in place of the hash to signify of the unexpected absence of it
     def collectHashes(events: Seq[MetadataEvent]) = {
-      collectEvents(events, { _.startsWith(CallCachingKeys.HashesKey) }, { _.stripPrefix(CallCachingKeys.HashesKey) })  map {
+      collectEvents(events, { _.startsWith(hashesKey) }, { _.stripPrefix(hashesKey) })  map {
         case MetadataEvent(MetadataKey(_, _, keyA), valueA, _) => keyA -> valueA
       } toMap
     }
@@ -163,34 +192,6 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     val hashesA: Map[String, Option[MetadataValue]] = collectHashes(eventsA)
     val hashesB: Map[String, Option[MetadataValue]] = collectHashes(eventsB)
     val hashesUniqueToB: Map[String, Option[MetadataValue]] = hashesB.filterNot({ case (k, _) => hashesA.keySet.contains(k) })
-
-    val placeholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
-
-    /*
-     * Makes a diff object out of a key and a pair of values.
-     * Values are Option[Option[MetadataValue]] for the following reason:
-     *
-     * The outer option represents whether or not this key had a corresponding hash metadata entry for the given call
-     * If the above is true, the inner value is the metadata value for this entry, which is nullable, hence an Option.
-     * The first outer option will determine whether the resulting json value will be null (no hash entry for this key),
-     * or the actual value.
-     * If the metadata value (inner option) happens to be None, it's an error, as we don't expect to publish null hash values.
-     * In that case we replace it with the placeholderMissingHashValue.
-     */
-    def makeHashDiffObject(key: String, valueA: Option[Option[MetadataValue]], valueB: Option[Option[MetadataValue]]) = {
-      def makeFinalValue(value: Option[Option[MetadataValue]]) = value match {
-        case Some(Some(metadataValue)) => MetadataPrimitive(metadataValue)
-        case Some(None) => placeholderMissingHashValue
-        case None => MetadataNull
-      }
-      
-      MetadataObject(key ->
-        MetadataObject(
-          "callA" -> makeFinalValue(valueA),
-          "callB" -> makeFinalValue(valueB)
-        )
-      )
-    }
 
     val hashDiff: List[MetadataComponent] = {
       // Start with all hashes in A

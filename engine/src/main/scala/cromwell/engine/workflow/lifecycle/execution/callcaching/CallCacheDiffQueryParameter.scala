@@ -11,32 +11,32 @@ object CallCacheDiffQueryParameter {
 
   private def missingWorkflowError(attribute: String) = s"missing $attribute query parameter".invalidNel
 
-  private def extractAttribute(parameters: Seq[(String, String)], parameter: String): Validated[NonEmptyList[String], String] = {
-    parameters.find(_._1 == parameter) match {
-      case Some((_, value)) => value.validNel
-      case None => missingWorkflowError(parameter)
-    }
-  }
-
-  private def extractIndex(parameters: Seq[(String, String)], parameter: String): Validated[NonEmptyList[String], Option[Int]] = {
-    parameters.find(_._1 == parameter) match {
-      case Some((_, value)) => Try(value.toInt) match {
-        case Success(index) => Option(index).validNel
-        case Failure(f) => f.getMessage.invalidNel
-      }
-      case None => None.validNel
-    }
-  }
-
   def fromParameters(parameters: Seq[(String, String)]): Validated[NonEmptyList[String], CallCacheDiffQueryParameter] = {
-    val workflowAValidation = extractAttribute(parameters, "workflowA")
-    val workflowBValidation = extractAttribute(parameters, "workflowB")
+    def extractIndex(parameter: String): Validated[NonEmptyList[String], Option[Int]] = {
+      parameters.find(_._1 == parameter) match {
+        case Some((_, value)) => Try(value.toInt) match {
+          case Success(index) => Option(index).validNel
+          case Failure(f) => f.getMessage.invalidNel
+        }
+        case None => None.validNel
+      }
+    }
 
-    val callAValidation = extractAttribute(parameters, "callA")
-    val callBValidation = extractAttribute(parameters, "callB")
+    def extractAttribute(parameter: String): Validated[NonEmptyList[String], String] = {
+      parameters.find(_._1 == parameter) match {
+        case Some((_, value)) => value.validNel
+        case None => missingWorkflowError(parameter)
+      }
+    }
+    
+    val workflowAValidation = extractAttribute("workflowA")
+    val workflowBValidation = extractAttribute("workflowB")
 
-    val indexAValidation = extractIndex(parameters, "indexA")
-    val indexBValidation = extractIndex(parameters, "indexB")
+    val callAValidation = extractAttribute("callA")
+    val callBValidation = extractAttribute("callB")
+
+    val indexAValidation = extractIndex("indexA")
+    val indexBValidation = extractIndex("indexB")
 
     (workflowAValidation |@| callAValidation |@| indexAValidation |@|
       workflowBValidation |@| callBValidation |@| indexBValidation) map {

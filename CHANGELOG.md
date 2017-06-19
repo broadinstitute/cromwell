@@ -5,89 +5,15 @@
 ### Call Caching
 
 * Hash values calculated by Cromwell for a call when call caching is enabled are now published to the metadata.
-e.g: 
-
-```json
-...
-"callCaching": {
-    "allowResultReuse": true,
-    "hit": false,
-    "result": "Cache Miss",
-    "hashes": {
-      "output count": "C4CA4238A0B923820DCC509A6F75849B",
-      "runtime attribute": {
-        "docker": "N/A",
-        "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
-        "failOnStderr": "68934A3E9455FA72420237EB05902327"
-      },
-      "output expression": {
-        "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
-      },
-      "input count": "C4CA4238A0B923820DCC509A6F75849B",
-      "backend name": "509820290D57F333403F490DDE7316F4",
-      "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
-      "input": {
-        "File input_file": "d3410ade53df34c78488544285cf743c"
-      }
-    },
-    "effectiveCallCachingMode": "ReadAndWriteCache"
-    },
-...
-```
-
 It is published even if the call failed. However if the call is attempted multiple times (because it has been preempted for example),
 since hash values are strictly identical for all attempts, they will only be published in the last attempt section of the metadata for this call.
+If the hashes fail to be calculated, the reason is indicated in a `hashFailures` field in the `callCaching` section of the call metadata.
+
+See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsversionidmetadata) for an example metadata response.
 
 * New endpoint returning the hash differential for 2 calls. 
 
 `GET /api/workflows/:version/callcaching/diff`
-
-The endpoint returns a JSON response such as the following:
-
-```json
-{
-    "callA": {
-        "executionStatus": "Done",
-        "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
-        "callFqn": "wf_hello.hello",
-        "jobIndex": -1,
-        "allowResultReuse": true
-    },
-    "callB": {
-        "executionStatus": "Done",
-        "workflowId": "7479f8a8-efa4-46e4-af0d-802addc66e5d",
-        "callFqn": "wf_hello.hello",
-        "jobIndex": -1,
-        "allowResultReuse": true
-    },
-    "hashDifferential": [
-        {
-            "command template": {
-            "callA": "4EAADE3CD5D558C5A6CFA4FD101A1486",
-            "callB": "3C7A0CA3D7A863A486DBF3F7005D4C95"
-        }
-        },
-        {
-            "input count": {
-            "callA": "C4CA4238A0B923820DCC509A6F75849B",
-            "callB": "C81E728D9D4C2F636F067F89CC14862C"
-        }
-        },
-        {
-            "input: String addressee": {
-            "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
-            "callB": "7235E005510D99CB4D5988B21AC97B6D"
-        }
-        },
-        {
-            "input: String addressee2": {
-            "callA": null,
-            "callB": "116C7E36B4AE3EAFD07FA4C536CE092F"
-        }
-        }
-    ]
-}
-```
 
 See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) for more details.
 

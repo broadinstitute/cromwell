@@ -5,7 +5,7 @@ import cats.data.NonEmptyList
 import cats.syntax.semigroup._
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.database.sql.SqlConverters._
-import cromwell.database.sql.joins.{AnyMetadataJob, MetadataJob, NoMetadataJob}
+import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.ServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
@@ -112,16 +112,16 @@ trait MetadataDatabaseAccess {
         databaseInterface.queryMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
       case MetadataQuery(_, None, None, Some(includeKeys), None, _) =>
         databaseInterface.
-          queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), AnyMetadataJob)
+          queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), CallOrWorkflowQuery)
       case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, Some(includeKeys), None, _) =>
         databaseInterface.
-          queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), MetadataJob(callFqn, index, attempt))
+          queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), CallQuery(callFqn, index, attempt))
       case MetadataQuery(_, None, None, None, Some(excludeKeys), _) =>
         databaseInterface.
-          queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), AnyMetadataJob)
+          queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), CallOrWorkflowQuery)
       case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, None, Some(excludeKeys), _) =>
         databaseInterface.
-          queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), MetadataJob(callFqn, index, attempt))
+          queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), CallQuery(callFqn, index, attempt))
       case MetadataQuery(_, None, None, Some(includeKeys), Some(excludeKeys), _) => Future.failed(
         new IllegalArgumentException(
           s"Include/Exclude keys may not be mixed: include = $includeKeys, exclude = $excludeKeys"))
@@ -134,7 +134,7 @@ trait MetadataDatabaseAccess {
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
     databaseInterface.queryMetadataEntriesLikeMetadataKeys(
-      uuid, NonEmptyList.of(s"${WorkflowMetadataKeys.Outputs}:%"), NoMetadataJob).
+      uuid, NonEmptyList.of(s"${WorkflowMetadataKeys.Outputs}:%"), WorkflowQuery).
       map(metadataToMetadataEvents(id))
   }
 
@@ -143,7 +143,7 @@ trait MetadataDatabaseAccess {
     import cromwell.services.metadata.CallMetadataKeys._
 
     val keys = NonEmptyList.of(Stdout, Stderr, BackendLogsPrefix + ":%")
-    databaseInterface.queryMetadataEntriesLikeMetadataKeys(id.id.toString, keys, AnyMetadataJob) map
+    databaseInterface.queryMetadataEntriesLikeMetadataKeys(id.id.toString, keys, CallOrWorkflowQuery) map
       metadataToMetadataEvents(id)
   }
 

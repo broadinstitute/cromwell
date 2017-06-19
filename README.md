@@ -3474,7 +3474,7 @@ The following query parameters are supported:
 | indexB    | Shard index of the second call                                                            | depends  |
 
 About the `indexX` parameters: It is required if the call was in a scatter. Otherwise it should *not* be specified.
-If the index parameters is wrongly specified, the call will not be found and the request will result in a 404 response.
+If an index parameter is wrongly specified, the call will not be found and the request will result in a 404 response.
 
 cURL:
 
@@ -3574,7 +3574,7 @@ For instance, in the example above,
 
 indicates that `callA` has a `String` input called `addressee2` that doesn't exist in `callB`. For that reason the value of the second field is `null`.
 
-- `callB` has a hash key that `callA` doesn't have. This is the same case than above but reversed.
+- `callB` has a hash key that `callA` doesn't have. This is the same case as above but reversed.
 
 If no cache entry for `callA` or `callB` can be found, the response will be in the following format:
 
@@ -3591,7 +3591,7 @@ Server: spray-can/1.3.3
 }
 ```
 
-If none of `callA` and `callB` can be found, the response will be in the following format:
+If neither `callA` nor `callB` can be found, the response will be in the following format:
 
 
 ```

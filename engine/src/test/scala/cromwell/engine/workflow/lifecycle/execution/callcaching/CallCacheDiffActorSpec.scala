@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import cats.data.NonEmptyList
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CallCacheDiffActorWithRequest, WaitingForMetadata}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CallCacheDiffWithRequest, WaitingForMetadata}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
 import cromwell.services.metadata._
@@ -77,13 +77,13 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val mockServiceRegistryActor = TestProbe()
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
     
-    actor.setState(WaitingForMetadata, CallCacheDiffActorWithRequest(queryA, queryB, None, None, self))
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
 
     val response = MetadataLookupResponse(queryA, eventsA)
     actor ! response
    
     eventually {
-      actor.stateData shouldBe CallCacheDiffActorWithRequest(queryA, queryB, Some(response), None, self)
+      actor.stateData shouldBe CallCacheDiffWithRequest(queryA, queryB, Some(response), None, self)
       actor.stateName shouldBe WaitingForMetadata
     }
   }
@@ -92,13 +92,13 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val mockServiceRegistryActor = TestProbe()
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
 
-    actor.setState(WaitingForMetadata, CallCacheDiffActorWithRequest(queryA, queryB, None, None, self))
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
 
     val response = MetadataLookupResponse(queryB, eventsB)
     actor ! response
 
     eventually {
-      actor.stateData shouldBe CallCacheDiffActorWithRequest(queryA, queryB, None, Some(response), self)
+      actor.stateData shouldBe CallCacheDiffWithRequest(queryA, queryB, None, Some(response), self)
       actor.stateName shouldBe WaitingForMetadata
     }
   }
@@ -109,7 +109,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     watch(actor)
     val responseB = MetadataLookupResponse(queryB, eventsB)
 
-    actor.setState(WaitingForMetadata, CallCacheDiffActorWithRequest(queryA, queryB, None, Option(responseB), self))
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, Option(responseB), self))
 
     actor ! MetadataLookupResponse(queryA, eventsA)
 
@@ -123,7 +123,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     watch(actor)
     val responseA = MetadataLookupResponse(queryA, eventsA)
 
-    actor.setState(WaitingForMetadata, CallCacheDiffActorWithRequest(queryA, queryB, Option(responseA), None, self))
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, Option(responseA), None, self))
 
     actor ! MetadataLookupResponse(queryB, eventsB)
 
@@ -142,7 +142,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val mockServiceRegistryActor = TestProbe()
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
     watch(actor)
-    actor.setState(WaitingForMetadata, CallCacheDiffActorWithRequest(queryA, queryB, None, None, self))
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
 
     actor ! MetadataLookupResponse(queryB, eventsB)
     actor ! MetadataLookupResponse(queryA, eventsA)
@@ -166,19 +166,19 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
          |   },
          |   "hashDifferential":[  
          |      {  
-         |         " hash in only in A":{  
+         |         "hash in only in A":{  
          |            "callA":"hello",
          |            "callB":null
          |         }
          |      },
          |      {  
-         |         " hash in A and B with different value":{  
+         |         "hash in A and B with different value":{  
          |            "callA":"I'm the hash for A !",
          |            "callB":"I'm the hash for B !"
          |         }
          |      },
          |      {  
-         |         " hash in only in B":{  
+         |         "hash in only in B":{  
          |            "callA":null,
          |            "callB":"hello"
          |         }
@@ -203,7 +203,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val exception = new Exception("Query lookup failed - but it's ok ! this is a test !")
     val responseA = MetadataServiceKeyLookupFailed(queryA, exception)
 
-    actor.setState(WaitingForMetadata, CallCacheDiffActorWithRequest(queryA, queryB, None, None, self))
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
 
     actor ! responseA
 

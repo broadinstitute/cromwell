@@ -28,6 +28,7 @@ object CallMetadataKeys {
     val HitResultMetadataKey = CallCaching + MetadataKey.KeySeparator + "hit"
     val AllowReuseMetadataKey = CallCaching + MetadataKey.KeySeparator + "allowResultReuse"
     val HitFailuresKey = CallCaching + MetadataKey.KeySeparator + "hitFailures"
-    val HashesKey = CallCaching + MetadataKey.KeySeparator + "hashes" + MetadataKey.KeySeparator
+    val HashFailuresKey = CallCaching + MetadataKey.KeySeparator + "hashFailures"
+    val HashesKey = CallCaching + MetadataKey.KeySeparator + "hashes"
   }
 }

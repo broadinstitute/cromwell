@@ -6,7 +6,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection, _}
+import cromwell.core._
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.services.metadata.MetadataService._

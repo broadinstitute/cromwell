@@ -123,7 +123,7 @@ trait MetadataEntryComponent {
   )
 
   /**
-    * Returns metadata entries that are "like" metadataKeys for she specified workflow.
+    * Returns metadata entries that are "like" metadataKeys for the specified workflow.
     * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level
     * keys are returned.
     */
@@ -138,7 +138,7 @@ trait MetadataEntryComponent {
   }
 
   /**
-    * Returns metadata entries that are "like" metadataKeys for she specified call.
+    * Returns metadata entries that are "like" metadataKeys for the specified call.
     * If jobAttempt has no value, all metadata keys for all attempts are returned.
     */
   def metadataEntriesLikeMetadataKeysWithJob(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
@@ -157,7 +157,7 @@ trait MetadataEntryComponent {
   }
 
   /**
-    * Returns metadata entries that are NOT "like" metadataKeys for she specified workflow.
+    * Returns metadata entries that are NOT "like" metadataKeys for the specified workflow.
     * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level
     * keys are returned.
     */
@@ -172,7 +172,7 @@ trait MetadataEntryComponent {
   }
 
   /**
-    * Returns metadata entries that are NOT "like" metadataKeys for she specified call.
+    * Returns metadata entries that are NOT "like" metadataKeys for the specified call.
     * If jobIndex (resp. jobAttempt) has no value, all metadata keys for all indices (resp. attempt)
     * are returned.
     */
@@ -185,7 +185,7 @@ trait MetadataEntryComponent {
       if metadataEntry.callFullyQualifiedName === callFqn
       if hasSameIndex(metadataEntry, jobIndex)
         // Assume that every metadata entry for a call should have a non null attempt value
-        // Because of that, if the jobAttempt paramater is Some(_), make sure it matches, otherwise take all entries
+        // Because of that, if the jobAttempt parameter is Some(_), make sure it matches, otherwise take all entries
         // regardless of the attempt
       if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
     } yield metadataEntry).sortBy(_.metadataTimestamp)

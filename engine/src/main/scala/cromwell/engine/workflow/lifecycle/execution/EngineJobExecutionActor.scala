@@ -316,10 +316,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def publishHashesToMetadata(maybeHashes: Option[Try[CallCacheHashes]]) = maybeHashes match {
     case Some(Success(hashes)) =>
       val hashMap = hashes.hashes.collect({
-        case HashResult(HashKey(useInCallCaching, keyComponents), HashValue(value)) if useInCallCaching => (callCachingHashes + keyComponents.mkString(MetadataKey.KeySeparator.toString)) -> value
+        case HashResult(HashKey(useInCallCaching, keyComponents), HashValue(value)) if useInCallCaching => 
+          (callCachingHashes + MetadataKey.KeySeparator + keyComponents.mkString(MetadataKey.KeySeparator.toString)) -> value
       }).toMap
       writeToMetadata(hashMap)
-    case _ => log.error("Cannot find hashes although they were successfully written to the database.")
+    case Some(Failure(_)) => // We already published the failure to the metadata so nothing to do here
+    case None => log.error("Cannot find hashes although they were successfully written to the database.")
   }
 
 
@@ -378,7 +380,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
-    reason foreach { r => log.error(r, "{}: Hash error, disabling call caching for this job.", jobTag) }
+    reason foreach { r =>
+      // Publish hash failure to metadata
+      import cromwell.services.metadata.MetadataService._
+      val failureAsEvents = throwableToMetadataEvents(metadataKeyForCall(jobDescriptorKey, CallMetadataKeys.CallCachingKeys.HashFailuresKey), r)
+      serviceRegistryActor ! PutMetadataAction(failureAsEvents)
+      log.error(r, "{}: Hash error, disabling call caching for this job.", jobTag)
+    }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))
@@ -693,7 +701,7 @@ object EngineJobExecutionActor {
     def withHashes(hashes: Try[CallCacheHashes]): ResponseData
   }
 
-  private [execution] sealed trait CacheWriteResponseData extends ResponseData
+  private[execution] sealed trait CacheWriteResponseData extends ResponseData
 
   private[execution] case class SucceededResponseData(response: JobSucceededResponse,
                                                       hashes: Option[Try[CallCacheHashes]] = None) extends CacheWriteResponseData {

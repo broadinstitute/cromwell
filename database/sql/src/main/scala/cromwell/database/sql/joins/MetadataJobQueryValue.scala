@@ -5,14 +5,14 @@ sealed trait MetadataJobQueryValue
 /**
   * Applies a filter to retrieve only metadata keys matching this job
   */
-case class MetadataJob(callFqn: String, jobIndex: Option[Int], jobAttempt: Option[Int]) extends MetadataJobQueryValue
+case class CallQuery(callFqn: String, jobIndex: Option[Int], jobAttempt: Option[Int]) extends MetadataJobQueryValue
 
 /**
   * Used to filter metadata keys at the workflow level only
   */
-case object NoMetadataJob extends MetadataJobQueryValue
+case object WorkflowQuery extends MetadataJobQueryValue
 
 /**
   * Applies no filter on metadata job key. Both workflow level and job level keys are retrieved, for any job
   */
-case object AnyMetadataJob extends MetadataJobQueryValue
+case object CallOrWorkflowQuery extends MetadataJobQueryValue

@@ -54,4 +54,14 @@ object TestFormulas {
       _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
     } yield ()
   }
+
+  def runFailingWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow): Test[Unit] = {
+    for {
+      _ <- runFailingWorkflow(workflowDefinition) // Build caches
+      testWf <- runFailingWorkflow(workflowDefinition)
+      metadata <- validateMetadata(testWf, workflowDefinition)
+      _ <- validateNoCacheHits(metadata, workflowDefinition.testName)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
+    } yield ()
+  }
 }

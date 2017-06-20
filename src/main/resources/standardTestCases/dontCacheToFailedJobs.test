@@ -1,0 +1,22 @@
+name: dont_cache_to_failed_jobs
+testFormat: runfailingtwiceexpectingnocallcaching
+
+files {
+  wdl: dont_cache_to_failed_jobs/dont_cache_to_failed_jobs.wdl
+}
+
+metadata {
+  workflowName: dont_cache_to_failed_jobs
+  status: Failed
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.result": "Cache Miss"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.allowResultReuse": false
+  
+  // Check that hashes are published to metadata even for failed jobs
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.output count": "C4CA4238A0B923820DCC509A6F75849B"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.docker": "9170B645AE68F47145CE3A1C99A1C09B"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.failOnStderr": "68934A3E9455FA72420237EB05902327"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.output expression.Boolean done": "B326B5062B2F0E69046810717534CB09"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.input count": "CFCD208495D565EF66E7DFF9F98764DA"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.command template": "5914F0FC4DBB0535551E6AF9A60E9DA3"
+}

@@ -33,4 +33,18 @@ metadata {
   "calls.call_cache_capoeira.read_files_failOnStderr_expression.callCaching.hit": true
   "calls.call_cache_capoeira.read_array_files.callCaching.hit": false
   "calls.call_cache_capoeira.read_array_files_rearranged.callCaching.hit": false
+  
+  // Check that hashes are published to metadata
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.output count": "C81E728D9D4C2F636F067F89CC14862C"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.docker": "09F611634147800124391D34D57A3A9F"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.failOnStderr": "68934A3E9455FA72420237EB05902327"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.output expression.Boolean done": "B326B5062B2F0E69046810717534CB09"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.output expression.String s": "A865407608C706C3A061C106080F8497"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input count": "ECCBC87E4B5CE2FE28308FD9F2A7BAF3"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.command template": "854640FC8C6DFD8DA6DA3898FC160D02"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input.Boolean ready": "B326B5062B2F0E69046810717534CB09"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input.File b.0": "EQWINA=="
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input.File a.0": "T53tZg=="
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.backend name": "266737861563041E0359B3B8553F9B5C"
 }

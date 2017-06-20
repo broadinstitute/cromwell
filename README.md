@@ -2864,7 +2864,7 @@ The [labels](#labels) must be a mapping of key/value pairs sent via the PATCH bo
 cURL:
 
 ```
-$ curl --request PATCH --header "Content-Type: application/json" -d "{\"label-key-1\":\"label-value-1\", \"label-key-2\": \"label-value-2\"}" "http://localhost:8000/api/workflows/v1/labels"
+$ curl -X PATCH --header "Content-Type: application/json" -d "{\"label-key-1\":\"label-value-1\", \"label-key-2\": \"label-value-2\"}" "http://localhost:8000/api/workflows/v1/labels"
 ```
 
 HTTPie:

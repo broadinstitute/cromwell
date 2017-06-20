@@ -16,7 +16,6 @@ import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -25,8 +24,6 @@ import cromwell.filesystems.gcs.GcsPath
 import lenthall.validation.ErrorOr.ErrorOr
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KvClient
-import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataKey, MetadataValue}
-import cromwell.services.metadata.MetadataService.PutMetadataAction
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.expression.PureStandardLibraryFunctions
@@ -110,34 +107,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, ur)) => p < maxPreemption
     case _ => false
-  }
-
-  lazy val labels: Labels = {
-    val workflow = jobDescriptor.workflowDescriptor
-    val call = jobDescriptor.call
-    val subWorkflow = workflow.workflow
-    val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
-      Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
-    else
-      Labels.empty
-
-    val alias = call.unqualifiedName
-    val aliasLabels = if (!alias.equals(call.task.name))
-      Labels("wdl-call-alias" -> alias)
-    else
-      Labels.empty
-
-    Labels(
-      "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-      "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
-      "wdl-task-name" -> call.task.name
-    ) ++ subWorkflowLabels ++ aliasLabels ++ workflow.customLabels
-  }
-
-  private def publishLabelsToMetadata(labels: Labels, workflowId: WorkflowId): Unit = {
-    labels.value foreach { l =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${CallMetadataKeys.Labels}:${l.key}"), MetadataValue(l.value)))
-    }
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
@@ -303,7 +272,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       jesParameters,
       googleProject(jobDescriptor.workflowDescriptor),
       computeServiceAccount(jobDescriptor.workflowDescriptor),
-      labels,
+      backendLabels,
       preemptible,
       initializationData.genomics
     )
@@ -353,7 +322,6 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           _ <- evaluateRuntimeAttributes
           jesParameters <- generateJesParameters
           _ <- uploadScriptFile
-          _ = publishLabelsToMetadata(labels, workflowId)
           rpr <- makeRpr(jesParameters)
           runId <- runPipeline(initializationData.genomics, rpr)
           run = Run(runId, initializationData.genomics)

@@ -282,6 +282,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
     val zero = (Map.empty[String, Path], Set.empty[IoCommand[_]])
 
+
+
     val (destinationDetritus, ioCommands) = fileKeys.foldLeft(zero)({
       case ((detrituses, commands), detritus) =>
         val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get

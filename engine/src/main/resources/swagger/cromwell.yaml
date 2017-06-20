@@ -221,7 +221,7 @@ paths:
             - openid
   '/workflows/{version}/{id}/labels':
     patch:
-      summary: Add custom labels to an existing workflow.
+      summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
         - name: version
           description: API Version

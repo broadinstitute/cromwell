@@ -11,7 +11,7 @@ import cromwell.services.metadata.MetadataService._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import scala.language.postfixOps
+
 
 class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
@@ -43,8 +43,8 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(CheckPendingWrites, _: HasData[_]) =>
       sender() ! HasPendingWrites
       stay()
-    case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
-      curData.addData(PutMetadataActionAndRespond(events, replyTo)) match {
+    case Event(e @ PutMetadataActionAndRespond(events, replyTo), curData) =>
+      curData.addData(e) match {
         case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
         case newData => stay using newData
       }
@@ -62,21 +62,24 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(FlushBatchToDb, HasData(e)) =>
       log.debug("Flushing {} metadata events to the DB", e.length)
       // blech
-      val events: Vector[MetadataEvent] = e.toVector.collect({ case e: MetadataEvent => e})
-      val eventsToAcknowledge: Map[Iterable[MetadataEvent], ActorRef] = e.toVector.collect({ case PutMetadataActionAndRespond(e, replyTo) => e -> replyTo }) toMap
-      val allEvents: Iterable[MetadataEvent] = eventsToAcknowledge.keys.foldLeft(events)((acc, ev) => {acc ++ ev })
-      addMetadataEvents(allEvents) onComplete {
+      //Partitioning the current data into put events that require a response and those that don't
+      val empty = (List.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
+      val (putWithoutResponse, putWithResponse) = e.toVector.foldLeft(empty)({
+        case ((putEvents, putAndRespondEvents), events) =>
+          events match {
+            case putEvent: MetadataEvent => (putEvents :+ putEvent, putAndRespondEvents)
+            case PutMetadataActionAndRespond(ev, replyTo) => (putEvents, putAndRespondEvents + (ev -> replyTo))
+          }
+      })
+      val allPutEvents = putWithResponse.keys.flatten ++ putWithoutResponse
+      addMetadataEvents(allPutEvents) onComplete {
         case Success(_) =>
           self ! DbWriteComplete
-          if(eventsToAcknowledge.nonEmpty) {
-            eventsToAcknowledge foreach { case(events, replyTo) => replyTo ! MetadataWriteSuccess(events) }
-          }
+          putWithResponse foreach { case(ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
         case Failure(regerts) =>
           log.error(regerts, "Failed to properly flush metadata to database")
           self ! DbWriteComplete
-          if(eventsToAcknowledge.nonEmpty) {
-            eventsToAcknowledge foreach { case(events, replyTo) => replyTo ! MetadataWriteFailure(regerts, events) }
-          }
+          putWithResponse foreach { case(ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
       }
       stay using NoData
     case Event(DbWriteComplete, curData) =>

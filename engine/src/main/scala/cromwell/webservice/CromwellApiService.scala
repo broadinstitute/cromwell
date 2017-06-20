@@ -12,7 +12,7 @@ import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice.LabelManagerActor.{LabelAddition, LabelData}
+import cromwell.webservice.LabelsManagerActor.{LabelsAddition, LabelsData}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.exception.AggregatedMessageException
@@ -58,7 +58,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
 
-  def labelManagerActorProps: Props = LabelManagerActor.props(serviceRegistryActor)
+  def labelsManagerActorProps: Props = LabelsManagerActor.props(serviceRegistryActor)
 
   def handleMetadataRequest(message: AnyRef): Route = {
     requestContext =>
@@ -169,7 +169,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
             requestContext =>
               Labels.validateMapOfLabels(parameterMap) match {
                 case Valid(labels) =>
-                  perRequest(requestContext, labelManagerActorProps, LabelAddition(LabelData(id, labels)))
+                  perRequest(requestContext, labelsManagerActorProps, LabelsAddition(LabelsData(id, labels)))
                 case Invalid(err) => failBadRequest(new IllegalArgumentException(err.toList.mkString(",")))(requestContext)
               }
           }

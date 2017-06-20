@@ -61,8 +61,8 @@ object MetadataService {
     }
   }
 
-  case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
-  case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataServiceAction
+  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataServiceAction
 
   case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],

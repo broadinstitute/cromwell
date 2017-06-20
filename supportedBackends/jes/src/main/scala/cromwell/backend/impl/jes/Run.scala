@@ -4,6 +4,7 @@ import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.standard.StandardAsyncJob
+import cromwell.core.labels.Labels
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -27,6 +28,7 @@ object Run {
                              jesParameters: Seq[JesParameter],
                              projectId: String,
                              computeServiceAccount: String,
+                             labels: Labels,
                              preemptible: Boolean,
                              genomicsInterface: Genomics): RunPipelineRequest = {
 
@@ -57,7 +59,7 @@ object Run {
     rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
     rpargs.setOutputs(jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
 
-    rpargs.setLabels(workflow.customLabels.asJavaMap)
+    rpargs.setLabels(labels.asJavaMap)
 
     val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 

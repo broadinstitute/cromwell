@@ -219,7 +219,7 @@ paths:
       security:
         - google_oauth:
             - openid
- '/workflows/{version}/{id}/labels':
+  '/workflows/{version}/{id}/labels':
     patch:
       summary: Add custom labels to an existing workflow.
       parameters:
@@ -229,11 +229,19 @@ paths:
           type: string
           in: path
           default: v1
-        - name: labels
-          description: Custom Labels
+        - name: id
+          description: Workflow ID
           required: true
           type: string
-          in: labels
+          in: path
+        - name: labels
+          description: >
+            Custom labels submitted as JSON.
+            Example: {"key-1":"value-1","key-2":"value-2"}
+          required: true
+          in: body
+          schema:
+            type: object
       tags:
         - Workflows
       responses:
@@ -247,7 +255,7 @@ paths:
           description: Workflow ID Not Found
         '500':
           description: Internal Error
-        security:
+      security:
         - google_oauth:
             - openid
   '/workflows/{version}/query':

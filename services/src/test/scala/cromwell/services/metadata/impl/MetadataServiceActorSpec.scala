@@ -41,6 +41,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
       val putAction1 = PutMetadataAction(event1_1)
       val putAction2 = PutMetadataAction(event1_2)
       val putAction3 = PutMetadataAction(event2_1, event3_1, event3_2)
+
       actor ! putAction1
       actor ! putAction2
       actor ! putAction3

@@ -7,11 +7,12 @@ import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
-import cromwell.core.labels.{Label, Labels}
+import cromwell.core.labels.Labels
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
+import cromwell.webservice.LabelManagerActor.{LabelAddition, LabelData}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.exception.AggregatedMessageException
@@ -83,7 +84,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ callCachingDiffRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute ~ addLabelsRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute ~ patchLabelsRoute
 
   protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -160,15 +161,15 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
     }
 
 
-  def addLabelsRoute =
-    path("workflows" / Segment / Segment / "addLabels") { (version, possibleWorkflowId) =>
+  def patchLabelsRoute =
+    path("workflows" / Segment / Segment / "labels") { (version, possibleWorkflowId) =>
       entity(as[Map[String, String]]) { parameterMap =>
         patch {
           withRecognizedWorkflowId(possibleWorkflowId) { id =>
             requestContext =>
               Labels.validateMapOfLabels(parameterMap) match {
                 case Valid(labels) =>
-                  perRequest(requestContext, labelManagerActorProps, LabelAddition(id, labels))
+                  perRequest(requestContext, labelManagerActorProps, LabelAddition(LabelData(id, labels)))
                 case Invalid(err) => failBadRequest(new IllegalArgumentException(err.toList.mkString(",")))(requestContext)
               }
           }

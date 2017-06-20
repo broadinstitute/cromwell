@@ -21,7 +21,7 @@ object CallMetadataKeys {
   val SubWorkflowId = "subWorkflowId"
   val SubWorkflowMetadata = "subWorkflowMetadata"
   val CallCaching = "callCaching"
-  val Labels = "labels"
+  val Labels = "backendLabels"
 
   object CallCachingKeys {
     val EffectiveModeKey = CallCaching + MetadataKey.KeySeparator + "effectiveCallCachingMode"

@@ -50,7 +50,5 @@ object BatchingDbWriter {
   case object FlushBatchToDb extends BatchingDbWriterMessage
   case object ScheduledFlushToDb extends BatchingDbWriterMessage
 
-  case class DbWriteFailed(t: Throwable) extends  BatchingDbWriterMessage
-
   case class CommandAndReplyTo[C](command: C, replyTo: ActorRef)
 }

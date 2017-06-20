@@ -501,8 +501,8 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
     val workflowId = MockApiService.ExistingWorkflowId
 
-    Post(s"/workflows/$version/$workflowId/addLabels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
-      cromwellApiService.addLabelsRoute ~>
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      cromwellApiService.patchLabelsRoute ~>
       check {
         status shouldBe StatusCodes.OK
         val result = responseAs[JsObject]
@@ -522,8 +522,8 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
     val workflowId = MockApiService.AbortedWorkflowId
 
-    Post(s"/workflows/$version/$workflowId/addLabels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
-      cromwellApiService.addLabelsRoute ~>
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      cromwellApiService.patchLabelsRoute ~>
       check {
         status shouldBe StatusCodes.InternalServerError
         val actualResult = responseAs[JsObject]
@@ -645,12 +645,12 @@ object CromwellApiServiceSpec {
 
   class MockServiceRegistryActor extends Actor {
     override def receive = {
-      case LabelAddition(id, labels) =>
-        id match {
+      case PutMetadataActionAndRespond(events, _) =>
+        events.head.key.workflowId match {
           case MockApiService.ExistingWorkflowId =>
-            sender ! LabelUpdateSuccess(id.toString, labels.asMap)
+            sender ! MetadataWriteSuccess(events)
           case MockApiService.AbortedWorkflowId =>
-            sender ! LabelUpdateFailure(id.toString, new Exception("mock exception of db failure"))
+            sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
         }
     }
   }

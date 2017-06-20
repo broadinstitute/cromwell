@@ -25,6 +25,8 @@ import cromwell.filesystems.gcs.GcsPath
 import lenthall.validation.ErrorOr.ErrorOr
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KvClient
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import org.slf4j.LoggerFactory
 import wdl4s._
 import wdl4s.expression.PureStandardLibraryFunctions
@@ -130,6 +132,12 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
       "wdl-task-name" -> call.task.name
     ) ++ subWorkflowLabels ++ aliasLabels ++ workflow.customLabels
+  }
+
+  private def publishLabelsToMetadata(labels: Labels, workflowId: WorkflowId): Unit = {
+    labels.value foreach { l =>
+      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${CallMetadataKeys.Labels}:${l.key}"), MetadataValue(l.value)))
+    }
   }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
@@ -295,6 +303,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       jesParameters,
       googleProject(jobDescriptor.workflowDescriptor),
       computeServiceAccount(jobDescriptor.workflowDescriptor),
+      labels,
       preemptible,
       initializationData.genomics
     )
@@ -344,6 +353,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           _ <- evaluateRuntimeAttributes
           jesParameters <- generateJesParameters
           _ <- uploadScriptFile
+          _ = publishLabelsToMetadata(labels, workflowId)
           rpr <- makeRpr(jesParameters)
           runId <- runPipeline(initializationData.genomics, rpr)
           run = Run(runId, initializationData.genomics)

@@ -1,6 +1,6 @@
 package cromwell.services.metadata.impl
 
-import akka.actor.{ActorLogging, LoggingFSM, Props}
+import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
@@ -11,6 +11,7 @@ import cromwell.services.metadata.MetadataService._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import scala.language.postfixOps
 
 class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
@@ -23,6 +24,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     context.system.scheduler.schedule(0.seconds, flushRate, self, ScheduledFlushToDb)
     super.preStart()
   }
+
 
   startWith(WaitingToWrite, NoData)
 
@@ -41,12 +43,11 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(CheckPendingWrites, _: HasData[_]) =>
       sender() ! HasPendingWrites
       stay()
-    case Event(LabelAddition(id, labels), _) =>
-      addMetadataEvents(labels) onComplete {
-        case Success(_) => sender() ! LabelUpdateSuccess(id.toString, labels.asMap)
-        case Failure(err) => sender() ! LabelUpdateFailure(id.toString, err)
+    case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
+      curData.addData(PutMetadataActionAndRespond(events, replyTo)) match {
+        case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
+        case newData => stay using newData
       }
-      stay()
   }
 
   when(WritingToDb) {
@@ -61,19 +62,28 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(FlushBatchToDb, HasData(e)) =>
       log.debug("Flushing {} metadata events to the DB", e.length)
       // blech
-      val events = e.toVector.collect({ case e: MetadataEvent => e })
-      addMetadataEvents(events) onComplete {
+      val events: Vector[MetadataEvent] = e.toVector.collect({ case e: MetadataEvent => e})
+      val eventsToAcknowledge: Map[Iterable[MetadataEvent], ActorRef] = e.toVector.collect({ case PutMetadataActionAndRespond(e, replyTo) => e -> replyTo }) toMap
+      val allEvents: Iterable[MetadataEvent] = eventsToAcknowledge.keys.foldLeft(events)((acc, ev) => {acc ++ ev })
+      addMetadataEvents(allEvents) onComplete {
         case Success(_) =>
-          if(sender().equals())
           self ! DbWriteComplete
+          if(eventsToAcknowledge.nonEmpty) {
+            eventsToAcknowledge foreach { case(events, replyTo) => replyTo ! MetadataWriteSuccess(events) }
+          }
         case Failure(regerts) =>
           log.error(regerts, "Failed to properly flush metadata to database")
           self ! DbWriteComplete
+          if(eventsToAcknowledge.nonEmpty) {
+            eventsToAcknowledge foreach { case(events, replyTo) => replyTo ! MetadataWriteFailure(regerts, events) }
+          }
       }
       stay using NoData
     case Event(DbWriteComplete, curData) =>
       log.debug("Flush of metadata events complete")
       goto(WaitingToWrite) using curData
+    case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
+      stay using curData.addData(PutMetadataActionAndRespond(events, replyTo))
   }
 
   onTransition {

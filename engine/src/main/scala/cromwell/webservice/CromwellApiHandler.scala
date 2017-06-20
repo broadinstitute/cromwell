@@ -4,16 +4,16 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
-import cromwell.core._
 import cromwell.core.Dispatcher.ApiDispatcher
+import cromwell.core._
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.WorkflowQueryPagination
 import spray.http.{StatusCodes, Uri}
 import spray.httpx.SprayJsonSupport._
-
 
 object CromwellApiHandler {
   def props(requestHandlerActor: ActorRef): Props = {
@@ -31,7 +31,7 @@ object CromwellApiHandler {
   final case class ApiHandlerCallOutputs(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
+  final case class ApiHandlerCallCachingDiff(queryParameter: CallCacheDiffQueryParameter) extends ApiHandlerMessage
   case object ApiHandlerEngineStats extends ApiHandlerMessage
 }
 

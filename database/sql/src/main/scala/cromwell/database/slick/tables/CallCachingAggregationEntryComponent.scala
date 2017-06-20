@@ -42,7 +42,7 @@ trait CallCachingAggregationEntryComponent {
       if callCachingAggregationEntry.baseAggregation === baseAggregation
     } yield ()).exists
   )
-  
+
   def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], number: Int) = {
     (for {
       callCachingEntry <- callCachingEntries

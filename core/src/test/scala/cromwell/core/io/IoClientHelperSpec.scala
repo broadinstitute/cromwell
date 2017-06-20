@@ -92,7 +92,7 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     }
 
     def sendMessage(command: IoCommand[_]) = {
-      sendIoCommand(command, noResponseTimeout)
+      sendIoCommandWithCustomTimeout(command, noResponseTimeout)
     }
 
     def sendMessageWithContext(context: Any, command: IoCommand[_]) = {

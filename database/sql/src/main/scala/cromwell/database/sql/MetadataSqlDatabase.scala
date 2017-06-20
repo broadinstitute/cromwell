@@ -3,6 +3,7 @@ package cromwell.database.sql
 import java.sql.Timestamp
 
 import cats.data.NonEmptyList
+import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -37,24 +38,24 @@ trait MetadataSqlDatabase {
   def queryMetadataEntries(workflowExecutionUuid: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Int)
+                           jobAttempt: Option[Int])
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowUuid: String,
                            metadataKey: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Int)
+                           jobAttempt: Option[Int])
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
                                            metadataKeys: NonEmptyList[String],
-                                           requireEmptyJobKey: Boolean)
+                                           metadataJobQueryValue: MetadataJobQueryValue)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
                                             metadataKeys: NonEmptyList[String],
-                                            requireEmptyJobKey: Boolean)
+                                            metadataJobQueryValue: MetadataJobQueryValue)
                                            (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**

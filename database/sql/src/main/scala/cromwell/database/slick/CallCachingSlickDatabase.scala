@@ -57,9 +57,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String)
-                                   (implicit ec: ExecutionContext): Future[Boolean] = {
+                                                              (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
-    
+
     runTransaction(action)
   }
 
@@ -69,9 +69,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
 
     runTransaction(action)
   }
-  
+
   override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
-                               (implicit ec: ExecutionContext): Future[Boolean] = {
+                                                            (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
@@ -93,12 +93,12 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   }
 
   override def invalidateCall(callCachingEntryId: Int)
-                               (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
+                             (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
     val action = for {
       _ <- dataAccess.allowResultReuseForCallCachingEntryId(callCachingEntryId).update(false)
       callCachingEntryOption <- dataAccess.callCachingEntriesForId(callCachingEntryId).result.headOption
     } yield callCachingEntryOption
-    
+
     runTransaction(action)
   }
 }

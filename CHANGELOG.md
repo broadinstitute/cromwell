@@ -2,6 +2,21 @@
 
 ## 28
 
+### Call Caching
+
+* Hash values calculated by Cromwell for a call when call caching is enabled are now published to the metadata.
+It is published even if the call failed. However if the call is attempted multiple times (because it has been preempted for example),
+since hash values are strictly identical for all attempts, they will only be published in the last attempt section of the metadata for this call.
+If the hashes fail to be calculated, the reason is indicated in a `hashFailures` field in the `callCaching` section of the call metadata.
+
+See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsversionidmetadata) for an example metadata response.
+
+* New endpoint returning the hash differential for 2 calls. 
+
+`GET /api/workflows/:version/callcaching/diff`
+
+See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) for more details.
+
 ### Workflow Submission
 
 The workflow submission parameters `wdlSource` and `wdlDependencies` have been deprecated in favor of `workflowSource` and

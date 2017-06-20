@@ -4,7 +4,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core.JobOutput
 import cromwell.core.callcaching._
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
@@ -24,9 +24,14 @@ private[ejea] trait CanValidateJobStoreKey { self: EngineJobExecutionActorSpec =
 }
 
 private[ejea] trait CanExpectCacheWrites extends Eventually { self: EngineJobExecutionActorSpec =>
-  def expectCacheWrite(expectedResponse: JobSucceededResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
+  def expectCacheWriteForSuccessfulJob(expectedResponse: JobSucceededResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
     eventually { ejea.stateName should be(UpdatingCallCache) }
     ejea.stateData should be(SucceededResponseData(expectedResponse, Some(Success(expectedCallCacheHashes))))
+    ()
+  }
+  def expectCacheWriteForFailedNonRetryableJob(expectedResponse: JobFailedNonRetryableResponse, expectedCallCacheHashes: CallCacheHashes): Unit = {
+    eventually { ejea.stateName should be(UpdatingCallCache) }
+    ejea.stateData should be(FailedNonRetryableResponseData(expectedResponse, Some(Success(expectedCallCacheHashes))))
     ()
   }
 }

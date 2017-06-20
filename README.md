@@ -2856,9 +2856,10 @@ Server: spray-can/1.3.3
 
 ## PATCH /api/workflows/:version/labels
 
-This endpoint allows for retroactive addition of custom labels to existing workflows.
+This endpoint is used to update multiple custom labels for an existing workflow. When supplying a custom label with a label key unique to the workflow submission, a new custom label key/value entry is added to the workflow metadata. 
+When supplying a custom label with a label-key that is already associated to the workflow submission, the original label value is updated with the newly supplied custom label.
 
-The [labels](#labels) must be a mapping of key/value pairs sent via the PATCH body. The request content type must be
+The [labels](#labels) must be a mapping of key/value pairs in JSON format that are sent via the PATCH body. The request content type must be
 `application/json`.
 
 cURL:

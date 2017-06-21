@@ -269,7 +269,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When UpdatingCallCache, the FSM always has SucceededResponseData.
   when(UpdatingCallCache) {
     case Event(CallCacheWriteSuccess, data: SucceededResponseData) =>
-      publishHashesToMetadata(data.hashes)
       saveJobCompletionToJobStore(data)
     case Event(CallCacheWriteFailure(reason), data: SucceededResponseData) =>
       log.error(reason, "{}: Failure writing to call cache: {}", jobTag, reason.getMessage)
@@ -365,13 +364,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
-    reason foreach { r =>
-      // Publish hash failure to metadata
-      import cromwell.services.metadata.MetadataService._
-      val failureAsEvents = throwableToMetadataEvents(metadataKeyForCall(jobDescriptorKey, CallMetadataKeys.CallCachingKeys.HashFailuresKey), r)
-      serviceRegistryActor ! PutMetadataAction(failureAsEvents)
-      log.error(r, "{}: Hash error, disabling call caching for this job.", jobTag)
-    }
+    reason foreach { r => log.error(r, "{}: Hash error, disabling call caching for this job.", jobTag) }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))
@@ -409,6 +402,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case Some(fileHashingActorProps) =>
         val props = EngineJobHashingActor.props(
           self,
+          serviceRegistryActor,
           jobDescriptor,
           initializationData,
           fileHashingActorProps,
@@ -544,12 +538,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private def saveJobCompletionToJobStore(updatedData: ResponseData) = {
     updatedData.response match {
       case JobSucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: CallOutputs, _, _, _) =>
+        publishHashesToMetadata(updatedData.hashes)
         saveSuccessfulJobResults(jobKey, returnCode, jobOutputs)
       case AbortedResponse(_: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)
         forwardAndStop(updatedData.response)
-      case JobFailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
-      case JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) => saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
+      case JobFailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) =>
+        publishHashesToMetadata(updatedData.hashes)
+        writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
+        saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
+      case JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) =>
+        writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
+        saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
     }
     updatedData.dockerImageUsed foreach { image => writeToMetadata(Map("dockerImageUsed" -> image)) }
     goto(UpdatingJobStore) using updatedData

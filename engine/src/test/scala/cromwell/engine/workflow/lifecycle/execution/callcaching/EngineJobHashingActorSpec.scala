@@ -8,6 +8,7 @@ import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -29,11 +30,14 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
     jobDescriptor
   }
+  
+  val serviceRegistryActorProbe = TestProbe()
 
   def makeEJHA(receiver: ActorRef, activity: CallCachingActivity, ccReaderProps: Props = Props.empty) = {
     TestActorRef[EngineJobHashingActor](
       EngineJobHashingActorTest.props(
         receiver,
+        serviceRegistryActorProbe.ref,
         templateJobDescriptor(),
         None,
         Props.empty,
@@ -141,6 +145,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     receiver.watch(actorUnderTest)
     actorUnderTest ! NextHit
     receiver.expectMsgClass(classOf[HashError])
+    serviceRegistryActorProbe.expectMsgClass(classOf[PutMetadataAction])
     receiver.expectTerminated(actorUnderTest)
   }
 
@@ -149,8 +154,9 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     val activity = CallCachingActivity(ReadAndWriteCache)
     val actorUnderTest = makeEJHA(receiver.ref, activity)
     receiver.watch(actorUnderTest)
-    actorUnderTest ! mock[HashingFailedMessage]
+    actorUnderTest ! HashingFailedMessage("someFile", new Exception("[TEST] Some exception"))
     receiver.expectMsgClass(classOf[HashError])
+    serviceRegistryActorProbe.expectMsgClass(classOf[PutMetadataAction])
     receiver.expectTerminated(actorUnderTest)
   }
 
@@ -161,11 +167,13 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     receiver.watch(actorUnderTest)
     actorUnderTest ! NoFileHashesResult
     receiver.expectMsgClass(classOf[HashError])
+    serviceRegistryActorProbe.expectMsgClass(classOf[PutMetadataAction])
     receiver.expectTerminated(actorUnderTest)
   }
   
   object EngineJobHashingActorTest {
     def props(receiver: ActorRef,
+              serviceRegistryActor: ActorRef,
               jobDescriptor: BackendJobDescriptor,
               initializationData: Option[BackendInitializationData],
               fileHashingActorProps: Props,
@@ -175,6 +183,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
               activity: CallCachingActivity,
               callCachingEligible: CallCachingEligible): Props = Props(new EngineJobHashingActorTest(
       receiver = receiver,
+      serviceRegistryActor = serviceRegistryActor,
       jobDescriptor = jobDescriptor,
       initializationData = initializationData,
       fileHashingActorProps = fileHashingActorProps,
@@ -186,6 +195,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
   }
   
   class EngineJobHashingActorTest(receiver: ActorRef,
+                                  serviceRegistryActor: ActorRef,
                                   jobDescriptor: BackendJobDescriptor,
                                   initializationData: Option[BackendInitializationData],
                                   fileHashingActorProps: Props,
@@ -195,6 +205,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
                                   activity: CallCachingActivity,
                                   callCachingEligible: CallCachingEligible) extends EngineJobHashingActor(
     receiver = receiver,
+    serviceRegistryActor = serviceRegistryActor,
     jobDescriptor = jobDescriptor,
     initializationData = initializationData,
     fileHashingActorProps = fileHashingActorProps,

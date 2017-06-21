@@ -128,6 +128,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  override def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext) = executeAsync()
+
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
     val returnCodeTmp = jobPaths.returnCode.plusExt("kill")

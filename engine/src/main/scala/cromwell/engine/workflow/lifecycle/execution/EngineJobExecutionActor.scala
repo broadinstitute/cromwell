@@ -14,6 +14,7 @@ import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, _}
@@ -54,7 +55,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   override val supervisorStrategy = OneForOneStrategy() {
     // If an actor fails to initialize, send the exception to self before stopping it so we can fail the job properly
-    case e: ActorInitializationException => 
+    case e: ActorInitializationException =>
       self ! e
       Stop
     case t =>
@@ -66,7 +67,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   // There's no need to check for a cache hit again if we got preempted, or if there's no result copying actor defined
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
-  private var effectiveCallCachingMode = {
+  private[execution] var effectiveCallCachingMode = {
     if (factory.fileHashingActorProps.isEmpty) CallCachingOff
     else if (factory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) {
       callCachingMode.withoutRead
@@ -89,7 +90,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   override def preStart() = {
     log.debug(s"$tag: $effectiveCallCachingKey: $effectiveCallCachingMode")
-    writeCallCachingModeToMetadata()
   }
 
   startWith(Pending, NoData)
@@ -121,10 +121,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When CheckingJobStore, the FSM always has NoData
   when(CheckingJobStore) {
     case Event(JobNotComplete, NoData) =>
-      prepareJob()
+      checkCacheEntryExistence()
     case Event(JobComplete(jobResult), NoData) =>
       val response = jobResult match {
-        // Always puts `None` for `dockerImageUsed` for a successfully completed job on restart.  This shouldn't be a
+        // Always puts `None` for `dockerImageUsed` for a successfully completed job on restart. This shouldn't be a
         // problem since `saveJobCompletionToJobStore` will already have sent this to metadata.
         case JobResultSuccess(returnCode, jobOutputs) => JobSucceededResponse(jobDescriptorKey, returnCode, jobOutputs, None, Seq.empty, None)
         case JobResultFailure(returnCode, reason, false) => JobFailedNonRetryableResponse(jobDescriptorKey, reason, returnCode)
@@ -132,9 +132,31 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       }
       respondAndStop(response)
     case Event(f: JobStoreReadFailure, NoData) =>
+      writeCallCachingModeToMetadata()
       log.error(f.reason, "{}: Error reading from JobStore", tag)
       // Escalate
       throw new RuntimeException(f.reason)
+  }
+
+  // When we're restarting but the job store says the job is not complete.
+  // This is to cover for the case where Cromwell was stopped after writing Cache Info to the DB but before
+  // writing to the JobStore. In that case, we don't want to cache to ourselves (turn cache read off), nor do we want to 
+  // try and write the cache info again, which would fail (turn cache write off).
+  // This means call caching should be disabled.
+  // Note that we check that there is not a Cache entry fro *this* current job. It's still technically possible
+  // to call cache to another job that finished while this one was running (before the restart).
+  when(CheckingCacheEntryExistence) {
+    // There was already a cache entry for this job
+    case Event(HasCallCacheEntry(_), NoData) =>
+      // Disable call caching
+      effectiveCallCachingMode = CallCachingOff
+      prepareJob()
+    // No cache entry for this job - keep going
+    case Event(NoCallCacheEntry(_), NoData) =>
+      prepareJob()
+    case Event(CacheResultLookupFailure(reason), NoData) =>
+      log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
+      prepareJob()
   }
 
   // When PreparingJob, the FSM always has NoData
@@ -385,6 +407,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
   def prepareJob() = {
+    writeCallCachingModeToMetadata()
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
     val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, workflowDockerLookupActor = workflowDockerLookupActor,
       initializationData, serviceRegistryActor = serviceRegistryActor, ioActor = ioActor, backendSingletonActor = backendSingletonActor)
@@ -529,6 +552,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     ()
   }
 
+  private def checkCacheEntryExistence() = {
+    callCacheReadActor ! CallCacheEntryForCall(workflowIdForLogging, jobDescriptorKey)
+    goto(CheckingCacheEntryExistence)
+  }
+
   private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {
     callCacheWriteActor ! SaveCallCacheHashes(CallCacheHashBundle(workflowIdForLogging, hashes, data.response))
     val updatedData = data.copy(hashes = Option(Success(hashes)))
@@ -590,6 +618,7 @@ object EngineJobExecutionActor {
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
   case object UpdatingCallCache extends EngineJobExecutionActorState
+  case object CheckingCacheEntryExistence extends EngineJobExecutionActorState
   case object UpdatingJobStore extends EngineJobExecutionActorState
   case object InvalidatingCacheEntry extends EngineJobExecutionActorState
 

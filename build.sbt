@@ -55,6 +55,8 @@ libraryDependencies ++= {
     "org.apache.commons" % "commons-lang3" % "3.4",
     "com.github.pathikrit" %% "better-files" % "2.17.1",
 
+    "io.circe" %% "circe-yaml" % "0.6.1",
+
     "eu.timepit" %% "refined"            % "0.8.2",
     "com.github.benhutchison" %% "mouse" % "0.8",
 
@@ -71,12 +73,9 @@ libraryDependencies ++= {
 }
 
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-yaml",
   "io.circe" %% "circe-shapes",
-  "io.circe" %% "circe-refined",
-  "io.circe" %% "circe-parser"
+  "io.circe" %% "circe-refined"
 ).map(_ % circeVersion)
 
 

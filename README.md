@@ -3493,7 +3493,7 @@ Server: spray-can/1.3.3
 
 ## GET /api/workflows/:version/callcaching/diff
 
-**Disclaimer**: This endpoint depends on hash values being published ito the metadata, which only happens as of Crowmell 28.
+**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Crowmell 28.
 Workflows run with prior versions of Cromwell will not be able to benefit from this endpoint.
 A `404 NotFound` will be returned when trying to use this endpoint if either workflows have been run on a prior version.
 

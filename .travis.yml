@@ -1,6 +1,6 @@
 sudo: required
 dist: trusty
-group: edge
+group: deprecated-2017Q2
 language: scala
 scala:
   - 2.11.8

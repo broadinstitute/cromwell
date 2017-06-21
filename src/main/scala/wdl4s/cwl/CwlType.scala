@@ -1,26 +1,23 @@
-package broad.cwl.model
+package wdl4s.cwl
 
-import enumeratum._
-import mouse.boolean._
+import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string._
-import eu.timepit.refined._
-import eu.timepit.refined.auto._
+import mouse.boolean._
 
-sealed abstract class CWLType(override val entryName: String) extends EnumEntry
 
-object CWLType extends Enum[CWLType] {
-  val values = findValues
+object CwlType extends Enumeration {
+  type CwlType = Value
 
-  case object Null extends CWLType("null")
-  case object Boolean extends CWLType("boolean")
-  case object Int extends CWLType("int")
-  case object Long extends CWLType("long")
-  case object Float extends CWLType("float")
-  case object Double extends CWLType("double")
-  case object String extends CWLType("string")
-  case object File extends CWLType("File")
-  case object Directory extends CWLType("Directory")
+  val Null = Value("null")
+  val Boolean = Value("boolean")
+  val Int = Value("int")
+  val Long = Value("long")
+  val Float = Value("float")
+  val Double = Value("double")
+  val String = Value("string")
+  val File = Value("File")
+  val Directory = Value("Directory")
 }
 
 case class File(
@@ -35,8 +32,7 @@ case class File(
   size: Option[Long],
   secondaryFiles: Array[Either[File, Directory]],
   format: Option[String],
-  contents: Option[String] //must be
-)
+  contents: Option[String])
 
 object File {
   def validateContents: File => Either[String, Unit] =  //this is a sample validation.  There are about a billion of them, not sure 
@@ -44,12 +40,12 @@ object File {
       (!(f.location.isEmpty && f.path.isEmpty && f.contents.isEmpty)).
         either("One of path, location, or contents must be specified", ())
 }
+
 case class Directory(
   `class`: String Refined MatchesRegex[W.`"Directory"`.T],
   location: Option[String],
   path: Option[String],
   basename: Option[String],
-  listing: Option[Array[Either[File, Directory]]]
-  )
+  listing: Option[Array[Either[File, Directory]]])
 
 

@@ -1,4 +1,4 @@
-package broad.cwl.model
+package wdl4s.cwl
 
 import shapeless.{:+:, CNil}
 

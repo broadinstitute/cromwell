@@ -1,35 +1,22 @@
-package broad.cwl.model
+package wdl4s.cwl
 
-import enumeratum.Circe._
-import io.circe.syntax._
-import io.circe._
-import io.circe.parser._
-import io.circe.shapes._
-import io.circe.generic.auto._
-import shapeless.{:+:, CNil}
-import cats._, implicits._
-
-import io.circe.yaml.parser
-import io.circe._
-
-import eu.timepit.refined.string._
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.auto._
-import io.circe.refined._
+import eu.timepit.refined.string._
+import shapeless.{:+:, CNil}
 
 case class WorkflowStepInput(src: String)
 
 case class InputParameter(
-  id: Option[String], //not really optional but can be specified upstream 
-  label: Option[String],
-  secondaryFiles: Option[Expression :+: String :+: Array[Expression :+: String :+: CNil] :+: CNil],
-  format: Option[Expression :+: String :+: Array[String] :+: CNil],
-  streamable: Option[Boolean],
-  doc: Option[String :+: Array[String] :+: CNil],
-  inputBinding: Option[CommandLineBinding],
-  default: Option[String], //can be of type "Any" which... sucks.
-  `type`: Option[MyriadInputType]) {
+                           id: Option[String], //not really optional but can be specified upstream
+                           label: Option[String],
+                           secondaryFiles: Option[ECMAScriptExpression :+: String :+: Array[ECMAScriptExpression :+: String :+: CNil] :+: CNil],
+                           format: Option[ECMAScriptExpression :+: String :+: Array[String] :+: CNil],
+                           streamable: Option[Boolean],
+                           doc: Option[String :+: Array[String] :+: CNil],
+                           inputBinding: Option[CommandLineBinding],
+                           default: Option[String], //can be of type "Any" which... sucks.
+                           `type`: Option[MyriadInputType]) {
 
   type `type` = MyriadInputType
   type Id = String
@@ -60,22 +47,22 @@ case class InputArraySchema(
   inputBinding: Option[CommandLineBinding])
 
 case class CommandLineBinding(
-  loadContents: Option[Boolean],
-  position: Option[Int],
-  prefix: Option[String],
-  separate: Option[String],
-  itemSeparator: Option[String],
-  valueFrom: Option[Expression :+: String :+: CNil], // could be "Expression" to be evaluated
-  shellQuote: Option[Boolean])
+                               loadContents: Option[Boolean],
+                               position: Option[Int],
+                               prefix: Option[String],
+                               separate: Option[String],
+                               itemSeparator: Option[String],
+                               valueFrom: Option[ECMAScriptExpression :+: String :+: CNil], // could be "Expression" to be evaluated
+                               shellQuote: Option[Boolean])
 
 case class WorkflowOutputParameter(
-  id: Option[String], //Really not optional but can be declared upstream
-  label: Option[String],
-  secondaryFiles: Option[Expression :+: String :+: Array[Expression :+: String :+: CNil] :+: CNil],
-  format: Option[Expression :+: String :+: Array[String] :+: CNil],
-  streamable: Option[Boolean],
-  doc: Option[String :+: Array[String] :+: CNil],
-  `type`: Option[MyriadOutputType]) {
+                                    id: Option[String], //Really not optional but can be declared upstream
+                                    label: Option[String],
+                                    secondaryFiles: Option[ECMAScriptExpression :+: String :+: Array[ECMAScriptExpression :+: String :+: CNil] :+: CNil],
+                                    format: Option[ECMAScriptExpression :+: String :+: Array[String] :+: CNil],
+                                    streamable: Option[Boolean],
+                                    doc: Option[String :+: Array[String] :+: CNil],
+                                    `type`: Option[MyriadOutputType]) {
 
   type `type` = MyriadOutputType
   type Id = String
@@ -103,9 +90,9 @@ case class OutputEnumSchema(
 
 /** @see <a href="http://www.commonwl.org/v1.0/Workflow.html#CommandOutputBinding">CommandOutputBinding</a> */
 case class CommandOutputBinding(
-  glob: Option[Expression :+: String :+: Array[String] :+: CNil],
-  loadContents: Option[Boolean],
-  outputEval: Option[Expression :+: String :+: CNil])
+                                 glob: Option[ECMAScriptExpression :+: String :+: Array[String] :+: CNil],
+                                 loadContents: Option[Boolean],
+                                 outputEval: Option[ECMAScriptExpression :+: String :+: CNil])
 
 case class OutputArraySchema(
   items: MyriadOutputType,
@@ -154,11 +141,11 @@ case class InitialWorkDirRequirement(
       File :+:
       Directory :+:
       Dirent :+:
-      Expression :+:
+      ECMAScriptExpression :+:
       String :+:
       CNil
     ] :+:
-    Expression :+:
+    ECMAScriptExpression :+:
     String :+:
     CNil
 
@@ -169,9 +156,9 @@ case class InitialWorkDirRequirement(
  *  @see <a href="http://www.commonwl.org/v1.0/CommandLineTool.html#Dirent">Dirent Specification</a>
  */
 case class Dirent(
-  entry: Expression :+: String :+: CNil, 
-  entryName: Option[Expression :+: String :+: CNil],
-  writable: Option[Boolean]
+                   entry: ECMAScriptExpression :+: String :+: CNil,
+                   entryName: Option[ECMAScriptExpression :+: String :+: CNil],
+                   writable: Option[Boolean]
   )
 
 //TODO
@@ -184,7 +171,7 @@ case class EnvVarRequirement(
     Map[EnvironmentDef#EnvName, EnvironmentDef] :+:
     CNil)
 
-case class EnvironmentDef(envName: String, envValue: Expression :+: String :+: CNil) {
+case class EnvironmentDef(envName: String, envValue: ECMAScriptExpression :+: String :+: CNil) {
   type EnvName = String
   type EnvValue = String
 }
@@ -192,15 +179,15 @@ case class EnvironmentDef(envName: String, envValue: Expression :+: String :+: C
 case class ShellCommandRequirement(`class`: String Refined MatchesRegex[W.`"ShellCommandRequirement"`.T])
 
 case class ResourceRequirement(
-  `class`: String Refined MatchesRegex[W.`"ResourceRequirement"`.T],
-  coresMin: Long :+: Expression :+: String :+: CNil,
-  coresMax: Int :+: Expression :+: String :+: CNil,
-  ramMin: Long :+: Expression :+: String :+: CNil,
-  ramMax: Long :+: Expression :+: String :+: CNil,
-  tmpdirMin: Long :+: Expression :+: String :+: CNil,
-  tmpdirMax: Long :+: Expression :+: String :+: CNil,
-  outdirMin: Long :+: Expression :+: String :+: CNil,
-  outdirMax: Long :+: Expression :+: String :+: CNil
+                                `class`: String Refined MatchesRegex[W.`"ResourceRequirement"`.T],
+                                coresMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
+                                coresMax: Int :+: ECMAScriptExpression :+: String :+: CNil,
+                                ramMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
+                                ramMax: Long :+: ECMAScriptExpression :+: String :+: CNil,
+                                tmpdirMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
+                                tmpdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil,
+                                outdirMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
+                                outdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil
   )
 
 case class SubworkflowFeatureRequirement(

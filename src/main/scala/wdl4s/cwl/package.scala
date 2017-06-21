@@ -1,4 +1,4 @@
-package broad.cwl
+package wdl4s
 
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string._
@@ -6,20 +6,22 @@ import eu.timepit.refined._
 import shapeless.{:+:, CNil}
 import io.circe.Decoder
 
-package object model {
+package object cwl {
 
+  import CwlType._
+  import CwlVersion._
+  import ScatterMethod._
 
-  import CWLVersion._
-
-  implicit val cwlVersionDecoder = Decoder.enumDecoder(CWLVersion)
+  implicit val cwlTypeDecoder = Decoder.enumDecoder(CwlType)
+  implicit val cwlVersionDecoder = Decoder.enumDecoder(CwlVersion)
+  implicit val scatterMethodDecoder = Decoder.enumDecoder(ScatterMethod)
 
   type WorkflowStepInputId = String
 
   type WorkflowStepInputSource = String :+: Array[String] :+: CNil
 
   //These are supposed to be valid ECMAScript Expressions.  See http://www.commonwl.org/v1.0/Workflow.html#Expressions
-
-  type Expression = String Refined MatchesRegex[W.`"$({.*}|{.*})"`.T] 
+  type ECMAScriptExpression = String Refined MatchesRegex[W.`"$({.*}|{.*})"`.T]
 
   type Requirement = 
     InlineJavascriptRequirement :+:
@@ -37,13 +39,13 @@ package object model {
     CNil
 
   type MyriadInputType = 
-    CWLType :+:
+    CwlType :+:
     InputRecordSchema :+:
     InputEnumSchema :+:
     InputArraySchema :+:
     String :+:
     Array[
-      CWLType :+:
+      CwlType :+:
       InputRecordSchema :+:
       InputEnumSchema :+:
       InputArraySchema :+:
@@ -53,13 +55,13 @@ package object model {
     CNil
 
   type MyriadOutputType = 
-    CWLType :+:
+    CwlType :+:
     OutputRecordSchema :+:
     OutputEnumSchema :+:
     OutputArraySchema :+:
     String :+:
     Array[
-      CWLType :+:
+      CwlType :+:
       OutputRecordSchema :+:
       OutputEnumSchema :+:
       OutputArraySchema :+:
@@ -69,13 +71,13 @@ package object model {
     CNil
 
   type MyriadCommandInputType = 
-    CWLType :+:
+    CwlType :+:
     CommandInputRecordSchema :+:
     CommandInputEnumSchema :+:
     CommandInputArraySchema :+:
     String :+:
     Array[
-      CWLType  :+:
+      CwlType  :+:
       CommandInputRecordSchema :+:
       CommandInputEnumSchema :+:
       CommandInputArraySchema :+:

@@ -1,6 +1,7 @@
-package broad.cwl.model
+package wdl4s.cwl
 
 import shapeless.{:+:, CNil}
+import ScatterMethod._
 
 case class WorkflowStep(
   id: Option[String], //not actually optional but can be declared as a key for this whole object for convenience
@@ -12,8 +13,6 @@ case class WorkflowStep(
   label: Option[String],
   doc: Option[String],
   scatter: Option[String :+: Array[String] :+: CNil],
-  scatterMethod: Option[ScatterMethod]
-  
-  )
+  scatterMethod: Option[ScatterMethod])
 
 case class WorkflowStepOutput(some: String)

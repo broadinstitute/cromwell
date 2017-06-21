@@ -1,6 +1,6 @@
 package wdl4s.cwl
 
-import broad.cwl.model._
+import wdl4s.cwl._
 
 import io.circe.syntax._
 import io.circe._
@@ -22,7 +22,6 @@ import cats._, implicits._//, instances._
 
 import io.circe.yaml.parser
 import io.circe._
-import enumeratum.Circe._
 
 import io.circe.refined._
 

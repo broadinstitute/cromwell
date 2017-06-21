@@ -28,9 +28,6 @@ versionWithGit ++ versionSettings
 val sprayJsonV = "1.3.2"
 val lenthallV = "0.25-903b3c0-SNAP"
 val circeVersion = "0.8.0"
-val enumeratumVersion = "1.5.12"
-val enumeratumCirceVersion = "1.5.14"
-
 
 resolvers ++= List(
   "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
@@ -64,19 +61,16 @@ libraryDependencies ++= {
     "com.lihaoyi" %% "ammonite-ops" % "1.0.0-RC7" % "test",
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
 
-    "com.beachape" %% "enumeratum" % enumeratumVersion,
-    "com.beachape" %% "enumeratum-circe" % enumeratumCirceVersion,
-
     "org.scalatest" %% "scalatest" % "3.0.1" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test
   )
 }
 
 libraryDependencies ++= Seq(
-  "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-shapes",
-  "io.circe" %% "circe-refined"
-).map(_ % circeVersion)
+  "generic",
+  "shapes",
+  "refined"
+).map(m => "io.circe" %% s"circe-$m" % circeVersion)
 
 
 // The reason why -Xmax-classfile-name is set is because this will fail

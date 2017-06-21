@@ -26,8 +26,11 @@ lazy val versionSettings = Seq(
 versionWithGit ++ versionSettings
 
 val sprayJsonV = "1.3.2"
-
 val lenthallV = "0.25-903b3c0-SNAP"
+val circeVersion = "0.8.0"
+val enumeratumVersion = "1.5.12"
+val enumeratumCirceVersion = "1.5.14"
+
 
 resolvers ++= List(
   "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
@@ -51,10 +54,31 @@ libraryDependencies ++= {
     "commons-io" % "commons-io" % "2.5",
     "org.apache.commons" % "commons-lang3" % "3.4",
     "com.github.pathikrit" %% "better-files" % "2.17.1",
+
+    "eu.timepit" %% "refined"            % "0.8.2",
+    "com.github.benhutchison" %% "mouse" % "0.8",
+
+    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+    "com.lihaoyi" %% "ammonite-ops" % "1.0.0-RC7" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+
+    "com.beachape" %% "enumeratum" % enumeratumVersion,
+    "com.beachape" %% "enumeratum-circe" % enumeratumCirceVersion,
+
     "org.scalatest" %% "scalatest" % "3.0.1" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test
   )
 }
+
+libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-yaml",
+  "io.circe" %% "circe-shapes",
+  "io.circe" %% "circe-refined",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
+
 
 // The reason why -Xmax-classfile-name is set is because this will fail
 // to build on Docker otherwise.  The reason why it's 200 is because it
@@ -63,6 +87,8 @@ libraryDependencies ++= {
 // https://github.com/sbt/sbt-assembly/issues/69
 // https://github.com/scala/pickling/issues/10
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xmax-classfile-name", "200")
+
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
 // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
 scalacOptions in (Compile, doc) ++= Seq("-no-link-warnings")

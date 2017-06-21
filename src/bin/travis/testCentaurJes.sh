@@ -55,8 +55,8 @@ export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/sit
 export CONFIGURE_OPTS="--enable-unicode=ucs4"
 pyenv install 2.7.10
 pyenv global 2.7.10
-sudo pip install --upgrade pip
-sudo pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
+sudo -H pip install --upgrade pip
+sudo -H pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
 export CLOUDSDK_PYTHON_SITEPACKAGES=1
 gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"
 

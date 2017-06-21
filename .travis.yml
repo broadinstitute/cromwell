@@ -1,5 +1,6 @@
 sudo: required
 dist: trusty
+group: edge
 language: scala
 scala:
   - 2.11.8

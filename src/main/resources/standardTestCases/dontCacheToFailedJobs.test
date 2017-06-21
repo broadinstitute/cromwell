@@ -13,7 +13,7 @@ metadata {
   
   // Check that hashes are published to metadata even for failed jobs
   "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.output count": "C4CA4238A0B923820DCC509A6F75849B"
-  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.docker": "9170B645AE68F47145CE3A1C99A1C09B"
+  "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.docker": "4D84E2725D35DDD36A0A8BE946892012"
   "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA"
   "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.runtime attribute.failOnStderr": "68934A3E9455FA72420237EB05902327"
   "calls.dont_cache_to_failed_jobs.failing_task.callCaching.hashes.output expression.Boolean done": "B326B5062B2F0E69046810717534CB09"

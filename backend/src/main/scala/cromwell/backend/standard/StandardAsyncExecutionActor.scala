@@ -637,7 +637,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     
       val stderrSizeAndReturnCode = for {
         returnCodeAsString <- contentAsStringAsync(jobPaths.returnCode)
-        stderrSize <- sizeAsync(jobPaths.stderr)
+        // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
+        // may fail due to race conditions on quickly-executing jobs.
+        stderrSize <- if (failOnStdErr) sizeAsync(jobPaths.stderr) else Future.successful(0L)
       } yield (stderrSize, returnCodeAsString)
 
       stderrSizeAndReturnCode flatMap {

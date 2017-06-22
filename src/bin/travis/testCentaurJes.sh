@@ -55,7 +55,8 @@ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
 CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
 echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-sudo apt-get install google-cloud-sdk
+sudo apt-get update && sudo apt-get install google-cloud-sdk
+sudo gcloud components update
 export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages"
 export CONFIGURE_OPTS="--enable-unicode=ucs4"
 gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"

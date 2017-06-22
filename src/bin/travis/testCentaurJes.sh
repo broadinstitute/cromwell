@@ -56,7 +56,15 @@ CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
 echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
 curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 sudo apt-get update && sudo apt-get install google-cloud-sdk
-sudo gcloud components update
+# sudo gcloud components update
+#
+# You cannot perform this action because this Cloud SDK installation is
+# managed by an external package manager.  If you would like to get the
+# latest version, please see our main download page at:
+#
+# https://cloud.google.com/sdk/
+#
+# ERROR: (gcloud.components.update) The component manager is disabled for this installationsudo gcloud components update
 export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages"
 export CONFIGURE_OPTS="--enable-unicode=ucs4"
 gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"

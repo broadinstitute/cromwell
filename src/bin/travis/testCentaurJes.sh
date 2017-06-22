@@ -66,7 +66,7 @@ sudo -H pip install google-compute-engine
 # https://cloud.google.com/sdk/
 #
 # ERROR: (gcloud.components.update) The component manager is disabled for this installationsudo gcloud components update
-export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages"
+#export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages"
 export CONFIGURE_OPTS="--enable-unicode=ucs4"
 gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"
 

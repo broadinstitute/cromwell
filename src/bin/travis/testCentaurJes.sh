@@ -45,8 +45,8 @@ set -x
 # Unpack our credentials and such
 tar xvf jesConf.tar
 
-pyenv install 2.7.10
-pyenv global 2.7.10
+pyenv install 2.7.13
+pyenv global 2.7.13
 sudo -H pip install --upgrade pip
 sudo -H pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
 export CLOUDSDK_PYTHON_SITEPACKAGES=1

@@ -60,6 +60,9 @@ export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/sit
 export CONFIGURE_OPTS="--enable-unicode=ucs4"
 gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"
 
+echo foo > foo.txt
+gsutil cp foo.txt gs://cloud-cromwell-dev/travis-centaur/foo.txt
+
 echo "RUNNING TRAVIS CENTAUR"
 sbt assembly
 

@@ -45,6 +45,11 @@ set -x
 # Unpack our credentials and such
 tar xvf jesConf.tar
 
+pyenv install 2.7.10
+pyenv global 2.7.10
+sudo -H pip install --upgrade pip
+sudo -H pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
+export CLOUDSDK_PYTHON_SITEPACKAGES=1
 # Do a bunch of crap to enable gsutil. It's possible this is overkill but it doesn't take long anyways
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
 CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)"
@@ -53,11 +58,6 @@ curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 sudo apt-get install google-cloud-sdk
 export PYTHONPATH="/usr/lib/python2.7/site-packages:/usr/local/lib/python2.7/site-packages:/usr/local/lib/python2.7/dist-packages"
 export CONFIGURE_OPTS="--enable-unicode=ucs4"
-pyenv install 2.7.10
-pyenv global 2.7.10
-sudo -H pip install --upgrade pip
-sudo -H pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
-export CLOUDSDK_PYTHON_SITEPACKAGES=1
 gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"
 
 echo "RUNNING TRAVIS CENTAUR"

@@ -2,7 +2,7 @@ package wdl4s.values
 
 import wdl4s.types._
 import wdl4s.util.FileUtil
-import wdl4s.{Call, TaskCall, TsvSerializable}
+import wdl4s.{Call, TsvSerializable}
 
 import scala.util.{Failure, Success, Try}
 
@@ -53,7 +53,7 @@ object WdlObject {
         val attributesLine = attributes.mkString("\t")
         val valuesLines = objects map { obj =>
           attributes map { obj.value(_).valueString } mkString "\t"
-        } mkString "\n"
+        } mkString(start = "", sep = "\n", end = "\n")
 
         Success(s"$attributesLine\n$valuesLines")
       case _ => Failure(new UnsupportedOperationException("Could not serialize array: Objects in the array have different attributes."))
@@ -72,13 +72,13 @@ case class WdlObject(value: Map[String, WdlValue]) extends WdlValue with WdlObje
   lazy val orderedValues = orderedAttributes map { value(_) }
 
   def tsvSerialize: Try[String] = Try {
-    val keysLine = orderedAttributes.mkString("\t")
+    val keysLine = orderedAttributes.mkString(start = "", sep = "\t", end = "\n")
     val values = orderedValues map {
       case v if v.isInstanceOf[WdlPrimitive] => v.valueString
       case _ => throw new UnsupportedOperationException("Can only TSV serialize an Object with Primitive values.")
     }
 
-    s"$keysLine\n${values.mkString("\t")}"
+    keysLine + values.mkString(start = "", sep = "\t", end = "\n")
   }
 }
 

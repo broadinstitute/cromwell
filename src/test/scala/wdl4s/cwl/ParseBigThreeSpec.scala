@@ -38,7 +38,7 @@ object P extends Poly1 {
 class ParseBigThreeSpec extends FlatSpec with Matchers {
   val namespace = "cwl"
 
-  it should "parse 1st tol" in {
+  it should "parse 1st tool" in {
   val firstTool = """
 cwlVersion: v1.0
 class: CommandLineTool

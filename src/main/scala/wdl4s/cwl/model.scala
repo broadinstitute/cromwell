@@ -10,8 +10,21 @@ case class WorkflowStepInput(src: String)
 case class InputParameter(
                            id: Option[String], //not really optional but can be specified upstream
                            label: Option[String],
-                           secondaryFiles: Option[ECMAScriptExpression :+: String :+: Array[ECMAScriptExpression :+: String :+: CNil] :+: CNil],
-                           format: Option[ECMAScriptExpression :+: String :+: Array[String] :+: CNil],
+                           secondaryFiles: 
+                             Option[
+                               ECMAScriptExpression :+:
+                               String :+:
+                               Array[
+                                 ECMAScriptExpression :+:
+                                 String :+:
+                                 CNil] :+:
+                               CNil],
+                           format: 
+                             Option[
+                               ECMAScriptExpression :+:
+                               String :+:
+                               Array[String] :+:
+                               CNil],
                            streamable: Option[Boolean],
                            doc: Option[String :+: Array[String] :+: CNil],
                            inputBinding: Option[CommandLineBinding],
@@ -52,7 +65,7 @@ case class CommandLineBinding(
                                prefix: Option[String],
                                separate: Option[String],
                                itemSeparator: Option[String],
-                               valueFrom: Option[ECMAScriptExpression :+: String :+: CNil], // could be "Expression" to be evaluated
+                               valueFrom: Option[ECMAScriptExpression :+: String :+: CNil],
                                shellQuote: Option[Boolean])
 
 case class WorkflowOutputParameter(
@@ -122,7 +135,11 @@ case class DockerRequirement(
 
 case class SoftwareRequirement(
   `class`: String Refined MatchesRegex[W.`"SoftwareRequirement"`.T],
-  packages: Array[SoftwarePackage] :+: Map[SoftwarePackage#Package, SoftwarePackage#Specs] :+: Map[SoftwarePackage#Package, SoftwarePackage] :+: CNil
+  packages: 
+    Array[SoftwarePackage] :+:
+    Map[SoftwarePackage#Package, SoftwarePackage#Specs] :+:
+    Map[SoftwarePackage#Package, SoftwarePackage] :+:
+    CNil
   )
 
 case class SoftwarePackage(
@@ -147,9 +164,7 @@ case class InitialWorkDirRequirement(
     ] :+:
     ECMAScriptExpression :+:
     String :+:
-    CNil
-
-  )
+    CNil)
 
 /** 
  *  Short for "Directory Entry"
@@ -158,11 +173,8 @@ case class InitialWorkDirRequirement(
 case class Dirent(
                    entry: ECMAScriptExpression :+: String :+: CNil,
                    entryName: Option[ECMAScriptExpression :+: String :+: CNil],
-                   writable: Option[Boolean]
-  )
+                   writable: Option[Boolean])
 
-//TODO
-//Figure out how to declare Any type
 case class EnvVarRequirement(
   `class`: String Refined MatchesRegex[W.`"EnvVarRequirement"`.T],
   envDef: 
@@ -187,21 +199,16 @@ case class ResourceRequirement(
                                 tmpdirMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
                                 tmpdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil,
                                 outdirMin: Long :+: ECMAScriptExpression :+: String :+: CNil,
-                                outdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil
-  )
+                                outdirMax: Long :+: ECMAScriptExpression :+: String :+: CNil)
 
 case class SubworkflowFeatureRequirement(
-  `class`: String Refined MatchesRegex[W.`"SubworkflowFeatureRequirement"`.T]
-  )
+  `class`: String Refined MatchesRegex[W.`"SubworkflowFeatureRequirement"`.T])
 
 case class ScatterFeatureRequirement(
-  `class`: String Refined MatchesRegex[W.`"ScatterFeatureRequirement"`.T]
-  )
+  `class`: String Refined MatchesRegex[W.`"ScatterFeatureRequirement"`.T])
 
 case class MultipleInputFeatureRequirement(
-  `class`: String Refined MatchesRegex[W.`"MultipleInputFeatureRequirement"`.T]
-  )
+  `class`: String Refined MatchesRegex[W.`"MultipleInputFeatureRequirement"`.T])
 
 case class StepInputExpressionRequirement(
-  `class`: String Refined MatchesRegex[W.`"StepInputExpressionRequirement"`.T]
-  )
+  `class`: String Refined MatchesRegex[W.`"StepInputExpressionRequirement"`.T])

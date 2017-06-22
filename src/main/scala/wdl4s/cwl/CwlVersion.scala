@@ -1,7 +1,7 @@
 package wdl4s.cwl
 
 object CwlVersion extends Enumeration {
-  type CWLVersion = Value
+  type CwlVersion = Value
 
   val Version1 = Value("v1.0")
 }

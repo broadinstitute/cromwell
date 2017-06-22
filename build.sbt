@@ -59,9 +59,6 @@ libraryDependencies ++= {
 
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     "com.lihaoyi" %% "ammonite-ops" % "1.0.0-RC7" % "test",
-    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-
-    "org.scalatest" %% "scalatest" % "3.0.1" % Test,
     "org.pegdown" % "pegdown" % "1.6.0" % Test
   )
 }

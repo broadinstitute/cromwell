@@ -13,7 +13,7 @@ case class ExpressionTool(
                            hints: Option[Array[String]], //TODO should be Any
                            label: Option[String],
                            doc: Option[String],
-                           cwlVersion: Option[CWLVersion]
+                           cwlVersion: Option[CwlVersion]
 )
 
 case class ExpressionToolOutputParameter(

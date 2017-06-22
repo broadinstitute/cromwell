@@ -332,7 +332,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
       case Some(ExecutionStatus.Done) =>
         handleWorkflowSuccessful(data)
       case Some(_) =>
-        context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in fail-slow mode"))
+        context.parent ! WorkflowExecutionFailedResponse(data.jobExecutionMap, new Exception("One or more jobs failed in ContinueWhilePossible mode"))
         goto(WorkflowExecutionFailedState) using data
       case _ =>
         scheduleStartRunnableCalls()

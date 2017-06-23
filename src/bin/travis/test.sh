@@ -46,4 +46,6 @@ case "$TRAVIS_EVENT_TYPE" in
         ;;
     *)
         echo "Unknown TRAVIS_EVENT_TYPE: '$TRAVIS_EVENT_TYPE'"
+        exit 1
+        ;;
     esac

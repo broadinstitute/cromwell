@@ -10,10 +10,10 @@ case "$TRAVIS_EVENT_TYPE" in
     # BUILD_TYPE is coming in from the Travis build matrix
         case "$BUILD_TYPE" in
         centaurJes)
-            "${SCRIPT_DIR}"/testCentaurJes.sh -i
+            "${SCRIPT_DIR}"/testCentaurJes.sh
             ;;
         centaurTes)
-            "${SCRIPT_DIR}"/testCentaurJes.sh
+            "${SCRIPT_DIR}"/testCentaurTes.sh
             ;;
         centaurLocal)
             "${SCRIPT_DIR}"/testCentaurLocal.sh
@@ -24,7 +24,6 @@ case "$TRAVIS_EVENT_TYPE" in
         checkPublish)
             "${SCRIPT_DIR}"/testCheckPublish.sh
             ;;
-
         *)
             echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
             exit 1

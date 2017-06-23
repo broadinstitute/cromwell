@@ -3,8 +3,9 @@
 set -e
 
 SCRIPT_DIR=src/bin/travis
+
 # $TRAVIS_EVENT_TYPE will be cron is this build was initiated by a cron job
-if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
+if [ "$TRAVIS_EVENT_TYPE" = "push" ] || [ "$TRAVIS_EVENT_TYPE" = "pull_request" ] || [ "$TRAVIS_EVENT_TYPE" = "api" ]; then
     # BUILD_TYPE is coming in from the Travis build matrix
     if [ "$BUILD_TYPE" = "centaurJes" ]; then
         "${SCRIPT_DIR}"/testCentaurJes.sh
@@ -20,10 +21,15 @@ if [ "$TRAVIS_EVENT_TYPE" != "cron" ]; then
         echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
         exit 1
     fi
-else
+fi
+
+if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
     if [ "$BUILD_TYPE" = "centaurJes" ]; then
         "${SCRIPT_DIR}"/testCentaurJes.sh -i
-    else
+    elif [ "$BUILD_TYPE" = "centaurTes" ] || [ "$BUILD_TYPE" = "centaurLocal" ] || [ "$BUILD_TYPE" = "sbt" ] || [ "$BUILD_TYPE" = "checkPublish" ]; then
         exit 0
+    else
+        echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
+        exit 1
     fi
 fi

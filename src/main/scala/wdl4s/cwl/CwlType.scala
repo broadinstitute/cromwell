@@ -4,7 +4,7 @@ import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string._
 import mouse.boolean._
-
+import shapeless.{:+:, CNil}
 
 object CwlType extends Enumeration {
   type CwlType = Value
@@ -30,12 +30,12 @@ case class File(
   nameext: Option[String],
   checksum: Option[String],
   size: Option[Long],
-  secondaryFiles: Array[Either[File, Directory]],
+  secondaryFiles: Array[File :+: Directory :+: CNil],
   format: Option[String],
   contents: Option[String])
 
 object File {
-  def validateContents: File => Either[String, Unit] =  //this is a sample validation.  There are about a billion of them, not sure 
+  def validateContents: File => Either[String, Unit] =  //this is a sample validation.  There are about a billion of them, not sure
     f =>
       (!(f.location.isEmpty && f.path.isEmpty && f.contents.isEmpty)).
         either("One of path, location, or contents must be specified", ())
@@ -46,6 +46,6 @@ case class Directory(
   location: Option[String],
   path: Option[String],
   basename: Option[String],
-  listing: Option[Array[Either[File, Directory]]])
+  listing: Option[Array[File :+: Directory :+: CNil]])
 
 

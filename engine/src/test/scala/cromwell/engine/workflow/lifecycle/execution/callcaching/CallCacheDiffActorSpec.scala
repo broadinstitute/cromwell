@@ -233,7 +233,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       case response: RequestComplete[(StatusCode, FailureResponse)]@unchecked => 
         response.response._1 shouldBe StatusCodes.NotFound
         response.response._2.status shouldBe "error"
-        response.response._2.message shouldBe "callA and callB have been run on a previous version of Cromwell on which this endpoint was not supported."
+        response.response._2.message shouldBe "callA and callB were run on a previous version of Cromwell on which this endpoint was not supported."
     }
     expectTerminated(actor)
   }

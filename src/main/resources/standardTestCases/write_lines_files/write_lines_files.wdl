@@ -15,9 +15,7 @@ task switcho_reverso {
   Array[File] files
 
   command {
-    # Do this with F to make sure we get a trailing newline for 'tac':
     F="${write_lines(files)}"
-    echo "" >> $F
     for f in $(tac $F)
     do
       cat $f

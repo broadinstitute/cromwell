@@ -94,7 +94,7 @@ echo "RUNNING TRAVIS CENTAUR"
 sbt assembly
 
 
-# Update the inputs file with stuff specific to this run
+# Update the .inputs file with stuff specific to this run
 sed -i "s/CENTAUR_BRANCH/${CENTAUR_BRANCH}/g" src/bin/travis/resources/centaur.inputs
 CROMWELL_JAR=cromwell_${TRAVIS_BUILD_ID}.jar
 sed -i "s/CROMWELL_JAR/${CROMWELL_JAR}/g" src/bin/travis/resources/centaur.inputs

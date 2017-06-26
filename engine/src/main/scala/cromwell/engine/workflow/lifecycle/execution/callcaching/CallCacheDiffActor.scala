@@ -23,9 +23,9 @@ import scala.util.{Failure, Success, Try}
 
 object CallCacheDiffActor {
   private val PlaceholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
-  private val CallAAndBNotFoundException = new Exception("callA and callB have been run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val CallANotFoundException = new Exception("callA has been run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val CallBNotFoundException = new Exception("callB has been run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val CallAAndBNotFoundException = new Exception("callA and callB were run run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val CallANotFoundException = new Exception("callA was run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val CallBNotFoundException = new Exception("callB was run on a previous version of Cromwell on which this endpoint was not supported.")
 
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState

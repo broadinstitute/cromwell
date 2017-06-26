@@ -112,7 +112,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           s"not invalidate a call for caching if backend coping failed when invalidation is disabled, when it was going to receive $hashComboName, if call caching is $mode" in {
             val invalidationDisabledOptions = CallCachingOptions(invalidateBadCacheResults = false)
             val cacheInvalidationDisabledMode = mode match {
-              case CallCachingActivity(rw, options) => CallCachingActivity(rw, invalidationDisabledOptions)
+              case CallCachingActivity(rw, _) => CallCachingActivity(rw, invalidationDisabledOptions)
               case _ => fail(s"Mode $mode not appropriate for cache invalidation tests")
             }
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, cacheInvalidationDisabledMode)

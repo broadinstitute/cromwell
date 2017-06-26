@@ -71,7 +71,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
             case PutMetadataActionAndRespond(ev, replyTo) => (putEvents, putAndRespondEvents + (ev -> replyTo))
           }
       })
-      val allPutEvents: Iterable[MetadataEvent] = putWithResponse.keys.flatten ++ putWithoutResponse
+      val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.keys.flatten
       addMetadataEvents(allPutEvents) onComplete {
         case Success(_) =>
           self ! DbWriteComplete

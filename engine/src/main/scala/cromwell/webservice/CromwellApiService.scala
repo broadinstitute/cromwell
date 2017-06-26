@@ -10,7 +10,6 @@ import cromwell.core._
 import cromwell.core.labels.Labels
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor.{LabelsAddition, LabelsData}
 import cromwell.webservice.WorkflowJsonSupport._

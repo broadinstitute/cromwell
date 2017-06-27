@@ -55,7 +55,7 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
 
   def receive = {
     case LabelsAddition(data) =>
-      wfId = Some(data.workflowId)
+      wfId = Option(data.workflowId)
       serviceRegistryActor ! PutMetadataActionAndRespond(labelsToMetadataEvents(data.labels, data.workflowId), self)
     case MetadataWriteSuccess(events) =>
       val response = processLabelsResponse(wfId.get, metadataEventsToLabels(events))

@@ -85,6 +85,8 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(DbWriteComplete, curData) =>
       log.debug("Flush of metadata events complete")
       goto(WaitingToWrite) using curData
+    // When receiving a put&respond message, add it to the current data so that when flushing metadata events, we have
+    // enough information to be able to send an acknowledgement of success/failure of metadata event writes to the original requester.
     case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
       stay using curData.addData(PutMetadataActionAndRespond(events, replyTo))
   }

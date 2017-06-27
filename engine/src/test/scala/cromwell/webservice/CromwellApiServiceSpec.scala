@@ -423,7 +423,6 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
       }
   }
 
-  behavior of "REST API /labels PATCH endpoint"
   behavior of "REST API /callcaching/diff GET endpoint"
   it should "return good results for a good query" in {
     Get(s"/workflows/$version/callcaching/diff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello") ~>
@@ -488,7 +487,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
       }
   }
 
-  behavior of "REST API /label/add POST endpoint"
+  behavior of "REST API /labels PATCH endpoint"
   it should "return successful status response when assigning valid labels to an existing workflow ID" in {
 
     val validLabelsJson =

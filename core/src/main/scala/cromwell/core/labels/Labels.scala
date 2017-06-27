@@ -24,7 +24,7 @@ object Labels {
   }
 
   def validateMapOfLabels(labels: Map[String, String]): ErrorOr[Labels] = {
-    labels.toVector traverse { Label.validateLabel _ }.tupled map { Labels.apply }
+    labels.toVector traverse { Label.validateLabel _ }.tupled map Labels.apply
   }
 
   def empty = Labels(Vector.empty)

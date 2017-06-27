@@ -1,0 +1,17 @@
+name: cont_while_possible_scatter
+testFormat: workflowfailure
+backends: [Local]
+
+files {
+  wdl: cont_while_possible/cont_while_possible_scatter.wdl
+  options: cont_while_possible/cont_while_possible.options
+}
+
+metadata {
+  workflowName: cont_while_possible_scatter
+  status: Failed
+  "cont_while_possible_scatter.odd_numbers_only.0.executionStatus": Failed
+  "cont_while_possible_scatter.odd_numbers_only.2.executionStatus": Failed
+  "cont_while_possible_scatter.odd_numbers_only.1.executionStatus": Done
+  "cont_while_possible_scatter.odd_numbers_only.3.executionStatus": Done
+}

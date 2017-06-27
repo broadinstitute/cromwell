@@ -6,8 +6,6 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching._
 import cromwell.core.logging.JobLogging
-import cromwell.database.sql.joins.CallCachingJoin
-import cromwell.database.sql.tables.CallCachingHashEntry
 import cromwell.engine.workflow.lifecycle.execution.CallMetadataHelper
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, FinalFileHashingResult, InitialHashingResult, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
@@ -120,31 +118,7 @@ object EngineJobHashingActor {
   case class HashError(reason: Throwable) extends EJHAResponse
   case class FileHashes(hashes: Set[HashResult], aggregatedHash: String)
   case class CallCacheHashes(initialHashes: Set[HashResult], aggregatedInitialHash: String, fileHashes: Option[FileHashes]) extends EJHAResponse {
-    val hashes: Set[HashResult] = initialHashes ++ fileHashes.map(_.hashes).getOrElse(Set.empty)
-
-    private lazy val hashPairs = hashes map {
-      case HashResult(hashKey, HashValue(value)) => hashKey.key -> value
-    }
-
-    /**
-      * Checks that the call caching join holds the same hash pairs as this instance
-      */
-    def equalsJoin(callCachingJoin: CallCachingJoin): Boolean = {
-
-      val joinHashPairs = callCachingJoin.callCachingHashEntries.toSet[CallCachingHashEntry] map {
-        case CallCachingHashEntry(key, value, _, _) => key -> value
-      }
-
-      (joinHashPairs, callCachingJoin.callCachingAggregationEntry) match {
-        case (joinHashes, Some(joinAggregation))
-          if joinAggregation.baseAggregation == aggregatedInitialHash &&
-            joinAggregation.inputFilesAggregation == fileHashes.map(_.aggregatedHash) &&
-            joinHashes.size == hashPairs.size &&
-            joinHashes.diff(hashPairs).isEmpty =>
-          true
-        case _ => false
-      }
-    }
+    val hashes = initialHashes ++ fileHashes.map(_.hashes).getOrElse(Set.empty)
   }
 
   def props(receiver: ActorRef,

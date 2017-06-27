@@ -143,7 +143,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // writing to the JobStore. In that case, we don't want to cache to ourselves (turn cache read off), nor do we want to 
   // try and write the cache info again, which would fail (turn cache write off).
   // This means call caching should be disabled.
-  // Note that we check that there is not a Cache entry fro *this* current job. It's still technically possible
+  // Note that we check that there is not a Cache entry for *this* current job. It's still technically possible
   // to call cache to another job that finished while this one was running (before the restart).
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
@@ -326,8 +326,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           (callCachingHashes + MetadataKey.KeySeparator + keyComponents.mkString(MetadataKey.KeySeparator.toString)) -> value
       }).toMap
       writeToMetadata(hashMap)
-    case Some(Failure(_)) => // We already published the failure to the metadata so nothing to do here
-    case None => log.error("Cannot find hashes although they were successfully written to the database.")
+    case _ =>
   }
 
 

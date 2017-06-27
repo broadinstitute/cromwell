@@ -7,6 +7,7 @@ import io.circe._
 import io.circe.parser._
 import io.circe.shapes._
 import io.circe.generic.auto._
+import io.circe.generic.semiauto._
 import io.circe.yaml.{parser => YamlParser}
 import io.circe.Json
 
@@ -25,7 +26,7 @@ import eu.timepit.refined.string._
 import eu.timepit.refined._
 
 import io.circe.refined._
-import io.circe.generic.semiauto._
+
 /**
  * This package is intended to parse all CWL files.
  *
@@ -44,7 +45,7 @@ import io.circe.generic.semiauto._
  *       position: 1
  * outputs: []
  * """
- * decodeCommandLine(firstTool) //returns Either[Error, CommandLineTool]
+ * decodeCwl(firstTool) //returns Either[Error, Cwl]
  * }}}
  *
  *
@@ -52,13 +53,17 @@ import io.circe.generic.semiauto._
  * Circe modules that support the Scala libraries shapeless and Refined.
  *
  * The [[https://oss.sonatype.org/service/local/repositories/releases/archive/com/chuusai/shapeless_2.12/2.3.2/shapeless_2.12-2.3.2-javadoc.jar/!/shapeless/Coproduct.html shapeless.coproduct]] feature allows us to specify a large
- * number of potential types against which a
+ * number of potential types to be parsed.  A.k.a. a "disjunction" or "OR" relationship amongst these types.
  *
- * @see <a href="">CWL Specification</a>
- * @see <a href="">circe</a>
- * @see <a href="">circe-yaml</a>
- * @see <a href="">Refined</a>
- * @see <a href="">Shapeless</a>
+ * The [[https://github.com/fthomas/refined/blob/master/modules/core/shared/src/main/scala/eu/timepit/refined/string.scala MatchesRegex]] "refined type" is used
+ * to enforce structure upon String values in the CWL Yaml.  Shapeless' Witness type
+ * is used to declare a type containing a String literal.
+ *
+ * @see <a href="http://www.commonwl.org/v1.0/">CWL Specification</a>
+ * @see <a href="https://github.com/circe/circe">circe</a>
+ * @see <a href="https://github.com/circe/circe-yaml">circe-yaml</a>
+ * @see <a href="https://github.com/fthomas/refined">Refined</a>
+ * @see <a href="https://github.com/milessabin/shapeless">Shapeless</a>
  */
 package object cwl {
 
@@ -69,32 +74,17 @@ package object cwl {
   import CwlVersion._
   import ScatterMethod._
 
+  type Yaml = String
 
   implicit val cwlTypeDecoder = Decoder.enumDecoder(CwlType)
   implicit val cwlVersionDecoder = Decoder.enumDecoder(CwlVersion)
   implicit val scatterMethodDecoder = Decoder.enumDecoder(ScatterMethod)
 
-  implicit private val workflowDecoder: Decoder[Workflow] = deriveDecoder[Workflow]
-
-  implicit private val commandLineDecoder: Decoder[CommandLineTool] = deriveDecoder[CommandLineTool]
-
-  private def yamlToJson: CirceRead[String] = Kleisli[CirceError, String, String](YamlParser.parse(_).map(_.noSpaces))
-
-  private def jsonToWorkflow: CirceRead[Workflow] =
-    Kleisli[CirceError, String, Workflow](decode[Workflow])
-
-  private def jsonToCommandLineTool: CirceRead[CommandLineTool] =
-    Kleisli[CirceError, String, CommandLineTool](decode[CommandLineTool])
-
-  //All the Kleisli noise buys us these nice derived functions:
-  def commandLineFromYamlKleisli: CirceRead[CommandLineTool] = yamlToJson andThen jsonToCommandLineTool
-
-  def commandLineFromYaml: String => Either[Error, CommandLineTool] = commandLineFromYamlKleisli.run
-
-  def workflowFromYamlKleisli: CirceRead[Workflow] = yamlToJson andThen jsonToWorkflow
-
-  def workflowFromYaml: String => Either[Error, Workflow] = workflowFromYamlKleisli.run
-
+  def decodeCwl: Yaml => Either[Error, Cwl] =
+      YamlParser.
+        parse(_).
+        map(_.noSpaces).
+        flatMap(json => decode[CommandLineTool](json) orElse decode[Workflow](json))
 
   type WorkflowStepInputId = String
 

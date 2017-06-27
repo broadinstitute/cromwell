@@ -69,23 +69,21 @@ outputs:
     type: File
     outputSource: compile/classfile
 
-steps: 
+steps:
   untar:
     run: tar-param.cwl
     in:
       tarfile: inp
       extractfile: ex
     out: [example_out]
-  compile: 
+  compile:
     run: arguments.cwl
     in:
       src: untar/example_out
     out: [classfile]
 """
-    val r = decode[Workflow](parser.parse(firstWorkflow).right.get.noSpaces)
-    r.right.get.steps.fold(P)
-    println(r.right.get.steps.select[Map[String,WorkflowStep]])
-    r.isRight should be (true)
+    decodeCwl(firstWorkflow)
+      .isRight should be (true)
   }
 
 

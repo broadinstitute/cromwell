@@ -3493,6 +3493,10 @@ Server: spray-can/1.3.3
 
 ## GET /api/workflows/:version/callcaching/diff
 
+**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Crowmell 28.
+Workflows run with prior versions of Cromwell cannot be used with this endpoint.
+A `404 NotFound` will be returned when trying to use this endpoint if either workflow has been run on a prior version.
+
 This endpoint returns the hash differences between 2 *completed* (successfully or not) calls.
 The following query parameters are supported:
 

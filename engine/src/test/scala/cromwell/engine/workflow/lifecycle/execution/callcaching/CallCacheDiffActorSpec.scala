@@ -11,7 +11,7 @@ import cromwell.webservice.FailureResponse
 import cromwell.webservice.PerRequest.RequestComplete
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
-import spray.http.StatusCodes
+import spray.http.{StatusCode, StatusCodes}
 
 class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender with Eventually {
 
@@ -213,6 +213,28 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
         response.message shouldBe "Query lookup failed - but it's ok ! this is a test !"
     }
     
+    expectTerminated(actor)
+  }
+
+  it should "respond with 404 if hashes are missing" in {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    
+    val mockServiceRegistryActor = TestProbe()
+    val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
+    watch(actor)
+    val responseB = MetadataLookupResponse(queryB, eventsB.filterNot(_.key.key.contains("hashes")))
+
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, Option(responseB), self))
+
+    actor ! MetadataLookupResponse(queryA, eventsA.filterNot(_.key.key.contains("hashes")))
+
+    expectMsgPF(1 second) {
+      case response: RequestComplete[(StatusCode, FailureResponse)]@unchecked => 
+        response.response._1 shouldBe StatusCodes.NotFound
+        response.response._2.status shouldBe "error"
+        response.response._2.message shouldBe "callA and callB were run on a previous version of Cromwell on which this endpoint was not supported."
+    }
     expectTerminated(actor)
   }
 

@@ -8,6 +8,7 @@
 It is published even if the call failed. However if the call is attempted multiple times (because it has been preempted for example),
 since hash values are strictly identical for all attempts, they will only be published in the last attempt section of the metadata for this call.
 If the hashes fail to be calculated, the reason is indicated in a `hashFailures` field in the `callCaching` section of the call metadata.
+*Important*: Hashes are not retroactively published to the metadata. Which means only workflows run on Cromwell 28+ will have hashes in their metadata.
 
 See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsversionidmetadata) for an example metadata response.
 

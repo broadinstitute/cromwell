@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
 import cromwell.services.SingletonServicesStore
-import cromwell.services.metadata.MetadataService.{PutMetadataAction, ReadAction, RefreshSummary, ValidateWorkflowIdAndExecute}
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.WriteMetadataActor.CheckPendingWrites
@@ -42,7 +42,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
       log.error(s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...", cause)
     }
   }
-  
+
   private val summaryActor: Option[ActorRef] = buildSummaryActor
 
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
@@ -90,6 +90,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
 
   def receive = {
     case action@PutMetadataAction(events) => writeActor forward action
+    case action@PutMetadataActionAndRespond(events, replyTo) => writeActor forward action
     case CheckPendingWrites => writeActor forward CheckPendingWrites
     case v: ValidateWorkflowIdAndExecute => validateWorkflowId(v)
     case action: ReadAction => readActor forward action

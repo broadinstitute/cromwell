@@ -19,9 +19,11 @@ See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsvers
 
 ### Workflow Submission
 
-The workflow submission parameters `wdlSource` and `wdlDependencies` have been deprecated in favor of `workflowSource` and
+* The workflow submission parameters `wdlSource` and `wdlDependencies` have been deprecated in favor of `workflowSource` and
 `workflowDependencies` respectively.  The older names are still supported in Cromwell 28 with deprecation warnings but will
 be removed in a future version of Cromwell.
+* A new `/labels` endpoint has been added to update labels for an existing workflow. See the [README](README.md#patch-apiworkflowsversionidlabels) for more information.
+
 
 ### JES Backend
 

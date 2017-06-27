@@ -7,9 +7,11 @@ import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
+import cromwell.core.labels.Labels
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.services.metadata.MetadataService._
+import cromwell.webservice.LabelsManagerActor.{LabelsAddition, LabelsData}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
 import lenthall.exception.AggregatedMessageException
@@ -55,6 +57,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
 
+  def labelsManagerActorProps: Props = LabelsManagerActor.props(serviceRegistryActor)
+
   def handleMetadataRequest(message: AnyRef): Route = {
     requestContext =>
       perRequest(requestContext, metadataBuilderProps, message)
@@ -79,7 +83,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   }
 
   val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ callCachingDiffRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute ~ patchLabelsRoute
 
   protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -151,6 +155,23 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       parameterSeq { parameters =>
         get {
           handleCallCachingDiffRequest(parameters)
+        }
+      }
+    }
+
+
+  def patchLabelsRoute =
+    path("workflows" / Segment / Segment / "labels") { (version, possibleWorkflowId) =>
+      entity(as[Map[String, String]]) { parameterMap =>
+        patch {
+          withRecognizedWorkflowId(possibleWorkflowId) { id =>
+            requestContext =>
+              Labels.validateMapOfLabels(parameterMap) match {
+                case Valid(labels) =>
+                  perRequest(requestContext, labelsManagerActorProps, LabelsAddition(LabelsData(id, labels)))
+                case Invalid(err) => failBadRequest(new IllegalArgumentException(err.toList.mkString(",")))(requestContext)
+              }
+          }
         }
       }
     }

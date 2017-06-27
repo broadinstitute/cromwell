@@ -12,7 +12,7 @@ import cromwell.services.metadata.MetadataService._
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http._
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsString, _}
+import spray.json._
 import spray.routing._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.util.SampleWdl.HelloWorld
@@ -467,7 +467,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         }
       }
   }
-  
+
   it should "return an error for a bad query" in {
     Get(s"/workflows/$version/callcaching/diff?missingStuff") ~>
       cromwellApiService.callCachingDiffRoute ~>
@@ -486,6 +486,67 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         }
       }
   }
+
+  behavior of "REST API /labels PATCH endpoint"
+  it should "return successful status response when assigning valid labels to an existing workflow ID" in {
+
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val workflowId = MockApiService.ExistingWorkflowId
+
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      cromwellApiService.patchLabelsRoute ~>
+      check {
+        status shouldBe StatusCodes.OK
+        val actualResult = responseAs[JsObject]
+        val expectedResults =
+          s"""
+            |{
+            |  "id": "${workflowId}",
+            |  "labels": {
+            |    "label-key-1":"label-value-1",
+            |    "label-key-2":"label-value-2"
+            |  }
+            |}
+          """.stripMargin.parseJson
+
+        actualResult shouldBe expectedResults
+      }
+  }
+
+  it should "return failed response when simulating a write metadata failure" in {
+
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val workflowId = MockApiService.AbortedWorkflowId
+
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      cromwellApiService.patchLabelsRoute ~>
+      check {
+        status shouldBe StatusCodes.InternalServerError
+        val actualResult = responseAs[JsObject]
+        val expectedResult =
+          s"""{
+              |  "status": "fail",
+              |  "message": "Unable to update labels for ${MockApiService.AbortedWorkflowId} due to mock exception of db failure"
+              |}
+            """.stripMargin.parseJson
+
+        actualResult shouldBe expectedResult
+      }
+  }
 }
 
 object CromwellApiServiceSpec {
@@ -494,10 +555,10 @@ object CromwellApiServiceSpec {
 
     override def actorRefFactory = system
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
-    override val serviceRegistryActor = actorRefFactory.actorOf(Props.empty)
+    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor))
     override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
     override val callCacheDiffActorProps = Props(new MockCallCacheDiffActor())
-    
+
 
     override def handleMetadataRequest(message: AnyRef): Route = {
       message match {
@@ -592,6 +653,18 @@ object CromwellApiServiceSpec {
     }
   }
 
+  class MockServiceRegistryActor extends Actor {
+    override def receive = {
+      case PutMetadataActionAndRespond(events, _) =>
+        events.head.key.workflowId match {
+          case MockApiService.ExistingWorkflowId =>
+            sender ! MetadataWriteSuccess(events)
+          case MockApiService.AbortedWorkflowId =>
+            sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
+        }
+    }
+  }
+
   class MockCallCacheDiffActor extends Actor {
     override def receive = {
       case _: CallCacheDiffQueryParameter =>
@@ -625,7 +698,7 @@ object CromwellApiServiceSpec {
                      |    }
                      |  }]
                      |}""".stripMargin.parseJson.asJsObject
-        
+
         val response = RequestComplete((StatusCodes.OK, json))
       sender() ! response
     }

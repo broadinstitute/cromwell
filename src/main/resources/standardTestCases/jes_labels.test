@@ -1,0 +1,24 @@
+name: jes_labels
+testFormat: workflowsuccess
+tags: [ labels ]
+backends: [Jes]
+
+files {
+  wdl: hello/hello.wdl
+  inputs: hello/hello.inputs
+  labels: labels/valid.labels
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello.backendLabels.label-key-2": "label-value-2"
+  "calls.wf_hello.hello.backendLabels.label-key-1": "label-value-1"
+  "calls.wf_hello.hello.backendLabels.cromwell-workflow-id": "cromwell-<<UUID>>"
+  "calls.wf_hello.hello.backendLabels.cromwell-workflow-name": "wf-hello"
+  "calls.wf_hello.hello.backendLabels.wdl-task-name": "hello"
+  "labels.label-key-1": "label-value-1"
+  "labels.label-key-2": "label-value-2"
+  "labels.cromwell-workflow-id": "cromwell-<<UUID>>"
+  "labels.cromwell-workflow-name": "wf_hello"
+}

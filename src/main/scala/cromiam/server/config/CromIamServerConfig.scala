@@ -3,7 +3,7 @@ package cromiam.server.config
 import akka.http.scaladsl.settings.ServerSettings
 import cats.syntax.validated._
 import cats.syntax.cartesian._
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import lenthall.validation.ErrorOr.ErrorOr
 
 import scala.collection.JavaConverters._
@@ -36,18 +36,23 @@ object CromIamServerConfig {
     def getValidatedString(path: String): ErrorOr[String] = getValidatedConfigPath("string", conf, path, (c, p) => c.getString(p))
     def getValidatedInt(path: String): ErrorOr[Int] = getValidatedConfigPath("integer", conf, path, (c, p) => c.getInt(p))
     def getValidatedStringList(path: String): ErrorOr[List[String]] = getValidatedConfigPath[List[String]]("string list", conf, path, (c, p) => c.getStringList(p).asScala.toList)
-    def getValidatedServerSettings(path: String): ErrorOr[ServerSettings] = getValidatedConfigPath[Config]("server settings", conf, path, (c, p) => c.getConfig(p)) map { config => ServerSettings(config) }
   }
 }
 
 final case class CromIamConfig(userIdHeader: String, allowedUsers: List[String], http: ServiceConfig, serverSettings: ServerSettings)
 
 object CromIamConfig {
+
+  private def getValidatedServerSettings: ErrorOr[ServerSettings] = Try(ServerSettings(ConfigFactory.load())) match {
+    case Success(serverSettings) => serverSettings.validNel
+    case Failure(e) => s"Unable to generate server settings from configuration file: ${e.getMessage}".invalidNel
+  }
+
   private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[CromIamConfig] = {
     val userIdHeader = conf.getValidatedString(s"$basePath.user_id_header")
     val allowedUserList = conf.getValidatedStringList(s"$basePath.allowed_users")
     val serviceConfig = ServiceConfig.getFromConfig(conf, s"$basePath.http")
-    val serverSettings = conf.getValidatedServerSettings(s"$basePath.http")
+    val serverSettings = getValidatedServerSettings
 
     (userIdHeader |@| allowedUserList |@| serviceConfig |@| serverSettings) map CromIamConfig.apply
   }

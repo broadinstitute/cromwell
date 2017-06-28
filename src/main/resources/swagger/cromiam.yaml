@@ -58,7 +58,7 @@ paths:
           type: string
           in: path
           default: v1
-        - name: wdlSource
+        - name: workflowSource
           description: WDL Source
           required: true
           type: file
@@ -98,7 +98,7 @@ paths:
           required: false
           type: file
           in: formData
-        - name: wdlDependencies
+        - name: workflowDependencies
           description: Zip file containing WDL dependencies
           required: false
           type: file
@@ -129,7 +129,7 @@ paths:
           type: string
           in: path
           default: v1
-        - name: wdlSource
+        - name: workflowSource
           description: WDL Source
           required: true
           type: file
@@ -149,7 +149,7 @@ paths:
           required: false
           type: file
           in: formData
-        - name: wdlDependencies
+        - name: workflowDependencies
           description: Zip file containing WDL dependencies
           required: false
           type: file

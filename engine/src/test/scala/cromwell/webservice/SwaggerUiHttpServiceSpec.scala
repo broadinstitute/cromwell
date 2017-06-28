@@ -1,23 +1,21 @@
 package cromwell.webservice
 
+import akka.http.scaladsl.model.{StatusCodes, Uri}
+import akka.http.scaladsl.model.headers.Location
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.ConfigFactory
 import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import spray.http.HttpHeaders.Location
-import spray.http.{StatusCodes, Uri}
-import spray.testkit.ScalatestRouteTest
+
 
 trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
-  override def actorRefFactory = system
-
   override def swaggerUiVersion = TestSwaggerUiVersion
 }
 
 trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
 TableDrivenPropertyChecks with SwaggerResourceHttpService {
-  override def actorRefFactory = system
-
   val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
     "/api/example?with=param", "/api/example/path")
 }
@@ -47,7 +45,7 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   }
 
   it should "not return options for /" in {
-    Options() ~> sealRoute(swaggerUiRoute) ~> check {
+    Options() ~> Route.seal(swaggerUiRoute) ~> check {
       status should be(StatusCodes.MethodNotAllowed)
     }
   }
@@ -72,13 +70,13 @@ class NoRedirectRootSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   behavior of "SwaggerUiHttpService"
 
   it should "not redirect / to /swagger" in {
-    Get() ~> sealRoute(swaggerUiRoute) ~> check {
+    Get() ~> Route.seal(swaggerUiRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
 
   it should "not return options for /" in {
-    Options() ~> sealRoute(swaggerUiRoute) ~> check {
+    Options() ~> Route.seal(swaggerUiRoute) ~> check {
       status should be(StatusCodes.MethodNotAllowed)
     }
   }
@@ -156,13 +154,13 @@ class YamlSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
   }
 
   it should "not service swagger json" in {
-    Get("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
+    Get("/swagger/testservice.json") ~> Route.seal(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
 
   it should "not service /swagger" in {
-    Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+    Get("/swagger") ~> Route.seal(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
@@ -192,13 +190,13 @@ class JsonSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpServiceSpec 
   }
 
   it should "not service swagger yaml" in {
-    Get("/swagger/testservice.yaml") ~> sealRoute(swaggerResourceRoute) ~> check {
+    Get("/swagger/testservice.yaml") ~> Route.seal(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
 
   it should "not service /swagger" in {
-    Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+    Get("/swagger") ~> Route.seal(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
@@ -228,20 +226,20 @@ class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpService
   }
 
   it should "not service swagger json" in {
-    Get("/swagger/testservice.json") ~> sealRoute(swaggerResourceRoute) ~> check {
+    Get("/swagger/testservice.json") ~> Route.seal(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
 
   it should "not service /swagger" in {
-    Get("/swagger") ~> sealRoute(swaggerResourceRoute) ~> check {
+    Get("/swagger") ~> Route.seal(swaggerResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
 
   it should "not return options for all routes" in {
     forAll(testPathsForOptions) { path =>
-      Options(path) ~> sealRoute(swaggerResourceRoute) ~> check {
+      Options(path) ~> Route.seal(swaggerResourceRoute) ~> check {
         status should be(StatusCodes.MethodNotAllowed)
       }
     }
@@ -268,7 +266,7 @@ class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
   }
 
   it should "not service swagger json" in {
-    Get("/swagger/testservice.json") ~> sealRoute(swaggerUiResourceRoute) ~> check {
+    Get("/swagger/testservice.json") ~> Route.seal(swaggerUiResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
@@ -306,7 +304,7 @@ class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
   }
 
   it should "not service swagger yaml" in {
-    Get("/swagger/testservice.yaml") ~> sealRoute(swaggerUiResourceRoute) ~> check {
+    Get("/swagger/testservice.yaml") ~> Route.seal(swaggerUiResourceRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }

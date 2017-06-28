@@ -1,14 +1,17 @@
 package cromwell.backend.impl.spark
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.Logger
 import cromwell.backend.impl.spark.SparkClusterProcess.{SparkJobSubmissionResponse, TerminalStatus}
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.Path
 import org.slf4j.LoggerFactory
-import spray.client.pipelining._
-import spray.http.{HttpRequest, HttpResponse, StatusCodes}
 import spray.json.{DefaultJsonProtocol, JsonParser}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -34,12 +37,6 @@ object SparkClusterProcess {
 
 }
 
-trait SparkClusterRestClient {
-  def sendAndReceive: SendReceive
-
-  def makeHttpRequest(httpRequest: HttpRequest): Future[HttpResponse]
-}
-
 trait SparkClusterProcessMonitor {
   def startMonitoringSparkClusterJob(jobPath: Path, jsonFile: String): Future[TerminalStatus]
 
@@ -55,19 +52,17 @@ trait SparkClusterJobParser {
 }
 
 class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
-  with SparkClusterRestClient with SparkClusterJobParser with SparkClusterProcessMonitor {
+  with SparkClusterJobParser with SparkClusterProcessMonitor {
 
   import SparkClusterProcess._
   import SparkClusterJsonProtocol._
-  import spray.httpx.SprayJsonSupport._
 
   implicit lazy val ec: ExecutionContext = system.dispatcher
+  implicit val materializer = ActorMaterializer()
   lazy val completionPromise = Promise[TerminalStatus]()
   lazy val monitorPromise = Promise[Unit]()
   val tag = this.getClass.getSimpleName
   lazy val logger = Logger(LoggerFactory.getLogger(getClass.getName))
-
-  override def sendAndReceive: SendReceive = sendReceive
 
   override def startMonitoringSparkClusterJob(jobPath: Path, jsonFile: String): Future[TerminalStatus] = {
     Future(parseJsonForSubmissionIdAndStatus(jobPath.resolve(jsonFile))) onComplete {
@@ -130,15 +125,13 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
     }
 
     val request = sparkClusterMasterHostName match {
-      case Some(master) =>
-        Get(s"http://$master:6066/v1/submissions/status/$subId")
-      case None =>
-        Get(s"http://spark-master:6066/v1/submissions/status/$subId")
+      case Some(master) => HttpRequest(uri = s"http://$master:6066/v1/submissions/status/$subId")
+      case None => HttpRequest(uri = s"http://spark-master:6066/v1/submissions/status/$subId")
     }
 
     makeHttpRequest(request) flatMap { v =>
       v.status match {
-        case StatusCodes.OK => Future(v ~> unmarshal[SparkDriverStateQueryResponse])
+        case StatusCodes.OK => Unmarshal(v).to[SparkDriverStateQueryResponse]
         case _ =>
           val msg = s"Unexpected response received in response from Spark rest api. Response: $v"
           logger.error("{} reason: {}", tag, msg)
@@ -163,8 +156,8 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
     JsonParser(line).convertTo[SparkJobSubmissionResponse]
   }
 
-  override def makeHttpRequest(httpRequest: HttpRequest): Future[HttpResponse] = {
+  def makeHttpRequest(httpRequest: HttpRequest): Future[HttpResponse] = {
     val headers = httpRequest.headers
-    sendAndReceive(httpRequest.withHeaders(headers))
+    Http().singleRequest(httpRequest.withHeaders(headers))
   }
 }

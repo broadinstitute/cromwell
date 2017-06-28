@@ -10,22 +10,23 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQue
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
 import cromwell.services.metadata._
-import cromwell.webservice.APIResponse
-import cromwell.webservice.PerRequest.RequestComplete
-import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.webservice.metadata._
-import spray.http.StatusCodes
-import spray.httpx.SprayJsonSupport._
+import spray.json.JsObject
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object CallCacheDiffActor {
   private val PlaceholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
-  private val CallAAndBNotFoundException = new Exception("callA and callB were run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val CallANotFoundException = new Exception("callA was run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val CallBNotFoundException = new Exception("callB was run on a previous version of Cromwell on which this endpoint was not supported.")
+
+  final case class CachedCallNotFoundException(message: String) extends Exception {
+    override def getMessage = message
+  }
+
+  private val CallAAndBNotFoundException = CachedCallNotFoundException("callA and callB were run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val CallANotFoundException = CachedCallNotFoundException("callA was run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val CallBNotFoundException = CachedCallNotFoundException("callB was run on a previous version of Cromwell on which this endpoint was not supported.")
 
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState
@@ -39,6 +40,11 @@ object CallCacheDiffActor {
                                       responseB: Option[MetadataLookupResponse],
                                       replyTo: ActorRef
                                      ) extends CallCacheDiffActorData
+
+  sealed abstract class CallCacheDiffActorResponse
+  case class BuiltCallCacheDiffResponse(response: JsObject) extends CallCacheDiffActorResponse
+  case class FailedCallCacheDiffResponse(reason: Throwable) extends CallCacheDiffActorResponse
+
 
   def props(serviceRegistryActor: ActorRef) = Props(new CallCacheDiffActor(serviceRegistryActor))
 }
@@ -71,7 +77,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     case Event(response: MetadataLookupResponse, CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == response.query =>
       buildDiffAndRespond(queryA, queryB, responseA, response, replyTo)
     case Event(MetadataServiceKeyLookupFailed(_, failure), data: CallCacheDiffWithRequest) =>
-      data.replyTo ! RequestComplete((StatusCodes.InternalServerError, APIResponse.error(failure)))
+      data.replyTo ! FailedCallCacheDiffResponse(failure)
       context stop self
       stay()
   }
@@ -104,17 +110,16 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
                                   replyTo: ActorRef) = {
 
     val response = diffHashes(responseA.eventList, responseB.eventList) match {
-      case Success(diff) => 
+      case Success(diff) =>
         val diffObject = MetadataObject(Map(
-        "callA" -> makeCallInfo(queryA, responseA.eventList),
-        "callB" -> makeCallInfo(queryB, responseB.eventList),
-        "hashDifferential" -> diff
-      ))
-        
-      RequestComplete((StatusCodes.OK, metadataComponentJsonWriter.write(diffObject).asJsObject))
-      case Failure(f) => RequestComplete((StatusCodes.NotFound, APIResponse.error(f)))
+          "callA" -> makeCallInfo(queryA, responseA.eventList),
+          "callB" -> makeCallInfo(queryB, responseB.eventList),
+          "hashDifferential" -> diff
+          ))
+        BuiltCallCacheDiffResponse(metadataComponentJsonWriter.write(diffObject).asJsObject)
+      case Failure(f) => FailedCallCacheDiffResponse(f)
     }
-    
+
     replyTo ! response
 
     context stop self
@@ -210,7 +215,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     }
 
   }
-  
+
   private def diffHashEvents(hashesA: Map[String, Option[MetadataValue]], hashesB: Map[String, Option[MetadataValue]]) = {
     val hashesUniqueToB: Map[String, Option[MetadataValue]] = hashesB.filterNot({ case (k, _) => hashesA.keySet.contains(k) })
 

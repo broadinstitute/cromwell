@@ -25,17 +25,15 @@ import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowSt
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.ServiceRegistryActor
-import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
-import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import org.scalactic.Equality
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import spray.http.StatusCode
 import spray.json._
 import wdl4s.TaskCall
 import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
@@ -408,22 +406,6 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     workflowId
   }
 
-  def getWorkflowMetadata(workflowId: WorkflowId, serviceRegistryActor: ActorRef, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
-    // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
-    val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None, expandSubWorkflows = false))
-    val parentProbe = TestProbe()
-
-    TestActorRef(MetadataBuilderActor.props(serviceRegistryActor), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}") ! message
-    val metadata = parentProbe.expectMsgPF(TimeoutDuration) {
-      // Because of type erasure the scala compiler can't check that the RequestComplete generic type will be (StatusCode, JsObject), which would generate a warning
-      // As long as Metadata sends back a JsObject this is safe
-      case response: RequestComplete[(StatusCode, JsObject)] @unchecked => response.response._2
-    }
-
-    system.stop(parentProbe.ref)
-    metadata
-  }
-
   /**
     * Verifies that a state is correct. // TODO: There must be a better way...?
     */
@@ -441,7 +423,16 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   }
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {
-    getWorkflowMetadata(id, serviceRegistryActor, None).getFields(WorkflowMetadataKeys.Outputs).toList match {
+    val mba = system.actorOf(MetadataBuilderActor.props(serviceRegistryActor))
+    val response = mba.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
+      case BuiltMetadataResponse(r) => r
+      case FailedMetadataResponse(e) => throw e
+    }
+    val jsObject = Await.result(response, TimeoutDuration)
+
+    system.stop(mba)
+
+    jsObject.getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))
       case _ => Map.empty
     }

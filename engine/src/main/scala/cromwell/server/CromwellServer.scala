@@ -1,75 +1,64 @@
 package cromwell.server
 
-import java.util.concurrent.TimeoutException
+import akka.actor.{ActorContext, Props}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives._
 
-import akka.actor.{ActorContext, ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import com.typesafe.config.Config
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
-import cromwell.webservice.SprayCanHttpService._
+import cromwell.webservice.{CromwellApiService, SwaggerService}
 import cromwell.webservice.WrappedRoute._
 import net.ceedubs.ficus.Ficus._
-import spray.http._
-import spray.json._
-import spray.routing.Route
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer {
-
   def run(cromwellSystem: CromwellSystem): Future[Any] = {
-    implicit val executionContext = scala.concurrent.ExecutionContext.Implicits.global
-
-    val actorSystem: ActorSystem = cromwellSystem.actorSystem
-    implicit val materializer: ActorMaterializer = cromwellSystem.materializer
-
-    val service = actorSystem.actorOf(CromwellServerActor.props(cromwellSystem.conf), "cromwell-service")
-    val webserviceConf = cromwellSystem.conf.getConfig("webservice")
-
-    val interface = webserviceConf.getString("interface")
-    val port = webserviceConf.getInt("port")
-    val timeout = webserviceConf.as[FiniteDuration]("binding-timeout")
-    val futureBind = service.bind(interface, port)(implicitly, timeout, actorSystem, implicitly)
-    futureBind andThen {
-      case Success(_) =>
-        actorSystem.log.info("Cromwell service started...")
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
-      case Failure(throwable) =>
-        /*
-        TODO:
-        If/when CromwellServer behaves like a better async citizen, we may be less paranoid about our async log messages
-        not appearing due to the actor system shutdown. For now, synchronously print to the stderr so that the user has
-        some idea of why the server failed to start up.
-         */
-        Console.err.println(s"Binding failed interface $interface port $port")
-        throwable.printStackTrace(Console.err)
-        cromwellSystem.shutdownActorSystem()
+    implicit val actorSystem = cromwellSystem.actorSystem
+    implicit val materializer = cromwellSystem.materializer
+    implicit val ec = actorSystem.dispatcher
+    actorSystem.actorOf(CromwellServerActor.props(cromwellSystem), "cromwell-service")
+    Future {
+      Await.result(actorSystem.whenTerminated, Duration.Inf)
     }
   }
 }
 
-class CromwellServerActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor with CromwellApiService with SwaggerService {
-  implicit def executionContext: ExecutionContextExecutor = actorRefFactory.dispatcher
+class CromwellServerActor(cromwellSystem: CromwellSystem)(override implicit val materializer: ActorMaterializer)
+  extends CromwellRootActor
+  with CromwellApiService
+  with SwaggerService {
+  implicit val actorSystem = context.system
+  override implicit val ec = context.dispatcher
+  override def actorRefFactory: ActorContext = context
 
   override val serverMode = true
   override val abortJobsOnTerminate = false
 
-  override def actorRefFactory: ActorContext = context
-  override def receive: PartialFunction[Any, Unit] = handleTimeouts orElse runRoute(possibleRoutes)
+  val webserviceConf = cromwellSystem.conf.getConfig("webservice")
+  val interface = webserviceConf.getString("interface")
+  val port = webserviceConf.getInt("port")
 
-  val routeUnwrapped: Boolean = config.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)
-  val possibleRoutes: Route = workflowRoutes.wrapped("api", routeUnwrapped) ~ swaggerUiResourceRoute
-  val timeoutError: String = APIResponse.error(new TimeoutException(
-    "The server was not able to produce a timely response to your request.")).toJson.prettyPrint
+  val routeUnwrapped: Boolean = cromwellSystem.conf.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)
 
-  def handleTimeouts: Receive = {
-    case Timedout(_: HttpRequest) =>
-      sender() ! HttpResponse(StatusCodes.InternalServerError, HttpEntity(ContentType(MediaTypes.`application/json`), timeoutError))
+  val allRoutes: Route = routes.wrapped("api", routeUnwrapped) ~ swaggerUiResourceRoute
+
+  Http().bindAndHandle(allRoutes, interface, port) onComplete {
+    case Success(_) => actorSystem.log.info("Cromwell service started...")
+    case Failure(e) =>
+      /*
+        TODO:
+        If/when CromwellServer behaves like a better async citizen, we may be less paranoid about our async log messages
+        not appearing due to the actor system shutdown. For now, synchronously print to the stderr so that the user has
+        some idea of why the server failed to start up.
+      */
+      Console.err.println(s"Binding failed interface $interface port $port")
+      e.printStackTrace(Console.err)
+      cromwellSystem.shutdownActorSystem()
   }
 
   /*
@@ -80,7 +69,7 @@ class CromwellServerActor(config: Config)(implicit materializer: ActorMaterializ
 }
 
 object CromwellServerActor {
-  def props(config: Config)(implicit materializer: ActorMaterializer): Props = {
-    Props(new CromwellServerActor(config)).withDispatcher(EngineDispatcher)
+  def props(cromwellSystem: CromwellSystem)(implicit materializer: ActorMaterializer): Props = {
+    Props(new CromwellServerActor(cromwellSystem)).withDispatcher(EngineDispatcher)
   }
 }

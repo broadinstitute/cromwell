@@ -43,7 +43,6 @@ notifications:
   slack:
     secure: AtR/p5c4Oz63ZbqwxM04UiDCsQRRnJ5qDZhuXjJ/R3+4Dr86rEhPedGLJC23mNb2DoB97BiLVfuAVNfks0c6HO6oZ8zoG772qNns7nAxENbIGW9SFhJTide8KRJMVI/cf7Ff0Pqjfx39ntqW3+bD2FKbTbjVa/0+a4dluVQ3nkw=
     template:
-          - "%{repository} (%{commit}) : %{message} %{foo} "
-          - "Build details: %{build_url}"
+      - "Build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}>) of %{repository}@%{branch} by %{author} %{result} in %{duration}"
     on_success: always
     on_failure: always

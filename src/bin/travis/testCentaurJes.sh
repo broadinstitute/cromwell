@@ -42,7 +42,7 @@ printTravisHeartbeat
 
 set -x
 
-PROGNAME="$(basename $0)"
+PROGNAME="$(basename "$0")"
 RUN_INTEGRATION_TESTS=0
 
 usage="
@@ -114,11 +114,11 @@ java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run src/bin/
 EXIT_CODE="${PIPESTATUS[0]}"
 
 # The perl code below is to remove our lovely color highlighting
-export WORKFLOW_ID=`grep "SingleWorkflowRunnerActor: Workflow submitted " log.txt | perl -pe 's/\e\[?.*?[\@-~]//g' | cut -f7 -d" "`
-
-# Grab the Centaur log from GCS and cat it so we see it in the main travis log. 
+WORKFLOW_ID=$(grep "SingleWorkflowRunnerActor: Workflow submitted " log.txt | perl -pe 's/\e\[?.*?[\@-~]//g' | cut -f7 -d" ")
+export WORKFLOW_ID
+# Grab the Centaur log from GCS and cat it so we see it in the main travis log.
 export CENTAUR_LOG_PATH="gs://cloud-cromwell-dev/cromwell_execution/travis/centaur_workflow/${WORKFLOW_ID}/call-centaur/cromwell_root/logs/centaur.log"
-gsutil cp ${CENTAUR_LOG_PATH} centaur.log
+gsutil cp "${CENTAUR_LOG_PATH}" centaur.log
 cat centaur.log
 echo "More logs for this run are available at https://console.cloud.google.com/storage/browser/cloud-cromwell-dev/cromwell_execution/travis/centaur_workflow/${WORKFLOW_ID}/call-centaur/"
 

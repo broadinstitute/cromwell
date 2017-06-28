@@ -58,24 +58,26 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
     val call = jobDescriptor.call
     val subWorkflow = workflow.workflow
     val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
-      Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
+      Labels.googleLabels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
     else
       Labels.empty
 
     val alias = call.unqualifiedName
     val aliasLabels = if (!alias.equals(call.task.name))
-      Labels("wdl-call-alias" -> alias)
+      Labels.googleLabels("wdl-call-alias" -> alias)
     else
       Labels.empty
 
-    Labels(
+    Labels.googleLabels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
       "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
       "wdl-task-name" -> call.task.name
     ) ++ subWorkflowLabels ++ aliasLabels
   }
 
-  lazy val backendLabels: Labels = defaultLabels ++ workflowDescriptor.customLabels
+  lazy val coercedCustomLabels = Labels.googleLabels(workflowDescriptor.customLabels.asTuple :_*)
+
+  lazy val backendLabels: Labels = defaultLabels ++ coercedCustomLabels
 
   lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
 

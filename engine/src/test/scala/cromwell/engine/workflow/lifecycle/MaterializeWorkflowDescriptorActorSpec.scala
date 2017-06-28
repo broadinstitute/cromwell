@@ -383,12 +383,13 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should be(
+            val expectedMessage =
               s"""Workflow input processing failed:
-                |Invalid label: Label1 did not match the regex ${Label.LabelRegexPattern}
-                |Invalid label: valu£1 did not match the regex ${Label.LabelRegexPattern}
-                |Invalid label: --label2 did not match the regex ${Label.LabelRegexPattern}
-                |Invalid label: valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue was 65 characters. The maximum is 63""".stripMargin)
+                  |Invalid label: Label1 did not match the regex ${Label.LabelKeyRegex}.
+                  |Invalid label: valu£1 did not match the regex ${Label.LabelValueRegex}.
+                  |Invalid label: --label2 did not match the regex ${Label.LabelKeyRegex}.
+                  |Invalid label: valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue was 65 characters. The maximum is 63.""".stripMargin
+            reason.getMessage shouldBe expectedMessage
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")

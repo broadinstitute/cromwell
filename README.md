@@ -1688,7 +1688,7 @@ Valid keys and their meanings:
 
 # Labels
 
-Every call in Cromwell is labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
+Every call run on the JES backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
 |-----|-------|---------|-------|
@@ -1709,12 +1709,16 @@ Custom labels can also be applied to every call in a workflow by specifying a cu
 }
 ```
 
-## Label Format
+## Label Format 
 
-To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. 
+When labels are supplied to Cromwell, it will fail any request which is made containing an invalid label strings. Below are the requirements for a valid label key/value pair in Crowmell:
+- All characters must be `[a-z]`, `[0-9]` or `-`.
+- Label keys must start with `[a-z]` and end with `[a-z0-9]`.
+- Label values must start and end with `[a-z0-9]`.
+- Label keys may not be empty but label values may be empty.
 
-For custom labels, Cromwell will reject any request which is made containing invalid label strings. For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
-
+Google has a different schema for labels, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length.
+For automatically applied labels when using the JES backend, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
 - Any capital letters are lowercased.
 - Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
 - If the start character does not match `[a-z]` then prefix with `x--`

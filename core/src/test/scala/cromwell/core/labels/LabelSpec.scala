@@ -53,6 +53,15 @@ class LabelSpec extends FlatSpec with Matchers {
     }
   }
 
+  badLabelKeys foreach { label =>
+    it should s"not validate a bad label key $label" in {
+      Label.validateLabelKey(label) match {
+        case Invalid(_) => // Good!
+        case Valid(_) => fail(s"Label key validation succeeded but should have failed.")
+      }
+    }
+  }
+
   googleLabelConversions foreach { case (label: String, conversion: String) =>
     it should s"not validate the bad label string '$label'" in {
       Label.validateLabelRegex(label, Label.GoogleLabelRegexPattern.r) match {

@@ -29,13 +29,9 @@ object Label {
     }
   }
 
-  def validateLabelKey(key: String) = {
-    validateLabelRegex(key, LabelKeyRegex.r)
-  }
+  def validateLabelKey(key: String) = validateLabelRegex(key, LabelKeyRegex.r)
 
-  def validateLabelValue(key: String) = {
-    validateLabelRegex(key, LabelValueRegex.r)
-  }
+  def validateLabelValue(key: String) = validateLabelRegex(key, LabelValueRegex.r)
 
   def validateLabel(key: String, value: String): ErrorOr[Label] = {
     val validatedKey = validateLabelKey(key)
@@ -81,10 +77,6 @@ object Label {
           validStartAndEnd
         }
     }
-  }
-
-  def safeGoogleLabel(key: String, value: String): Label = {
-    new Label(safeGoogleName(key), safeGoogleName(value, emptyAllowed = true)) {}
   }
 
   def apply(key: String, value: String) = {

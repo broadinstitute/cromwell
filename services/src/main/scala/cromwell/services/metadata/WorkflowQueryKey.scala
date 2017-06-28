@@ -62,7 +62,7 @@ object WorkflowQueryKey {
         }
       }
       val nels: List[ErrorOr[Label]] = values map validateLabelRegex
-      sequenceListOfValidatedNels("Labels do not match values do not match allowed pattern label-key:label-value", nels)
+      sequenceListOfValidatedNels("Label values do not match allowed pattern label-key:label-value", nels)
     }
   }
 

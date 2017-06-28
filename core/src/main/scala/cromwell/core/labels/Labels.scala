@@ -28,8 +28,13 @@ object Labels {
   //This method should only ever be used by the JES backend as this manipulation
   //to safe google label names is required to guard against JES job submission failure.
   def googleLabels(values: (String, String)*): Labels = {
+
+    def safeGoogleLabel(key: String, value: String): Label = {
+      Label(Label.safeGoogleName(key), Label.safeGoogleName(value, emptyAllowed = true))
+    }
+
     val kvps: Seq[(String, String)] = values.toSeq
-    Labels((kvps map { case (k, v) => Label.safeGoogleLabel(k, v) }).to[Vector])
+    Labels((kvps map { case(k, v) => safeGoogleLabel(k, v) } ).to[Vector])
   }
 
   def validateMapOfLabels(labels: Map[String, String]): ErrorOr[Labels] = {

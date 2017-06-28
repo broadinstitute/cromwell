@@ -21,7 +21,7 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       ejea.underlyingActor.effectiveCallCachingMode shouldBe CallCachingOff
     }
 
-    "prepare job if a cache entry already exists for this job" in {
+    "prepare job if no cache entry already exists" in {
       createCheckingCacheEntryExistenceEjea()
 
       ejea ! NoCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))

@@ -10,7 +10,15 @@ task centaur {
         mysqld &
         
         # give time to server to start
-        sleep 10
+        git clone https://github.com/vishnubob/wait-for-it.git
+        cd wait-for-it
+        ./wait-for-it.sh -t 10 localhost:3306
+        if (($? != 0)); then
+            echo "Timed out waiting for mysql server. Exiting."
+            exit 1
+        fi
+        
+        cd ..
         
         # setup mysql
         mysql -u root -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"

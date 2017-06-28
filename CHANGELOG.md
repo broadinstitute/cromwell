@@ -33,6 +33,14 @@ It can be set to specify the desired behavior of Cromwell regarding call outputs
 The default value is `copy` which will copy all output files to the new call directory.
 A second value is allowed, `reference`, that will instead point to the original output files, without copying them.
 
+
+### Metadata Write Batching
+
+Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 
+a default of 1 to 200.  It's possible that 200 is too high in some environments, but more likely to be an appropriate value
+than the previous default.
+
+
 ```hocon
 filesystems {
   gcs {

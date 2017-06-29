@@ -1693,7 +1693,6 @@ Every call run on the JES backend is given certain labels by default, so that Go
 | Key | Value | Example | Notes |
 |-----|-------|---------|-------|
 | cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
-| cromwell-workflow-name | The name of the root workflow | my-root-workflow | |
 | cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
 | wdl-task-name | The name of the WDL task | my-task | |
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |

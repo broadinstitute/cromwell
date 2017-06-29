@@ -5,9 +5,9 @@ import cromwell.core.labels.{Label, Labels}
 
 object GoogleLabels {
 
-  private val MaxLabelLength = Label.MaxLabelLength
+  val MaxLabelLength = Label.MaxLabelLength
 
-  private val GoogleLabelsRegexPattern = Label.LabelKeyRegex
+  val GoogleLabelsRegexPattern = Label.LabelKeyRegex
 
   def safeGoogleName(mainText: String, emptyAllowed: Boolean = false): String = {
 

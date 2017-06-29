@@ -25,16 +25,6 @@ import io.circe._
 
 import io.circe.refined._
 
-object P extends Poly1 {
-  implicit val x = at[Map[String, WorkflowStep]] {
-    println _
-  }
-
-  implicit val y = at[Array[WorkflowStep]] {
-    println _
-  }
-}
-
 class ParseBigThreeSpec extends FlatSpec with Matchers {
   val namespace = "cwl"
 

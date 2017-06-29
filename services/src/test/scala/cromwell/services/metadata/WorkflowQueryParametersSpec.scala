@@ -158,7 +158,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           throw new RuntimeException(s"Unexpected success: $r")
         case Invalid(fs) =>
           fs.toList should have size 1
-          fs.toList.head should include(s"Invalid label: `$badLabelKey` did not match the regex ${Label.GoogleLabelRegexPattern}")
+          fs.toList.head should include(s"Invalid label: `$badLabelKey` did not match the regex ${Label.LabelKeyRegex}")
       }
     }
 

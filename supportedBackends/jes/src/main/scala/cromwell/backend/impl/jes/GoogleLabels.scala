@@ -6,9 +6,10 @@ import cromwell.core.labels.{Label, Labels}
 object GoogleLabels {
 
   val MaxLabelLength = Label.MaxLabelLength
-
   val GoogleLabelsRegexPattern = Label.LabelKeyRegex
 
+  // This function is used to coerce a string into one that meets the requirements for a label submission to JES.
+  // See 'labels' in https://cloud.google.com/genomics/reference/rpc/google.genomics.v1alpha2#google.genomics.v1alpha2.RunPipelineArgs
   def safeGoogleName(mainText: String, emptyAllowed: Boolean = false): String = {
 
     Label.validateLabelRegex(mainText, GoogleLabelsRegexPattern.r) match {
@@ -46,10 +47,9 @@ object GoogleLabels {
   def toLabels(values: (String, String)*): Labels = {
 
     def safeGoogleLabel(key: String, value: String): Label = {
-      Label(Label.safeGoogleName(key), Label.safeGoogleName(value, emptyAllowed = true))
+      Label(safeGoogleName(key), safeGoogleName(value, emptyAllowed = true))
     }
 
-    val kvps: Seq[(String, String)] = values.toSeq
-    Labels((kvps map { case(k, v) => safeGoogleLabel(k, v) } ).to[Vector])
+    Labels(values.toVector map (safeGoogleLabel _ ).tupled)
   }
 }

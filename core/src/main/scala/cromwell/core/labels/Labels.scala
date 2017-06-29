@@ -21,8 +21,7 @@ case class Labels(value: Vector[Label]) {
 
 object Labels {
   def apply(values: (String, String)*): Labels = {
-    val kvps: Seq[(String, String)] = values.toSeq
-    Labels((kvps map { case (k, v) => Label(k, v) }).to[Vector])
+    Labels(values.toVector map (Label.apply _).tupled)
   }
 
   def validateMapOfLabels(labels: Map[String, String]): ErrorOr[Labels] = {

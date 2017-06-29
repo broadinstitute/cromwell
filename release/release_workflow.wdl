@@ -303,7 +303,7 @@ workflow release_cromwell {
         releaseV = wdltoolPrep.version,
         nextV = wdltoolPrep.nextVersion,
         updateVersionCommand = wdltoolPrep.updateCommand,
-        dependencyCommands = wdltoolDependencyCommands
+        dependencyCommands = wdltoolDependencyCommands.updateCommand
        }  
        
   call do_release as release_cromwell { input: 

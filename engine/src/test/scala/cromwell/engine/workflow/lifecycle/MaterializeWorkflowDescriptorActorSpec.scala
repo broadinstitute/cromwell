@@ -385,10 +385,10 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
             val expectedMessage =
               s"""Workflow input processing failed:
-                  |Invalid label: Label1 did not match the regex ${Label.LabelKeyRegex}.
-                  |Invalid label: valu£1 did not match the regex ${Label.LabelValueRegex}.
-                  |Invalid label: --label2 did not match the regex ${Label.LabelKeyRegex}.
-                  |Invalid label: valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue was 65 characters. The maximum is 63.""".stripMargin
+                  |Invalid label: `Label1` did not match the regex ${Label.LabelKeyRegex}.
+                  |Invalid label: `valu£1` did not match the regex ${Label.LabelValueRegex}.
+                  |Invalid label: `--label2` did not match the regex ${Label.LabelKeyRegex}.
+                  |Invalid label: `valuevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevaluevalue` is 65 characters. The maximum is 63.""".stripMargin
             reason.getMessage shouldBe expectedMessage
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>

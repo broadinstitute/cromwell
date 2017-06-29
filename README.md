@@ -1709,12 +1709,12 @@ Custom labels can also be applied to every call in a workflow by specifying a cu
 }
 ```
 
-## Label Format 
+## Label Format
 
-When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Crowmell:
-- Any characters other than `[a-z]`, `[0-9]` or `-` are invalid.
-- Label keys must start with `[a-z]` and end with `[a-z0-9]`.
-- Label values must start and end with `[a-z0-9]`.
+When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Cromwell:
+- Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.
+- Label keys must start with `[a-z]` and end with `[a-z]` or `[0-9]`.
+- Label values must start and end with `[a-z]` or `[0-9]`.
 - Label keys may not be empty but label values may be empty.
 - Label key and values have a max char limit of 63.
 
@@ -3498,7 +3498,7 @@ Server: spray-can/1.3.3
 
 ## GET /api/workflows/:version/callcaching/diff
 
-**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Crowmell 28.
+**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Cromwell 28.
 Workflows run with prior versions of Cromwell cannot be used with this endpoint.
 A `404 NotFound` will be returned when trying to use this endpoint if either workflow has been run on a prior version.
 

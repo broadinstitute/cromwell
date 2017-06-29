@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes
 import akka.actor.Actor
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
-import cromwell.core.labels.Labels
+import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
@@ -53,6 +53,18 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
     defaultMonitoringOutputPath.pathAsString, JesMonitoringLogFile, workingDisk)
   }
 
+  implicit class LabelsEnhancer(val labels: Labels) extends AnyVal {
+    def googleLabels(values: (String, String)*): Labels = {
+
+      def safeGoogleLabel(key: String, value: String): Label = {
+        Label(Label.safeGoogleName(key), Label.safeGoogleName(value, emptyAllowed = true))
+      }
+
+      val kvps: Seq[(String, String)] = values.toSeq
+      Labels((kvps map { case(k, v) => safeGoogleLabel(k, v) } ).to[Vector])
+    }
+  }
+
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor
     val call = jobDescriptor.call
@@ -64,7 +76,7 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
 
     val alias = call.unqualifiedName
     val aliasLabels = if (!alias.equals(call.task.name))
-      Labels.googleLabels("wdl-call-alias" -> alias)
+      GoogleLabels(Labels("wdl-call-alias" -> alias))
     else
       Labels.empty
 

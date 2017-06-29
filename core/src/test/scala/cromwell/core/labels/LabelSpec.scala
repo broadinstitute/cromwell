@@ -41,21 +41,21 @@ class LabelSpec extends FlatSpec with Matchers {
     "0-too-long-and-invalid-too-long-and-invalid-too-long-and-invali+" -> "x--0-too-long-and-invalid-too----nvalid-too-long-and-invali---x"
   )
 
-  goodLabelKeys foreach { label =>
-    it should s"validate a good label key '$label'" in {
-      Label.validateLabelKey(label) should be(Valid(label))
+  goodLabelKeys foreach { key =>
+    it should s"validate a good label key '$key'" in {
+      Label.validateLabelKey(key) should be(Valid(key))
     }
   }
 
-  goodLabelValues foreach { label =>
-    it should s"validate a good label value '$label'" in {
-      Label.validateLabelValue(label) should be(Valid(label))
+  goodLabelValues foreach { value =>
+    it should s"validate a good label value '$value'" in {
+      Label.validateLabelValue(value) should be(Valid(value))
     }
   }
 
-  badLabelKeys foreach { label =>
-    it should s"not validate a bad label key $label" in {
-      Label.validateLabelKey(label) match {
+  badLabelKeys foreach { key =>
+    it should s"not validate a bad label key $key" in {
+      Label.validateLabelKey(key) match {
         case Invalid(_) => // Good!
         case Valid(_) => fail(s"Label key validation succeeded but should have failed.")
       }

@@ -454,7 +454,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
       val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
         case (key, JsString(s)) => Label.validateLabel(key, s)
-        case (key, other) => s"Invalid label '$key: $other': Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
+        case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
       }
 
       vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }

@@ -13,7 +13,7 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-t refresh token] [-e excludeTag]
+$PROGNAME [-b branch] [-j jar path] [-r rundir] [-c config file] [-t refresh token] [-e excludeTag] [-i testDirPath]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
@@ -25,13 +25,14 @@ Arguments:
     -t    Refresh Token that can be passed into the appropriate options file
     -e    If supplied, will exclude tests with this tag
     -p    If supplied, number of tests to be run in parallel. 16 is the default
+    -i    If supplied, will run the tests in this directory instead of the standard tests
 "
 
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
 TEST_THREAD_COUNT=16
 
-while getopts ":hb:r:c:p:j:t:e:" option; do
+while getopts ":hb:r:c:p:j:t:e:i:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -49,6 +50,8 @@ while getopts ":hb:r:c:p:j:t:e:" option; do
         t) REFRESH_TOKEN=-Dcentaur.optionalToken=$(cat "${OPTARG}")
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
+            ;;
+        i) TEST_CASE_DIR="${OPTARG}"
             ;;
         e) EXCLUDE_TAG+=("${OPTARG}")
             ;;
@@ -94,6 +97,14 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.* -name "cromwell-*.jar")
 fi
 
+CROMWELL_MEM_ARGS="-Xmx3g"
+echo "Starting Cromwell, jar is ${CROMWELL_JAR}"
+if [ -n "$CONFIG_STRING" ]; then
+    java "${CROMWELL_MEM_ARGS}" "${CONFIG_STRING}" -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
+else
+    java "${CROMWELL_MEM_ARGS}" -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
+fi
+
 # Build and run centaur
 cd "${RUN_DIR}"
 
@@ -110,6 +121,10 @@ TEST_STATUS="failed"
 sbt test:compile
 CP=$(sbt "export test:dependency-classpath" --error)
 
+if [ -n "${TEST_CASE_DIR}" ]; then
+    RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"
+fi
+
 CENTAUR_CROMWELL_MODE="-Dcentaur.cromwell.mode=jar"
 CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
 CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CONFIG_STRING}"
@@ -123,10 +138,10 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     for val in "${EXCLUDE_TAG[@]}"; do 
         EXCLUDE="-l $val "$EXCLUDE
     done
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="java ${REFRESH_TOKEN} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"
 fi
 
 eval "${TEST_COMMAND} >> ${CENTAUR_LOG} 2>&1"

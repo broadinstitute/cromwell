@@ -1,0 +1,51 @@
+{
+  "##_COMMENT1": "Take note of the .64 extensions on the reference files, issues between 32 and 64 bit OS",
+
+  "##_COMMENT2": "SAMPLE NAME AND UNMAPPED BAMS - read the README to find other examples.",
+  "PairedEndSingleSampleWorkflow.sample_name": "NA12878",
+  "PairedEndSingleSampleWorkflow.base_file_name": "NA12878",
+  "PairedEndSingleSampleWorkflow.flowcell_unmapped_bams": [
+    "gs://broad-gotc-test-storage/single_sample/plumbing/bams/20k/H06HDADXX130110.1.ATCACGAT.20k_reads.bam",
+    "gs://broad-gotc-test-storage/single_sample/plumbing/bams/20k/H06HDADXX130110.2.ATCACGAT.20k_reads.bam",
+    "gs://broad-gotc-test-storage/single_sample/plumbing/bams/20k/H06JUADXX130110.1.ATCACGAT.20k_reads.bam"
+  ],
+  "PairedEndSingleSampleWorkflow.final_gvcf_name": "NA12878.g.vcf.gz",
+  "PairedEndSingleSampleWorkflow.unmapped_bam_suffix": ".bam",
+
+  "##_COMMENT3": "REFERENCES",
+  "PairedEndSingleSampleWorkflow.contamination_sites_vcf": "gs://broad-references/hg38/v0/WholeGenomeShotgunContam.vcf",
+  "PairedEndSingleSampleWorkflow.contamination_sites_vcf_index": "gs://broad-references/hg38/v0/WholeGenomeShotgunContam.vcf.idx",
+  "PairedEndSingleSampleWorkflow.wgs_calling_interval_list": "gs://broad-references/hg38/v0/wgs_calling_regions.hg38.interval_list",
+  "PairedEndSingleSampleWorkflow.haplotype_scatter_count" : 10,
+  "PairedEndSingleSampleWorkflow.break_bands_at_multiples_of" : 100000,
+  "PairedEndSingleSampleWorkflow.ref_dict": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "PairedEndSingleSampleWorkflow.ref_fasta": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "PairedEndSingleSampleWorkflow.ref_fasta_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+  "PairedEndSingleSampleWorkflow.ref_alt": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.alt",
+  "PairedEndSingleSampleWorkflow.ref_sa": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.sa",
+  "PairedEndSingleSampleWorkflow.ref_amb": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.amb",
+  "PairedEndSingleSampleWorkflow.ref_bwt": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.bwt",
+  "PairedEndSingleSampleWorkflow.ref_ann": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.ann",
+  "PairedEndSingleSampleWorkflow.ref_pac": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.pac",
+  "PairedEndSingleSampleWorkflow.known_indels_sites_VCFs": [
+    "gs://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+    "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz"
+  ],
+  "PairedEndSingleSampleWorkflow.known_indels_sites_indices": [
+    "gs://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
+    "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
+  ],
+  "PairedEndSingleSampleWorkflow.dbSNP_vcf": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf",
+  "PairedEndSingleSampleWorkflow.dbSNP_vcf_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
+  "PairedEndSingleSampleWorkflow.wgs_coverage_interval_list": "gs://broad-references/hg38/v0/wgs_coverage_regions.hg38.interval_list",
+  "PairedEndSingleSampleWorkflow.wgs_evaluation_interval_list": "gs://broad-references/hg38/v0/wgs_evaluation_regions.hg38.interval_list",
+
+  "##_COMMENT5": "DISK SIZES + MISC",
+  "PairedEndSingleSampleWorkflow.flowcell_small_disk": 100,
+  "PairedEndSingleSampleWorkflow.flowcell_medium_disk": 200,
+  "PairedEndSingleSampleWorkflow.agg_small_disk": 200,
+  "PairedEndSingleSampleWorkflow.agg_medium_disk": 300,
+  "PairedEndSingleSampleWorkflow.agg_large_disk": 400,
+  "PairedEndSingleSampleWorkflow.preemptible_tries": 0,
+  "PairedEndSingleSampleWorkflow.agg_preemptible_tries": 0
+}

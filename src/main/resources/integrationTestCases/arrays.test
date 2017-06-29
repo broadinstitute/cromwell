@@ -1,0 +1,13 @@
+name: arrays
+testFormat: workflowsuccess
+
+files {
+  wdl: green/arrays/arrays.wdl
+  inputs: green/arrays/arrays.inputs
+  options: green/arrays/arrays.options
+}
+
+metadata {
+  workflowName: Arrays
+  status: Succeeded
+}

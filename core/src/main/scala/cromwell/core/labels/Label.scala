@@ -13,7 +13,7 @@ object Label {
 
   // Yes, 63. Not a typo for 64.
   // See 'labels' in https://cloud.google.com/genomics/reference/rpc/google.genomics.v1alpha2#google.genomics.v1alpha2.RunPipelineArgs
-  private val MaxLabelLength = 63
+  val MaxLabelLength = 63
   val GoogleLabelRegexPattern = "[a-z]([-a-z0-9]*[a-z0-9])?"
   val LabelKeyRegex = GoogleLabelRegexPattern
   val LabelValueRegex = "([a-z0-9]*[-a-z0-9]*[a-z0-9])?"

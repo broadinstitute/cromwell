@@ -221,12 +221,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Unit = {
-    val defaultLabels = Map(
-      "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId",
-      "cromwell-workflow-name" -> unqualifiedName
-    )
-    val customLabels = labels.value map {x => x.key -> x.value}
-    labelsToMetadata(defaultLabels ++ customLabels, rootWorkflowId)
+    val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
+    val customLabels = labels.asMap
+    labelsToMetadata(customLabels + defaultLabel, rootWorkflowId)
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {

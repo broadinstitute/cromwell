@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes
 import akka.actor.Actor
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
-import cromwell.core.labels.{Label, Labels}
+import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
@@ -53,45 +53,34 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
     defaultMonitoringOutputPath.pathAsString, JesMonitoringLogFile, workingDisk)
   }
 
-  implicit class LabelsEnhancer(val labels: Labels) extends AnyVal {
-    def googleLabels(values: (String, String)*): Labels = {
-
-      def safeGoogleLabel(key: String, value: String): Label = {
-        Label(Label.safeGoogleName(key), Label.safeGoogleName(value, emptyAllowed = true))
-      }
-
-      val kvps: Seq[(String, String)] = values.toSeq
-      Labels((kvps map { case(k, v) => safeGoogleLabel(k, v) } ).to[Vector])
-    }
-  }
-
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor
     val call = jobDescriptor.call
     val subWorkflow = workflow.workflow
     val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
-      Labels.googleLabels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
+      Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
     else
       Labels.empty
 
     val alias = call.unqualifiedName
     val aliasLabels = if (!alias.equals(call.task.name))
-      GoogleLabels(Labels("wdl-call-alias" -> alias))
+      Labels("wdl-call-alias" -> alias)
     else
       Labels.empty
 
-    Labels.googleLabels(
+    Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-      "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
       "wdl-task-name" -> call.task.name
     ) ++ subWorkflowLabels ++ aliasLabels
   }
 
-  lazy val coercedCustomLabels = Labels.googleLabels(workflowDescriptor.customLabels.asTuple :_*)
+  lazy val originalLabels: Labels = defaultLabels ++ workflowDescriptor.customLabels
 
-  lazy val backendLabels: Labels = defaultLabels ++ coercedCustomLabels
+  lazy val backendLabels: Labels = GoogleLabels.toLabels(originalLabels.asTuple :_*)
 
-  lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
+  lazy val originalLabelEvents = originalLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
+
+  lazy val backendLabelEvents = backendLabels.value map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value } toMap
 
   override protected def nonStandardMetadata: Map[String, Any] = {
     Map(

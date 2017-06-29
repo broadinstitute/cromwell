@@ -22,6 +22,7 @@ before_install:
 env:
   global:
     - CENTAUR_BRANCH=develop
+    - INTEGRATION_TESTS_DIR=src/main/resources/integrationTestCases
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=sbt
@@ -38,3 +39,12 @@ deploy:
   script: src/bin/travis/publishRelease.sh
   on:
     tags: true
+notifications:
+  slack:
+    rooms:
+      - secure: B5KYcnhk/ujAUWlHsjzP7ROLm6MtYhaGikdYf6JYINovhMbVKnZCTlZEy7rqT3L2T5uJ25iefD500VQGk1Gn7puQ1sNq50wqjzQaj20PWEiBwoWalcV/nKBcQx1TyFT13LJv8fbFnVPxFCkC3YXoHedx8qAhDs8GH/tT5J8XOC8=
+    template:
+      - "Build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}>) of %{repository}@%{branch} by %{author} %{result} in %{duration}"
+    on_success: always
+    on_failure: always
+    on_pull_requests: true

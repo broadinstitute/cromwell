@@ -4,18 +4,48 @@ set -e
 
 SCRIPT_DIR=src/bin/travis
 
-# BUILD_TYPE is coming in from the Travis build matrix
-if [ "$BUILD_TYPE" = "centaurJes" ]; then
-    "${SCRIPT_DIR}"/testCentaurJes.sh
-elif [ "$BUILD_TYPE" = "centaurTes" ]; then
-    "${SCRIPT_DIR}"/testCentaurTes.sh
-elif [ "$BUILD_TYPE" = "centaurLocal" ]; then
-    "${SCRIPT_DIR}"/testCentaurLocal.sh
-elif [ "$BUILD_TYPE" = "sbt" ]; then
-    "${SCRIPT_DIR}"/testSbt.sh
-elif [ "$BUILD_TYPE" = "checkPublish" ]; then
-    "${SCRIPT_DIR}"/testCheckPublish.sh
-else
-    echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
-    exit 1
-fi
+# $TRAVIS_EVENT_TYPE will be cron if this build was initiated by a cron job
+case "$TRAVIS_EVENT_TYPE" in
+    push|pull_request|api)
+    # BUILD_TYPE is coming in from the Travis build matrix
+        case "$BUILD_TYPE" in
+        centaurJes)
+            "${SCRIPT_DIR}"/testCentaurJes.sh
+            ;;
+        centaurTes)
+            "${SCRIPT_DIR}"/testCentaurTes.sh
+            ;;
+        centaurLocal)
+            "${SCRIPT_DIR}"/testCentaurLocal.sh
+            ;;
+        sbt)
+            "${SCRIPT_DIR}"/testSbt.sh
+            ;;
+        checkPublish)
+            "${SCRIPT_DIR}"/testCheckPublish.sh
+            ;;
+        *)
+            echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
+            exit 1
+            ;;
+        esac
+        ;;
+    cron)
+        case "$BUILD_TYPE" in
+        centaurJes)
+            "${SCRIPT_DIR}"/testCentaurJes.sh -i
+            ;;
+        centaurTes|centaurLocal|sbt|checkPublish)
+            exit 0
+            ;;
+        *)
+            echo "Unknown BUILD_TYPE: '$BUILD_TYPE'"
+            exit 1
+            ;;
+        esac
+        ;;
+    *)
+        echo "Unknown TRAVIS_EVENT_TYPE: '$TRAVIS_EVENT_TYPE'"
+        exit 1
+        ;;
+    esac

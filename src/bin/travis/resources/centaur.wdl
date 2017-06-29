@@ -4,6 +4,7 @@ task centaur {
     File pem
     File cromwell_jar
     File token
+    String? integration_tests_dir
 
     command<<<
         # start mysql server
@@ -32,7 +33,7 @@ task centaur {
         cd centaur
         git checkout ${centaur_branch}
         cd ..
-        centaur/test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root -t${token} -elocaldockertest -p100
+        centaur/test_cromwell.sh -j${cromwell_jar} -c${conf} -r/cromwell_root -t${token} -elocaldockertest -p100 ${ "-i" + integration_tests_dir}
     >>>
 
     output {

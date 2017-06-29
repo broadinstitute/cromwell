@@ -55,6 +55,28 @@ filesystems {
 
 A placeholder file will be placed in the execution folder of the cached call to explain the absence of output files and point to the location of the original ones.
 
+### WDL write_* functions add a final newline
+
+The following WDL functions now add a newline after the final line of output (the previous behavior of not adding this
+newline was inadvertent):
+- write_lines
+- write_map
+- write_object
+- write_objects
+- write_tsv
+
+For example:
+
+```
+task writer {
+  Array[String] a = ["foo", "bar"]
+  # used to output: "foo\nbar"
+  # now outputs: "foo\nbar\n"
+  File out = write_lines(a)
+  ...
+}
+```
+
 ## 27
 
 ### Migration

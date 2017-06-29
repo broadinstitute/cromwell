@@ -77,8 +77,8 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def queryCallCaching(callCachingEntryId: Int)
-                               (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
+  override def queryResultsForCacheId(callCachingEntryId: Int)
+                                     (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     val action = for {
       callCachingEntryOption <- dataAccess.
         callCachingEntriesForId(callCachingEntryId).result.headOption
@@ -88,6 +88,16 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
         callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
     } yield callCachingEntryOption.map(
       CallCachingJoin(_, Seq.empty, None, callCachingSimpletonEntries, callCachingDetritusEntries))
+
+    runTransaction(action)
+  }
+
+  override def cacheEntryExistsForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
+                                      (implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = for {
+      callCachingEntryOption <- dataAccess.
+        callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
+    } yield callCachingEntryOption.nonEmpty
 
     runTransaction(action)
   }

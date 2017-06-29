@@ -91,7 +91,11 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   def fetchCachedResult(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
-    database.queryCallCaching(callCachingEntryId.id)
+    database.queryResultsForCacheId(callCachingEntryId.id)
+  }
+
+  def cacheEntryExistsForCall(workflowUuid: String, callFqn: String, index: Int)(implicit ec: ExecutionContext): Future[Boolean] = {
+    database.cacheEntryExistsForCall(workflowUuid, callFqn, index)
   }
 
   def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {

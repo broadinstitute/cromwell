@@ -18,8 +18,11 @@ trait CallCachingSqlDatabase {
   def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], hitNumber: Int)
                                 (implicit ec: ExecutionContext): Future[Option[Int]]
 
-  def queryCallCaching(callCachingEntryId: Int)
-                      (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
+  def queryResultsForCacheId(callCachingEntryId: Int)
+                            (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]]
+  
+  def cacheEntryExistsForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
+                             (implicit ec: ExecutionContext): Future[Boolean]
 
   def invalidateCall(callCachingEntryId: Int)
                     (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]]

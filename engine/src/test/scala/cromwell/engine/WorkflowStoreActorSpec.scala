@@ -14,6 +14,7 @@ import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import org.mockito.Mockito._
+import org.scalatest.concurrent.Eventually
 import org.scalatest.{BeforeAndAfter, Matchers}
 import org.specs2.mock.Mockito
 
@@ -21,7 +22,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter with Mockito {
+class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter with Mockito with Eventually {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources()
   val helloCwlWorldSourceFiles = HelloWorld.asWorkflowSources(workflowType = Option("CWL"), workflowTypeVersion = Option("v1.0"))
 
@@ -137,14 +138,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
               encryptedJsObject.fields("refresh_token").asJsObject.fields.keys should contain theSameElementsAs
                 Seq("iv", "ciphertext")
 
-              readMetadataActor ! GetMetadataQueryAction(MetadataQuery.forWorkflow(id))
-              expectMsgPF(10 seconds) {
-                case MetadataLookupResponse(_, eventList) =>
-                  val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get
-                  val clearedJsObject = optionsEvent.value.get.value.parseJson.asJsObject
-                  clearedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
-                  clearedJsObject.fields("key") should be(JsString("value"))
-                  clearedJsObject.fields("refresh_token") should be(JsString("cleared"))
+              // We need to wait for workflow metadata to be flushed before we can successfully query for it
+              eventually(timeout(15 seconds), interval(5 seconds)) {
+                readMetadataActor ! GetMetadataQueryAction(MetadataQuery.forWorkflow(id))
+                expectMsgPF(10 seconds) {
+                  case MetadataLookupResponse(_, eventList) =>
+                    val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get
+                    val clearedJsObject = optionsEvent.value.get.value.parseJson.asJsObject
+                    clearedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
+                    clearedJsObject.fields("key") should be(JsString("value"))
+                    clearedJsObject.fields("refresh_token") should be(JsString("cleared"))
+                }
               }
           }
       }

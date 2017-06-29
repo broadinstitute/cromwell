@@ -1,6 +1,5 @@
 package wdl4s
 
-import lenthall.exception.ThrowableAggregation
 import wdl4s.AstTools.EnhancedAstNode
 import wdl4s.WdlExpression._
 import wdl4s.expression._
@@ -12,7 +11,7 @@ import wdl4s.values._
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 class WdlExpressionException(message: String = null, cause: Throwable = null) extends RuntimeException(message, cause)
 

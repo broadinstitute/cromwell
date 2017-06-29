@@ -7,7 +7,7 @@ import cats.Apply
 import centaur.test._
 import centaur.test.formulas.TestFormulas
 import centaur.test.standard.CentaurTestFormat._
-import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, Workflow}
+import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.util.{Failure, Success, Try}
@@ -19,12 +19,15 @@ case class CentaurTestCase(workflow: Workflow, testFormat: CentaurTestFormat, te
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
     case RunTwiceExpectingNoCallCachingTest => TestFormulas.runWorkflowTwiceExpectingNoCaching(workflow)
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)
+    case CromwellRestartWithRecover => TestFormulas.cromwellRestartWithRecover(workflow)
+    case CromwellRestartWithoutRecover => TestFormulas.cromwellRestartWithoutRecover(workflow)
   }
 
   def isIgnored(supportedBackends: List[String]): Boolean = {
     val backendSupported = workflow.backends match {
       case AllBackendsRequired(allBackends) => allBackends forall supportedBackends.contains
       case AnyBackendRequired(anyBackend) => anyBackend exists supportedBackends.contains
+      case OnlyBackendsAllowed(onlyBackends) => onlyBackends.toSet == supportedBackends.toSet
     }
 
     testOptions.ignore || !backendSupported

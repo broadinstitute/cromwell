@@ -2,8 +2,6 @@
 
 shutdown() {
     cd "${INITIAL_DIR}"
-    # This will take out the backgrounded Cromwell instance
-    pkill -P $$
     exit "${EXIT_CODE}"
 }
 
@@ -43,7 +41,7 @@ while getopts ":hb:r:c:p:j:t:e:" option; do
         r) RUN_DIR=$OPTARG
             mkdir -p "${RUN_DIR}"
             ;;
-        c) CONFIG_STRING=-Dconfig.file="${OPTARG}"
+        c) CONFIG_STRING="${OPTARG}"
             ;;
 
         j) CROMWELL_JAR="${OPTARG}"
@@ -96,13 +94,6 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.* -name "cromwell-*.jar")
 fi
 
-echo "Starting Cromwell, jar is ${CROMWELL_JAR}"
-if [ -n "$CONFIG_STRING" ]; then
-    java "${CONFIG_STRING}" -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
-else
-    java -jar "${CROMWELL_JAR}" server >> "${CROMWELL_LOG}" 2>&1 &
-fi
-
 # Build and run centaur
 cd "${RUN_DIR}"
 
@@ -119,18 +110,24 @@ TEST_STATUS="failed"
 sbt test:compile
 CP=$(sbt "export test:dependency-classpath" --error)
 
+CENTAUR_CROMWELL_MODE="-Dcentaur.cromwell.mode=jar"
+CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
+CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CONFIG_STRING}"
+CENTAUR_CROMWELL_LOG="-Dcentaur.cromwell.jar.log=${CROMWELL_LOG}"
+CENTAUR_CROMWELL_RESTART="-Dcentaur.cromwell.jar.withRestart=true"
+CENTAUR_CONF="${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART}"
+
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     echo "Running Centaur filtering out ${EXCLUDE_TAG[*]} tests"
     EXCLUDE=""
     for val in "${EXCLUDE_TAG[@]}"; do 
         EXCLUDE="-l $val "$EXCLUDE
     done
-    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT} "$EXCLUDE
 else
     echo "Running Centaur with sbt test"
-    TEST_COMMAND="java ${REFRESH_TOKEN} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"
+    TEST_COMMAND="java ${REFRESH_TOKEN} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R target/scala-2.12/test-classes -oD -PS${TEST_THREAD_COUNT}"
 fi
-
 
 eval "${TEST_COMMAND} >> ${CENTAUR_LOG} 2>&1"
 

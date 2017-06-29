@@ -12,9 +12,26 @@ import centaur.test.standard.CentaurTestCase
 import scala.language.postfixOps
 import org.scalatest._
 
-class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecution {
-
+class StandardTestCaseSpec extends FlatSpec with Matchers with ParallelTestExecution with BeforeAndAfterAll {
+  
+  // Start cromwell if we're in Managed mode
+  // Note: we can't use beforeAll to start Cromwell, because beforeAll is executed once the suite is instantiated and the
+  // tests exist. However because the set of tests differs depending on the backends supported by Cromwell, it needs to be up
+  // before we can generate the tests.
+  // The solution chosen is to use a singleton object containing the Cromwell server state and ways to start / stop it.
+  // Another possibly better way would be to use something like https://stackoverflow.com/a/15556379/1498572 ?
+  CentaurConfig.runMode match {
+    case ManagedCromwellServer(preRestart, _, _) => CromwellManager.startCromwell(preRestart)
+    case _ =>
+  }
+  
   private val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
+
+  override def beforeAll() = {
+      sys.addShutdownHook { CromwellManager.stopCromwell() }
+  }
+  
+  override def afterAll() = CromwellManager.stopCromwell()
 
   def testCases(basePath: Path): List[CentaurTestCase] = {
     val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }

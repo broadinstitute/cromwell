@@ -8,14 +8,14 @@ import centaur._
 import centaur.api.CentaurCromwellClient
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
-import cromwell.api.model.{SubmittedWorkflow, TerminalStatus, WorkflowStatus}
+import cromwell.api.model.{Failed, SubmittedWorkflow, TerminalStatus, WorkflowStatus}
 import spray.json.JsString
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, blocking}
-import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Future, blocking}
+import scala.util.{Failure, Success, Try}
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -28,6 +28,8 @@ sealed abstract class Test[A] {
 }
 
 object Test {
+  def successful[A](value: A) = testMonad.pure(value)
+  
   implicit val testMonad: Monad[Test] = new Monad[Test] {
     override def flatMap[A, B](fa: Test[A])(f: A => Test[B]): Test[B] = {
       new Test[B] {
@@ -83,6 +85,79 @@ object Operations {
             // It's possible that we've started polling prior to the metadata service learning of this workflow
             pollDelay()
             doPerform(allowed404s = allowed404s - 1)
+          case Failure(f) if CromwellManager.isReady => throw f
+          case _ =>
+            pollDelay()
+            doPerform()
+        }
+      }
+
+      override def run: Try[SubmittedWorkflow] = workflowLengthFutureCompletion(() => Future { doPerform() })
+    }
+  }
+
+  /**
+    * Validate that the given jobId matches the one in the metadata
+    */
+  def validateRecovered(workflow: SubmittedWorkflow, callFqn: String, formerJobId: String): Test[Unit] = {
+    new Test[Unit] {
+      def doPerform(): Unit = {
+        CentaurCromwellClient.metadata(workflow) match {
+          case Success(s) =>
+            s.value.get(s"calls.$callFqn.jobId") match {
+              case Some(newJobId) if newJobId.asInstanceOf[JsString].value == formerJobId => ()
+              case Some(_) => throw new Exception("Pre-restart job ID did not match post restart job ID")
+              case _ => throw new Exception("Cannot find a post restart job ID")
+            }
+          case Failure(f) => throw f
+        }
+      }
+
+      override def run: Try[Unit] = workflowLengthFutureCompletion(() => Future { doPerform() })
+    }
+  }
+
+  /**
+    * Polls until a specific call is in Running state. Returns the job id.
+    */
+  def pollUntilCallIsRunning(workflow: SubmittedWorkflow, callFqn: String): Test[String] = {
+    // We want to keep this smaller than the runtime of the call we're polling for
+    // For JES it should be fine but locally it can be quite fast
+    def pollDelay() = blocking { Thread.sleep(5000) }
+    
+    def findCallStatus(metadata: WorkflowMetadata): Option[(String, String)] = {
+      for {
+        status <- metadata.value.get(s"calls.$callFqn.executionStatus")
+        jobId <- metadata.value.get(s"calls.$callFqn.jobId")
+      } yield (status.asInstanceOf[JsString].value, jobId.asInstanceOf[JsString].value)
+    }
+    
+    new Test[String] {
+      @tailrec
+      def doPerform(allowed404s: Int = 2): String = {
+        val metadata = for {
+          // We don't want to keep going forever if the workflow failed
+          status <- CentaurCromwellClient.status(workflow)
+          _ <- status match {
+            case Failed => Failure(new Exception("Workflow Failed"))
+            case _ => Success(())
+          }
+          metadata <- CentaurCromwellClient.metadata(workflow)
+        } yield metadata
+        
+        metadata match {
+          case Success(s) =>
+            findCallStatus(s) match {
+              case Some(("Running", jobId)) => jobId
+              case Some(("Failed", _)) => throw new Exception(s"$callFqn failed")
+              case _ =>
+                pollDelay()
+                doPerform()
+            }
+          case Failure(f) if f.getMessage.contains("404 Not Found") && allowed404s > 0 =>
+            // It's possible that we've started polling prior to the metadata service learning of this workflow
+            pollDelay()
+            doPerform(allowed404s = allowed404s - 1)
           case Failure(f) => throw f
           case _ =>
             pollDelay()
@@ -90,7 +165,7 @@ object Operations {
         }
       }
 
-      override def run: Try[SubmittedWorkflow] = workflowLengthFutureCompletion(Future { doPerform() })
+      override def run: Try[String] = workflowLengthFutureCompletion(() => Future { doPerform() })
     }
   }
 
@@ -190,6 +265,5 @@ object Operations {
   }
 
   /* Some enhancements of CromwellApi tools specific to these tests */
-  def workflowLengthFutureCompletion[T](x: Future[T]) = CentaurCromwellClient.awaitFutureCompletion(x, CentaurConfig.maxWorkflowLength)
-  def metadataFutureCompletion[T](x: Future[T]) = CentaurCromwellClient.awaitFutureCompletion(x, CentaurConfig.metadataConsistencyTimeout)
+  def workflowLengthFutureCompletion[T](x: () => Future[T]) = CentaurCromwellClient.maxWorkflowLengthCompletion(x)
 }

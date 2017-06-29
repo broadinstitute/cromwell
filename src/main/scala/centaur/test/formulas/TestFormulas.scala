@@ -2,6 +2,7 @@ package centaur.test.formulas
 
 import cats.syntax.functor._
 import cats.syntax.flatMap._
+import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
 import centaur.test.Operations._
 import centaur.test.Test
 import centaur.test.Test.testMonad
@@ -64,4 +65,22 @@ object TestFormulas {
       _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
     } yield ()
   }
+  
+  private def cromwellRestart(workflowDefinition: Workflow, testRecover: Boolean): Test[Unit] = CentaurConfig.runMode match {
+    case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+      for {
+        w <- submitWorkflow(workflowDefinition)
+        jobId <- pollUntilCallIsRunning(w, "cromwell_restart.cromwell_killer")
+        _ = CromwellManager.stopCromwell()
+        _ = CromwellManager.startCromwell(postRestart)
+        _ <- pollUntilStatus(w, Succeeded)
+        _ <- validateMetadata(w, workflowDefinition)
+        _ <- if(testRecover) validateRecovered(w, "cromwell_restart.cromwell_killer", jobId) else Test.successful(())
+        _ <- validateDirectoryContentsCounts(workflowDefinition, w)
+      } yield ()
+    case _ => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
+  }
+  
+  def cromwellRestartWithRecover(workflowDefinition: Workflow): Test[Unit] = cromwellRestart(workflowDefinition, testRecover = true)
+  def cromwellRestartWithoutRecover(workflowDefinition: Workflow): Test[Unit] = cromwellRestart(workflowDefinition, testRecover = false)
 }

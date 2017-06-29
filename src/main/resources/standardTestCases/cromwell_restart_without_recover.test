@@ -1,0 +1,16 @@
+name: cromwell_restart_without_recover
+testFormat: CromwellRestartWithoutRecover
+backends: [TES]
+tags: [localdockertest]
+
+files {
+  wdl: cromwell_restart/cromwell_restart.wdl
+}
+
+metadata {
+  workflowName: cromwell_restart
+  status: Succeeded
+  "calls.cromwell_restart.first_task.executionStatus": Done
+  "calls.cromwell_restart.cromwell_killer.executionStatus": Done
+  "calls.cromwell_restart.third_task.executionStatus": Done
+}

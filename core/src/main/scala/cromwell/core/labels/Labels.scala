@@ -5,7 +5,7 @@ import cats.instances.vector._
 import cats.syntax.traverse._
 import lenthall.validation.ErrorOr
 import lenthall.validation.ErrorOr.ErrorOr
-import spray.json.JsString
+import spray.json.JsObject
 
 import scala.collection.JavaConverters._
 

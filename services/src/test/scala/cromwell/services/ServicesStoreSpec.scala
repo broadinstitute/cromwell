@@ -98,7 +98,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           val diffFilters = StandardTypeFilters
           val filteredDiffResult = diffResult
             .filterLiquibaseObjects
-            .filterTableObjects(oldeTables)
             .filterChangedObjects(diffFilters)
 
           val totalChanged =
@@ -136,7 +135,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
             tables <- slickDatabase.database.run(MTable.getTables(Option("PUBLIC"), Option("PUBLIC"), None, None))
             workingTables = tables
               .filterNot(_.name.name.startsWith("DATABASECHANGELOG"))
-              .filterNot(table => oldeTables.contains(table.name.name))
               // NOTE: MetadataEntry column names are perma-busted due to the large size of the table.
               .filterNot(_.name.name == "METADATA_ENTRY")
             columns <- slickDatabase.database.run(DBIO.sequence(workingTables.map(_.getColumns)))
@@ -439,18 +437,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 }
 
 object ServicesStoreSpec {
-  // TODO PBE get rid of this after the migration of #789 has run.
-  private val oldeTables = Seq(
-    "EXECUTION",
-    "EXECUTION_EVENT",
-    "EXECUTION_INFO",
-    "FAILURE_EVENT",
-    "RUNTIME_ATTRIBUTES",
-    "SYMBOL",
-    "WORKFLOW_EXECUTION",
-    "WORKFLOW_EXECUTION_AUX"
-  )
-
   // strip the namespace from elems and their children
   private def stripNodeScope(node: Node): Node = {
     node match {

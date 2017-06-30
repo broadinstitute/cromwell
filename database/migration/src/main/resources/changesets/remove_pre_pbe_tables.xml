@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="mcovarr" id="drop-pre-pbe-tables">
+        <comment>Remove the old pre-pluggable backend tables.</comment>
+        <dropTable tableName="EXECUTION_INFO" />
+        <dropTable tableName="EXECUTION_EVENT" />
+        <dropTable tableName="FAILURE_EVENT" />
+        <dropTable tableName="RUNTIME_ATTRIBUTES" />
+        <dropTable tableName="SYMBOL" />
+        <dropTable tableName="EXECUTION" />
+        <dropTable tableName="WORKFLOW_EXECUTION_AUX" />
+        <dropTable tableName="WORKFLOW_EXECUTION" />
+    </changeSet>
+
+</databaseChangeLog>

@@ -10,6 +10,8 @@ files {
 
 metadata {
   "failures.0.message": "Workflow input processing failed"
-  "failures.0.causedBy.0.message": "Invalid label: 0-label-key-1 did not match the regex [a-z]([-a-z0-9]*[a-z0-9])?"
-  "failures.0.causedBy.2.message": "Invalid label: the-maximum-allowed-character-length-for-label-pairs-is-sixty-three was 67 characters. The maximum is 63"
+  "failures.0.causedBy.0.message": "Invalid label: `0-label-key-1` did not match the regex [a-z]([-a-z0-9]*[a-z0-9])?."
+  "failures.0.causedBy.1.message": "Invalid label: `the-maximum-allowed-character-length-for-label-pairs-is-sixty-three` is 67 characters. The maximum is 63."
+  "failures.0.causedBy.2.message": "Invalid label: `` did not match the regex [a-z]([-a-z0-9]*[a-z0-9])?."
+  "failures.0.causedBy.3.message": "Invalid label: `not a great label key` did not match the regex ([a-z0-9]*[-a-z0-9]*[a-z0-9])?."
 }

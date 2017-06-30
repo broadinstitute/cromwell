@@ -1,4 +1,5 @@
 {
   "0-label-key-1":"0-label-value-1",
-  "the-maximum-allowed-character-length-for-label-pairs-is-sixty-three": "cromwell-please-dont-validate-these-labels"
+  "the-maximum-allowed-character-length-for-label-pairs-is-sixty-three": "cromwell-please-dont-validate-these-labels",
+  "": "not a great label key"
 }

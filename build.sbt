@@ -27,7 +27,7 @@ versionWithGit ++ versionSettings
 
 val sprayJsonV = "1.3.2"
 
-val lenthallV = "0.25-903b3c0-SNAP"
+val lenthallV = "0.25"
 
 resolvers ++= List(
   "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"

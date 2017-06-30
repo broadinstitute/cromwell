@@ -10,7 +10,7 @@ crossScalaVersions := Seq("2.11.8", "2.12.1")
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
-  git.baseVersion := "0.25",
+  git.baseVersion := "0.26",
 
   // Shorten the git commit hash
   git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) },

@@ -92,20 +92,24 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  def createTaskMessage(): TesTaskMessage = {
-    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths, runtimeAttributes, commandDirectory,
-      backendEngineFunctions, realDockerImageUsed)
+  def createTaskMessage(): Task = {
+    val task = TesTask(jobDescriptor, configurationDescriptor, jobLogger, tesJobPaths,
+      runtimeAttributes, commandDirectory, commandScriptContents, backendEngineFunctions,
+      realDockerImageUsed)
 
-    tesJobPaths.script.write(commandScriptContents)
-
-    TesTaskMessage(
+    Task(
+      None,
+      None,
       Option(task.name),
       Option(task.description),
       Option(task.project),
       Option(task.inputs(commandLineValueMapper)),
       Option(task.outputs),
-      task.resources,
-      task.dockerExecutor
+      Option(task.resources),
+      task.executors,
+      None,
+      None,
+      None
     )
   }
 
@@ -114,15 +118,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessage = createTaskMessage()
 
-    val submitTask = pipeline[TesPostResponse]
+    val submitTask = pipeline[CreateTaskResponse]
       .apply(Post(tesEndpoint, taskMessage))
 
     submitTask.map {
       response =>
-        val jobID = response.value
+        val jobID = response.id
         PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
     }
   }
+
+  override def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext) = executeAsync()
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
@@ -136,8 +142,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         returnCodeTmp.delete(true)
     }
 
-    val abortRequest = pipeline[TesGetResponse]
-      .apply(Delete(s"$tesEndpoint/${job.jobId}"))
+    val abortRequest = pipeline[CancelTaskResponse]
+      .apply(Post(s"$tesEndpoint/${job.jobId}:cancel"))
     abortRequest onComplete {
       case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, job.jobId)
       case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, job.jobId, ex.getMessage)
@@ -146,21 +152,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)(implicit ec: ExecutionContext): Future[TesRunStatus] = {
-    val pollTask = pipeline[TesGetResponse].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}"))
+    val pollTask = pipeline[MinimalTaskView].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL"))
 
     pollTask.map {
       response =>
         val state = response.state
         state match {
-          case s if s.contains("Complete") =>
+          case s if s.contains("COMPLETE") =>
             jobLogger.info(s"Job ${handle.pendingJob.jobId} is complete")
             Complete
 
-          case s if s.contains("Cancel") =>
+          case s if s.contains("CANCELED") =>
             jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
             FailedOrError
 
-          case s if s.contains("Error") =>
+          case s if s.contains("ERROR") =>
             jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
             FailedOrError
 
@@ -185,21 +191,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       case _ => false
     }
   }
-
-  private def hostAbsoluteFilePath(wdlFile: WdlFile): Path = {
-    tesJobPaths.callExecutionRoot.resolve(wdlFile.value)
-  }
   
   private val outputWdlFiles: Seq[WdlFile] = jobDescriptor.call.task
     .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
     .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
 
   override def mapOutputWdlFile(wdlFile: WdlFile): WdlFile = {
+    val absPath: Path = tesJobPaths.callExecutionRoot.resolve(wdlFile.valueString)
     wdlFile match {
-      case fileNotFound if !hostAbsoluteFilePath(fileNotFound).exists && outputWdlFiles.contains(fileNotFound) =>
+      case fileNotFound if !absPath.exists && outputWdlFiles.contains(fileNotFound) =>
         throw new RuntimeException("Could not process output, file not found: " +
-          s"${hostAbsoluteFilePath(wdlFile).pathAsString}")
-      case _ => WdlFile(hostAbsoluteFilePath(wdlFile).pathAsString)
+          s"${absPath.pathAsString}")
+      case _ => WdlFile(absPath.pathAsString)
     }
   }
 }

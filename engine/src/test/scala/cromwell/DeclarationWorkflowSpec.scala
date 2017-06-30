@@ -9,7 +9,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
   "A workflow with declarations in it" should {
     "compute inputs properly" in {
-      WdlNamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.wdlSource(runtime=""), Seq.empty[ImportResolver]).get.workflow.inputs shouldEqual Map(
+      WdlNamespaceWithWorkflow.load(SampleWdl.DeclarationsWorkflow.workflowSource(runtime=""), Seq.empty[ImportResolver]).get.workflow.inputs shouldEqual Map(
         "two_step.cat.file" -> WorkflowInput("two_step.cat.file", WdlFileType),
         "two_step.cgrep.str_decl" -> WorkflowInput("two_step.cgrep.str_decl", WdlStringType),
         "two_step.cgrep.pattern" -> WorkflowInput("two_step.cgrep.pattern", WdlStringType),

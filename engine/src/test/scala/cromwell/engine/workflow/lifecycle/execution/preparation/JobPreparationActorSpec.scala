@@ -22,8 +22,8 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
   behavior of "JobPreparationActor"
 
   // Generated fresh for each test case in 'before'
-  var helper: JobPreparationTestHelper = null
-  var inputs: Map[Declaration, WdlValue] = null
+  var helper: JobPreparationTestHelper = _
+  var inputs: Map[Declaration, WdlValue] = _
 
   before {
     helper = new JobPreparationTestHelper()
@@ -63,7 +63,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
-        success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash("library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
+        success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash("ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     }
     helper.workflowDockerLookupActor.expectNoMsg(1 second)
   }
@@ -110,7 +110,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     )
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     val inputsAndAttributes = Success((inputs, attributes))
-    val finalValue = "library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val finalValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
@@ -136,7 +136,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
-        success.jobDescriptor.maybeCallCachingEligible shouldBe FloatingDockerTagWithoutHash("library/ubuntu:latest")
+        success.jobDescriptor.maybeCallCachingEligible shouldBe FloatingDockerTagWithoutHash("ubuntu:latest")
     }
   }
 }

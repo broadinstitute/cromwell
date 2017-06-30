@@ -2,8 +2,11 @@ package cromwell.filesystems.gcs.auth
 
 import java.io.FileNotFoundException
 
+import akka.actor.ActorSystem
+import akka.http.scaladsl.model.StatusCodes
 import better.files._
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.http.HttpResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -11,11 +14,13 @@ import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
 import cromwell.core.WorkflowOptions
+import cromwell.core.retry.Retry
 import cromwell.filesystems.gcs.auth.GoogleAuthMode._
 import cromwell.filesystems.gcs.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object GoogleAuthMode {
@@ -40,7 +45,20 @@ object GoogleAuthMode {
 
   case object MockAuthMode extends GoogleAuthMode {
     override def name = "no_auth"
-    override def credential(options: WorkflowOptions): Credentials = NoCredentials.getInstance()
+    override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+      Future.successful(NoCredentials.getInstance())
+    }
+  }
+  
+  def isFatal(ex: Throwable) = {
+    // We wrap the actual exception in a RuntimeException so get the cause
+    ex.getCause match {
+      case http: HttpResponseException =>
+        http.getStatusCode == StatusCodes.Unauthorized.intValue ||
+        http.getStatusCode == StatusCodes.Forbidden.intValue ||
+        http.getStatusCode == StatusCodes.BadRequest.intValue
+      case _ => false
+    }
   }
 }
 
@@ -55,14 +73,12 @@ sealed trait GoogleAuthMode {
 
   def name: String
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
-  def credential(options: WorkflowOptions): Credentials
+  def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials]
 
   def requiresAuthFile: Boolean = false
 
-  protected def validateCredential(credential: Credentials) = validate(credential, () => credential.refresh())
-
-  private def validate[T](credential: T, validation: () => Any): T = {
-    Try(validation()) match {
+  protected def validateCredential(credential: Credentials) = {
+    Try(credential.refresh()) match {
       case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
     }
@@ -91,10 +107,15 @@ final case class ServiceAccountMode(override val name: String,
       case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream).createScoped(scopes)
     }
     
+    // Validate credentials synchronously here, without retry.
+    // It's very unlikely to fail as it should not happen more than a few times 
+    // (one for the engine and for each backend using it) per Cromwell instance.
     validateCredential(serviceAccount)
   }
 
-  override def credential(options: WorkflowOptions): Credentials = _credential
+  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+    Future.successful(_credential)
+  }
 }
 
 final case class UserMode(override val name: String,
@@ -113,7 +134,7 @@ final case class UserMode(override val name: String,
     validateCredential(UserCredentials.fromStream(secretsStream))
   }
 
-  override def credential(options: WorkflowOptions) = _credential
+  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = Future.successful(_credential)
 }
 
 private object ApplicationDefault {
@@ -121,7 +142,9 @@ private object ApplicationDefault {
 }
 
 final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
-  override def credential(options: WorkflowOptions) = ApplicationDefault._Credential
+  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+    Future.successful(ApplicationDefault._Credential)
+  }
 }
 
 final case class RefreshTokenMode(name: String,
@@ -142,10 +165,14 @@ final case class RefreshTokenMode(name: String,
     ()
   }
 
-  override def credential(options: WorkflowOptions): Credentials = {
+  override def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
     val refreshToken = extractRefreshToken(options)
-    validateCredential(
-      new UserCredentials(clientId, clientSecret, refreshToken, null, GoogleAuthMode.HttpTransportFactory, null)
+    Retry.withRetry(
+      () => Future(validateCredential(
+        new UserCredentials(clientId, clientSecret, refreshToken, null, GoogleAuthMode.HttpTransportFactory, null)
+      )),
+      isFatal = isFatal,
+      maxRetries = Option(3)
     )
   }
 }

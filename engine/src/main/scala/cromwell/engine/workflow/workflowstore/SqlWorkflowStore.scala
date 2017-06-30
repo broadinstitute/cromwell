@@ -55,11 +55,13 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): WorkflowToStart = {
     val sources = WorkflowSourceFilesCollection(
-      workflowStoreEntry.workflowDefinition.toRawString,
-      workflowStoreEntry.workflowInputs.toRawString,
-      workflowStoreEntry.workflowOptions.toRawString,
-      workflowStoreEntry.customLabels.toRawString,
-      workflowStoreEntry.importsZip.toBytesOption
+      workflowSource = workflowStoreEntry.workflowDefinition.toRawString,
+      workflowType = workflowStoreEntry.workflowType,
+      workflowTypeVersion = workflowStoreEntry.workflowTypeVersion,
+      inputsJson = workflowStoreEntry.workflowInputs.toRawString,
+      workflowOptionsJson = workflowStoreEntry.workflowOptions.toRawString,
+      labelsJson = workflowStoreEntry.customLabels.toRawString,
+      importsFile = workflowStoreEntry.importsZip.toBytesOption
     )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
@@ -73,7 +75,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
     WorkflowStoreEntry(
       workflowExecutionUuid = WorkflowId.randomId().toString,
-      workflowDefinition = workflowSourceFiles.wdlSource.toClobOption,
+      workflowDefinition = workflowSourceFiles.workflowSource.toClobOption,
+      workflowType = workflowSourceFiles.workflowType,
+      workflowTypeVersion = workflowSourceFiles.workflowTypeVersion,
       workflowInputs = workflowSourceFiles.inputsJson.toClobOption,
       workflowOptions = workflowSourceFiles.workflowOptionsJson.toClobOption,
       customLabels = workflowSourceFiles.labelsJson.toClob(default = nonEmptyJsonString),

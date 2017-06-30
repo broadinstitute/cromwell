@@ -53,7 +53,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
     def baseWorkflowMetadata(name: String, labels: Set[Label] = Set.empty): Future[WorkflowId] = {
       val workflowId = WorkflowId.randomId()
-      val defaultLabels = Set(Label.safeLabel("cromwell-workflow-name", name))
+      val defaultLabels = Set(Label("cromwell-workflow-name", name))
       val labelMetadata = (labels ++ defaultLabels).map(label => (s"${WorkflowMetadataKeys.Labels}:${label.key}", label.value)).toArray
 
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
@@ -118,9 +118,9 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
       val randomIds = Seq.fill(10)(WorkflowId.randomId().toString)
 
-      val testLabel1 = Label.safeLabel("testing-key-1", "testing-value-1")
-      val testLabel2 = Label.safeLabel("testing-key-2", "testing-value-2")
-      val testLabel3 = Label.safeLabel("testing-key-3", "testing-value-3")
+      val testLabel1 = Label("testing-key-1", "testing-value-1")
+      val testLabel2 = Label("testing-key-2", "testing-value-2")
+      val testLabel3 = Label("testing-key-3", "testing-value-3")
 
       def succeededWorkflowMetadata(id: WorkflowId): Future[Unit] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)

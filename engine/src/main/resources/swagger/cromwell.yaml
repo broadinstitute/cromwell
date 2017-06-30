@@ -58,33 +58,33 @@ paths:
           type: string
           in: path
           default: v1
-        - name: wdlSource
-          description: WDL Source
+        - name: workflowSource
+          description: Workflow source file
           required: true
           type: file
           in: formData
         - name: workflowInputs
-          description: WDL Inputs JSON, 1
+          description: Workflow Inputs JSON, 1
           required: false
           type: file
           in: formData
         - name: workflowInputs_2
-          description: WDL Inputs JSON, 2
+          description: Workflow Inputs JSON, 2
           required: false
           type: file
           in: formData
         - name: workflowInputs_3
-          description: WDL Inputs JSON, 3
+          description: Workflow Inputs JSON, 3
           required: false
           type: file
           in: formData
         - name: workflowInputs_4
-          description: WDL Inputs JSON, 4
+          description: Workflow Inputs JSON, 4
           required: false
           type: file
           in: formData
         - name: workflowInputs_5
-          description: WDL Inputs JSON, 5
+          description: Workflow Inputs JSON, 5
           required: false
           type: file
           in: formData
@@ -93,13 +93,23 @@ paths:
           required: false
           type: file
           in: formData
+        - name: workflowType
+          description: Type of workflow
+          required: false
+          type: string
+          in: formData
+        - name: workflowTypeVersion
+          description: Version of workflow type
+          required: false
+          type: string
+          in: formData
         - name: customLabels
           description: Custom Labels JSON
           required: false
           type: file
           in: formData
-        - name: wdlDependencies
-          description: Zip file containing WDL dependencies
+        - name: workflowDependencies
+          description: Zip file containing workflow dependencies
           required: false
           type: file
           in: formData
@@ -129,13 +139,13 @@ paths:
           type: string
           in: path
           default: v1
-        - name: wdlSource
-          description: WDL Source
+        - name: workflowSource
+          description: Workflow Source
           required: true
           type: file
           in: formData
         - name: workflowInputs
-          description: WDL Inputs JSON as an array
+          description: Workflow Inputs JSON as an array
           required: true
           type: file
           in: formData
@@ -144,13 +154,23 @@ paths:
           required: false
           type: file
           in: formData
+        - name: workflowType
+          description: Type of workflow
+          required: false
+          type: string
+          in: formData
+        - name: workflowTypeVersion
+          description: Version of workflow type
+          required: false
+          type: string
+          in: formData
         - name: customLabels
           description: Custom Labels JSON
           required: false
           type: file
           in: formData
-        - name: wdlDependencies
-          description: Zip file containing WDL dependencies
+        - name: workflowDependencies
+          description: Zip file containing workflow dependencies
           required: false
           type: file
           in: formData
@@ -190,6 +210,45 @@ paths:
       responses:
         '200':
           description: Successful Request
+        '400':
+          description: Malformed Workflow ID
+        '404':
+          description: Workflow ID Not Found
+        '500':
+          description: Internal Error
+      security:
+        - google_oauth:
+            - openid
+  '/workflows/{version}/{id}/labels':
+    patch:
+      summary: Add new labels or update values for existing label keys by workflow id.
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: id
+          description: Workflow ID
+          required: true
+          type: string
+          in: path
+        - name: labels
+          description: >
+            Custom labels submitted as JSON.
+            Example: {"key-1":"value-1","key-2":"value-2"}
+          required: true
+          in: body
+          schema:
+            type: object
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/LabelsResponse'
         '400':
           description: Malformed Workflow ID
         '404':
@@ -379,6 +438,60 @@ paths:
           description: Malformed Workflow ID
         '404':
           description: Workflow ID Not Found
+        '500':
+          description: Internal Error
+      security:
+        - google_oauth:
+            - openid
+  '/workflows/{version}/callcaching/diff':
+    get:
+      summary: Return the hash differential between two calls
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: workflowA
+          description: Workflow Id of the first workflow
+          required: true
+          type: string
+          in: query
+        - name: callA
+          description: Call FQN (including workflow name) of the first call
+          required: true
+          type: string
+          in: query
+        - name: indexA
+          description: Index of the first call
+          required: false
+          type: int
+          in: query
+        - name: workflowB
+          description: Workflow Id of the second workflow
+          required: true
+          type: string
+          in: query
+        - name: callB
+          description: Call FQN (including workflow name) of the second call
+          required: true
+          type: string
+          in: query
+        - name: indexB
+          description: Index of the second call
+          required: false
+          type: int
+          in: query
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+        '400':
+          description: Malformed query parameters
+        '404':
+          description: No matching cache entry
         '500':
           description: Internal Error
       security:
@@ -868,3 +981,14 @@ definitions:
       cromwell:
         type: string
         description: The version of the Cromwell Engine
+  LabelsResponse:
+    required:
+      - id
+      - labels
+    properties:
+      id:
+        type: string
+        description: The identifier of the workflow
+      labels:
+        type: string
+        description: The custom labels as json

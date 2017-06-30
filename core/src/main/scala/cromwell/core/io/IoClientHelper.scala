@@ -19,7 +19,11 @@ trait IoClientHelper extends RobustClientHelper { this: Actor with ActorLogging 
   
   def ioReceive = robustReceive orElse ioResponseReceive
   
-  def sendIoCommand(ioCommand: IoCommand[_], timeout: FiniteDuration = RobustClientHelper.DefaultRequestLostTimeout) = {
+  def sendIoCommand(ioCommand: IoCommand[_]) = {
+    sendIoCommandWithCustomTimeout(ioCommand, RobustClientHelper.DefaultRequestLostTimeout)
+  }
+
+  def sendIoCommandWithCustomTimeout(ioCommand: IoCommand[_], timeout: FiniteDuration) = {
     robustSend(ioCommand, ioActor, timeout)
   }
 

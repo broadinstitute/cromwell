@@ -130,14 +130,14 @@ object DockerCliFlow {
   private def cliKeyFromImageId(context: DockerHashContext): DockerCliKey = {
     val imageId = context.dockerImageID
     (imageId.host, imageId.repository) match {
-      case (None, "library") =>
+      case (None, None) =>
         // For docker hub images (host == None), and don't include "library".
         val repository = imageId.image
         val tag = imageId.reference
         DockerCliKey(repository, tag)
       case _ =>
         // For all other images, include the host and repository.
-        val repository = s"${imageId.hostAsString}${imageId.repository}/${imageId.image}"
+        val repository = s"${imageId.hostAsString}${imageId.nameWithDefaultRepository}"
         val tag = imageId.reference
         DockerCliKey(repository, tag)
     }

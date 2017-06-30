@@ -1,6 +1,14 @@
 package cromwell.core.callcaching
 
-case class HashKey(key: String, checkForHitOrMiss: Boolean = true)
+
+object HashKey {
+  def apply(keyComponents: String*) = new HashKey(true, keyComponents.toList)
+  def apply(checkForHitOrMiss: Boolean, keyComponents: String*) = new HashKey(checkForHitOrMiss, keyComponents.toList)
+}
+
+case class HashKey(checkForHitOrMiss: Boolean, keyComponents: List[String]) {
+  val key = keyComponents.mkString(": ")
+}
 case class HashValue(value: String)
 case class HashResult(hashKey: HashKey, hashValue: HashValue)
 

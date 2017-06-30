@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import akka.actor.{Actor, ActorSystem, Props}
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 
 import scala.util.{Failure, Success, Try}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
@@ -11,10 +12,11 @@ import cromwell.services.metadata.MetadataService._
 import org.scalatest.{FlatSpec, Matchers}
 import spray.http._
 import spray.json.DefaultJsonProtocol._
-import spray.json.{JsString, _}
+import spray.json._
 import spray.routing._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.webservice.PerRequest.RequestComplete
 import spray.httpx.ResponseTransformation
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.encoding.Gzip
@@ -28,16 +30,16 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   val version = "v1"
 
   behavior of "REST API /status endpoint"
-  it should "return 200 for get of a known workflow id" in {
-    val workflowId = MockApiService.ExistingWorkflowId
-    Get(s"/workflows/$version/$workflowId/status") ~>
-      cromwellApiService.statusRoute ~>
-      check {
-          status should be(StatusCodes.OK)
-          val result = responseAs[JsObject]
-          result.fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
-      }
-  }
+    it should "return 200 for get of a known workflow id" in {
+      val workflowId = MockApiService.ExistingWorkflowId
+      Get(s"/workflows/$version/$workflowId/status") ~>
+        cromwellApiService.statusRoute ~>
+        check {
+            status should be(StatusCodes.OK)
+            val result = responseAs[JsObject]
+            result.fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
+        }
+    }
 
     it should "return 404 for get of unknown workflow" in {
       val workflowId = MockApiService.UnrecognizedWorkflowId
@@ -51,7 +53,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         }
     }
 
-     it should "return 400 for get of a malformed workflow id's status" in {
+    it should "return 400 for get of a malformed workflow id's status" in {
       Get(s"/workflows/$version/foobar/status") ~>
         cromwellApiService.statusRoute ~>
         check {
@@ -70,35 +72,35 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
     }
 
   behavior of "REST API /abort endpoint"
-  it should "return 404 for abort of unknown workflow" in {
-    val workflowId = MockApiService.UnrecognizedWorkflowId
+    it should "return 404 for abort of unknown workflow" in {
+      val workflowId = MockApiService.UnrecognizedWorkflowId
 
-    Post(s"/workflows/$version/$workflowId/abort") ~>
-      cromwellApiService.abortRoute ~>
-      check {
-        assertResult(StatusCodes.NotFound) {
-          status
+      Post(s"/workflows/$version/$workflowId/abort") ~>
+        cromwellApiService.abortRoute ~>
+        check {
+          assertResult(StatusCodes.NotFound) {
+            status
+          }
         }
-      }
-  }
+    }
 
-  it should "return 400 for abort of a malformed workflow id" in {
-    Post(s"/workflows/$version/foobar/abort") ~>
-      cromwellApiService.abortRoute ~>
-      check {
-        assertResult(StatusCodes.BadRequest) {
-          status
+    it should "return 400 for abort of a malformed workflow id" in {
+      Post(s"/workflows/$version/foobar/abort") ~>
+        cromwellApiService.abortRoute ~>
+        check {
+          assertResult(StatusCodes.BadRequest) {
+            status
+          }
+          assertResult(
+            """{
+              |  "status": "fail",
+              |  "message": "Invalid workflow ID: 'foobar'."
+              |}""".stripMargin
+          ) {
+            responseAs[String]
+          }
         }
-        assertResult(
-          """{
-            |  "status": "fail",
-            |  "message": "Invalid workflow ID: 'foobar'."
-            |}""".stripMargin
-        ) {
-          responseAs[String]
-        }
-      }
-  }
+    }
 
     it should "return 403 for abort of a workflow in a terminal state" in {
       Post(s"/workflows/$version/${MockApiService.AbortedWorkflowId}/abort") ~>
@@ -138,7 +140,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
 
   behavior of "REST API submission endpoint"
   it should "return 201 for a successful workflow submission " in {
-    val bodyParts: Map[String, BodyPart] = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowInputs" -> BodyPart(HelloWorld.rawInputs.toJson.toString()))
+    val bodyParts: Map[String, BodyPart] = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowInputs" -> BodyPart(HelloWorld.rawInputs.toJson.toString()))
     Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitRoute ~>
       check {
@@ -156,17 +158,53 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   }
 
   it should "return 400 for an unrecognized form data request parameter " in {
-    val bodyParts: Map[String, BodyPart] = Map("incorrectParameter" -> BodyPart(HelloWorld.wdlSource()))
+    val bodyParts: Map[String, BodyPart] = Map("incorrectParameter" -> BodyPart(HelloWorld.workflowSource()))
     Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitRoute ~>
       check {
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "Unexpected body part name: incorrectParameter"
+              |  "message": "Error(s): Unexpected body part name: incorrectParameter"
               |}""".stripMargin) {
           responseAs[String]
         }
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 for a workflow submission with unsupported workflow option keys" in {
+    val options = """
+                    |{
+                    |  "defaultRuntimeOptions": {
+                    |  "cpu":1
+                    |  }
+                    |}
+                    |""".stripMargin
+
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowOptions" -> BodyPart(options))
+
+    Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
+      cromwellApiService.submitRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+      }
+  }
+
+  it should "return 400 for a workflow submission with malformed workflow options json" in {
+    val options = s"""
+                     |{"read_from_cache": "true"
+                     |""".stripMargin
+
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowOptions" -> BodyPart(options))
+
+    Post(s"/workflows/$version", MultipartFormData(bodyParts)) ~>
+      cromwellApiService.submitRoute ~>
+      check {
         assertResult(StatusCodes.BadRequest) {
           status
         }
@@ -189,7 +227,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   behavior of "REST API batch submission endpoint"
   it should "return 200 for a successful workflow submission " in {
     val inputs = HelloWorld.rawInputs.toJson
-    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()), "workflowInputs" -> BodyPart(s"[$inputs, $inputs]"))
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()), "workflowInputs" -> BodyPart(s"[$inputs, $inputs]"))
 
     Post(s"/workflows/$version/batch", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitBatchRoute ~>
@@ -211,7 +249,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
   }
 
   it should "return 400 for an submission with no inputs" in {
-    val bodyParts = Map("wdlSource" -> BodyPart(HelloWorld.wdlSource()))
+    val bodyParts = Map("workflowSource" -> BodyPart(HelloWorld.workflowSource()))
 
     Post(s"/workflows/$version/batch", MultipartFormData(bodyParts)) ~>
       cromwellApiService.submitBatchRoute ~>
@@ -219,7 +257,7 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         assertResult(
           s"""{
               |  "status": "fail",
-              |  "message": "No inputs were provided"
+              |  "message": "Error(s): No inputs were provided"
               |}""".stripMargin) {
           responseAs[String]
         }
@@ -384,6 +422,131 @@ class CromwellApiServiceSpec extends FlatSpec with ScalatestRouteTest with Match
         }
       }
   }
+
+  behavior of "REST API /callcaching/diff GET endpoint"
+  it should "return good results for a good query" in {
+    Get(s"/workflows/$version/callcaching/diff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello") ~>
+      cromwellApiService.callCachingDiffRoute ~>
+      check {
+        assertResult(StatusCodes.OK) {
+          status
+        }
+        assertResult(
+          """{
+            |  "callA": {
+            |    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+            |    "callFqn": "wf_hello.hello",
+            |    "jobIndex": -1,
+            |    "allowResultReuse": true
+            |  },
+            |  "callB": {
+            |    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+            |    "callFqn": "wf_hello.hello",
+            |    "jobIndex": -1,
+            |    "allowResultReuse": false
+            |  },
+            |  "hashDifferential": [{
+            |    "key1": {
+            |      "callA": "somehash",
+            |      "callB": "someotherhash"
+            |    }
+            |  }, {
+            |    "key2": {
+            |      "callA": "somehash",
+            |      "callB": null
+            |    }
+            |  }, {
+            |    "key3": {
+            |      "callA": null,
+            |      "callB": "someotherhash"
+            |    }
+            |  }]
+            |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
+
+  it should "return an error for a bad query" in {
+    Get(s"/workflows/$version/callcaching/diff?missingStuff") ~>
+      cromwellApiService.callCachingDiffRoute ~>
+      check {
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        assertResult(
+          """{
+            |  "status": "fail",
+            |  "message": "Wrong parameters for call cache diff query:\nmissing workflowA query parameter\nmissing callA query parameter\nmissing workflowB query parameter\nmissing callB query parameter",
+            |  "errors": ["missing workflowA query parameter", "missing callA query parameter", "missing workflowB query parameter", "missing callB query parameter"]
+            |}""".stripMargin
+        ) {
+          responseAs[String]
+        }
+      }
+  }
+
+  behavior of "REST API /labels PATCH endpoint"
+  it should "return successful status response when assigning valid labels to an existing workflow ID" in {
+
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val workflowId = MockApiService.ExistingWorkflowId
+
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      cromwellApiService.patchLabelsRoute ~>
+      check {
+        status shouldBe StatusCodes.OK
+        val actualResult = responseAs[JsObject]
+        val expectedResults =
+          s"""
+            |{
+            |  "id": "${workflowId}",
+            |  "labels": {
+            |    "label-key-1":"label-value-1",
+            |    "label-key-2":"label-value-2"
+            |  }
+            |}
+          """.stripMargin.parseJson
+
+        actualResult shouldBe expectedResults
+      }
+  }
+
+  it should "return failed response when simulating a write metadata failure" in {
+
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val workflowId = MockApiService.AbortedWorkflowId
+
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      cromwellApiService.patchLabelsRoute ~>
+      check {
+        status shouldBe StatusCodes.InternalServerError
+        val actualResult = responseAs[JsObject]
+        val expectedResult =
+          s"""{
+              |  "status": "fail",
+              |  "message": "Unable to update labels for ${MockApiService.AbortedWorkflowId} due to mock exception of db failure"
+              |}
+            """.stripMargin.parseJson
+
+        actualResult shouldBe expectedResult
+      }
+  }
 }
 
 object CromwellApiServiceSpec {
@@ -392,8 +555,10 @@ object CromwellApiServiceSpec {
 
     override def actorRefFactory = system
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
-    override val serviceRegistryActor = actorRefFactory.actorOf(Props.empty)
+    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor))
     override val workflowManagerActor = actorRefFactory.actorOf(Props.empty)
+    override val callCacheDiffActorProps = Props(new MockCallCacheDiffActor())
+
 
     override def handleMetadataRequest(message: AnyRef): Route = {
       message match {
@@ -485,6 +650,57 @@ object CromwellApiServiceSpec {
         }
 
         sender ! message
+    }
+  }
+
+  class MockServiceRegistryActor extends Actor {
+    override def receive = {
+      case PutMetadataActionAndRespond(events, _) =>
+        events.head.key.workflowId match {
+          case MockApiService.ExistingWorkflowId =>
+            sender ! MetadataWriteSuccess(events)
+          case MockApiService.AbortedWorkflowId =>
+            sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
+        }
+    }
+  }
+
+  class MockCallCacheDiffActor extends Actor {
+    override def receive = {
+      case _: CallCacheDiffQueryParameter =>
+        val json = """{
+                     |  "callA": {
+                     |    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+                     |    "callFqn": "wf_hello.hello",
+                     |    "jobIndex": -1,
+                     |    "allowResultReuse": true
+                     |  },
+                     |  "callB": {
+                     |    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+                     |    "callFqn": "wf_hello.hello",
+                     |    "jobIndex": -1,
+                     |    "allowResultReuse": false
+                     |  },
+                     |  "hashDifferential": [{
+                     |    "key1": {
+                     |      "callA": "somehash",
+                     |      "callB": "someotherhash"
+                     |    }
+                     |  }, {
+                     |    "key2": {
+                     |      "callA": "somehash",
+                     |      "callB": null
+                     |    }
+                     |  }, {
+                     |    "key3": {
+                     |      "callA": null,
+                     |      "callB": "someotherhash"
+                     |    }
+                     |  }]
+                     |}""".stripMargin.parseJson.asJsObject
+
+        val response = RequestComplete((StatusCodes.OK, json))
+      sender() ! response
     }
   }
 }

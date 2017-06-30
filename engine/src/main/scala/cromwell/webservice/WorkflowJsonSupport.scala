@@ -6,11 +6,11 @@ import java.time.OffsetDateTime
 import cromwell.core._
 import cromwell.engine._
 import cromwell.services.metadata.MetadataService
-import MetadataService.{WorkflowQueryResponse, WorkflowQueryResult}
+import MetadataService._
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+import spray.json._
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -20,7 +20,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
   implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
   implicit val callAttempt = jsonFormat2(CallAttempt)
-  implicit val workflowSourceData = jsonFormat4(WorkflowSourceFilesWithoutImports)
+  implicit val workflowSourceData = jsonFormat6(WorkflowSourceFilesWithoutImports)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)
@@ -30,7 +30,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowSourceDataWithImports = jsonFormat5(WorkflowSourceFilesWithDependenciesZip)
+  implicit val workflowSourceDataWithImports = jsonFormat7(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
   implicit val successResponse = jsonFormat3(SuccessResponse)
 

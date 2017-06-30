@@ -3,6 +3,7 @@ package cromwell.core.io
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{TestActorRef, TestProbe}
 import cromwell.core.TestKitSuite
+import cromwell.core.io.DefaultIoCommand.DefaultIoSizeCommand
 import cromwell.core.path.Path
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -22,7 +23,7 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     
     val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backpressureTimeout, noResponseTimeout)) 
     
-    val command = new IoSizeCommand(mock[Path])
+    val command = DefaultIoSizeCommand(mock[Path])
     val response = IoSuccess(command, 5)
 
     // Send the command
@@ -53,7 +54,7 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backpressureTimeout, noResponseTimeout))
 
     val commandContext = "context"
-    val command = new IoSizeCommand(mock[Path])
+    val command = DefaultIoSizeCommand(mock[Path])
     val response = IoSuccess(command, 5)
 
     // Send the command
@@ -91,7 +92,7 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     }
 
     def sendMessage(command: IoCommand[_]) = {
-      sendIoCommand(command, noResponseTimeout)
+      sendIoCommandWithCustomTimeout(command, noResponseTimeout)
     }
 
     def sendMessageWithContext(context: Any, command: IoCommand[_]) = {

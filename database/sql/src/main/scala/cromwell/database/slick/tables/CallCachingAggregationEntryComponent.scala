@@ -34,16 +34,21 @@ trait CallCachingAggregationEntryComponent {
     callCachingAggregationEntries.map(_.callCachingAggregationEntryId)
 
   val existsCallCachingEntriesForBaseAggregationHash = Compiled(
-    (baseAggregation: Rep[String]) => {
-      callCachingAggregationEntries.filter(callCachingAggregationEntry =>
-        callCachingAggregationEntry.baseAggregation === baseAggregation
-      ).exists
-    }
+    (baseAggregation: Rep[String]) => (for {
+      callCachingEntry <- callCachingEntries
+      if callCachingEntry.allowResultReuse
+      callCachingAggregationEntry <- callCachingAggregationEntries
+      if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
+      if callCachingAggregationEntry.baseAggregation === baseAggregation
+    } yield ()).exists
   )
-  
+
   def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String], inputFilesAggregation: Rep[Option[String]], number: Int) = {
     (for {
+      callCachingEntry <- callCachingEntries
+      if callCachingEntry.allowResultReuse
       callCachingAggregationEntry <- callCachingAggregationEntries
+      if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
       if (callCachingAggregationEntry.inputFilesAggregation.isEmpty && inputFilesAggregation.isEmpty) ||
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)

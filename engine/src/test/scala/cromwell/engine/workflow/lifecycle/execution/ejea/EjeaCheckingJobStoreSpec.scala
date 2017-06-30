@@ -2,9 +2,9 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingJobStore, NoData, PreparingJob}
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingCacheEntryExistence, CheckingJobStore, NoData}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.CallCacheEntryForCall
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete}
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
 
@@ -54,13 +54,13 @@ class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
       }
     }
 
-    "begin preparing the job if it's not already complete" in {
+    "check for cache entry existence if it's not already complete" in {
       createCheckingJobStoreEjea()
       ejea.setState(CheckingJobStore)
       ejea ! JobNotComplete
 
-      helper.jobPreparationProbe.expectMsg(awaitTimeout, "expecting RecoverJobCommand", CallPreparation.Start)
-      ejea.stateName should be(PreparingJob)
+      helper.callCacheReadActorProbe.expectMsg(awaitTimeout, "expecting CallCacheEntryForCall", CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
+      ejea.stateName should be(CheckingCacheEntryExistence)
 
       ejea.stop()
     }

@@ -47,18 +47,18 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
   override lazy val calls: Set[TaskCall] = standardParams.calls
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
-    Future.fromTry(Try(Option(initializationData)))
+    initializationData map Option.apply
   }
 
-  lazy val initializationData: StandardInitializationData =
-    new StandardInitializationData(workflowPaths, runtimeAttributesBuilder, classOf[StandardExpressionFunctions])
+  lazy val initializationData: Future[StandardInitializationData] =
+    workflowPaths map { new StandardInitializationData(_, runtimeAttributesBuilder, classOf[StandardExpressionFunctions]) }
 
   lazy val expressionFunctions: Class[_ <: StandardExpressionFunctions] = classOf[StandardExpressionFunctions]
 
-  lazy val pathBuilders: List[PathBuilder] = List(DefaultPathBuilder)
+  lazy val pathBuilders: Future[List[PathBuilder]] = Future.successful(List(DefaultPathBuilder))
 
-  lazy val workflowPaths: WorkflowPaths =
-    WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, pathBuilders)
+  lazy val workflowPaths: Future[WorkflowPaths] =
+    pathBuilders map { WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, _) }
 
   /**
     * Returns the runtime attribute builder for this backend.

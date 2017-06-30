@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs.auth
 
-import cromwell.core.WorkflowOptions
+import com.google.auth.oauth2.GoogleCredentials
 import org.scalatest.Assertions._
 
 import scala.util.{Failure, Try}
@@ -15,9 +15,7 @@ object GoogleAuthModeSpec {
   }
 
   private lazy val tryApplicationDefaultCredentials: Try[Unit] = Try {
-    val authMode = ApplicationDefaultMode("application-default")
-    val workflowOptions = WorkflowOptions.empty
-    authMode.credential(workflowOptions)
+    GoogleCredentials.getApplicationDefault
     ()
   }
 }

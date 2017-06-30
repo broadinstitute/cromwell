@@ -272,6 +272,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       jesParameters,
       googleProject(jobDescriptor.workflowDescriptor),
       computeServiceAccount(jobDescriptor.workflowDescriptor),
+      backendLabels,
       preemptible,
       initializationData.genomics
     )

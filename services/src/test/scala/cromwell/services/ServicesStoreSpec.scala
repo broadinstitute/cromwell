@@ -297,8 +297,17 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val emptyBlob = new SerialBlob(Array.empty[Byte])
 
       val workflowUuid = WorkflowId.randomId().toString
-      val workflowStoreEntry = WorkflowStoreEntry(workflowUuid, clobOption, clobOption, clobOption,
-        "Testing", OffsetDateTime.now.toSystemTimestamp, Option(emptyBlob), clob)
+      val workflowStoreEntry = WorkflowStoreEntry(
+        workflowExecutionUuid = workflowUuid,
+        workflowType = WdlWorkflowType,
+        workflowTypeVersion = None,
+        workflowDefinition = clobOption,
+        workflowInputs = clobOption,
+        workflowOptions = clobOption,
+        workflowState = "Testing",
+        submissionTime = OffsetDateTime.now.toSystemTimestamp,
+        importsZip = Option(emptyBlob),
+        customLabels = clob)
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
 
@@ -362,19 +371,44 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val clobOption = "{}".toClobOption
 
       val emptyWorkflowUuid = WorkflowId.randomId().toString
-      val emptyWorkflowStoreEntry = WorkflowStoreEntry(emptyWorkflowUuid, clobOption, clobOption,
-        clobOption, testWorkflowState, OffsetDateTime.now.toSystemTimestamp,
-        Option(Array.empty[Byte]).toBlobOption, clob)
+      val emptyWorkflowStoreEntry = WorkflowStoreEntry(
+        workflowExecutionUuid = emptyWorkflowUuid,
+        workflowType = WdlWorkflowType,
+        workflowTypeVersion = None,
+        workflowDefinition = clobOption,
+        workflowInputs = clobOption,
+        workflowOptions = clobOption,
+        workflowState = testWorkflowState,
+        submissionTime = OffsetDateTime.now.toSystemTimestamp,
+        importsZip = Option(Array.empty[Byte]).toBlobOption,
+        customLabels = clob)
 
       val noneWorkflowUuid = WorkflowId.randomId().toString
-      val noneWorkflowStoreEntry = WorkflowStoreEntry(noneWorkflowUuid, clobOption, clobOption,
-        clobOption, testWorkflowState, OffsetDateTime.now.toSystemTimestamp, None, clob)
+      val noneWorkflowStoreEntry = WorkflowStoreEntry(
+        workflowExecutionUuid = noneWorkflowUuid,
+        workflowType = WdlWorkflowType,
+        workflowTypeVersion = None,
+        workflowDefinition = clobOption,
+        workflowInputs = clobOption,
+        workflowOptions = clobOption,
+        workflowState = testWorkflowState,
+        submissionTime = OffsetDateTime.now.toSystemTimestamp,
+        importsZip = None,
+        customLabels = clob)
 
       val aByte = 'a'.toByte
       val aByteWorkflowUuid = WorkflowId.randomId().toString
-      val aByteWorkflowStoreEntry = WorkflowStoreEntry(aByteWorkflowUuid, clobOption, clobOption,
-        clobOption, testWorkflowState, OffsetDateTime.now.toSystemTimestamp, Option(Array(aByte)).toBlobOption,
-        clob)
+      val aByteWorkflowStoreEntry = WorkflowStoreEntry(
+        workflowExecutionUuid = aByteWorkflowUuid,
+        workflowType = WdlWorkflowType,
+        workflowTypeVersion = None,
+        workflowDefinition = clobOption,
+        workflowInputs = clobOption,
+        workflowOptions = clobOption,
+        workflowState = testWorkflowState,
+        submissionTime = OffsetDateTime.now.toSystemTimestamp,
+        importsZip = Option(Array(aByte)).toBlobOption,
+        customLabels = clob)
 
       val workflowStoreEntries = Seq(emptyWorkflowStoreEntry, noneWorkflowStoreEntry, aByteWorkflowStoreEntry)
 
@@ -586,4 +620,6 @@ object ServicesStoreSpec {
       tables.find(_.tableName == tableItem.tableName).exists(_.existsSlickMapping(tableItem.itemName))
     }
   }
+
+  private val WdlWorkflowType = Option("WDL")
 }

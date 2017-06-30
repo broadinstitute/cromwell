@@ -13,9 +13,21 @@ import wdl4s.values._
 import scala.language.postfixOps
 
 trait SampleWdl extends TestFileUtil {
-  def wdlSource(runtime: String = ""): WdlSource
-  def asWorkflowSources(runtime: String = "", workflowOptions: String = "{}", labels: String = "{}") =
-    WorkflowSourceFilesWithoutImports(wdlSource = wdlSource(runtime), inputsJson = wdlJson, workflowOptionsJson = workflowOptions, labelsJson = labels)
+  def workflowSource(runtime: String = ""): WdlSource
+  def asWorkflowSources(runtime: String = "",
+                        workflowOptions: String = "{}",
+                        labels: String = "{}",
+                        workflowType: Option[String] = Option("WDL"),
+                        workflowTypeVersion: Option[String] = None) = {
+    WorkflowSourceFilesWithoutImports(
+      workflowSource = workflowSource(runtime),
+      inputsJson = wdlJson,
+      workflowOptionsJson = workflowOptions,
+      labelsJson = labels,
+      workflowType = workflowType,
+      workflowTypeVersion = workflowTypeVersion)
+  }
+
   val rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")
@@ -62,7 +74,7 @@ trait SampleWdl extends TestFileUtil {
 object SampleWdl {
 
   object HelloWorld extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
         |task hello {
         |  String addressee
@@ -87,7 +99,7 @@ object SampleWdl {
   }
 
   object HelloWorldWithoutWorkflow extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
         |task hello {
         |  String addressee
@@ -107,7 +119,7 @@ object SampleWdl {
   }
 
   object GoodbyeWorld extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       """
         |task goodbye {
         |  command {
@@ -128,7 +140,7 @@ object SampleWdl {
   }
 
   object EmptyString extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
         |task hello {
         |  command {
@@ -170,13 +182,13 @@ object SampleWdl {
 
 
   object EmptyWorkflow extends SampleWdl {
-    override def wdlSource(runtime: String = "") = "workflow empty_workflow {}"
+    override def workflowSource(runtime: String = "") = "workflow empty_workflow {}"
 
     val rawInputs = Map.empty[String, Any]
   }
 
   object CoercionNotDefined extends SampleWdl {
-    override def wdlSource(runtime: String = "") = {
+    override def workflowSource(runtime: String = "") = {
       s"""
         |task summary {
         |  String bfile
@@ -207,7 +219,7 @@ object SampleWdl {
   }
 
   trait ThreeStepTemplate extends SampleWdl {
-    override def wdlSource(runtime: String = "") = sourceString().replaceAll("RUNTIME", runtime)
+    override def workflowSource(runtime: String = "") = sourceString().replaceAll("RUNTIME", runtime)
     private val outputSectionPlaceholder = "OUTPUTSECTIONPLACEHOLDER"
     def sourceString(outputsSection: String = "") = {
       val withPlaceholders =
@@ -268,7 +280,7 @@ object SampleWdl {
   object ThreeStep extends ThreeStepTemplate
 
   object ThreeStepWithOutputsSection extends ThreeStepTemplate {
-    override def wdlSource(runtime: String = "") = sourceString(outputsSection =
+    override def workflowSource(runtime: String = "") = sourceString(outputsSection =
       """
         |output {
         | cgrep.count
@@ -278,7 +290,7 @@ object SampleWdl {
   }
 
   object ThreeStepWithInputsInTheOutputsSection extends ThreeStepTemplate {
-    override def wdlSource(runtime: String = "") = sourceString(outputsSection =
+    override def workflowSource(runtime: String = "") = sourceString(outputsSection =
       """
         |output {
         | cgrep.pattern
@@ -293,7 +305,7 @@ object SampleWdl {
   object WorkflowOutputsWithFiles extends SampleWdl {
     // ASCII art from http://www.chris.com/ascii/joan/www.geocities.com/SoHo/7373/flag.html with pipes
     // replaced by exclamation points to keep stripMargin from removing the flagpole.
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       """
         task A {
           command {
@@ -360,7 +372,7 @@ object SampleWdl {
   }
 
   object WorkflowScatterOutputsWithFileArrays extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       """
         |task A {
         |  command {
@@ -387,7 +399,7 @@ object SampleWdl {
 
 
   object DeclarationsWorkflow extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""
         |task cat {
         |  File file
@@ -441,7 +453,7 @@ object SampleWdl {
   }
 
   trait ZeroOrMorePostfixQuantifier extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""
         |task hello {
         |  Array[String] person
@@ -472,7 +484,7 @@ object SampleWdl {
   }
 
   trait OneOrMorePostfixQuantifier extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""
         |task hello {
         |  Array[String]+ person
@@ -499,7 +511,7 @@ object SampleWdl {
   }
 
   object CurrentDirectory extends SampleWdl {
-    override def wdlSource(runtime: String): String =
+    override def workflowSource(runtime: String): String =
       """
         |task whereami {
         |  command {
@@ -520,7 +532,7 @@ object SampleWdl {
   }
 
   object ArrayIO extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
         |task serialize {
         |  Array[String] strs
@@ -547,7 +559,7 @@ object SampleWdl {
     createFileArray(catRootDir)
     def cleanup() = cleanupFileArray(catRootDir)
 
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
         |task cat {
         |  Array[File]+ files
@@ -572,7 +584,7 @@ object SampleWdl {
     createFileArray(catRootDir)
     def cleanup() = cleanupFileArray(catRootDir)
 
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
         |task write_map {
         |  Map[File, String] file_to_name
@@ -661,7 +673,7 @@ object SampleWdl {
       |}
     """.stripMargin
 
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""$tasks
         |
         |workflow w {
@@ -679,7 +691,7 @@ object SampleWdl {
   }
 
   object SiblingsScatterWdl extends ScatterWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""$tasks
         |
         |workflow w {
@@ -700,7 +712,7 @@ object SampleWdl {
   }
 
   object SimpleScatterWdl extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""task echo_int {
         |  Int int
         |  command {echo $${int}}
@@ -723,7 +735,7 @@ object SampleWdl {
   }
 
   object SimpleScatterWdlWithOutputs extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""task echo_int {
         |  Int int
         |  command {echo $${int}}
@@ -748,7 +760,7 @@ object SampleWdl {
   }
 
   case class PrepareScatterGatherWdl(salt: String = UUID.randomUUID().toString) extends SampleWdl {
-    override def wdlSource(runtime: String = "") = {
+    override def workflowSource(runtime: String = "") = {
       s"""
         |#
         |# Goal here is to split up the input file into files of 1 line each (in the prepare) then in parallel call wc -w on each newly created file and count the words into another file then in the gather, sum the results of each parallel call to come up with
@@ -816,7 +828,7 @@ object SampleWdl {
   }
 
   object FileClobber extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""task read_line {
         |  File in
         |  command { cat $${in} }
@@ -841,7 +853,7 @@ object SampleWdl {
   }
 
   object FilePassingWorkflow extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""task a {
         |  File in
         |  String out_name = "out"
@@ -881,7 +893,7 @@ object SampleWdl {
     *               different
     */
   case class CallCachingWorkflow(salt: String) extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""task a {
         |  File in
         |  String out_name = "out"
@@ -933,7 +945,7 @@ object SampleWdl {
         |k3\tv3
       """.stripMargin.trim
 
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""
         |task a {
         |  Array[String] array
@@ -969,7 +981,7 @@ object SampleWdl {
   }
 
   object ArrayOfArrays extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""task subtask {
         |  Array[File] a
         |  command {
@@ -1009,7 +1021,7 @@ object SampleWdl {
   }
 
   object CallCachingHashingWdl extends SampleWdl {
-    override def wdlSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WdlSource =
       s"""task t {
         |  Int a
         |  Float b
@@ -1047,7 +1059,7 @@ object SampleWdl {
   }
 
   object ExpressionsInInputs extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""task echo {
         |  String inString
         |  command {
@@ -1077,7 +1089,7 @@ object SampleWdl {
   }
 
   object WorkflowFailSlow extends SampleWdl {
-    override def wdlSource(runtime: String = "") =
+    override def workflowSource(runtime: String = "") =
       s"""
 task shouldCompleteFast {
         |    Int a

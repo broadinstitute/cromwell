@@ -76,18 +76,25 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     */
   private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
     processSource(_.clearEncryptedValues)(originalSourceFiles) foreach { sourceFiles =>
-      val submissionEvents = List(
+      val submissionEvents: List[MetadataEvent] = List(
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.Status), MetadataValue(WorkflowSubmitted)),
 
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(sourceFiles.wdlSource)),
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(sourceFiles.workflowSource)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs), MetadataValue(sourceFiles.inputsJson)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson))
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson)),
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Labels), MetadataValue(sourceFiles.labelsJson))
       )
 
-      serviceRegistryActor ! PutMetadataAction(submissionEvents)
+      // Don't publish metadata for either workflow type or workflow type version if not defined.
+      val workflowTypeAndVersionEvents: List[Option[MetadataEvent]] = List(
+        sourceFiles.workflowType map { wt => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_WorkflowType), MetadataValue(wt)) },
+        sourceFiles.workflowTypeVersion map { wtv => MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_WorkflowTypeVersion), MetadataValue(wtv)) }
+      )
+
+      serviceRegistryActor ! PutMetadataAction(submissionEvents ++ workflowTypeAndVersionEvents.flatten)
     }
   }
 }

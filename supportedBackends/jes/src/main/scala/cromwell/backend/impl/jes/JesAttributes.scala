@@ -7,6 +7,7 @@ import cats.syntax.cartesian._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import cromwell.backend.impl.jes.authentication.JesAuths
+import cromwell.backend.impl.jes.callcaching.{CopyCachedOutputs, JesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.filesystems.gcs.GoogleConfiguration
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
@@ -25,7 +26,8 @@ case class JesAttributes(project: String,
                          executionBucket: String,
                          endpointUrl: URL,
                          maxPollingInterval: Int,
-                         qps: Int Refined Positive)
+                         qps: Int Refined Positive,
+                         duplicationStrategy: JesCacheHitDuplicationStrategy)
 
 object JesAttributes {
   lazy val Logger = LoggerFactory.getLogger("JesAttributes") 
@@ -45,6 +47,7 @@ object JesAttributes {
     "genomics.auth",
     "genomics.endpoint-url",
     "filesystems.gcs.auth",
+    "filesystems.gcs.caching.duplication-strategy",
     "genomics-api-queries-per-100-seconds"
   )
 
@@ -75,13 +78,17 @@ object JesAttributes {
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
+    val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
+      case "copy" => CopyCachedOutputs
+      case "reference" => UseOriginalCachedOutputs
+      case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
+    } }
 
 
-    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| qpsValidation) map {
-      (_, _, _, _, _, _)
-    } flatMap { case (p, b, u, genomicsName, gcsName, qps) =>
+    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| qpsValidation |@| duplicationStrategy).tupled flatMap { 
+      case (p, b, u, genomicsName, gcsName, qps, cachingStrategy) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps)
+        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps, cachingStrategy)
       }
     } match {
       case Valid(r) => r

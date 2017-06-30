@@ -85,6 +85,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/batch](#post-apiworkflowsversionbatch)
   * [GET /api/workflows/:version/query](#get-apiworkflowsversionquery)
   * [POST /api/workflows/:version/query](#post-apiworkflowsversionquery)
+  * [PATCH /api/workflows/:version/:id/labels](#patch-apiworkflowsversionidlabels)
   * [GET /api/workflows/:version/:id/status](#get-apiworkflowsversionidstatus)
   * [GET /api/workflows/:version/:id/outputs](#get-apiworkflowsversionidoutputs)
   * [GET /api/workflows/:version/:id/timing](#get-apiworkflowsversionidtiming)
@@ -92,6 +93,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [GET /api/workflows/:version/:id/metadata](#get-apiworkflowsversionidmetadata)
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
+  * [GET /api/workflows/:version/callcaching/diff](#get-apiworkflowsversioncallcachingdiff)
   * [GET /api/engine/:version/stats](#get-apiengineversionstats)
   * [GET /api/engine/:version/version](#get-apiengineversionversion)
   * [Error handling](#error-handling)
@@ -361,7 +363,7 @@ system {
 
 Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
-By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <wdl> <inputs>`.
+By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
 # Security
 
@@ -477,7 +479,7 @@ When Cromwell runs a workflow, it first creates a directory `<cromwell_root>/<wo
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.  For example, having a `stdout` and `stderr` file is common among both backends and they both write a shell script file to the `<call_dir>` as well.  See the descriptions below for details about backend-specific files that are written to these directories.
 
-An example of a workflow output directory for a three-step WDL file might look like this:
+An example of a workflow output directory for a three-step workflow might look like this:
 
 ```
 cromwell-executions/
@@ -841,7 +843,7 @@ backend {
     TES {
       actor-factory = "cromwell.backend.impl.tes.TesBackendLifecycleActorFactory"
       config {
-        endpoint = "https://<some-url>/v1/jobs"
+        endpoint = "https://<some-url>/v1/tasks"
         root = "cromwell-executions"
         dockerRoot = "/cromwell-executions"
         concurrent-job-limit = 1000
@@ -859,16 +861,13 @@ This backend supports the following optional runtime attributes / workflow optio
 * docker: Docker image to use such as "Ubuntu".
 * dockerWorkingDir: defines the working directory in the container.
 
-Outputs:
-It will use `dockerOutputDir` runtime attribute / workflow option to resolve the folder in which the execution results will placed. If there is no `dockerWorkingDir` defined it will use `/cromwell-executions/<workflow_uuid>/call-<call_name>/execution`.
-
 ### CPU, Memory and Disk
 This backend supports CPU, memory and disk size configuration through the use of the following runtime attributes / workflow options:
-* cpu: defines the amount of CPU to use. Default value: 1. Type: Integer. Ex: 4.
-* memory: defines the amount of memory to use. Default value: "2 GB". Type: String. Ex: "4 GB" or "4096 MB"
-* disk: defines the amount of disk to use. Default value: "2 GB". Type: String. Ex: "1 GB" or "1024 MB"
+* cpu: defines the amount of CPU to use. Type: Integer. Ex: 4.
+* memory: defines the amount of memory to use. Type: String. Ex: "4 GB" or "4096 MB"
+* disk: defines the amount of disk to use. Type: String. Ex: "1 GB" or "1024 MB"
 
-It they are not set, the TES backend will use default values.
+If they are not set, the TES backend may use default values.
 
 ## Sun GridEngine Backend
 
@@ -1230,7 +1229,7 @@ nativeSpecs attribute needs to be specified as String.
 
 ## Spark Backend
 
-This backend adds support for execution of spark jobs in a workflow using the existing wdl format. 
+This backend adds support for execution of spark jobs in a workflow.
 
 It supports the following Spark deploy modes:
 
@@ -1304,7 +1303,7 @@ Supported runtime attributes for a Spark Job is as follows:
 * appMainClass ( Spark app/job entry point)
 * numberOfExecutors ( Specific to cluster deploy mode)
 
-Sample usage :
+Sample usage:
 
 ```wdl
 task sparkjob_with_yarn_cluster {
@@ -1330,8 +1329,8 @@ Supported File Systems as follows:
 * Network File System
 * Distributed file system
 
-### Sample Wdl
-Next, create a Wdl, and it's json input like so:
+### Sample WDL
+Next, create a WDL, and its json input like so:
 
 ```wdl
 task sparkjob_with_yarn_cluster {
@@ -1685,16 +1684,15 @@ Valid keys and their meanings:
     * **google_project** - (JES backend only) Specifies which google project to execute this workflow.
     * **refresh_token** - (JES backend only) Only used if `localizeWithRefreshToken` is specified in the [configuration file](#configuring-cromwell).
     * **auth_bucket** - (JES backend only) defaults to the the value in **jes_gcs_root**.  This should represent a GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`)
-    * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the WDL command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+    * **monitoring_script** - (JES backend only) Specifies a GCS URL to a script that will be invoked prior to the user command being run.  For example, if the value for monitoring_script is "gs://bucket/script.sh", it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
 
 # Labels
 
-Every call in Cromwell is labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
+Every call run on the JES backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
 |-----|-------|---------|-------|
 | cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
-| cromwell-workflow-name | The name of the root workflow | my-root-workflow | |
 | cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
 | wdl-task-name | The name of the WDL task | my-task | |
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
@@ -1712,10 +1710,15 @@ Custom labels can also be applied to every call in a workflow by specifying a cu
 
 ## Label Format
 
-To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. 
+When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Cromwell:
+- Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.
+- Label keys must start with `[a-z]` and end with `[a-z]` or `[0-9]`.
+- Label values must start and end with `[a-z]` or `[0-9]`.
+- Label keys may not be empty but label values may be empty.
+- Label key and values have a max char limit of 63.
 
-For custom labels, Cromwell will reject any request which is made containing invalid label strings. For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
-
+Google has a different schema for labels, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be no more than 63 characters in length.
+For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
 - Any capital letters are lowercased.
 - Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
 - If the start character does not match `[a-z]` then prefix with `x--`
@@ -1760,12 +1763,12 @@ Cromwell also accepts two [workflow option](#workflow-options) related to call c
 
 Docker tags are a convenient way to point to a version of an image (ubuntu:14.04), or even the latest version (ubuntu:latest).
 For that purpose, tags are mutable, meaning that the image they point to can change, while the tag name stays the same.
-While this is very convenient in some cases, using mutable, or "floating" tags in WDL affects the reproducibility of the WDL file: the same WDL using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
+While this is very convenient in some cases, using mutable, or "floating" tags in tasks affects the reproducibility of a workflow: the same workflow using "ubuntu:latest" run now, and a year, or even a month from now will actually run with different docker images.
 This has an even bigger impact when Call Caching is turned on in Cromwell, and could lead to unpredictable behaviors if a tag is updated in the middle of a workflow or even a scatter for example.
 Docker provides another way of identifying an image version, using the specific digest of the image. The digest is guaranteed to be different if 2 images have different byte content. For more information see https://docs.docker.com/registry/spec/api/#/content-digests
 A docker image with digest can be referenced as follows : **ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950**
 The above image refers to a specific image of ubuntu, that does not depend on a floating tag.
-A WDL containing this Docker image run now and a year from now will run in the exact same container.
+A workflow containing this Docker image run now and a year from now will run in the exact same container.
 
 In order to remove unpredictable behaviors, Cromwell takes the following approach regarding floating docker tags.
 
@@ -1837,7 +1840,7 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
 ```
 # Imports
 
-Import statements inside of a WDL file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
+Import statements inside of a workflow file are supported by Cromwell when running in Server mode as well as Single Workflow Runner Mode.
 
 In Single Workflow Runner Mode, you pass in a zip file which includes the WDL files referenced by the import statements. Cromwell requires the zip file to be passed in as a command line argument, as explained by the section [run](#run).
 
@@ -1846,7 +1849,7 @@ For example, given a workflow `wf.wdl` and an imports directory `WdlImports.zip`
 java -jar cromwell.jar wf.wdl wf.inputs - - WdlImports.zip
 ```
 
-In Server Mode, you pass in a zip file using the parameter `wdlDependencies` via the [POST /api/workflows/:version](#post-apiworkflowsversion) endpoint.
+In Server Mode, you pass in a zip file using the parameter `workflowDependencies` via the [POST /api/workflows/:version](#post-apiworkflowsversion) endpoint.
 
 
 # Sub Workflows
@@ -2307,7 +2310,7 @@ It's also possible to set the URL query parameter `expandSubWorkflows` to `true`
 
 # REST API
 
-The `server` subcommand on the executable JAR will start an HTTP server which can accept WDL files to run as well as check status and output of existing workflows.
+The `server` subcommand on the executable JAR will start an HTTP server which can accept workflow files to run as well as check status and output of existing workflows.
 
 The following sub-sections define which HTTP Requests the web server can accept and what they will return.  Example HTTP requests are given in [HTTPie](https://github.com/jkbrzt/httpie) and [cURL](https://curl.haxx.se/)
 
@@ -2319,12 +2322,12 @@ All web server requests include an API version in the url. The current version i
 
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
-* `wdlSource` - *Required* Contains the WDL file to submit for execution.
-* `workflowInputs` - *Optional* JSON file containing the inputs.  A skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
+* `workflowSource` - *Required* Contains the workflow source file to submit for execution.
+* `workflowInputs` - *Optional* JSON file containing the inputs.  For WDL workflows a skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.
 * `customLabels` - *Optional* JSON file containing a set of custom labels to apply to this workflow. See [Labels](#labels) for the expected format.
-* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements.
+* `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements.
 
 Regarding the workflowInputs parameter, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2.
 Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
@@ -2335,13 +2338,13 @@ Additionally, although Swagger has a limit of 5 JSON input files, the REST endpo
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
+$ curl -v "localhost:8000/api/workflows/v1" -F workflowSource=@src/main/resources/3step.wdl -F workflowInputs=@test.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1 workflowSource=@src/main/resources/3step.wdl workflowInputs@inputs.json
 ```
 
 Request:
@@ -2357,7 +2360,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --64128d499e9e4616adea7d281f695dca
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task ps {
   command {
@@ -2427,13 +2430,13 @@ To specify workflow options as well:
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
+$ curl -v "localhost:8000/api/workflows/v1" -F workflowSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0.json -F workflowOptions=@options.json
 ```
 
 HTTPie:
 
 ```
-http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1 workflowSource=@wdl/jes0.wdl workflowInputs@wdl/jes0.json workflowOptions@options.json
 ```
 
 Request (some parts truncated for brevity):
@@ -2449,7 +2452,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --f3fd038395644de596c460257626edd7
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task x { ... }
 task y { ... }
@@ -2485,28 +2488,28 @@ Content-Disposition: form-data; name="workflowOptions"; filename="options.json"
 This endpoint accepts a POST request with a `multipart/form-data`
 encoded body.  The form fields that may be included are:
 
-* `wdlSource` - *Required* Contains the WDL file to submit for
+* `workflowSource` - *Required* Contains the workflow source file to submit for
 execution.
 * `workflowInputs` - *Required* JSON file containing the inputs in a
-JSON array. A skeleton file for a single inputs json element can be
+JSON array. For WDL workflows a skeleton file for a single inputs json element can be
 generated from [wdltool](https://github.com/broadinstitute/wdltool)
 using the "inputs" subcommand. The orderded endpoint responses will
 contain one workflow submission response for each input, respectively.
 * `workflowOptions` - *Optional* JSON file containing options for this
 workflow execution.  See the [run](#run) CLI sub-command for some more
 information about this.
-* `wdlDependencies` - *Optional* ZIP file containing WDL files that are used to resolve import statements. Applied equally to all workflowInput sets.
+* `workflowDependencies` - *Optional* ZIP file containing workflow source files that are used to resolve import statements. Applied equally to all workflowInput sets.
 
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F workflowSource=@src/main/resources/3step.wdl -F workflowInputs=@test_array.json
 ```
 
 HTTPie:
 
 ```
-$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch wdlSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
+$ http --print=hbHB --form POST localhost:8000/api/workflows/v1/batch workflowSource=@src/main/resources/3step.wdl workflowInputs@inputs_array.json
 ```
 
 Request:
@@ -2522,7 +2525,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --64128d499e9e4616adea7d281f695dcb
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task ps {
   command {
@@ -2603,13 +2606,13 @@ To specify workflow options as well:
 cURL:
 
 ```
-$ curl -v "localhost:8000/api/workflows/v1/batch" -F wdlSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
+$ curl -v "localhost:8000/api/workflows/v1/batch" -F workflowSource=@wdl/jes0.wdl -F workflowInputs=@wdl/jes0_array.json -F workflowOptions=@options.json
 ```
 
 HTTPie:
 
 ```
-http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch wdlSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
+http --print=HBhb --form POST http://localhost:8000/api/workflows/v1/batch workflowSource=@wdl/jes0.wdl workflowInputs@wdl/jes0_array.json workflowOptions@options.json
 ```
 
 Request (some parts truncated for brevity):
@@ -2625,7 +2628,7 @@ Host: localhost:8000
 User-Agent: HTTPie/0.9.2
 
 --f3fd038395644de596c460257626edd8
-Content-Disposition: form-data; name="wdlSource"
+Content-Disposition: form-data; name="workflowSource"
 
 task x { ... }
 task y { ... }
@@ -2855,6 +2858,37 @@ Server: spray-can/1.3.3
 }
 ```
 
+## PATCH /api/workflows/:version/:id/labels
+
+This endpoint is used to update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.
+
+The [labels](#labels) must be a mapping of key/value pairs in JSON format that are sent via the PATCH body. The request content type must be
+`application/json`.
+
+cURL:
+
+```
+$ curl -X PATCH --header "Content-Type: application/json" -d "{\"label-key-1\":\"label-value-1\", \"label-key-2\": \"label-value-2\"}" "http://localhost:8000/api/workflows/v1/c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5/labels"
+```
+
+HTTPie:
+
+```
+$ echo '{"label-key-1":"label-value-1", "label-key-2": "label-value-2"}' | http PATCH "http://localhost:8000/api/workflows/v1/c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5/labels"
+```
+
+Response:
+```
+{ "id": "c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5",
+  "labels":
+    {
+      "label-key-1": "label-value-1",
+      "label-key-2": "label-value-2"
+    }
+}
+```
+
+
 ## GET /api/workflows/:version/:id/status
 
 cURL:
@@ -3017,11 +3051,18 @@ Content-Type: application/json; charset=UTF-8
 Content-Length: 7286
 {
   "workflowName": "sc_test",
+  "submittedFiles": {
+      "inputs": "{}",
+      "workflow": "task do_prepare {\n    File input_file\n    command {\n        split -l 1 ${input_file} temp_ && ls -1 temp_?? > files.list\n    }\n    output {\n        Array[File] split_files = read_lines(\"files.list\")\n    }\n}\n# count the number of words in the input file, writing the count to an output file overkill in this case, but simulates a real scatter-gather that would just return an Int (map)\ntask do_scatter {\n    File input_file\n    command {\n        wc -w ${input_file} > output.txt\n    }\n    output {\n        File count_file = \"output.txt\"\n    }\n}\n# aggregate the results back together (reduce)\ntask do_gather {\n    Array[File] input_files\n    command <<<\n        cat ${sep = ' ' input_files} | awk '{s+=$$1} END {print s}'\n    >>>\n    output {\n        Int sum = read_int(stdout())\n    }\n}\nworkflow sc_test {\n    call do_prepare\n    scatter(f in do_prepare.split_files) {\n        call do_scatter {\n            input: input_file = f\n        }\n    }\n    call do_gather {\n        input: input_files = do_scatter.count_file\n    }\n}",
+      "options": "{\n\n}",
+      "workflowType": "WDL"
+  },
   "calls": {
     "sc_test.do_prepare": [
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_prepare/stdout",
+        "backendStatus": "Done",
         "shardIndex": -1,
         "outputs": {
           "split_files": [
@@ -3036,6 +3077,30 @@ Content-Length: 7286
             "failOnStderr": "true",
             "continueOnReturnCode": "0"
         },
+        "callCaching": {
+            "allowResultReuse": true,
+            "hit": false,
+            "result": "Cache Miss",
+            "hashes": {
+              "output count": "C4CA4238A0B923820DCC509A6F75849B",
+              "runtime attribute": {
+                "docker": "N/A",
+                "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                "failOnStderr": "68934A3E9455FA72420237EB05902327"
+              },
+              "output expression": {
+                "Array": "D856082E6599CF6EC9F7F42013A2EC4C"
+              },
+              "input count": "C4CA4238A0B923820DCC509A6F75849B",
+              "backend name": "509820290D57F333403F490DDE7316F4",
+              "command template": "9F5F1F24810FACDF917906BA4EBA807D",
+              "input": {
+                "File input_file": "11fa6d7ed15b42f2f73a455bf5864b49"
+              }
+            },
+            "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
+        "jobId": "34479",
         "returnCode": 0,
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
@@ -3049,15 +3114,40 @@ Content-Length: 7286
       {
         "executionStatus": "Preempted",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stdout",
+        "backendStatus": "Preempted",
         "shardIndex": 0,
         "outputs": {},
         "runtimeAttributes": {
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "a53794d214dc5dedbcecdf827bf683a2"
+            }
+          },
+         "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_file": "f"
         },
+        "jobId": "34496",
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/stderr",
@@ -3068,6 +3158,7 @@ Content-Length: 7286
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/stdout",
+        "backendStatus": "Done",
         "shardIndex": 0,
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt"
@@ -3076,10 +3167,34 @@ Content-Length: 7286
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "a53794d214dc5dedbcecdf827bf683a2"
+            }
+          },
+         "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_file": "f"
         },
         "returnCode": 0,
+        "jobId": "34965",
         "end": "2016-02-04T13:47:56.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/stderr",
         "attempt": 2,
@@ -3089,6 +3204,7 @@ Content-Length: 7286
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/stdout",
+        "backendStatus": "Done",
         "shardIndex": 1,
         "outputs": {
           "count_file": "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/output.txt"
@@ -3097,10 +3213,34 @@ Content-Length: 7286
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "d3410ade53df34c78488544285cf743c"
+            }
+          },
+         "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_file": "f"
         },
         "returnCode": 0,
+        "jobId": "34495",
         "backend": "Local",
         "end": "2016-02-04T13:47:56.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-1/stderr",
@@ -3113,6 +3253,7 @@ Content-Length: 7286
       {
         "executionStatus": "Done",
         "stdout": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_gather/stdout",
+        "backendStatus": "Done",
         "shardIndex": -1,
         "outputs": {
           "sum": 12
@@ -3121,6 +3262,29 @@ Content-Length: 7286
            "failOnStderr": "true",
            "continueOnReturnCode": "0"
         },
+        "callCaching": {
+          "allowResultReuse": true,
+          "hit": false,
+          "result": "Cache Miss",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "N/A",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File count_file": "EF1B47FFA9990E8D058D177073939DF7"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "509820290D57F333403F490DDE7316F4",
+            "command template": "FD00A1B0AB6A0C97B0737C83F179DDE7",
+            "input": {
+              "File input_file": "e0ef752ab4824939d7947f6012b7c141"
+            }
+          },
+          "effectiveCallCachingMode": "ReadAndWriteCache"
+        },
         "inputs": {
           "input_files": [
             "/home/jdoe/cromwell/cromwell-test-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_scatter/shard-0/attempt-2/output.txt",
@@ -3128,6 +3292,7 @@ Content-Length: 7286
           ]
         },
         "returnCode": 0,
+        "jobId": "34494",
         "backend": "Local",
         "end": "2016-02-04T13:47:57.000-05:00",
         "stderr": "/home/jdoe/cromwell/cromwell-executions/sc_test/8e592ed8-ebe5-4be0-8dcb-4073a41fe180/call-do_gather/stderr",
@@ -3151,6 +3316,10 @@ Content-Length: 7286
   "id": "8e592ed8-ebe5-4be0-8dcb-4073a41fe180",
   "inputs": {
     "sc_test.do_prepare.input_file": "/home/jdoe/cromwell/11.txt"
+  },
+  "labels": {
+    "cromwell-workflow-name": "sc_test",
+    "cromwell-workflow-id": "cromwell-17633f21-11a9-414f-a95b-2e21431bd67d"
   },
   "submission": "2016-02-04T13:47:55.000-05:00",
   "status": "Succeeded",
@@ -3326,6 +3495,176 @@ Server: spray-can/1.3.3
 }
 ```
 
+## GET /api/workflows/:version/callcaching/diff
+
+**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Cromwell 28.
+Workflows run with prior versions of Cromwell cannot be used with this endpoint.
+A `404 NotFound` will be returned when trying to use this endpoint if either workflow has been run on a prior version.
+
+This endpoint returns the hash differences between 2 *completed* (successfully or not) calls.
+The following query parameters are supported:
+
+| Parameter |                                        Description                                        | Required |
+|:---------:|:-----------------------------------------------------------------------------------------:|:--------:|
+| workflowA | Workflow ID of the first call                                                             | yes      |
+| callA     | Fully qualified name of the first call. **Including workflow name**. (see example below)  | yes      |
+| indexA    | Shard index of the first call                                                             | depends  |
+| workflowB | Workflow ID of the second call                                                            | yes      |
+| callB     | Fully qualified name of the second call. **Including workflow name**. (see example below) | yes      |
+| indexB    | Shard index of the second call                                                            | depends  |
+
+About the `indexX` parameters: It is required if the call was in a scatter. Otherwise it should *not* be specified.
+If an index parameter is wrongly specified, the call will not be found and the request will result in a 404 response.
+
+cURL:
+
+```
+$ curl "http://localhost:8000/api/workflows/v1/callcaching/diff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello"
+```
+
+HTTPie:
+
+```
+$ http "http://localhost:8000/api/workflows/v1/callcaching/diff?workflowA=85174842-4a44-4355-a3a9-3a711ce556f1&callA=wf_hello.hello&workflowB=7479f8a8-efa4-46e4-af0d-802addc66e5d&callB=wf_hello.hello"
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Content-Length: 1274
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 06 Jun 2017 16:44:33 GMT
+Server: spray-can/1.3.3
+
+{
+  "callA": {
+    "executionStatus": "Done",
+    "workflowId": "85174842-4a44-4355-a3a9-3a711ce556f1",
+    "callFqn": "wf_hello.hello",
+    "jobIndex": -1,
+    "allowResultReuse": true
+  },
+  "callB": {
+    "executionStatus": "Done",
+    "workflowId": "7479f8a8-efa4-46e4-af0d-802addc66e5d",
+    "callFqn": "wf_hello.hello",
+    "jobIndex": -1,
+    "allowResultReuse": true
+  },
+  "hashDifferential": [
+    {
+      "command template": {
+        "callA": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+        "callB": "3C7A0CA3D7A863A486DBF3F7005D4C95"
+      }
+    },
+    {
+      "input count": {
+        "callA": "C4CA4238A0B923820DCC509A6F75849B",
+        "callB": "C81E728D9D4C2F636F067F89CC14862C"
+      }
+    },
+    {
+      "input: String addressee": {
+        "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
+        "callB": "7235E005510D99CB4D5988B21AC97B6D"
+      }
+    },
+    {
+      "input: String addressee2": {
+        "callA": "116C7E36B4AE3EAFD07FA4C536CE092F",
+        "callB": null
+      }
+    }
+  ]
+}
+```
+
+The response is a JSON object with 3 fields:
+
+- `callA` reports information about the first call, including its `allowResultReuse` value that will be used to determine whether or not this call can be cached to.
+- `callB` reports information about the second call, including its `allowResultReuse` value that will be used to determine whether or not this call can be cached to.
+- `hashDifferential` is an array in which each element represents a difference between the hashes of `callA` and `callB`.
+
+*If this array is empty, `callA` and `callB` have the same hashes*.
+
+Differences can be of 3 kinds:
+
+- `callA` and `callB` both have the same hash key but their values are different.
+For instance, in the example above, 
+
+```json
+"input: String addressee": {
+   "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
+   "callB": "7235E005510D99CB4D5988B21AC97B6D"
+}
+```
+
+indicates that both `callA` and `callB` have a `String` input called `addressee`, but different values were used at runtime, resulting in different MD5 hashes.
+
+- `callA` has a hash key that `callB` doesn't have
+For instance, in the example above, 
+
+```json
+"input: String addressee2": {
+   "callA": "116C7E36B4AE3EAFD07FA4C536CE092F",
+   "callB": null
+}
+```
+
+indicates that `callA` has a `String` input called `addressee2` that doesn't exist in `callB`. For that reason the value of the second field is `null`.
+
+- `callB` has a hash key that `callA` doesn't have. This is the same case as above but reversed.
+
+If no cache entry for `callA` or `callB` can be found, the response will be in the following format:
+
+```
+HTTP/1.1 404 NotFound
+Content-Length: 178
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 06 Jun 2017 17:02:15 GMT
+Server: spray-can/1.3.3
+
+{
+  "status": "error",
+  "message": "Cannot find a cache entry for 479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1"
+}
+```
+
+If neither `callA` nor `callB` can be found, the response will be in the following format:
+
+
+```
+HTTP/1.1 404 NotFound
+Content-Length: 178
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 06 Jun 2017 17:02:15 GMT
+Server: spray-can/1.3.3
+
+{
+  "status": "error",
+  "message": "Cannot find cache entries for 5174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1, 479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1"
+}
+```
+
+If the query is malformed and required parameters are missing, the response will be in the following format:
+
+```
+HTTP/1.1 400 BadRequest
+Content-Length: 178
+Content-Type: application/json; charset=UTF-8
+Date: Tue, 06 Jun 2017 17:02:15 GMT
+Server: spray-can/1.3.3
+{
+  "status": "fail",
+  "message": "Wrong parameters for call cache diff query:\nmissing workflowA query parameter\nmissing callB query parameter",
+  "errors": [
+    "missing workflowA query parameter",
+    "missing callB query parameter"
+  ]
+}
+```
+
 ## GET /api/engine/:version/stats
 
 This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
@@ -3378,8 +3717,6 @@ Response:
   "cromwell": 23-8be799a-SNAP
 }
 ```
-
-
 
 ## Error handling
 Requests that Cromwell can't process return a failure in the form of a JSON response respecting the following JSON schema:

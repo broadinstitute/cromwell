@@ -28,6 +28,7 @@ object Run {
                              jesParameters: Seq[JesParameter],
                              projectId: String,
                              computeServiceAccount: String,
+                             labels: Labels,
                              preemptible: Boolean,
                              genomicsInterface: Genomics): RunPipelineRequest = {
 
@@ -52,34 +53,13 @@ object Run {
       resources.setDisks(disksWithoutMountPoint.asJava)
     }
 
-    lazy val labels: Labels = {
-
-      val subWorkflow = workflow.workflow
-      val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
-        Labels("cromwell-sub-workflow-name" -> subWorkflow.unqualifiedName)
-      else
-        Labels.empty
-
-      val alias = jobDescriptor.call.unqualifiedName
-      val aliasLabels = if (!alias.equals(jobDescriptor.call.task.name))
-        Labels("wdl-call-alias" -> alias)
-      else
-        Labels.empty
-
-      Labels(
-        "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-        "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
-        "wdl-task-name" -> jobDescriptor.call.task.name
-      ) ++ subWorkflowLabels ++ aliasLabels ++ jobDescriptor.workflowDescriptor.customLabels
-    }
-
     val svcAccount = new ServiceAccount().setEmail(computeServiceAccount).setScopes(GenomicsScopes)
     val rpargs = new RunPipelineArgs().setProjectId(projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
 
     rpargs.setInputs(jesParameters.collect({ case i: JesInput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
     rpargs.setOutputs(jesParameters.collect({ case i: JesFileOutput => i.name -> i.toGoogleRunParameter }).toMap.asJava)
 
-    rpargs.setLabels(labels.asJesLabels)
+    rpargs.setLabels(labels.asJavaMap)
 
     val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 

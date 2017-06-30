@@ -91,16 +91,6 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
             val e = new RuntimeException(s"$message: ${t.getMessage}", t)
             sndr ! WorkflowAbortFailed(id, e)
         }
-      case RemoveWorkflow(id) =>
-        val cleanup = for {
-          removed <- store.remove(id)
-          _ = if (!removed) log.warning(s"Attempted to remove ID {} from the WorkflowStore but it didn't exist", id)
-          _ <- database.removeDockerHashStoreEntries(id.toString)
-        } yield ()
-
-        cleanup recover {
-          case t => log.error(t, s"Unable to remove workflow $id from workflow store or clean up docker hash entries")
-        }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
         Future.successful(self ! WorkDone)

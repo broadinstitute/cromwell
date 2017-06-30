@@ -92,15 +92,15 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       HashResult(HashKey("input count"), HashValue("C81E728D9D4C2F636F067F89CC14862C")),
       // md5 of 0
       HashResult(HashKey("output count"), HashValue("CFCD208495D565EF66E7DFF9F98764DA")),
-      HashResult(HashKey("runtime attribute: failOnStderr"), HashValue("N/A")),
+      HashResult(HashKey("runtime attribute", "failOnStderr"), HashValue("N/A")),
       // md5 of 1
-      HashResult(HashKey("runtime attribute: cpu", checkForHitOrMiss = false), HashValue("C4CA4238A0B923820DCC509A6F75849B")),
+      HashResult(HashKey(checkForHitOrMiss = false, "runtime attribute", "cpu"), HashValue("C4CA4238A0B923820DCC509A6F75849B")),
       // md5 of 0
-      HashResult(HashKey("runtime attribute: continueOnReturnCode"), HashValue("CFCD208495D565EF66E7DFF9F98764DA")),
+      HashResult(HashKey("runtime attribute", "continueOnReturnCode"), HashValue("CFCD208495D565EF66E7DFF9F98764DA")),
       // md5 of "hello" (with quotes)
-      HashResult(HashKey("input: String stringInput"), HashValue("5DEAEE1C1332199E5B5BC7C5E4F7F0C2")),
+      HashResult(HashKey("input", "String stringInput"), HashValue("5DEAEE1C1332199E5B5BC7C5E4F7F0C2")),
       // md5 of ubuntu@sha256:blablablba - make sure we use the dockerWithHash and not the docker runtime attribute
-      HashResult(HashKey("runtime attribute: docker"), HashValue("C811916EA68009B0EFE0A3A86D73280E"))
+      HashResult(HashKey("runtime attribute", "docker"), HashValue("C811916EA68009B0EFE0A3A86D73280E"))
     )
     val expectedAggregatedInitialHash = "F1A7118BED69B5A976A17C83FBA0D9D6"
     val expectedInitialHashResult = InitialHashingResult(expectedInitialHashes, expectedAggregatedInitialHash)
@@ -108,7 +108,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     callCacheRead.expectMsg(expectedInitialHashResult)
     actorUnderTest.stateName shouldBe WaitingForHashFileRequest
     actorUnderTest.stateData shouldBe CallCacheHashingJobActorData(
-      List(SingleFileHashRequest(jobDescriptor.key, HashKey("input: File fileInput"), WdlFile("world"), None)),
+      List(SingleFileHashRequest(jobDescriptor.key, HashKey("input", "File fileInput"), WdlFile("world"), None)),
       Option(callCacheRead.ref)
     )
   }

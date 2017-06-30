@@ -21,6 +21,7 @@ import scala.util.{Failure, Success, Try}
 
 class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
 
+  lazy val engineEndpoint = s"$cromwellUrl/api/engine/$apiVersion"
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
@@ -29,21 +30,25 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "status")
   def metadataEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "metadata")
   lazy val backendsEndpoint = s"$submitEndpoint/backends"
+  lazy val versionEndpoint = s"$engineEndpoint/version"
 
   import model.CromwellStatusJsonSupport._
   import model.CromwellBackendsJsonSupport._
+  import model.CromwellVersionJsonSupport._
 
   private def requestEntityForSubmit(workflowSubmission: WorkflowSubmission) = {
     import cromwell.api.model.LabelsJsonFormatter._
 
     val sourceBodyParts = Map(
-      "wdlSource" -> Option(workflowSubmission.wdl),
+      "workflowSource" -> Option(workflowSubmission.wdl),
+      "workflowType" -> workflowSubmission.workflowType,
+      "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
       "workflowInputs" -> workflowSubmission.inputsJson,
       "workflowOptions" -> insertSecrets(workflowSubmission.options, workflowSubmission.refreshToken),
       "customLabels" -> Option(workflowSubmission.customLabels.toJson.toString)
     ) collect { case (name, Some(source: String)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
     val zipBodyParts = Map(
-      "wdlDependencies" -> workflowSubmission.zippedImports
+      "workflowDependencies" -> workflowSubmission.zippedImports
     ) collect { case (name, Some(file)) => Multipart.FormData.BodyPart.fromPath(name, MediaTypes.`application/zip`, file.path) }
 
     val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
@@ -64,7 +69,15 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
     val requestEntity = requestEntityForSubmit(workflow)
 
     // Make a set of submissions that represent the batch (so we can zip with the results later):
-    val submissionSet = workflow.inputsBatch.map(inputs => WorkflowSingleSubmission(workflow.wdl, Option(inputs), workflow.options, workflow.customLabels, workflow.zippedImports, workflow.refreshToken))
+    val submissionSet = workflow.inputsBatch.map(inputs => WorkflowSingleSubmission(
+      wdl = workflow.wdl,
+      workflowType = workflow.workflowType,
+      workflowTypeVersion = workflow.workflowTypeVersion,
+      inputsJson = Option(inputs),
+      options = workflow.options,
+      customLabels = workflow.customLabels,
+      zippedImports = workflow.zippedImports,
+      refreshToken = workflow.refreshToken))
 
     makeRequest[List[CromwellStatus]](HttpRequest(HttpMethods.POST, batchSubmitEndpoint, List.empty[HttpHeader], requestEntity)) map { statuses =>
       val zipped = submissionSet.zip(statuses)
@@ -78,6 +91,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def status(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = getRequest[CromwellStatus](statusEndpoint(workflowId)) map WorkflowStatus.apply
   def metadata(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadata] = getRequest[String](metadataEndpoint(workflowId)) map WorkflowMetadata
   def backends(implicit ec: ExecutionContext): Future[CromwellBackends] = getRequest[CromwellBackends](backendsEndpoint)
+  def version(implicit ec: ExecutionContext): Future[CromwellVersion] = getRequest[CromwellVersion](versionEndpoint)
 
   /**
     *

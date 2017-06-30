@@ -7,7 +7,7 @@ object Publishing {
   private def artifactoryResolver(isSnapshot: Boolean): Resolver = {
     val repoType = if (isSnapshot) "snapshot" else "release"
     val repoUrl =
-      s"https://artifactory.broadinstitute.org/artifactory/libs-$repoType-local;build.timestamp=$buildTimestamp"
+      s"https://broadinstitute.jfrog.io/broadinstitute/libs-$repoType-local;build.timestamp=$buildTimestamp"
     val repoName = "artifactory-publish"
     repoName at repoUrl
   }
@@ -15,7 +15,7 @@ object Publishing {
   private val artifactoryCredentials: Credentials = {
     val username = sys.env.getOrElse("ARTIFACTORY_USERNAME", "")
     val password = sys.env.getOrElse("ARTIFACTORY_PASSWORD", "")
-    Credentials("Artifactory Realm", "artifactory.broadinstitute.org", username, password)
+    Credentials("Artifactory Realm", "broadinstitute.jfrog.io", username, password)
   }
 
   def publishingSettings: Seq[Setting[_]] =

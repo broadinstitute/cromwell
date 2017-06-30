@@ -65,12 +65,12 @@ object RuntimeAttributesValidation {
     }
   }
 
-  def parseMemoryString(s: WdlString): ErrorOr[MemorySize] = {
-    MemoryValidation.validateMemoryString(s)
+  def parseMemoryString(k: String, s: WdlString): ErrorOr[MemorySize] = {
+    MemoryValidation.validateMemoryString(k, s)
   }
 
-  def parseMemoryInteger(i: WdlInteger): ErrorOr[MemorySize] = {
-    MemoryValidation.validateMemoryInteger(i)
+  def parseMemoryInteger(k: String, i: WdlInteger): ErrorOr[MemorySize] = {
+    MemoryValidation.validateMemoryInteger(k, i)
   }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],

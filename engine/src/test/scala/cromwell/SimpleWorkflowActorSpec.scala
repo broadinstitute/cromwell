@@ -34,7 +34,14 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
                                  matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
-    val workflowSources = WorkflowSourceFilesWithoutImports(sampleWdl.wdlSource(), rawInputsOverride, "{}", "{}")
+    val workflowSources = WorkflowSourceFilesWithoutImports(
+      workflowSource = sampleWdl.workflowSource(),
+      workflowType = Option("WDL"),
+      workflowTypeVersion = None,
+      inputsJson = rawInputsOverride,
+      workflowOptionsJson = "{}",
+      labelsJson = "{}"
+    )
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
@@ -108,7 +115,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       try {
         Await.result(promise.future, TestExecutionTimeout)
       } catch {
-        case e: Throwable =>
+        case _: Throwable =>
           val info = failureMatcher.nearMissInformation
           fail(s"We didn't see the expected error message $expectedError within $TestExecutionTimeout. ${info.mkString(", ")}")
       }
@@ -150,7 +157,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       try {
         Await.result(promise.future, TestExecutionTimeout)
       } catch {
-        case e: Throwable =>
+        case _: Throwable =>
           val info = failureMatcher.nearMissInformation
           val errorString =
             if (info.nonEmpty) "We had a near miss: " + info.mkString(", ")
@@ -170,7 +177,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
   private def startingCallsFilter[T](callNames: String*)(block: => T): T = {
     import CromwellTestKitSpec.waitForInfo
     within(TestExecutionTimeout) {
-      waitForInfo(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$", 1) {
+      waitForInfo(s"Starting calls: ${callNames.mkString("", ":NA:1, ", ":NA:1")}$$") {
         block
       }
     }

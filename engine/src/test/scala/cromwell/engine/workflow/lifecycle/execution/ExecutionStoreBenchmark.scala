@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus.{apply => _, _}
 import cromwell.core.{ExecutionStatus, JobKey}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
 import cromwell.util.SampleWdl
 import org.scalameter.api._
 import wdl4s.{TaskCall, WdlNamespaceWithWorkflow}
@@ -22,9 +23,10 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   lazy val reporter = new LoggingReporter[Double]
   lazy val persistor = Persistor.None
   
-  val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().wdlSource(), Seq.empty).get
+  val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
   val prepareCall: TaskCall = wdl.workflow.findCallByName("do_prepare").get.asInstanceOf[TaskCall]
   val scatterCall: TaskCall = wdl.workflow.findCallByName("do_scatter").get.asInstanceOf[TaskCall]
+  val scatter = wdl.workflow.namespace.scatters.head
   
   def makeKey(call: TaskCall, executionStatus: ExecutionStatus)(index: Int) = {
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
@@ -32,7 +34,7 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   
   // Generates numbers from 1000 to 10000 with 1000 gap:
   // 1000, 2000, ..., 10000
-  val sizes: Gen[Int] = Gen.range("size")(1000, 10000, 1000)
+  val sizes: Gen[Int] = Gen.range("size")(10000, 100000, 10000)
   
   // Generates executionStores using the given above sizes
   // Each execution store contains X simulated shards of "prepareCall" in status Done and X simulated shards of "scatterCall" in status NotStarted
@@ -41,7 +43,8 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   val executionStores: Gen[ExecutionStore] = for {
     size <- sizes
     doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
-    notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap
+    collectorKey = Map(CollectorKey(scatterCall, scatter, size) -> ExecutionStatus.NotStarted)
+    notStartedMap: Map[JobKey, ExecutionStatus] = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKey
     finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
   } yield new ExecutionStore(finalMap, true)
   

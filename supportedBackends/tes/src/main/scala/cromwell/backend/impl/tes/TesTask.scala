@@ -15,6 +15,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          tesPaths: TesJobPaths,
                          runtimeAttributes: TesRuntimeAttributes,
                          containerWorkDir: Path,
+                         commandScriptContents: String,
                          backendEngineFunctions: StandardExpressionFunctions,
                          dockerImageUsed: String) {
 
@@ -26,17 +27,22 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   // TODO validate "project" field of workflowOptions
   val project = {
-    workflowDescriptor.workflowOptions.getOrElse("project", workflowName)
+    workflowDescriptor.workflowOptions.getOrElse("project", "")
   }
 
   // contains the script to be executed
   private val commandScript = TaskParameter(
     Option("commandScript"),
     Option(fullyQualifiedTaskName + ".commandScript"),
-    tesPaths.storageInput(tesPaths.script.toString),
+    None,
     tesPaths.callExecutionDockerRoot.resolve("script").toString,
-    "File",
-    Option(false)
+    Option("FILE"),
+    Option(commandScriptContents)
+  )
+
+  private val commandScriptOut = commandScript.copy(
+    url = Option(tesPaths.script.toString),
+    contents = None
   )
 
   private def writeFunctionFiles(commandLineValueMapper: WdlValue => WdlValue): Map[FullyQualifiedName, Seq[WdlFile]] = {
@@ -65,10 +71,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
         case (f, index) => TaskParameter(
           Option(fullyQualifiedName + "." + index),
           Option(workflowName + "." + fullyQualifiedName + "." + index),
-          tesPaths.storageInput(f.value),
+          Option(f.value),
           tesPaths.containerInput(f.value),
-          "File",
-          Option(false)
+          Option("FILE"),
+          None
         )
       }
     }.toList ++ Seq(commandScript)
@@ -79,10 +85,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       TaskParameter(
         Option(f),
         Option(fullyQualifiedTaskName + "." + f),
-        tesPaths.storageOutput(f),
+        Option(tesPaths.storageOutput(f)),
         tesPaths.containerOutput(containerWorkDir, f),
-        "File",
-        Option(false)
+        Option("FILE"),
+        None
       )
   }
 
@@ -109,10 +115,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           TaskParameter(
             Option(fullyQualifiedTaskName + ".output." + index),
             Option(fullyQualifiedTaskName + ".output." + index),
-            tesPaths.storageOutput(outputFile),
+            Option(tesPaths.storageOutput(outputFile)),
             tesPaths.containerOutput(containerWorkDir, outputFile),
-            "File",
-            Option(false)
+            Option("FILE"),
+            None
           )
         )
       case (g: WdlGlobFile, index) =>
@@ -125,117 +131,104 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
           TaskParameter(
             Option(globDirName),
             Option(fullyQualifiedTaskName + "." + globDirName),
-            tesPaths.storageOutput(globDirectory),
+            Option(tesPaths.storageOutput(globDirectory)),
             tesPaths.containerOutput(containerWorkDir, globDirectory),
-            "Directory",
-            Option(false)
+            Option("DIRECTORY"),
+            None
           ),
           TaskParameter(
             Option(globListName),
             Option(fullyQualifiedTaskName + "." + globListName),
-            tesPaths.storageOutput(globListFile),
+            Option(tesPaths.storageOutput(globListFile)),
             tesPaths.containerOutput(containerWorkDir, globListFile),
-            "File",
-            Option(false)
+            Option("FILE"),
+            None
           )
         )
     }
 
-  val outputs: Seq[TaskParameter] = wdlOutputs ++ standardOutputs
+  val outputs: Seq[TaskParameter] = wdlOutputs ++ standardOutputs ++ Seq(commandScriptOut)
 
-  // TODO all volumes currently get the same disk requirements
-  private val workingDirVolume = runtimeAttributes
-    .dockerWorkingDir
-    .map(path => Volume(
-      Option(path),
-      runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt,
-      None,
-      path,
-      Option(false)
-    ))
-
-  val volumes = Seq(
-    Volume(
-      Option(tesPaths.callInputsDockerRoot.toString),
-      runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt,
-      None,
-      tesPaths.callInputsDockerRoot.toString,
-      // inputs in read-only volume
-      Option(true)
-    ),
-    Volume(
-      Option(tesPaths.callExecutionDockerRoot.toString),
-      runtimeAttributes.disk.to(MemoryUnit.GB).amount.toInt,
-      None,
-      tesPaths.callExecutionDockerRoot.toString,
-      Option(false)
-    )
-  ) ++ workingDirVolume
+  private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
+    case Some(x) =>
+      Option(x.to(MemoryUnit.GB).amount)
+    case None =>
+      None
+  }
 
   val resources = Resources(
     runtimeAttributes.cpu,
-    runtimeAttributes.memory.to(MemoryUnit.GB).amount.toInt,
+    ram,
+    disk,
     Option(false),
-    volumes,
     None
   )
 
-  val dockerExecutor = Seq(DockerExecutor(
+  val executors = Seq(Executor(
     dockerImageUsed,
     Seq("/bin/bash", commandScript.path),
     runtimeAttributes.dockerWorkingDir,
     Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
     Option(tesPaths.containerOutput(containerWorkDir, "stderr")),
     None,
+    None,
     None
   ))
 }
 
 // Field requirements in classes below based off GA4GH schema
+final case class Task(id: Option[String],
+                      state: Option[String],
+                      name: Option[String],
+                      description: Option[String],
+                      project: Option[String],
+                      inputs: Option[Seq[TaskParameter]],
+                      outputs: Option[Seq[TaskParameter]],
+                      resources: Option[Resources],
+                      executors: Seq[Executor],
+                      volumes: Option[Seq[String]],
+                      tags: Option[Map[String, String]],
+                      logs: Option[Seq[TaskLog]])
 
-final case class TesTaskMessage(name: Option[String],
-                                description: Option[String],
-                                projectId: Option[String],
-                                inputs: Option[Seq[TaskParameter]],
-                                outputs: Option[Seq[TaskParameter]],
-                                resources: Resources,
-                                docker: Seq[DockerExecutor])
-
-final case class DockerExecutor(imageName: String,
-                                cmd: Seq[String],
-                                workdir: Option[String],
-                                stdout: Option[String],
-                                stderr: Option[String],
-                                stdin: Option[String],
-                                ports: Option[Seq[Ports]])
+final case class Executor(image_name: String,
+                          cmd: Seq[String],
+                          workdir: Option[String],
+                          stdout: Option[String],
+                          stderr: Option[String],
+                          stdin: Option[String],
+                          environ: Option[Map[String, String]],
+                          ports: Option[Seq[Ports]])
 
 final case class TaskParameter(name: Option[String],
                                description: Option[String],
-                               location: String,
+                               url: Option[String],
                                path: String,
-                               `class`: String,
-                               create: Option[Boolean])
+                               `type`: Option[String],
+                               contents: Option[String])
 
-final case class Resources(minimumCpuCores: Int,
-                           minimumRamGb: Int,
+final case class Resources(cpu_cores: Option[Int],
+                           ram_gb: Option[Double],
+                           size_gb: Option[Double],
                            preemptible: Option[Boolean],
-                           volumes: Seq[Volume],
                            zones: Option[Seq[String]])
 
-final case class Volume(name: Option[String],
-                        sizeGb: Int,
-                        source: Option[String],
-                        mountPoint: String,
-                        readonly: Option[Boolean])
+final case class OutputFileLog(url: String,
+                               path: String,
+                               size_bytes: Int)
 
-final case class JobLogs(cmd: Option[Seq[String]],
-                         startTime: Option[String],
-                         endTime: Option[String],
-                         stdout: Option[String],
-                         stderr: Option[String],
-                         exitCode: Option[Int],
-                         hostIP: Option[String],
-                         ports: Option[Seq[Ports]])
+final case class TaskLog(start_time: Option[String],
+                         end_time: Option[String],
+                         metadata: Option[Map[String, String]],
+                         logs: Option[Seq[ExecutorLog]],
+                         outputs: Option[Seq[OutputFileLog]])
+
+final case class ExecutorLog(start_time: Option[String],
+                             end_time: Option[String],
+                             stdout: Option[String],
+                             stderr: Option[String],
+                             exit_code: Option[Int],
+                             host_ip: Option[String],
+                             ports: Option[Seq[Ports]])
 
 final case class Ports(host: Option[String],
                        container: String)

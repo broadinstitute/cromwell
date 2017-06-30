@@ -7,53 +7,52 @@ import wdl4s.{WdlJson, WdlSource}
   */
 
 sealed trait WorkflowSourceFilesCollection {
-  def wdlSource: WdlSource
+  def workflowSource: WdlSource
   def inputsJson: WdlJson
   def workflowOptionsJson: WorkflowOptionsJson
   def labelsJson: WdlJson
-
+  def workflowType: Option[WorkflowType]
+  def workflowTypeVersion: Option[WorkflowTypeVersion]
 
   def importsZipFileOption: Option[Array[Byte]] = this match {
     case _: WorkflowSourceFilesWithoutImports => None
-    case WorkflowSourceFilesWithDependenciesZip(_, _, _, _, importsZip) => Option(importsZip) // i.e. Some(importsZip) if our wiring is correct
+    case w: WorkflowSourceFilesWithDependenciesZip => Option(w.importsZip) // i.e. Some(importsZip) if our wiring is correct
   }
 
   def copyOptions(workflowOptions: WorkflowOptionsJson) = this match {
-    case w: WorkflowSourceFilesWithoutImports => WorkflowSourceFilesWithoutImports(
-      wdlSource = w.wdlSource,
-      inputsJson = w.inputsJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = w.labelsJson)
-
-    case w: WorkflowSourceFilesWithDependenciesZip => WorkflowSourceFilesWithDependenciesZip(
-      wdlSource = w.wdlSource,
-      inputsJson = w.inputsJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = w.labelsJson,
-      importsZip = w.importsZip)
+    case w: WorkflowSourceFilesWithoutImports => w.copy(workflowOptionsJson = workflowOptions)
+    case w: WorkflowSourceFilesWithDependenciesZip => w.copy(workflowOptionsJson = workflowOptions)
   }
 }
 
 object WorkflowSourceFilesCollection {
-  def apply(wdlSource: WdlSource,
+  def apply(workflowSource: WdlSource,
+            workflowType: Option[WorkflowType],
+            workflowTypeVersion: Option[WorkflowTypeVersion],
             inputsJson: WdlJson,
             workflowOptionsJson: WorkflowOptionsJson,
             labelsJson: WdlJson,
             importsFile: Option[Array[Byte]]): WorkflowSourceFilesCollection = importsFile match {
-    case Some(imports) => WorkflowSourceFilesWithDependenciesZip(wdlSource, inputsJson, workflowOptionsJson, labelsJson, imports)
-    case None => WorkflowSourceFilesWithoutImports(wdlSource, inputsJson, workflowOptionsJson, labelsJson)
+    case Some(imports) =>
+      WorkflowSourceFilesWithDependenciesZip(workflowSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson, imports)
+    case None =>
+      WorkflowSourceFilesWithoutImports(workflowSource, workflowType, workflowTypeVersion, inputsJson, workflowOptionsJson, labelsJson)
   }
 }
 
-final case class WorkflowSourceFilesWithoutImports(wdlSource: WdlSource,
+final case class WorkflowSourceFilesWithoutImports(workflowSource: WdlSource,
+                                                   workflowType: Option[WorkflowType],
+                                                   workflowTypeVersion: Option[WorkflowTypeVersion],
                                                    inputsJson: WdlJson,
                                                    workflowOptionsJson: WorkflowOptionsJson,
                                                    labelsJson: WdlJson) extends WorkflowSourceFilesCollection
 
-final case class WorkflowSourceFilesWithDependenciesZip(wdlSource: WdlSource,
+final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: WdlSource,
+                                                        workflowType: Option[WorkflowType],
+                                                        workflowTypeVersion: Option[WorkflowTypeVersion],
                                                         inputsJson: WdlJson,
                                                         workflowOptionsJson: WorkflowOptionsJson,
                                                         labelsJson: WdlJson,
                                                         importsZip: Array[Byte]) extends WorkflowSourceFilesCollection {
-  override def toString = s"WorkflowSourceFilesWithDependenciesZip($wdlSource, $inputsJson, $workflowOptionsJson, $labelsJson, <<ZIP BINARY CONTENT>>)"
+  override def toString = s"WorkflowSourceFilesWithDependenciesZip($workflowSource, $inputsJson, $workflowOptionsJson, $labelsJson, <<ZIP BINARY CONTENT>>)"
 }

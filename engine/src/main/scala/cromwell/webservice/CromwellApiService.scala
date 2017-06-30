@@ -2,12 +2,21 @@ package cromwell.webservice
 
 import akka.actor._
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.cartesian._
+import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.{WorkflowId, WorkflowOptionsJson, WorkflowSourceFilesCollection}
+import cromwell.core._
+import cromwell.core.labels.Labels
 import cromwell.engine.backend.BackendConfiguration
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter
 import cromwell.services.metadata.MetadataService._
+import cromwell.webservice.LabelsManagerActor.{LabelsAddition, LabelsData}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderActor
+import lenthall.exception.AggregatedMessageException
+import lenthall.validation.ErrorOr.ErrorOr
+import org.slf4j.LoggerFactory
 import spray.http.MediaTypes._
 import spray.http._
 import spray.httpx.SprayJsonSupport._
@@ -27,6 +36,7 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
   def workflowManagerActor: ActorRef
   def workflowStoreActor: ActorRef
   def serviceRegistryActor: ActorRef
+  def callCacheDiffActorProps: Props
 
   def toMap(someInput: Option[String]): Map[String, JsValue] = {
     import spray.json._
@@ -47,6 +57,8 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
 
   def metadataBuilderProps: Props = MetadataBuilderActor.props(serviceRegistryActor)
 
+  def labelsManagerActorProps: Props = LabelsManagerActor.props(serviceRegistryActor)
+
   def handleMetadataRequest(message: AnyRef): Route = {
     requestContext =>
       perRequest(requestContext, metadataBuilderProps, message)
@@ -57,12 +69,21 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       perRequest(requestContext, metadataBuilderProps, WorkflowQuery(requestContext.request.uri, parameters))
   }
 
+  def handleCallCachingDiffRequest(parameters: Seq[(String, String)]): Route = {
+    CallCacheDiffQueryParameter.fromParameters(parameters) match {
+      case Valid(queryParameter) => requestContext => {
+        perRequest(requestContext, callCacheDiffActorProps, queryParameter)
+      }
+      case Invalid(errors) => failBadRequest(AggregatedMessageException("Wrong parameters for call cache diff query", errors.toList))
+    }
+  }
+
   protected def failBadRequest(t: Throwable, statusCode: StatusCode = StatusCodes.BadRequest) = respondWithMediaType(`application/json`) {
     complete((statusCode, APIResponse.fail(t).toJson.prettyPrint))
   }
 
-  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute
+  val workflowRoutes = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~ callCachingDiffRoute ~
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ statsRoute ~ versionRoute ~ patchLabelsRoute
 
   protected def withRecognizedWorkflowId(possibleWorkflowId: String)(recognizedWorkflowId: WorkflowId => Route): Route = {
     def callback(requestContext: RequestContext) = new ValidationCallback {
@@ -129,15 +150,59 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
+  def callCachingDiffRoute =
+    path("workflows" / Segment / "callcaching" / "diff") { version =>
+      parameterSeq { parameters =>
+        get {
+          handleCallCachingDiffRequest(parameters)
+        }
+      }
+    }
+
+
+  def patchLabelsRoute =
+    path("workflows" / Segment / Segment / "labels") { (version, possibleWorkflowId) =>
+      entity(as[Map[String, String]]) { parameterMap =>
+        patch {
+          withRecognizedWorkflowId(possibleWorkflowId) { id =>
+            requestContext =>
+              Labels.validateMapOfLabels(parameterMap) match {
+                case Valid(labels) =>
+                  perRequest(requestContext, labelsManagerActorProps, LabelsAddition(LabelsData(id, labels)))
+                case Invalid(err) => failBadRequest(new IllegalArgumentException(err.toList.mkString(",")))(requestContext)
+              }
+          }
+        }
+      }
+    }
+
   case class PartialWorkflowSources
   (
-    wdlSource: Option[WdlSource],
+    workflowSource: Option[WdlSource],
+    workflowType: Option[WorkflowType],
+    workflowTypeVersion: Option[WorkflowTypeVersion],
     workflowInputs: Vector[WdlJson],
     workflowInputsAux: Map[Int, WdlJson],
     workflowOptions: Option[WorkflowOptionsJson],
     customLabels: Option[WdlJson],
     zippedImports: Option[Array[Byte]])
+
   object PartialWorkflowSources {
+
+    val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
+
+    def empty = PartialWorkflowSources(
+      workflowSource = None,
+      // TODO do not hardcode, especially not out here at the boundary layer good gravy
+      workflowType = Option("WDL"),
+      workflowTypeVersion = None,
+      workflowInputs = Vector.empty,
+      workflowInputsAux = Map.empty,
+      workflowOptions = None,
+      customLabels = None,
+      zippedImports = None
+    )
+
     private def workflowInputs(bodyPart: BodyPart): Vector[WdlJson] = {
       import spray.json._
       bodyPart.entity.data.asString.parseJson match {
@@ -147,41 +212,80 @@ trait CromwellApiService extends HttpService with PerRequestCreator {
       }
     }
 
-    def partialSourcesToSourceCollections(partialSources: Try[PartialWorkflowSources], allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-      partialSources flatMap {
-        case PartialWorkflowSources(Some(wdlSource), workflowInputs, workflowInputsAux, workflowOptions, labels, wdlDependencies) =>
-          //The order of addition allows for the expected override of colliding keys.
-          val sortedInputAuxes = workflowInputsAux.toSeq.sortBy(_._1).map(x => Option(x._2))
-          val wfInputs: Try[Seq[WdlJson]] = if (workflowInputs.isEmpty) {
-            if (allowNoInputs) Success(Vector("{}")) else Failure(new IllegalArgumentException("No inputs were provided"))
-          } else Success(workflowInputs map { workflowInputSet =>
-            mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString
-          })
-          wfInputs.map(_.map(x => WorkflowSourceFilesCollection(wdlSource, x, workflowOptions.getOrElse("{}"), labels.getOrElse("{}"), wdlDependencies)))
-        case other => Failure(new IllegalArgumentException(s"Incomplete workflow submission: $other"))
+    def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources], allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
+
+      def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WdlJson]] =
+        (pws.workflowInputs.isEmpty, allowNoInputs) match {
+          case (true, true) => Vector("{}").validNel
+          case (true, false) => "No inputs were provided".invalidNel
+          case _ =>
+            val sortedInputAuxes = pws.workflowInputsAux.toSeq.sortBy { case (index, _) => index } map { case(_, inputJson) => Option(inputJson) }
+            (pws.workflowInputs map { workflowInputSet: WdlJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
+      }
+
+      def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
+        WorkflowOptions.fromJsonString(options.getOrElse("{}")).tryToErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
+
+      def validateWorkflowSources(partialSource: PartialWorkflowSources): ErrorOr[WdlJson] = partialSource.workflowSource match {
+        case Some(src) => src.validNel
+        case _ => s"Incomplete workflow submission: $partialSource".invalidNel
+      }
+
+      partialSources match {
+        case Valid(partialSource) =>
+          (validateWorkflowSources(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions)) map {
+            case (wfSource, wfInputs, wfOptions) =>
+              wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
+                workflowSource = wfSource,
+                workflowType = partialSource.workflowType,
+                workflowTypeVersion = partialSource.workflowTypeVersion,
+                inputsJson = inputsJson,
+                workflowOptionsJson = wfOptions.asPrettyJson,
+                labelsJson = partialSource.customLabels.getOrElse("{}"),
+                importsFile = partialSource.zippedImports))
+          }
+        case Invalid(err) => err.invalid
       }
     }
 
+    def deprecationWarning(out: String, in: String): Unit = {
+      val warning =
+        s"""
+           |The '$out' parameter name has been deprecated in favor of '$in'.
+           |Support for '$out' will be removed from future versions of Cromwell.
+           |Please switch to using '$in' in future submissions.
+         """.stripMargin
+      log.warn(warning)
+    }
+
     def fromSubmitRoute(formData: MultipartFormData, allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources(None, Vector.empty, Map.empty, None, None, None)) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
-        if (bodyPart.name.contains("wdlSource")) {
-          partialSources.copy(wdlSource = Some(bodyPart.entity.data.asString))
-        } else if (bodyPart.name.contains("workflowInputs")) {
+      val partialSources = Try(formData.fields.foldLeft(PartialWorkflowSources.empty) { (partialSources: PartialWorkflowSources, bodyPart: BodyPart) =>
+        val name = bodyPart.name
+        lazy val data = bodyPart.entity.data
+        if (name.contains("wdlSource") || name.contains("workflowSource")) {
+          if (name.contains("wdlSource")) deprecationWarning(out = "wdlSource", in = "workflowSource")
+          partialSources.copy(workflowSource = Option(data.asString))
+        } else if (name.contains("workflowType")) {
+          partialSources.copy(workflowType = Option(data.asString))
+        } else if (name.contains("workflowTypeVersion")) {
+          partialSources.copy(workflowTypeVersion = Option(data.asString))
+        } else if (name.contains("workflowInputs")) {
           partialSources.copy(workflowInputs = workflowInputs(bodyPart))
-        } else if (bodyPart.name.forall(_.startsWith("workflowInputs_"))) {
-          val index = bodyPart.name.get.stripPrefix("workflowInputs_").toInt
-          partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> bodyPart.entity.data.asString))
-        } else if (bodyPart.name.contains("workflowOptions")) {
-          partialSources.copy(workflowOptions = Some(bodyPart.entity.data.asString))
-        } else if (bodyPart.name.contains("wdlDependencies")) {
-          partialSources.copy(zippedImports = Some(bodyPart.entity.data.toByteArray))
-        } else if (bodyPart.name.contains("customLabels")) {
-          partialSources.copy(customLabels = Some(bodyPart.entity.data.asString))
+        } else if (name.forall(_.startsWith("workflowInputs_"))) {
+          val index = name.get.stripPrefix("workflowInputs_").toInt
+          partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.asString))
+        } else if (name.contains("workflowOptions")) {
+          partialSources.copy(workflowOptions = Option(data.asString))
+        } else if (name.contains("wdlDependencies") || name.contains("workflowDependencies")) {
+          if (name.contains("wdlDependencies")) deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
+          partialSources.copy(zippedImports = Option(data.toByteArray))
+        } else if (name.contains("customLabels")) {
+          partialSources.copy(customLabels = Option(data.asString))
         } else {
-          throw new IllegalArgumentException(s"Unexpected body part name: ${bodyPart.name.getOrElse("None")}")
+          throw new IllegalArgumentException(s"Unexpected body part name: ${name.getOrElse("None")}")
         }
       })
-      partialSourcesToSourceCollections(partialSources, allowNoInputs)
+      partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs).errorOrToTry
     }
   }
 

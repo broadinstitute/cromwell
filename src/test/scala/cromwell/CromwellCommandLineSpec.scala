@@ -85,8 +85,8 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers {
 
     val filePassing = DefaultPathBuilder.createTempFile("filePassing", ".wdl", Option(wdlDir))
     val fileClobber = DefaultPathBuilder.createTempFile("fileClobber", ".wdl", Option(wdlDir))
-    filePassing write FilePassingWorkflow.wdlSource()
-    fileClobber write FileClobber.wdlSource()
+    filePassing write FilePassingWorkflow.workflowSource()
+    fileClobber write FileClobber.workflowSource()
 
     val zippedDir = wdlDir.zip()
     val zippedPath = zippedDir.pathAsString
@@ -113,7 +113,7 @@ object CromwellCommandLineSpec {
     lazy val wdlFile = {
       val file = DefaultPathBuilder.createTempFile(s"${sampleWdl.name}.", ".wdl")
       tempFiles :+= file
-      file write sampleWdl.wdlSource()
+      file write sampleWdl.workflowSource()
     }
 
     lazy val wdl = wdlFile.pathAsString

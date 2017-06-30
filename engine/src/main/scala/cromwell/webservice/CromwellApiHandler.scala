@@ -11,7 +11,7 @@ import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.WorkflowQueryPagination
-import spray.http.{StatusCodes, Uri}
+import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 
 
@@ -24,14 +24,7 @@ object CromwellApiHandler {
 
   final case class ApiHandlerWorkflowSubmit(source: WorkflowSourceFilesCollection) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowSubmitBatch(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowQuery(uri: Uri, parameters: Seq[(String, String)]) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowStatus(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowOutputs(id: WorkflowId) extends ApiHandlerMessage
   final case class ApiHandlerWorkflowAbort(id: WorkflowId, manager: ActorRef) extends ApiHandlerMessage
-  final case class ApiHandlerCallOutputs(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
-  final case class ApiHandlerCallStdoutStderr(id: WorkflowId, callFqn: String) extends ApiHandlerMessage
-  final case class ApiHandlerWorkflowStdoutStderr(id: WorkflowId) extends ApiHandlerMessage
-  final case class ApiHandlerCallCaching(id: WorkflowId, parameters: QueryParameters, callName: Option[String]) extends ApiHandlerMessage
   case object ApiHandlerEngineStats extends ApiHandlerMessage
 }
 
@@ -68,7 +61,15 @@ class CromwellApiHandler(requestHandlerActor: ActorRef) extends Actor with Workf
       context.parent ! RequestComplete((StatusCodes.Created, WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString)))
 
     case ApiHandlerWorkflowSubmitBatch(sources) => requestHandlerActor !
-      WorkflowStoreActor.BatchSubmitWorkflows(sources.map(x => WorkflowSourceFilesCollection(x.wdlSource, x.inputsJson, x.workflowOptionsJson, x.labelsJson, x.importsZipFileOption)))
+      WorkflowStoreActor.BatchSubmitWorkflows(sources.map(w =>
+        WorkflowSourceFilesCollection(
+          workflowSource = w.workflowSource,
+          workflowType = w.workflowType,
+          workflowTypeVersion = w.workflowTypeVersion,
+          inputsJson = w.inputsJson,
+          workflowOptionsJson = w.workflowOptionsJson,
+          labelsJson = w.labelsJson,
+          importsFile = w.importsZipFileOption)))
 
 
     case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(ids) =>

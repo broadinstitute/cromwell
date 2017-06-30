@@ -45,6 +45,6 @@ notifications:
       - secure: B5KYcnhk/ujAUWlHsjzP7ROLm6MtYhaGikdYf6JYINovhMbVKnZCTlZEy7rqT3L2T5uJ25iefD500VQGk1Gn7puQ1sNq50wqjzQaj20PWEiBwoWalcV/nKBcQx1TyFT13LJv8fbFnVPxFCkC3YXoHedx8qAhDs8GH/tT5J8XOC8=
     template:
       - "Build <%{build_url}|#%{build_number}> (<%{compare_url}|%{commit}>) of %{repository}@%{branch} by %{author} %{result} in %{duration}"
-    on_success: always
-    on_failure: always
+    on_success: change
+    on_failure: change
     on_pull_requests: true

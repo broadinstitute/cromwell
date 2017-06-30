@@ -45,7 +45,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.endDate.get.toInstant should equal(OffsetDateTime.parse(EndDateString).toInstant)
           r.names should be(Set("my_workflow", "my_other_workflow"))
           r.statuses should be(Set("Succeeded", "Running"))
-          r.labels should be(Set(Label.safeLabel("label-key", "label-value")))
+          r.labels should be(Set(Label("label-key", "label-value")))
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
       }
@@ -158,7 +158,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           throw new RuntimeException(s"Unexpected success: $r")
         case Invalid(fs) =>
           fs.toList should have size 1
-          fs.toList.head should include(s"Invalid label: $badLabelKey did not match the regex ${Label.LabelRegexPattern}")
+          fs.toList.head should include(s"Invalid label: `$badLabelKey` did not match the regex ${Label.LabelKeyRegex}")
       }
     }
 

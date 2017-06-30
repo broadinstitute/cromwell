@@ -1688,12 +1688,11 @@ Valid keys and their meanings:
 
 # Labels
 
-Every call in Cromwell is labelled by Cromwell so that it can be queried about later. The current label set automatically applied is:
+Every call run on the JES backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
 |-----|-------|---------|-------|
 | cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
-| cromwell-workflow-name | The name of the root workflow | my-root-workflow | |
 | cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
 | wdl-task-name | The name of the WDL task | my-task | |
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
@@ -1711,10 +1710,15 @@ Custom labels can also be applied to every call in a workflow by specifying a cu
 
 ## Label Format
 
-To fit in with the Google schema for labels, label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be between 1 and 63 characters in length. 
+When labels are supplied to Cromwell, it will fail any request containing invalid label strings. Below are the requirements for a valid label key/value pair in Cromwell:
+- Label keys and values can't contain characters other than `[a-z]`, `[0-9]` or `-`.
+- Label keys must start with `[a-z]` and end with `[a-z]` or `[0-9]`.
+- Label values must start and end with `[a-z]` or `[0-9]`.
+- Label keys may not be empty but label values may be empty.
+- Label key and values have a max char limit of 63.
 
-For custom labels, Cromwell will reject any request which is made containing invalid label strings. For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
-
+Google has a different schema for labels, where label key and value strings must match the regex `[a-z]([-a-z0-9]*[a-z0-9])?` and be no more than 63 characters in length.
+For automatically applied labels, Cromwell will modify workflow/task/call names to fit the schema, according to the following rules:
 - Any capital letters are lowercased.
 - Any character which is not one of `[a-z]`, `[0-9]` or `-` will be replaced with `-`.
 - If the start character does not match `[a-z]` then prefix with `x--`
@@ -3493,7 +3497,7 @@ Server: spray-can/1.3.3
 
 ## GET /api/workflows/:version/callcaching/diff
 
-**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Crowmell 28.
+**Disclaimer**: This endpoint depends on hash values being published to the metadata, which only happens as of Cromwell 28.
 Workflows run with prior versions of Cromwell cannot be used with this endpoint.
 A `404 NotFound` will be returned when trying to use this endpoint if either workflow has been run on a prior version.
 

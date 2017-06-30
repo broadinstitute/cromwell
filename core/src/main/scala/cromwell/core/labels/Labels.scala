@@ -10,7 +10,9 @@ import scala.collection.JavaConverters._
 
 case class Labels(value: Vector[Label]) {
 
-  def asMap: Map[String, String] = value.map(label => label.key -> label.value).toMap
+  def asTuple: Vector[(String, String)] = value.map(label => label.key -> label.value)
+
+  def asMap: Map[String, String] = asTuple.toMap
 
   def asJavaMap = asMap.asJava
 
@@ -19,8 +21,7 @@ case class Labels(value: Vector[Label]) {
 
 object Labels {
   def apply(values: (String, String)*): Labels = {
-    val kvps: Seq[(String, String)] = values.toSeq
-    Labels((kvps map { case (k, v) => Label.safeLabel(k, v) }).to[Vector])
+    Labels(values.toVector map (Label.apply _).tupled)
   }
 
   def validateMapOfLabels(labels: Map[String, String]): ErrorOr[Labels] = {

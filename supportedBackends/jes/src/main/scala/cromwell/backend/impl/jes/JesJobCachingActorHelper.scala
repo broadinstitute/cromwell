@@ -70,14 +70,17 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
 
     Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-      "cromwell-workflow-name" -> workflow.rootWorkflow.unqualifiedName,
       "wdl-task-name" -> call.task.name
     ) ++ subWorkflowLabels ++ aliasLabels
   }
 
-  lazy val backendLabels: Labels = defaultLabels ++ workflowDescriptor.customLabels
+  lazy val originalLabels: Labels = defaultLabels ++ workflowDescriptor.customLabels
 
-  lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
+  lazy val backendLabels: Labels = GoogleLabels.toLabels(originalLabels.asTuple :_*)
+
+  lazy val originalLabelEvents: Map[String, String] = originalLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
+
+  lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value } toMap
 
   override protected def nonStandardMetadata: Map[String, Any] = {
     Map(
@@ -85,6 +88,6 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
       JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
       JesMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,
       "preemptible" -> preemptible
-    ) ++ backendLabelEvents
+    ) ++ backendLabelEvents ++ originalLabelEvents
   }
 }

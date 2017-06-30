@@ -221,12 +221,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Unit = {
-    val defaultLabels = Map(
-      "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId",
-      "cromwell-workflow-name" -> unqualifiedName
-    )
-    val customLabels = labels.value map {x => x.key -> x.value}
-    labelsToMetadata(defaultLabels ++ customLabels, rootWorkflowId)
+    val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
+    val customLabels = labels.asMap
+    labelsToMetadata(customLabels + defaultLabel, rootWorkflowId)
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
@@ -454,7 +451,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
       val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
         case (key, JsString(s)) => Label.validateLabel(key, s)
-        case (key, other) => s"Invalid label '$key: $other': Labels must be strings, and must match the regex ${Label.LabelRegexPattern}".invalidNel
+        case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
       }
 
       vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }

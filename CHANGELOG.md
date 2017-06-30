@@ -8,37 +8,43 @@
 
 The following WDL functions now add a newline after the final line of output (the previous behavior of not adding this
 newline was inadvertent):
+```
 - write_lines
 - write_map
 - write_object
 - write_objects
 - write_tsv
+```
 
 For example:
 
 ```
 task writer {
   Array[String] a = ["foo", "bar"]
-  # used to output: "foo\nbar"
-  # now outputs: "foo\nbar\n"
-  File out = write_lines(a)
-  ...
+  command {
+    # used to output: "foo\nbar"
+    # now outputs: "foo\nbar\n"
+    cat write_lines(a)
+  }
 }
 ```
 
-* A workflow utilizing the WorkflowFailureMode Workflow Option `ContinueWhilePossible` will now successfully reach a terminal state once all runnable jobs have completed.
-* If `FailOnStderr` is set to false, Cromwell no longer checks for the existence of a stderr file for that task. 
-* General improvements to error reporting for workflow failures.
+#### `ContinueWhilePossible`
+
+A workflow utilizing the WorkflowFailureMode Workflow Option `ContinueWhilePossible` will now successfully reach a terminal state once all runnable jobs have completed.
+#### `FailOnStderr` 
+When `FailOnStderr` is set to false, Cromwell no longer checks for the existence of a stderr file for that task. 
 
 ### WDL Functions
 
-#### Floor, ceil and round:
+#### floor, ceil and round:
 
 Enables the `floor`, `ceil` and `round` functions in WDL to convert floating point numbers to integers.
 
 For example we can now use the size of an input file to influence the amount of memory the task is given. In the example below a 500MB input file will result in a request for a VM with 2GB of memory:
 
-```task foo {
+```
+task foo {
     File in_file
     command { ... }
     runtime {
@@ -100,8 +106,7 @@ A placeholder file will be placed in the execution folder of the cached call to 
 
 ### Metadata Write Batching
 
-Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 
-a default of 1 to 200.  It's possible that 200 is too high in some environments, but more likely to be an appropriate value
+Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 1 to 200.  It's possible that 200 is too high in some environments, but more likely to be an appropriate value
 than the previous default.
 
 

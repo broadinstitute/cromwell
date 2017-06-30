@@ -96,6 +96,18 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     } yield WdlString(suffixless)
   }
 
+  def floor(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
+    extractSingleArgument("floor", params) flatMap { f => WdlFloatType.coerceRawValue(f) } map { f => WdlInteger(Math.floor(f.asInstanceOf[WdlFloat].value).toInt) }
+  }
+
+  def round(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
+    extractSingleArgument("round", params) flatMap { f => WdlFloatType.coerceRawValue(f) } map { f => WdlInteger(Math.round(f.asInstanceOf[WdlFloat].value).toInt) }
+  }
+
+  def ceil(params: Seq[Try[WdlValue]]): Try[WdlInteger] = {
+    extractSingleArgument("ceil", params) flatMap { f => WdlFloatType.coerceRawValue(f) } map { f => WdlInteger(Math.ceil(f.asInstanceOf[WdlFloat].value).toInt) }
+  }
+
   def transpose(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     def extractExactlyOneArg: Try[WdlValue] = params.size match {
       case 1 => params.head
@@ -352,6 +364,18 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   }
   def sub(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlStringType)
   def range(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlIntegerType))
+  def floor(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(ftype) :: Nil if WdlFloatType.isCoerceableFrom(ftype) => Success(WdlIntegerType)
+    case _ => Failure(new Exception(s"Unexpected 'floor' arguments: $params (expects a single Float argument)"))
+  }
+  def round(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(ftype) :: Nil if WdlFloatType.isCoerceableFrom(ftype) => Success(WdlIntegerType)
+    case _ => Failure(new Exception(s"Unexpected 'round' arguments: $params (expects a single Float argument)"))
+  }
+  def ceil(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
+    case Success(ftype) :: Nil if WdlFloatType.isCoerceableFrom(ftype) => Success(WdlIntegerType)
+    case _ => Failure(new Exception(s"Unexpected 'ceil' arguments: $params (expects a single Float argument)"))
+  }
   def basename(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
     case Success(fType) :: Nil if WdlStringType.isCoerceableFrom(fType) => Success(WdlStringType)
     case Success(fType) :: Success(sType) :: Nil if WdlStringType.isCoerceableFrom(fType) && WdlStringType.isCoerceableFrom(sType) => Success(WdlStringType)
@@ -399,4 +423,7 @@ case object NoFunctions extends WdlStandardLibraryFunctions {
   override def zip(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
   override def cross(params: Seq[Try[WdlValue]]): Try[WdlArray] = Failure(new NotImplementedError())
   override def basename(params: Seq[Try[WdlValue]]): Try[WdlString] = Failure(new NotImplementedError())
+  override def floor(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
+  override def round(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
+  override def ceil(params: Seq[Try[WdlValue]]): Try[WdlInteger] = Failure(new NotImplementedError())
 }

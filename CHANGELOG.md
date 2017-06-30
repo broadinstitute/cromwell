@@ -35,7 +35,7 @@ When `FailOnStderr` is set to false, Cromwell no longer checks for the existence
 
 ### WDL Functions
 
-#### floor, ceil and round:
+#### New functions: floor, ceil and round:
 
 Enables the `floor`, `ceil` and `round` functions in WDL to convert floating point numbers to integers.
 
@@ -104,7 +104,7 @@ A placeholder file will be placed in the execution folder of the cached call to 
 
 ### Metadata Write Batching
 
-Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 1 to 200.  It's possible that 200 is too high in some environments, but more likely to be an appropriate value
+Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 1 to 200.  It's possible that 200 is too high in some environments, but 200 is more likely to be an appropriate value
 than the previous default.
 
 

@@ -2,6 +2,56 @@
 
 ## 28
 
+### Bug Fixes
+
+#### WDL write_* functions add a final newline
+
+The following WDL functions now add a newline after the final line of output (the previous behavior of not adding this
+newline was inadvertent):
+- `write_lines`
+- `write_map`
+- `write_object`
+- `write_objects`
+- `write_tsv`
+
+For example:
+
+```
+task writer {
+  Array[String] a = ["foo", "bar"]
+  command {
+    # used to output: "foo\nbar"
+    # now outputs: "foo\nbar\n"
+    cat write_lines(a)
+  }
+}
+```
+
+#### `ContinueWhilePossible`
+
+A workflow utilizing the WorkflowFailureMode Workflow Option `ContinueWhilePossible` will now successfully reach a terminal state once all runnable jobs have completed.
+#### `FailOnStderr` 
+When `FailOnStderr` is set to false, Cromwell no longer checks for the existence of a stderr file for that task. 
+
+### WDL Functions
+
+#### New functions: floor, ceil and round:
+
+Enables the `floor`, `ceil` and `round` functions in WDL to convert floating point numbers to integers.
+
+For example we can now use the size of an input file to influence the amount of memory the task is given. In the example below a 500MB input file will result in a request for a VM with 2GB of memory:
+
+```
+task foo {
+    File in_file
+    command { ... }
+    runtime {
+      docker: "..."
+      memory: ceil(size(in_file)) * 4 
+    }
+}
+```
+
 ### Call Caching
 
 * Hash values calculated by Cromwell for a call when call caching is enabled are now published to the metadata.
@@ -23,7 +73,10 @@ See the [README](https://github.com/broadinstitute/cromwell#get-apiworkflowsvers
 * The workflow submission parameters `wdlSource` and `wdlDependencies` have been deprecated in favor of `workflowSource` and
 `workflowDependencies` respectively.  The older names are still supported in Cromwell 28 with deprecation warnings but will
 be removed in a future version of Cromwell.
+
+### Labels
 * A new `/labels` endpoint has been added to update labels for an existing workflow. See the [README](README.md#patch-apiworkflowsversionidlabels) for more information.
+* Label formatting requirements have been updated, please check the [README](README.md#label-format) for more detailed documentation.
 
 
 ### JES Backend
@@ -32,13 +85,6 @@ The JES backend now supports a `filesystems.gcs.caching.duplication-strategy` co
 It can be set to specify the desired behavior of Cromwell regarding call outputs when a call finds a hit in the cache.
 The default value is `copy` which will copy all output files to the new call directory.
 A second value is allowed, `reference`, that will instead point to the original output files, without copying them.
-
-
-### Metadata Write Batching
-
-Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 
-a default of 1 to 200.  It's possible that 200 is too high in some environments, but more likely to be an appropriate value
-than the previous default.
 
 
 ```hocon
@@ -55,27 +101,12 @@ filesystems {
 
 A placeholder file will be placed in the execution folder of the cached call to explain the absence of output files and point to the location of the original ones.
 
-### WDL write_* functions add a final newline
 
-The following WDL functions now add a newline after the final line of output (the previous behavior of not adding this
-newline was inadvertent):
-- write_lines
-- write_map
-- write_object
-- write_objects
-- write_tsv
+### Metadata Write Batching
 
-For example:
+Metadata write batching works the same as in previous versions of Cromwell, but the default batch size has been changed from 1 to 200.  It's possible that 200 is too high in some environments, but 200 is more likely to be an appropriate value
+than the previous default.
 
-```
-task writer {
-  Array[String] a = ["foo", "bar"]
-  # used to output: "foo\nbar"
-  # now outputs: "foo\nbar\n"
-  File out = write_lines(a)
-  ...
-}
-```
 
 ## 27
 

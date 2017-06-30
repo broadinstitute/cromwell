@@ -8,13 +8,11 @@
 
 The following WDL functions now add a newline after the final line of output (the previous behavior of not adding this
 newline was inadvertent):
-```
-- write_lines
-- write_map
-- write_object
-- write_objects
-- write_tsv
-```
+- `write_lines`
+- `write_map`
+- `write_object`
+- `write_objects`
+- `write_tsv`
 
 For example:
 

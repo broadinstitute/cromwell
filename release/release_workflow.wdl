@@ -22,7 +22,7 @@ task do_release {
      set -x 
      
      # Clone repo and checkout develop
-     git clone https://github.com/${organization}/${repo}.git
+     git clone git@github.com:${organization}/${repo}.git
      cd ${repo}
      git checkout develop
      git pull --rebase
@@ -32,10 +32,6 @@ task do_release {
      
      echo "Updating dependencies"
      ${sep='\n' dependencyCommands}
-     
-     # Make sure tests pass
-     sbt update
-     JAVA_OPTS=-XX:MaxMetaspaceSize=512m sbt test
      
      git add .
      # If there is nothing to commit, git commit will return 1 which will fail the script.
@@ -48,7 +44,7 @@ task do_release {
        # Generate new scaladoc
        sbt 'set scalacOptions in (Compile, doc) := List("-skip-packages", "better")' doc
        git checkout gh-pages
-       mv target/scala-2.11/api ${releaseV}
+       mv target/scala-2.12/api ${releaseV}
        git add ${releaseV}
        
        # Update latest pointer
@@ -74,15 +70,11 @@ task do_release {
      # Merge develop into master
      git checkout master
      git pull --rebase
-     git merge develop
+     git merge develop --no-edit
      
-     # Pin centaur for cromwell
-     if [ ${repo} == "cromwell" ]; then
-        centaurDevelopHEAD=$(git ls-remote git://github.com/${organization}/centaur.git | grep refs/heads/develop | cut -f 1)
-        sed -i '' s/CENTAUR_BRANCH=.*/CENTAUR_BRANCH="$centaurDevelopHEAD"/g .travis.yml
-        git add .travis.yml
-        git commit -m "Pin release to centaur branch"
-     fi 
+     # Make sure tests pass
+     sbt update
+     JAVA_OPTS=-XX:MaxMetaspaceSize=1024m sbt test
      
      # Tag the release
      git tag ${releaseV}
@@ -93,6 +85,15 @@ task do_release {
      
      # Create and push the hotfix branch
      git checkout -b ${releaseV}_hotfix
+     
+     # Pin centaur for cromwell
+     if [ ${repo} == "cromwell" ]; then
+        centaurDevelopHEAD=$(git ls-remote git://github.com/${organization}/centaur.git | grep refs/heads/develop | cut -f 1)
+        sed -i '' s/CENTAUR_BRANCH=.*/CENTAUR_BRANCH="$centaurDevelopHEAD"/g .travis.yml
+        git add .travis.yml
+        git commit -m "Pin release to centaur branch"
+     fi 
+     
      git push origin ${releaseV}_hotfix
      
      # Assemble jar for cromwell

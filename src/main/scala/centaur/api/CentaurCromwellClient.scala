@@ -4,6 +4,8 @@ import java.io.IOException
 import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, StreamTcpException}
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
@@ -36,7 +38,15 @@ object CentaurCromwellClient {
     sendReceiveFutureCompletion(() => cromwellClient.status(workflow.id))
   }
 
-  def isAlive: Boolean = Try(Await.result(cromwellClient.version, CentaurConfig.sendReceiveTimeout)).isSuccess
+  /*
+    Sends a quick ping to the Cromwell query endpoint. The query endpoint is the only one which both hits the
+    database w/o requiring a workflow id and does not modify server state. Not using CromwellClient here as it
+    currently does not support query.
+   */
+  def isAlive: Boolean = {
+    val request = Http().singleRequest(HttpRequest(uri=s"${CentaurConfig.cromwellUrl}/api/workflows/$apiVersion/query?status=Succeeded"))
+    Try(Await.result(request, CentaurConfig.sendReceiveTimeout)).isSuccess
+  }
 
   def metadata(workflow: SubmittedWorkflow): Try[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(workflow.id)) map { m =>

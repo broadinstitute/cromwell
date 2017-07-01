@@ -1,5 +1,6 @@
 package cromwell.backend.impl.spark
 
+import akka.http.scaladsl.model._
 import akka.testkit.ImplicitSender
 import cromwell.backend.impl.spark.SparkClusterProcess.SparkClusterJsonProtocol._
 import cromwell.backend.impl.spark.SparkClusterProcess._
@@ -13,7 +14,6 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
-import spray.http._
 import spray.json._
 
 import scala.concurrent.duration._
@@ -73,9 +73,9 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   private val mockRunningClusterResponse = SparkDriverStateQueryResponse(action = "SubmissionStatusResponse", driverState = "RUNNING", serverSparkVersion = "1.6.1",
     submissionId = "driver-20160803181054-0000", success = true, workerHostPort = "10.0.1.55:43834", workerId = "worker-20160801162431-10.0.1.55-43834")
 
-  private val mockSuccessHttpResponse = HttpResponse(StatusCodes.OK, HttpEntity(ContentTypes.`application/json`, mockSuccessClusterResponse.toJson.toString))
-  private val mockRunningHttpResponse = HttpResponse(StatusCodes.OK, HttpEntity(ContentTypes.`application/json`, mockRunningClusterResponse.toJson.toString))
-  private val mockFailedHttpResponse = HttpResponse(StatusCodes.OK, HttpEntity(ContentTypes.`application/json`, mockFailedClusterResponse.toJson.toString))
+  private val mockSuccessHttpResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, mockSuccessClusterResponse.toJson.toString))
+  private val mockRunningHttpResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, mockRunningClusterResponse.toJson.toString))
+  private val mockFailedHttpResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, mockFailedClusterResponse.toJson.toString))
   private val mockBadHttpResponse = HttpResponse(StatusCodes.BadRequest)
 
   "SparkCluster process" should {

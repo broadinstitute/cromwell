@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 29
+
+### Breaking Changes
+
+* Request timeouts for HTTP requests on the REST API now return a 503 status code instead of 500. The response for a request timeout is no longer in JSON format.
+
 ## 28
 
 ### Bug Fixes

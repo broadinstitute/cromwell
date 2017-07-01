@@ -1,7 +1,7 @@
 package cromwell.webservice
 
-import spray.routing._
-import spray.routing.directives.PathDirectives
+import akka.http.scaladsl.server.{PathMatcher0, Route}
+
 
 object WrappedRoute {
 
@@ -19,8 +19,8 @@ object WrappedRoute {
      * @return The wrappedRoute, followed optionally by the unwrappedRoute if routeUnwrapped is true.
      */
     def wrapped(wrappedPathPrefix: PathMatcher0, routeUnwrapped: Boolean = false): Route = {
-      import PathDirectives._
-      import RouteConcatenation._
+      import akka.http.scaladsl.server.directives.PathDirectives._
+      import akka.http.scaladsl.server.RouteConcatenation._
       val route = pathPrefix(wrappedPathPrefix) {
         unwrappedRoute
       }

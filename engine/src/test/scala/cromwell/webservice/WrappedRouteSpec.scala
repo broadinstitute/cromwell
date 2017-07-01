@@ -1,13 +1,13 @@
 package cromwell.webservice
 
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromwell.webservice.WrappedRoute._
 import org.scalatest.{FlatSpec, Matchers}
-import spray.http.StatusCodes
-import spray.routing.HttpService
-import spray.testkit.ScalatestRouteTest
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 
-class WrappedRouteSpec extends FlatSpec with Matchers with HttpService with ScalatestRouteTest {
-  override def actorRefFactory = system
+class WrappedRouteSpec extends FlatSpec with Matchers with ScalatestRouteTest {
 
   def unwrappedRoute = path("hello") {
     get {
@@ -36,21 +36,21 @@ class WrappedRouteSpec extends FlatSpec with Matchers with HttpService with Scal
   }
 
   it should "not service unwrapped routes" in {
-    Get("/hello") ~> sealRoute(wrappedRoute) ~> check {
+    Get("/hello") ~> Route.seal(wrappedRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
 
-    Post("/hello") ~> sealRoute(wrappedRoute) ~> check {
+    Post("/hello") ~> Route.seal(wrappedRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
 
   it should "not service other routes" in {
-    Delete("/hello") ~> sealRoute(wrappedRoute) ~> check {
+    Delete("/hello") ~> Route.seal(wrappedRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
 
-    Get("/swagger") ~> sealRoute(wrappedRoute) ~> check {
+    Get("/swagger") ~> Route.seal(wrappedRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }
@@ -80,11 +80,11 @@ class WrappedRouteSpec extends FlatSpec with Matchers with HttpService with Scal
   }
 
   it should "not service other routes when routeUnwrapped is true" in {
-    Delete("/hello") ~> sealRoute(legacyWrappedRoute) ~> check {
+    Delete("/hello") ~> Route.seal(legacyWrappedRoute) ~> check {
       status should be(StatusCodes.MethodNotAllowed)
     }
 
-    Get("/swagger") ~> sealRoute(legacyWrappedRoute) ~> check {
+    Get("/swagger") ~> Route.seal(legacyWrappedRoute) ~> check {
       status should be(StatusCodes.NotFound)
     }
   }

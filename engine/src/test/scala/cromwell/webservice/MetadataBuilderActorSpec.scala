@@ -4,43 +4,42 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.testkit._
+import akka.pattern.ask
+import akka.util.Timeout
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, MetadataBuilderActorResponse}
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{Assertion, AsyncFlatSpecLike, Matchers, Succeeded}
 import org.specs2.mock.Mockito
-import spray.http.{StatusCode, StatusCodes}
 import spray.json._
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLike with Matchers with Mockito
+class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
   behavior of "MetadataParser"
 
   val defaultTimeout = 200 millis
+  implicit val timeout: Timeout = defaultTimeout
+
   val mockServiceRegistry = TestProbe()
 
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
-                             expectedRes: String) = {
-    val parentProbe = TestProbe()
-    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
-    metadataBuilder ! action // Ask for everything
-    mockServiceRegistry.expectMsg(defaultTimeout, action) // TestActor runs on CallingThreadDispatcher
+                             expectedRes: String): Future[Assertion] = {
+    val mba = system.actorOf(MetadataBuilderActor.props(mockServiceRegistry.ref))
+    val response = mba.ask(action).mapTo[MetadataBuilderActorResponse]
+    mockServiceRegistry.expectMsg(defaultTimeout, action)
     mockServiceRegistry.reply(MetadataLookupResponse(queryReply, events))
-
-    parentProbe.expectMsgPF(defaultTimeout) {
-      case response: RequestComplete[(StatusCode, JsObject)] @unchecked =>
-        response.response._1 shouldBe StatusCodes.OK
-        response.response._2 shouldBe expectedRes.parseJson
-    }
+    response map { r => r shouldBe a [BuiltMetadataResponse] }
+    response.mapTo[BuiltMetadataResponse] map { b => b.response shouldBe expectedRes.parseJson}
   }
 
   it should "build workflow scope tree from metadata events" in {
@@ -292,15 +291,16 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     val kisv3 = ("key[0]:subkey", "value3", OffsetDateTime.now.plusSeconds(2))
     val kiv4 = ("key[0]", "value4", OffsetDateTime.now.plusSeconds(3))
 
-    val t = Table(
-      ("list", "res"),
+    val t = List(
       (List(kv),  """"key": "value""""),
       (List(kv, ksv2),  """"key": { "subkey": "value2" }"""),
       (List(kv, ksv2, kisv3),  """"key": [ { "subkey": "value3" } ]"""),
       (List(kv, ksv2, kisv3, kiv4),  """"key": [ "value4" ]""")
     )
 
-    forAll(t) { (l, r) => assertMetadataKeyStructure(l, r) }
+    Future.sequence(t map { case (l, r) => assertMetadataKeyStructure(l, r) }) map { assertions =>
+      assertions should contain only Succeeded
+    }
   }
 
   it should "coerce values to supported types" in {
@@ -445,7 +445,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     
     val parentProbe = TestProbe()
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
-    metadataBuilder ! mainQueryAction
+    val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, mainQueryAction)
     mockServiceRegistry.reply(MetadataLookupResponse(mainQuery, mainEvents))
     mockServiceRegistry.expectMsg(defaultTimeout, subQueryAction)
@@ -471,11 +471,9 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
          |}
        """.stripMargin
 
-    parentProbe.expectMsgPF(defaultTimeout) {
-      case response: RequestComplete[(StatusCode, JsObject)] @unchecked =>
-        response.response._1 shouldBe StatusCodes.OK
-        response.response._2 shouldBe expandedRes.parseJson
-    }
+    response map { r => r shouldBe a [BuiltMetadataResponse] }
+    val bmr = response.mapTo[BuiltMetadataResponse]
+    bmr map { b => b.response shouldBe expandedRes.parseJson}
   }
   
   it should "NOT expand sub workflow metadata when NOT asked for" in {
@@ -491,7 +489,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
     
     val parentProbe = TestProbe()
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
-    metadataBuilder ! queryNoExpandAction
+    val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, queryNoExpandAction)
     mockServiceRegistry.reply(MetadataLookupResponse(queryNoExpand, mainEvents))
 
@@ -511,11 +509,10 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with FlatSpecLik
          |  "id": "$mainWorkflowId"
          |}
        """.stripMargin
-    
-    parentProbe.expectMsgPF(defaultTimeout) {
-      case response: RequestComplete[(StatusCode, JsObject)] @unchecked =>
-        response.response._1 shouldBe StatusCodes.OK
-        response.response._2 shouldBe nonExpandedRes.parseJson
-    }
+
+    response map { r => r shouldBe a [BuiltMetadataResponse] }
+    val bmr = response.mapTo[BuiltMetadataResponse]
+    bmr map { b => b.response shouldBe nonExpandedRes.parseJson}
+
   }
 }

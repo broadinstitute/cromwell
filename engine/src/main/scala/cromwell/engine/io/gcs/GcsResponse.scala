@@ -2,8 +2,6 @@ package cromwell.engine.io.gcs
 
 import cromwell.engine.io.IoActor._
 
-import scala.language.existentials
-
 /**
   * ADT used only inside the batch stream
   * @tparam T final type of the result of the Command

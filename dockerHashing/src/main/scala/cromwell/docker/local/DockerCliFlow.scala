@@ -4,7 +4,7 @@ import java.util.concurrent.TimeoutException
 
 import akka.actor.Scheduler
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition}
-import akka.stream.{ActorMaterializer, FlowShape}
+import akka.stream.FlowShape
 import cromwell.docker.DockerHashActor._
 import cromwell.docker.{DockerFlow, DockerHashActor, DockerHashResult, DockerImageIdentifierWithoutHash}
 
@@ -15,8 +15,7 @@ import scala.util.{Failure, Success}
 /**
   * A docker flow using the CLI to return docker hashes.
   */
-class DockerCliFlow(implicit ec: ExecutionContext, materializer: ActorMaterializer, scheduler: Scheduler)
-  extends DockerFlow {
+class DockerCliFlow(implicit ec: ExecutionContext, scheduler: Scheduler) extends DockerFlow {
 
   // If the docker cli hangs it would be difficult to debug. So timeout the first request after a short duration.
   // https://github.com/docker/docker/issues/18279

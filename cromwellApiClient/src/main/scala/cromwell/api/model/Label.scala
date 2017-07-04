@@ -1,6 +1,7 @@
 package cromwell.api.model
 
 import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
+import scala.language.postfixOps
 
 object LabelsJsonFormatter extends DefaultJsonProtocol {
   implicit object LabelJsonFormat extends RootJsonFormat[List[Label]] {

@@ -482,9 +482,7 @@ object ServicesStoreSpec {
   (referenceProfile: ReferenceProfile,
    referenceDatabase: ReferenceProfile#Backend#Database,
    comparisonProfile: ComparisonProfile,
-   comparisonDatabase: ComparisonProfile#Backend#Database)(block: DiffResult => T)
-  (implicit executor: ExecutionContext): T = {
-
+   comparisonDatabase: ComparisonProfile#Backend#Database)(block: DiffResult => T): T = {
     withConnections(referenceProfile, referenceDatabase, comparisonProfile, comparisonDatabase) {
       LiquibaseUtils.compare(_, _)(block)
     }

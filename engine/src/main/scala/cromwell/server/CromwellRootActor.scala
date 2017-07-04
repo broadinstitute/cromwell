@@ -94,7 +94,7 @@ import scala.language.postfixOps
   lazy val googleFlow = new GoogleFlow(dockerHttpPool, dockerConf.gcrApiQueriesPer100Seconds)(ioEc, materializer, system.scheduler)
   lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
   lazy val quayFlow = new QuayFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
-  lazy val dockerCliFlow = new DockerCliFlow()(ioEc, materializer, system.scheduler)
+  lazy val dockerCliFlow = new DockerCliFlow()(ioEc, system.scheduler)
   lazy val dockerFlows = dockerConf.method match {
     case DockerLocalLookup => Seq(dockerCliFlow)
     case DockerRemoteLookup => Seq(dockerHubFlow, googleFlow, quayFlow)

@@ -89,7 +89,7 @@ trait CromwellApiService {
     } ~
     encodeResponseWith(Gzip, Deflate, NoCoding) {
       path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
-        parameters('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
+        parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
           val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
           val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
           val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)

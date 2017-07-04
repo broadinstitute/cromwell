@@ -29,7 +29,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
   val akkaHttpService = new MockApiService()
   val version = "v1"
 
-  implicit def default(implicit system: ActorSystem) = RouteTestTimeout(5.seconds)
+  implicit def default = RouteTestTimeout(5.seconds)
 
 
     behavior of "REST API /status endpoint"
@@ -322,7 +322,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         check {
           status should be(StatusCodes.OK)
           val decoder: Decoder = Gzip
-          val result = Await.result(Unmarshal(decoder.decode(response)).to[JsObject], 1.second)
+          val result = Await.result(Unmarshal(decoder.decodeMessage(response)).to[JsObject], 1.second)
           result.fields.keys should contain allOf("testKey1", "testKey2")
           result.fields.keys shouldNot contain("testKey3")
           result.fields("testKey1") should be(JsString("myValue1"))
@@ -336,7 +336,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         check {
           status should be(StatusCodes.OK)
           val decoder: Decoder = Gzip
-          val result = Await.result(Unmarshal(decoder.decode(response)).to[JsObject], 1.second)
+          val result = Await.result(Unmarshal(decoder.decodeMessage(response)).to[JsObject], 1.second)
           result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
           result.fields.keys should contain noneOf("testKey2b", "testKey3")
           result.fields("testKey1a") should be(JsString("myValue1a"))
@@ -351,7 +351,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         check {
           status should be(StatusCodes.OK)
           val decoder: Decoder = Gzip
-          val result = Await.result(Unmarshal(decoder.decode(response)).to[JsObject], 1.second)
+          val result = Await.result(Unmarshal(decoder.decodeMessage(response)).to[JsObject], 1.second)
           result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
           result.fields.keys should contain noneOf("testKey2b", "testKey3")
           result.fields("testKey1a") should be(JsString("myValue1a"))
@@ -369,7 +369,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
 
           val decoder: Decoder = Gzip
-          Unmarshal(decoder.decode(response)).to[String] map { r =>
+          Unmarshal(decoder.decodeMessage(response)).to[String] map { r =>
             assertResult(
               s"""{
                   |  "status": "fail",
@@ -512,6 +512,7 @@ object CromwellApiServiceSpec {
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
+          case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }
     }
   }
@@ -524,10 +525,10 @@ object CromwellApiServiceSpec {
         sender ! response
       case AbortWorkflow(id, manager) =>
         val message = id match {
-          case ExistingWorkflowId =>
-            WorkflowStoreEngineActor.WorkflowAborted(id)
+          case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
           case AbortedWorkflowId =>
             WorkflowAbortFailed(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))
+          case WorkflowId(_) => throw new Exception("Something untoward happened")
         }
         sender ! message
     }

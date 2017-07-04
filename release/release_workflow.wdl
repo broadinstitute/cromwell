@@ -316,8 +316,8 @@ workflow release_cromwell {
         dependencyCommands = cromwellDependencyCommands.updateCommand
        }
   
-  call wait_for_artifactory as waitForLenthall { input: repo = "lenthall_2.11", version = release_lenthall.version }
-  call wait_for_artifactory as waitForWdl4s { input: repo = "wdl4s_2.11", version = release_wdl4s.version }
+  call wait_for_artifactory as waitForLenthall { input: repo = "lenthall_2.12", version = release_lenthall.version }
+  call wait_for_artifactory as waitForWdl4s { input: repo = "wdl4s_2.12", version = release_wdl4s.version }
   
   # Generates commands to update wdl4s dependencies
   scatter(wdl4sDependency in wdl4sDependencies) {
@@ -355,7 +355,7 @@ workflow release_cromwell {
     }
   }
   
-  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
+  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.12/cromwell-" + cromwellPrep.version + ".jar"
   # Version that was just released
   Int cromwellVersionAsInt = cromwellPrep.version
   # Previous version

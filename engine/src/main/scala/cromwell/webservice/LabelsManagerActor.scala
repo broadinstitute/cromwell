@@ -34,7 +34,7 @@ object LabelsManagerActor {
   }
 
   def metadataEventsToLabels(events: Iterable[MetadataEvent]): Map[String, String] = {
-    events map { case MetadataEvent(MetadataKey(_, _, key), Some(MetadataValue(value, _)), _) => key.split("\\:").last -> value } toMap
+    events collect { case MetadataEvent(MetadataKey(_, _, key), Some(MetadataValue(value, _)), _) => key.split("\\:").last -> value } toMap
   }
 
   def labelsToMetadataEvents(labels: Labels, workflowId: WorkflowId): Iterable[MetadataEvent] = {

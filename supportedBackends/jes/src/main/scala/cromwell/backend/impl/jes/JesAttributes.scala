@@ -18,7 +18,7 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 case class JesAttributes(project: String,
                          computeServiceAccount: String,
@@ -60,7 +60,7 @@ object JesAttributes {
   implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
   
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
-    val configKeys = backendConfig.entrySet().toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
+    val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, jesKeys, context, Logger)
 
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {

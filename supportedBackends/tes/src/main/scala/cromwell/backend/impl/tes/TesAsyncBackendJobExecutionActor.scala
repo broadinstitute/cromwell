@@ -18,7 +18,7 @@ import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -115,7 +115,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
   }
 
-  override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def executeAsync(): Future[ExecutionHandle] = {
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessage = createTaskMessage()
@@ -126,7 +126,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
   }
 
-  override def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext) = executeAsync()
+  override def recoverAsync(jobId: StandardAsyncJob) = executeAsync()
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
@@ -148,7 +148,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ()
   }
 
-  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)(implicit ec: ExecutionContext): Future[TesRunStatus] = {
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
         val state = response.state

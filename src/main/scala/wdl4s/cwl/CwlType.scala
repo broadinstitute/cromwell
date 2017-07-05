@@ -34,13 +34,6 @@ case class File(
   format: Option[String],
   contents: Option[String])
 
-object File {
-  def validateContents: File => Either[String, Unit] =  //this is a sample validation.  There are about a billion of them, not sure
-    f =>
-      (!(f.location.isEmpty && f.path.isEmpty && f.contents.isEmpty)).
-        either("One of path, location, or contents must be specified", ())
-}
-
 case class Directory(
   `class`: String Refined MatchesRegex[W.`"Directory"`.T],
   location: Option[String],

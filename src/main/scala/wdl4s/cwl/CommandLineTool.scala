@@ -44,19 +44,18 @@ case class CommandInputEnumSchema(
 
 case class CommandInputArraySchema(
                                     items:
-                                    CwlType :+:
+                                      CwlType :+:
                                       CommandInputRecordSchema :+:
                                       CommandInputEnumSchema :+:
                                       CommandInputArraySchema :+:
                                       String :+:
                                       Array[
                                         CwlType :+:
-                                          CommandInputRecordSchema :+:
-                                          CommandInputEnumSchema :+:
-                                          CommandInputArraySchema :+:
-                                          String :+:
-                                          CNil
-                                        ] :+:
+                                        CommandInputRecordSchema :+:
+                                        CommandInputEnumSchema :+:
+                                        CommandInputArraySchema :+:
+                                        String :+:
+                                        CNil] :+:
                                       CNil,
                                     `type`: String Refined MatchesRegex[W.`"array"`.T],
                                     label: Option[String],

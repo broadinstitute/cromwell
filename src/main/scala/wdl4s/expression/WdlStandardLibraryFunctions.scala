@@ -349,12 +349,24 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def write_objects(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   def write_json(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFileType)
   def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
-  def size(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlFloatType)
+  def size(params: Seq[Try[WdlType]]): Try[WdlType] = {
+    def isGoodFirstSizeParam(wdlType: WdlType): Boolean = wdlType match {
+      case f if WdlFileType.isCoerceableFrom(f) => true
+      case WdlOptionalType(o) => isGoodFirstSizeParam(o)
+      case _ => false
+    }
+
+    params.toList match {
+      case Success(f) :: Nil if isGoodFirstSizeParam(f) => Success(WdlFloatType)
+      case Success(f) :: Success(WdlStringType) :: Nil if isGoodFirstSizeParam(f) => Success(WdlFloatType)
+      case other => Failure(new Exception(s"Unexpected arguments to function `size`. Expected 'size(file: File [, unit: String])' but got 'size(${other.map(_.map(_.toWdlString)).mkString(", ")})'"))
+    }
+  }
   def length(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
     case Success(WdlArrayType(_)) :: Nil => Success(WdlIntegerType)
     case _ =>
       val badArgs = params.mkString(", ")
-      Failure(new Exception(s"Unexpected arguments to function `length`.  `length` takes a parameter of type Array but got: $badArgs"))
+      Failure(new Exception(s"Unexpected arguments to function `length`. `length` takes a parameter of type Array but got: $badArgs"))
   }
   def prefix(params: Seq[Try[WdlType]]): Try[WdlType] = params.toList match {
     case Success(WdlStringType) :: Success(WdlArrayType(_: WdlPrimitiveType)) :: Nil => Success(WdlArrayType(WdlStringType))

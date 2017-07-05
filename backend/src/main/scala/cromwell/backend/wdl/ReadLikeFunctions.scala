@@ -122,11 +122,20 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
     def toUnit(wdlValue: Try[WdlValue]) = wdlValue flatMap { unit => Try(MemoryUnit.fromSuffix(unit.valueString)) }
 
+    def optionalSafeFileSize(value: WdlValue): Try[Double] = value match {
+      case f: WdlFile => Try(buildPath(f.valueString).size.toDouble)
+      case f if WdlFileType.isCoerceableFrom(f.wdlType) => WdlFileType.coerceRawValue(f) map { coerced => buildPath(coerced.asInstanceOf[WdlFile].valueString).size.toDouble }
+      case WdlOptionalValue(f, Some(o)) if WdlFileType.isCoerceableFrom(f) => optionalSafeFileSize(o)
+      case WdlOptionalValue(f, None) if WdlFileType.isCoerceableFrom(f) => Success(0d)
+      case other => Failure(new Exception(s"The 'size' method expects a File argument but got a ${value.wdlType.toWdlString}."))
+    }
+
     def fileSize(wdlValue: Try[WdlValue], convertTo: Try[MemoryUnit] = Success(MemoryUnit.Bytes)) = {
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(buildPath(value.valueString).size.toDouble, MemoryUnit.Bytes).to(unit).amount
+        fileSize <- optionalSafeFileSize(value)
+      } yield MemorySize(fileSize, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {

@@ -24,9 +24,10 @@ object CallCacheDiffActor {
     override def getMessage = message
   }
 
-  private val CallAAndBNotFoundException = CachedCallNotFoundException("callA and callB were run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val CallANotFoundException = CachedCallNotFoundException("callA was run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val CallBNotFoundException = CachedCallNotFoundException("callB was run on a previous version of Cromwell on which this endpoint was not supported.")
+  // Exceptions when calls exist but have no hashes in their metadata, indicating they were run pre-28
+  private val HashesForCallAAndBNotFoundException = new Exception("callA and callB were run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val HashesForCallANotFoundException = new Exception("callA was run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val HashesForCallBNotFoundException = new Exception("callB was run on a previous version of Cromwell on which this endpoint was not supported.")
 
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState
@@ -109,21 +110,55 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
                                   responseB: MetadataLookupResponse,
                                   replyTo: ActorRef) = {
 
-    val response = diffHashes(responseA.eventList, responseB.eventList) match {
-      case Success(diff) =>
-        val diffObject = MetadataObject(Map(
-          "callA" -> makeCallInfo(queryA, responseA.eventList),
-          "callB" -> makeCallInfo(queryB, responseB.eventList),
-          "hashDifferential" -> diff
+    lazy val buildResponse = {
+      diffHashes(responseA.eventList, responseB.eventList) match {
+        case Success(diff) =>
+          val diffObject = MetadataObject(Map(
+            "callA" -> makeCallInfo(queryA, responseA.eventList),
+            "callB" -> makeCallInfo(queryB, responseB.eventList),
+            "hashDifferential" -> diff
           ))
-        BuiltCallCacheDiffResponse(metadataComponentJsonWriter.write(diffObject).asJsObject)
-      case Failure(f) => FailedCallCacheDiffResponse(f)
+
+          BuiltCallCacheDiffResponse(metadataComponentJsonWriter.write(diffObject).asJsObject)
+        case Failure(f) => FailedCallCacheDiffResponse(f)
+      }
+    }
+
+    val response = checkCallsExistence(queryA, queryB, responseA, responseB) match {
+      case Some(msg) => FailedCallCacheDiffResponse(CachedCallNotFoundException(msg))
+      case None => buildResponse
     }
 
     replyTo ! response
 
     context stop self
     stay()
+  }
+
+  /**
+    * Returns an error message if one or both of the calls are not found, or None if it does
+    */
+  private def checkCallsExistence(queryA: MetadataQuery,
+                                  queryB: MetadataQuery,
+                                  responseA: MetadataLookupResponse,
+                                  responseB: MetadataLookupResponse): Option[String] = {
+    import cromwell.core.ExecutionIndex._
+
+    def makeTag(query: MetadataQuery) = {
+      s"${query.workflowId}:${query.jobKey.get.callFqn}:${query.jobKey.get.index.fromIndex}"
+    }
+
+    def makeNotFoundMessage(queries: NonEmptyList[MetadataQuery]) = {
+      val plural = if (queries.tail.nonEmpty) "s" else ""
+      s"Cannot find call$plural ${queries.map(makeTag).toList.mkString(", ")}"
+    }
+
+    (responseA.eventList, responseB.eventList) match {
+      case (a, b) if a.isEmpty && b.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryA, queryB)))
+      case (a, _) if a.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryA)))
+      case (_, b) if b.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryB)))
+      case _ => None
+    }
   }
 
   /**
@@ -208,9 +243,9 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     val hashesB: Map[String, Option[MetadataValue]] = collectHashes(eventsB)
 
     (hashesA.isEmpty, hashesB.isEmpty) match {
-      case (true, true) => Failure(CallAAndBNotFoundException)
-      case (true, false) => Failure(CallANotFoundException)
-      case (false, true) => Failure(CallBNotFoundException)
+      case (true, true) => Failure(HashesForCallAAndBNotFoundException)
+      case (true, false) => Failure(HashesForCallANotFoundException)
+      case (false, true) => Failure(HashesForCallBNotFoundException)
       case (false, false) => Success(diffHashEvents(hashesA, hashesB))
     }
 

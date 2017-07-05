@@ -31,7 +31,7 @@ import wdl4s.values._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
@@ -285,15 +285,11 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def isTransient(throwable: Throwable): Boolean = isTransientJesException(throwable)
 
-  override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    runWithJes(None)
-  }
+  override def executeAsync(): Future[ExecutionHandle] = runWithJes(None)
 
   val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
-  override def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    runWithJes(Option(jobId))
-  }
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = runWithJes(Option(jobId))
 
   private def runWithJes(jobForResumption: Option[StandardAsyncJob]): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
@@ -329,12 +325,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-
-  override def pollStatusAsync(handle: JesPendingExecutionHandle)
-                              (implicit ec: ExecutionContext): Future[RunStatus] = {
-    super[JesStatusRequestClient].pollStatus(handle.runInfo.get)
-  }
-
+  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = super[JesStatusRequestClient].pollStatus(handle.runInfo.get)
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>

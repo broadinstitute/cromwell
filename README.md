@@ -120,13 +120,13 @@ There is a [Cromwell gitter channel](https://gitter.im/broadinstitute/cromwell) 
 
 The following is the toolchain used for development of Cromwell.  Other versions may work, but these are recommended.
 
-* [Scala 2.11.8](http://www.scala-lang.org/news/2.11.8/)
+* [Scala 2.12.2](http://www.scala-lang.org/news/2.12.1#scala-212-notes)
 * [SBT 0.13.12](https://github.com/sbt/sbt/releases/tag/v0.13.12)
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 
 # Building
 
-`sbt assembly` will build a runnable JAR in `target/scala-2.11/`
+`sbt assembly` will build a runnable JAR in `target/scala-2.12/`
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 
@@ -3788,7 +3788,7 @@ Essentially run `sbt doc` then commit the generated code into the `gh-pages` bra
 ```
 $ sbt doc
 $ git co gh-pages
-$ mv target/scala-2.11/api scaladoc
+$ mv target/scala-2.12/api scaladoc
 $ git add scaladoc
 $ git commit -m "API Docs"
 $ git push origin gh-pages

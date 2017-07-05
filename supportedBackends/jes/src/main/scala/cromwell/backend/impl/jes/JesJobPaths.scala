@@ -1,6 +1,5 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.ActorSystem
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
@@ -11,7 +10,7 @@ object JesJobPaths {
   val GcsExecPathKey = "gcsExec"
 }
 
-case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem) extends JobPaths {
+final case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")

@@ -108,9 +108,9 @@ fi
 
 # Upload the built Cromwell jar to GCS so we can use it in our centaur test. Set an exit trap to clean it up on failure
 JAR_GCS_PATH=gs://cloud-cromwell-dev/travis-centaur/${CROMWELL_JAR}
-gsutil cp target/scala-2.11/cromwell-*.jar "${JAR_GCS_PATH}"
+gsutil cp target/scala-2.12/cromwell-*.jar "${JAR_GCS_PATH}"
 
-java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run src/bin/travis/resources/centaur.wdl src/bin/travis/resources/centaur.inputs | tee log.txt
+java -Dconfig.file=./jes.conf -jar target/scala-2.12/cromwell-*.jar run src/bin/travis/resources/centaur.wdl src/bin/travis/resources/centaur.inputs | tee log.txt
 EXIT_CODE="${PIPESTATUS[0]}"
 
 # The perl code below is to remove our lovely color highlighting

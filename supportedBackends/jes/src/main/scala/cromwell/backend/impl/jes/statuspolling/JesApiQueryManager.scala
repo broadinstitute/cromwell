@@ -78,7 +78,8 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
     workQueue = beheaded.newWorkQueue
   }
 
-  private final case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[JesApiQuery]], newWorkQueue: Queue[JesApiQuery])
+  // Intentionally not final, this runs afoul of SI-4440 (I believe)
+  private case class BeheadedWorkQueue(workToDo: Option[NonEmptyList[JesApiQuery]], newWorkQueue: Queue[JesApiQuery])
   private def beheadWorkQueue(maxBatchSize: Int): BeheadedWorkQueue = {
 
     val head = workQueue.take(maxBatchSize).toList

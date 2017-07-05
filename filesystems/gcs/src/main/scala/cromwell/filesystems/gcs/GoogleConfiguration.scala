@@ -57,7 +57,7 @@ object GoogleConfiguration {
 
   private val log = LoggerFactory.getLogger("GoogleConfiguration")
 
-  case class GoogleConfigurationException(errorMessages: List[String]) extends MessageAggregation {
+  final case class GoogleConfigurationException(errorMessages: List[String]) extends MessageAggregation {
     override val exceptionContext = "Google configuration"
   }
 

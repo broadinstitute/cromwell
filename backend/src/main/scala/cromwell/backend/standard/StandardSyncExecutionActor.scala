@@ -10,7 +10,6 @@ import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{Future, Promise}
-import scala.language.existentials
 
 trait StandardSyncExecutionActorParams extends StandardJobExecutionActorParams {
   /** The class for creating an async backend. */

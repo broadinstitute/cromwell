@@ -128,7 +128,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
 
   private def decodeResponse(response: HttpResponse): Try[HttpResponse] = {
     decoders.get(response.encoding) map { decoder =>
-      Try(decoder.decode(response))
+      Try(decoder.decodeMessage(response))
     } getOrElse Failure(UnsuccessfulRequestException(s"No decoder for ${response.encoding}", response))
   }
 }

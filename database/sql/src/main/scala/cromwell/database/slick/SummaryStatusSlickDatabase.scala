@@ -9,8 +9,7 @@ trait SummaryStatusSlickDatabase {
 
   import dataAccess.driver.api._
 
-  private[slick] def getSummaryStatusEntryMaximumId(summaryTableName: String, summarizedTableName: String)
-                                                   (implicit ec: ExecutionContext): DBIO[Option[Long]] = {
+  private[slick] def getSummaryStatusEntryMaximumId(summaryTableName: String, summarizedTableName: String): DBIO[Option[Long]] = {
     dataAccess.
       maximumIdForSummaryTableNameSummarizedTableName((summaryTableName, summarizedTableName)).
       result.headOption

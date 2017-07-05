@@ -4,18 +4,19 @@ object Dependencies {
   lazy val lenthallV = "0.25"
   lazy val wdl4sV = "0.13"
 
-  lazy val akkaV = "2.4.16"
-  lazy val akkaHttpV = "10.0.5"
+  lazy val akkaV = "2.4.17"
+  lazy val akkaHttpV = "10.0.9"
 
   lazy val slickV = "3.2.0"
-  // TODO: Re-combine these when cromwell is 2.12:
-  lazy val cromwellApiClientAkkaV = "2.4.17"
-  lazy val cromwellApiClientAkkaHttpV = "10.0.6"
+
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
   lazy val catsV = "0.9.0"
-  lazy val fs2V = "0.9.6"
+  lazy val fs2V = "0.9.7"
+
+  lazy val pegdownV = "1.6.0"
+  lazy val scalatestV = "3.0.2"
 
   // Internal collections of dependencies
 
@@ -23,32 +24,32 @@ object Dependencies {
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats" % catsV,
-    "com.github.benhutchison" %% "mouse" % "0.6"
+    "com.github.benhutchison" %% "mouse" % "0.9"
   ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.
     If sbt detects scalacheck, it tries to run it.
     Explicitly excluding the two problematic artifacts instead of including the three (or four?).
     https://github.com/typelevel/cats/tree/v0.7.2#getting-started
-    Re "_2.11", see also: https://github.com/sbt/sbt/issues/1518
+    Re "_2.12", see also: https://github.com/sbt/sbt/issues/1518
      */
-    exclude("org.typelevel", "cats-laws_2.11")
-    exclude("org.typelevel", "cats-kernel-laws_2.11")
+    exclude("org.typelevel", "cats-laws_2.12")
+    exclude("org.typelevel", "cats-kernel-laws_2.12")
     )
 
   private val baseDependencies = List(
     "org.broadinstitute" %% "lenthall" % lenthallV,
-    "com.iheart" %% "ficus" % "1.3.0",
-    "org.scalatest" %% "scalatest" % "3.0.0" % Test,
-    "org.pegdown" % "pegdown" % "1.6.0" % Test,
-    "org.specs2" %% "specs2-mock" % "3.8.5" % Test
+    "com.iheart" %% "ficus" % "1.4.1",
+    "org.scalatest" %% "scalatest" % scalatestV % Test,
+    "org.pegdown" % "pegdown" % pegdownV % Test,
+    "org.specs2" %% "specs2-mock" % "3.8.9" % Test // 3.9.X doesn't enjoy the spark backend or refined
   ) ++ catsDependencies :+ fs2Test
 
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % "1.2.1",
-    "ch.qos.logback" % "logback-access" % "1.2.1",
-    "org.codehaus.janino" % "janino" % "3.0.1"
+    "ch.qos.logback" % "logback-classic" % "1.2.3",
+    "ch.qos.logback" % "logback-access" % "1.2.3",
+    "org.codehaus.janino" % "janino" % "3.0.7"
   )
 
   private val slickDependencies = List(
@@ -73,7 +74,7 @@ object Dependencies {
   private val googleApiClientDependencies = List(
     // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
     // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
-    "com.fasterxml.jackson.core" % "jackson-core" % "2.8.2",
+    "com.fasterxml.jackson.core" % "jackson-core" % "2.8.9",
     // The exclusions prevent guava 13 from colliding at assembly time with guava 18 brought in elsewhere.
     "com.google.api-client" % "google-api-client-java6" % googleClientApiV exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleClientApiV exclude("com.google.guava", "guava-jdk5")
@@ -81,11 +82,11 @@ object Dependencies {
 
   private val googleCloudDependencies = List(
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
-    "com.google.cloud" % "google-cloud-nio" % "0.17.2-alpha"
+    "com.google.cloud" % "google-cloud-nio" % "0.20.1-alpha"
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
-    "org.apache.httpcomponents" % "httpclient" % "4.5.2"
+    "org.apache.httpcomponents" % "httpclient" % "4.5.3"
   )
 
   private val dbmsDependencies = List(
@@ -103,7 +104,7 @@ object Dependencies {
 
   private val refinedTypeDependenciesList = List(
     "org.scala-lang" % "scala-compiler" % Settings.ScalaVersion,
-    "eu.timepit" %% "refined" % "0.7.0"
+    "eu.timepit" %% "refined" % "0.8.2"
   )
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
@@ -115,16 +116,16 @@ object Dependencies {
   val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val coreDependencies = List(
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.4.0",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.6.0",
     "org.broadinstitute" %% "wdl4s" % wdl4sV,
-    "org.apache.commons" % "commons-lang3" % "3.4",
+    "org.apache.commons" % "commons-lang3" % "3.6",
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
-    "com.typesafe" % "config" % "1.3.0",
+    "com.typesafe" % "config" % "1.3.1",
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
-    "com.google.guava" % "guava" % "20.0",
-    "com.google.auth" % "google-auth-library-oauth2-http" % "0.6.0",
+    "com.google.guava" % "guava" % "22.0",
+    "com.google.auth" % "google-auth-library-oauth2-http" % "0.7.0",
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV,
     "com.chuusai" %% "shapeless" % "2.3.2"
   ) ++ baseDependencies ++ googleApiClientDependencies ++
@@ -135,14 +136,13 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV % Test
   ) ++ liquibaseDependencies ++ dbmsDependencies
 
-  // FIXME: this needs to be cleaned up w/ 2.12 move
   val cromwellApiClientDependencies = List(
-    "com.typesafe.akka" %% "akka-actor" % cromwellApiClientAkkaV,
-    "com.typesafe.akka" %% "akka-http" % cromwellApiClientAkkaHttpV,
-    "com.typesafe.akka" %% "akka-http-spray-json" % cromwellApiClientAkkaHttpV,
-    "com.github.pathikrit" %% "better-files" % "3.0.0",
-    "org.scalatest" %% "scalatest" % "3.0.1" % Test,
-    "org.pegdown" % "pegdown" % "1.6.0" % Test
+    "com.typesafe.akka" %% "akka-actor" % akkaV,
+    "com.typesafe.akka" %% "akka-http" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "com.github.pathikrit" %% "better-files" % betterFilesV,
+    "org.scalatest" %% "scalatest" % scalatestV % Test,
+    "org.pegdown" % "pegdown" % pegdownV % Test
   )
 
   val engineDependencies = List(
@@ -150,9 +150,10 @@ object Dependencies {
     "commons-io" % "commons-io" % "2.5",
     "com.storm-enroute" %% "scalameter" % "0.8.2"
       exclude("com.fasterxml.jackson.core", "jackson-databind")
-      exclude("com.fasterxml.jackson.module", "jackson-module-scala"),
-    "com.fasterxml.jackson.core" % "jackson-databind" % "2.7.9.1",
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.7.9",
+      exclude("com.fasterxml.jackson.module", "jackson-module-scala")
+      exclude("org.scala-tools.testing", "test-interface"),
+    "com.fasterxml.jackson.core" % "jackson-databind" % "2.8.9",
+    "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.8.9",
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test
   ) ++ akkaHttpServerDependencies

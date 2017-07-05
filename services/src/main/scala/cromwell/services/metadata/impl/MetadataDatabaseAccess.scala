@@ -125,6 +125,7 @@ trait MetadataDatabaseAccess {
       case MetadataQuery(_, None, None, Some(includeKeys), Some(excludeKeys), _) => Future.failed(
         new IllegalArgumentException(
           s"Include/Exclude keys may not be mixed: include = $includeKeys, exclude = $excludeKeys"))
+      case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }
 
     futureMetadata map metadataToMetadataEvents(query.workflowId)

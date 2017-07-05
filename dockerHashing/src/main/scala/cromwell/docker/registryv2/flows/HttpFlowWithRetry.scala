@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.Try
 
 object HttpFlowWithRetry {
@@ -37,8 +36,6 @@ object HttpFlowWithRetry {
     }
   }
 
-  def defaultRequestBackoff(): Backoff = SimpleExponentialBackoff(1 second, 2 minutes, 3D)
-  
   /**
     * In order to allow for retries, the http context object needs to encapsulate the original request,
     * so that it can be re-submitted if necessary.
@@ -69,7 +66,7 @@ object HttpFlowWithRetry {
 case class HttpFlowWithRetry[T](
                             httpClientFlow: RetryableHttpFlow[T],
                             retryBufferSize: Int = 100,
-                            requestBackoff: () => Backoff = defaultRequestBackoff,
+                            requestBackoff: () => Backoff = () => SimpleExponentialBackoff(1 second, 2 minutes, 3D),
                             maxAttempts: Int = 3
                           )(implicit val scheduler: Scheduler, ec: ExecutionContext, mat: ActorMaterializer) {
   

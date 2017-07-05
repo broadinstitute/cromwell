@@ -251,9 +251,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     *
     * @return the execution handle for the job.
     */
-  def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    Future.fromTry(Try(execute()))
-  }
+  def executeAsync(): Future[ExecutionHandle] = Future.fromTry(Try(execute()))
 
   /**
     * Recovers the specified job id, or starts a new job. The default implementation simply calls execute().
@@ -269,9 +267,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param jobId The previously recorded job id.
     * @return the execution handle for the job.
     */
-  def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-    Future.fromTry(Try(recover(jobId)))
-  }
+  def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = Future.fromTry(Try(recover(jobId)))
 
   /**
     * Returns the run status for the job.
@@ -289,10 +285,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param handle The handle of the running job.
     * @return The status of the job.
     */
-  def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)
-                     (implicit ec: ExecutionContext): Future[StandardAsyncRunStatus] = {
-    Future.fromTry(Try(pollStatus(handle)))
-  }
+  def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[StandardAsyncRunStatus] = Future.fromTry(Try(pollStatus(handle)))
 
   /**
     * Adds custom behavior invoked when polling fails due to some exception. By default adds nothing.

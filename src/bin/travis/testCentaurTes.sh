@@ -42,7 +42,7 @@ mysql -u root -e "GRANT ALL PRIVILEGES ON cromwell_test . * TO 'travis'@'localho
 WORKDIR=$(pwd)
 
 sbt assembly
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.11" -name "cromwell-*.jar")
+CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
 git clone https://github.com/broadinstitute/centaur.git
 cd centaur

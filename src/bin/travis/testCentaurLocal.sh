@@ -87,7 +87,7 @@ mysql -u root -e "CREATE USER 'travis'@'localhost' IDENTIFIED BY '';"
 mysql -u root -e "GRANT ALL PRIVILEGES ON cromwell_test . * TO 'travis'@'localhost';"
 
 sbt assembly
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.11" -name "cromwell-*.jar")
+CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 LOCAL_CONF="$(pwd)/src/bin/travis/resources/local_centaur.conf"
 git clone https://github.com/broadinstitute/centaur.git
 cd centaur

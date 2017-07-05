@@ -3627,7 +3627,7 @@ Server: spray-can/1.3.3
 
 {
   "status": "error",
-  "message": "Cannot find a cache entry for 479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1"
+  "message": "Cannot find call 479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1"
 }
 ```
 
@@ -3643,7 +3643,7 @@ Server: spray-can/1.3.3
 
 {
   "status": "error",
-  "message": "Cannot find cache entries for 5174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1, 479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1"
+  "message": "Cannot find calls 5174842-4a44-4355-a3a9-3a711ce556f1:wf_hello.hello:-1, 479f8a8-efa4-46e4-af0d-802addc66e5d:wf_hello.hello:-1"
 }
 ```
 

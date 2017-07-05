@@ -255,7 +255,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       case response: RequestComplete[(StatusCode, FailureResponse)]@unchecked =>
         response.response._1 shouldBe StatusCodes.NotFound
         response.response._2.status shouldBe "error"
-        response.response._2.message shouldBe "Cannot find call 971652a6-139c-4ef3-96b5-aeb611a40dbf:callFqnA:callFqnA"
+        response.response._2.message shouldBe "Cannot find call 971652a6-139c-4ef3-96b5-aeb611a40dbf:callFqnA:1"
     }
     expectTerminated(actor)
   }
@@ -277,7 +277,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       case response: RequestComplete[(StatusCode, FailureResponse)]@unchecked =>
         response.response._1 shouldBe StatusCodes.NotFound
         response.response._2.status shouldBe "error"
-        response.response._2.message shouldBe "Cannot find calls 971652a6-139c-4ef3-96b5-aeb611a40dbf:callFqnA:callFqnA, bb85b3ec-e179-4f12-b90f-5191216da598:callFqnB:callFqnB"
+        response.response._2.message shouldBe "Cannot find calls 971652a6-139c-4ef3-96b5-aeb611a40dbf:callFqnA:1, bb85b3ec-e179-4f12-b90f-5191216da598:callFqnB:-1"
     }
     expectTerminated(actor)
   }

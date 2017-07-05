@@ -137,8 +137,10 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
                                   queryB: MetadataQuery,
                                   responseA: MetadataLookupResponse,
                                   responseB: MetadataLookupResponse): Try[Unit] = {
+    import cromwell.core.ExecutionIndex._
+    
     def makeTag(query: MetadataQuery) = {
-      s"${query.workflowId}:${query.jobKey.get.callFqn}:${query.jobKey.get.callFqn}"
+      s"${query.workflowId}:${query.jobKey.get.callFqn}:${query.jobKey.get.index.fromIndex}"
     }
 
     def makeNotFoundMessage(queries: NonEmptyList[MetadataQuery]) = {

@@ -76,5 +76,15 @@ steps:
       .isRight should be (true)
   }
 
+  it should "produce coproducts easily" in {
+    import shapeless.syntax.inject._
+    import shapeless.ops.coproduct.Inject
+    val m = new Workflow(
+      `class` = "hi",
+      inputs = Array.empty[InputParameter].inject[WorkflowInput],
+      outputs = Array.empty[WorkflowOutputParameter].inject[WorkflowOutput],
+      steps = Array.empty[WorkflowStep].inject[WorkflowSteps])
+  }
+
 
 }

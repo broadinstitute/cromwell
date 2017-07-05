@@ -79,6 +79,17 @@ package object cwl {
   implicit val cwlTypeDecoder = Decoder.enumDecoder(CwlType)
   implicit val cwlVersionDecoder = Decoder.enumDecoder(CwlVersion)
   implicit val scatterMethodDecoder = Decoder.enumDecoder(ScatterMethod)
+  /*
+  implicit def encodeAdtNoDiscr[A, Repr <: Coproduct](implicit
+    gen: Generic.Aux[A, Repr],
+    encodeRepr: Encoder[Repr]
+  ): Encoder[A] = encodeRepr.contramap(gen.to)
+
+  implicit def decodeAdtNoDiscr[A, Repr <: Coproduct](implicit
+    gen: Generic.Aux[A, Repr],
+    decodeRepr: Decoder[Repr]
+): Decoder[A] = decodeRepr.map(gen.from)
+        */
 
   def decodeCwl: Yaml => Either[Error, Cwl] =
       YamlParser.
@@ -159,4 +170,20 @@ package object cwl {
       ] :+:
     CNil
 
+    type WorkflowInput =
+      Map[InputParameter#Id, InputParameter] :+:
+      Map[InputParameter#Id, InputParameter#`type`] :+:
+      Array[InputParameter] :+:
+      CNil
+
+    type WorkflowOutput =
+      Map[WorkflowOutputParameter#Id, WorkflowOutputParameter] :+:
+      Map[WorkflowOutputParameter#Id, WorkflowOutputParameter#`type`] :+:
+      Array[WorkflowOutputParameter] :+:
+      CNil
+
+    type WorkflowSteps =
+      Map[String, WorkflowStep] :+:
+      Array[WorkflowStep] :+:
+      CNil
 }

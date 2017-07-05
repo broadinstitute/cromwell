@@ -11,7 +11,7 @@ crossScalaVersions := Seq("2.11.8", "2.12.1")
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
-  git.baseVersion := "0.13",
+  git.baseVersion := "0.14",
 
   // Shorten the git commit hash
   git.gitHeadCommit := git.gitHeadCommit.value map { _.take(7) },
@@ -26,8 +26,8 @@ lazy val versionSettings = Seq(
 versionWithGit ++ versionSettings
 
 val sprayJsonV = "1.3.2"
-val lenthallV = "0.25-903b3c0-SNAP"
 val circeVersion = "0.8.0"
+val lenthallV = "0.25"
 
 resolvers ++= List(
   "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"

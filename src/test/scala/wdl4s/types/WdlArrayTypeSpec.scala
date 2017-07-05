@@ -23,7 +23,7 @@ class WdlArrayTypeSpec extends FlatSpec with Matchers  {
         WdlArray(WdlArrayType(WdlStringType), Seq("c", "d").map(WdlString))
       )
     )
-    nestedArray.tsvSerialize shouldEqual Success("a\tb\nc\td")
+    nestedArray.tsvSerialize shouldEqual Success("a\tb\nc\td\n")
   }
   it should "fail to TSV serialize an Array[Array[Array[String]]]" in {
     try {

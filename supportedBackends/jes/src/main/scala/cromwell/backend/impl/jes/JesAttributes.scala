@@ -27,11 +27,12 @@ case class JesAttributes(project: String,
                          endpointUrl: URL,
                          maxPollingInterval: Int,
                          qps: Int Refined Positive,
-                         duplicationStrategy: JesCacheHitDuplicationStrategy)
+                         duplicationStrategy: JesCacheHitDuplicationStrategy,
+                         restrictMetadataAccess: Boolean)
 
 object JesAttributes {
-  lazy val Logger = LoggerFactory.getLogger("JesAttributes") 
-  
+  lazy val Logger = LoggerFactory.getLogger("JesAttributes")
+
   val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
@@ -48,7 +49,8 @@ object JesAttributes {
     "genomics.endpoint-url",
     "filesystems.gcs.auth",
     "filesystems.gcs.caching.duplication-strategy",
-    "genomics-api-queries-per-100-seconds"
+    "genomics-api-queries-per-100-seconds",
+    "restrict-metadata-access"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -58,7 +60,7 @@ object JesAttributes {
   private val context = "Jes"
 
   implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
-  
+
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config): JesAttributes = {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, jesKeys, context, Logger)
@@ -77,6 +79,7 @@ object JesAttributes {
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
+    val restrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Boolean]("restrict-metadata-access") }
     val qpsValidation = validateQps(backendConfig)
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
       case "copy" => CopyCachedOutputs
@@ -85,19 +88,27 @@ object JesAttributes {
     } }
 
 
-    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| qpsValidation |@| duplicationStrategy).tupled flatMap { 
-      case (p, b, u, genomicsName, gcsName, qps, cachingStrategy) =>
-      (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps, cachingStrategy)
-      }
-    } match {
-      case Valid(r) => r
-      case Invalid(f) =>
-        throw new IllegalArgumentException with MessageAggregation {
-          override val exceptionContext = "Jes Configuration is not valid: Errors"
-          override val errorMessages = f.toList
+    (project |@|
+      executionBucket |@|
+      endpointUrl |@|
+      genomicsAuthName |@|
+      gcsFilesystemAuthName |@|
+      qpsValidation |@|
+      duplicationStrategy |@|
+      restrictMetadataAccess).tupled flatMap {
+        case (p, b, u, genomicsName, gcsName, qps, cachingStrategy, restrictMetadataAccess) =>
+          (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map {
+            case (genomicsAuth, gcsAuth) =>
+              JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps, cachingStrategy, restrictMetadataAccess)
+            }
+      } match {
+        case Valid(r) => r
+        case Invalid(f) =>
+          throw new IllegalArgumentException with MessageAggregation {
+            override val exceptionContext = "Jes Configuration is not valid: Errors"
+            override val errorMessages = f.toList
         }
-    }
+      }
   }
 
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {

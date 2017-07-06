@@ -208,7 +208,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     expectTerminated(actor)
   }
 
-  it should "Respond with a CachedCallNotFoundException if hashes are missing" in {
+  it should "Respond with an appropriate message if hashes are missing" in {
     import scala.concurrent.duration._
     import scala.language.postfixOps
 
@@ -222,8 +222,48 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     actor ! MetadataLookupResponse(queryA, eventsA.filterNot(_.key.key.contains("hashes")))
 
     expectMsgPF(1 second) {
-      case FailedCallCacheDiffResponse(e: CachedCallNotFoundException) =>
+      case FailedCallCacheDiffResponse(e) =>
          e.getMessage shouldBe "callA and callB were run on a previous version of Cromwell on which this endpoint was not supported."
+    }
+    expectTerminated(actor)
+  }
+
+  it should "Respond with CachedCallNotFoundException if a call is missing" in {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+
+    val mockServiceRegistryActor = TestProbe()
+    val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
+    watch(actor)
+    val responseB = MetadataLookupResponse(queryB, eventsB.filterNot(_.key.key.contains("hashes")))
+
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, Option(responseB), self))
+
+    actor ! MetadataLookupResponse(queryA, List.empty)
+
+    expectMsgPF(1 second) {
+      case FailedCallCacheDiffResponse(e) =>
+        e.getMessage shouldBe "Cannot find call 971652a6-139c-4ef3-96b5-aeb611a40dbf:callFqnA:1"
+    }
+    expectTerminated(actor)
+  }
+
+  it should "Respond with CachedCallNotFoundException if both calls are missing" in {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+
+    val mockServiceRegistryActor = TestProbe()
+    val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
+    watch(actor)
+    val responseB = MetadataLookupResponse(queryB, List.empty)
+
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, Option(responseB), self))
+
+    actor ! MetadataLookupResponse(queryA, List.empty)
+
+    expectMsgPF(1 second) {
+      case FailedCallCacheDiffResponse(e) =>
+        e.getMessage shouldBe "Cannot find calls 971652a6-139c-4ef3-96b5-aeb611a40dbf:callFqnA:1, bb85b3ec-e179-4f12-b90f-5191216da598:callFqnB:-1"
     }
     expectTerminated(actor)
   }

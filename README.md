@@ -3439,6 +3439,16 @@ The `call` and `workflow` may optionally contain failures shaped like this:
 ]
 ```
 
+### Compressing the metadata response
+
+The response from the metadata endpoint can be quite large depending on the workflow. To help with this Cromwell supports gzip encoding the metadata prior to sending it back to the client. In order to enable this, make sure your client is sending the `Accept-Encoding: gzip` header.
+
+For instance, with cURL:
+                   
+```
+$ curl -H "Accept-Encoding: gzip" http://localhost:8000/api/workflows/v1/b3e45584-9450-4e73-9523-fc3ccf749848/metadata
+```
+
 ## POST /api/workflows/:version/:id/abort
 
 cURL:

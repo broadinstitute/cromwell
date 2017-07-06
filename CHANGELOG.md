@@ -5,6 +5,7 @@
 ### Breaking Changes
 
 * Request timeouts for HTTP requests on the REST API now return a 503 status code instead of 500. The response for a request timeout is no longer in JSON format.
+* The metadata endpoint was defaulting to responding with a gzipped response. This now needs to be explicitly requested with an `Accept-Encoding: gzip` header 
 
 ## 28
 

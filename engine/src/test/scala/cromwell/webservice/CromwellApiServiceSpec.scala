@@ -12,6 +12,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowA
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
@@ -20,7 +21,6 @@ import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json._
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
@@ -321,12 +321,27 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         akkaHttpService.routes ~>
         check {
           status should be(StatusCodes.OK)
-          val decoder: Decoder = Gzip
-          val result = Await.result(Unmarshal(decoder.decodeMessage(response)).to[JsObject], 1.second)
+          val result = responseAs[JsObject]
           result.fields.keys should contain allOf("testKey1", "testKey2")
           result.fields.keys shouldNot contain("testKey3")
           result.fields("testKey1") should be(JsString("myValue1"))
           result.fields("testKey2") should be(JsString("myValue2"))
+        }
+    }
+
+    it should "return with gzip encoding when requested" in {
+      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
+        akkaHttpService.routes ~>
+        check {
+          response.headers.find(x => x.name() == "Content-Encoding").get.value should be("gzip")
+        }
+    }
+
+    it should "not return with gzip encoding when not requested" in {
+      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
+        akkaHttpService.routes ~>
+        check {
+          response.headers.find(x => x.name() == "Content-Encoding") shouldBe None
         }
     }
 
@@ -335,8 +350,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
        akkaHttpService.routes ~>
         check {
           status should be(StatusCodes.OK)
-          val decoder: Decoder = Gzip
-          val result = Await.result(Unmarshal(decoder.decodeMessage(response)).to[JsObject], 1.second)
+          val result = responseAs[JsObject]
           result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
           result.fields.keys should contain noneOf("testKey2b", "testKey3")
           result.fields("testKey1a") should be(JsString("myValue1a"))
@@ -350,8 +364,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
        akkaHttpService.routes ~>
         check {
           status should be(StatusCodes.OK)
-          val decoder: Decoder = Gzip
-          val result = Await.result(Unmarshal(decoder.decodeMessage(response)).to[JsObject], 1.second)
+          val result = responseAs[JsObject]
           result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
           result.fields.keys should contain noneOf("testKey2b", "testKey3")
           result.fields("testKey1a") should be(JsString("myValue1a"))

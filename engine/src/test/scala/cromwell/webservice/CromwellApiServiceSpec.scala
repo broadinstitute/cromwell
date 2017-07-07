@@ -333,7 +333,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
         akkaHttpService.routes ~>
         check {
-          response.headers.find(x => x.name() == "Content-Encoding").get.value should be("gzip")
+          response.headers.find(_.name == "Content-Encoding").get.value should be("gzip")
         }
     }
 
@@ -341,7 +341,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
         akkaHttpService.routes ~>
         check {
-          response.headers.find(x => x.name() == "Content-Encoding") shouldBe None
+          response.headers.find(_.name == "Content-Encoding") shouldBe None
         }
     }
 

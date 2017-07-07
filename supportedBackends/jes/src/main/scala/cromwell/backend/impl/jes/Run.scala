@@ -30,8 +30,10 @@ object Run {
                              computeServiceAccount: String,
                              labels: Labels,
                              preemptible: Boolean,
-                             genomicsInterface: Genomics): RunPipelineRequest = {
+                             genomicsInterface: Genomics,
+                             restrictMetadataAccess: Boolean): RunPipelineRequest = {
 
+    //TODO: restrict Meta data access gets applied somewhere in here
     lazy val workflow = jobDescriptor.workflowDescriptor
     val pipelineInfoBuilder = if (preemptible) PreemptibleJesPipelineInfoBuilder else NonPreemptibleJesPipelineInfoBuilder
     val pipelineInfo = pipelineInfoBuilder.build(commandLine, runtimeAttributes, dockerImage)

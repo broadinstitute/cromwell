@@ -22,7 +22,8 @@ case class JesRuntimeAttributes(cpu: Int,
                                 dockerImage: String,
                                 failOnStderr: Boolean,
                                 continueOnReturnCode: ContinueOnReturnCode,
-                                noAddress: Boolean)
+                                noAddress: Boolean,
+                                restrictMetadataAccess: Boolean)
 
 object JesRuntimeAttributes {
 
@@ -40,6 +41,10 @@ object JesRuntimeAttributes {
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
   private val NoAddressDefaultValue = WdlBoolean(false)
+
+  val RestrictMetadataAccess = "restrictMetadataAccess"
+  private val restrictMetadataAccessValidationInstance = new BooleanRuntimeAttributesValidation(RestrictMetadataAccess)
+  private val RestrictMetadataAccessDefaultValue = WdlBoolean(false)
 
   val DisksKey = "disks"
   private val DisksDefaultValue = WdlString(s"${JesWorkingDisk.Name} 10 SSD")
@@ -74,6 +79,9 @@ object JesRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWdlValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
+  private def restrictMetadataValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = restrictMetadataAccessValidationInstance
+    .withDefault(restrictMetadataAccessValidationInstance.configDefaultWdlValue(runtimeConfig) getOrElse RestrictMetadataAccessDefaultValue)
+
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   def runtimeAttributesBuilder(jesConfiguration: JesConfiguration): StandardValidatedRuntimeAttributesBuilder = {
@@ -101,6 +109,7 @@ object JesRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val restrictMetadataAccess: Boolean = RuntimeAttributesValidation.extract(restrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
     new JesRuntimeAttributes(
       cpu,

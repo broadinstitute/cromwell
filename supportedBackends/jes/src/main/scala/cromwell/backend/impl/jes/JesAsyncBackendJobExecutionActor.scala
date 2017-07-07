@@ -42,6 +42,8 @@ object JesAsyncBackendJobExecutionActor {
     val MonitoringScript = "monitoring_script"
     val GoogleProject = "google_project"
     val GoogleComputeServiceAccount = "google_compute_service_account"
+    val GoogleRestrictMetadataAccess = "google_restrict_metadata_access"
+
   }
 
   type JesPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
@@ -254,6 +256,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleComputeServiceAccount, jesAttributes.computeServiceAccount)
   }
 
+  private def restrictMetadataAccess(descriptor: BackendWorkflowDescriptor): Boolean =
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.GoogleRestrictMetadataAccess).getOrElse(jesAttributes.restrictMetadataAccess)
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
@@ -274,7 +279,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       computeServiceAccount(jobDescriptor.workflowDescriptor),
       backendLabels,
       preemptible,
-      initializationData.genomics
+      initializationData.genomics,
+      restrictMetadataAccess(jobDescriptor.workflowDescriptor)
     )
     logger.debug(s"Inputs:\n${stringifyMap(runPipelineParameters.getPipelineArgs.getInputs.asScala.toMap)}")
     logger.debug(s"Outputs:\n${stringifyMap(runPipelineParameters.getPipelineArgs.getOutputs.asScala.toMap)}")
@@ -325,7 +331,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = super[JesStatusRequestClient].pollStatus(handle.runInfo.get)
+  override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = pollStatus(handle.runInfo.get)
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>

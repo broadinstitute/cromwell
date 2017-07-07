@@ -22,7 +22,6 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import WorkflowJsonSupport._
-import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
 import akka.http.scaladsl.server.Route
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -87,7 +86,7 @@ trait CromwellApiService {
         }
       }
     } ~
-    encodeResponseWith(Gzip, Deflate, NoCoding) {
+    encodeResponse {
       path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
         parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
           val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)

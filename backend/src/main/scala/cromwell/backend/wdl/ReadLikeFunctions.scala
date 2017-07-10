@@ -54,7 +54,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
       fileSize <- fileSize(fileName)
       _ = if (fileSize > limit) {
         val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
-        throw new FileSizeTooBig(errorMsg)
+        throw FileSizeTooBig(errorMsg)
       }
     } yield ()
 
@@ -124,7 +124,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
 
     def optionalSafeFileSize(value: WdlValue): Try[Double] = value match {
       case f: WdlFile => Try(buildPath(f.valueString).size.toDouble)
-      case f if WdlFileType.isCoerceableFrom(f.wdlType) => WdlFileType.coerceRawValue(f) map { coerced => buildPath(coerced.asInstanceOf[WdlFile].valueString).size.toDouble }
+      case f if WdlFileType.isCoerceableFrom(f.wdlType) => WdlFileType.coerceRawValue(f) flatMap optionalSafeFileSize
       case WdlOptionalValue(f, Some(o)) if WdlFileType.isCoerceableFrom(f) => optionalSafeFileSize(o)
       case WdlOptionalValue(f, None) if WdlFileType.isCoerceableFrom(f) => Success(0d)
       case other => Failure(new Exception(s"The 'size' method expects a File argument but got a ${value.wdlType.toWdlString}."))

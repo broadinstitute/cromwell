@@ -61,7 +61,7 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
     case MetadataWriteSuccess(events) =>
       target ! BuiltLabelsManagerResponse(processLabelsResponse(wfId.get, metadataEventsToLabels(events)))
       context stop self
-    case MetadataWriteFailure(failure, events) =>
+    case MetadataWriteFailure(failure, events @ _) =>
       target ! FailedLabelsManagerResponse(new RuntimeException(s"Unable to update labels for ${wfId.get} due to ${failure.getMessage}"))
       context stop self
   }

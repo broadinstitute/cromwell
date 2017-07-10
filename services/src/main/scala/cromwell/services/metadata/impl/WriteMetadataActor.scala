@@ -43,7 +43,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(CheckPendingWrites, _: HasData[_]) =>
       sender() ! HasPendingWrites
       stay()
-    case Event(e @ PutMetadataActionAndRespond(events, replyTo), curData) =>
+    case Event(e: PutMetadataActionAndRespond, curData) =>
       curData.addData(e) match {
         case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
         case newData => stay using newData

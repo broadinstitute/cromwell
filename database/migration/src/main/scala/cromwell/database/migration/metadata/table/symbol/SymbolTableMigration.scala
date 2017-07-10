@@ -49,7 +49,7 @@ trait SymbolTableMigration extends BatchedTaskChange {
       wdlType <- Try(WdlType.fromWdlString(row.getString("WDL_TYPE")))
       inflated <- row.getString("WDL_VALUE") match {
         case null => Success("") // Empty Strings are null in the DB
-        case nonNull => inflate(row.getString("WDL_VALUE"))
+        case nonNull @ _ => inflate(row.getString("WDL_VALUE"))
       }
     } yield WdlTransformation.coerceStringToWdl(inflated, wdlType)
 

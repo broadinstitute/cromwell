@@ -506,7 +506,7 @@ object CromwellApiServiceSpec {
   class MockServiceRegistryActor extends Actor {
     import MockServiceRegistryActor._
     override def receive = {
-      case WorkflowQuery(params) =>
+      case WorkflowQuery(_) =>
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
           None, Some(WorkflowSucceeded.toString), None, None))), None)
         sender ! response
@@ -519,7 +519,7 @@ object CromwellApiServiceSpec {
         sender ! WorkflowOutputsResponse(id, event)
       case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
       case GetSingleWorkflowMetadataAction(id, None, None, _) => sender ! MetadataLookupResponse(metadataQuery(id), fullMetadataResponse(id))
-      case GetSingleWorkflowMetadataAction(id, Some(i), None, _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
+      case GetSingleWorkflowMetadataAction(id, Some(_), None, _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
       case GetSingleWorkflowMetadataAction(id, None, Some(_), _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
       case PutMetadataActionAndRespond(events, _) =>
         events.head.key.workflowId match {
@@ -532,11 +532,11 @@ object CromwellApiServiceSpec {
 
   class MockWorkflowStoreActor extends Actor {
     override def receive = {
-      case SubmitWorkflow(source) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId)
+      case SubmitWorkflow(_) => sender ! WorkflowSubmittedToStore(ExistingWorkflowId)
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId })
         sender ! response
-      case AbortWorkflow(id, manager) =>
+      case AbortWorkflow(id, manager @ _) =>
         val message = id match {
           case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
           case AbortedWorkflowId =>

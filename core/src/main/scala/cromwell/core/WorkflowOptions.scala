@@ -152,7 +152,7 @@ case class WorkflowOptions(jsObject: JsObject) {
   }
 
   lazy val defaultRuntimeOptions = jsObject.fields.get(defaultRuntimeOptionKey) match {
-    case Some(jsObj: JsObject) => TryUtil.sequenceMap(jsObj.fields map { case (k, v) => k -> WorkflowOptions.getAsJson(k, jsObj) })
+    case Some(jsObj: JsObject) => TryUtil.sequenceMap(jsObj.fields map { case (k, _) => k -> WorkflowOptions.getAsJson(k, jsObj) })
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
     case None => Failure(OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
   }

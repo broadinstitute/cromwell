@@ -70,7 +70,7 @@ class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with 
     * the error up the chain
     */
   override val supervisorStrategy = OneForOneStrategy() {
-    case aie: ActorInitializationException => Escalate
+    case _: ActorInitializationException => Escalate
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

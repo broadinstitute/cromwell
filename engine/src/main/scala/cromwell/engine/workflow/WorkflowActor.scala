@@ -206,7 +206,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       pushWorkflowStart(workflowId)
       actor ! MaterializeWorkflowDescriptorCommand(workflowSourceFilesCollection, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
-    case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)
+    case Event(AbortWorkflowCommand, _) => goto(WorkflowAbortedState)
   }
 
   when(MaterializingWorkflowDescriptorState) {
@@ -217,7 +217,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), data) =>
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(MaterializingWorkflowDescriptorState, Option(List(reason))))
-    case Event(AbortWorkflowCommand, stateData) =>
+    case Event(AbortWorkflowCommand, _) =>
       // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
       goto(WorkflowAbortedState)
   }
@@ -274,7 +274,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   when(WorkflowAbortingState) {
-    case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(_: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, Map.empty, failures = None)
     case _ => stay()
   }

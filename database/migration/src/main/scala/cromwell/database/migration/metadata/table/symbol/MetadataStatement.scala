@@ -44,10 +44,10 @@ class MetadataStatementForWorkflow(preparedStatement: PreparedStatement, workflo
 
   private def metadataType(value: Any) = {
     value match {
-      case WdlInteger(i) => "int"
-      case WdlFloat(f) => "number"
-      case WdlBoolean(b) => "boolean"
-      case value: WdlValue => "string"
+      case WdlInteger(_) => "int"
+      case WdlFloat(_) => "number"
+      case WdlBoolean(_) => "boolean"
+      case _: WdlValue => "string"
       case _: Int | Long => "int"
       case _: Double | Float => "number"
       case _: Boolean => "boolean"

@@ -20,7 +20,7 @@ final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Co
 
   override def doPut(put: KvPut): Future[KvResponse] = {
     put.pair.value match {
-      case Some(backendVal) => updateBackendKeyValuePair(put.pair.key.workflowId,
+      case Some(_) => updateBackendKeyValuePair(put.pair.key.workflowId,
         put.pair.key.jobKey,
         put.pair.key.key,
         put.pair.value.get).map(_ => KvPutSuccess(put))

@@ -90,7 +90,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   when(SubWorkflowAbortedState) { FSM.NullFunction }
 
   whenUnhandled {
-    case Event(SubWorkflowStoreRegisterSuccess(command), _) =>
+    case Event(SubWorkflowStoreRegisterSuccess(_), _) =>
       // Nothing to do here
       stay()
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
@@ -99,12 +99,12 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   onTransition {
-    case (fromState, toState) =>
+    case (_, toState) =>
       stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) }
   }
 
   onTransition {
-    case (fromState, subWorkflowTerminalState: SubWorkflowTerminalState) =>
+    case (_, _: SubWorkflowTerminalState) =>
       stateData.subWorkflowId match {
         case Some(id) =>
           pushWorkflowEnd(id)
@@ -115,7 +115,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   onTransition {
-    case fromState -> toState => eventList :+= ExecutionEvent(toState.toString)
+    case _ -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
 
   private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) = {

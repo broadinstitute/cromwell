@@ -25,7 +25,7 @@ object HttpFlowWithRetry {
       case StatusCodes.BadGateway => true
       case StatusCodes.GatewayTimeout => true
       case StatusCodes.RequestTimeout => true
-      case other => isTransient(response)
+      case other @ _ => isTransient(response)
     }
   }
 
@@ -100,7 +100,7 @@ case class HttpFlowWithRetry[T](
       // Successful return code
       case (httpResponse, flowContext) if httpResponse.status.isSuccess() || !shouldRetry(httpResponse, flowContext) => 0
       // Failed return code but retryable
-      case (httpResponse, flowContext) => 1
+      case (_, _) => 1
     }))
     
     // Merges requests coming from 3 input ports:

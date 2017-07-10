@@ -105,7 +105,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
   
   override val preemptible: Boolean = previousRetryReasons match {
-    case Valid(PreviousRetryReasons(p, ur)) => p < maxPreemption
+    case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
 
@@ -459,7 +459,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
           }
         }
-      case Invalid(e) =>
+      case Invalid(_) =>
         Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag), jobReturnCode))
     }
   }

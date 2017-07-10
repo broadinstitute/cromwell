@@ -112,7 +112,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
     jobExecutionMap map {
       case (wd, executedKeys) => wd -> (executedKeys filter { jobKey => calls.contains(jobKey.call) })
     } filter {
-      case (wd, keys) => keys.nonEmpty
+      case (_, keys) => keys.nonEmpty
     }
   }
 

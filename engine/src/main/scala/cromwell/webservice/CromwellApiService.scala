@@ -195,7 +195,7 @@ trait CromwellApiService {
               case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
             }
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
-          case Success(workflowSourceFiles) if isSingleSubmission =>
+          case Success(_) if isSingleSubmission =>
             val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
             e.failRequest(StatusCodes.BadRequest)
           case Success(workflowSourceFiles) =>
@@ -219,7 +219,7 @@ trait CromwellApiService {
           case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(s"Unrecognized workflow ID: $w")
           case FailedToCheckWorkflowId(t) => throw t
         }
-      case Failure(t) => Future.failed(InvalidWorkflowException(s"Invalid workflow ID: '$possibleWorkflowId'."))
+      case Failure(_) => Future.failed(InvalidWorkflowException(s"Invalid workflow ID: '$possibleWorkflowId'."))
     }
   }
 

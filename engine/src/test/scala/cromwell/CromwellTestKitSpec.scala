@@ -493,7 +493,7 @@ object EmptyCallCacheWriteActor {
 
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case request @ DockerHashRequest(image, _) => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
+    case request: DockerHashRequest => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
   }
 }
 

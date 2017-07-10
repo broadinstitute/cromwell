@@ -42,7 +42,7 @@ echo $$? > rc
   def sparkSubmitCommand(attributes: Map[String, Any]): String = {
     val sparkHome = Try(sys.env("SPARK_HOME")) match {
       case Success(s) => Option(s)
-      case Failure(ex) =>
+      case Failure(_) =>
         logger.warn(s"Spark home does not exist picking up default command")
         None
     }

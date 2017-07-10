@@ -42,7 +42,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     
     def declarationOutputs(declaration: Declaration, outputs: List[OutputEntry]) = {
       outputs match {
-        case OutputEntry(name, _, Some(value)) :: Nil => Success(value)
+        case OutputEntry(_, _, Some(value)) :: Nil => Success(value)
         case _ => Failure(new RuntimeException(s"Could not find value for declaration ${declaration.fullyQualifiedName}"))
       }
     }

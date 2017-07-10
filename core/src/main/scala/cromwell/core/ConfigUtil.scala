@@ -37,14 +37,14 @@ object ConfigUtil {
     def validateString(key: String): ValidatedNel[String, String] = try {
       config.getString(key).validNel
     } catch {
-      case e: ConfigException.Missing => s"Could not find key: $key".invalidNel
+      case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
     }
 
     def validateConfig(key: String): ValidatedNel[String, Config] = try {
       config.getConfig(key).validNel
     } catch {
-      case e: ConfigException.Missing => s"Could not find key: $key".invalidNel
-      case e: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
+      case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+      case _: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
     }
 
   }

@@ -17,7 +17,7 @@ class EjeaUpdatingJobStoreSpec extends EngineJobExecutionActorSpec with HasJobSu
       ("SucceededResponse", successResponse _, true),
       ("FailedRetryableResponse", failureRetryableResponse _, true),
       ("FailedNonRetryableResponse", failureNonRetryableResponse _, false)
-    ) foreach { case (name, responseMaker, retryable) =>
+    ) foreach { case (name, responseMaker, retryable @ _) =>
       s"Forward a saved $name response on and shut down, if the JobStore write is successful" in {
         val response = responseMaker.apply
         ejea = ejeaInUpdatingJobStoreState(response)

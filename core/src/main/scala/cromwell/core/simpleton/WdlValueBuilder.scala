@@ -88,7 +88,7 @@ object WdlValueBuilder {
 
     // Group tuples by key using a Map with key type `K`.
     def group[K](tuples: Traversable[(K, SimpletonComponent)]): Map[K, Traversable[SimpletonComponent]] = {
-      tuples groupBy { case (i, _) => i } mapValues { _ map { case (i, s) => s} }
+      tuples groupBy { case (i, _) => i } mapValues { _ map { case (_, s) => s} }
     }
 
     outputType match {

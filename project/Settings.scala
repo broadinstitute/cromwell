@@ -27,11 +27,11 @@ object Settings {
 
     Other fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
 
-    The following aren't used (yet), and in general are an exercise in pain for 2.12 with Cromwell. They'd
-    certainly be nice to have, but params causes a world of hurt and patvars is just going to be a big time sink.
-    Interested parties are encouraged to take a stab at it.
-      "-Ywarn-unused:params",              // Warn if a value parameter is unused.
-      "-Ywarn-unused:patvars",             // Warn if a variable bound in a pattern is unused.
+    The following isn't used (yet), and in general is an exercise in pain for 2.12 with Cromwell.
+    It'd certainly be nice to have, but params causes a world of hurt. Interested parties are encouraged
+    to take a stab at it.
+
+    "-Ywarn-unused:params"              // Warn if a value parameter is unused.
   */
   val compilerSettings = List(
     "-explaintypes",
@@ -68,6 +68,7 @@ object Settings {
     "-Ywarn-unused:imports",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
+    "-Ywarn-unused:patvars",
     "-Xfatal-warnings"
   )
 

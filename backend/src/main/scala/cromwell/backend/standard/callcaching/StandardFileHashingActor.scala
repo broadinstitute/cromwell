@@ -72,11 +72,11 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       }
 
     // Hash Success
-    case (fileHashRequest: SingleFileHashRequest, response @ IoSuccess(_, result: String)) =>
+    case (fileHashRequest: SingleFileHashRequest, IoSuccess(_, result: String)) =>
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
     // Hash Failure
-    case (fileHashRequest: SingleFileHashRequest, response @ IoFailure(_, failure: Throwable)) =>
+    case (fileHashRequest: SingleFileHashRequest, IoFailure(_, failure: Throwable)) =>
       context.parent ! HashingFailedMessage(fileHashRequest.file.value, failure)
 
     case other =>

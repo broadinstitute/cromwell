@@ -170,7 +170,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       target ! BuiltMetadataResponse(workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))
       allDone
     case Event(MetadataLookupResponse(query, metadata), None) => processMetadataResponse(query, metadata)
-    case Event(failure: ServiceRegistryFailure, _) =>
+    case Event(_: ServiceRegistryFailure, _) =>
       target ! FailedMetadataResponse(new RuntimeException("Can't find metadata service"))
       allDone
     case Event(failure: MetadataServiceFailure, _) =>

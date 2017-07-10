@@ -115,9 +115,9 @@ class WdlValueBuilderSpec extends FlatSpec with Matchers with Mockito {
 
   it should "round trip everything together with no losses" in {
 
-    val wdlValues = (simpletonConversions map { case SimpletonConversion(name, wdlValue, simpletons) => name -> wdlValue }).toMap
+    val wdlValues = (simpletonConversions map { case SimpletonConversion(name, wdlValue, _) => name -> wdlValue }).toMap
     val taskOutputs = wdlValues map { case (k, wv) => TaskOutput(k, wv.wdlType, IgnoredExpression, mock[Ast], None) }
-    val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(name, wdlValue, simpletons) => simpletons }
+    val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(_, _, simpletons) => simpletons }
 
     import WdlValueSimpleton._
 

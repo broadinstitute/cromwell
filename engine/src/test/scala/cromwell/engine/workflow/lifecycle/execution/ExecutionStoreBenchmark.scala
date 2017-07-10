@@ -44,7 +44,7 @@ object ExecutionStoreBenchmark extends Bench[Double] {
     size <- sizes
     doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
     collectorKey = Map(CollectorKey(scatterCall, scatter, size) -> ExecutionStatus.NotStarted)
-    notStartedMap: Map[JobKey, ExecutionStatus] = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKey
+    notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKey
     finalMap: Map[JobKey, ExecutionStatus] = doneMap ++ notStartedMap
   } yield new ExecutionStore(finalMap, true)
   

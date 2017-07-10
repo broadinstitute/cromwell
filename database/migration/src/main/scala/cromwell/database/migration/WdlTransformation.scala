@@ -18,7 +18,7 @@ private [migration] object WdlTransformation {
       case None => null
     }
   } recover {
-    case e: IOException => value
+    case _: IOException => value
   }
 
   def coerceStringToWdl(wdlString: String, wdlType: WdlType) = wdlType match {

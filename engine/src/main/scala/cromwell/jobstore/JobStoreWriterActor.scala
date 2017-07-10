@@ -35,7 +35,7 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
   }
 
   when(WritingToDb) {
-    case Event(ScheduledFlushToDb, curData) => stay
+    case Event(ScheduledFlushToDb, _) => stay
     case Event(command: JobStoreWriterCommand, curData) => stay using curData.addData(CommandAndReplyTo(command, sender))
     case Event(FlushBatchToDb, NoData) =>
       log.debug("Attempted job store flush to DB but had nothing to write")
@@ -62,7 +62,7 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
         }
       }
       stay using NoData
-    case Event(DbWriteComplete, curData) =>
+    case Event(DbWriteComplete, _) =>
       log.debug("Flush of job store commands complete")
       goto(WaitingToWrite)
   }

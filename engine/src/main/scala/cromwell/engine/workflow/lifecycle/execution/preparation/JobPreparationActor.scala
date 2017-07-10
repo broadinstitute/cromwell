@@ -66,7 +66,7 @@ class JobPreparationActor(executionData: WorkflowExecutionActorData,
     case Event(WorkflowDockerLookupFailure(reason, _), data: JobPreparationHashLookupData) =>
       workflowLogger.warn("Docker lookup failed", reason)
       handleDockerHashFailed(data)
-    case Event(WorkflowDockerTerminalFailure(reason, _), data: JobPreparationHashLookupData) =>
+    case Event(WorkflowDockerTerminalFailure(reason, _), _: JobPreparationHashLookupData) =>
       sendFailureAndStop(reason)
   }
 

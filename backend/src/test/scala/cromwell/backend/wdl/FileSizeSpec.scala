@@ -73,7 +73,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
 
     def testOver() = {
       testInner(n + 1, {
-        case Failure(s: FileSizeTooBig) => //success
+        case Failure(_: FileSizeTooBig) => //success
         case t => throw new RuntimeException(s"should not have eaten this file that is too big! msg: $t")
       })
     }
@@ -81,8 +81,8 @@ class FileSizeSpec extends FlatSpec with Matchers {
     def testUnder() = {
       testInner(n - 1, {
         case Success(_) =>
-        case Failure(nfe: NumberFormatException) => //we're not testing parsing
-        case Failure(uoe: UnsupportedOperationException) => //we're not testing tsv compatibility
+        case Failure(_: NumberFormatException) => //we're not testing parsing
+        case Failure(_: UnsupportedOperationException) => //we're not testing tsv compatibility
         case Failure(t) => throw t
       })
     }

@@ -142,7 +142,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
         * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
         * work as-is for nested scatter blocks
         */
-      case Some(ancestor: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
+      case Some(_: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
 
       /*
         * Otherwise, simply refer to the collector entry.  This means that 'entry' depends

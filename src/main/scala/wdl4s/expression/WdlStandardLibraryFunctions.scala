@@ -351,7 +351,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
   def glob(params: Seq[Try[WdlType]]): Try[WdlType] = Success(WdlArrayType(WdlFileType))
   def size(params: Seq[Try[WdlType]]): Try[WdlType] = {
     def isGoodFirstSizeParam(wdlType: WdlType): Boolean = wdlType match {
-      case f if WdlFileType.isCoerceableFrom(f) => true
+      case WdlFileType => true
       case WdlOptionalType(o) => isGoodFirstSizeParam(o)
       case _ => false
     }

@@ -376,7 +376,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   it should "generate the correct json content for just restrictMetadataAccess" in {
     EncryptionSpec.assumeAes256Cbc()
 
-    val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
+    val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
     val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), true)

@@ -65,11 +65,14 @@ object Settings {
     "-Ywarn-value-discard",
     "-Ywarn-inaccessible",
     "-Ywarn-unused:implicits",
-    "-Ywarn-unused:imports",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
-    "-Ywarn-unused:patvars",
-    "-Xfatal-warnings"
+    "-Ywarn-unused:patvars"
+  )
+
+  val consoleHostileSettings = List(
+    "-Ywarn-unused:imports", // warns about every unused import on every command.
+    "-Xfatal-warnings"       // makes those warnings fatal.
   )
 
   val docSettings = List(
@@ -126,8 +129,9 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
-    scalacOptions ++= compilerSettings,
+    scalacOptions ++= (compilerSettings ++ consoleHostileSettings),
     scalacOptions in (Compile, doc) ++= docSettings,
+    scalacOptions in (Compile, console) := compilerSettings,
     parallelExecution := false
   )
 
@@ -160,7 +164,9 @@ object Settings {
     libraryDependencies ++= cromwellApiClientDependencies,
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
-    scalacOptions ++= compilerSettings,
+    scalacOptions ++= (compilerSettings ++ consoleHostileSettings),
+    scalacOptions in (Compile, doc) ++= docSettings,
+    scalacOptions in (Compile, console) := compilerSettings,
     resolvers ++= commonResolvers
   ) ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings

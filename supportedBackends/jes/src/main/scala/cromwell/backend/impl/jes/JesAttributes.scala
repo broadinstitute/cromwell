@@ -23,6 +23,7 @@ import scala.collection.JavaConversions._
 case class JesAttributes(project: String,
                          computeServiceAccount: String,
                          auths: JesAuths,
+                         restrictMetadataAccess: Boolean,
                          executionBucket: String,
                          endpointUrl: URL,
                          maxPollingInterval: Int,
@@ -45,6 +46,7 @@ object JesAttributes {
     "genomics",
     "filesystems",
     "genomics.auth",
+    "genomics.restrict-metadata-access",
     "genomics.endpoint-url",
     "filesystems.gcs.auth",
     "filesystems.gcs.caching.duplication-strategy",
@@ -76,6 +78,7 @@ object JesAttributes {
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
+    val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
@@ -85,10 +88,11 @@ object JesAttributes {
     } }
 
 
-    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| gcsFilesystemAuthName |@| qpsValidation |@| duplicationStrategy).tupled flatMap { 
-      case (p, b, u, genomicsName, gcsName, qps, cachingStrategy) =>
+    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| genomicsRestrictMetadataAccess |@| gcsFilesystemAuthName |@|
+      qpsValidation |@| duplicationStrategy).tupled flatMap {
+      case (p, b, u, genomicsName, restrictMetadata, gcsName, qps, cachingStrategy) =>
       (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
-        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), b, u, maxPollingInterval, qps, cachingStrategy)
+        JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, b, u, maxPollingInterval, qps, cachingStrategy)
       }
     } match {
       case Valid(r) => r

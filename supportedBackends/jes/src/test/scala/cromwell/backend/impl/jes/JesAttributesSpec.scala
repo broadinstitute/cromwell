@@ -48,7 +48,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
   }
 
   it should "parse restrict-metadata-access" taggedAs IntegrationTest in {
-    val backendConfig = ConfigFactory.parseString(configString(genomics = """restrict-metadata-access = true """))
+    val backendConfig = ConfigFactory.parseString(configString(genomics = "restrict-metadata-access = true"))
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
     jesAttributes.restrictMetadataAccess should be(true)

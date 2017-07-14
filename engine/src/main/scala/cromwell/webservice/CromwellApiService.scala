@@ -77,11 +77,18 @@ trait CromwellApiService {
     path("workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
       get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLogs(w)) }
     } ~
-    path("workflows" / Segment / "query") { version =>
-      (post | get) {
+    path("workflows" / Segment / "query") { _ =>
+      get {
         parameterSeq { parameters =>
           extractUri { uri =>
             metadataQueryRequest(parameters, uri)
+          }
+        }
+      } ~
+      post {
+        entity(as[Seq[Map[String, String]]]) { parameterMap =>
+          extractUri { uri =>
+            metadataQueryRequest(parameterMap.flatMap(_.toSeq), uri)
           }
         }
       }

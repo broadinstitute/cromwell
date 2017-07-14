@@ -9,7 +9,7 @@ import cromwell.core.JobKey
 import cromwell.core.callcaching._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
-import wdl4s.values.WdlFile
+import wdl4s.wdl.values.WdlFile
 
 import scala.util.{Failure, Success, Try}
 

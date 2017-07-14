@@ -16,7 +16,7 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPrepa
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
-import wdl4s.EvaluatedTaskInputs
+import wdl4s.wdl.EvaluatedTaskInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 data: WorkflowExecutionActorData,

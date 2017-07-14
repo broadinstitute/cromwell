@@ -1,14 +1,10 @@
 package cromwell.util
 
-import scala.Vector
-
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-
-import JsonFormatting.WdlValueJsonFormatter.WdlValueJsonFormat
-import spray.json.{ JsObject, pimpString }
-import wdl4s.types.{ WdlArrayType, WdlStringType }
-import wdl4s.values.{ WdlArray, WdlPair, WdlString }
+import cromwell.util.JsonFormatting.WdlValueJsonFormatter.WdlValueJsonFormat
+import org.scalatest.{FlatSpec, Matchers}
+import spray.json.{JsObject, pimpString}
+import wdl4s.wdl.types.{WdlArrayType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlPair, WdlString}
 
 class WdlValueJsonFormatterSpec extends FlatSpec with Matchers {
 

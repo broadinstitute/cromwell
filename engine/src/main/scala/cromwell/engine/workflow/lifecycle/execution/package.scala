@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.lifecycle
 
 import akka.actor.ActorRef
-import wdl4s._
+import wdl4s.wdl._
 
 package execution {
 

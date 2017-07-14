@@ -4,7 +4,7 @@ import akka.actor.{Actor, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStore.{Completion, JobCompletion, WorkflowCompletion}
-import wdl4s.TaskOutput
+import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.duration._
 import scala.language.postfixOps

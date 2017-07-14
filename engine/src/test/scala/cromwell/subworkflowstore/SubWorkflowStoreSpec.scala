@@ -6,7 +6,7 @@ import cromwell.services.SingletonServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
-import wdl4s.{TaskCall, WdlExpression}
+import wdl4s.wdl.{WdlTaskCall, WdlExpression}
 import cromwell.core.ExecutionIndex._
 
 import scala.concurrent.duration._
@@ -37,7 +37,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()
       val subSubWorkflowId = WorkflowId.randomId()
-      val call = mock[TaskCall]
+      val call = mock[WdlTaskCall]
       call.fullyQualifiedName returns "foo.bar"
       val jobKey = new JobKey {
         override def scope = call

@@ -10,8 +10,8 @@ import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wdl4s.expression.NoFunctions
-import wdl4s.values.WdlFile
+import wdl4s.wdl.expression.NoFunctions
+import wdl4s.wdl.values.WdlFile
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}

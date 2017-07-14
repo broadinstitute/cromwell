@@ -10,8 +10,8 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWo
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start, _}
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 class SubWorkflowPreparationActor(executionData: WorkflowExecutionActorData,
                                    callKey: SubWorkflowKey,

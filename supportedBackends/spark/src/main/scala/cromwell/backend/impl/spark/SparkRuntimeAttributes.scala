@@ -10,8 +10,8 @@ import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
 import lenthall.validation.ErrorOr._
 import lenthall.exception.MessageAggregation
-import wdl4s.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
-import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
+import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
+import wdl4s.wdl.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 
 object SparkRuntimeAttributes {

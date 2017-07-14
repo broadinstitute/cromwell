@@ -2,10 +2,10 @@ package cromwell.backend.wdl
 
 import cromwell.backend.MemorySize
 import cromwell.core.path.PathFactory
-import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
-import wdl4s.values._
+import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
+import wdl4s.wdl.values._
 
 import scala.util.{Failure, Success, Try}
 
@@ -54,7 +54,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
       fileSize <- fileSize(fileName)
       _ = if (fileSize > limit) {
         val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
-        throw new FileSizeTooBig(errorMsg)
+        throw FileSizeTooBig(errorMsg)
       }
     } yield ()
 

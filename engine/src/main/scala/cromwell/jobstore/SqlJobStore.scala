@@ -15,7 +15,7 @@ import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import org.slf4j.LoggerFactory
-import wdl4s.TaskOutput
+import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
 

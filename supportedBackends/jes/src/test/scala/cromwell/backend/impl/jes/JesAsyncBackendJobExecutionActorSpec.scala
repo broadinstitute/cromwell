@@ -29,9 +29,9 @@ import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
-import wdl4s._
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
+import wdl4s.wdl._
+import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -444,7 +444,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -656,7 +656,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -688,7 +688,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -733,7 +733,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     descriptorWithMax2AndKey2.preemptible shouldBe true
   }
 
-  private def makeRuntimeAttributes(job: TaskCall) = {
+  private def makeRuntimeAttributes(job: WdlTaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
       runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)

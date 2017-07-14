@@ -2,7 +2,7 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import wdl4s.values.WdlString
+import wdl4s.wdl.values.WdlString
 
 
 class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestKitWordSpec {

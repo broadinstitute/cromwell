@@ -2,7 +2,7 @@ package cromwell.engine.workflow.mocks
 
 import cromwell.engine.workflow.mocks.DeclarationMock.DeclarationMockType
 import org.specs2.mock.Mockito
-import wdl4s._
+import wdl4s.wdl._
 import wdl4s.parser.WdlParser.Ast
 
 trait TaskMock extends Mockito {
@@ -13,7 +13,7 @@ trait TaskMock extends Mockito {
                commandTemplateString: String = "!!shazam!!",
                outputs: Seq[DeclarationMockType] = Seq.empty
               ) = {
-    val task = mock[Task]
+    val task = mock[WdlTask]
     task.declarations returns declarations
     task.runtimeAttributes returns runtimeAttributes
     task.commandTemplateString returns commandTemplateString

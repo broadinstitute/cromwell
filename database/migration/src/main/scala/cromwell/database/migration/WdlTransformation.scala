@@ -6,7 +6,7 @@ import java.util.zip.GZIPInputStream
 
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
-import wdl4s.types.{WdlPrimitiveType, WdlType}
+import wdl4s.wdl.types.{WdlPrimitiveType, WdlType}
 
 import scala.util.Try
 

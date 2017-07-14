@@ -12,7 +12,7 @@ import org.apache.commons.codec.digest.DigestUtils
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.values.WdlFile
+import wdl4s.wdl.values.WdlFile
 
 import scala.util.Success
 

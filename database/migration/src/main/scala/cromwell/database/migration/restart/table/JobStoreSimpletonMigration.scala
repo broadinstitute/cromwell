@@ -3,8 +3,8 @@ package cromwell.database.migration.restart.table
 import cromwell.core.simpleton.WdlValueSimpleton._
 import cromwell.database.migration.WdlTransformation._
 import liquibase.database.jvm.JdbcConnection
-import wdl4s.types.WdlType
-import wdl4s.values.WdlValue
+import wdl4s.wdl.types.WdlType
+import wdl4s.wdl.values.WdlValue
 
 
 class JobStoreSimpletonMigration extends AbstractRestartMigration {

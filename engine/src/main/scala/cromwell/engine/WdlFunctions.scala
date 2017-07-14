@@ -1,9 +1,9 @@
 package cromwell.engine
 
 import cromwell.backend.wdl.ReadLikeFunctions
-import wdl4s.expression.PureStandardLibraryFunctionsLike
+import wdl4s.wdl.expression.PureStandardLibraryFunctionsLike
 import cromwell.core.path.PathBuilder
-import wdl4s.values.{WdlFile, WdlValue}
+import wdl4s.wdl.values.{WdlFile, WdlValue}
 
 import scala.util.{Failure, Try}
 

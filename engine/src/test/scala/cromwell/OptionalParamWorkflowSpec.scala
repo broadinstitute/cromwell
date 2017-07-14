@@ -1,9 +1,9 @@
 package cromwell
 
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.WdlNamespace
-import wdl4s.expression.NoFunctions
-import wdl4s.values.{WdlFile, WdlString}
+import wdl4s.wdl.WdlNamespace
+import wdl4s.wdl.expression.NoFunctions
+import wdl4s.wdl.values.{WdlFile, WdlString}
 
 
 class OptionalParamWorkflowSpec extends Matchers with WordSpecLike {

@@ -1,8 +1,8 @@
 package cromwell
 
 import cromwell.core.JobOutput
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 package object engine {
 

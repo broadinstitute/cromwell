@@ -28,7 +28,7 @@ import cromwell.jobstore._
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
-import wdl4s.TaskOutput
+import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}

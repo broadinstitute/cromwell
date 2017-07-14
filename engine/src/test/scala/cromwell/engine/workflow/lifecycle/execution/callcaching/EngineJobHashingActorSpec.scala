@@ -12,15 +12,15 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import org.scalatest.concurrent.Eventually
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
-import wdl4s.values.WdlValue
-import wdl4s.{Task, TaskCall}
+import wdl4s.wdl.values.WdlValue
+import wdl4s.wdl.{WdlTask, WdlTaskCall}
 
 class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WdlValue] = Map.empty) = {
-    val task = mock[Task]
-    val call = mock[TaskCall]
+    val task = mock[WdlTask]
+    val call = mock[WdlTaskCall]
     task.commandTemplateString returns "Do the stuff... now!!"
     task.outputs returns List.empty
     task.fullyQualifiedName returns "workflow.hello"

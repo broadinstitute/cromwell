@@ -5,8 +5,8 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
+import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
 

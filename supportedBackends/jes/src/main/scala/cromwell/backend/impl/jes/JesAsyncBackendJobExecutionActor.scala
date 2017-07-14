@@ -25,9 +25,9 @@ import lenthall.validation.ErrorOr.ErrorOr
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
-import wdl4s._
-import wdl4s.expression.PureStandardLibraryFunctions
-import wdl4s.values._
+import wdl4s.wdl._
+import wdl4s.wdl.expression.PureStandardLibraryFunctions
+import wdl4s.wdl.values._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._

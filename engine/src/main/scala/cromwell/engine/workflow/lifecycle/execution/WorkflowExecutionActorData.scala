@@ -7,7 +7,7 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{DeclarationKey, SubWorkflowKey}
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import wdl4s.values.WdlValue
+import wdl4s.wdl.values.WdlValue
 
 object WorkflowExecutionDiff {
   def empty = WorkflowExecutionDiff(Map.empty)

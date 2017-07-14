@@ -7,8 +7,8 @@ import com.typesafe.config.ConfigFactory
 import cromwell.CallCachingWorkflowSpec._
 import cromwell.core.Tags.{DockerTest, _}
 import cromwell.util.SampleWdl
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
+import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 
 
 class CallCachingWorkflowSpec extends CromwellTestKitWordSpec {

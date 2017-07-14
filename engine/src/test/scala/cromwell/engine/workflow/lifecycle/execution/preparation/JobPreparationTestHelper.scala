@@ -8,13 +8,13 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import org.specs2.mock.Mockito
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 import JobPreparationTestHelper._
-import wdl4s.expression.NoFunctions
+import wdl4s.wdl.expression.NoFunctions
 
 class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito {
   val executionData = mock[WorkflowExecutionActorData]
@@ -34,7 +34,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,
                                    noResponseTimeout: FiniteDuration,
                                    dockerHashCredentials: List[Any],
-                                   inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.LocallyQualifiedName, WdlValue])],
+                                   inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
                                    kvStoreKeysForPrefetch: List[String]) = {
 
     Props(new TestJobPreparationActor(
@@ -56,7 +56,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                    dockerHashCredentialsInput: List[Any],
                                                    backpressureWaitTimeInput: FiniteDuration,
                                                    dockerNoResponseTimeoutInput: FiniteDuration,
-                                                   inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.LocallyQualifiedName, WdlValue])],
+                                                   inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
                                                    executionData: WorkflowExecutionActorData,
                                                    jobKey: BackendJobDescriptorKey,
                                                    workflowDockerLookupActor: ActorRef,

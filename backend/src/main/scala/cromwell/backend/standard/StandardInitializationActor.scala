@@ -7,8 +7,8 @@ import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import wdl4s.TaskCall
-import wdl4s.values.WdlValue
+import wdl4s.wdl.WdlTaskCall
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -16,7 +16,7 @@ import scala.util.Try
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
 
-  def calls: Set[TaskCall]
+  def calls: Set[WdlTaskCall]
 
   def serviceRegistryActor: ActorRef
 
@@ -27,7 +27,7 @@ case class DefaultInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[TaskCall],
+  calls: Set[WdlTaskCall],
   serviceRegistryActor: ActorRef,
   configurationDescriptor: BackendConfigurationDescriptor
 ) extends StandardInitializationActorParams
@@ -44,7 +44,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
 
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
-  override lazy val calls: Set[TaskCall] = standardParams.calls
+  override lazy val calls: Set[WdlTaskCall] = standardParams.calls
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     initializationData map Option.apply

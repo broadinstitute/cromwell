@@ -8,7 +8,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.{Logger, LoggerFactory}
 import org.specs2.mock.Mockito
 import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
-import wdl4s.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
+import wdl4s.wdl.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 class StandardValidatedRuntimeAttributesBuilderSpec extends WordSpecLike with Matchers with Mockito {
 

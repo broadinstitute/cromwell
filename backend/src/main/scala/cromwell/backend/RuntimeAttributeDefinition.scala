@@ -3,9 +3,9 @@ package cromwell.backend
 import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import lenthall.util.TryUtil
-import wdl4s.{WdlExpressionException, _}
-import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.values.WdlValue
+import wdl4s.wdl.{WdlExpressionException, _}
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.values.WdlValue
 
 import scala.util.{Success, Try}
 

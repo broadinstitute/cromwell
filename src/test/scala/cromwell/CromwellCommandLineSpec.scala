@@ -143,7 +143,7 @@ object CromwellCommandLineSpec {
     lazy val inputsFile = {
       val file = wdlFile.swapExt("wdl", "inputs")
       tempFiles :+= file
-      file write sampleWdl.wdlJson
+      file write sampleWdl.workflowJson
     }
 
     lazy val inputs = inputsFile.pathAsString

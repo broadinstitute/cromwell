@@ -3,8 +3,8 @@ package cromwell.backend.validation
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.types.WdlIntegerType
-import wdl4s.values.{WdlInteger, WdlValue}
+import wdl4s.wdl.types.WdlIntegerType
+import wdl4s.wdl.values.{WdlInteger, WdlValue}
 
 /**
   * Validates the "cpu" runtime attribute an Integer greater than 0, returning the value as an `Int`.

@@ -2,15 +2,15 @@ package cromwell.backend.io
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import wdl4s.TaskCall
-import wdl4s.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
-import wdl4s.values._
+import wdl4s.wdl.WdlTaskCall
+import wdl4s.wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
+import wdl4s.wdl.values._
 
 trait GlobFunctions extends PureStandardLibraryFunctionsLike {
 
   def callContext: CallContext
 
-  def findGlobOutputs(call: TaskCall, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
+  def findGlobOutputs(call: WdlTaskCall, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
     val globOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) collect {
       case glob: WdlGlobFile => glob
     }

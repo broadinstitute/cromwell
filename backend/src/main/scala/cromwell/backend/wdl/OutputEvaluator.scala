@@ -2,9 +2,9 @@ package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.JobOutput
-import wdl4s.LocallyQualifiedName
-import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.values.WdlValue
+import wdl4s.wdl.LocallyQualifiedName
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.values.WdlValue
 
 import scala.util.{Success, Try}
 

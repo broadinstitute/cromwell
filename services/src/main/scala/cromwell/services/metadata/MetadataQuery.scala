@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import org.slf4j.{Logger, LoggerFactory}
-import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
+import wdl4s.wdl.values._
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 

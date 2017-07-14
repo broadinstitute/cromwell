@@ -14,7 +14,7 @@ class WorkflowAbortSpec extends CromwellTestKitWordSpec {
 //        val waitThreshold = 10
 //
 //        // Start the workflow:
-//        val workflowId = messageAndWait[WorkflowId](SubmitWorkflow(TripleSleep.workflowSource(), TripleSleep.wdlJson, TripleSleep.rawInputs))
+//        val workflowId = messageAndWait[WorkflowId](SubmitWorkflow(TripleSleep.workflowSource(), TripleSleep.WorkflowJson, TripleSleep.rawInputs))
 //
 //        def waitForStarted(currentAttempt: Int): Unit = {
 //          val status = messageAndWait[Option[WorkflowState]](WorkflowStatus(workflowId))

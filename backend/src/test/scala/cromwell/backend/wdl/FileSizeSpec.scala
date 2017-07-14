@@ -8,7 +8,7 @@ import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, Stan
 import cromwell.core.CallContext
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.values._
+import wdl4s.wdl.values._
 import com.google.common.io.Files
 import fs2.{Task, Stream}
 

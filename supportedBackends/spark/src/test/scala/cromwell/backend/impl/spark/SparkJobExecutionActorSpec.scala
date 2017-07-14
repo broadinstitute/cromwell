@@ -16,8 +16,8 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -442,7 +442,7 @@ class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
     ()
   }
 
-  private def prepareJob(workflowSource: WdlSource = helloWorldWdl, runtimeString: String = passOnStderr, inputFiles: Option[Map[String, WdlValue]] = None, isCluster: Boolean = false): TestJobDescriptor = {
+  private def prepareJob(workflowSource: WorkflowSource = helloWorldWdl, runtimeString: String = passOnStderr, inputFiles: Option[Map[String, WdlValue]] = None, isCluster: Boolean = false): TestJobDescriptor = {
     val backendWorkflowDescriptor = buildWorkflowDescriptor(workflowSource = workflowSource, inputs = inputFiles.getOrElse(Map.empty), runtime = runtimeString)
     val backendConfigurationDescriptor = if (isCluster) BackendConfigurationDescriptor(backendClusterConfig, ConfigFactory.load) else BackendConfigurationDescriptor(backendClientConfig, ConfigFactory.load)
     val jobDesc = jobDescriptorFromSingleCallWorkflow(backendWorkflowDescriptor, inputFiles.getOrElse(Map.empty), WorkflowOptions.empty, Set.empty)

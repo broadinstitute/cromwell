@@ -6,8 +6,8 @@ import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
-import wdl4s.TaskCall
-import wdl4s.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
+import wdl4s.wdl.WdlTaskCall
+import wdl4s.wdl.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
 
 
 trait BackendLifecycleActorFactory {
@@ -18,7 +18,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        ioActor: ActorRef,
-                                       calls: Set[TaskCall],
+                                       calls: Set[WdlTaskCall],
                                        serviceRegistryActor: ActorRef): Option[Props] = None
 
   /* ****************************** */
@@ -39,7 +39,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      ioActor: ActorRef,
-                                     calls: Set[TaskCall],
+                                     calls: Set[WdlTaskCall],
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None

@@ -4,9 +4,9 @@ import cromwell.core.simpleton.WdlValueBuilderSpec._
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString, WdlValue}
-import wdl4s.{TaskOutput, WdlExpression}
+import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString, WdlValue}
+import wdl4s.wdl.{TaskOutput, WdlExpression}
 
 object WdlValueBuilderSpec {
   // WdlValueBuilder doesn't care about this expression, but something needs to be passed to the TaskOutput constructor.

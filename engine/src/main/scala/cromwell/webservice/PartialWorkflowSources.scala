@@ -2,7 +2,7 @@ package cromwell.webservice
 
 import akka.util.ByteString
 import cromwell.core.{WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesCollection}
-import wdl4s.{WdlJson, WdlSource}
+import wdl4s.wdl.{WorkflowJson, WorkflowSource}
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import cats.syntax.cartesian._
@@ -13,13 +13,13 @@ import spray.json.{JsObject, JsValue}
 
 import scala.util.Try
 
-final case class PartialWorkflowSources(workflowSource: Option[WdlSource],
+final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource],
                                         workflowType: Option[WorkflowType],
                                         workflowTypeVersion: Option[WorkflowTypeVersion],
-                                        workflowInputs: Vector[WdlJson],
-                                        workflowInputsAux: Map[Int, WdlJson],
+                                        workflowInputs: Vector[WorkflowJson],
+                                        workflowInputsAux: Map[Int, WorkflowJson],
                                         workflowOptions: Option[WorkflowOptionsJson],
-                                        customLabels: Option[WdlJson],
+                                        customLabels: Option[WorkflowJson],
                                         zippedImports: Option[Array[Byte]])
 
 object PartialWorkflowSources {
@@ -42,8 +42,8 @@ object PartialWorkflowSources {
       val name = kv._1
       val data = kv._2
 
-      if (name == "wdlSource" || name == "workflowSource") {
-        if (name == "wdlSource") deprecationWarning(out = "wdlSource", in = "workflowSource")
+      if (name == "WorkflowSource" || name == "workflowSource") {
+        if (name == "WorkflowSource") deprecationWarning(out = "WorkflowSource", in = "workflowSource")
         partialSources.copy(workflowSource = Option(data.utf8String))
       } else if (name == "workflowType") {
         partialSources.copy(workflowType = Option(data.utf8String))
@@ -69,7 +69,7 @@ object PartialWorkflowSources {
     partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs).errorOrToTry
   }
 
-  private def workflowInputs(data: String): Vector[WdlJson] = {
+  private def workflowInputs(data: String): Vector[WorkflowJson] = {
     import spray.json._
     data.parseJson match {
       case JsArray(Seq(x, xs@_*)) => (Vector(x) ++ xs).map(_.compactPrint)
@@ -79,19 +79,19 @@ object PartialWorkflowSources {
   }
 
   private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources], allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
-    def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WdlJson]] =
+    def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WorkflowJson]] =
       (pws.workflowInputs.isEmpty, allowNoInputs) match {
         case (true, true) => Vector("{}").validNel
         case (true, false) => "No inputs were provided".invalidNel
         case _ =>
           val sortedInputAuxes = pws.workflowInputsAux.toSeq.sortBy { case (index, _) => index } map { case(_, inputJson) => Option(inputJson) }
-          (pws.workflowInputs map { workflowInputSet: WdlJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
+          (pws.workflowInputs map { workflowInputSet: WorkflowJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
       }
 
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
       WorkflowOptions.fromJsonString(options.getOrElse("{}")).tryToErrorOr leftMap { _ map { i => s"Invalid workflow options provided: $i" } }
 
-    def validateWorkflowSource(partialSource: PartialWorkflowSources): ErrorOr[WdlJson] = partialSource.workflowSource match {
+    def validateWorkflowSource(partialSource: PartialWorkflowSources): ErrorOr[WorkflowJson] = partialSource.workflowSource match {
       case Some(src) => src.validNel
       case _ => s"Incomplete workflow submission: $partialSource".invalidNel
     }

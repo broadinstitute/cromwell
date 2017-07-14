@@ -9,10 +9,10 @@ import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import wdl4s._
-import wdl4s.expression.PureStandardLibraryFunctions
-import wdl4s.types._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.expression.PureStandardLibraryFunctions
+import wdl4s.wdl.types._
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -38,7 +38,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   def serviceRegistryActor: ActorRef
 
-  def calls: Set[TaskCall]
+  def calls: Set[WdlTaskCall]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow
@@ -125,7 +125,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
           defaultRuntimeAttributes.get(name)
         }
 
-        def badRuntimeAttrsForTask(task: Task) = {
+        def badRuntimeAttrsForTask(task: WdlTask) = {
           runtimeAttributeValidators map { case (attributeName, validator) =>
             val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
             attributeName -> ((value, validator(value)))

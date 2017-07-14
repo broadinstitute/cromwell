@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.{MessageAggregation, ThrowableAggregation}
-import wdl4s.values._
+import wdl4s.wdl.values._
 
 import scala.util.Random
 

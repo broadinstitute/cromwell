@@ -11,7 +11,7 @@ import cromwell.core.path.Path
 import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
-import wdl4s.values.WdlFile
+import wdl4s.wdl.values.WdlFile
 
 import scala.language.postfixOps
 import scala.util.Try

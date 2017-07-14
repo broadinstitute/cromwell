@@ -13,7 +13,7 @@ import cromwell.core.io.AsyncIo
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
-import wdl4s.TaskCall
+import wdl4s.wdl.WdlTaskCall
 
 import scala.concurrent.Future
 
@@ -21,7 +21,7 @@ case class JesInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[TaskCall],
+  calls: Set[WdlTaskCall],
   jesConfiguration: JesConfiguration,
   serviceRegistryActor: ActorRef
 ) extends StandardInitializationActorParams {

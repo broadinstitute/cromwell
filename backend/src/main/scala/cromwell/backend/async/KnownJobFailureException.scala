@@ -2,7 +2,7 @@ package cromwell.backend.async
 
 import cromwell.core.path.Path
 import lenthall.exception.ThrowableAggregation
-import wdl4s.values.WdlValue
+import wdl4s.wdl.values.WdlValue
 
 abstract class KnownJobFailureException extends Exception {
   def stderrPath: Option[Path]

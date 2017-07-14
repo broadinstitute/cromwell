@@ -5,10 +5,10 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.OutputStore
-import wdl4s.exception.VariableLookupException
-import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.values.WdlValue
-import wdl4s.{Declaration, Scatter}
+import wdl4s.wdl.exception.VariableLookupException
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.values.WdlValue
+import wdl4s.wdl.{Declaration, Scatter}
 
 import scala.util.{Failure, Try}
 

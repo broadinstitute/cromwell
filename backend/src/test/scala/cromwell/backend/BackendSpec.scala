@@ -11,9 +11,9 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
-import wdl4s._
-import wdl4s.expression.NoFunctions
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.expression.NoFunctions
+import wdl4s.wdl.values.WdlValue
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
 
@@ -23,7 +23,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)
   }
 
-  def buildWorkflowDescriptor(workflowSource: WdlSource,
+  def buildWorkflowDescriptor(workflowSource: WorkflowSource,
                               inputs: Map[String, WdlValue] = Map.empty,
                               options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                               runtime: String = "") = {
@@ -58,7 +58,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
   }
 
-  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
+  def jobDescriptorFromSingleCallWorkflow(wdl: WorkflowSource,
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
     val workflowDescriptor = buildWorkflowDescriptor(wdl)
@@ -70,7 +70,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
     BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
   }
 
-  def jobDescriptorFromSingleCallWorkflow(wdl: WdlSource,
+  def jobDescriptorFromSingleCallWorkflow(wdl: WorkflowSource,
                                           runtime: String,
                                           attempt: Int,
                                           options: WorkflowOptions,

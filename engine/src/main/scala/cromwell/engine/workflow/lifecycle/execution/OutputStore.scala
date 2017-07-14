@@ -5,16 +5,16 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
 import lenthall.util.TryUtil
-import wdl4s.types.{WdlArrayType, WdlType}
-import wdl4s.values.{WdlArray, WdlCallOutputsObject, WdlValue}
-import wdl4s._
+import wdl4s.wdl.types.{WdlArrayType, WdlType}
+import wdl4s.wdl.values.{WdlArray, WdlCallOutputsObject, WdlValue}
+import wdl4s.wdl._
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object OutputStore {
   case class OutputEntry(name: String, wdlType: WdlType, wdlValue: Option[WdlValue])
-  case class OutputCallKey(call: Scope with GraphNode, index: ExecutionIndex)
+  case class OutputCallKey(call: Scope with WdlGraphNode, index: ExecutionIndex)
   def empty = OutputStore(Map.empty)
 }
 
@@ -24,7 +24,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
 
   def add(values: Map[OutputCallKey, List[OutputEntry]]) = this.copy(store = store ++ values)
 
-  def fetchNodeOutputEntries(node: GraphNode, index: ExecutionIndex): Try[WdlValue] = {
+  def fetchNodeOutputEntries(node: WdlGraphNode, index: ExecutionIndex): Try[WdlValue] = {
     def outputEntriesToMap(outputs: List[OutputEntry]): Map[String, Try[WdlValue]] = {
       outputs map { output =>
         output.wdlValue match {
@@ -34,7 +34,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
       } toMap
     }
 
-    def callOutputs(call: Call, outputs: List[OutputEntry]) = {
+    def callOutputs(call: WdlCall, outputs: List[OutputEntry]) = {
       TryUtil.sequenceMap(outputEntriesToMap(outputs), s"Output fetching for call ${node.unqualifiedName}") map { outputsMap =>
         WdlCallOutputsObject(call, outputsMap)
       }
@@ -50,7 +50,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     store.get(OutputCallKey(node, index)) match {
       case Some(outputs) =>
         node match {
-          case call: Call => callOutputs(call, outputs)
+          case call: WdlCall => callOutputs(call, outputs)
           case declaration: Declaration => declarationOutputs(declaration, outputs)
           case other =>  Failure(new RuntimeException(s"Only Calls and Declarations are allowed in the OutputStore, found ${other.getClass.getSimpleName}"))
         }
@@ -58,7 +58,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     }
   }
   
-  def collectCall(call: Call, scatter: Scatter, sortedShards: Seq[JobKey]) = Try {
+  def collectCall(call: WdlCall, scatter: Scatter, sortedShards: Seq[JobKey]) = Try {
     val shardsOutputs = sortedShards map { e =>
       fetchNodeOutputEntries(call, e.index) map {
         case callOutputs: WdlCallOutputsObject => callOutputs.outputs
@@ -94,7 +94,7 @@ case class OutputStore(store: Map[OutputCallKey, List[OutputEntry]]) {
     lazy val sortedShards = shards.toSeq sortBy { _.index.fromIndex }
     
     collector.scope match {
-      case call: Call => collectCall(call, collector.scatter, sortedShards)
+      case call: WdlCall => collectCall(call, collector.scatter, sortedShards)
       case declaration: Declaration => collectDeclaration(declaration, collector.scatter, sortedShards)
       case other => Failure(new RuntimeException(s"Cannot retrieve outputs for ${other.fullyQualifiedName}")) 
     }

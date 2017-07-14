@@ -11,14 +11,27 @@ files {
 metadata {
   workflowName: optional_parameter
   status: Succeeded
-  "outputs.optional_parameter.select_first_with_optionals_out.0": "wfSupplied"
-  "outputs.optional_parameter.select_first_with_optionals_out.1": "SUPPLIED"
+
+  "outputs.optional_parameter.select_first_with_optionals_out.0": "SUPPLIED"
+  "outputs.optional_parameter.select_first_with_optionals_out.1": "wfSupplied"
   "outputs.optional_parameter.select_first_with_optionals_out.2": "HAPPY_BIRTHDAY_RUCHI"
   "outputs.optional_parameter.select_first_with_optionals_out_length": 3
+
+  "outputs.optional_parameter.optionals_with_defaults_out.0": "SUPPLIED"
+  "outputs.optional_parameter.optionals_with_defaults_out.1": "SUPPLIED"
+  "outputs.optional_parameter.optionals_with_defaults_out.2": "HAPPY_BIRTHDAY_RUCHI"
+  "outputs.optional_parameter.optionals_with_defaults_out.3": "HAPPY_BIRTHDAY_RUCHI"
+  "outputs.optional_parameter.optionals_with_defaults_out_length": 4
+
+  "outputs.optional_parameter.optional_array_interpolations_out.0": "--foo 5,5,5"
+  "outputs.optional_parameter.optional_array_interpolations_out.1": "--foo 1,2,3"
+  "outputs.optional_parameter.optional_array_interpolations_out_length": 2
+
   "outputs.optional_parameter.interpolation_additions_out.0": "supplied: SUPPLIED"
   "outputs.optional_parameter.interpolation_additions_out.1": "suppliedInt: 5"
   "outputs.optional_parameter.interpolation_additions_out.2": "wfSupplied: wfSupplied"
   "outputs.optional_parameter.interpolation_additions_out_length": 3
+
   "outputs.optional_parameter.default_interpolations_out.0": "SUPPLIED"
   "outputs.optional_parameter.default_interpolations_out.1": "wfSupplied"
   "outputs.optional_parameter.default_interpolations_out.2": "HAPPY_BIRTHDAY_RUCHI"

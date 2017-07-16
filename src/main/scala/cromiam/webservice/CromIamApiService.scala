@@ -5,8 +5,9 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.StatusCodes.{Forbidden, NotImplemented, Unauthorized}
+import akka.http.scaladsl.model.StatusCodes.{BadRequest, Forbidden, NotImplemented, Unauthorized}
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
@@ -17,6 +18,10 @@ import cromiam.webservice.CromIamApiService._
 import cromwell.api.model.CromwellStatus
 import cromwell.api.model.CromwellStatusJsonSupport._
 import spray.json._
+
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
@@ -54,19 +59,21 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
     Http().singleRequest(cromwellRequest)
   }
 
-  private[webservice] def authorizeThenForwardToCromwell(user: Option[String], workflowId: String, action: String, request: HttpRequest): Future[HttpResponse] = {
+  private[webservice] def authorizeThenForwardToCromwell(user: Option[String], workflowIds: List[String], action: String, request: HttpRequest): Future[HttpResponse] = {
+    def authForId(id: String) = requestAuth(WorkflowAuthorizationRequest(user.getOrElse("anon"), id, action))
+
     (for {
-      _ <- requestAuth(WorkflowAuthorizationRequest(user.getOrElse("anon"), workflowId, action))
+      _ <- workflowIds traverse authForId
       resp <- forwardToCromwell(request)
     } yield resp) recover {
       case SamIamDenialException => HttpResponse(status = Unauthorized, entity = "")
     }
   }
 
-  private[webservice] def authorizeReadThenForwardToCromwell(user: Option[String], workflowId: String, request: HttpRequest): Future[HttpResponse] =
+  private[webservice] def authorizeReadThenForwardToCromwell(user: Option[String], workflowId: List[String], request: HttpRequest): Future[HttpResponse] =
     authorizeThenForwardToCromwell(user, workflowId, "read", request)
   private[webservice] def authorizeAbortThenForwardToCromwell(user: Option[String], workflowId: String, request: HttpRequest): Future[HttpResponse] =
-    authorizeThenForwardToCromwell(user, workflowId, "abort", request)
+    authorizeThenForwardToCromwell(user, List(workflowId), "abort", request)
 
   private[webservice] def forwardSubmissionToCromwell(user: Option[String], request: HttpRequest, batch: Boolean): Future[HttpResponse] = {
 
@@ -91,7 +98,7 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   }
 
   val workflowRoutes: Route = queryRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~ submitBatchRoute ~
-    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute
+    workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ labelRoute ~ callCacheDiffRoute
 
   val engineRoutes: Route = statsRoute ~ versionRoute
 
@@ -113,9 +120,12 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
     directive { handleRequest(f) }
   }
 
-  def workflowGetRoute(urlSuffix: String): Route = path("api" / "workflows" / Segment / Segment / urlSuffix) { (_, workflowId) =>
-    handleRequest(get) { (userId, req) => authorizeReadThenForwardToCromwell(userId, workflowId, req) }
+  def workflowGetRoute(urlSuffix: String): Route = workflowRoute(urlSuffix, get)
+
+  def workflowRoute(urlSuffix: String, method: Directive0): Route = path("api" / "workflows" / Segment / Segment / urlSuffix) { (_, workflowId) =>
+    handleRequest(method) { (userId, req) => authorizeReadThenForwardToCromwell(userId, List(workflowId), req) }
   }
+
   def generalGetRoute(urlSuffix: String): Route = path("api" / "workflows" / Segment / urlSuffix) { _ =>
     handleRequest(get) { (_, req) => forwardToCromwell(req) }
   }
@@ -136,6 +146,7 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def metadataRoute: Route = workflowGetRoute("metadata")
   def timingRoute: Route = workflowGetRoute("metadata")
   def statusRoute: Route = workflowGetRoute("status")
+  def labelRoute: Route = workflowRoute("labels", patch)
 
   def versionRoute: Route = generalGetRoute("version")
   def backendRoute: Route = generalGetRoute("backends")
@@ -153,6 +164,18 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { version =>
     (post & entity(as[Seq[Map[String, String]]])) { parameterMap =>
       handleRequest { (_, _) => CromIamQueryNotImplemented }
+    }
+  }
+
+  def callCacheDiffRoute: Route = path("api" / "workflows" / Segment / "callcaching" / "diff") { version =>
+    parameterSeq { parameters =>
+      handleRequest(get) { (user, req) =>
+        val paramMap = parameters.toMap
+        (paramMap.get("workflowA"), paramMap.get("workflowB")) match {
+          case (Some(a), Some(b)) => authorizeReadThenForwardToCromwell(user, List(a, b), req)
+          case _ => HttpResponse(status = BadRequest, entity = "Must supply both workflowA and workflowB to the /callcaching/diff endpoint")
+        }
+      }
     }
   }
 }

@@ -3,7 +3,8 @@ package cromwell.core
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value
   val NotStarted, QueuedInCromwell, Starting, Running, Failed, RetryableFailure, Done, Bypassed, Aborted = Value
-  val TerminalStatuses = Set(Failed, Done, Aborted, RetryableFailure, Bypassed)
+  val TerminalStatuses = Set(Failed, Done, Aborted, Bypassed)
+  val TerminalOrRetryableStatuses = TerminalStatuses + RetryableFailure
 
   implicit val ExecutionStatusOrdering = Ordering.by { status: ExecutionStatus =>
     status match {
@@ -20,9 +21,9 @@ object ExecutionStatus extends Enumeration {
   }
   
   implicit class EnhancedExecutionStatus(val status: ExecutionStatus) extends AnyVal {
-    def isTerminal: Boolean = {
-      TerminalStatuses contains status
-    }
+    def isTerminal: Boolean = TerminalStatuses contains status
+
+    def isTerminalOrRetryable: Boolean = TerminalOrRetryableStatuses contains status
 
     def isDoneOrBypassed: Boolean = status == Done || status == Bypassed
   }

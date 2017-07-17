@@ -53,10 +53,7 @@ trait CromwellApiService {
   implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
 
-  val routes =
-    path("workflows" / Segment / "backends") { version =>
-      get { complete(backendResponse) }
-    } ~
+  val engineRoutes = concat(
     path("engine" / Segment / "stats") { version =>
       get {
         onComplete(workflowManagerActor.ask(WorkflowManagerActor.EngineStatsCommand).mapTo[EngineStatsActor.EngineStats]) {
@@ -64,9 +61,16 @@ trait CromwellApiService {
           case Failure(_) => new RuntimeException("Unable to gather engine stats").failRequest(StatusCodes.InternalServerError)
         }
       }
-    } ~
+    },
+
     path("engine" / Segment / "version") { version =>
       get { complete(versionResponse) }
+    }
+  )
+
+  val workflowRoutes =
+    path("workflows" / Segment / "backends") { version =>
+      get { complete(backendResponse) }
     } ~
     path("workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
       get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) }

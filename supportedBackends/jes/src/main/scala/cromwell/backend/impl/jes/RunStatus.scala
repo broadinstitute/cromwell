@@ -23,11 +23,6 @@ object RunStatus {
     def instanceName: Option[String]
   }
 
-  sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
-    def errorMessage: Option[String]
-    def errorCode: Int
-  }
-
   case class Success(eventList: Seq[ExecutionEvent],
                      machineType: Option[String],
                      zone: Option[String],
@@ -40,16 +35,7 @@ object RunStatus {
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
-                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
+                          instanceName: Option[String]) extends TerminalRunStatus {
     override def toString = "Failed"
-  }
-
-  final case class Preempted(errorCode: Int,
-                          errorMessage: Option[String],
-                          eventList: Seq[ExecutionEvent],
-                          machineType: Option[String],
-                          zone: Option[String],
-                          instanceName: Option[String]) extends UnsuccessfulRunStatus {
-    override def toString = "Preempted"
   }
 }

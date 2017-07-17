@@ -8,9 +8,8 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.genomics.model.RunPipelineRequest
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend._
-import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
@@ -391,9 +390,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       Try { errorMessage.substring(0, errorMessage.indexOf(':')).toInt } toOption
     }
 
-    val failedStatus: UnsuccessfulRunStatus = runStatus match {
+    val failedStatus: RunStatus.Failed = runStatus match {
       case failedStatus: RunStatus.Failed => failedStatus
-      case preemptedStatus: RunStatus.Preempted => preemptedStatus
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
     }
 
@@ -448,7 +446,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         val taskName = s"${workflowDescriptor.id}:${call.unqualifiedName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { case _ =>
+        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
             val msg = s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$errorMessage""".stripMargin

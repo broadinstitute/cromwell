@@ -1,18 +1,18 @@
 {
-  "inner": "Task",
+  "inner": "WdlTask",
   "inner.i": "Declaration",
   "inner.out": "TaskOutput",
-  "outer": "Task",
+  "outer": "WdlTask",
   "outer.matrix": "Declaration",
   "outer.tsv": "TaskOutput",
-  "w": "Workflow",
+  "w": "WdlWorkflow",
   "w.$scatter_0": "Scatter",
   "w.$scatter_0.$scatter_1": "Scatter",
-  "w.$scatter_0.$scatter_1.inner": "TaskCall",
+  "w.$scatter_0.$scatter_1.inner": "WdlTaskCall",
   "w.$scatter_0.$scatter_1.inner.i": "Declaration",
   "w.$scatter_0.$scatter_1.inner.out": "CallOutput",
   "w.array": "Declaration",
-  "w.outer": "TaskCall",
+  "w.outer": "WdlTaskCall",
   "w.outer.matrix": "Declaration",
   "w.outer.tsv": "CallOutput"
 }

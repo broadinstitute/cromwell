@@ -1,5 +1,7 @@
 {
     "optional_parameter.select_first_with_optionals.wfSupplied": "wfSupplied",
+    "optional_parameter.optionals_with_defaults.call_and_wf_supplied": "wfSupplied",
+    "optional_parameter.optionals_with_defaults.wfSupplied": "wfSupplied",
     "optional_parameter.interpolation_additions.wfSupplied": "wfSupplied",
     "optional_parameter.default_interpolations.wfSupplied": "wfSupplied"
 }

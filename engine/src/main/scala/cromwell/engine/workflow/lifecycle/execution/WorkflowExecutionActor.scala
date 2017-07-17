@@ -185,7 +185,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     val jobKey = stateData.engineCallExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
     val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
 
-    if (!jobStatus.isTerminal) {
+    if (!jobStatus.isTerminalOrRetryable) {
       val terminationException = getFailureCause(actorRef) match {
         case Some(e) => new RuntimeException("Unexpected failure in EJEA.", e)
         case None => new RuntimeException("Unexpected failure in EJEA (root cause not captured).")

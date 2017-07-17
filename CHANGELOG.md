@@ -12,6 +12,12 @@
 
 ## 28
 
+## WARNING! We have found a high priority bug on Cromwell 28. 
+
+### Please revert back to Cromwell 27 while we are fixing the issue and preparing a 28-hotfix version. 
+
+We apologize for this issue, we will have more information soon. 
+
 ### Bug Fixes
 
 #### WDL write_* functions add a final newline

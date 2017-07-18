@@ -9,10 +9,11 @@ echo "TRAVIS_PULL_REQUEST='$TRAVIS_PULL_REQUEST'"
 if [ "$BUILD_TYPE" == "sbt" ] && [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
 
     if [ "$TRAVIS_BRANCH" == "develop" ]; then
+        # Publish images for both the "cromwell develop branch" and the "cromwell dev environment".
         docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
         sbt \
           'set test in Test := {}' \
-          'set imageNames in docker := Seq(ImageName("broadinstitute/cromwell:'${TRAVIS_BRANCH}'"))' \
+          'set imageNames in docker := Seq("develop", "dev").map(tag => ImageName(s"broadinstitute/cromwell:$tag"))' \
           publish \
           dockerBuildAndPush
 

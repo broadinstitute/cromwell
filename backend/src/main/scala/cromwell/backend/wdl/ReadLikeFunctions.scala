@@ -119,7 +119,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   override def read_boolean(params: Seq[Try[WdlValue]]): Try[WdlBoolean] =
     read_string(params) map { s => WdlBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
 
-  protected def size(file: WdlFile): Try[Double] = Try(buildPath(file.valueString).size.toDouble)
+  protected def size(file: WdlValue): Try[Double] = Try(buildPath(file.valueString).size.toDouble)
 
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
     // Inner function: get the memory unit from the second (optional) parameter
@@ -134,8 +134,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
 
     // Inner function: Get the file size, allowing for unpacking of optionals
     def optionalSafeFileSize(value: WdlValue): Try[Double] = value match {
-      case f: WdlFile => size(f)
-      case f if WdlFileType.isCoerceableFrom(f.wdlType) => WdlFileType.coerceRawValue(f) flatMap { file => size(file.asInstanceOf[WdlFile]) }
+      case f if f.isInstanceOf[WdlFile] || WdlFileType.isCoerceableFrom(f.wdlType) => size(f)
       case WdlOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
       case WdlOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0d)
       case _ => Failure(new Exception(s"The 'size' method expects a File argument but instead got ${value.wdlType.toWdlString}."))

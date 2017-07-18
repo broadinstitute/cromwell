@@ -5,7 +5,7 @@ import org.apache.commons.lang3.NotImplementedException
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.expression.PureStandardLibraryFunctionsLike
 import wdl4s.types.{WdlFileType, WdlOptionalType, WdlStringType}
-import wdl4s.values.{WdlFile, WdlFloat, WdlOptionalValue, WdlSingleFile, WdlString}
+import wdl4s.values.{WdlFloat, WdlOptionalValue, WdlSingleFile, WdlString, WdlValue}
 
 import scala.util.{Failure, Success, Try}
 
@@ -93,7 +93,7 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
 
 
 class TestReadLikeFunctions(sizeResult: Try[Double]) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions {
-  override protected def size(file: WdlFile): Try[Double] = sizeResult
+  override protected def size(file: WdlValue): Try[Double] = sizeResult
   override def pathBuilders: List[PathBuilder] = throw new NotImplementedException("Didn't expect ReadLikefunctionsSpec to need pathBuilders")
 }
 

@@ -27,17 +27,23 @@ object CopyWorkflowLogsActor {
 
 // This could potentially be turned into a more generic "Copy/Move something from A to B"
 // Which could be used for other copying work (outputs, call logs..)
-class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, override val ioActor: ActorRef) extends Actor with ActorLogging with GcsBatchCommandBuilder with IoClientHelper with WorkflowMetadataHelper {
+class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, override val ioActor: ActorRef) extends Actor 
+  with ActorLogging with GcsBatchCommandBuilder with IoClientHelper with WorkflowMetadataHelper with MonitoringCompanionHelper {
 
+  implicit val ec = context.dispatcher
+  
   def copyLog(src: Path, dest: Path, workflowId: WorkflowId) = {
     dest.parent.createPermissionedDirectories()
     // Send the workflowId as context along with the copy so we can update metadata when the response comes back
     sendIoCommandWithContext(copyCommand(src, dest, overwrite = true), workflowId)
+    // In order to keep "copy and then delete" operations atomic as far as monitoring is concerned, removeWork will only be called
+    // when the delete is complete (successfully or not), or when the copy completes if WorkflowLogger.isTemporary is false
+    addWork()
   }
 
   def deleteLog(src: Path) = if (WorkflowLogger.isTemporary) {
     sendIoCommand(deleteCommand(src))
-  }
+  } else removeWork()
   
   def updateLogsPathInMetadata(workflowId: WorkflowId, path: Path) = {
     val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.WorkflowLog), MetadataValue(path.pathAsString))
@@ -66,15 +72,16 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, overrid
       log.error(failure, s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}")
       deleteLog(copy.source)
       
-    case IoSuccess(_: IoDeleteCommand, _) => // Good !
+    case IoSuccess(_: IoDeleteCommand, _) => removeWork()
       
     case IoFailure(delete: IoDeleteCommand, failure) =>
+      removeWork()
       log.error(failure, s"Failed to delete workflow logs from ${delete.file.pathAsString}")
 
     case other => log.warning(s"CopyWorkflowLogsActor received an unexpected message: $other")
   }
   
-  override def receive = ioReceive orElse copyLogsReceive
+  override def receive = monitoringReceive orElse ioReceive orElse copyLogsReceive
 
   override def preRestart(t: Throwable, message: Option[Any]) = {
     message foreach self.forward

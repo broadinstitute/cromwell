@@ -5,8 +5,8 @@ import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
+import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.{SaveCallCacheHashes, _}
 
@@ -14,16 +14,13 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] {
+case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with BatchingDbWriterActor {
 
   implicit val ec: ExecutionContext = context.dispatcher
+  
+  override val dbFlushRate = CallCacheWriteActor.dbFlushRate
 
   startWith(WaitingToWrite, NoData)
-
-  override def preStart(): Unit = {
-    context.system.scheduler.schedule(0.seconds, dbFlushRate, self, ScheduledFlushToDb)
-    super.preStart()
-  }
 
   when(WaitingToWrite) {
     case Event(command: SaveCallCacheHashes, curData) =>
@@ -59,10 +56,6 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
     case Event(DbWriteComplete, _) =>
       log.debug("Flush of cache data complete")
       goto(WaitingToWrite)
-  }
-
-  onTransition {
-    case WaitingToWrite -> WritingToDb => self ! FlushBatchToDb
   }
 }
 

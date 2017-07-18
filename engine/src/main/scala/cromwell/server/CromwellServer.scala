@@ -1,41 +1,36 @@
 package cromwell.server
 
-import akka.actor.{ActorContext, Props}
+import akka.actor.{ActorContext, ActorLogging, Props}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
-
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.webservice.{CromwellApiService, SwaggerService}
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer {
-  def run(cromwellSystem: CromwellSystem): Future[Any] = {
+  def run(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(cromwellSystem: CromwellSystem): Future[Any] = {
     implicit val actorSystem = cromwellSystem.actorSystem
     implicit val materializer = cromwellSystem.materializer
-    implicit val ec = actorSystem.dispatcher
-    actorSystem.actorOf(CromwellServerActor.props(cromwellSystem), "cromwell-service")
-    Future {
-      Await.result(actorSystem.whenTerminated, Duration.Inf)
-    }
+    actorSystem.actorOf(CromwellServerActor.props(cromwellSystem, gracefulShutdown, abortJobsOnTerminate), "cromwell-service")
+    actorSystem.whenTerminated
   }
 }
 
-class CromwellServerActor(cromwellSystem: CromwellSystem)(override implicit val materializer: ActorMaterializer)
-  extends CromwellRootActor
-  with CromwellApiService
-  with SwaggerService {
+class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(override implicit val materializer: ActorMaterializer)
+  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate)
+    with CromwellApiService
+    with SwaggerService
+    with ActorLogging {
   implicit val actorSystem = context.system
   override implicit val ec = context.dispatcher
   override def actorRefFactory: ActorContext = context
 
   override val serverMode = true
-  override val abortJobsOnTerminate = false
 
   val webserviceConf = cromwellSystem.conf.getConfig("webservice")
   val interface = webserviceConf.getString("interface")
@@ -50,7 +45,11 @@ class CromwellServerActor(cromwellSystem: CromwellSystem)(override implicit val 
   val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
-  Http().bindAndHandle(allRoutes, interface, port) onComplete {
+  val serverBinding = Http().bindAndHandle(allRoutes, interface, port)
+
+  CromwellShutdown.registerUnbindTask(actorSystem, serverBinding)
+
+  serverBinding onComplete {
     case Success(_) => actorSystem.log.info("Cromwell service started...")
     case Failure(e) =>
       /*
@@ -72,7 +71,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem)(override implicit val 
 }
 
 object CromwellServerActor {
-  def props(cromwellSystem: CromwellSystem)(implicit materializer: ActorMaterializer): Props = {
-    Props(new CromwellServerActor(cromwellSystem)).withDispatcher(EngineDispatcher)
+  def props(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer): Props = {
+    Props(new CromwellServerActor(cromwellSystem, gracefulShutdown, abortJobsOnTerminate)).withDispatcher(EngineDispatcher)
   }
 }

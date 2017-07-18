@@ -18,11 +18,12 @@ import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with WorkflowMetadataHelper {
+final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with WorkflowMetadataHelper with MonitoringCompanionHelper {
   implicit val ec: ExecutionContext = context.dispatcher
 
-  override def receive = {
+  val workflowStoreReceive: Receive = {
     case cmd: SubmitWorkflow =>
+      addWork()
       val sndr = sender()
 
       val futureId = for {
@@ -35,12 +36,15 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         case Success(id) =>
           log.info("Workflow {} submitted.", id)
           sndr ! WorkflowSubmittedToStore(id)
+          removeWork()
         case Failure(throwable) =>
           log.error("Workflow {} submit failed.", throwable)
           sndr ! WorkflowSubmitFailed(throwable)
+          removeWork()
       }
 
     case cmd: BatchSubmitWorkflows =>
+      addWork()
       val sndr = sender()
 
       val futureIds = for {
@@ -52,11 +56,15 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         case Success(ids) =>
           log.info("Workflows {} submitted.", ids.toList.mkString(", "))
           sndr ! WorkflowsBatchSubmittedToStore(ids)
+          removeWork()
         case Failure(throwable) =>
           log.error("Workflow {} submit failed.", throwable)
           sndr ! WorkflowSubmitFailed(throwable)
+          removeWork()
       }
   }
+  
+  override def receive = workflowStoreReceive.orElse(monitoringReceive)
 
   private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFilesCollection]): Future[NonEmptyList[WorkflowId]] = {
     for {

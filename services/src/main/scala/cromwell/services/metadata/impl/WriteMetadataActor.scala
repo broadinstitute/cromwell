@@ -2,8 +2,8 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
+import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
@@ -13,18 +13,12 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
-class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
+class WriteMetadataActor(batchSize: Int, override val dbFlushRate: FiniteDuration)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
-  MetadataDatabaseAccess with SingletonServicesStore {
+  MetadataDatabaseAccess with SingletonServicesStore with BatchingDbWriterActor {
   import WriteMetadataActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
-
-  override def preStart(): Unit = {
-    context.system.scheduler.schedule(0.seconds, flushRate, self, ScheduledFlushToDb)
-    super.preStart()
-  }
-
 
   startWith(WaitingToWrite, NoData)
 
@@ -89,10 +83,6 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     // enough information to be able to send an acknowledgement of success/failure of metadata event writes to the original requester.
     case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
       stay using curData.addData(PutMetadataActionAndRespond(events, replyTo))
-  }
-
-  onTransition {
-    case WaitingToWrite -> WritingToDb => self ! FlushBatchToDb
   }
 }
 

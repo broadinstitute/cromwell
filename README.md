@@ -3979,25 +3979,3 @@ e.g.
 The `message` field contains a short description of the error.
 
 The `errors` field is optional and may contain additional information about why the request failed.
-
-# Developer
-
-## Generating table of contents on Markdown files
-
-```
-$ pip install mdtoc
-$ mdtoc --check-links README.md
-```
-
-## Generating and Hosting ScalaDoc
-
-Essentially run `sbt doc` then commit the generated code into the `gh-pages` branch on this repository
-
-```
-$ sbt doc
-$ git co gh-pages
-$ mv target/scala-2.12/api scaladoc
-$ git add scaladoc
-$ git commit -m "API Docs"
-$ git push origin gh-pages
-```

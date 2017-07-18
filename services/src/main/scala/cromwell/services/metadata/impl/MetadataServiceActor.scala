@@ -2,7 +2,8 @@ package cromwell.services.metadata.impl
 
 
 import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
-import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
+import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props}
+import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
@@ -11,6 +12,8 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.WriteMetadataActor.CheckPendingWrites
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -28,7 +31,7 @@ object MetadataServiceActor {
 }
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
-  extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore {
+  extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore with GracefulShutdownHelper {
   
   private val decider: Decider = {
     case _: ActorInitializationException => Escalate
@@ -50,11 +53,19 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   val dbBatchSize = serviceConfig.as[Option[Int]]("services.MetadataService.db-batch-size").getOrElse(200)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate), "write-metadata-actor")
   implicit val ec = context.dispatcher
-
+  private var summaryRefreshCancellable: Option[Cancellable] = None
+  
   summaryActor foreach { _ => self ! RefreshSummary }
 
   private def scheduleSummary(): Unit = {
-    MetadataSummaryRefreshInterval foreach { context.system.scheduler.scheduleOnce(_, self, RefreshSummary)(context.dispatcher, self) }
+    MetadataSummaryRefreshInterval foreach { interval =>
+      summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self)) 
+    }
+  }
+
+  override def postStop(): Unit = {
+    summaryRefreshCancellable foreach { _.cancel() }
+    super.postStop()
   }
 
   private def buildSummaryActor: Option[ActorRef] = {
@@ -78,6 +89,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   }
 
   def receive = {
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
     case CheckPendingWrites => writeActor forward CheckPendingWrites

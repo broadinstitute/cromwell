@@ -16,6 +16,11 @@ retired at the same time.
 
 * The response format of the [callcaching/diff](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) endpoint has been updated.
 
+### Cromwell Server
+
+* Cromwell now attempts to gracefully shutdown when running in server mode and receiving a `SIGINT` (`Ctrl-C`) or `SIGTERM` (`kill`) signal. This includes waiting for all pending Database writes before exiting.
+A detailed explanation and information about how to configure this feature can be found in the [Cromwell Wiki](https://github.com/broadinstitute/cromwell/wiki/DevZone#graceful-server-shutdown).
+
 ## 28
 
 ### Bug Fixes

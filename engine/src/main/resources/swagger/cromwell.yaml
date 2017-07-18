@@ -11,9 +11,8 @@ info:
   version: ''
 produces:
   - application/json
-basePath: /api
 paths:
-  '/workflows/{version}/{id}/abort':
+  '/api/workflows/{version}/{id}/abort':
     post:
       summary: Abort a workflow based on workflow id
       parameters:
@@ -46,7 +45,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}':
+  '/api/workflows/{version}':
     post:
       summary: Submit a new workflow for execution
       consumes:
@@ -127,7 +126,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/batch':
+  '/api/workflows/{version}/batch':
     post:
       summary: Submit a batch of new workflows for execution
       consumes:
@@ -190,7 +189,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/outputs':
+  '/api/workflows/{version}/{id}/outputs':
     get:
       summary: Query for workflow outputs based on workflow id
       parameters:
@@ -219,7 +218,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/labels':
+  '/api/workflows/{version}/{id}/labels':
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
@@ -258,7 +257,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/query':
+  '/api/workflows/{version}/query':
     get:
       summary: Query workflows by start dates, end dates, names, ids, statuses, or labels.
       parameters:
@@ -383,7 +382,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/status':
+  '/api/workflows/{version}/{id}/status':
     get:
       summary: Query for workflow status based on workflow id
       parameters:
@@ -414,7 +413,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/logs':
+  '/api/workflows/{version}/{id}/logs':
     get:
       summary: Query for the standard output and error of all calls in a workflow
       parameters:
@@ -443,7 +442,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/callcaching/diff':
+  '/api/workflows/{version}/callcaching/diff':
     get:
       summary: Return the hash differential between two calls
       parameters:
@@ -497,7 +496,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/{id}/metadata':
+  '/api/workflows/{version}/{id}/metadata':
     get:
       summary: Query for workflow and call-level metadata for a specified workflow
       parameters:
@@ -682,7 +681,7 @@ paths:
       security:
         - google_oauth:
             - openid
-  '/workflows/{version}/backends':
+  '/api/workflows/{version}/backends':
     get:
       summary: Returns the backends supported by this Cromwell.
       parameters:
@@ -719,9 +718,6 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/StatsResponse'
-      security:
-        - google_oauth:
-            - openid
   '/engine/{version}/version':
     get:
       summary: Returns the version of the Cromwell Engine
@@ -739,9 +735,6 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/VersionResponse'
-      security:
-        - google_oauth:
-            - openid
 securityDefinitions:
   google_oauth:
     type: oauth2

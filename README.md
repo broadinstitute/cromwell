@@ -94,8 +94,8 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [POST /api/workflows/:version/:id/abort](#post-apiworkflowsversionidabort)
   * [GET /api/workflows/:version/backends](#get-apiworkflowsversionbackends)
   * [GET /api/workflows/:version/callcaching/diff](#get-apiworkflowsversioncallcachingdiff)
-  * [GET /api/engine/:version/stats](#get-apiengineversionstats)
-  * [GET /api/engine/:version/version](#get-apiengineversionversion)
+  * [GET /engine/:version/stats](#get-engineversionstats)
+  * [GET /engine/:version/version](#get-engineversionversion)
   * [Error handling](#error-handling)
 * [Developer](#developer)
   * [Generating table of contents on Markdown files](#generating-table-of-contents-on-markdown-files)
@@ -3875,18 +3875,18 @@ Server: spray-can/1.3.3
 }
 ```
 
-## GET /api/engine/:version/stats
+## GET /engine/:version/stats
 
 This endpoint returns some basic statistics on the current state of the engine. At the moment that includes the number of running workflows and the number of active jobs. 
 
 cURL:
 ```
-$ curl http://localhost:8000/api/engine/v1/stats
+$ curl http://localhost:8000/engine/v1/stats
 ```
 
 HTTPie:
 ```
-$ http http://localhost:8000/api/engine/v1/stats
+$ http http://localhost:8000/engine/v1/stats
 ```
 
 Response:
@@ -3902,18 +3902,18 @@ Response:
 }
 ```
 
-## GET /api/engine/:version/version
+## GET /engine/:version/version
 
 This endpoint returns the version of the Cromwell engine.
 
 cURL:
 ```
-$ curl http://localhost:8000/api/engine/v1/version
+$ curl http://localhost:8000/engine/v1/version
 ```
 
 HTTPie:
 ```
-$ http http://localhost:8000/api/engine/v1/version
+$ http http://localhost:8000/engine/v1/version
 ```
 
 Response:

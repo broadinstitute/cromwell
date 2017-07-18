@@ -20,6 +20,8 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
     case Invalid(errors) => throw new Exception("Bad CromIAM configuration:" + errors.toList.mkString("\n", "\n", "\n"))
   }
 
+  override lazy val oauthClientId: String = configuration.googleConfig.clientId
+
   def run(): Unit = {
     CromIamServer.startServer(configuration.cromIamConfig.http.interface, configuration.cromIamConfig.http.port, configuration.cromIamConfig.serverSettings)
   }

@@ -39,6 +39,9 @@ object SwaggerUiHttpServiceSpec {
 class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   behavior of "SwaggerUiHttpService"
 
+  override protected def rewriteSwaggerIndex(data: String): String =
+    data.replace("your-client-id", "replaced-client-id")
+
   it should "redirect / to /swagger" in {
     Get() ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.TemporaryRedirect)
@@ -62,6 +65,7 @@ class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {
   it should "return index.html from the swagger-ui jar" in {
     Get("/swagger/index.html") ~> swaggerUiRoute ~> check {
       status should be(StatusCodes.OK)
+      responseAs[String] should include("replaced-client-id")
     }
   }
 }

@@ -7,10 +7,12 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes.{BadRequest, Forbidden, NotImplemented, Unauthorized}
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cromiam.samiam.SamIamActor.{SamIamDenialException, WorkflowAuthorizationRequest}
 import cromiam.samiam.{SamIamActor, SamIamClient}
 import cromiam.server.config.CromIamServerConfig
@@ -19,12 +21,8 @@ import cromwell.api.model.CromwellStatus
 import cromwell.api.model.CromwellStatusJsonSupport._
 import spray.json._
 
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.traverse._
-
-import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromiam"
@@ -61,7 +59,6 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
 
   private[webservice] def authorizeThenForwardToCromwell(user: Option[String], workflowIds: List[String], action: String, request: HttpRequest): Future[HttpResponse] = {
     def authForId(id: String) = requestAuth(WorkflowAuthorizationRequest(user.getOrElse("anon"), id, action))
-
     (for {
       _ <- workflowIds traverse authForId
       resp <- forwardToCromwell(request)
@@ -148,21 +145,24 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   def statusRoute: Route = workflowGetRoute("status")
   def labelRoute: Route = workflowRoute("labels", patch)
 
-  def versionRoute: Route = generalGetRoute("version")
   def backendRoute: Route = generalGetRoute("backends")
 
-  def statsRoute: Route = path("api" / "engine" / Segment / "stats") { _ =>
+  def versionRoute: Route =  path("engine" / Segment / "version") { _ =>
+    handleRequest(get) { (_, request) => forwardToCromwell(request) }
+  }
+
+  def statsRoute: Route = path("engine" / Segment / "stats") { _ =>
     handleRequest(get) { (_, _) => CromIamStatsForbidden }
   }
 
-  def queryRoute: Route = path("api" / "workflows" / Segment / "query") { version =>
-    parameterSeq { parameters =>
+  def queryRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
+    parameterSeq { _ =>
       handleRequest(get) { (_, _) => CromIamQueryNotImplemented }
     }
   }
 
-  def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { version =>
-    (post & entity(as[Seq[Map[String, String]]])) { parameterMap =>
+  def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
+    (post & entity(as[Seq[Map[String, String]]])) { _ =>
       handleRequest { (_, _) => CromIamQueryNotImplemented }
     }
   }

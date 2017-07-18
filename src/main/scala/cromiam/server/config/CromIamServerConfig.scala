@@ -10,15 +10,19 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import cromiam.server.config.CromIamServerConfig._
 
-final case class CromIamServerConfig(cromIamConfig: CromIamConfig, cromwellConfig: ServiceConfig, samConfig: ServiceConfig)
+final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
+                                     cromwellConfig: ServiceConfig,
+                                     samConfig: ServiceConfig,
+                                     googleConfig: GoogleConfig)
 
 object CromIamServerConfig {
   def getFromConfig(conf: Config): ErrorOr[CromIamServerConfig] = {
     val cromIamConfig = CromIamConfig.getFromConfig(conf, "cromiam")
     val cromwellConfig = ServiceConfig.getFromConfig(conf, "cromwell")
     val samConfig = ServiceConfig.getFromConfig(conf, "sam")
+    val googleConfig = GoogleConfig.getFromConfig(conf, "google")
 
-    (cromIamConfig |@| cromwellConfig |@| samConfig) map CromIamServerConfig.apply
+    (cromIamConfig |@| cromwellConfig |@| samConfig |@| googleConfig) map CromIamServerConfig.apply
   }
 
   private[config] def getValidatedConfigPath[A](typename: String, conf: Config, path: String, getter: (Config, String) => A): ErrorOr[A] = {
@@ -65,5 +69,14 @@ object ServiceConfig {
     val server = conf.getValidatedString(s"$basePath.interface")
     val port = conf.getValidatedInt(s"$basePath.port")
     (server |@| port) map ServiceConfig.apply
+  }
+}
+
+final case class GoogleConfig(clientId: String)
+
+object GoogleConfig {
+  private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[GoogleConfig] = {
+    val clientId = conf.getValidatedString(s"$basePath.client_id")
+    clientId map GoogleConfig.apply
   }
 }

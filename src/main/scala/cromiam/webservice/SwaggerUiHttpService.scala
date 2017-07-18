@@ -1,12 +1,24 @@
 package cromiam.webservice
 
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.{Directives}
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server._
+import akka.stream.Materializer
+import akka.stream.scaladsl.Sink
+import akka.util.ByteString
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 
+import scala.concurrent.{ExecutionContext, Future}
+
 /**
  * Serves up the swagger UI from org.webjars/swagger-ui.
+  *
+  * This code is NOT original, and is a copy-paste frankenstein of cromwell, rawls, etc until we create a library.
+  *
+  * https://github.com/broadinstitute/cromwell/blob/644967de35ad982894b003dcd9ccd6441b76d258/engine/src/main/scala/cromwell/webservice/SwaggerUiHttpService.scala
+  * https://github.com/broadinstitute/rawls/blob/4a47a017e0e2a0489a75ef80e02f8f4ff003734a/core/src/main/scala/org/broadinstitute/dsde/rawls/webservice/RawlsApiService.scala#L85-L96
+  * https://vimeo.com/215325495
  */
 trait SwaggerUiHttpService extends Directives {
   /**
@@ -54,19 +66,64 @@ trait SwaggerUiHttpService extends Directives {
    * @return Route serving the swagger UI.
    */
   final def swaggerUiRoute = {
+    // when the user hits the doc url, redirect to the index.html with api docs specified on the url
+    val indexRedirect: Route = pathEndOrSingleSlash {
+      redirect(
+        s"$swaggerUiBaseUrl/$swaggerUiPath/index.html?url=$swaggerUiBaseUrl/$swaggerUiDocsPath",
+        StatusCodes.TemporaryRedirect)
+    }
+
+    /** Serve a resource from the swagger-ui webjar/bundle */
+    val resourceServe: Route = getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
+
+    /** Mashup of mapResponseWith and mapResponseEntity */
+    def mapResponseEntityWith(f: ResponseEntity => Future[ResponseEntity]): Directive0 = {
+      extractExecutionContext flatMap { implicit executionContext =>
+        mapRouteResultWithPF {
+          case RouteResult.Complete(response) =>
+            f(response.entity) map { entity =>
+              RouteResult.Complete(response.withEntity(entity))
+            }
+        }
+      }
+    }
+
+    /** Server up the index.html, after passing it through a function that rewrites the response. */
+    val indexServe: Route = {
+      pathPrefixTest("index.html") {
+        extractExecutionContext { implicit executionContext =>
+          extractMaterializer { implicit materializer =>
+            mapResponseEntityWith(rewriteSwaggerIndex) {
+              resourceServe
+            }
+          }
+        }
+      }
+    }
+
+    /** Redirect to the index, serve the rewritten index, or a resource from the swaggerUI webjar. */
     val route = get {
       pathPrefix(separateOnSlashes(swaggerUiPath)) {
-        // when the user hits the doc url, redirect to the index.html with api docs specified on the url
-        pathEndOrSingleSlash {
-          redirect(
-            s"$swaggerUiBaseUrl/$swaggerUiPath/index.html?url=$swaggerUiBaseUrl/$swaggerUiDocsPath",
-            StatusCodes.TemporaryRedirect)
-        } ~ getFromResourceDirectory(s"META-INF/resources/webjars/swagger-ui/$swaggerUiVersion")
+        concat(indexRedirect, indexServe, resourceServe)
       }
     }
     if (swaggerUiFromRoot) route ~ routeFromRoot else route
   }
 
+  private[this] final def rewriteSwaggerIndex(responseEntity: ResponseEntity)
+                                             (implicit
+                                              executionContext: ExecutionContext,
+                                              materializer: Materializer
+                                             ): Future[ResponseEntity] = {
+    val contentType = responseEntity.contentType
+    for {
+      data <- responseEntity.dataBytes.runWith(Sink.head) // Similar to responseEntity.toStrict, but without a timeout
+      replaced = rewriteSwaggerIndex(data.utf8String)
+    } yield HttpEntity.Strict(contentType, ByteString(replaced))
+  }
+
+  /** Rewrite the swagger index.html. Default passes through the origin data. */
+  protected def rewriteSwaggerIndex(data: String): String = data
 }
 
 /**
@@ -92,7 +149,7 @@ trait SwaggerUiConfigHttpService extends SwaggerUiHttpService {
  * directory and path on the classpath must match the path for route. The resource can be any file type supported by the
  * swagger UI, but defaults to "yaml". This is an alternative to spray-swagger's SwaggerHttpService.
  */
-trait SwaggerResourceHttpService extends Directives {
+trait SwaggerResourceHttpService {
   /**
    * @return The directory for the resource under the classpath, and in the url
    */
@@ -157,4 +214,12 @@ trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerReso
    * @return A route that redirects to the swagger UI and returns the swagger resource.
    */
   final def swaggerUiResourceRoute = swaggerUiRoute ~ swaggerResourceRoute
+
+  def oauthClientId = "your-client-id"
+
+  override protected def rewriteSwaggerIndex(data: String): String =
+    data
+      .replace("your-client-id", oauthClientId)
+      .replace("scopeSeparator: \",\"", "scopeSeparator: \" \"")
+      .replace("url = \"http://petstore.swagger.io/v2/swagger.json\";", s"url = '/$swaggerDocsPath';")
 }

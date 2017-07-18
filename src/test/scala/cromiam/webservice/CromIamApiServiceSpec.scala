@@ -20,7 +20,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
   }
 
   "Stats endpoint" should "be forbidden" in {
-    Get("/api/engine/v1/stats") ~> allRoutes ~> check {
+    Get("/engine/v1/stats") ~> allRoutes ~> check {
       status shouldBe Forbidden
       response.entity shouldBe CromIamApiService.CromIamStatsForbidden.entity
     }

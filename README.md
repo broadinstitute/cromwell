@@ -11,8 +11,7 @@ wdl4s is hosted on The Broad Institute's [Artifactory Repository]()
 
 ```
 resolvers ++= Seq(
-  "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
-  "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
+  "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
 )
 ```
 

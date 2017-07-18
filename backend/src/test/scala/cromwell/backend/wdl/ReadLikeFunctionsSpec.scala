@@ -85,7 +85,7 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
     val readLike = new TestReadLikeFunctions(Failure(new Exception("'size' inner exception, expect me to be passed on")))
     val oops = readLike.size(Seq(Success(WdlSingleFile("blah"))))
     oops match {
-      case Success(x) => fail(s"The 'size' engine function didn't return the error generated in the inner 'size' method")
+      case Success(_) => fail(s"The 'size' engine function didn't return the error generated in the inner 'size' method")
       case Failure(e) => e.getMessage should be("'size' inner exception, expect me to be passed on")
     }
   }

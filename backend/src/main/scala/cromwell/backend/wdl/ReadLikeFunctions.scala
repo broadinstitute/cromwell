@@ -127,7 +127,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
 
     // Inner function: is this a file type, or an optional containing a file type?
     def isOptionalOfFileType(wdlType: WdlType): Boolean = wdlType match {
-      case WdlFileType => true
+      case f if WdlFileType.isCoerceableFrom(f) => true
       case WdlOptionalType(inner) => isOptionalOfFileType(inner)
       case _ => false
     }
@@ -135,6 +135,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
     // Inner function: Get the file size, allowing for unpacking of optionals
     def optionalSafeFileSize(value: WdlValue): Try[Double] = value match {
       case f: WdlFile => size(f)
+      case f if WdlFileType.isCoerceableFrom(f.wdlType) => WdlFileType.coerceRawValue(f) flatMap { file => size(file.asInstanceOf[WdlFile]) }
       case WdlOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
       case WdlOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0d)
       case _ => Failure(new Exception(s"The 'size' method expects a File argument but instead got ${value.wdlType.toWdlString}."))

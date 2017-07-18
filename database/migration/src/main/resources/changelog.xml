@@ -66,6 +66,7 @@
     <include file="changesets/custom_label_entry.xml" relativeToChangelogFile="true" />
     <include file="changesets/docker_hash_store.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_store_type_and_version.xml" relativeToChangelogFile="true" />
+    <include file="changesets/preempted_is_a_backend_status.xml" relativeToChangelogFile="true" />
     <include file="changesets/remove_pre_pbe_tables.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--

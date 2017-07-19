@@ -33,11 +33,10 @@ object WdlExpression {
     def isMapLiteral: Boolean = ast.getName == "MapLiteral"
     def isObjectLiteral: Boolean = ast.getName == "ObjectLiteral"
     def isArrayOrMapLookup: Boolean = ast.getName == "ArrayOrMapLookup"
-    def params = ast.getAttribute("params").asInstanceOf[AstList].asScala.toVector
+    def params: Vector[AstNode] = Option(ast.getAttribute("params")).map(_.asInstanceOf[AstList].asScala.toVector).getOrElse(Vector.empty)
     def name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    def isFunctionCallWithOneParameter = ast.isFunctionCall && ast.params.size == 1
-    def isFunctionCallWithOneFileParameter = isFunctionCallWithOneParameter && WdlFunctionsWithSingleFileParameter.contains(ast.functionName)
-    def isGlobFunctionCall = isFunctionCallWithOneParameter && "glob".equals(ast.functionName)
+    def isFunctionCallWithFirstParameterBeingFile = ast.isFunctionCall && ast.params.nonEmpty && WdlFunctionsWithFirstParameterBeingFile.contains(ast.functionName)
+    def isGlobFunctionCall = ast.isFunctionCall && ast.params.size == 1 && "glob".equals(ast.functionName)
   }
 
   implicit class AstNodeForExpressions(val astNode: AstNode) extends AnyVal {
@@ -53,7 +52,7 @@ object WdlExpression {
           rhs.containsFunctionCalls
         case _ => false
       }
-    
+
     def isTerminal: Boolean = astNode.isInstanceOf[Terminal]
   }
 
@@ -70,7 +69,7 @@ object WdlExpression {
 
   val UnaryOperators = Set("LogicalNot", "UnaryPlus", "UnaryNegation")
 
-  val WdlFunctionsWithSingleFileParameter: Seq[String] = Seq(
+  val WdlFunctionsWithFirstParameterBeingFile: Seq[String] = Seq(
     "read_int",
     "read_string",
     "read_float",

@@ -89,12 +89,13 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WdlType = Wdl
     ast match {
       case a: Ast if a.isGlobFunctionCall =>
         evalValueToWdlFile(a.params.head) map { wdlFile => Seq(WdlGlobFile(wdlFile.value)) }
-
-      case a: Ast if a.isFunctionCallWithOneFileParameter =>
+      case a: Ast if a.isFunctionCallWithFirstParameterBeingFile =>
         evalValueToWdlFile(a.params.head) match {
           case Success(v) => Success(Seq(v))
           case _ => evaluateRecursive(a.params.head, anticipatedType)
         }
+      case a: Ast if a.isFunctionCall =>
+        TryUtil.sequence(a.params map { p => evaluateRecursive(p, anticipatedType) }) map { _.flatten }
       case a: Ast if a.isBinaryOperator =>
         evalValueToWdlFile(a) match {
           case Success(f: WdlFile) => Success(Seq(f))

@@ -8,9 +8,8 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.genomics.model.RunPipelineRequest
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend._
-import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.RunStatus.TerminalRunStatus
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.jes.errors.FailedToDelocalizeFailure
 import cromwell.backend.impl.jes.io._
 import cromwell.backend.impl.jes.statuspolling.{JesRunCreationClient, JesStatusRequestClient}
@@ -360,10 +359,8 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def isSuccess(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: RunStatus.Success => true
-      case _: RunStatus.Failed => false
-      case unknown =>
-        throw new RuntimeException("isSuccess not called with RunStatus.Success or RunStatus.Failed. " +
-          s"Instead got $unknown")
+      case _: RunStatus.UnsuccessfulRunStatus => false
+      case _ => throw new RuntimeException(s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus).")
     }
   }
 
@@ -383,29 +380,30 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  // If one exists, extract the JES error code (not the google RPC) from the error message
+  private[jes] def getJesErrorCode(errorMessage: String): Option[Int] = {
+    Try { errorMessage.substring(0, errorMessage.indexOf(':')).toInt } toOption
+  }
+
   override def handleExecutionFailure(runStatus: RunStatus,
                                       handle: StandardAsyncPendingExecutionHandle,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
-    // If one exists, extract the JES error code (not the google RPC) from the error message
-    def getJesErrorCode(errorMessage: String): Option[Int] = {
-      Try { errorMessage.substring(0, errorMessage.indexOf(':')).toInt } toOption
+    // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
+    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
+                              handle: StandardAsyncPendingExecutionHandle,
+                              returnCode: Option[Int]): Future[ExecutionHandle] = {
+      (runStatus.errorCode, runStatus.jesCode) match {
+        case (GoogleCancelledRpc, None) => Future.successful(AbortedExecutionHandle)
+        case (GoogleNotFoundRpc, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(jobPaths.stderr))))
+        case (GoogleAbortedRpc, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(runStatus.errorCode, runStatus.prettyPrintedError, jobTag), returnCode))
+      }
     }
 
-    val failedStatus: UnsuccessfulRunStatus = runStatus match {
-      case failedStatus: RunStatus.Failed => failedStatus
-      case preemptedStatus: RunStatus.Preempted => preemptedStatus
+    runStatus match {
+      case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+      case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, handle, returnCode)
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
-    }
-
-    val prettyPrintedError: String = failedStatus.errorMessage map { e => s" Message: $e" } getOrElse ""
-    val jesCode: Option[Int] = failedStatus.errorMessage flatMap getJesErrorCode
-
-    (failedStatus.errorCode, jesCode) match {
-      case (GoogleCancelledRpc, None) => Future.successful(AbortedExecutionHandle)
-      case (GoogleNotFoundRpc, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(prettyPrintedError, jobTag, Option(jobPaths.stderr))))
-      case (GoogleAbortedRpc, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(failedStatus.errorCode, prettyPrintedError, returnCode)
-      case (GoogleAbortedRpc, Some(JesPreemption)) if preemptible => handlePreemption(failedStatus.errorCode, prettyPrintedError, returnCode)
-      case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(failedStatus.errorCode, prettyPrintedError, jobTag), returnCode))
     }
   }
 
@@ -439,28 +437,30 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def handlePreemption(errorCode: Int, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
     import lenthall.numeric.IntegerUtil._
 
+    val errorCode: Int = runStatus.errorCode
+    val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
       case Valid(PreviousRetryReasons(p, ur)) =>
         val thisPreemption = p + 1
         val taskName = s"${workflowDescriptor.id}:${call.unqualifiedName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { case _ =>
+        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
-            val msg = s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$errorMessage""".stripMargin
+            val msg = s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
             FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
           }
           else {
-            val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$errorMessage)""".stripMargin
+            val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)""".stripMargin
             FailedRetryableExecutionHandle(StandardException(errorCode, msg, jobTag), jobReturnCode)
           }
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, errorMessage, jobTag), jobReturnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(StandardException(errorCode, prettyPrintedError, jobTag), jobReturnCode))
     }
   }
 

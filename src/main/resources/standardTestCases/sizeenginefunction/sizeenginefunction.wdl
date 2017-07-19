@@ -10,15 +10,21 @@ task make_a_file {
 }
 
 task size {
+  File? unsupplied
   File input_file
 
   command {
     echo "this file is 22 bytes" > created_file
+    ${"cat " + input_file}
+    ${"cat " + unsupplied}
   }
 
   output {
     Float input_file_size = size(input_file)
-    Float created_file_size = size("created_file")
+    Float input_file_size2 = size(stdout())
+    Float unsupplied_size = size(unsupplied)
+    Int total_input_size = round(size(unsupplied) + size(input_file))
+    Int created_file_size = round(size("created_file"))
     Float created_file_size_in_k = size("created_file", "K")
     Float created_file_size_in_kb = size("created_file", "KB")
     Float created_file_size_in_m = size("created_file", "M")

@@ -13,8 +13,8 @@ import akka.stream.ActorMaterializer
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
-import cromiam.samiam.SamIamActor.{SamIamDenialException, WorkflowAuthorizationRequest}
-import cromiam.samiam.{SamIamActor, SamIamClient}
+import cromiam.sam.{SamActor, SamClient}
+import cromiam.sam.SamActor.{SamDenialException, WorkflowAuthorizationRequest}
 import cromiam.server.config.CromIamServerConfig
 import cromiam.webservice.CromIamApiService._
 import cromwell.api.model.CromwellStatus
@@ -29,7 +29,7 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerUiVersion = "2.1.1"
 }
 
-trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJsonProtocol with RouteConcatenation with SamIamClient {
+trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJsonProtocol with RouteConcatenation with SamClient {
 
   implicit val system: ActorSystem
   implicit def executor: ExecutionContextExecutor
@@ -38,7 +38,7 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   protected def configuration: CromIamServerConfig
   protected lazy val UserIdHeader: String = configuration.cromIamConfig.userIdHeader
 
-  override protected lazy val samIamActor: ActorRef = system.actorOf(SamIamActor.props(configuration.cromIamConfig.userIdHeader, configuration.cromIamConfig.allowedUsers), "SamIamActor")
+  override protected lazy val samActor: ActorRef = system.actorOf(SamActor.props(configuration.cromIamConfig.userIdHeader, configuration.cromIamConfig.allowedUsers), "SamActor")
   override protected lazy val actorRefFactory: ActorRefFactory = system
 
   val logger: LoggingAdapter
@@ -63,7 +63,7 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
       _ <- workflowIds traverse authForId
       resp <- forwardToCromwell(request)
     } yield resp) recover {
-      case SamIamDenialException => HttpResponse(status = Unauthorized, entity = "")
+      case SamDenialException => HttpResponse(status = Unauthorized, entity = "")
     }
   }
 
@@ -90,7 +90,7 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
       workflowIds <- extractWorkflowIds(resp)
       _ <- registerCreation(userNonOptional, workflowIds)
     } yield resp) recover {
-      case SamIamDenialException => HttpResponse(status = Unauthorized, entity = "{}")
+      case SamDenialException => HttpResponse(status = Unauthorized, entity = "{}")
     }
   }
 

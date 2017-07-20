@@ -68,7 +68,7 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
     val oops = readLike.size(Seq(Success(WdlInteger(7))))
     oops match {
       case Success(x) => fail(s"Expected a string to not have a file length but instead got $x")
-      case Failure(e) => e.getMessage should be("The 'size' method expects a File argument but instead got Int.")
+      case Failure(e) => e.getMessage should be("The 'size' method expects a 'File' or 'File?' argument but instead got Int.")
     }
   }
 
@@ -77,7 +77,7 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
     val oops = readLike.size(Seq(Success(WdlOptionalValue(WdlIntegerType, None))))
     oops match {
       case Success(x) => fail(s"Expected a string to not have a file length but instead got $x")
-      case Failure(e) => e.getMessage should be("The 'size' method expects a File argument but instead got Int?.")
+      case Failure(e) => e.getMessage should be("The 'size' method expects a 'File' or 'File?' argument but instead got Int?.")
     }
   }
 

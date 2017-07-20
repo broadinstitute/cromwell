@@ -159,22 +159,19 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
          |   },
          |   "hashDifferential":[  
          |      {  
-         |         "hash in only in A":{  
-         |            "callA":"hello",
-         |            "callB":null
-         |         }
+         |         "hashKey": "hash in only in A",
+         |         "callA":"hello",
+         |         "callB":null
          |      },
          |      {  
-         |         "hash in A and B with different value":{  
-         |            "callA":"I'm the hash for A !",
-         |            "callB":"I'm the hash for B !"
-         |         }
+         |         "hashKey": "hash in A and B with different value",
+         |         "callA":"I'm the hash for A !",
+         |         "callB":"I'm the hash for B !"
          |      },
          |      {  
-         |         "hash in only in B":{  
-         |            "callA":null,
-         |            "callB":"hello"
-         |         }
+         |         "hashKey": "hash in only in B",
+         |         "callA":null,
+         |         "callB":"hello"
          |      }
          |   ]
          |}

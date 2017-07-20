@@ -1,4 +1,4 @@
-package cromwell.docker.local
+package cromwell.core.docker
 
 /**
   * Used by the docker cli for lookups or pulls.

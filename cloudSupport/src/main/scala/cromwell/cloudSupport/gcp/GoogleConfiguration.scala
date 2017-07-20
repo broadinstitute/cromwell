@@ -1,4 +1,4 @@
-package cromwell.filesystems.gcs
+package cromwell.cloudSupport.gcp
 
 import java.io.IOException
 
@@ -11,8 +11,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.{Config, ConfigException}
-import cromwell.filesystems.gcs.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
-import cromwell.filesystems.gcs.auth._
+import cromwell.cloudSupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
+import cromwell.cloudSupport.gcp.auth._
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import lenthall.validation.Validation._
@@ -127,7 +127,7 @@ object GoogleConfiguration {
       case Invalid(f) =>
         val errorMessages = f.toList.mkString(", ")
         log.error(errorMessages)
-        throw new GoogleConfigurationException(f.toList)
+        throw GoogleConfigurationException(f.toList)
     }
   }
 }

@@ -25,6 +25,7 @@ import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.util.SampleWdl
 import _root_.io.grpc.Status
+import cromwell.cloudSupport.gcp.gcs.GcsStorage
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
@@ -43,7 +44,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter {
 
   val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
-    "test-cromwell", None, GcsPathBuilderFactory.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
+    "test-cromwell", None, GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty)
   
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 

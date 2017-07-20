@@ -1,4 +1,4 @@
-package cromwell.docker.local
+package cromwell.core.docker
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -50,5 +50,5 @@ class DockerCliClientSpec extends FlatSpecLike with Matchers with TableDrivenPro
 }
 
 class TestDockerCliClient(dockerCliResult: DockerCliResult) extends DockerCliClient {
-  override private[local] def run(cmd: Seq[String]) = dockerCliResult
+  override private[docker] def run(cmd: Seq[String]) = dockerCliResult
 }

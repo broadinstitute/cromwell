@@ -1,4 +1,4 @@
-package cromwell.filesystems.gcs.auth
+package cromwell.cloudSupport.gcp.auth
 
 import com.google.auth.oauth2.GoogleCredentials
 import org.scalatest.Assertions._

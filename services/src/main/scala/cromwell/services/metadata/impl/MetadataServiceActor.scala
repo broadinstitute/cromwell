@@ -54,12 +54,12 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate), "WriteMetadataActor")
   implicit val ec = context.dispatcher
   private var summaryRefreshCancellable: Option[Cancellable] = None
-  
+
   summaryActor foreach { _ => self ! RefreshSummary }
 
   private def scheduleSummary(): Unit = {
     MetadataSummaryRefreshInterval foreach { interval =>
-      summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self)) 
+      summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self))
     }
   }
 

@@ -1,10 +1,10 @@
-package cromwell.filesystems.gcs
+package cromwell.cloudSupport.gcp
 
 import better.files.File
 import com.typesafe.config.{ConfigException, ConfigFactory}
-import cromwell.filesystems.gcs.GoogleConfiguration.GoogleConfigurationException
-import cromwell.filesystems.gcs.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
-import cromwell.filesystems.gcs.auth.{ApplicationDefaultMode, RefreshTokenMode, ServiceAccountMode, UserMode}
+import cromwell.cloudSupport.gcp.GoogleConfiguration.GoogleConfigurationException
+import cromwell.cloudSupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
+import cromwell.cloudSupport.gcp.auth.{ApplicationDefaultMode, RefreshTokenMode, ServiceAccountMode, UserMode}
 import org.scalatest.{FlatSpec, Matchers}
 
 

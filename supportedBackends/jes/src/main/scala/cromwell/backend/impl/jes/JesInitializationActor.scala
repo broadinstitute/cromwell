@@ -12,9 +12,9 @@ import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject, JesDockerCredentials}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.cloudSupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.core.CromwellFatalException
 import cromwell.core.io.AsyncIo
-import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import spray.json.{JsObject, JsTrue}
 import wdl4s.wom.graph.TaskCallNode

@@ -7,8 +7,9 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.cloudSupport.gcp.GoogleConfiguration
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
 import wdl4s.wom.graph.TaskCallNode

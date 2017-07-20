@@ -3,29 +3,23 @@ package cromwell.filesystems.gcs
 import java.net.URI
 
 import akka.actor.ActorSystem
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
-import com.google.cloud.http.HttpTransportOptions
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.cloud.storage.{BlobId, StorageOptions}
 import com.google.common.net.UrlEscapers
+import cromwell.cloudSupport.gcp.auth.GoogleAuthMode
+import cromwell.cloudSupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
-import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 object GcsPathBuilder {
-
-  val JsonFactory = JacksonFactory.getDefaultInstance
-  val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
-  /* 
+  /*
     * Provides some level of validation of GCS bucket names
     * This is meant to alert the user early if they mistyped a gcs path in their workflow / inputs and not to validate
     * exact bucket syntax, which is done by GCS.
@@ -112,32 +106,16 @@ object GcsPathBuilder {
                       retrySettings: Option[RetrySettings],
                       cloudStorageConfiguration: CloudStorageConfiguration,
                       options: WorkflowOptions): GcsPathBuilder = {
-    val transportOptions = HttpTransportOptions.newBuilder()
-      .setReadTimeout(3.minutes.toMillis.toInt)
-      .build()
-
-    val storageOptionsBuilder = StorageOptions.newBuilder()
-      .setTransportOptions(transportOptions)
-      .setCredentials(credentials)
-
-    retrySettings foreach storageOptionsBuilder.setRetrySettings
-
     // Grab the google project from Workflow Options if specified and set
     // that to be the project used by the StorageOptions Builder
-    options.get("google_project") map storageOptionsBuilder.setProjectId
+    val project =  options.get("google_project").toOption
 
-
-    val storageOptions = storageOptionsBuilder.build()
+    val storageOptions = GcsStorage.gcsStorageOptions(credentials, project, retrySettings)
 
     // Create a com.google.api.services.storage.Storage
     // This is the underlying api used by com.google.cloud.storage
     // By bypassing com.google.cloud.storage, we can create low level requests that can be batched
-    val apiStorage: com.google.api.services.storage.Storage = {
-      new com.google.api.services.storage.Storage
-      .Builder(HttpTransport, JsonFactory, GoogleConfiguration.withCustomTimeouts(transportOptions.getHttpRequestInitializer(storageOptions)))
-        .setApplicationName(applicationName)
-        .build()
-    }
+    val apiStorage = GcsStorage.gcsStorage(applicationName, storageOptions)
 
     new GcsPathBuilder(apiStorage, cloudStorageConfiguration, storageOptions)
   }

@@ -8,7 +8,7 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import cromwell.backend.impl.jes.authentication.JesAuths
 import cromwell.backend.impl.jes.callcaching.{CopyCachedOutputs, JesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
-import cromwell.filesystems.gcs.GoogleConfiguration
+import cromwell.cloudSupport.gcp.GoogleConfiguration
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import lenthall.exception.MessageAggregation

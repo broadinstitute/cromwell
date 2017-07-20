@@ -214,11 +214,10 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
       case None => MetadataNull
     }
 
-    MetadataObject(key.trim ->
-      MetadataObject(
-        "callA" -> makeFinalValue(valueA),
-        "callB" -> makeFinalValue(valueB)
-      )
+    MetadataObject(
+      "hashKey" -> MetadataPrimitive(MetadataValue(key.trim, MetadataString)),
+      "callA" -> makeFinalValue(valueA),
+      "callB" -> makeFinalValue(valueB)
     )
   }
 

@@ -14,6 +14,8 @@
 `/api/engine`. Workflow endpoints are still served under `/api/workflows`. The setting `api.routeUnwrapped` has been
 retired at the same time.
 
+* The response format of the [callcaching/diff](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) endpoint has been updated.
+
 ## 28
 
 ### Bug Fixes

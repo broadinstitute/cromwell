@@ -62,6 +62,18 @@ object TestKitSuite {
       |      executor = "fork-join-executor"
       |    }
       |
+      |    # A dispatcher to bulkhead the health monitor from the rest of the system. Sets throughput low in order to
+      |    # ensure the monitor is fairly low priority
+      |    health-monitor-dispatcher {
+      |      type = Dispatcher
+      |      executor = "thread-pool-executor"
+      |      thread-pool-executor {
+      |        fixed-pool-size = 4
+      |      }
+      |
+      |      throughput = 1
+      |    }
+      |
       |    # A dispatcher used by supported backend actors
       |    backend-dispatcher {
       |      type = Dispatcher

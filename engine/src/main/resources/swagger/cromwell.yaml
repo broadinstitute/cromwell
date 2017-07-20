@@ -735,6 +735,27 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/VersionResponse'
+  '/engine/{version}/status':
+      get:
+        summary: Returns the current health status of any monitored subsystems
+        parameters:
+          - name: version
+            description: API Version
+            required: true
+            type: string
+            in: path
+            default: v1
+        tags:
+          - Engine
+        responses:
+          '200':
+            description: All subsystems report an "ok" status
+            schema:
+              $ref: '#/definitions/StatusResponse'
+          '500':
+            description: At least one subsystem does not have an "ok" status
+            schema:
+              $ref: '#/definitions/StatusResponse'
 securityDefinitions:
   google_oauth:
     type: oauth2
@@ -974,6 +995,19 @@ definitions:
       cromwell:
         type: string
         description: The version of the Cromwell Engine
+  StatusResponse:
+    description: Returns the status of monitored subsystems.
+    type: object
+    properties:
+      serviceName:
+        type: object
+        properties:
+          ok:
+            type: boolean
+          messages:
+            type: array
+            items:
+              type: string
   LabelsResponse:
     required:
       - id

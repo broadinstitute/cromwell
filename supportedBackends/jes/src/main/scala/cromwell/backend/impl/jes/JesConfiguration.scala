@@ -2,8 +2,10 @@ package cromwell.backend.impl.jes
 
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.impl.jes.authentication.JesDockerCredentials
+import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.cloudsupport.gcp.genomics.GenomicsFactory
 import cromwell.core.BackendDockerConfiguration
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
 
 class JesConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
 

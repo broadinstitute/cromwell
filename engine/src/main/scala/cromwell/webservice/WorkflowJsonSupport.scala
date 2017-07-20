@@ -10,6 +10,7 @@ import MetadataService._
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
+import cromwell.services.healthmonitor.HealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
 import cromwell.webservice.CromwellApiService.BackendResponse
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
@@ -25,6 +26,8 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val BuiltStatusResponseFormat = jsonFormat1(BuiltMetadataResponse)
   implicit val callAttempt = jsonFormat2(CallAttempt)
   implicit val workflowSourceData = jsonFormat7(WorkflowSourceFilesWithoutImports)
+  implicit val subsystemStatusFormat = jsonFormat2(SubsystemStatus)
+  implicit val statusCheckResponseFormat = jsonFormat2(StatusCheckResponse)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)

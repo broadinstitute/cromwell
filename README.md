@@ -3763,28 +3763,24 @@ Server: spray-can/1.3.3
   },
   "hashDifferential": [
     {
-      "command template": {
-        "callA": "4EAADE3CD5D558C5A6CFA4FD101A1486",
-        "callB": "3C7A0CA3D7A863A486DBF3F7005D4C95"
-      }
+      "hashKey": "command template",
+      "callA": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+      "callB": "3C7A0CA3D7A863A486DBF3F7005D4C95"
     },
     {
-      "input count": {
-        "callA": "C4CA4238A0B923820DCC509A6F75849B",
-        "callB": "C81E728D9D4C2F636F067F89CC14862C"
-      }
+      "hashKey": "input count",
+      "callA": "C4CA4238A0B923820DCC509A6F75849B",
+      "callB": "C81E728D9D4C2F636F067F89CC14862C"
     },
     {
-      "input: String addressee": {
-        "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
-        "callB": "7235E005510D99CB4D5988B21AC97B6D"
-      }
+      "hashKey": "input: String addressee",
+      "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
+      "callB": "7235E005510D99CB4D5988B21AC97B6D"
     },
     {
-      "input: String addressee2": {
-        "callA": "116C7E36B4AE3EAFD07FA4C536CE092F",
-        "callB": null
-      }
+      "hashKey": "input: String addressee2",
+      "callA": "116C7E36B4AE3EAFD07FA4C536CE092F",
+      "callB": null
     }
   ]
 }
@@ -3804,9 +3800,10 @@ Differences can be of 3 kinds:
 For instance, in the example above, 
 
 ```json
-"input: String addressee": {
-   "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
-   "callB": "7235E005510D99CB4D5988B21AC97B6D"
+{
+  "hashKey": "input: String addressee",
+  "callA": "D4CC65CB9B5F22D8A762532CED87FE8D",
+  "callB": "7235E005510D99CB4D5988B21AC97B6D"
 }
 ```
 
@@ -3816,9 +3813,10 @@ indicates that both `callA` and `callB` have a `String` input called `addressee`
 For instance, in the example above, 
 
 ```json
-"input: String addressee2": {
-   "callA": "116C7E36B4AE3EAFD07FA4C536CE092F",
-   "callB": null
+{
+  "hashKey": "input: String addressee2",
+  "callA": "116C7E36B4AE3EAFD07FA4C536CE092F",
+  "callB": null
 }
 ```
 

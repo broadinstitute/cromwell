@@ -1,8 +1,8 @@
 package cromwell
 
 import akka.testkit._
-import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlString}
+import wdl4s.wdl.types.{WdlArrayType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlString}
 import cromwell.util.SampleWdl
 
 

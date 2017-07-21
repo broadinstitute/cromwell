@@ -5,7 +5,7 @@ import cromwell.backend._
 import cromwell.backend.standard._
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import net.ceedubs.ficus.Ficus._
-import wdl4s.TaskCall
+import wdl4s.wdl.WdlTaskCall
 
 case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
@@ -24,7 +24,7 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
     JobExecutionTokenType(name, concurrentJobLimit)
   }
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCall],
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
                                                  serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
     TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
   }

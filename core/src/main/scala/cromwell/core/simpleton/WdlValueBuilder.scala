@@ -1,12 +1,12 @@
 package cromwell.core.simpleton
 
-import wdl4s.TaskOutput
-import wdl4s.types._
-import wdl4s.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
+import cromwell.core.simpleton.WdlValueSimpleton._
+import cromwell.core.{CallOutputs, JobOutput}
+import wdl4s.wdl.TaskOutput
+import wdl4s.wdl.types._
+import wdl4s.wdl.values.{WdlArray, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
 
 import scala.language.postfixOps
-import cromwell.core.{CallOutputs, JobOutput}
-import cromwell.core.simpleton.WdlValueSimpleton._
 
 
 /**
@@ -88,7 +88,7 @@ object WdlValueBuilder {
 
     // Group tuples by key using a Map with key type `K`.
     def group[K](tuples: Traversable[(K, SimpletonComponent)]): Map[K, Traversable[SimpletonComponent]] = {
-      tuples groupBy { case (i, _) => i } mapValues { _ map { case (i, s) => s} }
+      tuples groupBy { case (i, _) => i } mapValues { _ map { case (_, s) => s} }
     }
 
     outputType match {

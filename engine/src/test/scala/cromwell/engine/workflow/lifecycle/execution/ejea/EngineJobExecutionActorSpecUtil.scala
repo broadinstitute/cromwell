@@ -10,7 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultSuccess, JobStoreKey}
 import org.scalatest.concurrent.Eventually
-import wdl4s.values.{WdlInteger, WdlString}
+import wdl4s.wdl.values.{WdlInteger, WdlString}
 
 import scala.util.Success
 

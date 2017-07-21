@@ -27,6 +27,7 @@ class JesAttributesSpec extends FlatSpec with Matchers {
     jesAttributes.executionBucket should be("gs://myBucket")
     jesAttributes.maxPollingInterval should be(600)
     jesAttributes.computeServiceAccount should be("default")
+    jesAttributes.restrictMetadataAccess should be(false)
   }
 
   it should "parse correct preemptible config" taggedAs IntegrationTest in {
@@ -44,6 +45,14 @@ class JesAttributesSpec extends FlatSpec with Matchers {
 
     val jesAttributes = JesAttributes(googleConfig, backendConfig)
     jesAttributes.computeServiceAccount should be("testing")
+  }
+
+  it should "parse restrict-metadata-access" taggedAs IntegrationTest in {
+    val backendConfig = ConfigFactory.parseString(configString(genomics = "restrict-metadata-access = true"))
+
+    val jesAttributes = JesAttributes(googleConfig, backendConfig)
+    jesAttributes.restrictMetadataAccess should be(true)
+
   }
 
   it should "not parse invalid config" taggedAs IntegrationTest in {

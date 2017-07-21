@@ -4,16 +4,15 @@ import java.util.UUID
 
 import cromwell.core.WorkflowSourceFilesWithoutImports
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.core.WorkflowSourceFilesWithoutImports
 import spray.json._
-import wdl4s._
-import wdl4s.types.{WdlArrayType, WdlStringType}
-import wdl4s.values._
+import wdl4s.wdl.types.{WdlArrayType, WdlStringType}
+import wdl4s.wdl.values._
+import wdl4s.wdl.{WorkflowJson, WorkflowRawInputs, WorkflowSource}
 
 import scala.language.postfixOps
 
 trait SampleWdl extends TestFileUtil {
-  def workflowSource(runtime: String = ""): WdlSource
+  def workflowSource(runtime: String = ""): WorkflowSource
   def asWorkflowSources(runtime: String = "",
                         workflowOptions: String = "{}",
                         labels: String = "{}",
@@ -21,7 +20,7 @@ trait SampleWdl extends TestFileUtil {
                         workflowTypeVersion: Option[String] = None) = {
     WorkflowSourceFilesWithoutImports(
       workflowSource = workflowSource(runtime),
-      inputsJson = wdlJson,
+      inputsJson = workflowJson,
       workflowOptionsJson = workflowOptions,
       labelsJson = labels,
       workflowType = workflowType,
@@ -66,7 +65,7 @@ trait SampleWdl extends TestFileUtil {
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
-  def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
+  def workflowJson: WorkflowJson = rawInputs.toJson.prettyPrint
 
   def deleteFile(path: Path) = path.delete()
 }
@@ -399,7 +398,7 @@ object SampleWdl {
 
 
   object DeclarationsWorkflow extends SampleWdl {
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""
         |task cat {
         |  File file
@@ -453,7 +452,7 @@ object SampleWdl {
   }
 
   trait ZeroOrMorePostfixQuantifier extends SampleWdl {
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""
         |task hello {
         |  Array[String] person
@@ -484,7 +483,7 @@ object SampleWdl {
   }
 
   trait OneOrMorePostfixQuantifier extends SampleWdl {
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""
         |task hello {
         |  Array[String]+ person
@@ -853,7 +852,7 @@ object SampleWdl {
   }
 
   object FilePassingWorkflow extends SampleWdl {
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""task a {
         |  File in
         |  String out_name = "out"
@@ -893,7 +892,7 @@ object SampleWdl {
     *               different
     */
   case class CallCachingWorkflow(salt: String) extends SampleWdl {
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""task a {
         |  File in
         |  String out_name = "out"
@@ -945,7 +944,7 @@ object SampleWdl {
         |k3\tv3
       """.stripMargin.trim
 
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""
         |task a {
         |  Array[String] array
@@ -1021,7 +1020,7 @@ object SampleWdl {
   }
 
   object CallCachingHashingWdl extends SampleWdl {
-    override def workflowSource(runtime: String): WdlSource =
+    override def workflowSource(runtime: String): WorkflowSource =
       s"""task t {
         |  Int a
         |  Float b

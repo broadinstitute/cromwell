@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 
 class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
 
-  lazy val engineEndpoint = s"$cromwellUrl/api/engine/$apiVersion"
+  lazy val engineEndpoint = s"$cromwellUrl/engine/$apiVersion"
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"

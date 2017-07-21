@@ -5,8 +5,8 @@ import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.expression.{NoFunctions, PureStandardLibraryFunctionsLike, WdlStandardLibraryFunctions}
-import wdl4s.values.{WdlFile, WdlInteger, WdlString, WdlValue}
+import wdl4s.wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike, WdlStandardLibraryFunctions}
+import wdl4s.wdl.values.{WdlFile, WdlInteger, WdlString, WdlValue}
 
 import scala.util.{Failure, Success, Try}
 

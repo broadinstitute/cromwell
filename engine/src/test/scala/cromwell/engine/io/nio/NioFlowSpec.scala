@@ -100,7 +100,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
 
     stream.run() map {
-      case (success: IoSuccess[_], _) => assert(testCopyPath.exists)
+      case (_: IoSuccess[_], _) => assert(testCopyPath.exists)
       case _ => fail("copy returned an unexpected message")
     }
   }
@@ -119,7 +119,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
 
     stream.run() map {
-      case (success: IoSuccess[_], _) => 
+      case (_: IoSuccess[_], _) =>
         assert(testCopyPath.exists)
         assert(testCopyPath.contentAsString == "goodbye")
       case _ => fail("copy returned an unexpected message")
@@ -152,7 +152,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
 
     stream.run() map {
-      case (success: IoSuccess[_], _) => assert(!testPath.exists)
+      case (_: IoSuccess[_], _) => assert(!testPath.exists)
       case _ => fail("delete returned an unexpected message")
     }
   }
@@ -167,7 +167,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
 
     stream.run() map {
-      case (success: IoSuccess[_], _) => assert(!testPath.exists)
+      case (_: IoSuccess[_], _) => assert(!testPath.exists)
       case _ => fail("delete returned an unexpected message")
     }
   }
@@ -185,7 +185,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       case (failure: IoFailure[_], _) =>
         assert(failure.failure.isInstanceOf[CromwellFatalException])
         assert(failure.failure.getCause.isInstanceOf[NoSuchFileException])
-      case other => fail(s"delete returned an unexpected message")
+      case other @ _ => fail(s"delete returned an unexpected message")
     }
   }
 

@@ -8,7 +8,7 @@ import cromwell.core.actor.BatchingDbWriter.{BatchingDbWriterState, WritingToDb}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.{BeforeAndAfter, Matchers}
-import wdl4s.TaskOutput
+import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}

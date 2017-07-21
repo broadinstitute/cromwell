@@ -1,6 +1,6 @@
 package cromwell.engine
 
-import wdl4s._
+import wdl4s.wdl._
 
 import scala.util.{Failure, Success, Try}
 

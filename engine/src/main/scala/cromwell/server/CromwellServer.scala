@@ -8,8 +8,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.webservice.{CromwellApiService, SwaggerService}
-import cromwell.webservice.WrappedRoute._
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -43,9 +41,14 @@ class CromwellServerActor(cromwellSystem: CromwellSystem)(override implicit val 
   val interface = webserviceConf.getString("interface")
   val port = webserviceConf.getInt("port")
 
-  val routeUnwrapped: Boolean = cromwellSystem.conf.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)
-
-  val allRoutes: Route = routes.wrapped("api", routeUnwrapped) ~ swaggerUiResourceRoute
+  /**
+    * /api routes have special meaning to devops' proxy servers. NOTE: the oauth mentioned on the /api endpoints in
+    * cromwell.yaml is broken unless the swagger index.html is patched. Copy/paste the code from rawls or cromiam if
+    * actual cromwell+swagger+oauth+/api support is needed.
+    */
+  val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes))
+  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
+  val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
   Http().bindAndHandle(allRoutes, interface, port) onComplete {
     case Success(_) => actorSystem.log.info("Cromwell service started...")

@@ -41,9 +41,9 @@ class MetadataSummaryRefreshActor()
   startWith(WaitingForRequest, SummaryRefreshData)
 
   when (WaitingForRequest) {
-    case (Event(SummarizeMetadata(respondTo), data)) =>
+    case (Event(SummarizeMetadata(respondTo), _)) =>
       refreshWorkflowMetadataSummaries() onComplete {
-        case Success(id) =>
+        case Success(_) =>
           respondTo ! MetadataSummarySuccess
           self ! MetadataSummaryComplete
         case Failure(t) =>

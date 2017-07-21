@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.mocks
 
 import org.specs2.mock.Mockito
-import wdl4s.WdlExpression
-import wdl4s.WdlExpression._
-import wdl4s.expression.WdlFunctions
-import wdl4s.values.{WdlInteger, WdlString, WdlValue}
+import wdl4s.wdl.WdlExpression
+import wdl4s.wdl.WdlExpression._
+import wdl4s.wdl.expression.WdlFunctions
+import wdl4s.wdl.values.{WdlInteger, WdlString, WdlValue}
 
 import scala.util.Success
 

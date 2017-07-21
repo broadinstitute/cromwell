@@ -13,7 +13,7 @@ class HttpMock[T](responses: MockHttpResponse*) {
   private var responsesLeft = responses.toBuffer
   
   private def nextResponse(value: (HttpRequest, ContextWithRequest[T])): (Try[HttpResponse], ContextWithRequest[T]) = value match {
-    case (request, context) =>
+    case (request @ _, context) =>
       responsesLeft.headOption match {
         case Some(mockResponse) =>
           if (mockResponse.nb > 1)

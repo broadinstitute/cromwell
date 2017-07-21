@@ -19,8 +19,8 @@ import lenthall.exception.AggregatedException
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
-import wdl4s.types._
-import wdl4s.values._
+import wdl4s.wdl.types._
+import wdl4s.wdl.values._
 
 import scala.concurrent.duration._
 

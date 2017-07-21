@@ -10,6 +10,12 @@
 * Command line usage has been extensively revised for Cromwell 29.  Please see the
 [README](https://github.com/broadinstitute/cromwell#command-line-usage) for details.
 
+* The engine endpoints are now served under `/engine`. Previousely engine endpoints were available under
+`/api/engine`. Workflow endpoints are still served under `/api/workflows`. The setting `api.routeUnwrapped` has been
+retired at the same time.
+
+* The response format of the [callcaching/diff](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) endpoint has been updated.
+
 ## 28
 
 ### Bug Fixes

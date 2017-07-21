@@ -4,8 +4,8 @@ import cats.data.ValidatedNel
 import cats.syntax.validated._
 import cromwell.core.{EvaluatedRuntimeAttributes, OptionNotFoundException, WorkflowOptions}
 import lenthall.util.TryUtil
-import wdl4s.types.WdlType
-import wdl4s.values.WdlValue
+import wdl4s.wdl.types.WdlType
+import wdl4s.wdl.values.WdlValue
 
 import scala.util.{Failure, Try}
 

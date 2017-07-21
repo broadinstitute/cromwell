@@ -32,11 +32,14 @@ object ServiceRegistryActor {
 
   private def serviceProps(serviceName: String, globalConfig: Config, serviceStanza: Config): Props = {
     val serviceConfigStanza = serviceStanza.as[Option[Config]]("config").getOrElse(ConfigFactory.parseString(""))
+
+    val dispatcher = serviceStanza.as[Option[String]]("dispatcher").getOrElse(ServiceDispatcher)
     val className = serviceStanza.as[Option[String]]("class").getOrElse(
       throw new IllegalArgumentException(s"Invalid configuration for service $serviceName: missing 'class' definition")
     )
+
     try {
-      Props.create(Class.forName(className), serviceConfigStanza, globalConfig)
+      Props.create(Class.forName(className), serviceConfigStanza, globalConfig).withDispatcher(dispatcher)
     } catch {
       case e: ClassNotFoundException => throw new RuntimeException(
         s"Class $className for service $serviceName cannot be found in the class path.", e
@@ -70,7 +73,7 @@ class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with 
     * the error up the chain
     */
   override val supervisorStrategy = OneForOneStrategy() {
-    case aie: ActorInitializationException => Escalate
+    case _: ActorInitializationException => Escalate
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 }

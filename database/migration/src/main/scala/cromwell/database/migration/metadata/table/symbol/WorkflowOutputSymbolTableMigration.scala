@@ -2,7 +2,7 @@ package cromwell.database.migration.metadata.table.symbol
 
 import java.sql.PreparedStatement
 
-import wdl4s.values._
+import wdl4s.wdl.values._
 
 class WorkflowOutputSymbolTableMigration extends SymbolTableMigration {
 

@@ -7,7 +7,7 @@ import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
-import cromwell.backend.impl.jes.authentication.GcsLocalizing
+import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.IntegrationTest
@@ -19,7 +19,7 @@ import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 import spray.json._
-import wdl4s.TaskCall
+import wdl4s.wdl.WdlTaskCall
 
 import scala.concurrent.duration._
 
@@ -28,6 +28,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   val Timeout: FiniteDuration = 5.second.dilated
 
   import BackendSpec._
+  import JesInitializationActorSpec._
 
   val HelloWorld: String =
     s"""
@@ -169,14 +170,14 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
   private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                 calls: Set[TaskCall],
+                                 calls: Set[WdlTaskCall],
                                  jesConfiguration: JesConfiguration): Props = {
     val ioActor = mockIoActor
     val params = JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor)
     Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall], conf: BackendConfigurationDescriptor) = {
+  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall], conf: BackendConfigurationDescriptor) = {
     val props = getJesBackendProps(workflowDescriptor, calls, new JesConfiguration(conf))
     system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
@@ -249,9 +250,9 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
-    actor.generateAuthJson(None, None) should be(empty)
+    actor.generateAuthJson(flattenAuthOptions(None, None), false) should be(empty)
 
-    val authJsonOption = actor.generateAuthJson(None, None)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), false)
     authJsonOption should be(empty)
 
     actorRef.stop()
@@ -263,7 +264,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
-    val authJsonOption = actor.generateAuthJson(jesConfiguration.dockerCredentials, None)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(jesConfiguration.dockerCredentials, None), false)
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(
@@ -289,7 +290,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
-    val authJsonOption = actor.generateAuthJson(None, gcsUserAuth)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, gcsUserAuth), false)
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(
@@ -316,7 +317,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
-    val authJsonOption = actor.generateAuthJson(jesConfiguration.dockerCredentials, gcsUserAuth)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(jesConfiguration.dockerCredentials, gcsUserAuth), false)
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(
@@ -340,7 +341,65 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
     actorRef.stop()
   }
 
-  private def normalize(str: String) = {
+  it should "generate the correct json content for a docker token, a refresh token, and restrictMetadataAccess" in {
+    EncryptionSpec.assumeAes256Cbc()
+
+    val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
+    val actor = actorRef.underlyingActor
+
+    val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(jesConfiguration.dockerCredentials, gcsUserAuth), true)
+    authJsonOption shouldNot be(empty)
+    authJsonOption.get should be(
+      normalize(
+        """
+          |{
+          |    "auths": {
+          |        "docker": {
+          |            "account": "my@docker.account",
+          |            "token": "mydockertoken"
+          |        },
+          |        "boto": {
+          |            "client_id": "myclientid",
+          |            "client_secret": "myclientsecret",
+          |            "refresh_token": "mytoken"
+          |        }
+          |    },
+          |    "restrictMetadataAccess": true
+          |}
+        """.stripMargin)
+    )
+
+    actorRef.stop()
+  }
+
+  it should "generate the correct json content for just restrictMetadataAccess" in {
+    EncryptionSpec.assumeAes256Cbc()
+
+    val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
+    val actor = actorRef.underlyingActor
+
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), true)
+    authJsonOption shouldNot be(empty)
+    authJsonOption.get should be(
+      normalize(
+        """
+          |{
+          |    "restrictMetadataAccess": true
+          |}
+        """.stripMargin)
+    )
+
+    actorRef.stop()
+  }
+}
+
+object JesInitializationActorSpec {
+  def normalize(str: String) = {
     str.parseJson.prettyPrint
+  }
+
+  def flattenAuthOptions(options: Option[JesAuthObject]*): List[JesAuthObject] = {
+    options.toList.flatten
   }
 }

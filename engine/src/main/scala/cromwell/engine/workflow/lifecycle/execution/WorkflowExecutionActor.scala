@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import akka.actor._
+import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -20,11 +20,11 @@ import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
 import org.apache.commons.lang3.StringUtils
-import wdl4s.WdlExpression.ScopedLookupFunction
-import wdl4s.expression.WdlFunctions
-import wdl4s.values.WdlArray.WdlArrayLike
-import wdl4s.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
-import wdl4s.{Scope, _}
+import wdl4s.wdl.WdlExpression.ScopedLookupFunction
+import wdl4s.wdl.expression.WdlFunctions
+import wdl4s.wdl.values.WdlArray.WdlArrayLike
+import wdl4s.wdl.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
+import wdl4s.wdl._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -185,7 +185,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     val jobKey = stateData.engineCallExecutionActors.getOrElse(actorRef, throw new RuntimeException("Programmer Error: An EJEA has terminated but was not assigned a jobKey"))
     val jobStatus = stateData.executionStore.jobStatus(jobKey).getOrElse(throw new RuntimeException("Programmer Error: An EJEA representing a jobKey which this workflow is not running has sent up a terminated message."))
 
-    if (!jobStatus.isTerminal) {
+    if (!jobStatus.isTerminalOrRetryable) {
       val terminationException = getFailureCause(actorRef) match {
         case Some(e) => new RuntimeException("Unexpected failure in EJEA.", e)
         case None => new RuntimeException("Unexpected failure in EJEA (root cause not captured).")
@@ -360,7 +360,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     */
   private def startRunnableScopes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     val RunnableScopes(runnableScopes, truncated) = data.executionStore.runnableScopes
-    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[Call] => k } sortBy { k =>
+    val runnableCalls = runnableScopes.view collect { case k if k.scope.isInstanceOf[WdlCall] => k } sortBy { k =>
       (k.scope.fullyQualifiedName, k.index.getOrElse(-1)) } map { _.tag }
 
     if (runnableCalls.nonEmpty) workflowLogger.info("Starting calls: " + runnableCalls.mkString(", "))
@@ -685,14 +685,14 @@ object WorkflowExecutionActor {
 
     private def explode(scope: Scope, count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Seq[JobKey] = {
       def makeCollectors(scope: Scope): Seq[CollectorKey] = scope match {
-        case call: Call => List(CollectorKey(call, scatter, count))
+        case call: WdlCall => List(CollectorKey(call, scatter, count))
         case decl: Declaration => List(CollectorKey(decl, scatter, count))
         case i: If => i.children.flatMap(makeCollectors)
       }
 
       (scope match {
-        case call: TaskCall => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
-        case call: WorkflowCall => (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
+        case call: WdlTaskCall => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
+        case call: WdlWorkflowCall => (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
         case declaration: Declaration => (0 until count) map { i => DeclarationKey(declaration, Option(i), workflowCoercedInputs) }
         case conditional: If => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
         case _: Scatter =>
@@ -704,13 +704,13 @@ object WorkflowExecutionActor {
   }
 
   // Represents a scatter collection for a call in the execution store
-  case class CollectorKey(scope: Scope with GraphNode, scatter: Scatter, scatterWidth: Int) extends JobKey {
+  case class CollectorKey(scope: Scope with WdlGraphNode, scatter: Scatter, scatterWidth: Int) extends JobKey {
     override val index = None
     override val attempt = 1
     override val tag = s"Collector-${scope.unqualifiedName}"
   }
 
-  case class SubWorkflowKey(scope: WorkflowCall, index: ExecutionIndex, attempt: Int) extends CallKey {
+  case class SubWorkflowKey(scope: WdlWorkflowCall, index: ExecutionIndex, attempt: Int) extends CallKey {
     override val tag = s"SubWorkflow-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
   }
 
@@ -735,8 +735,8 @@ object WorkflowExecutionActor {
       */
     private def keyify(scope: Scope, workflowCoercedInputs: WorkflowCoercedInputs): JobKey = {
       scope match {
-        case call: TaskCall => BackendJobDescriptorKey(call, index, 1)
-        case call: WorkflowCall => SubWorkflowKey(call, index, 1)
+        case call: WdlTaskCall => BackendJobDescriptorKey(call, index, 1)
+        case call: WdlWorkflowCall => SubWorkflowKey(call, index, 1)
         case declaration: Declaration => DeclarationKey(declaration, index, workflowCoercedInputs)
         case i: If => ConditionalKey(i, index)
         case scatter: Scatter if index.isEmpty => ScatterKey(scatter)

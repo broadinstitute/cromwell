@@ -7,8 +7,8 @@ import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.wdl.OutputEvaluator
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent, JobKey}
-import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.values.WdlValue
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.Future
 import scala.util.{Success, Try}

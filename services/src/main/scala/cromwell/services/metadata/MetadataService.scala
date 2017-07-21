@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import cromwell.core.{FullyQualifiedName, JobKey, WorkflowId, WorkflowState}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import lenthall.exception.{MessageAggregation, ThrowableAggregation}
-import wdl4s.values._
+import wdl4s.wdl.values._
 
 import scala.util.Random
 
@@ -169,7 +169,7 @@ object MetadataService {
         }
         message ++ indexedCauseEvents
 
-      case other =>
+      case other @ _ =>
         val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage)))
         val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")
         val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(causeKey, cause, 0) } getOrElse emptyCauseList

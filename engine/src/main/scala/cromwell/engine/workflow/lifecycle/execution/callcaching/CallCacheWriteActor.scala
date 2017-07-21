@@ -31,13 +31,13 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
         case newData: HasData[_] if newData.length >= dbBatchSize => goto(WritingToDb) using newData
         case newData => stay() using newData
       }
-    case Event(ScheduledFlushToDb, curData) =>
+    case Event(ScheduledFlushToDb, _) =>
       log.debug("Initiating periodic call cache flush to DB")
       goto(WritingToDb)
   }
 
   when(WritingToDb) {
-    case Event(ScheduledFlushToDb, curData) => stay
+    case Event(ScheduledFlushToDb, _) => stay
     case Event(command: SaveCallCacheHashes, curData) => stay using curData.addData(CommandAndReplyTo(command, sender))
     case Event(FlushBatchToDb, NoData) =>
       log.debug("Attempted call cache hash set flush to DB but had nothing to write")
@@ -56,7 +56,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
         }
       }
       stay using NoData
-    case Event(DbWriteComplete, curData) =>
+    case Event(DbWriteComplete, _) =>
       log.debug("Flush of cache data complete")
       goto(WaitingToWrite)
   }

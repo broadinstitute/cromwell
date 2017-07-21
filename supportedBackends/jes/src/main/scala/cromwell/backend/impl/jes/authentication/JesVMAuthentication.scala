@@ -5,10 +5,10 @@ import cromwell.filesystems.gcs.auth.ClientSecrets
 import spray.json.{JsString, JsValue}
 
 /**
- * Interface for Authentication information that can be included in the json file uploaded to GCS
+ * Interface for Authentication information that can be included as a json object in the file uploaded to GCS
  * upon workflow creation and used in the VM.
  */
-sealed trait JesAuthInformation {
+sealed trait JesAuthObject {
   def context: String
   def map: Map[String, JsValue]
 
@@ -18,7 +18,7 @@ sealed trait JesAuthInformation {
 /**
  * Authentication information for data (de)localization as the user.
  */
-case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends JesAuthInformation {
+case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends JesAuthObject {
   override val context = "boto"
   override val map = Map(
     "client_id" -> JsString(clientSecrets.clientId),
@@ -35,7 +35,7 @@ object JesDockerCredentials {
 /**
  * Authentication information to pull docker images as the user.
  */
-class JesDockerCredentials(account: String, token: String) extends DockerCredentials(account, token) with JesAuthInformation {
+class JesDockerCredentials(account: String, token: String) extends DockerCredentials(account, token) with JesAuthObject {
   override val context = "docker"
   override val map = Map(
     "account" -> JsString(account),

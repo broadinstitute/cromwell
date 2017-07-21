@@ -8,7 +8,7 @@ import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, Stan
 import cromwell.core.CallContext
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.values._
+import wdl4s.wdl.values._
 import com.google.common.io.Files
 import fs2.{Task, Stream}
 
@@ -73,7 +73,7 @@ class FileSizeSpec extends FlatSpec with Matchers {
 
     def testOver() = {
       testInner(n + 1, {
-        case Failure(s: FileSizeTooBig) => //success
+        case Failure(_: FileSizeTooBig) => //success
         case t => throw new RuntimeException(s"should not have eaten this file that is too big! msg: $t")
       })
     }
@@ -81,8 +81,8 @@ class FileSizeSpec extends FlatSpec with Matchers {
     def testUnder() = {
       testInner(n - 1, {
         case Success(_) =>
-        case Failure(nfe: NumberFormatException) => //we're not testing parsing
-        case Failure(uoe: UnsupportedOperationException) => //we're not testing tsv compatibility
+        case Failure(_: NumberFormatException) => //we're not testing parsing
+        case Failure(_: UnsupportedOperationException) => //we're not testing tsv compatibility
         case Failure(t) => throw t
       })
     }

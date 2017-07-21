@@ -53,10 +53,7 @@ trait CromwellApiService {
   implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
 
-  val routes =
-    path("workflows" / Segment / "backends") { version =>
-      get { complete(backendResponse) }
-    } ~
+  val engineRoutes = concat(
     path("engine" / Segment / "stats") { version =>
       get {
         onComplete(workflowManagerActor.ask(WorkflowManagerActor.EngineStatsCommand).mapTo[EngineStatsActor.EngineStats]) {
@@ -64,9 +61,16 @@ trait CromwellApiService {
           case Failure(_) => new RuntimeException("Unable to gather engine stats").failRequest(StatusCodes.InternalServerError)
         }
       }
-    } ~
+    },
+
     path("engine" / Segment / "version") { version =>
       get { complete(versionResponse) }
+    }
+  )
+
+  val workflowRoutes =
+    path("workflows" / Segment / "backends") { version =>
+      get { complete(backendResponse) }
     } ~
     path("workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
       get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) }
@@ -77,11 +81,18 @@ trait CromwellApiService {
     path("workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
       get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLogs(w)) }
     } ~
-    path("workflows" / Segment / "query") { version =>
-      (post | get) {
+    path("workflows" / Segment / "query") { _ =>
+      get {
         parameterSeq { parameters =>
           extractUri { uri =>
             metadataQueryRequest(parameters, uri)
+          }
+        }
+      } ~
+      post {
+        entity(as[Seq[Map[String, String]]]) { parameterMap =>
+          extractUri { uri =>
+            metadataQueryRequest(parameterMap.flatMap(_.toSeq), uri)
           }
         }
       }
@@ -195,7 +206,7 @@ trait CromwellApiService {
               case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
             }
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
-          case Success(workflowSourceFiles) if isSingleSubmission =>
+          case Success(_) if isSingleSubmission =>
             val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
             e.failRequest(StatusCodes.BadRequest)
           case Success(workflowSourceFiles) =>
@@ -219,7 +230,7 @@ trait CromwellApiService {
           case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(s"Unrecognized workflow ID: $w")
           case FailedToCheckWorkflowId(t) => throw t
         }
-      case Failure(t) => Future.failed(InvalidWorkflowException(s"Invalid workflow ID: '$possibleWorkflowId'."))
+      case Failure(_) => Future.failed(InvalidWorkflowException(s"Invalid workflow ID: '$possibleWorkflowId'."))
     }
   }
 

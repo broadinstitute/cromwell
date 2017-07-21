@@ -17,6 +17,6 @@ class JesConfiguration(val configurationDescriptor: BackendConfigurationDescript
   val gcsPathBuilderFactory = GcsPathBuilderFactory(jesAuths.gcs, googleConfig.applicationName)
   val genomicsFactory = GenomicsFactory(googleConfig.applicationName, jesAuths.genomics, jesAttributes.endpointUrl)
   val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map JesDockerCredentials.apply
-  val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined
+  val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined || jesAttributes.restrictMetadataAccess
   val qps = jesAttributes.qps
 }

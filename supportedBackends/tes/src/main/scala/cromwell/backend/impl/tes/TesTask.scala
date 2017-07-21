@@ -4,10 +4,10 @@ import cromwell.backend.standard.StandardExpressionFunctions
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl4s.FullyQualifiedName
-import wdl4s.expression.NoFunctions
+import wdl4s.wdl.FullyQualifiedName
+import wdl4s.wdl.expression.NoFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
+import wdl4s.wdl.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
 
 final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          configurationDescriptor: BackendConfigurationDescriptor,

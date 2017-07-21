@@ -19,8 +19,8 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import lenthall.util.TryUtil
 import net.ceedubs.ficus.Ficus._
-import wdl4s._
-import wdl4s.values.{WdlFile, WdlGlobFile, WdlSingleFile, WdlValue}
+import wdl4s.wdl._
+import wdl4s.wdl.values._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success, Try}

@@ -2,8 +2,8 @@ package cromwell
 
 import akka.testkit._
 import cromwell.util.SampleWdl
-import wdl4s.types.{WdlMapType, WdlStringType}
-import wdl4s.values.{WdlMap, WdlString}
+import wdl4s.wdl.types.{WdlMapType, WdlStringType}
+import wdl4s.wdl.values.{WdlMap, WdlString}
 
 
 class WdlFunctionsAtWorkflowLevelSpec extends CromwellTestKitWordSpec {

@@ -1,9 +1,9 @@
 package cromwell.backend.wdl
 
 import cromwell.backend.BackendJobDescriptor
-import wdl4s.EvaluatedTaskInputs
-import wdl4s.expression.WdlFunctions
-import wdl4s.values.WdlValue
+import wdl4s.wdl.EvaluatedTaskInputs
+import wdl4s.wdl.expression.WdlFunctions
+import wdl4s.wdl.values.WdlValue
 
 import scala.util.{Success, Try}
 

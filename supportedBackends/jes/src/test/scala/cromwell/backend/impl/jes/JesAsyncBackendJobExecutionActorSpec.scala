@@ -10,7 +10,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.impl.jes.RunStatus.Failed
+import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
@@ -29,9 +29,9 @@ import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
-import wdl4s._
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
+import wdl4s.wdl._
+import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -178,7 +178,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
 
   private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
-    val runStatus = Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val runStatus = UnsuccessfulRunStatus(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val statusPoller = TestProbe()
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -260,7 +260,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
@@ -274,7 +274,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -289,7 +289,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -305,8 +305,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
     def checkFailedResult(errorCode: Int, errorMessage: Option[String]): ExecutionHandle = {
-      val failed =
-        Failed(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+      val failed = UnsuccessfulRunStatus(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
       Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 
@@ -444,7 +443,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -656,7 +655,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -688,7 +687,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -733,7 +732,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     descriptorWithMax2AndKey2.preemptible shouldBe true
   }
 
-  private def makeRuntimeAttributes(job: TaskCall) = {
+  private def makeRuntimeAttributes(job: WdlTaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
       runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)

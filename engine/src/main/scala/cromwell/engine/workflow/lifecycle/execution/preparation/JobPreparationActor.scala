@@ -13,8 +13,8 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.preparation.JobPreparationActor._
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -66,7 +66,7 @@ class JobPreparationActor(executionData: WorkflowExecutionActorData,
     case Event(WorkflowDockerLookupFailure(reason, _), data: JobPreparationHashLookupData) =>
       workflowLogger.warn("Docker lookup failed", reason)
       handleDockerHashFailed(data)
-    case Event(WorkflowDockerTerminalFailure(reason, _), data: JobPreparationHashLookupData) =>
+    case Event(WorkflowDockerTerminalFailure(reason, _), _: JobPreparationHashLookupData) =>
       sendFailureAndStop(reason)
   }
 

@@ -28,7 +28,7 @@ object PreviousRetryReasons {
   }
 
   private def validatedKvResponse(r: Option[KvResponse], fromKey: String): ErrorOr[Int] = r match {
-    case Some(KvPair(scopedKey, v)) => validatedIntOption(v, fromKey)
+    case Some(KvPair(_, v)) => validatedIntOption(v, fromKey)
     case Some(_: KvKeyLookupFailed) => 0.validNel
     case Some(KvFailure(_, failure)) => s"Failed to get key $fromKey: ${failure.getMessage}".invalidNel
     case Some(_: KvPutSuccess) => s"Programmer Error: Got a KvPutSuccess from a Get request...".invalidNel

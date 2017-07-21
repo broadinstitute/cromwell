@@ -7,7 +7,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.values.WdlFile
+import wdl4s.wdl.values.WdlFile
 
 class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
 

@@ -7,8 +7,8 @@ import cats.syntax.validated._
 import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import lenthall.validation.ErrorOr._
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType, WdlType}
-import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
+import wdl4s.wdl.types._
+import wdl4s.wdl.values._
 
 import scala.util.Try
 

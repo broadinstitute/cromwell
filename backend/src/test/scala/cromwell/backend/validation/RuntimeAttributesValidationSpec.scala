@@ -5,8 +5,8 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.TestConfig
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
+import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString}
 
 class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -37,7 +37,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateDocker(dockerValue,
         "Failed to get Docker mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Failed to get Docker mandatory key from runtime attributes")
       }
     }
@@ -47,7 +47,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateDocker(dockerValue,
         "Failed to get Docker mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting docker runtime attribute to be a String")
       }
     }
@@ -87,7 +87,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateFailOnStderr(failOnStderrValue,
         "Failed to get failOnStderr mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
       }
     }
@@ -146,7 +146,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) =>
           assert(e.head == "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
       }
@@ -167,7 +167,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateContinueOnReturnCode(continueOnReturnCodeValue,
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
       }
     }
@@ -197,7 +197,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting memory runtime attribute value greater than 0 but got -1")
       }
     }
@@ -218,7 +218,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting memory runtime attribute value greater than 0 but got 0.0")
       }
     }
@@ -228,7 +228,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting memory runtime attribute to be an Integer or String with format '8 GB'. Exception: value should be of the form 'X Unit' where X is a number, e.g. 8 GB")
       }
     }
@@ -238,7 +238,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting memory runtime attribute to be an Integer or String with format '8 GB'. Exception: Not supported WDL type value")
       }
     }
@@ -248,7 +248,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Failed to get memory mandatory key from runtime attributes")
       }
     }
@@ -268,7 +268,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateCpu(cpuValue,
         "Failed to get cpu mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Expecting cpu runtime attribute value greater than 0")
       }
     }
@@ -278,7 +278,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val result = RuntimeAttributesValidation.validateMemory(cpuValue,
         "Failed to get cpu mandatory key from runtime attributes".invalidNel)
       result match {
-        case Valid(x) => fail("A failure was expected.")
+        case Valid(_) => fail("A failure was expected.")
         case Invalid(e) => assert(e.head == "Failed to get cpu mandatory key from runtime attributes")
       }
     }

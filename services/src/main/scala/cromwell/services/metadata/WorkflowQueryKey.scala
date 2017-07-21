@@ -58,7 +58,7 @@ object WorkflowQueryKey {
       def validateLabelRegex(labelKeyValue: String): ErrorOr[Label] = {
         labelKeyValue.split("\\:", 2) match {
           case Array(k, v) => Label.validateLabel(k, v)
-          case other => s"$labelKeyValue".invalidNel
+          case other @ _ => s"$labelKeyValue".invalidNel
         }
       }
       val nels: List[ErrorOr[Label]] = values map validateLabelRegex

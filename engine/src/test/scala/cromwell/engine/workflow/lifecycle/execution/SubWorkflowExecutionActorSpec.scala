@@ -19,7 +19,7 @@ import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWor
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.{WdlNamespaceWithWorkflow, Workflow, WorkflowCall}
+import wdl4s.wdl._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -51,9 +51,9 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     List.empty,
     CallCachingOff
   )
-  val subWorkflow = mock[Workflow]
+  val subWorkflow = mock[WdlWorkflow]
   subWorkflow.unqualifiedName returns "sub_wf"
-  val subWorkflowCall = mock[WorkflowCall]
+  val subWorkflowCall = mock[WdlWorkflowCall]
   subWorkflowCall.fullyQualifiedName returns "foo.bar"
   subWorkflowCall.callable returns subWorkflow
   val subKey = SubWorkflowKey(subWorkflowCall, None, 1)

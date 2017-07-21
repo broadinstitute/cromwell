@@ -4,9 +4,9 @@ import cromwell.core.simpleton.WdlValueBuilderSpec._
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString, WdlValue}
-import wdl4s.{TaskOutput, WdlExpression}
+import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlMapType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlInteger, WdlMap, WdlPair, WdlString, WdlValue}
+import wdl4s.wdl.{TaskOutput, WdlExpression}
 
 object WdlValueBuilderSpec {
   // WdlValueBuilder doesn't care about this expression, but something needs to be passed to the TaskOutput constructor.
@@ -115,9 +115,9 @@ class WdlValueBuilderSpec extends FlatSpec with Matchers with Mockito {
 
   it should "round trip everything together with no losses" in {
 
-    val wdlValues = (simpletonConversions map { case SimpletonConversion(name, wdlValue, simpletons) => name -> wdlValue }).toMap
+    val wdlValues = (simpletonConversions map { case SimpletonConversion(name, wdlValue, _) => name -> wdlValue }).toMap
     val taskOutputs = wdlValues map { case (k, wv) => TaskOutput(k, wv.wdlType, IgnoredExpression, mock[Ast], None) }
-    val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(name, wdlValue, simpletons) => simpletons }
+    val allSimpletons = simpletonConversions flatMap { case SimpletonConversion(_, _, simpletons) => simpletons }
 
     import WdlValueSimpleton._
 

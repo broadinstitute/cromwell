@@ -74,4 +74,5 @@ object Implicits {
       }
   }
 
+  implicit def enumerationEncoder[V <: Enumeration#Value]: Encoder[V] = (value: V) => Json.fromString(value.toString)
 }

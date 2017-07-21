@@ -3,8 +3,7 @@ package wdl4s.cwl
 import shapeless.{:+:, CNil, Witness}
 import eu.timepit.refined._
 import CwlVersion._
-import wdl4s.cwl.CommandLineTool.Inputs
-
+import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, Inputs, StdChannel}
 
 sealed trait Cwl {
 
@@ -52,11 +51,11 @@ case class CommandLineTool(
                             label: Option[String],
                             doc: Option[String],
                             cwlVersion: Option[CwlVersion],
-                            baseCommand: Option[String :+: Array[String] :+: CNil],
-                            arguments: Option[Array[ECMAScriptExpression :+: CommandLineBinding :+: String :+: CNil]],
-                            stdin: Option[ECMAScriptExpression :+: String :+: CNil],
-                            stderr: Option[ECMAScriptExpression :+: String :+: CNil],
-                            stdout: Option[ECMAScriptExpression :+: String :+: CNil],
+                            baseCommand: Option[BaseCommand],
+                            arguments: Option[Array[Argument]],
+                            stdin: Option[StdChannel],
+                            stderr: Option[StdChannel],
+                            stdout: Option[StdChannel],
                             successCodes: Option[Array[Int]],
                             temporaryFailCodes: Option[Array[Int]],
                             permanentFailCodes: Option[Array[Int]]) extends Cwl

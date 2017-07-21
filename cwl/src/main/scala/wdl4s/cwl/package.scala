@@ -3,7 +3,6 @@ package wdl4s
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.yaml.{parser => YamlParser}
-
 import io.circe.parser._
 import io.circe.shapes._
 import io.circe.generic.auto._
@@ -73,5 +72,11 @@ package object cwl extends TypeAliases {
           decode[CommandLineTool](json) orElse
           decode[Workflow](json)
       }
+  }
+
+  def encodeCwlCommandLineTool: CommandLineTool => Json = { commandLineTool =>
+    import io.circe.syntax._
+    import wdl4s.cwl.Implicits.enumerationEncoder
+    commandLineTool.asJson
   }
 }

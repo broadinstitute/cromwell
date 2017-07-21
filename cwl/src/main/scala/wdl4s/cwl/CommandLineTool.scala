@@ -6,7 +6,6 @@ import eu.timepit.refined.string._
 import shapeless.{:+:, CNil}
 import wdl4s.cwl.CwlType._
 
-
 case class CommandInputParameter(
                                   id: Option[String],
                                   label: Option[String],
@@ -17,7 +16,6 @@ case class CommandInputParameter(
                                   inputBinding: Option[CommandLineBinding],
                                   default: Option[String], //TODO Any type here
                                   `type`: Option[MyriadInputType]
-
                                 ) {
   type Id = String
   type `type` = MyriadCommandInputType

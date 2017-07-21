@@ -1,9 +1,11 @@
 package wdl4s.cwl
 
-import shapeless.{:+:, CNil, Witness}
+import shapeless.{:+:, CNil, Coproduct, Witness}
+import shapeless.syntax.singleton._
 import eu.timepit.refined._
 import CwlVersion._
-import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, Inputs, StdChannel}
+import wdl4s.cwl.CommandLineTool.{apply => _, _}
+
 
 sealed trait Cwl {
 
@@ -12,7 +14,7 @@ sealed trait Cwl {
 
 case class Workflow(
   cwlVersion: Option[CwlVersion] = None,
-  `class`: Witness.`"Workflow"`.T,
+  `class`: Witness.`"Workflow"`.T = "Workflow".narrow,
   inputs: WorkflowInput,
   outputs: WorkflowOutput,
   steps: WorkflowSteps) extends Cwl
@@ -38,36 +40,41 @@ case class Workflow(
   * @param permanentFailCodes
   */
 case class CommandLineTool(
-                            inputs: Inputs,
-                            outputs:
-                              Array[CommandOutputParameter] :+:
-                              Map[CommandOutputParameter#Id, CommandOutputParameter#`type`] :+:
-                              Map[CommandOutputParameter#Id, CommandOutputParameter] :+:
-                              CNil,
-                            `class`: W.`"CommandLineTool"`.T,
-                            id: Option[String],
-                            requirements: Option[Array[Requirement]],
-                            hints: Option[Array[String]], //TODO: Any?
-                            label: Option[String],
-                            doc: Option[String],
-                            cwlVersion: Option[CwlVersion],
-                            baseCommand: Option[BaseCommand],
-                            arguments: Option[Array[Argument]],
-                            stdin: Option[StdChannel],
-                            stderr: Option[StdChannel],
-                            stdout: Option[StdChannel],
-                            successCodes: Option[Array[Int]],
-                            temporaryFailCodes: Option[Array[Int]],
-                            permanentFailCodes: Option[Array[Int]]) extends Cwl
+                            inputs: Inputs = Coproduct[Inputs](Array.empty[CommandInputParameter]),
+                            outputs: Outputs = Coproduct[Outputs](Array.empty[CommandOutputParameter]),
+                            `class`: W.`"CommandLineTool"`.T = "CommandLineTool".narrow,
+                            id: Option[String] = None,
+                            requirements: Option[Array[Requirement]] = None,
+                            hints: Option[Array[String]] = None, //TODO: Any?
+                            label: Option[String] = None,
+                            doc: Option[String] = None,
+                            cwlVersion: Option[CwlVersion] = None,
+                            baseCommand: Option[BaseCommand] = None,
+                            arguments: Option[Array[Argument]] = None,
+                            stdin: Option[StringOrExpression] = None,
+                            stderr: Option[StringOrExpression] = None,
+                            stdout: Option[StringOrExpression] = None,
+                            successCodes: Option[Array[Int]] = None,
+                            temporaryFailCodes: Option[Array[Int]] = None,
+                            permanentFailCodes: Option[Array[Int]] = None) extends Cwl
 
 object CommandLineTool {
+
+  type StringOrExpression = ECMAScriptExpression :+: String :+: CNil
+
   type Inputs =
-    CommandInputParameter :+: Map[CommandInputParameter#Id, CommandInputParameter#`type`] :+:
-      Map[CommandInputParameter#Id, CommandInputParameter] :+: CNil
+    Array[CommandInputParameter] :+:
+    Map[CommandInputParameter#Id, CommandInputParameter#`type`] :+:
+    Map[CommandInputParameter#Id, CommandInputParameter] :+:
+    CNil
+
   type Outputs =
-    Array[CommandOutputParameter] :+: Map[CommandOutputParameter#Id, CommandOutputParameter#`type`] :+:
-      Map[CommandOutputParameter#Id, CommandOutputParameter] :+: CNil
+    Array[CommandOutputParameter] :+:
+    Map[CommandOutputParameter#Id, CommandOutputParameter#`type`] :+:
+    Map[CommandOutputParameter#Id, CommandOutputParameter] :+:
+    CNil
+
   type BaseCommand = String :+: Array[String] :+: CNil
+
   type Argument = ECMAScriptExpression :+: CommandLineBinding :+: String :+: CNil
-  type StdChannel = ECMAScriptExpression :+: String :+: CNil
 }

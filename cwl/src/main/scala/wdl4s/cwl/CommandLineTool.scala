@@ -8,15 +8,14 @@ import wdl4s.cwl.CwlType._
 
 case class CommandInputParameter(
                                   id: Option[String],
-                                  label: Option[String],
-                                  secondaryFiles: Option[Array[ECMAScriptExpression :+: String :+: CNil]],
-                                  format: Option[ECMAScriptExpression :+: Array[String] :+: String :+: CNil], //only valid when type: File
-                                  streamable: Option[Boolean], //only valid when type: File
-                                  doc: Option[String :+: Array[String] :+: CNil],
-                                  inputBinding: Option[CommandLineBinding],
-                                  default: Option[String], //TODO Any type here
-                                  `type`: Option[MyriadInputType]
-                                ) {
+                                  label: Option[String] = None,
+                                  secondaryFiles: Option[Array[ECMAScriptExpression :+: String :+: CNil]] = None,
+                                  format: Option[ECMAScriptExpression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                  streamable: Option[Boolean] = None, //only valid when type: File
+                                  doc: Option[String :+: Array[String] :+: CNil] = None,
+                                  inputBinding: Option[CommandLineBinding] = None,
+                                  default: Option[String] = None, //TODO Any type here
+                                  `type`: Option[MyriadInputType] = None) {
   type Id = String
   type `type` = MyriadCommandInputType
 }
@@ -61,13 +60,13 @@ case class CommandInputArraySchema(
 
 case class CommandOutputParameter(
                                    id: String,
-                                   label: Option[String],
-                                   secondaryFiles: Option[ECMAScriptExpression :+: String :+: Array[ECMAScriptExpression :+: String :+: CNil] :+: CNil],
-                                   format: ECMAScriptExpression :+: Array[String] :+: String :+: CNil, //only valid when type: File
-                                   streamable: Option[Boolean], //only valid when type: File
-                                   doc: Option[String :+: Array[String] :+: CNil],
-                                   outputBinding: Option[CommandOutputBinding],
-                                   `type`: MyriadOutputType) {
+                                   label: Option[String] = None,
+                                   secondaryFiles: Option[ECMAScriptExpression :+: String :+: Array[ECMAScriptExpression :+: String :+: CNil] :+: CNil] = None,
+                                   format: Option[ECMAScriptExpression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
+                                   streamable: Option[Boolean] = None, //only valid when type: File
+                                   doc: Option[String :+: Array[String] :+: CNil] = None,
+                                   outputBinding: Option[CommandOutputBinding] = None,
+                                   `type`: Option[MyriadOutputType] = None) {
 
   type `type` = String
   type Id = String

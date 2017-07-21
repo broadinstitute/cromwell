@@ -6,6 +6,8 @@ import eu.timepit.refined._
 
 trait TypeAliases {
 
+  type CwlAny = String
+
   type WorkflowStepInputId = String
 
   type WorkflowStepInputSource = String :+: Array[String] :+: CNil
@@ -81,7 +83,7 @@ trait TypeAliases {
 
   type WorkflowOutput =
     Map[WorkflowOutputParameter#Id, WorkflowOutputParameter] :+:
-      Map[WorkflowOutputParameter#Id, WorkflowOutputParameter#`type`] :+:
+      Map[WorkflowOutputParameter#Id, MyriadOutputType] :+:
       Array[WorkflowOutputParameter] :+:
       CNil
 

@@ -1,6 +1,9 @@
 package wdl4s
 
 import io.circe._
+import io.circe.syntax._
+import io.circe.yaml._
+import io.circe.yaml.syntax._
 import io.circe.generic.auto._
 import io.circe.yaml.{parser => YamlParser}
 import io.circe.parser._
@@ -61,6 +64,15 @@ package object cwl extends TypeAliases {
 
   type Yaml = String
 
+  def encodeWorkflow: Workflow => String = { w =>
+    import wdl4s.cwl.Implicits._
+    io.circe.yaml.Printer(
+      preserveOrder = true,
+      dropNullKeys = true,
+      mappingStyle = io.circe.yaml.Printer.FlowStyle.Block
+    )
+      .pretty(w.asJson)
+  }
 
   def decodeCwl: Yaml => Either[Error, Cwl] = {
     import wdl4s.cwl.Implicits._

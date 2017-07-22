@@ -4,13 +4,13 @@ import java.io.{FileWriter, File}
 import java.nio.file.{Files, Path}
 import spray.json._
 
-import wdl4s._
-import wdl4s.values._
+import wdl4s.wdl._
+import wdl4s.wdl.values._
 
 import scala.language.postfixOps
 
 trait SampleWdl {
-  def wdlSource(runtime: String = ""): WdlSource
+  def wdlSource(runtime: String = ""): WorkflowSource
   def rawInputs: WorkflowRawInputs
 
   def name = getClass.getSimpleName.stripSuffix("$")
@@ -35,7 +35,7 @@ trait SampleWdl {
     def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
   }
 
-  def wdlJson: WdlJson = rawInputs.toJson.prettyPrint
+  def wdlJson: WorkflowJson = rawInputs.toJson.prettyPrint
 
   def createFileArray(base: Path): Unit = {
     createFile("f1", base, "line1\nline2\n")

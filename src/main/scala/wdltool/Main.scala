@@ -2,12 +2,11 @@ package wdltool
 
 import java.nio.file.Paths
 
-import wdl4s.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
-import wdl4s._
+import wdl4s.wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
+import wdl4s.wdl._
 import spray.json._
 
-
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object Main extends App {
   sealed trait Termination {
@@ -57,7 +56,7 @@ object Main extends App {
   def inputs(args: Seq[String]): Termination = {
     continueIf(args.length == 1) {
       loadWdl(args.head) { namespace =>
-        import wdl4s.types.WdlTypeJsonFormatter._
+        import wdl4s.wdl.types.WdlTypeJsonFormatter._
         val msg = namespace match {
           case x: WdlNamespaceWithWorkflow => x.workflow.inputs.toJson.prettyPrint
           case _ => "WDL does not have a local workflow"
@@ -84,7 +83,9 @@ object Main extends App {
       val workflowDigraph = GraphPrint.generateWorkflowDigraph(file, allNodesMode)
 
       val result = s"""|digraph ${workflowDigraph.workflowName} {
-                       |  ${workflowDigraph.digraph.mkString(System.lineSeparator + "  ")}
+                       |  compound=true;
+                       |  ${workflowDigraph.digraph.links.mkString(System.lineSeparator + "  ")}
+                       |  ${workflowDigraph.digraph.nodes.mkString(System.lineSeparator + "  ")}
                        |}
                        |"""
       SuccessfulTermination(result.stripMargin)

@@ -13,37 +13,38 @@ import cromiam.server.config.CromIamServerConfig._
 final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
                                      cromwellConfig: ServiceConfig,
                                      samConfig: ServiceConfig,
-                                     googleConfig: GoogleConfig)
+                                     swaggerOauthConfig: SwaggerOauthConfig)
 
 object CromIamServerConfig {
   def getFromConfig(conf: Config): ErrorOr[CromIamServerConfig] = {
     val cromIamConfig = CromIamConfig.getFromConfig(conf, "cromiam")
     val cromwellConfig = ServiceConfig.getFromConfig(conf, "cromwell")
     val samConfig = ServiceConfig.getFromConfig(conf, "sam")
-    val googleConfig = GoogleConfig.getFromConfig(conf, "google")
+    val googleConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
 
     (cromIamConfig |@| cromwellConfig |@| samConfig |@| googleConfig) map CromIamServerConfig.apply
   }
 
-  private[config] def getValidatedConfigPath[A](typename: String, conf: Config, path: String, getter: (Config, String) => A): ErrorOr[A] = {
+  private[config] def getValidatedConfigPath[A](typename: String, conf: Config, path: String, getter: (Config, String) => A, default: Option[A] = None): ErrorOr[A] = {
     if (conf.hasPath(path)) {
       Try(getter.apply(conf, path)) match {
         case Success(s) => s.validNel
         case Failure(e) => s"Unable to read valid value at '$path': ${e.getMessage}".invalidNel
       }
-    } else {
-      s"Configuration does not have path $path".invalidNel
+    } else default match {
+      case Some(d) => d.validNel
+      case None => s"Configuration does not have path $path".invalidNel
     }
   }
 
   private[config] implicit final class ValidatingConfig(val conf: Config) extends AnyVal {
-    def getValidatedString(path: String): ErrorOr[String] = getValidatedConfigPath("string", conf, path, (c, p) => c.getString(p))
+    def getValidatedString(path: String, default: Option[String] = None): ErrorOr[String] = getValidatedConfigPath("string", conf, path, (c, p) => c.getString(p), default)
     def getValidatedInt(path: String): ErrorOr[Int] = getValidatedConfigPath("integer", conf, path, (c, p) => c.getInt(p))
     def getValidatedStringList(path: String): ErrorOr[List[String]] = getValidatedConfigPath[List[String]]("string list", conf, path, (c, p) => c.getStringList(p).asScala.toList)
   }
 }
 
-final case class CromIamConfig(userIdHeader: String, allowedUsers: List[String], http: ServiceConfig, serverSettings: ServerSettings)
+final case class CromIamConfig(http: ServiceConfig, serverSettings: ServerSettings)
 
 object CromIamConfig {
 
@@ -53,30 +54,30 @@ object CromIamConfig {
   }
 
   private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[CromIamConfig] = {
-    val userIdHeader = conf.getValidatedString(s"$basePath.user_id_header")
-    val allowedUserList = conf.getValidatedStringList(s"$basePath.allowed_users")
-    val serviceConfig = ServiceConfig.getFromConfig(conf, s"$basePath.http")
+    val serviceConfig = ServiceConfig.getFromConfig(conf, s"$basePath")
     val serverSettings = getValidatedServerSettings
 
-    (userIdHeader |@| allowedUserList |@| serviceConfig |@| serverSettings) map CromIamConfig.apply
+    (serviceConfig |@| serverSettings) map CromIamConfig.apply
   }
 }
 
-final case class ServiceConfig(interface: String, port: Int)
+final case class ServiceConfig(interface: String, port: Int, scheme: String)
 
 object ServiceConfig {
   private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[ServiceConfig] = {
     val server = conf.getValidatedString(s"$basePath.interface")
     val port = conf.getValidatedInt(s"$basePath.port")
-    (server |@| port) map ServiceConfig.apply
+    val scheme = conf.getValidatedString(s"$basePath.scheme", default = Some("http"))
+    (server |@| port |@| scheme) map ServiceConfig.apply
   }
 }
 
-final case class GoogleConfig(clientId: String)
+final case class SwaggerOauthConfig(clientId: String, realm: String, appName: String)
 
-object GoogleConfig {
-  private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[GoogleConfig] = {
-    val clientId = conf.getValidatedString(s"$basePath.client_id")
-    clientId map GoogleConfig.apply
+object SwaggerOauthConfig {
+  private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[SwaggerOauthConfig] = {
+    def getValidatedOption(option: String) = conf.getValidatedString(s"$basePath.$option")
+
+    (getValidatedOption("client_id") |@| getValidatedOption("realm") |@| getValidatedOption("app_name")) map SwaggerOauthConfig.apply
   }
 }

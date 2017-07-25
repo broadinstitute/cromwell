@@ -5,6 +5,7 @@ import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.ConfigFactory
+import cromiam.server.config.SwaggerOauthConfig
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import cromiam.webservice.SwaggerUiHttpServiceSpec._
@@ -22,8 +23,7 @@ TableDrivenPropertyChecks with SwaggerResourceHttpService {
     "/api/example?with=param", "/api/example/path")
 }
 
-trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with
-SwaggerUiResourceHttpService
+trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
   val TestSwaggerUiVersion = "2.1.1"
@@ -253,6 +253,8 @@ class NoOptionsSwaggerResourceHttpServiceSpec extends SwaggerResourceHttpService
 }
 
 class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
+
+  override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
   override def swaggerServiceName = "testservice"
 
   behavior of "SwaggerUiResourceHttpService"
@@ -289,8 +291,10 @@ class YamlSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceS
 
 
 class JsonSwaggerUiResourceHttpServiceSpec extends SwaggerUiResourceHttpServiceSpec {
-  override def swaggerServiceName = "testservice"
 
+  override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
+
+  override def swaggerServiceName = "testservice"
   override def swaggerResourceType = "json"
 
   behavior of "SwaggerUiResourceHttpService"

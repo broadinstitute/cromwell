@@ -67,7 +67,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
       val (putWithoutResponse, putWithResponse) = e.toVector.foldLeft(empty)({
         case ((putEvents, putAndRespondEvents), events) =>
           events match {
-            case putEvent: MetadataEvent => (putEvents  :+ putEvent, putAndRespondEvents)
+            case putEvent: MetadataEvent => (putEvents :+ putEvent, putAndRespondEvents)
             case PutMetadataActionAndRespond(ev, replyTo) => (putEvents, putAndRespondEvents + (ev -> replyTo))
           }
       })

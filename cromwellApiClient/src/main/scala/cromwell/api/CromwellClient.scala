@@ -101,9 +101,16 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
     response <- Http().singleRequest(request)
     decoded <- Future.fromTry(decodeResponse(response))
     entity <- Future.fromTry(decoded.toEntity)
-    unmarshalled <- entity.to[A]
+    unmarshalled <- unmarshall(response, entity)(um, ec)
   } yield unmarshalled
-
+  
+  private def unmarshall[A](response: HttpResponse, entity: Unmarshal[ResponseEntity])(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = {
+    import CromwellFailedResponseExceptionJsonSupport._
+    
+    if(response.status.isSuccess()) entity.to[A]
+    else entity.to[CromwellFailedResponseException] flatMap Future.failed
+  }
+  
   private def getRequest[A](uri: String)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = makeRequest[A](HttpRequest(uri = uri))
 
   private def insertSecrets(options: Option[String], refreshToken: Option[String]): Option[String] = {

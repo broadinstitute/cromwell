@@ -57,10 +57,10 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(ScheduledFlushToDb, curData) => stay using curData
     case Event(PutMetadataAction(events), curData) => stay using curData.addData(events)
     case Event(FlushBatchToDb, NoData) =>
-      log.info("Attempted metadata flush to DB but had nothing to write")
+      log.debug("Attempted metadata flush to DB but had nothing to write")
       goto(WaitingToWrite) using NoData
     case Event(FlushBatchToDb, HasData(e)) =>
-      log.info("Flushing {} metadata events to the DB", e.length)
+      log.debug("Flushing {} metadata events to the DB", e.length)
       // blech
       //Partitioning the current data into put events that require a response and those that don't
       val empty = (Vector.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
@@ -83,7 +83,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
       }
       stay using NoData
     case Event(DbWriteComplete, curData) =>
-      log.info("Flush of metadata events complete")
+      log.debug("Flush of metadata events complete")
       goto(WaitingToWrite) using curData
     // When receiving a put&respond message, add it to the current data so that when flushing metadata events, we have
     // enough information to be able to send an acknowledgement of success/failure of metadata event writes to the original requester.

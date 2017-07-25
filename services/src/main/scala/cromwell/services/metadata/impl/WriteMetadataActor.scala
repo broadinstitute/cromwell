@@ -63,7 +63,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
       log.debug("Flushing {} metadata events to the DB", e.length)
       // blech
       //Partitioning the current data into put events that require a response and those that don't
-      val empty = (List.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
+      val empty = (Vector.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
       val (putWithoutResponse, putWithResponse) = e.toVector.foldLeft(empty)({
         case ((putEvents, putAndRespondEvents), events) =>
           events match {

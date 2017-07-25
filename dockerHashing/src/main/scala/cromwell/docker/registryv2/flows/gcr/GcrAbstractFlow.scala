@@ -30,7 +30,7 @@ abstract class GcrAbstractFlow(httpClientFlow: HttpDockerFlow, host: String)(imp
   private def freshAccessToken(credential: OAuth2Credentials) = {
     Option(credential.getAccessToken) match {
       case Some(accessToken)
-        if (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gt(AccessTokenAcceptableTTL) =>
+        if (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL) =>
         accessToken.getTokenValue
       case _ =>
         credential.refresh()

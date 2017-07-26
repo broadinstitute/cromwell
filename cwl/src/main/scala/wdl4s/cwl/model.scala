@@ -5,7 +5,6 @@ import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
 import wdl4s.cwl.CommandLineTool.StringOrExpression
 import wdl4s.cwl.CommandOutputBinding.Glob
-import wdl4s.cwl.EnvVarRequirement.EnvDef
 import wdl4s.cwl.LinkMergeMethod.LinkMergeMethod
 
 case class WorkflowStepInput(
@@ -160,11 +159,7 @@ case class DockerRequirement(
 
 case class SoftwareRequirement(
   `class`: W.`"SoftwareRequirement"`.T,
-  packages:
-    Array[SoftwarePackage] :+:
-    Map[SoftwarePackage#Package, SoftwarePackage#Specs] :+:
-    Map[SoftwarePackage#Package, SoftwarePackage] :+:
-    CNil
+  packages: Array[SoftwarePackage] = Array.empty
   )
 
 case class SoftwarePackage(
@@ -209,14 +204,11 @@ case class Dirent(
   */
 case class EnvVarRequirement(
                               `class`: EnvVarRequirement.`class`.type = EnvVarRequirement.`class`,
-                              envDef: EnvDef
+                              envDef: Array[EnvironmentDef]
                             )
 
 object EnvVarRequirement {
   val `class` : Witness.`"EnvVarRequirement"`.T = "EnvVarRequirement".narrow
-  type EnvDef =
-    Array[EnvironmentDef] :+: Map[EnvironmentDef#EnvName, EnvironmentDef#EnvValue] :+:
-      Map[EnvironmentDef#EnvName, EnvironmentDef] :+: CNil
 }
 
 case class EnvironmentDef(envName: String, envValue: ECMAScriptExpression :+: String :+: CNil) {

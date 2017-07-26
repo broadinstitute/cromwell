@@ -75,23 +75,6 @@ trait TypeAliases {
         ] :+:
       CNil
 
-  type WorkflowInput =
-    Map[InputParameter#Id, InputParameter] :+:
-      Map[InputParameter#Id, InputParameter#`type`] :+:
-      Array[InputParameter] :+:
-      CNil
-
-  type WorkflowOutput =
-    Map[WorkflowOutputParameter#Id, WorkflowOutputParameter] :+:
-      Map[WorkflowOutputParameter#Id, MyriadOutputType] :+:
-      Array[WorkflowOutputParameter] :+:
-      CNil
-
-  type WorkflowSteps =
-    Map[String, WorkflowStep] :+:
-      Array[WorkflowStep] :+:
-      CNil
-
   type EVR = EnvVarRequirement.`class`.type  => EnvVarRequirement
   type IJR = W.`"InlineJavascriptRequirement"`.T => InlineJavascriptRequirement
   type SR = W.`"SoftwareRequirement"`.T => SoftwareRequirement

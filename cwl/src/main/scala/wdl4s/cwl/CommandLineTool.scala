@@ -14,14 +14,14 @@ case class CommandInputParameter(
                                   streamable: Option[Boolean] = None, //only valid when type: File
                                   doc: Option[String :+: Array[String] :+: CNil] = None,
                                   inputBinding: Option[CommandLineBinding] = None,
-                                  default: Option[String] = None, //TODO Any type here
+                                  default: Option[CwlAny] = None, //TODO Any type here
                                   `type`: Option[MyriadInputType] = None) {
   type Id = String
   type `type` = MyriadCommandInputType
 }
 
 case class CommandInputRecordSchema(
-                                     `type`: String Refined MatchesRegex[W.`"record"`.T],
+                                     `type`: W.`"record"`.T,
                                      fields: Option[Array[CommandInputRecordField]],
                                      label: Option[String])
 
@@ -34,7 +34,7 @@ case class CommandInputRecordField(
 
 case class CommandInputEnumSchema(
                                    symbols: Array[String],
-                                   `type`: String Refined MatchesRegex[W.`"enum"`.T],
+                                   `type`: W.`"enum"`.T,
                                    label: Option[String],
                                    inputBinding: Option[CommandLineBinding])
 
@@ -53,7 +53,7 @@ case class CommandInputArraySchema(
                                         String :+:
                                         CNil] :+:
                                       CNil,
-                                    `type`: String Refined MatchesRegex[W.`"array"`.T],
+                                    `type`: W.`"array"`.T,
                                     label: Option[String],
                                     inputBinding: Option[CommandLineBinding])
 

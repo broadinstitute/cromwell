@@ -2,7 +2,7 @@ package wdl4s.cwl
 
 import shapeless.{:+:, CNil, Coproduct}
 import ScatterMethod._
-import wdl4s.cwl.WorkflowStep.{Inputs, Outputs, Run}
+import wdl4s.cwl.WorkflowStep.{Outputs, Run}
 
 /**
   * An individual job to run.
@@ -22,7 +22,7 @@ import wdl4s.cwl.WorkflowStep.{Inputs, Outputs, Run}
   */
 case class WorkflowStep(
                          id: Option[String] = None, //not actually optional but can be declared as a key for this whole object for convenience
-                         in: Inputs = Coproduct[Inputs](Array.empty[WorkflowStepInput]),
+                         in: Array[WorkflowStepInput] = Array.empty,
                          out: Outputs,
                          run: Run,
                          requirements: Option[Array[Requirement]] = None,
@@ -45,12 +45,6 @@ object WorkflowStep {
       CommandLineTool :+:
       ExpressionTool :+:
       Workflow :+:
-      CNil
-
-  type Inputs =
-    Array[WorkflowStepInput] :+:
-      Map[WorkflowStepInputId, WorkflowStepInputSource] :+:
-      Map[WorkflowStepInputId, WorkflowStepInput] :+:
       CNil
 
   type Outputs =

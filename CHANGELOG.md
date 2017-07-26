@@ -16,6 +16,10 @@ retired at the same time.
 
 * The response format of the [callcaching/diff](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) endpoint has been updated.
 
+* The configuration value 'backend.default' has been replaced with a list of values 'backend.allowed'. The first 
+value in the list is the default. This list defaults to `["Local"]`. An error will be thrown if the old 
+'backend.default' value is found.
+
 ## 28
 
 ### Bug Fixes

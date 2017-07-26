@@ -72,125 +72,125 @@ trait CromwellApiService {
     path("workflows" / Segment / "backends") { version =>
       get { complete(backendResponse) }
     } ~
-    path("workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
-      get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) }
-    } ~
-    path("workflows" / Segment / Segment / "outputs") { (version, possibleWorkflowId) =>
-      get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w)) }
-    } ~
-    path("workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
-      get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLogs(w)) }
-    } ~
-    path("workflows" / Segment / "query") { _ =>
-      get {
-        parameterSeq { parameters =>
-          extractUri { uri =>
-            metadataQueryRequest(parameters, uri)
+      path("workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
+        get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) }
+      } ~
+      path("workflows" / Segment / Segment / "outputs") { (version, possibleWorkflowId) =>
+        get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w)) }
+      } ~
+      path("workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
+        get { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLogs(w)) }
+      } ~
+      path("workflows" / Segment / "query") { _ =>
+        get {
+          parameterSeq { parameters =>
+            extractUri { uri =>
+              metadataQueryRequest(parameters, uri)
+            }
+          }
+        } ~
+          post {
+            entity(as[Seq[Map[String, String]]]) { parameterMap =>
+              extractUri { uri =>
+                metadataQueryRequest(parameterMap.flatMap(_.toSeq), uri)
+              }
+            }
+          }
+      } ~
+      encodeResponse {
+        path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
+          parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
+            val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
+            val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
+            val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
+
+            (includeKeysOption, excludeKeysOption) match {
+              case (Some(_), Some(_)) =>
+                val e = new IllegalArgumentException("includeKey and excludeKey may not be specified together")
+                e.failRequest(StatusCodes.BadRequest)
+              case (_, _) => metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+            }
           }
         }
       } ~
-      post {
-        entity(as[Seq[Map[String, String]]]) { parameterMap =>
-          extractUri { uri =>
-            metadataQueryRequest(parameterMap.flatMap(_.toSeq), uri)
+      path("workflows" / Segment / "callcaching" / "diff") { version =>
+        parameterSeq { parameters =>
+          get {
+            CallCacheDiffQueryParameter.fromParameters(parameters) match {
+              case Valid(queryParameter) =>
+                val diffActor = actorRefFactory.actorOf(CallCacheDiffActor.props(serviceRegistryActor), "CallCacheDiffActor-" + UUID.randomUUID())
+                onComplete(diffActor.ask(queryParameter).mapTo[CallCacheDiffActorResponse]) {
+                  case Success(r: BuiltCallCacheDiffResponse) => complete(r.response)
+                  case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+                  case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)
+                  case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+                }
+              case Invalid(errors) =>
+                val e = AggregatedMessageException("Wrong parameters for call cache diff query", errors.toList)
+                e.errorRequest(StatusCodes.BadRequest)
+            }
           }
         }
-      }
-    } ~
-    encodeResponse {
-      path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
-        parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
-          val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
-          val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
-          val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
+      } ~
+      path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
+        onComplete(validateWorkflowId(possibleWorkflowId)) {
+          case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
+          case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
+        }
+      } ~
+      path("workflows" / Segment / Segment / "abort") { (version, possibleWorkflowId) =>
+        post {
+          val response = validateWorkflowId(possibleWorkflowId) flatMap { w =>
+            workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(w, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
+          }
 
-          (includeKeysOption, excludeKeysOption) match {
-            case (Some(_), Some(_)) =>
-              val e = new IllegalArgumentException("includeKey and excludeKey may not be specified together")
-              e.failRequest(StatusCodes.BadRequest)
-            case (_, _) => metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+          onComplete(response) {
+            case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) => complete(WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
+            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) => e.errorRequest(StatusCodes.Forbidden)
+            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
+            case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
+            case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
+            case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
+            case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
           }
         }
-      }
-    } ~
-    path("workflows" / Segment / "callcaching" / "diff") { version =>
-      parameterSeq { parameters =>
-        get {
-          CallCacheDiffQueryParameter.fromParameters(parameters) match {
-            case Valid(queryParameter) =>
-              val diffActor = actorRefFactory.actorOf(CallCacheDiffActor.props(serviceRegistryActor), "CallCacheDiffActor-" + UUID.randomUUID())
-              onComplete(diffActor.ask(queryParameter).mapTo[CallCacheDiffActorResponse]) {
-                case Success(r: BuiltCallCacheDiffResponse) => complete(r.response)
-                case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
-                case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)
-                case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
-              }
-            case Invalid(errors) =>
-              val e = AggregatedMessageException("Wrong parameters for call cache diff query", errors.toList)
-              e.errorRequest(StatusCodes.BadRequest)
-          }
-        }
-      }
-    } ~
-    path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
-      onComplete(validateWorkflowId(possibleWorkflowId)) {
-        case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
-        case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
-      }
-    } ~
-    path("workflows" / Segment / Segment / "abort") { (version, possibleWorkflowId) =>
-      post {
-        val response = validateWorkflowId(possibleWorkflowId) flatMap { w =>
-          workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflow(w, workflowManagerActor)).mapTo[WorkflowStoreEngineAbortResponse]
-        }
+      } ~
+      path("workflows" / Segment / Segment / "labels") { (version, possibleWorkflowId) =>
+        entity(as[Map[String, String]]) { parameterMap =>
+          patch {
+            Labels.validateMapOfLabels(parameterMap) match {
+              case Valid(labels) =>
+                val response = validateWorkflowId(possibleWorkflowId) flatMap { id =>
+                  val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
+                  lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
+                }
+                onComplete(response) {
+                  case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
+                  case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+                  case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
 
-        onComplete(response) {
-          case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) => complete(WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
-          case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) => e.errorRequest(StatusCodes.Forbidden)
-          case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
-          case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
-          case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
-          case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
-          case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+                }
+              case Invalid(e) =>
+                val iae = new IllegalArgumentException(e.toList.mkString(","))
+                iae.failRequest(StatusCodes.BadRequest)
+            }
+          }
         }
-      }
-    } ~
-    path("workflows" / Segment / Segment / "labels") { (version, possibleWorkflowId) =>
-      entity(as[Map[String, String]]) { parameterMap =>
-        patch {
-          Labels.validateMapOfLabels(parameterMap) match {
-            case Valid(labels) =>
-              val response = validateWorkflowId(possibleWorkflowId) flatMap { id =>
-                val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
-                lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
-              }
-              onComplete(response) {
-                case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
-                case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
-                case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
-
-              }
-            case Invalid(e) =>
-              val iae = new IllegalArgumentException(e.toList.mkString(","))
-              iae.failRequest(StatusCodes.BadRequest)
+      } ~
+      path("workflows" / Segment) { version =>
+        post {
+          entity(as[Multipart.FormData]) { formData =>
+            submitRequest(formData, true)
+          }
+        }
+      } ~
+      path("workflows" / Segment / "batch") { version =>
+        post {
+          entity(as[Multipart.FormData]) { formData =>
+            submitRequest(formData, false)
           }
         }
       }
-    } ~
-  path("workflows" / Segment) { version =>
-      post {
-        entity(as[Multipart.FormData]) { formData =>
-          submitRequest(formData, true)
-        }
-      }
-    } ~
-  path("workflows" / Segment / "batch") { version =>
-    post {
-      entity(as[Multipart.FormData]) { formData =>
-        submitRequest(formData, false)
-      }
-    }
-  }
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
     val allParts: Future[Map[String, ByteString]] = formData.parts.mapAsync[(String, ByteString)](1) {
@@ -275,6 +275,8 @@ object CromwellApiService {
   final case class UnrecognizedWorkflowException(message: String) extends Exception(message)
   final case class InvalidWorkflowException(message: String) extends Exception(message)
 
-  val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
+  val backendResponse = BackendResponse(
+    BackendConfiguration.Global.AllowedBackendNames,
+    BackendConfiguration.Global.DefaultBackendName)
   val versionResponse = JsObject(Map("cromwell" -> ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell").toJson))
 }

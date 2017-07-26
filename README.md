@@ -587,14 +587,14 @@ Backends are specified in the `backend` configuration block under `providers`.  
 
 ```hocon
 backend {
-  default = "Local"
+  allowed = ["Local"]
   providers {
     BackendName {
       actor-factory = "FQN of BackendLifecycleActorFactory instance"
       config {
         key = "value"
         key2 = "value2"
-        ...
+        #...
       }
     }
   }
@@ -610,7 +610,7 @@ configured backends:
 
 ```hocon
 backend {
-  default = "Local"
+  allowed = ["Local"]
   providers {
     Local {
       actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
@@ -653,7 +653,7 @@ backend {
         }
       }
     }
-  ]
+  }
 }
 ```
 
@@ -855,7 +855,7 @@ If your project is `my-project` your bucket is `gs://my-bucket/`, then update yo
 
 ```hocon
 backend {
-  default = "JES"
+  allowed = ["JES"]
   providers {
     JES {
       actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
@@ -863,12 +863,10 @@ backend {
         project = "my-project"
         root = "gs://my-bucket"
         genomics-api-queries-per-100-seconds = 1000
-        .
-        .
-        .
+        #...
       }
     }
-  ]
+  }
 }
 ```
 
@@ -968,7 +966,7 @@ However, in order for the image to be pulled, the docker credentials with access
 
 ```
 backend {
-  default = "JES"
+  allowed = ["JES"]
   providers {
     JES {
       actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
@@ -1038,7 +1036,7 @@ Configuring the TES backend is straightforward; one must only provide the TES AP
 
 ```hocon
 backend {
-  default = "TES"
+  allowed = ["TES"]
   providers {
     TES {
       actor-factory = "cromwell.backend.impl.tes.TesBackendLifecycleActorFactory"
@@ -1101,7 +1099,7 @@ echo $? > rc
 
 The job is launched with a configurable command such as:
 
-```bash
+```
 qsub \
     -terse \
     -V \
@@ -1474,7 +1472,7 @@ and add backend provider as Spark.
 
 ```
 backend {
-  default = "Spark"
+  allowed = ["Spark"]
   providers {
   ....
 ```
@@ -1507,7 +1505,7 @@ Sample usage:
 
 ```wdl
 task sparkjob_with_yarn_cluster {
-        .....
+        #.....
         
         runtime {
                 appMainClass: "${entry_point}"
@@ -1515,7 +1513,7 @@ task sparkjob_with_yarn_cluster {
                 executorCores: "2"
         }
         
-        .....
+        #.....
 	}
 ```
 

@@ -66,7 +66,7 @@ object JesTestConfig {
        |}
        |
        |backend {
-       |  default = "JES"
+       |  allowed = ["JES"]
        |  providers {
        |    JES {
        |      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleFactory"

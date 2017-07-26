@@ -3,8 +3,7 @@
 include "application.conf"
 
 backend {
-  default = "Jes"
-  enabled = ["Jes", "Jes-Refresh"]
+  allowed = ["Jes", "Jes-Refresh"]
   providers {
     Local.config.filesystems.gcs.auth = "service_account"
     Jes {

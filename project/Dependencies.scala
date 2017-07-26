@@ -139,12 +139,11 @@ object Dependencies {
 
   val cromwellApiClientDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-http" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.github.pathikrit" %% "better-files" % betterFilesV,
     "org.scalatest" %% "scalatest" % scalatestV % Test,
     "org.pegdown" % "pegdown" % pegdownV % Test
-  )
+  ) ++ akkaHttpDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % "1.10",

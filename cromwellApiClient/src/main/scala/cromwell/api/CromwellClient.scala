@@ -92,18 +92,27 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def metadata(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadata] = getRequest[String](metadataEndpoint(workflowId)) map WorkflowMetadata
   def backends(implicit ec: ExecutionContext): Future[CromwellBackends] = getRequest[CromwellBackends](backendsEndpoint)
   def version(implicit ec: ExecutionContext): Future[CromwellVersion] = getRequest[CromwellVersion](versionEndpoint)
+  
+  private [api] def executeRequest(request: HttpRequest) = Http().singleRequest(request)
 
   /**
     *
     * @tparam A The type of response expected. Must be supported by an implicit unmarshaller from ResponseEntity.
     */
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = for {
-    response <- Http().singleRequest(request)
+    response <- executeRequest(request)
     decoded <- Future.fromTry(decodeResponse(response))
     entity <- Future.fromTry(decoded.toEntity)
-    unmarshalled <- entity.to[A]
+    unmarshalled <- unmarshall(response, entity)(um, ec)
   } yield unmarshalled
-
+  
+  private def unmarshall[A](response: HttpResponse, entity: Unmarshal[ResponseEntity])(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = {
+    import CromwellFailedResponseExceptionJsonSupport._
+    
+    if (response.status.isSuccess()) entity.to[A]
+    else entity.to[CromwellFailedResponseException] flatMap Future.failed
+  }
+  
   private def getRequest[A](uri: String)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = makeRequest[A](HttpRequest(uri = uri))
 
   private def insertSecrets(options: Option[String], refreshToken: Option[String]): Option[String] = {
@@ -138,6 +147,7 @@ object CromwellClient {
 
     def toEntity: Try[Unmarshal[ResponseEntity]] = response match {
       case HttpResponse(_: StatusCodes.Success, _, entity, _) => Success(Unmarshal(entity))
+      case HttpResponse(_: StatusCodes.ServerError, _, entity, _) => Success(Unmarshal(entity))
       case other => Failure(UnsuccessfulRequestException("Unmarshalling error", other))
     }
   }

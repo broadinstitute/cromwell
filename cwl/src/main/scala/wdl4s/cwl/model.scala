@@ -5,6 +5,7 @@ import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
 import wdl4s.cwl.CommandLineTool.StringOrExpression
 import wdl4s.cwl.CommandOutputBinding.Glob
+import wdl4s.cwl.EnvVarRequirement.EnvDef
 import wdl4s.cwl.LinkMergeMethod.LinkMergeMethod
 
 case class WorkflowStepInput(
@@ -76,7 +77,7 @@ case class CommandLineBinding(
                                shellQuote: Option[Boolean] = None)
 
 case class WorkflowOutputParameter(
-                                    id: Option[String], //Really not optional but can be declared upstream
+                                    id: Option[String] = None, //Really not optional but can be declared upstream
                                     label: Option[String] = None,
                                     secondaryFiles:
                                       Option[
@@ -207,12 +208,16 @@ case class Dirent(
   * @param envDef
   */
 case class EnvVarRequirement(
-  `class`: Witness.`"EnvVarRequirement"`.T,
-  envDef:
-    Array[EnvironmentDef] :+:
-    Map[EnvironmentDef#EnvName, EnvironmentDef#EnvValue] :+:
-    Map[EnvironmentDef#EnvName, EnvironmentDef] :+:
-    CNil)
+                              `class`: EnvVarRequirement.`class`.type = EnvVarRequirement.`class`,
+                              envDef: EnvDef
+                            )
+
+object EnvVarRequirement {
+  val `class` : Witness.`"EnvVarRequirement"`.T = "EnvVarRequirement".narrow
+  type EnvDef =
+    Array[EnvironmentDef] :+: Map[EnvironmentDef#EnvName, EnvironmentDef#EnvValue] :+:
+      Map[EnvironmentDef#EnvName, EnvironmentDef] :+: CNil
+}
 
 case class EnvironmentDef(envName: String, envValue: ECMAScriptExpression :+: String :+: CNil) {
   type EnvName = String

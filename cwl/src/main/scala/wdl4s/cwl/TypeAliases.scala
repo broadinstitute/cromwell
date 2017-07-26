@@ -92,7 +92,7 @@ trait TypeAliases {
       Array[WorkflowStep] :+:
       CNil
 
-  type EVR = W.`"EnvVarRequirement"`.T => EnvVarRequirement
+  type EVR = EnvVarRequirement.`class`.type  => EnvVarRequirement
   type IJR = W.`"InlineJavascriptRequirement"`.T => InlineJavascriptRequirement
   type SR = W.`"SoftwareRequirement"`.T => SoftwareRequirement
   type SWFR = W.`"SubworkflowFeatureRequirement"`.T => SubworkflowFeatureRequirement

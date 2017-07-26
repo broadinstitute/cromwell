@@ -2,6 +2,7 @@ package wdl4s.cwl
 
 
 import org.scalatest._
+import CwlCodecs._
 
 
 class ParseBigThreeSpec extends FlatSpec with Matchers {

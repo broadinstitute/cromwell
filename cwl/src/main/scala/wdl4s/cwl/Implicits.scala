@@ -12,6 +12,7 @@ import eu.timepit.refined.string._
 import eu.timepit.refined._
 import io.circe.refined._
 import io.circe.literal._
+import io.circe.syntax._
 import cats.data.ValidatedNel
 import cats.data.Validated._
 import cats.syntax.traverse._

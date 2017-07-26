@@ -3,7 +3,7 @@ package cromwell.docker.registryv2.flows.gcr
 import akka.actor.Scheduler
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.stream.ActorMaterializer
-import com.google.auth.oauth2.OAuth2Credentials
+import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import cromwell.docker.DockerHashActor.DockerHashContext
 import cromwell.docker.registryv2.DockerRegistryV2AbstractFlow
 import cromwell.docker.registryv2.DockerRegistryV2AbstractFlow.HttpDockerFlow
@@ -28,10 +28,15 @@ abstract class GcrAbstractFlow(httpClientFlow: HttpDockerFlow, host: String)(imp
   }
   
   private def freshAccessToken(credential: OAuth2Credentials) = {
-    val expiresIn = (credential.getAccessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis
-    if (expiresIn.lt(AccessTokenAcceptableTTL)) {
-      credential.refresh()
+    def accessTokenTTLIsAcceptable(accessToken: AccessToken) = {
+      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL)
     }
-    credential.getAccessToken.getTokenValue
+    
+    Option(credential.getAccessToken) match {
+      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
+      case _ =>
+        credential.refresh()
+        credential.getAccessToken.getTokenValue
+    }
   }
 }

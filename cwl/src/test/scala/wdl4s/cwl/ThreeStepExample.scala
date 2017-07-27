@@ -2,7 +2,7 @@ package wdl4s.cwl
 
 import shapeless._
 import syntax.singleton._
-import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, Inputs, StringOrExpression}
+import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, StringOrExpression}
 import wdl4s.cwl.CommandOutputBinding.Glob
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
 import io.circe.syntax._
@@ -31,18 +31,18 @@ object ThreeStepExample extends App {
 
   val psClt = CommandLineTool(
     `class` = "CommandLineTool".narrow,
-    outputs = Coproduct[CommandLineTool.Outputs](Array(psOutputParameter)),
+    outputs = Array(psOutputParameter),
     baseCommand = Option(Coproduct[BaseCommand]("ps")),
     stdout = Option(Coproduct[StringOrExpression]("ps-stdOut.txt")))
 
   val psWfStep  = WorkflowStep(
-    id = Option("ps"),
+    id = "ps",
     run = Coproduct[Run](psClt),
     out = Coproduct(Array("ps-stdOut")))
 
-  val patternInput = CommandInputParameter(id = Option("pattern"), `type` = Option(Coproduct(CwlType.String)))
+  val patternInput = CommandInputParameter(id = "pattern", `type` = Option(Coproduct(CwlType.String)))
 
-  val fileInput = CommandInputParameter(id = Option("file"), `type` = Option(Coproduct(CwlType.File)))
+  val fileInput = CommandInputParameter(id = "file", `type` = Option(Coproduct(CwlType.File)))
 
   def clb: String => CommandLineTool.Argument=
     s => Coproduct[Argument](CommandLineBinding(valueFrom = Option(Coproduct[StringOrExpression](s)), shellQuote  = Option(false)))
@@ -54,8 +54,8 @@ object ThreeStepExample extends App {
   val cgrepOutputParameter = CommandOutputParameter(id = "cgrep-stdOut", `type` = Option(Coproduct(CwlType.File)), outputBinding = Option(cgrepOutputBinding))
 
   val cgrepClt = CommandLineTool(
-    inputs = Coproduct[CommandLineTool.Inputs](Array(patternInput, fileInput)),
-    outputs = Coproduct(Array(cgrepOutputParameter)),
+    inputs = Array(patternInput, fileInput),
+    outputs = Array(cgrepOutputParameter),
     `class` = "CommandLineTool".narrow,
     arguments = cgrepArgs,
     stdout = Option(Coproduct[StringOrExpression]("cgrep-stdOut.txt")),
@@ -66,13 +66,13 @@ object ThreeStepExample extends App {
   val fileCgrepWorkflowStepInput = WorkflowStepInput(id = "file", source = Option(Coproduct("ps/ps-stdOut")))
 
   val grepWfStep  = WorkflowStep(
-    id = Option("cgrep"),
-    in = Coproduct(Array(patternCgrepWorkFlowStepInput, fileCgrepWorkflowStepInput)),
+    id = "cgrep",
+    in = Array(patternCgrepWorkFlowStepInput, fileCgrepWorkflowStepInput),
     out = Coproduct[Outputs](Array(WorkflowStepOutput("cgrep-stdOut"))),
     run = Coproduct[Run](cgrepClt))
 
   val wcFileCommandInput = CommandInputParameter(
-    id = Option("file"),
+    id = "file",
     `type` = Option(Coproduct(CwlType.File)))
 
   val wcArgs = Option("cat $(inputs.file) | wc -l" split ' ' map clb)
@@ -86,8 +86,8 @@ object ThreeStepExample extends App {
     CommandLineTool(
       `class` = "CommandLineTool".narrow,
       stdout = Option(Coproduct[StringOrExpression]("wc-stdOut.txt")),
-      inputs = Coproduct(Array(wcFileCommandInput)),
-      outputs = Coproduct(Array(wcCltOutput)),
+      inputs = Array(wcFileCommandInput),
+      outputs = Array(wcCltOutput),
       arguments = wcArgs,
       requirements = inlineJScriptRequirements)
 
@@ -96,34 +96,34 @@ object ThreeStepExample extends App {
     source = Option(Coproduct("ps/ps-stdOut")))
 
   val wcWorkflowStep = WorkflowStep(
-    id = Option("wc"),
-    in = Coproduct[WorkflowStep.Inputs](Array(wcWorkflowInput)),
+    id = "wc",
+    in = Array(wcWorkflowInput),
     out = Coproduct[WorkflowStep.Outputs](Array(WorkflowStepOutput("wc-stdOut"))),
     run = Coproduct[WorkflowStep.Run](wcClt))
 
   val outputCgrep =
     WorkflowOutputParameter(
-      id = Option("cgrep-stdOut"),
+      id = "cgrep-stdOut",
       `type` = Option(Coproduct[MyriadOutputType](CwlType.File)),
       outputSource = Option(Coproduct("#cgrep/cgrep-stdOut")))
 
   val outputWc =
     WorkflowOutputParameter(
-      id = Option("wc-stdOut"),
+      id = "wc-stdOut",
       `type` = Option(Coproduct[MyriadOutputType](CwlType.File)),
       outputSource = Option(Coproduct("#wc/wc-stdOut")))
 
-  val _outputs = Coproduct[WorkflowOutput](Array(outputCgrep, outputWc))
+  val _outputs = Array(outputCgrep, outputWc)
 
-  val workflowPatternInput = InputParameter(id = Option("pattern"), `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
+  val workflowPatternInput = InputParameter(id = "pattern", `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
 
-  val _inputs = Coproduct[WorkflowInput](Array(workflowPatternInput))
+  val _inputs = Array(workflowPatternInput)
 
   val threeStepWorkflow =
     new Workflow(
       inputs = _inputs,
       outputs = _outputs,
-      steps = Coproduct[WorkflowSteps](Array(psWfStep, grepWfStep, wcWorkflowStep)))
+      steps = Array(psWfStep, grepWfStep, wcWorkflowStep))
 
   val yaml = encodeCwlWorkflow(threeStepWorkflow)
 

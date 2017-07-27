@@ -14,10 +14,10 @@ cwlVersion: v1.0
 class: CommandLineTool
 baseCommand: echo
 inputs:
-  message:
-    type: string
-    inputBinding:
-      position: 1
+- type: string
+  inputBinding:
+    position: 1
+  id: message
 outputs: []
 """
 
@@ -28,41 +28,35 @@ outputs: []
     val firstWorkflow = """
 cwlVersion: v1.0
 class: Workflow
-s: Hi
 inputs:
-  inp: File
-  ex: string
-
+- type: string
+  id: ex
+- type: File
+  id: inp
 outputs:
-  classout:
-    type: File
-    outputSource: compile/classfile
-
+- type: File
+  outputSource: compile/classfile
+  id: classout
 steps:
-  untar:
-    run: tar-param.cwl
-    in:
-      tarfile: inp
-      extractfile: ex
-    out: [example_out]
-  compile:
-    run: arguments.cwl
-    in:
-      src: untar/example_out
-    out: [classfile]
+- run: arguments.cwl
+  in:
+  - source: untar/example_out
+    id: compile/src
+  out:
+  - compile/classfile
+  id: compile
+- run: tar-param.cwl
+  in:
+  - source: ex
+    id: extractfile
+  - source: inp
+    id: tarfile
+  out:
+  - example_out
+  id: untar
 """
     decodeCwl(firstWorkflow)
       .isRight should be (true)
-  }
-
-  it should "produce coproducts easily" in {
-    import shapeless.syntax.inject._
-    new Workflow(
-      None,
-      `class` = "Workflow",
-      inputs = Array.empty[InputParameter].inject[WorkflowInput],
-      outputs = Array.empty[WorkflowOutputParameter].inject[WorkflowOutput],
-      steps = Array.empty[WorkflowStep].inject[WorkflowSteps])
   }
 
   it should "parse env cwl" in {
@@ -71,16 +65,20 @@ cwlVersion: v1.0
 class: CommandLineTool
 baseCommand: env
 requirements:
-  EnvVarRequirement:
-    envDef:
-      HELLO: $(inputs.message)
+- envDef:
+  - envValue: $(inputs.message)
+    envName: HELLO
+  class: EnvVarRequirement
 inputs:
-  message: string
+- type: string
+  id: file:///Users/danb/common-workflow-language/v1.0/examples/env.cwl#message
 outputs: []
+id: file:///Users/danb/common-workflow-language/v1.0/examples/env.cwl
+name: file:///Users/danb/common-workflow-language/v1.0/examples/env.cwl
 """
 
     val output = decodeCwl(envCwl)
-    println(output)
+    println(s"output was $output")
     output.isRight should be (true)
   }
 }

@@ -15,9 +15,9 @@ sealed trait Cwl {
 case class Workflow(
   cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
   `class` : Workflow.`class`.type = Workflow.`class`,
-  inputs: WorkflowInput,
-  outputs: WorkflowOutput,
-  steps: WorkflowSteps) extends Cwl
+  inputs: Array[InputParameter] = Array.empty,
+  outputs: Array[WorkflowOutputParameter] = Array.empty,
+  steps: Array[WorkflowStep]) extends Cwl
 
 object Workflow {
   val `class` : Witness.`"Workflow"`.T = "Workflow".narrow
@@ -44,8 +44,8 @@ object Workflow {
   * @param permanentFailCodes
   */
 case class CommandLineTool(
-                            inputs: Inputs = Coproduct[Inputs](Array.empty[CommandInputParameter]),
-                            outputs: Outputs = Coproduct[Outputs](Array.empty[CommandOutputParameter]),
+                            inputs: Array[CommandInputParameter] = Array.empty,
+                            outputs: Array[CommandOutputParameter] = Array.empty,
                             `class`: CommandLineTool.`class`.type = CommandLineTool.`class`,
                             id: Option[String] = None,
                             requirements: Option[Array[Requirement]] = None,
@@ -66,18 +66,6 @@ object CommandLineTool {
   val `class` : Witness.`"CommandLineTool"`.T = "CommandLineTool".narrow
 
   type StringOrExpression = ECMAScriptExpression :+: String :+: CNil
-
-  type Inputs =
-    Array[CommandInputParameter] :+:
-    Map[CommandInputParameter#Id, CommandInputParameter#`type`] :+:
-    Map[CommandInputParameter#Id, CommandInputParameter] :+:
-    CNil
-
-  type Outputs =
-    Array[CommandOutputParameter] :+:
-    Map[CommandOutputParameter#Id, CommandOutputParameter#`type`] :+:
-    Map[CommandOutputParameter#Id, CommandOutputParameter] :+:
-    CNil
 
   type BaseCommand = String :+: Array[String] :+: CNil
 

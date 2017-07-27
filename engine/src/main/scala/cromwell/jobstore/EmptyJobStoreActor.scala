@@ -2,6 +2,7 @@ package cromwell.jobstore
 
 import akka.actor.{Actor, Props}
 import cromwell.jobstore.JobStoreActor._
+import cromwell.core.Dispatcher.EngineDispatcher
 
 class EmptyJobStoreActor extends Actor {
   override def receive: Receive = {
@@ -11,5 +12,5 @@ class EmptyJobStoreActor extends Actor {
 }
 
 object EmptyJobStoreActor {
-  def props: Props = Props(new EmptyJobStoreActor())
+  def props: Props = Props(new EmptyJobStoreActor()).withDispatcher(EngineDispatcher)
 }

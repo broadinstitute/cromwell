@@ -12,6 +12,7 @@ import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, Metad
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.webservice.metadata._
+import cromwell.core.Dispatcher.EngineDispatcher
 import spray.json.JsObject
 
 import scala.language.postfixOps
@@ -47,7 +48,7 @@ object CallCacheDiffActor {
   case class FailedCallCacheDiffResponse(reason: Throwable) extends CallCacheDiffActorResponse
 
 
-  def props(serviceRegistryActor: ActorRef) = Props(new CallCacheDiffActor(serviceRegistryActor))
+  def props(serviceRegistryActor: ActorRef) = Props(new CallCacheDiffActor(serviceRegistryActor)).withDispatcher(EngineDispatcher)
 }
 
 class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {

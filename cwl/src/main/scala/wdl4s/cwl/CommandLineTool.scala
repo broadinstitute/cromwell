@@ -1,13 +1,11 @@
 package wdl4s.cwl
 
 import eu.timepit.refined._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.string._
 import shapeless.{:+:, CNil}
 import wdl4s.cwl.CwlType._
 
 case class CommandInputParameter(
-                                  id: Option[String] = None,
+                                  id: String,
                                   label: Option[String] = None,
                                   secondaryFiles: Option[Array[ECMAScriptExpression :+: String :+: CNil]] = None,
                                   format: Option[ECMAScriptExpression :+: Array[String] :+: String :+: CNil] = None, //only valid when type: File
@@ -15,10 +13,7 @@ case class CommandInputParameter(
                                   doc: Option[String :+: Array[String] :+: CNil] = None,
                                   inputBinding: Option[CommandLineBinding] = None,
                                   default: Option[CwlAny] = None, //TODO Any type here
-                                  `type`: Option[MyriadInputType] = None) {
-  type Id = String
-  type `type` = MyriadCommandInputType
-}
+                                  `type`: Option[MyriadInputType] = None)
 
 case class CommandInputRecordSchema(
                                      `type`: W.`"record"`.T,
@@ -66,9 +61,6 @@ case class CommandOutputParameter(
                                    streamable: Option[Boolean] = None, //only valid when type: File
                                    doc: Option[String :+: Array[String] :+: CNil] = None,
                                    outputBinding: Option[CommandOutputBinding] = None,
-                                   `type`: Option[MyriadOutputType] = None) {
+                                   `type`: Option[MyriadOutputType] = None)
 
-  type `type` = String
-  type Id = String
-}
 

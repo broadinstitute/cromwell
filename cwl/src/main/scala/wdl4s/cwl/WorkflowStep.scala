@@ -21,7 +21,7 @@ import wdl4s.cwl.WorkflowStep.{Outputs, Run}
   * @param scatterMethod
   */
 case class WorkflowStep(
-                         id: Option[String] = None, //not actually optional but can be declared as a key for this whole object for convenience
+                         id: String,
                          in: Array[WorkflowStepInput] = Array.empty,
                          out: Outputs,
                          run: Run,

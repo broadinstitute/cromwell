@@ -55,16 +55,6 @@ steps:
       .isRight should be (true)
   }
 
-  it should "produce coproducts easily" in {
-    import shapeless.syntax.inject._
-    new Workflow(
-      None,
-      `class` = "Workflow",
-      inputs = Array.empty[InputParameter].inject[WorkflowInput],
-      outputs = Array.empty[WorkflowOutputParameter].inject[WorkflowOutput],
-      steps = Array.empty[WorkflowStep].inject[WorkflowSteps])
-  }
-
   it should "parse env cwl" in {
     val envCwl = """
 cwlVersion: v1.0

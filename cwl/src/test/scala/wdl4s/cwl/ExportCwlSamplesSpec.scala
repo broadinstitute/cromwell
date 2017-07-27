@@ -3,9 +3,9 @@ package wdl4s.cwl
 import io.circe.yaml.Printer
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.{Coproduct, Witness}
-import wdl4s.cwl.CommandLineTool.{BaseCommand, Outputs}
+import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
 import wdl4s.cwl.CwlVersion.CwlVersion
-import wdl4s.cwl.WorkflowStep.{Inputs, Run}
+import wdl4s.cwl.WorkflowStep.Run
 
 class ExportCwlSamplesSpec extends FlatSpec with Matchers {
 
@@ -14,14 +14,12 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
   it should "encode sample CWL command line tool" in {
     val tool =
       CommandLineTool(
-        inputs = Coproduct[CommandLineTool.Inputs](Map("message" -> CommandInputParameter(
+        inputs =  Array(CommandInputParameter(
+          id = "message",
           inputBinding = Option(CommandLineBinding(
             position = Option(1)
           )),
-          default = None,
-          `type` = None
-        ))),
-        outputs = Coproduct[CommandLineTool.Outputs](Array.empty[CommandOutputParameter]),
+        )),
         baseCommand = Option(Coproduct[BaseCommand]("echo"))
       )
     val expectedToolJsonString =
@@ -39,43 +37,41 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
 
   it should "encode sample CWL workflow" in {
     val workflow = Workflow(
-      inputs = Coproduct[WorkflowInput](
-        Map(
-          "inp" -> Coproduct[MyriadInputType](CwlType.File),
-          "ex" -> Coproduct[MyriadInputType](CwlType.String)
-        )
-      ),
-      outputs = Coproduct[WorkflowOutput](
-        Map(
-          "classout" -> WorkflowOutputParameter(
+      inputs = Array(
+          InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](CwlType.File))),
+          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](CwlType.String))),
+        ),
+      outputs = (
+        Array(
+           WorkflowOutputParameter(
+            id = "classout",
             `type` = Option(Coproduct[MyriadOutputType](CwlType.File)),
             outputSource = Option(Coproduct[WorkflowOutputParameter#OutputSource]("compile/classfile"))
           )
         )
       ),
-      steps = Coproduct[WorkflowSteps](
-        Map(
-          "untar" -> WorkflowStep(
+      steps =
+        Array(
+           WorkflowStep(
+            id = "untar",
             run = Coproduct[WorkflowStep.Run]("tar-param.cwl"),
-            in = Coproduct[WorkflowStep.Inputs](
-              Map(
-                "tarfile" -> Coproduct[WorkflowStepInputSource]("inp"),
-                "extractfile" -> Coproduct[WorkflowStepInputSource]("ex")
-              )
-            ),
+            in =
+              Array(
+                WorkflowStepInput(id = "tarfile", source = Option(Coproduct[WorkflowStepInputSource]("inp"))),
+                WorkflowStepInput(id = "extractfile", source =  Option(Coproduct[WorkflowStepInputSource]("ex")))
+              ),
             out = Coproduct[WorkflowStep.Outputs](Array("example_out"))
           ),
-          "compile" -> WorkflowStep(
+          WorkflowStep(
+            id = "compile",
             run = Coproduct[WorkflowStep.Run]("arguments.cwl"),
-            in = Coproduct[WorkflowStep.Inputs](
-              Map(
-                "src" -> Coproduct[WorkflowStepInputSource]("untar/example_out")
-              )
-            ),
+            in = Array(
+                 WorkflowStepInput(id = "src", source = Option(Coproduct[WorkflowStepInputSource]("untar/example_out")))
+              ),
             out = Coproduct[WorkflowStep.Outputs](Array("classfile"))
           )
         )
-      ))
+      )
     val expectedWorkflowJsonString =
       """cwlVersion: v1.0
         |class: Workflow
@@ -108,12 +104,11 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
     val tool = CommandLineTool(
       baseCommand = Option(Coproduct[BaseCommand]("env")),
       requirements = Option(Array(Coproduct[Requirement](EnvVarRequirement(
-        envDef = Coproduct[EnvVarRequirement.EnvDef](Map("HELLO" -> "$(inputs.message)"))
-      )))) : Option[Array[Requirement]],
-      inputs = Coproduct[CommandLineTool.Inputs](Map(
-        "message" -> Coproduct[MyriadCommandInputType](CwlType.String)
-      )),
-      outputs = Coproduct[CommandLineTool.Outputs](Array[CommandOutputParameter]()) : CommandLineTool.Outputs
+        envDef = Array(EnvironmentDef("HELLO", Coproduct[StringOrExpression]("$(inputs.message)")))
+      )))),
+      inputs = Array(
+        CommandInputParameter(id =  "message", `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
+      )
     )
     val expectedToolJsonString =
       """inputs:

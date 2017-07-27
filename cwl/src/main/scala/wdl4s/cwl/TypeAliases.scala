@@ -74,33 +74,4 @@ trait TypeAliases {
           CNil
         ] :+:
       CNil
-
-  type EVR = EnvVarRequirement.`class`.type  => EnvVarRequirement
-  type IJR = W.`"InlineJavascriptRequirement"`.T => InlineJavascriptRequirement
-  type SR = W.`"SoftwareRequirement"`.T => SoftwareRequirement
-  type SWFR = W.`"SubworkflowFeatureRequirement"`.T => SubworkflowFeatureRequirement
-  type SDR = W.`"SchemaDefRequirement"`.T => SchemaDefRequirement
-  type DR = W.`"DockerRequirement"`.T => DockerRequirement
-  type IWDR = W.`"InitialWorkDirRequirement"`.T => InitialWorkDirRequirement
-  type SCR = W.`"ShellCommandRequirement"`.T => ShellCommandRequirement
-  type RR = W.`"ResourceRequirement"`.T => ResourceRequirement
-  type SFR = W.`"ScatterFeatureRequirement"`.T => ScatterFeatureRequirement
-  type MIFR = W.`"MultipleInputFeatureRequirement"`.T => MultipleInputFeatureRequirement
-  type SIER = W.`"StepInputExpressionRequirement"`.T => StepInputExpressionRequirement
-
-  type Target =
-    EVR :+:
-    IJR :+:
-    SR :+:
-    SWFR :+:
-    SDR :+:
-    DR :+:
-    IWDR :+:
-    SCR :+:
-    RR :+:
-    SFR :+:
-    MIFR :+:
-    SIER :+:
-    CNil
-
 }

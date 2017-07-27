@@ -23,15 +23,15 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
         baseCommand = Option(Coproduct[BaseCommand]("echo"))
       )
     val expectedToolJsonString =
-      """inputs:
-        |  message:
-        |    inputBinding:
-        |      position: 1
-        |outputs: []
-        |class: CommandLineTool
-        |cwlVersion: v1.0
-        |baseCommand: echo
-        |""".stripMargin
+"""inputs:
+- id: message
+  inputBinding:
+    position: 1
+outputs: []
+class: CommandLineTool
+cwlVersion: v1.0
+baseCommand: echo
+"""
     assertCorrectJson(tool, expectedToolJsonString)
   }
 
@@ -74,29 +74,34 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
       )
     val expectedWorkflowJsonString =
       """cwlVersion: v1.0
-        |class: Workflow
-        |inputs:
-        |  inp: File
-        |  ex: string
-        |outputs:
-        |  classout:
-        |    outputSource: compile/classfile
-        |    type: File
-        |steps:
-        |  untar:
-        |    in:
-        |      tarfile: inp
-        |      extractfile: ex
-        |    out:
-        |    - example_out
-        |    run: tar-param.cwl
-        |  compile:
-        |    in:
-        |      src: untar/example_out
-        |    out:
-        |    - classfile
-        |    run: arguments.cwl
-        |""".stripMargin
+class: Workflow
+inputs:
+- id: inp
+  type: File
+- id: ex
+  type: string
+outputs:
+- id: classout
+  outputSource: compile/classfile
+  type: File
+steps:
+- id: untar
+  in:
+  - id: tarfile
+    source: inp
+  - id: extractfile
+    source: ex
+  out:
+  - example_out
+  run: tar-param.cwl
+- id: compile
+  in:
+  - id: src
+    source: untar/example_out
+  out:
+  - classfile
+  run: arguments.cwl
+""".stripMargin
     assertCorrectJson(workflow, expectedWorkflowJsonString)
   }
 
@@ -111,17 +116,19 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
       )
     )
     val expectedToolJsonString =
-      """inputs:
-        |  message: string
-        |outputs: []
-        |class: CommandLineTool
-        |requirements:
-        |- class: EnvVarRequirement
-        |  envDef:
-        |    HELLO: $(inputs.message)
-        |cwlVersion: v1.0
-        |baseCommand: env
-        |""".stripMargin
+"""inputs:
+- id: message
+  type: string
+outputs: []
+class: CommandLineTool
+requirements:
+- class: EnvVarRequirement
+  envDef:
+  - envName: HELLO
+    envValue: $(inputs.message)
+cwlVersion: v1.0
+baseCommand: env
+""".stripMargin
     assertCorrectJson(tool, expectedToolJsonString)
   }
 

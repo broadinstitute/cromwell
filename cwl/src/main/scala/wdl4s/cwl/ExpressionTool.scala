@@ -16,8 +16,7 @@ case class ExpressionTool(
                            hints: Option[Array[CwlAny]] = None,
                            label: Option[String] = None,
                            doc: Option[String] = None,
-                           cwlVersion: Option[CwlVersion] = None
-)
+                           cwlVersion: Option[CwlVersion] = None)
 
 case class ExpressionToolOutputParameter(
                                           id: String,
@@ -43,8 +42,4 @@ case class ExpressionToolOutputParameter(
                                               Array[String] :+:
                                               CNil] = None,
                                           outputBinding: Option[CommandOutputBinding] = None,
-                                          `type`: MyriadOutputType
-) {
-  type Id = String
-  type `type` = MyriadOutputType
-}
+                                          `type`: MyriadOutputType)

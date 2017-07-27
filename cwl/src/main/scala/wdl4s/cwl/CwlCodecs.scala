@@ -25,6 +25,8 @@ object CwlCodecs {
       parse(_).
       map(_.noSpaces).
       flatMap{json =>
+        val r = decode[CommandLineTool](json)
+        println(s"clt result was $r")
         decode[CommandLineTool](json) orElse
           decode[Workflow](json)
       }

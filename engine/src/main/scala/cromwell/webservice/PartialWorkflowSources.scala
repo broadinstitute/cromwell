@@ -42,8 +42,8 @@ object PartialWorkflowSources {
       val name = kv._1
       val data = kv._2
 
-      if (name == "WorkflowSource" || name == "workflowSource") {
-        if (name == "WorkflowSource") deprecationWarning(out = "WorkflowSource", in = "workflowSource")
+      if (name == "wdlSource" || name == "workflowSource") {
+        if (name == "wdlSource") deprecationWarning(out = "wdlSource", in = "workflowSource")
         partialSources.copy(workflowSource = Option(data.utf8String))
       } else if (name == "workflowType") {
         partialSources.copy(workflowType = Option(data.utf8String))

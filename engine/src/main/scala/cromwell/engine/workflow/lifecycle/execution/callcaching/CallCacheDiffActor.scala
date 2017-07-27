@@ -25,9 +25,9 @@ object CallCacheDiffActor {
   }
 
   // Exceptions when calls exist but have no hashes in their metadata, indicating they were run pre-28
-  private val HashesForCallAAndBNotFoundException = new Exception("callA and callB were run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val HashesForCallANotFoundException = new Exception("callA was run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val HashesForCallBNotFoundException = new Exception("callB was run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val HashesForCallAAndBNotFoundException = new Exception("callA and callB have not finished yet, or were run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val HashesForCallANotFoundException = new Exception("callA has not finished yet, or was run on a previous version of Cromwell on which this endpoint was not supported.")
+  private val HashesForCallBNotFoundException = new Exception("callB has not finished yet, or was run on a previous version of Cromwell on which this endpoint was not supported.")
 
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState

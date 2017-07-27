@@ -220,7 +220,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     expectMsgPF(1 second) {
       case FailedCallCacheDiffResponse(e) =>
-         e.getMessage shouldBe "callA and callB were run on a previous version of Cromwell on which this endpoint was not supported."
+         e.getMessage shouldBe "callA and callB have not finished yet, or were run on a previous version of Cromwell on which this endpoint was not supported."
     }
     expectTerminated(actor)
   }

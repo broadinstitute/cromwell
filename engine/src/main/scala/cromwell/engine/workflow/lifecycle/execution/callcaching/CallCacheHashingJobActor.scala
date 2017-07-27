@@ -13,6 +13,8 @@ import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
+import cromwell.core.Dispatcher.EngineDispatcher
+
 import wdl4s.wdl.values.WdlFile
 
 /**
@@ -195,7 +197,7 @@ object CallCacheHashingJobActor {
     fileHashingActorProps,
     writeToCache,
     callCachingEligible
-  ))
+  )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState
   case object WaitingForHashFileRequest extends CallCacheHashingJobActorState

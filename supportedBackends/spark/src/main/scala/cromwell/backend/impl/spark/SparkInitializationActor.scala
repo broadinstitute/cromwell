@@ -6,6 +6,7 @@ import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
+import cromwell.core.Dispatcher.BackendDispatcher
 import wdl4s.wdl.WdlTaskCall
 import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
 import wdl4s.wdl.values.WdlValue
@@ -21,7 +22,7 @@ object SparkInitializationActor {
             calls: Set[WdlTaskCall],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
-    Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
+    Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 }
 
 class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,

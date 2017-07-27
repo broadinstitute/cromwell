@@ -6,6 +6,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashing
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
+import cromwell.core.Dispatcher.EngineDispatcher
 
 /**
   * Receives hashes from the CallCacheHashingJobActor and makes requests to the database to determine whether or not there might be a hit
@@ -81,7 +82,7 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
 object CallCacheReadingJobActor {
   
   def props(callCacheReadActor: ActorRef) = {
-    Props(new CallCacheReadingJobActor(callCacheReadActor))
+    Props(new CallCacheReadingJobActor(callCacheReadActor)).withDispatcher(EngineDispatcher)
   }
   
   sealed trait CallCacheReadingJobActorState

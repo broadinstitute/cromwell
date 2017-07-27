@@ -2,6 +2,7 @@ package cromwell.subworkflowstore
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
+import cromwell.core.Dispatcher.EngineDispatcher
 
 class EmptySubWorkflowStoreActor extends Actor with ActorLogging {
   override def receive: Receive = {
@@ -13,5 +14,5 @@ class EmptySubWorkflowStoreActor extends Actor with ActorLogging {
 }
 
 object EmptySubWorkflowStoreActor {
-  def props: Props = Props(new EmptySubWorkflowStoreActor())
+  def props: Props = Props(new EmptySubWorkflowStoreActor()).withDispatcher(EngineDispatcher)
 }

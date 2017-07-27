@@ -13,7 +13,7 @@ case class ExpressionTool(
                              CNil,
                            id: Option[String] = None,
                            requirements: Option[Array[Requirement]] = None,
-                           hints: Option[Array[CwlAny]] = None, //TODO should be Any
+                           hints: Option[Array[CwlAny]] = None,
                            label: Option[String] = None,
                            doc: Option[String] = None,
                            cwlVersion: Option[CwlVersion] = None

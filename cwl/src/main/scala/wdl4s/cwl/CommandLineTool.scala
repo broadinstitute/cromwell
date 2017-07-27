@@ -12,7 +12,7 @@ case class CommandInputParameter(
                                   streamable: Option[Boolean] = None, //only valid when type: File
                                   doc: Option[String :+: Array[String] :+: CNil] = None,
                                   inputBinding: Option[CommandLineBinding] = None,
-                                  default: Option[CwlAny] = None, //TODO Any type here
+                                  default: Option[CwlAny] = None,
                                   `type`: Option[MyriadInputType] = None)
 
 case class CommandInputRecordSchema(

@@ -68,7 +68,7 @@ import scala.language.postfixOps
   lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
   lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
-  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle)).withDispatcher(Dispatcher.IoDispatcher))
+  lazy val ioActor = context.actorOf(IoActor.props(1000, Option(ioThrottle))
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
@@ -99,7 +99,7 @@ import scala.language.postfixOps
     case DockerLocalLookup => Seq(dockerCliFlow)
     case DockerRemoteLookup => Seq(dockerHubFlow, googleFlow, quayFlow)
   }
-  lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer).withDispatcher(Dispatcher.IoDispatcher))
+  lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize, dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer))
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
     case (name, factory) => name -> (factory.backendSingletonActorProps map context.actorOf)

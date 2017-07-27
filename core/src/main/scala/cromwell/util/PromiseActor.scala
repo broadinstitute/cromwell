@@ -1,7 +1,7 @@
 package cromwell.util
 
 import akka.actor._
-
+import cromwell.core.Dispatcher.EngineDispatcher
 import scala.concurrent.{Future, Promise}
 
 private class PromiseActor(promise: Promise[Any], sendTo: ActorRef, msg: Any) extends Actor with ActorLogging {
@@ -42,7 +42,7 @@ object PromiseActor {
     promise.future
   }
 
-  def props(promise: Promise[Any], sendTo: ActorRef, msg: Any): Props = Props(new PromiseActor(promise, sendTo, msg))
+  def props(promise: Promise[Any], sendTo: ActorRef, msg: Any): Props = Props(new PromiseActor(promise, sendTo, msg)).withDispatcher(EngineDispatcher)
 
   implicit class EnhancedActorRef(val actorRef: ActorRef) extends AnyVal {
     def askNoTimeout(message: Any)(implicit actorRefFactory: ActorRefFactory): Future[Any] = {

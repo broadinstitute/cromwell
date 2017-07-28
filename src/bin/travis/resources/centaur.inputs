@@ -1,7 +1,7 @@
 {
   "centaur_workflow.centaur.cromwell_jar":"gs://cloud-cromwell-dev/travis-centaur/CROMWELL_JAR",
   "centaur_workflow.centaur.centaur_branch":"CENTAUR_BRANCH",
-  "centaur_workflow.centaur.conf":"gs://cloud-cromwell-dev/travis-centaur/multiBackendGraceful.conf",
+  "centaur_workflow.centaur.conf":"gs://cloud-cromwell-dev/travis-centaur/multiBackend.conf",
   "centaur_workflow.centaur.pem":"gs://cloud-cromwell-dev/travis-centaur/cromwell-account.pem",
   "centaur_workflow.centaur.integration_tests_dir": "INTEGRATION_TESTS_DIR",
   "centaur_workflow.centaur.token": "gs://cloud-cromwell-dev/travis-centaur/token.txt"

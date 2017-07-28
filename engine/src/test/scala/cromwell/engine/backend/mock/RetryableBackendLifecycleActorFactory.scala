@@ -10,7 +10,8 @@ class RetryableBackendLifecycleActorFactory(name: String, configurationDescripto
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
                                                 calls: Set[WdlTaskCall],
-                                                serviceRegistryActor: ActorRef): Option[Props] = None
+                                                serviceRegistryActor: ActorRef,
+                                                restarting: Boolean): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],

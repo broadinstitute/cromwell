@@ -1,14 +1,18 @@
 package cromwell.backend.impl.jes
 
 import java.io.IOException
+import java.nio.file.StandardOpenOption
 
 import akka.actor.ActorRef
+import akka.http.scaladsl.model.StatusCodes
 import com.google.api.services.genomics.Genomics
 import com.google.auth.Credentials
+import com.google.cloud.storage.StorageException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.impl.jes.authentication.{GcsLocalizing, JesAuthObject, JesDockerCredentials}
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.core.CromwellFatalException
 import cromwell.core.io.AsyncIo
 import cromwell.filesystems.gcs.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -23,7 +27,8 @@ case class JesInitializationActorParams
   ioActor: ActorRef,
   calls: Set[WdlTaskCall],
   jesConfiguration: JesConfiguration,
-  serviceRegistryActor: ActorRef
+  serviceRegistryActor: ActorRef,
+  restarting: Boolean
 ) extends StandardInitializationActorParams {
   override val configurationDescriptor: BackendConfigurationDescriptor = jesConfiguration.configurationDescriptor
 }
@@ -77,7 +82,13 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     def fileUpload(paths: JesWorkflowPaths): Future[Unit] = {
       writeAuthenticationFile(paths, jesConfiguration.jesAttributes.restrictMetadataAccess, jesConfiguration.dockerCredentials) recoverWith {
-        case failure => Future.failed(new IOException("Failed to upload authentication file", failure))
+        case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue && jesParams.restarting =>
+          workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
+          Future.successful(())
+        case CromwellFatalException(e: StorageException) if e.getCode == StatusCodes.PreconditionFailed.intValue =>
+            Future.failed(new IOException(s"Failed to upload authentication file:" +
+              " there was already a file at the same location and this workflow was not being restarted."))
+        case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
       }
     }
 
@@ -96,7 +107,13 @@ class JesInitializationActor(jesParams: JesInitializationActorParams)
     generateAuthJson(authObjects, restrictMetadataAccess) map { content =>
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n $path")
-      writeAsync(path, content, Seq(CloudStorageOptions.withMimeType("application/json")))
+      val openOptions = Seq(
+        CloudStorageOptions.withMimeType("application/json"),
+        // Will fail if the file already exists - 
+        // In case of a restart this avoids rewriting the file as the JES job might be trying to localize it at the same time 
+        StandardOpenOption.CREATE_NEW
+      )
+      writeAsync(path, content, openOptions)
     } getOrElse Future.successful(())
   }
 

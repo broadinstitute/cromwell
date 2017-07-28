@@ -29,7 +29,8 @@ case class DefaultInitializationActorParams
   ioActor: ActorRef,
   calls: Set[WdlTaskCall],
   serviceRegistryActor: ActorRef,
-  configurationDescriptor: BackendConfigurationDescriptor
+  configurationDescriptor: BackendConfigurationDescriptor,
+  restarting: Boolean
 ) extends StandardInitializationActorParams
 
 /**

@@ -190,6 +190,11 @@ class WorkflowActor(val workflowId: WorkflowId,
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
 
+  private val restarting = startMode match {
+    case StartNewWorkflow => false
+    case RestartExistingWorkflow => true
+  }
+
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, startMode), s"WorkflowDockerLookupActor-$workflowId")
 
@@ -211,7 +216,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor),
+      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor, restarting),
         name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
@@ -224,11 +229,6 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(InitializingWorkflowState) {
     case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      val restarting = startMode match {
-        case StartNewWorkflow => false
-        case RestartExistingWorkflow => true
-      }
-
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
         ioActor = ioActor,

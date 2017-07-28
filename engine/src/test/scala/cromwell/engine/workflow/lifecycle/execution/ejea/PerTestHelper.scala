@@ -113,7 +113,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                   ioActor: ActorRef,
                                                   calls: Set[WdlTaskCall],
-                                                  serviceRegistryActor: ActorRef): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
+                                                  serviceRegistryActor: ActorRef,
+                                                  restarting: Boolean): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
   }
 
   def buildEJEA(restarting: Boolean = true,

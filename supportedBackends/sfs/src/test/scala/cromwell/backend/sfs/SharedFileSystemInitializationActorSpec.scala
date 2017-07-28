@@ -39,7 +39,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
 
   private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall],
                           conf: BackendConfigurationDescriptor) = {
-    val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf)
+    val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
     val props = Props(new SharedFileSystemInitializationActor(params))
     system.actorOf(props, "SharedFileSystemInitializationActor")
   }

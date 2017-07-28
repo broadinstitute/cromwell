@@ -27,8 +27,8 @@ case class JesBackendLifecycleActorFactory(name: String, configurationDescriptor
   val jesConfiguration = new JesConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
-                                                 serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
-    JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, serviceRegistryActor)
+                                                 serviceRegistryActor: ActorRef, restart: Boolean): StandardInitializationActorParams = {
+    JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, serviceRegistryActor, restart)
   }
 
   override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],

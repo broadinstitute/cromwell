@@ -284,6 +284,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
       eventList ++= response.executionEvents
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
+
+    // Non-success:
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
       saveJobCompletionToJobStore(data.withResponse(response))
   }
@@ -328,7 +330,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       writeToMetadata(hashMap)
     case _ =>
   }
-
 
   private def handleReadFromCacheOn(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
     jobDescriptor.maybeCallCachingEligible match {

@@ -110,20 +110,29 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(BypassedDeclaration(declKey), stateData) =>
       handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.scope.wdlType), stateData)
 
-      // Failure
-        // Initialization
+    // Failure
+    // Initialization
     case Event(JobInitializationFailed(jobKey, reason), stateData) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, Map.empty)
-      // Job Non Retryable
+    // Job Non Retryable
     case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, Map.empty)
-      // Job Retryable
+    // Aborted? But we're outside of the AbortingState!?? Could happen if
+      // - The job was aborted by something external to Cromwell
+      // - The job lasted too long (eg JES 6 day timeout)
+      // - We've reconnected to an aborting job (some sort of shutdown race condition?)
+    // Treat it like any other non-retryable failure:
+    case Event(AbortedResponse(jobKey), stateData) =>
+      val cause = new Exception("The job was aborted from outside Cromwell")
+      pushFailedCallMetadata(jobKey, None, cause, retryableFailure = false)
+      handleNonRetryableFailure(stateData, jobKey, cause, Map.empty)
+    // Job Retryable
     case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = true)
       handleRetryableFailure(jobKey, reason, returnCode)
-      // Sub Workflow - sub workflow failures are always non retryable
+    // Sub Workflow - sub workflow failures are always non retryable
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
       pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
       handleNonRetryableFailure(stateData, jobKey, reason, descendantJobKeys)
@@ -187,8 +196,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
 
     if (!jobStatus.isTerminalOrRetryable) {
       val terminationException = getFailureCause(actorRef) match {
-        case Some(e) => new RuntimeException("Unexpected failure in EJEA.", e)
-        case None => new RuntimeException("Unexpected failure in EJEA (root cause not captured).")
+        case Some(e) => new RuntimeException("Unexpected failure (or early exit) in EJEA.", e)
+        case None => new RuntimeException(s"Unexpected failure (or early exit) in EJEA $actorRef (root cause not captured).")
       }
       self ! JobFailedNonRetryableResponse(jobKey, terminationException, None)
     }

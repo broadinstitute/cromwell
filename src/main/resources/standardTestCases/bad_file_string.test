@@ -1,0 +1,12 @@
+# Verifies that if we supply a bad String to a File variable that it fails
+name: bad_file_string
+testFormat: workflowfailure
+
+files {
+  wdl: bad_file_string/bad_file_string.wdl
+}
+
+metadata {
+  workflowName: bad_file_string
+  status: Failed
+}

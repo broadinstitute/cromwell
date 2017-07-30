@@ -9,6 +9,8 @@ import cromwell.docker.{DockerClientHelper, DockerHashRequest, DockerHashResult,
 import cromwell.engine.workflow.WorkflowActor.{RestartExistingWorkflow, StartMode}
 import cromwell.engine.workflow.WorkflowDockerLookupActor._
 import cromwell.services.SingletonServicesStore
+import cromwell.core.Dispatcher.EngineDispatcher
+
 import lenthall.util.TryUtil
 
 import scala.concurrent.duration._
@@ -249,7 +251,7 @@ object WorkflowDockerLookupActor {
   final case class WorkflowDockerTerminalFailure(reason: Throwable, request: DockerHashRequest) extends WorkflowDockerLookupResponse
 
   def props(workflowId: WorkflowId, dockerHashingActor: ActorRef, startMode: StartMode, databaseInterface: SqlDatabase = SingletonServicesStore.databaseInterface) = {
-    Props(new WorkflowDockerLookupActor(workflowId, dockerHashingActor, startMode, databaseInterface))
+    Props(new WorkflowDockerLookupActor(workflowId, dockerHashingActor, startMode, databaseInterface)).withDispatcher(EngineDispatcher)
   }
 
   object WorkflowDockerLookupActorData {

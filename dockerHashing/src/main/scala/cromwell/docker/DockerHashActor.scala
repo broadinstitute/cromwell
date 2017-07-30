@@ -158,5 +158,7 @@ object DockerHashActor {
   def props(dockerRegistryFlows: Seq[DockerFlow],
             queueBufferSize: Int = 100,
             cacheEntryTTL: FiniteDuration,
-            cacheSize: Long)(materializer: ActorMaterializer) = Props(new DockerHashActor(dockerRegistryFlows, queueBufferSize, cacheEntryTTL, cacheSize)(materializer))
+            cacheSize: Long)(materializer: ActorMaterializer) = {
+    Props(new DockerHashActor(dockerRegistryFlows, queueBufferSize, cacheEntryTTL, cacheSize)(materializer)).withDispatcher(Dispatcher.IoDispatcher)
+  }
 }

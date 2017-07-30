@@ -18,6 +18,7 @@ import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
+import cromwell.core.Dispatcher.IoDispatcher
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -166,5 +167,7 @@ object IoActor {
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, throttle: Option[Throttle])(implicit materializer: ActorMaterializer) = Props(new IoActor(queueSize, throttle))
+  def props(queueSize: Int, throttle: Option[Throttle])(implicit materializer: ActorMaterializer) = {
+    Props(new IoActor(queueSize, throttle)).withDispatcher(IoDispatcher)
+  }
 }

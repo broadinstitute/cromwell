@@ -12,6 +12,7 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Promise}
+import scala.util.{Failure, Success}
 
 class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") with FlatSpecLike with Matchers with Mockito {
 
@@ -83,7 +84,14 @@ class JesJobExecutionActorSpec extends TestKitSuite("JesJobExecutionActorSpec") 
     // Wait for the JABJEA to be spawned. Then kill it:
     parent.expectNoMsg(max = AwaitAlmostNothing)
     deathwatch.expectNoMsg(max = AwaitAlmostNothing)
-    jabjeaConstructionPromise.future foreach { _ ! JabjeaExplode }
+    jabjeaConstructionPromise.future onComplete {
+      case Success(jabjea) =>
+        jabjea ! JabjeaExplode
+      case Failure(throwable) =>
+        val exception = new RuntimeException("Error creating jabjea for test!", throwable)
+        exception.printStackTrace()
+        throw exception
+    }
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>

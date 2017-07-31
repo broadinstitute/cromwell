@@ -197,25 +197,38 @@ trait CromwellApiService {
       case b: BodyPart => b.toStrict(duration).map(strict => b.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
+    def toResponse(workflowId: WorkflowId): WorkflowSubmitResponse = {
+      WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString)
+    }
+
+    def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand): Route = {
+      // NOTE: Do not blindly coppy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
+      onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
+        case Success(w) =>
+          w match {
+            case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId) =>
+              complete((StatusCodes.Created, toResponse(workflowId)))
+            case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds) =>
+              complete((StatusCodes.Created, workflowIds.toList map toResponse))
+            case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
+              throwable.failRequest(StatusCodes.BadRequest)
+          }
+        case Failure(e) =>
+          e.failRequest(StatusCodes.InternalServerError)
+      }
+    }
+
     onComplete(allParts) {
       case Success(data) =>
         PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
-            onComplete(workflowStoreActor.ask(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head)).mapTo[WorkflowStoreSubmitActor.WorkflowSubmittedToStore]) {
-              case Success(w) => complete((StatusCodes.Created, WorkflowSubmitResponse(w.workflowId.toString, WorkflowSubmitted.toString)))
-              case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
-            }
+            askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head))
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
           case Success(_) if isSingleSubmission =>
             val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
             e.failRequest(StatusCodes.BadRequest)
           case Success(workflowSourceFiles) =>
-            onComplete(workflowStoreActor.ask(WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList))).mapTo[WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore]) {
-              case Success(w) =>
-                val responses = w.workflowIds map { id => WorkflowSubmitResponse(id.toString, WorkflowSubmitted.toString) }
-                complete((StatusCodes.Created, responses.toList))
-              case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
-            }
+            askSubmit(WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)))
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)

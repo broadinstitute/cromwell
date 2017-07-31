@@ -157,5 +157,5 @@ object Main extends App {
     case BadUsageTermination => Console.err.println(UsageMessage)
   }
 
-  termination.returnCode
+  sys.exit(termination.returnCode)
 }

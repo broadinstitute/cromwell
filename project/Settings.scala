@@ -97,10 +97,10 @@ object Settings {
 
   val commonSettings = ReleasePlugin.projectSettings ++ wdl4sVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
-    scalaVersion := "2.12.2",
+    scalaVersion := "2.12.3",
     resolvers ++= commonResolvers,
     parallelExecution := false,
-    crossScalaVersions := List("2.11.8", "2.12.2")
+    crossScalaVersions := List("2.11.8", "2.12.3")
   )
 
   val womSettings = List(

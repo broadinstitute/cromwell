@@ -128,20 +128,6 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
 
   private def simpleRequest[A](uri: String, method: HttpMethod = HttpMethods.GET)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = makeRequest[A](HttpRequest(uri = uri, method = method))
 
-  private def insertSecrets(options: Option[String], refreshToken: Option[String]): Option[String] = {
-    import DefaultJsonProtocol._
-    val tokenKey = "refresh_token"
-
-    def addToken(optionsMap: Map[String, JsValue]): Map[String, JsValue] = {
-      refreshToken match {
-        case Some(token) if optionsMap.get(tokenKey).isDefined => optionsMap + (tokenKey -> JsString(token))
-        case _ => optionsMap
-      }
-    }
-
-    options map (o => addToken(o.parseJson.asJsObject.convertTo[Map[String, JsValue]]).toJson.toString)
-  }
-
   private val decoders = Map(
     HttpEncodings.gzip -> Gzip,
     HttpEncodings.deflate -> Deflate,
@@ -167,5 +153,21 @@ object CromwellClient {
 
   final case class UnsuccessfulRequestException(message: String, httpResponse: HttpResponse) extends Exception {
     override def getMessage: String = message + ": " + httpResponse.toString
+  }
+
+  private[api] def insertSecrets(options: Option[String], refreshToken: Option[String]): Option[String] = {
+    import DefaultJsonProtocol._
+    val tokenKey = "refresh_token"
+
+    val secretOptions = for {
+      refreshTokenValue <- refreshToken
+      optionsValue <- options
+      optionsMap = optionsValue.parseJson.asJsObject.convertTo[Map[String, JsValue]]
+      if optionsMap.contains(tokenKey)
+      secretMap = optionsMap.updated(tokenKey, JsString(refreshTokenValue))
+      secretValue = secretMap.toJson.toString
+    } yield secretValue
+
+    secretOptions orElse options
   }
 }

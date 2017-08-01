@@ -9,7 +9,8 @@ import wdl4s.wdl.WdlTaskCall
 import wdl4s.wdl.expression.WdlStandardLibraryFunctions
 
 case class SparkBackendFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor, actorSystem: ActorSystem) extends BackendLifecycleActorFactory {
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall], serviceRegistryActor: ActorRef): Option[Props] = {
+  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
+                                                calls: Set[WdlTaskCall], serviceRegistryActor: ActorRef, restarting: Boolean): Option[Props] = {
     Option(SparkInitializationActor.props(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor))
   }
 

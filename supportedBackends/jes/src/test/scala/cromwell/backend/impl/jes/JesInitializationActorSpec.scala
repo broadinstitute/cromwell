@@ -173,7 +173,7 @@ class JesInitializationActorSpec extends TestKitSuite("JesInitializationActorSpe
                                  calls: Set[WdlTaskCall],
                                  jesConfiguration: JesConfiguration): Props = {
     val ioActor = mockIoActor
-    val params = JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor)
+    val params = JesInitializationActorParams(workflowDescriptor, ioActor, calls, jesConfiguration, emptyActor, restarting = false)
     Props(new JesInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 

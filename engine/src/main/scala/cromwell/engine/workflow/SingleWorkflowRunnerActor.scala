@@ -33,15 +33,18 @@ import scala.util.{Failure, Try}
  * Designed explicitly for the use case of the 'run' functionality in Main. This Actor will start a workflow,
  * print out the outputs when complete and reply with a result.
  */
-class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
-  extends CromwellRootActor with LoggingFSM[RunnerState, SwraData] {
+class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
+                                metadataOutputPath: Option[Path],
+                                gracefulShutdown: Boolean,
+                                abortJobsOnTerminate: Boolean
+                                )(implicit materializer: ActorMaterializer)
+  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate) with LoggingFSM[RunnerState, SwraData] {
 
   override val serverMode = false
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
 
-  override val abortJobsOnTerminate = true
   override lazy val workflowStore = new InMemoryWorkflowStore()
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props)
   override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props)
@@ -208,8 +211,11 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection, metadataO
 }
 
 object SingleWorkflowRunnerActor {
-  def props(source: WorkflowSourceFilesCollection, metadataOutputFile: Option[Path])(implicit materializer: ActorMaterializer): Props = {
-    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile)).withDispatcher(EngineDispatcher)
+  def props(source: WorkflowSourceFilesCollection,
+            metadataOutputFile: Option[Path],
+            gracefulShutdown: Boolean,
+            abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer): Props = {
+    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile, gracefulShutdown, abortJobsOnTerminate)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait RunnerMessage

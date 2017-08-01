@@ -50,7 +50,8 @@ case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConf
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
                                                 calls: Set[WdlTaskCall],
-                                                serviceRegistryActor: ActorRef): Option[Props] = None
+                                                serviceRegistryActor: ActorRef,
+                                                restarting: Boolean): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],
@@ -275,11 +276,10 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor {
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false) {
     override val serverMode = true
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
-    override val abortJobsOnTerminate = false
     def submitWorkflow(sources: WorkflowSourceFilesWithoutImports): WorkflowId = {
       val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
       val result = Await.result(workflowStoreActor.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId

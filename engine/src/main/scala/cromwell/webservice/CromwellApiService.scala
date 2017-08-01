@@ -14,7 +14,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowSubmitted}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
-import akka.pattern.ask
+import akka.pattern.{AskTimeoutException, ask}
 import akka.util.{ByteString, Timeout}
 import net.ceedubs.ficus.Ficus._
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -31,6 +31,7 @@ import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreEngineAbortResponse
+import cromwell.server.CromwellShutdown
 import cromwell.webservice.LabelsManagerActor._
 import lenthall.exception.AggregatedMessageException
 import spray.json.JsObject
@@ -122,6 +123,7 @@ trait CromwellApiService {
               onComplete(diffActor.ask(queryParameter).mapTo[CallCacheDiffActorResponse]) {
                 case Success(r: BuiltCallCacheDiffResponse) => complete(r.response)
                 case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+                case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
                 case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)
                 case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
               }
@@ -149,6 +151,7 @@ trait CromwellApiService {
           case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) => e.errorRequest(StatusCodes.Forbidden)
           case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
           case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
+          case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
           case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
           case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
           case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
@@ -213,6 +216,7 @@ trait CromwellApiService {
             case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
               throwable.failRequest(StatusCodes.BadRequest)
           }
+        case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
         case Failure(e) =>
           e.failRequest(StatusCodes.InternalServerError)
       }
@@ -254,6 +258,7 @@ trait CromwellApiService {
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.response)
       case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+      case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
       case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
@@ -270,6 +275,7 @@ trait CromwellApiService {
           complete(w.response)
         }
       case Success(w: WorkflowQueryFailure) => w.reason.failRequest(StatusCodes.BadRequest)
+      case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
   }
@@ -290,4 +296,5 @@ object CromwellApiService {
 
   val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
   val versionResponse = JsObject(Map("cromwell" -> ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell").toJson))
+  val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)
 }

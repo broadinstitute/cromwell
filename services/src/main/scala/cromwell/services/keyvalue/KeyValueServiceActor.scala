@@ -1,7 +1,7 @@
 package cromwell.services.keyvalue
 
 import akka.actor.{Actor, ActorRef}
-import cromwell.core.{JobKey, WorkflowId}
+import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -9,7 +9,6 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
 object KeyValueServiceActor {
-
   final case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
   object KvJobKey {
     def apply(jobKey: JobKey): KvJobKey = KvJobKey(jobKey.scope.fullyQualifiedName, jobKey.index, jobKey.attempt)
@@ -38,13 +37,19 @@ object KeyValueServiceActor {
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
 }
 
-trait KeyValueServiceActor extends Actor {
+trait KeyValueServiceActor extends Actor with MonitoringCompanionHelper {
   implicit val ec: ExecutionContextExecutor
 
-  def receive = {
+  val kvReceive: Receive = {
     case action: KvGet => respond(sender(), action, doGet(action))
-    case action: KvPut => respond(sender(), action, doPut(action))
+    case action: KvPut =>
+      addWork()
+      val putAction = doPut(action)
+      putAction andThen { case _ => removeWork() }
+      respond(sender(), action, putAction)
   }
+
+  override def receive = kvReceive.orElse(monitoringReceive)
 
   def doPut(put: KvPut): Future[KvResponse]
   def doGet(get: KvGet): Future[KvResponse]

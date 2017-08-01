@@ -20,7 +20,6 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
-import scala.sys.ShutdownHookThread
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -34,6 +33,7 @@ object WorkflowManagerActor {
   /**
     * Commands
     */
+  case object PreventNewWorkflowsFromStarting extends WorkflowManagerActorMessage
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
   final case class AbortWorkflowCommand(id: WorkflowId, replyTo: ActorRef) extends WorkflowManagerActorCommand
@@ -52,11 +52,10 @@ object WorkflowManagerActor {
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
-            abortJobsOnTerminate: Boolean,
             serverMode: Boolean): Props = {
     val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, ioActor, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, backendSingletonCollection,
-      abortJobsOnTerminate, serverMode)
+      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
+      dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
@@ -65,6 +64,7 @@ object WorkflowManagerActor {
     */
   sealed trait WorkflowManagerState
   case object Running extends WorkflowManagerState
+  case object RunningAndNotStartingNewWorkflows extends WorkflowManagerState
   case object Aborting extends WorkflowManagerState
   case object Done extends WorkflowManagerState
 
@@ -100,7 +100,6 @@ case class WorkflowManagerActorParams(config: Config,
                                       dockerHashActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
-                                      abortJobsOnTerminate: Boolean,
                                       serverMode: Boolean)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
@@ -117,51 +116,16 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private val tag = self.path.name
 
   private var abortingWorkflowToReplyTo = Map.empty[WorkflowId, ActorRef]
-  private var shutdownHookThreadOption: Option[ShutdownHookThread] = None
+  private var nextPollCancellable: Option[Cancellable] = None
 
   override def preStart(): Unit = {
-    addShutdownHook()
     // Starts the workflow polling cycle
     self ! RetrieveNewWorkflows
   }
 
-  override def postStop() = {
-    // If the actor is stopping, especially during error tests, then there's nothing to wait for later at JVM shutdown.
-    tryRemoveShutdownHook()
-    super.postStop()
-  }
-
-  private def addShutdownHook() = {
-    // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
-    val abortJobsOnTerminate =
-    config.getConfig("system").as[Option[Boolean]]("abort-jobs-on-terminate").getOrElse(params.abortJobsOnTerminate)
-
-    if (abortJobsOnTerminate) {
-      val shutdownHookThread = sys.addShutdownHook {
-        logger.info(s"$tag: Received shutdown signal.")
-        self ! AbortAllWorkflowsCommand
-        while (stateData != null && stateData.workflows.nonEmpty) {
-          log.info(s"Waiting for ${stateData.workflows.size} workflows to abort...")
-          Thread.sleep(1000)
-        }
-      }
-      shutdownHookThreadOption = Option(shutdownHookThread)
-    }
-  }
-
-  private def tryRemoveShutdownHook() = {
-    try {
-      shutdownHookThreadOption.foreach(_.remove())
-    } catch {
-      case _: IllegalStateException => /* ignore, we're probably shutting down */
-      case exception: Exception => log.error(exception, "Error while removing shutdown hook: {}", exception.getMessage)
-    }
-    shutdownHookThreadOption = None
-  }
-
   startWith(Running, WorkflowManagerData(workflows = Map.empty))
 
-  when (Running) {
+  val runningAndNotStartingNewWorkflowsStateFunction: StateFunction = {
     /*
      Commands from clients
      */
@@ -175,12 +139,10 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
       log.debug("WorkflowStore provided no new workflows to start")
-      scheduleNextNewWorkflowPoll()
       stay()
     case Event(WorkflowStoreEngineActor.NewWorkflowsToStart(newWorkflows), stateData) =>
       val newSubmissions = newWorkflows map submitWorkflow
       log.info("Retrieved {} workflows from the WorkflowStoreActor", newSubmissions.toList.size)
-      scheduleNextNewWorkflowPoll()
       stay() using stateData.withAddition(newSubmissions)
     case Event(SubscribeToWorkflowCommand(id), data) =>
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
@@ -229,6 +191,16 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       stay using data.without(workflowActor)
   }
 
+  val scheduleNextNewWorkflowPollStateFunction: StateFunction = {
+    case event @ Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart | _: WorkflowStoreEngineActor.NewWorkflowsToStart, _) =>
+      scheduleNextNewWorkflowPoll()
+      runningAndNotStartingNewWorkflowsStateFunction(event)
+  }
+  
+  when (Running) (scheduleNextNewWorkflowPollStateFunction.orElse(runningAndNotStartingNewWorkflowsStateFunction))
+  
+  when (RunningAndNotStartingNewWorkflows) (runningAndNotStartingNewWorkflowsStateFunction)
+
   when (Aborting) {
     case Event(Transition(workflowActor, _, toState: WorkflowActorState), data) if toState.terminal =>
       // Remove this terminal actor from the workflowStore and log a progress message.
@@ -249,6 +221,10 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(PreventNewWorkflowsFromStarting, _) =>
+      nextPollCancellable foreach { _.cancel() }
+      sender() ! akka.Done
+      goto(RunningAndNotStartingNewWorkflows)
     // Uninteresting transition and current state notifications.
     case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest
@@ -269,7 +245,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   onTransition {
     case _ -> Done =>
       logger.info(s"$tag All workflows finished")
-      ()
+      context stop self
     case fromState -> toState =>
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
@@ -302,7 +278,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def scheduleNextNewWorkflowPoll() = {
-    context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher)
+    nextPollCancellable = Option(context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher))
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {

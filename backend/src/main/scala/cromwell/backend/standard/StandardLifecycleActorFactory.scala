@@ -74,15 +74,15 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] = Option(classOf[StandardFinalizationActor])
 
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
-                                                serviceRegistryActor: ActorRef): Option[Props] = {
-    val params = workflowInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor)
+                                                serviceRegistryActor: ActorRef, restart: Boolean): Option[Props] = {
+    val params = workflowInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, restart)
     val props = Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher)
     Option(props)
   }
 
   def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
-                                        serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
-    DefaultInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, configurationDescriptor)
+                                        serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {
+    DefaultInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, configurationDescriptor, restarting)
   }
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,

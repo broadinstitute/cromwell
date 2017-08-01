@@ -1,9 +1,12 @@
 package cromwell.jobstore
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorLogging, Props}
+import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStore.{Completion, JobCompletion, WorkflowCompletion}
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.duration._
@@ -13,12 +16,13 @@ import scala.language.postfixOps
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor {
+class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration) extends Actor with ActorLogging with GracefulShutdownHelper {
   import JobStoreActor._
-  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate))
-  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore))
+  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate), "JobStoreWriterActor")
+  val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore), "JobStoreReaderActor")
 
   override def receive: Receive = {
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(jobStoreWriterActor))
     case command: JobStoreWriterCommand => jobStoreWriterActor.tell(command, sender())
     case command: JobStoreReaderCommand => jobStoreReaderActor.tell(command, sender())
   }

@@ -21,10 +21,10 @@ import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
 import org.apache.commons.lang3.StringUtils
 import wdl4s.wdl.WdlExpression.ScopedLookupFunction
+import wdl4s.wdl._
 import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.values.WdlArray.WdlArrayLike
 import wdl4s.wdl.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
-import wdl4s.wdl._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -50,6 +50,8 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   override val workflowIdForCallMetadata = workflowDescriptor.id
 
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
+  
+  private var checkRunnableCancellable: Option[Cancellable] = None
 
   private val backendFactories = TryUtil.sequenceMap(workflowDescriptor.backendAssignments.values.toSet[String] map { backendName =>
     backendName -> CromwellBackends.backendLifecycleFactoryActorByName(backendName)
@@ -159,34 +161,20 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     FSM.NullFunction
   }
   when(WorkflowExecutionFailedState) {
-    alreadyFailedMopUp
+    FSM.NullFunction
   }
   when(WorkflowExecutionAbortedState) {
-    alreadyFailedMopUp
+    FSM.NullFunction
   }
 
   private def scheduleStartRunnableCalls() = {
-    context.system.scheduler.scheduleOnce(SweepInterval, self, CheckRunnable)
+    checkRunnableCancellable = Option(context.system.scheduler.scheduleOnce(SweepInterval, self, CheckRunnable))
   }
-
-  /**
-    * Mop up function to handle a set of incoming results if this workflow has already failed:
-    */
-  private def alreadyFailedMopUp: StateFunction = {
-    case Event(JobInitializationFailed(jobKey, reason), _) =>
-      pushFailedCallMetadata(jobKey, None, reason, retryableFailure = false)
-      stay
-    case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), _) =>
-      pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = false)
-      stay
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
-      pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
-      stay
-    case Event(r: JobSucceededResponse, _) =>
-      pushSuccessfulCallMetadata(r.jobKey, r.returnCode, r.jobOutputs)
-      stay
+  
+  override def postStop() = {
+    checkRunnableCancellable foreach { _.cancel() }
+    super.postStop()
   }
-
 
   def handleTerminated(actorRef: ActorRef) = {
     // Both of these Should Never Happen (tm), assuming the state data is set correctly on EJEA creation.

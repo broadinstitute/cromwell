@@ -2,9 +2,13 @@ package cromwell.services
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy, Props}
-import cromwell.core.Dispatcher.ServiceDispatcher
+import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
+import cromwell.core.Dispatcher.ServiceDispatcher
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
+
 import scala.collection.JavaConverters._
 
 object ServiceRegistryActor {
@@ -48,7 +52,7 @@ object ServiceRegistryActor {
   }
 }
 
-class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with ActorLogging {
+class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with ActorLogging with GracefulShutdownHelper {
   import ServiceRegistryActor._
 
   val services: Map[String, ActorRef] = serviceProps map {
@@ -62,6 +66,11 @@ class ServiceRegistryActor(serviceProps: Map[String, Props]) extends Actor with 
         case None =>
           log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
           sender ! ServiceRegistryFailure(msg.serviceName)
+      }
+    case ShutdownCommand =>
+      services.values.toList match {
+        case Nil => context stop self
+        case head :: tail => waitForActorsAndShutdown(NonEmptyList.of(head, tail: _*))
       }
     case fool =>
       log.error("Received message which is not a ServiceRegistryMessage: {}", fool)

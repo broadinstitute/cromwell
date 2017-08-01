@@ -25,7 +25,7 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
   }
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
-                                                 serviceRegistryActor: ActorRef): StandardInitializationActorParams = {
+                                                 serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {
     TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
   }
 }

@@ -1,15 +1,12 @@
 package wdl4s.cwl
 
-import io.circe.yaml.Printer
 import org.scalatest.{FlatSpec, Matchers}
-import shapeless.{Coproduct, Witness}
+import shapeless.Coproduct
 import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
-import wdl4s.cwl.CwlVersion.CwlVersion
-import wdl4s.cwl.WorkflowStep.Run
 
 class ExportCwlSamplesSpec extends FlatSpec with Matchers {
 
-  def assertCorrectJson(cwl: Cwl, expectedYaml: String): Unit = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
+  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
 
   it should "encode sample CWL command line tool" in {
     val tool =

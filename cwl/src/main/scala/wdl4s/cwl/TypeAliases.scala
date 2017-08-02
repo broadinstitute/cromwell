@@ -2,7 +2,6 @@ package wdl4s.cwl
 
 import shapeless.{:+:, CNil}
 import wdl4s.cwl.CwlType.CwlType
-import eu.timepit.refined._
 
 trait TypeAliases {
 

@@ -1,6 +1,6 @@
 package wdl4s.cwl
 
-import shapeless.{:+:, CNil, Coproduct}
+import shapeless.{:+:, CNil}
 import ScatterMethod._
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
 

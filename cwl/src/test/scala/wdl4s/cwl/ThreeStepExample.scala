@@ -5,9 +5,6 @@ import syntax.singleton._
 import wdl4s.cwl.CommandLineTool.{Argument, BaseCommand, StringOrExpression}
 import wdl4s.cwl.CommandOutputBinding.Glob
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
-import io.circe.syntax._
-import io.circe.yaml._
-import io.circe.yaml.syntax._
 import CwlCodecs._
 
 /*

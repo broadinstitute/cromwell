@@ -2,23 +2,7 @@ package wdl4s.cwl
 
 import io.circe.Decoder
 import io.circe._
-import io.circe.generic.auto._
 
-import io.circe.shapes._
-import io.circe.generic.auto._
-import shapeless.Coproduct
-import cats.syntax.either._
-import eu.timepit.refined.string._
-import eu.timepit.refined._
-import io.circe.refined._
-import io.circe.literal._
-import io.circe.syntax._
-import cats.data.ValidatedNel
-import cats.data.Validated._
-import cats.syntax.traverse._
-import cats.instances.list._
-import cats.syntax.option._
-import lenthall.validation.ErrorOr.ErrorOr
 
 object Implicits {
 

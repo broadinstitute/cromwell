@@ -1,8 +1,7 @@
 package wdl4s.cwl
 
-import shapeless.{:+:, CNil, Coproduct, Witness}
+import shapeless.{:+:, CNil, Witness}
 import shapeless.syntax.singleton._
-import eu.timepit.refined._
 import CwlVersion._
 import wdl4s.cwl.CommandLineTool.{apply => _, _}
 

@@ -1,18 +1,13 @@
 package wdl4s.cwl
 
 import io.circe._
-import io.circe.syntax._
-import io.circe.yaml._
-import io.circe.yaml.syntax._
 import io.circe.generic.auto._
 import io.circe.yaml.{parser => YamlParser}
 import io.circe.parser._
 import io.circe.shapes._
 import io.circe.generic.auto._
 import cats.syntax.either._
-import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string._
-import eu.timepit.refined._
 import io.circe.refined._
 import io.circe.literal._
 

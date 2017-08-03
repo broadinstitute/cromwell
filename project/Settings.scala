@@ -76,23 +76,6 @@ object Settings {
 
   addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
 
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) =>
-      // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
-      // for the `console` target.
-      baseSettings ++ warningSettings ++ consoleHostileSettings
-    case Some((2, 11)) =>
-      // Scala 2.11 takes a simplified set of options
-      baseSettings
-    case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
-  })
-
-  // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
-  scalacOptions in(Compile, doc) := (baseSettings ++ List("-no-link-warnings"))
-  // No console-hostile options, otherwise console is effectively unusable.
-  // https://github.com/sbt/sbt/issues/1815
-  scalacOptions in(Compile, console) := (baseSettings ++ warningSettings)
-
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
 
   val commonSettings = ReleasePlugin.projectSettings ++ wdl4sVersionWithGit ++ publishingSettings ++ List(
@@ -100,6 +83,21 @@ object Settings {
     scalaVersion := "2.12.3",
     resolvers ++= commonResolvers,
     parallelExecution := false,
+    scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) =>
+        // The default scalacOptions includes console-hostile options.  These options are overridden specifically below
+        // for the `console` target.
+        baseSettings ++ warningSettings ++ consoleHostileSettings
+      case Some((2, 11)) =>
+        // Scala 2.11 takes a simplified set of options
+        baseSettings
+      case wut => throw new NotImplementedError(s"Found unsupported Scala version $wut. wdl4s does not support versions of Scala other than 2.11 or 2.12.")
+    }),
+    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
+    scalacOptions in(Compile, doc) := (baseSettings ++ List("-no-link-warnings")),
+    // No console-hostile options, otherwise the console is effectively unusable.
+    // https://github.com/sbt/sbt/issues/1815
+    scalacOptions in(Compile, console) := (baseSettings ++ warningSettings),
     crossScalaVersions := List("2.11.8", "2.12.3")
   )
 

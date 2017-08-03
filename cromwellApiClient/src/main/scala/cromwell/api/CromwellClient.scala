@@ -162,6 +162,7 @@ object CromwellClient {
     val secretOptions = for {
       refreshTokenValue <- refreshToken
       optionsValue <- options
+      if optionsValue.contains(tokenKey)
       optionsMap = optionsValue.parseJson.asJsObject.convertTo[Map[String, JsValue]]
       if optionsMap.contains(tokenKey)
       secretMap = optionsMap.updated(tokenKey, JsString(refreshTokenValue))

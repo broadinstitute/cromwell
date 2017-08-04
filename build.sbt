@@ -57,7 +57,9 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV,
     "com.iheart" %% "ficus" % "1.4.0",
-    "org.webjars" %  "swagger-ui" % "2.1.1",
+    // WARNING: Updating this swagger-ui version?
+    // Do a search/replace for the version string ("2.1.1") in the code too or the swagger page won't be found.
+    "org.webjars" % "swagger-ui" % "2.1.1",
     "org.scalatest" %% "scalatest" % scalaTestV % Test,
     "io.swagger" % "swagger-parser" % "1.0.22" % Test,
     "org.yaml" % "snakeyaml" % "1.17" % Test,

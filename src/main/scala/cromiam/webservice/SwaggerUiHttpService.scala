@@ -7,6 +7,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import akka.util.ByteString
 import com.typesafe.config.Config
+import cromiam.server.config.SwaggerOauthConfig
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -210,16 +211,26 @@ trait SwaggerResourceHttpService {
 trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerResourceHttpService {
   override def swaggerUiDocsPath = swaggerDocsPath
 
+  def oauthConfig: SwaggerOauthConfig
+
   /**
    * @return A route that redirects to the swagger UI and returns the swagger resource.
    */
   final def swaggerUiResourceRoute = swaggerUiRoute ~ swaggerResourceRoute
 
-  def oauthClientId = "your-client-id"
+  override protected def rewriteSwaggerIndex(data: String): String = {
+    val swaggerOptions =
+      """
+        |        validatorUrl: null,
+        |        apisSorter: "alpha",
+        |        operationsSorter: "alpha",
+      """.stripMargin
 
-  override protected def rewriteSwaggerIndex(data: String): String =
-    data
-      .replace("your-client-id", oauthClientId)
+    data.replace("your-client-id", oauthConfig.clientId)
+      .replace("your-realms", oauthConfig.realm)
+      .replace("your-app-name", oauthConfig.appName)
       .replace("scopeSeparator: \",\"", "scopeSeparator: \" \"")
+      .replace("jsonEditor: false,", "jsonEditor: false," + swaggerOptions)
       .replace("url = \"http://petstore.swagger.io/v2/swagger.json\";", s"url = '/$swaggerDocsPath';")
+  }
 }

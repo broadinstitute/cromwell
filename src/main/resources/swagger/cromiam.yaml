@@ -11,6 +11,22 @@ info:
   version: ''
 produces:
   - application/json
+security:
+  - googleoauth:
+      - openid
+      - email
+      - profile
+
+securityDefinitions:
+  googleoauth:
+    type: oauth2
+    authorizationUrl: 'https://accounts.google.com/o/oauth2/auth'
+    flow: implicit
+    scopes:
+      openid: open id authorization
+      email: email authorization
+      profile: profile authorization
+
 paths:
   '/api/workflows/{version}/{id}/abort':
     post:
@@ -43,8 +59,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}':
     post:
       summary: Submit a new workflow for execution
@@ -114,8 +132,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/batch':
     post:
       summary: Submit a batch of new workflows for execution
@@ -167,8 +187,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/{id}/outputs':
     get:
       summary: Query for workflow outputs based on workflow id
@@ -196,8 +218,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/{id}/labels':
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
@@ -235,8 +259,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/query':
     get:
       summary: Query workflows by start dates, end dates, names, ids, or statuses.
@@ -314,8 +340,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
     post:
       summary: Query workflows by start dates, end dates, names, ids, or statuses.
       parameters:
@@ -347,8 +375,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/{id}/status':
     get:
       summary: Query for workflow status based on workflow id
@@ -378,8 +408,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/{id}/logs':
     get:
       summary: Query for the standard output and error of all calls in a workflow
@@ -407,8 +439,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/{id}/metadata':
     get:
       summary: Query for workflow and call-level metadata for a specified workflow
@@ -592,8 +626,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/callcaching/diff':
     get:
       summary: Return the hash differential between two calls
@@ -646,8 +682,10 @@ paths:
         '500':
           description: Internal Error
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/api/workflows/{version}/backends':
     get:
       summary: Returns the backends supported by this Cromwell.
@@ -666,8 +704,10 @@ paths:
           schema:
             $ref: '#/definitions/BackendResponse'
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
+            - email
+            - profile
   '/engine/{version}/version':
     get:
       summary: Returns the version of the Cromwell Engine
@@ -686,15 +726,10 @@ paths:
           schema:
             $ref: '#/definitions/VersionResponse'
       security:
-        - google_oauth:
+        - googleoauth:
             - openid
-securityDefinitions:
-  google_oauth:
-    type: oauth2
-    authorizationUrl: 'https://accounts.google.com/o/oauth2/auth'
-    flow: implicit
-    scopes:
-      openid: open id authorization
+            - email
+            - profile
 definitions:
   WorkflowSubmitResponse:
     required:

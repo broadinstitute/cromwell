@@ -1,11 +1,12 @@
 package cromiam.webservice
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.StatusCodes.{BadRequest, Forbidden, NotImplemented, Unauthorized}
+import akka.http.scaladsl.model.StatusCodes.{BadRequest, Forbidden, NotImplemented, Unauthorized, InternalServerError}
+import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -13,8 +14,8 @@ import akka.stream.ActorMaterializer
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
-import cromiam.sam.{SamActor, SamClient}
-import cromiam.sam.SamActor.{SamDenialException, WorkflowAuthorizationRequest}
+import cromiam.sam.SamClient
+import cromiam.sam.SamClient.{SamDenialException, WorkflowAuthorizationRequest}
 import cromiam.server.config.CromIamServerConfig
 import cromiam.webservice.CromIamApiService._
 import cromwell.api.model.CromwellStatus
@@ -36,10 +37,6 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
   implicit val materializer: ActorMaterializer
 
   protected def configuration: CromIamServerConfig
-  protected lazy val UserIdHeader: String = configuration.cromIamConfig.userIdHeader
-
-  override protected lazy val samActor: ActorRef = system.actorOf(SamActor.props(configuration.cromIamConfig.userIdHeader, configuration.cromIamConfig.allowedUsers), "SamActor")
-  override protected lazy val actorRefFactory: ActorRefFactory = system
 
   val logger: LoggingAdapter
 
@@ -51,28 +48,34 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
 
   private[webservice] def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
     val cromwellRequest = httpRequest
-      .copy(uri = httpRequest.uri.withAuthority(configuration.cromwellConfig.interface, configuration.cromwellConfig.port))
+      .copy(uri = httpRequest.uri.withAuthority(configuration.cromwellConfig.interface, configuration.cromwellConfig.port).withScheme(configuration.cromwellConfig.scheme))
       .withHeaders(httpRequest.headers.filterNot(header => header.name == timeoutAccessHeader))
-
     Http().singleRequest(cromwellRequest)
+  } recoverWith {
+    case e => Future.failed(CromwellConnectionFailure(e))
   }
 
-  private[webservice] def authorizeThenForwardToCromwell(user: Option[String], workflowIds: List[String], action: String, request: HttpRequest): Future[HttpResponse] = {
-    def authForId(id: String) = requestAuth(WorkflowAuthorizationRequest(user.getOrElse("anon"), id, action))
+  private[webservice] def authorizeThenForwardToCromwell(authorization: Authorization, workflowIds: List[String], action: String, request: HttpRequest): Future[HttpResponse] = {
+    def authForId(id: String): Future[Unit] = requestAuth(WorkflowAuthorizationRequest(authorization, id, action)) recoverWith {
+      case SamDenialException => Future.failed(SamDenialException)
+      case e => Future.failed(SamConnectionFailure("authorization", e))
+    }
+
     (for {
       _ <- workflowIds traverse authForId
       resp <- forwardToCromwell(request)
     } yield resp) recover {
-      case SamDenialException => HttpResponse(status = Unauthorized, entity = "")
+      case SamDenialException => SamDenialResponse
+      case other => HttpResponse(status = InternalServerError, entity = s"CromIAM unexpected error: $other")
     }
   }
 
-  private[webservice] def authorizeReadThenForwardToCromwell(user: Option[String], workflowId: List[String], request: HttpRequest): Future[HttpResponse] =
-    authorizeThenForwardToCromwell(user, workflowId, "read", request)
-  private[webservice] def authorizeAbortThenForwardToCromwell(user: Option[String], workflowId: String, request: HttpRequest): Future[HttpResponse] =
-    authorizeThenForwardToCromwell(user, List(workflowId), "abort", request)
+  private[webservice] def authorizeReadThenForwardToCromwell(authorization: Authorization, workflowId: List[String], request: HttpRequest): Future[HttpResponse] =
+    authorizeThenForwardToCromwell(authorization, workflowId, "view", request)
+  private[webservice] def authorizeAbortThenForwardToCromwell(authorization: Authorization, workflowId: String, request: HttpRequest): Future[HttpResponse] =
+    authorizeThenForwardToCromwell(authorization, List(workflowId), "abort", request)
 
-  private[webservice] def forwardSubmissionToCromwell(user: Option[String], request: HttpRequest, batch: Boolean): Future[HttpResponse] = {
+  private[webservice] def forwardSubmissionToCromwell(authorization: Authorization, request: HttpRequest, batch: Boolean): Future[HttpResponse] = {
 
     def extractWorkflowIds(response: HttpResponse): Future[List[String]] = {
       if (response.status.isSuccess) {
@@ -84,13 +87,17 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
       } else Future.successful(List.empty)
     }
 
-    val userNonOptional = user.getOrElse("anon")
+    def registerWithSam(ids: List[String]): Future[Unit] = registerCreation(authorization, ids) recoverWith {
+      case SamDenialException => Future.failed(SamDenialException)
+      case e => Future.failed(SamConnectionFailure("new workflow registration", e))
+    }
+
     (for {
       resp <- forwardToCromwell(request)
       workflowIds <- extractWorkflowIds(resp)
-      _ <- registerCreation(userNonOptional, workflowIds)
+      _ <- registerWithSam(workflowIds)
     } yield resp) recover {
-      case SamDenialException => HttpResponse(status = Unauthorized, entity = "{}")
+      case SamDenialException => SamDenialResponse
     }
   }
 
@@ -101,19 +108,19 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
 
   val allRoutes: Route = workflowRoutes ~ engineRoutes
 
-  private def handleRequest(f: (Option[String], HttpRequest) => ToResponseMarshallable): Route = {
-    optionalHeaderValueByName(UserIdHeader) { userId =>
+  private def handleRequest(f: (Authorization, HttpRequest) => ToResponseMarshallable): Route = {
+    headerValuePF { case a: Authorization => a } { authorization =>
       toStrictEntity(300.millis) {
         extractRequest { req =>
           complete {
-            f.apply(userId, req)
+            f.apply(authorization, req)
           }
         }
       }
     }
   }
 
-  private def handleRequest(directive: Directive0)(f: (Option[String], HttpRequest) => ToResponseMarshallable): Route = {
+  private def handleRequest(directive: Directive0)(f: (Authorization, HttpRequest) => ToResponseMarshallable): Route = {
     directive { handleRequest(f) }
   }
 
@@ -181,6 +188,10 @@ trait CromIamApiService extends Directives with SprayJsonSupport with DefaultJso
 }
 
 object CromIamApiService {
+  private[webservice] val SamDenialResponse = HttpResponse(status = Unauthorized, entity = "Access denied by Sam")
   private[webservice] val CromIamStatsForbidden = HttpResponse(status = Forbidden, entity = "CromIAM does not allow access to the /stats endpoint")
   private[webservice] val CromIamQueryNotImplemented = HttpResponse(status = NotImplemented, entity = "CromIAM does not currently support the /query endpoint")
+
+  private[webservice] case class SamConnectionFailure(phase: String, f: Throwable) extends Exception(s"Unable to connect to Sam during $phase (${f.getMessage})", f)
+  private[webservice] case class CromwellConnectionFailure(f: Throwable) extends Exception(s"Unable to connect to Cromwell (${f.getMessage})", f)
 }

@@ -52,7 +52,8 @@ lazy val catsDependencies = List(
   )
 
 libraryDependencies ++= Seq(
-  "org.broadinstitute" %% "wdl4s" % wdl4sV,
+  "org.broadinstitute" %% "wdl4s-wdl" % wdl4sV,
+  "org.broadinstitute" %% "wdl4s-cwl" % wdl4sV,
   //---------- Test libraries -------------------//
   "org.scalatest" %% "scalatest" % "3.0.1" % Test
 ) ++ catsDependencies

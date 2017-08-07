@@ -30,17 +30,18 @@ object WomGraphPrint {
   def womExecutableFromCwl(filePath: String): Executable = {
     val yaml: Yaml = readFile(filePath)
     CwlCodecs.decodeCwl(yaml) match {
-      case Right((clt: CommandLineTool, _)) =>
-        clt.womExecutable match {
-          case Valid(wom) => wom
-          case Invalid(e) => throw new Exception(s"Can't build WOM executable from CWL CommandLineTool: ${e.toList.mkString("\n", "\n", "\n")}")
-        }
-      case Right((wf: Workflow, m)) if m.isEmpty =>
-        wf.womExecutable(Map.empty) match {
-          case Valid(wom) => wom
-          case Invalid(e) => throw new Exception(s"Can't build WOM executable from CWL Workflow: ${e.toList.mkString("\n", "\n", "\n")}")
-        }
-        // TODO: Don't throw away the error information! Might as well return it:
+        // TODO: Re-add after https://github.com/broadinstitute/wdl4s/pull/161
+//      case Right((clt: CommandLineTool, _)) =>
+//        clt.womExecutable match {
+//          case Valid(wom) => wom
+//          case Invalid(e) => throw new Exception(s"Can't build WOM executable from CWL CommandLineTool: ${e.toList.mkString("\n", "\n", "\n")}")
+//        }
+//      case Right((wf: Workflow, m)) if m.isEmpty =>
+//        wf.womExecutable(Map.empty) match {
+//          case Valid(wom) => wom
+//          case Invalid(e) => throw new Exception(s"Can't build WOM executable from CWL Workflow: ${e.toList.mkString("\n", "\n", "\n")}")
+//        }
+      // TODO: Don't throw away the error information! Might as well return it:
       case other => throw new Exception(s"Can't read $filePath")
     }
   }

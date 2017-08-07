@@ -1,22 +1,21 @@
-package wdltool
+package wdltool.graph
 
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
-import wdl4s.wdl.{CallOutput, Declaration, If, Scatter, WdlCall, _}
-import wdl4s.wdl.WdlGraphNode
+import cats.derived.monoid._
+import cats.derived.monoid.legacy._
+import cats.implicits._
+import wdl4s.wdl.{CallOutput, Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
 
 import scala.collection.JavaConverters._
-
-import cats.implicits._
-import cats.derived.monoid._, legacy._
 
 object GraphPrint {
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String])
 
-  def generateWorkflowDigraph(file: String, allNodesMode: Boolean): WorkflowDigraph = {
+  def generateWorkflowDigraph(file: String): WorkflowDigraph = {
     // It's ok to use .get here, we're happy to throw an exception and crash the program!
     val namespace = WdlNamespaceWithWorkflow.load(Files.readAllLines(Paths.get(file)).asScala.mkString(System.lineSeparator()), Seq(WdlNamespace.fileResolver _)).get
 

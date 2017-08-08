@@ -458,11 +458,31 @@ For many examples on how to use WDL see [the WDL site](https://github.com/broadi
 
 # Configuring Cromwell
 
-Cromwell's default configuration file is located at `core/src/main/resources/reference.conf`.
+The configuration files are in
+[Hocon](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation).
 
-The configuration file is in [Hocon](https://github.com/typesafehub/config/blob/master/HOCON.md#hocon-human-optimized-config-object-notation) which means the configuration file can specify configuration as JSON-like stanzas like:
+To create your own configuration file, create a new text file and add your custom configuration. At the start of the
+file, include the file `application.conf` at the top before your custom configurations.
 
 ```hocon
+# include the application.conf at the top
+include required(classpath("application"))
+```
+
+From there, add other configuration values and/or stanzas with your customizations.
+
+```hocon
+# include the application.conf at the top
+include required(classpath("application"))
+
+# Add customizations
+webservice.port = 58000
+```
+
+Your configuration file can specify configuration as JSON-like stanzas like:
+
+```hocon
+include required(classpath("application"))
 webservice {
   port = 8000
   interface = 0.0.0.0
@@ -474,6 +494,7 @@ webservice {
 Or, alternatively, as dot-separated values:
 
 ```hocon
+include required(classpath("application"))
 webservice.port = 8000
 webservice.interface = 0.0.0.0
 webservice.binding-timeout = 5s
@@ -486,12 +507,15 @@ This allows any value to be overridden on the command line:
 java -Dwebservice.port=8080 cromwell.jar ...
 ```
 
-
-To customize configuration it is recommended that one copies relevant stanzas from `core/src/main/resources/reference.conf` into a new file, modify it as appropriate, then pass it to Cromwell via:
+To customize configuration it is recommended that one copies relevant stanzas from `cromwell.examples.conf` into a new
+file, modify it as appropriate, then pass it to Cromwell via:
 
 ```
 java -Dconfig.file=/path/to/yourOverrides.conf cromwell.jar ...
 ```
+
+A description of options and example stanzas may be found in the file
+[`cromwell.examples.conf`](cromwell.examples.conf).
 
 ## I/O
 

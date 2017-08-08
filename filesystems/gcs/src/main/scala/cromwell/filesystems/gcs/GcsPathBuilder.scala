@@ -8,7 +8,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
 import com.google.cloud.http.HttpTransportOptions
-import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStorageFileSystemProvider, CloudStoragePath}
+import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.cloud.storage.{BlobId, StorageOptions}
 import com.google.common.base.Preconditions._
 import com.google.common.net.UrlEscapers
@@ -17,8 +17,8 @@ import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.auth.GoogleAuthMode
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.Try
 
@@ -126,28 +126,34 @@ object GcsPathBuilder {
         .build()
     }
 
-    // Create a com.google.cloud.storage.Storage
-    // This is the "relatively" high level API, and recommended one. The nio implementation sits on top of this.
-    val cloudStorage: com.google.cloud.storage.Storage = storageOptions.getService
-
-    // The CloudStorageFileSystemProvider constructor is not public. Currently the only way to obtain one is through a CloudStorageFileSystem
-    // Moreover at this point we can use the same provider for all operations as we have usable credentials
-    // In order to avoid recreating a provider with every getPath call, create a dummy FileSystem just to get its provider
-    val provider: CloudStorageFileSystemProvider = CloudStorageFileSystem.forBucket("dummy", cloudStorageConfiguration, storageOptions).provider()
-    
-    new GcsPathBuilder(apiStorage, cloudStorage, provider, storageOptions.getProjectId)
+    new GcsPathBuilder(apiStorage, cloudStorageConfiguration, storageOptions)
   }
 }
 
-class GcsPathBuilder(val apiStorage: com.google.api.services.storage.Storage,
-                     val cloudStorage: com.google.cloud.storage.Storage,
-                     provider: CloudStorageFileSystemProvider,
-                     val projectId: String) extends PathBuilder {
+class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
+                     cloudStorageConfiguration: CloudStorageConfiguration,
+                     storageOptions: StorageOptions) extends PathBuilder {
+
+  private[gcs] val projectId = storageOptions.getProjectId
+
+  /**
+    * Tries to create a new GcsPath.
+    *
+    * Note that this creates a new CloudStorageFileSystemProvider for every Path created, hence making it unsuitable for
+    * file copying using the nio copy method. Cromwell currently uses a lower level API which works around this problem.
+    *
+    * If you plan on using the nio copy method make sure to take this into consideration.
+    *
+    * Also see https://github.com/GoogleCloudPlatform/google-cloud-java/issues/1343
+    */
   def build(string: String): Try[GcsPath] = {
     Try {
       val uri = getUri(string)
       GcsPathBuilder.checkValid(uri)
-      GcsPath(provider.getPath(uri), apiStorage, cloudStorage)
+      val fileSystem = CloudStorageFileSystem.forBucket(uri.getHost, cloudStorageConfiguration, storageOptions)
+      val cloudStoragePath = fileSystem.getPath(uri.getPath)
+      val cloudStorage = storageOptions.getService
+      GcsPath(cloudStoragePath, apiStorage, cloudStorage)
     }
   }
 

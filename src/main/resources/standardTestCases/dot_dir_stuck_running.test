@@ -1,0 +1,13 @@
+name: dot_dir_stuck_running
+testFormat: workflowsuccess
+
+files {
+  wdl: dot_dir_stuck_running/dot_dir_stuck_running.wdl
+}
+
+# https://github.com/broadinstitute/cromwell/pull/2512
+metadata {
+  workflowName: dot_dir_stuck_running
+  status: Succeeded
+  "outputs.dot_dir_stuck_running.out" : "hi"
+}

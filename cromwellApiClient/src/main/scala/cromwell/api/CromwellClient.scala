@@ -45,25 +45,6 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   import model.CromwellVersionJsonSupport._
   import model.CallCacheDiffJsonSupport._
 
-  private def requestEntityForSubmit(workflowSubmission: WorkflowSubmission) = {
-    import cromwell.api.model.LabelsJsonFormatter._
-
-    val sourceBodyParts = Map(
-      "workflowSource" -> Option(workflowSubmission.wdl),
-      "workflowType" -> workflowSubmission.workflowType,
-      "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
-      "workflowInputs" -> workflowSubmission.inputsJson,
-      "workflowOptions" -> insertSecrets(workflowSubmission.options, workflowSubmission.refreshToken),
-      "customLabels" -> Option(workflowSubmission.customLabels.toJson.toString)
-    ) collect { case (name, Some(source: String)) => Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source))) }
-    val zipBodyParts = Map(
-      "workflowDependencies" -> workflowSubmission.zippedImports
-    ) collect { case (name, Some(file)) => Multipart.FormData.BodyPart.fromPath(name, MediaTypes.`application/zip`, file.path) }
-
-    val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
-    multipartFormData.toEntity()
-  }
-
   def submit(workflow: WorkflowSubmission)(implicit ec: ExecutionContext): Future[SubmittedWorkflow] = {
     val requestEntity = requestEntityForSubmit(workflow)
 
@@ -85,8 +66,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
       inputsJson = Option(inputs),
       options = workflow.options,
       customLabels = workflow.customLabels,
-      zippedImports = workflow.zippedImports,
-      refreshToken = workflow.refreshToken))
+      zippedImports = workflow.zippedImports))
 
     makeRequest[List[CromwellStatus]](HttpRequest(HttpMethods.POST, batchSubmitEndpoint, List.empty[HttpHeader], requestEntity)) map { statuses =>
       val zipped = submissionSet.zip(statuses)
@@ -155,19 +135,71 @@ object CromwellClient {
     override def getMessage: String = message + ": " + httpResponse.toString
   }
 
-  private[api] def insertSecrets(options: Option[String], refreshToken: Option[String]): Option[String] = {
+  /**
+    * Optionally replace a json value. Returns the original json if:
+    * - The jsonOption is None
+    * - The key is not found in the json
+    * - The valueOption is None
+    *
+    * @param jsonOption The optional json
+    * @param key The key
+    * @param valueOption The optional value
+    * @return The json with the modified value, or the original json
+    */
+  def replaceJson(jsonOption: Option[String], key: String, valueOption: Option[String]): Option[String] = {
+    val newJsonOption = for {
+      value <- valueOption
+      json <- jsonOption
+      newJson = replaceJson(json, key, value)
+    } yield newJson
+
+    newJsonOption orElse jsonOption
+  }
+
+  /**
+    * Replace a json value. Returns the original json if the key is not found in the json.
+    *
+    * @param json The json
+    * @param key The key
+    * @param value The value
+    * @return The json with the modified value, or the original json
+    */
+  def replaceJson(json: String, key: String, value: String): String = {
     import DefaultJsonProtocol._
-    val tokenKey = "refresh_token"
+    val newJsonOption = for {
+      _ <- Option(json)
+      if json.contains(key)
+      map = json.parseJson.asJsObject.convertTo[Map[String, JsValue]]
+      if map.contains(key)
+      newMap = map.updated(key, JsString(value))
+      newJson = newMap.toJson.toString
+    } yield newJson
 
-    val secretOptions = for {
-      refreshTokenValue <- refreshToken
-      optionsValue <- options
-      optionsMap = optionsValue.parseJson.asJsObject.convertTo[Map[String, JsValue]]
-      if optionsMap.contains(tokenKey)
-      secretMap = optionsMap.updated(tokenKey, JsString(refreshTokenValue))
-      secretValue = secretMap.toJson.toString
-    } yield secretValue
+    newJsonOption getOrElse json
+  }
 
-    secretOptions orElse options
+  private[api] def requestEntityForSubmit(workflowSubmission: WorkflowSubmission): MessageEntity = {
+    import cromwell.api.model.LabelsJsonFormatter._
+
+    val sourceBodyParts = Map(
+      "workflowSource" -> Option(workflowSubmission.wdl),
+      "workflowType" -> workflowSubmission.workflowType,
+      "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
+      "workflowInputs" -> workflowSubmission.inputsJson,
+      "workflowOptions" -> workflowSubmission.options,
+      "customLabels" -> workflowSubmission.customLabels.map(_.toJson.toString)
+    ) collect {
+      case (name, Some(source: String)) =>
+        Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source)))
+    }
+
+    val zipBodyParts = Map(
+      "workflowDependencies" -> workflowSubmission.zippedImports
+    ) collect {
+      case (name, Some(file)) => Multipart.FormData.BodyPart.fromPath(name, MediaTypes.`application/zip`, file.path)
+    }
+
+    val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
+    multipartFormData.toEntity()
   }
 }

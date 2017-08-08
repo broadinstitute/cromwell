@@ -10,7 +10,6 @@ import com.google.auth.Credentials
 import com.google.cloud.http.HttpTransportOptions
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.cloud.storage.{BlobId, StorageOptions}
-import com.google.common.base.Preconditions._
 import com.google.common.net.UrlEscapers
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
@@ -20,26 +19,30 @@ import cromwell.filesystems.gcs.auth.GoogleAuthMode
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 object GcsPathBuilder {
 
   val JsonFactory = JacksonFactory.getDefaultInstance
   val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
-
-  def checkValid(uri: URI) = {
-    checkNotNull(uri.getScheme, s"%s does not have a gcs scheme", uri)
-    checkArgument(
-      uri.getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME),
-      "Cloud Storage URIs must have '%s' scheme: %s",
-      CloudStorageFileSystem.URI_SCHEME: Any,
-      uri: Any
-    )
-    checkNotNull(uri.getHost, s"%s does not have a host", uri)
-  }
+  // Provides some level of validation of GCS bucket names
+  // This is meant to alert the user early if they mistyped a gcs path in their workflow / inputs and not to validate
+  // exact bucket syntax, which is done by GCS.
+  // See https://cloud.google.com/storage/docs/naming for full spec
+  val GcsBucketPattern =
+    """
+      (?x)                                      # Turn on comments and whitespace insensitivity
+      gs://
+      (                                         # Begin capturing group for gcs bucket name
+        [a-z0-9][a-z0-9-_\\.]+[a-z0-9]          # Regex for bucket name - soft validation, see comment above
+      )                                         # End capturing group for gcs bucket name
+      (?:
+        /.*                                     # No validation here
+      )?
+    """.trim.r
 
   sealed trait GcsPathValidation
-  case object ValidFullGcsPath extends GcsPathValidation
+  case class ValidFullGcsPath(bucket: String, path: String) extends GcsPathValidation
   case object PossiblyValidRelativeGcsPath extends GcsPathValidation
   sealed trait InvalidGcsPath extends GcsPathValidation {
     def pathString: String
@@ -47,15 +50,11 @@ object GcsPathBuilder {
   }
   final case class InvalidFullGcsPath(pathString: String) extends InvalidGcsPath {
     override def errorMessage = {
-      val prefix = s"""
-      |The bucket name in GCS path '$pathString' is not compatible with URI host name standards.
-      |URI host name compatibility is a requirement for Cromwell's GCS filesystem support.
-      |Google also generally advises against the use of underscores in GCS bucket names, as well as against
-      |the use of periods or dashes in certain patterns as described here:
+      s"""
+      |The path '$pathString' does not seem to be a valid GCS path.
+      |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
       |https://cloud.google.com/storage/docs/naming.
       """.stripMargin.replaceAll("\n", " ").trim
-      val underscoreWarning = if (pathString.contains("_")) s"In particular, the bucket name in '$pathString' may contain an underscore which is not a valid character in a URI host." else ""
-      List(prefix, underscoreWarning).mkString(" ")
     }
   }
   final case class UnparseableGcsPath(pathString: String, throwable: Throwable) extends InvalidGcsPath {
@@ -63,12 +62,23 @@ object GcsPathBuilder {
       List(s"The specified GCS path '$pathString' does not parse as a URI.", throwable.getMessage).mkString("\n")
   }
 
+  /**
+    * Tries to extract a bucket name out of the provided string using rules less strict that URI hostname,
+    * as GCS allows albeit discourages.
+    */
+  private def softBucketParsing(string: String): Option[String] = string match {
+    case GcsBucketPattern(bucket) => Option(bucket)
+    case _ => None
+  }
+
   def validateGcsPath(string: String): GcsPathValidation = {
     Try {
-      val uri = getUri(string)
+      val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
       if (uri.getScheme == null) PossiblyValidRelativeGcsPath
-      else if (uri.getScheme == "gs") {
-        if (uri.getHost == null) InvalidFullGcsPath(string) else ValidFullGcsPath
+      else if (uri.getScheme == CloudStorageFileSystem.URI_SCHEME) {
+        if (uri.getHost == null) { 
+          softBucketParsing(string) map { ValidFullGcsPath(_, uri.getPath) } getOrElse InvalidFullGcsPath(string)
+        } else ValidFullGcsPath(uri.getHost, uri.getPath)
       } else InvalidFullGcsPath(string)
     } recover { case t => UnparseableGcsPath(string, t) } get
   }
@@ -77,8 +87,6 @@ object GcsPathBuilder {
     nioPath.getFileSystem.provider().getScheme == CloudStorageFileSystem.URI_SCHEME
   }
 
-  def getUri(string: String) = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
-  
   def fromAuthMode(authMode: GoogleAuthMode,
                    applicationName: String,
                    retrySettings: Option[RetrySettings],
@@ -137,7 +145,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
   private[gcs] val projectId = storageOptions.getProjectId
 
   /**
-    * Tries to create a new GcsPath.
+    * Tries to create a new GcsPath from a String representing an absolute gcs path: gs://<bucket>[/<path>].
     *
     * Note that this creates a new CloudStorageFileSystemProvider for every Path created, hence making it unsuitable for
     * file copying using the nio copy method. Cromwell currently uses a lower level API which works around this problem.
@@ -147,13 +155,16 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
     * Also see https://github.com/GoogleCloudPlatform/google-cloud-java/issues/1343
     */
   def build(string: String): Try[GcsPath] = {
-    Try {
-      val uri = getUri(string)
-      GcsPathBuilder.checkValid(uri)
-      val fileSystem = CloudStorageFileSystem.forBucket(uri.getHost, cloudStorageConfiguration, storageOptions)
-      val cloudStoragePath = fileSystem.getPath(uri.getPath)
-      val cloudStorage = storageOptions.getService
-      GcsPath(cloudStoragePath, apiStorage, cloudStorage)
+    validateGcsPath(string) match {
+      case ValidFullGcsPath(bucket, path) =>
+        Try {
+          val fileSystem = CloudStorageFileSystem.forBucket(bucket, cloudStorageConfiguration, storageOptions)
+          val cloudStoragePath = fileSystem.getPath(path)
+          val cloudStorage = storageOptions.getService
+          GcsPath(cloudStoragePath, apiStorage, cloudStorage)
+        }
+      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"Cannot build an absolute gcs path from $string"))
+      case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
     }
   }
 

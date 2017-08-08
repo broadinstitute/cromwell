@@ -48,6 +48,9 @@ object GcsPathBuilder {
     def pathString: String
     def errorMessage: String
   }
+  final case class InvalidScheme(pathString: String) extends InvalidGcsPath {
+    override def errorMessage = s"Cloud Storage URIs must have 'gs' scheme: $pathString"
+  }
   final case class InvalidFullGcsPath(pathString: String) extends InvalidGcsPath {
     override def errorMessage = {
       s"""
@@ -75,16 +78,16 @@ object GcsPathBuilder {
     Try {
       val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
       if (uri.getScheme == null) PossiblyValidRelativeGcsPath
-      else if (uri.getScheme == CloudStorageFileSystem.URI_SCHEME) {
+      else if (uri.getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME)) {
         if (uri.getHost == null) { 
           softBucketParsing(string) map { ValidFullGcsPath(_, uri.getPath) } getOrElse InvalidFullGcsPath(string)
         } else ValidFullGcsPath(uri.getHost, uri.getPath)
-      } else InvalidFullGcsPath(string)
+      } else InvalidScheme(string)
     } recover { case t => UnparseableGcsPath(string, t) } get
   }
 
   def isGcsPath(nioPath: NioPath): Boolean = {
-    nioPath.getFileSystem.provider().getScheme == CloudStorageFileSystem.URI_SCHEME
+    nioPath.getFileSystem.provider().getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME)
   }
 
   def fromAuthMode(authMode: GoogleAuthMode,
@@ -163,7 +166,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
           val cloudStorage = storageOptions.getService
           GcsPath(cloudStoragePath, apiStorage, cloudStorage)
         }
-      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"Cannot build an absolute gcs path from $string"))
+      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"$string does not have a gcs scheme"))
       case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
     }
   }

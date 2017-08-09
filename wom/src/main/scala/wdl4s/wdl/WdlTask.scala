@@ -12,7 +12,7 @@ import wdl4s.wdl.util.StringUtil
 import wdl4s.wdl.values.{WdlFile, WdlValue}
 import wdl4s.wom.callable.Callable.{OptionalInputDefinition, OptionalInputDefinitionWithDefault, RequiredInputDefinition}
 import wdl4s.wom.callable.{Callable, TaskDefinition}
-import wdl4s.wom.expression.{Expression, PlaceholderExpression}
+import wdl4s.wom.expression.{WomExpression, PlaceholderWomExpression}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -221,9 +221,9 @@ case class WdlTask(name: String,
     buildWomDeclarations
   )
 
-  private def buildWomDeclarations: List[(String, Expression)] = declarations.toList collect {
+  private def buildWomDeclarations: List[(String, WomExpression)] = declarations.toList collect {
     case d if d.expression.nonEmpty =>
-      d.unqualifiedName -> PlaceholderExpression(d.wdlType)
+      d.unqualifiedName -> PlaceholderWomExpression(d.wdlType)
   }
 
   private def buildWomInputs: Set[Callable.InputDefinition] = declarations collect {
@@ -232,6 +232,6 @@ case class WdlTask(name: String,
     case d if d.expression.isEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
       OptionalInputDefinition(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType])
     case d if d.expression.nonEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
-      OptionalInputDefinitionWithDefault(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType], PlaceholderExpression(d.wdlType))
+      OptionalInputDefinitionWithDefault(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType], PlaceholderWomExpression(d.wdlType))
   } toSet
 }

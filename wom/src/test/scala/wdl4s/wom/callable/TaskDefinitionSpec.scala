@@ -3,7 +3,7 @@ package wdl4s.wom.callable
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
-import wdl4s.wom.graph.{CallNode, GraphInputNode, GraphOutputNode}
+import wdl4s.wom.graph.{CallNode, GraphInputNode, PortBasedGraphOutputNode}
 
 class TaskDefinitionSpec extends FlatSpec with Matchers {
 
@@ -72,7 +72,7 @@ class TaskDefinitionSpec extends FlatSpec with Matchers {
     graphValidation match {
       case Valid(graph) =>
         graph.nodes.size should be(2)
-        (graph.nodes.toList.find(_.isInstanceOf[GraphOutputNode]), graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
+        (graph.nodes.toList.find(_.isInstanceOf[PortBasedGraphOutputNode]), graph.nodes.toList.find(_.isInstanceOf[CallNode])) match {
           case (Some(outputNode), Some(callNode)) =>
             callNode.outputPorts.size should be(1)
             outputNode.inputPorts.size should be(1)

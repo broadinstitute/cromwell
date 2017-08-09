@@ -67,7 +67,7 @@ class GraphSpec extends FlatSpec with Matchers {
     val workflowGraph = makeThreeStep
 
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("cgrep.pattern"))
-    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
+    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
     workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set("wc", "cgrep", "ps"))
   }
 
@@ -81,7 +81,7 @@ class GraphSpec extends FlatSpec with Matchers {
     }
 
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("three_step.cgrep.pattern"))
-    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.name } should be(Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs"))
+    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs"))
     workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set("three_step"))
   }
 }

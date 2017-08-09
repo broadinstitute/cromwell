@@ -45,6 +45,6 @@ object GraphNodePort {
   /**
     * Represents the gathered output from a call/declaration in a scatter.
     */
-  final case class ScatterGathererPort(name: String, womType: WdlArrayType, outputToGather: GraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort
+  final case class ScatterGathererPort(name: String, womType: WdlArrayType, outputToGather: PortBasedGraphOutputNode, g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort
   final case class ConditionalOutputPort(name: String, womType: WdlOptionalType, outputToExpose: OutputPort, graphNode: GraphNode) extends OutputPort
 }

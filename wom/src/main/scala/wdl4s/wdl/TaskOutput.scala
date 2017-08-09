@@ -4,7 +4,7 @@ import wdl4s.wdl.AstTools.EnhancedAstNode
 import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl.types.WdlType
 import wdl4s.wom.callable.Callable.OutputDefinition
-import wdl4s.wom.expression.PlaceholderExpression
+import wdl4s.wom.expression.PlaceholderWomExpression
 
 object TaskOutput {
   def apply(ast: Ast, syntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): TaskOutput = {
@@ -14,7 +14,7 @@ object TaskOutput {
     TaskOutput(name, wdlType, expression, ast, parent)
   }
   
-  def buildWomOutputDefinition(taskOutput: TaskOutput) = OutputDefinition(taskOutput.unqualifiedName, taskOutput.wdlType, PlaceholderExpression(taskOutput.wdlType))
+  def buildWomOutputDefinition(taskOutput: TaskOutput) = OutputDefinition(taskOutput.unqualifiedName, taskOutput.wdlType, PlaceholderWomExpression(taskOutput.wdlType))
 }
 
 final case class TaskOutput(unqualifiedName: String, wdlType: WdlType, requiredExpression: WdlExpression, ast: Ast, override val parent: Option[Scope]) extends Output {

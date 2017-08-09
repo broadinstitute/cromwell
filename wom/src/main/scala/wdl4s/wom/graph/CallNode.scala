@@ -24,14 +24,14 @@ final case class TaskCallNode private(name: String, callable: TaskDefinition, in
 final case class WorkflowCallNode private(name: String, callable: WorkflowDefinition, inputPorts: Set[GraphNodePort.InputPort]) extends CallNode {
   val callType: String = "workflow"
   override val outputPorts: Set[GraphNodePort.OutputPort] = {
-    callable.innerGraph.nodes.collect { case gon: GraphOutputNode => GraphNodeOutputPort(gon.name, gon.womType, this) }
+    callable.innerGraph.nodes.collect { case gon: PortBasedGraphOutputNode => GraphNodeOutputPort(gon.name, gon.womType, this) }
   }
 }
 
 object TaskCall {
   def graphFromDefinition(taskDefinition: TaskDefinition): ErrorOr[Graph] = {
 
-    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => GraphOutputNode(output.name, output.womType, out))
+    def linkOutput(call: GraphNode)(output: OutputDefinition): ErrorOr[GraphNode] = call.outputByName(output.name).map(out => PortBasedGraphOutputNode(output.name, output.womType, out))
 
     val CallWithInputs(call, inputs) = CallNode.callWithInputs(taskDefinition.name, taskDefinition, Map.empty)
     val outputsValidation = taskDefinition.outputs.toList.traverse(linkOutput(call) _)

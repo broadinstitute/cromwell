@@ -6,7 +6,7 @@ import wdl4s.wdl.command.CommandPart
 import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.util.StringUtil
 import wdl4s.wdl.values.WdlValue
-import wdl4s.wom.expression.Expression
+import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.{Graph, TaskCall}
 
 import scala.util.Try
@@ -18,7 +18,7 @@ case class TaskDefinition(name: String,
                parameterMeta: Map[String, String],
                outputs: Set[Callable.OutputDefinition],
                inputs: Set[_ <: Callable.InputDefinition],
-               declarations: List[(String, Expression)]) extends Callable {
+               declarations: List[(String, WomExpression)]) extends Callable {
 
   val unqualifiedName: LocallyQualifiedName = name
 

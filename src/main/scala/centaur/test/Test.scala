@@ -7,7 +7,9 @@ import cats.Monad
 import centaur._
 import centaur.api.CentaurCromwellClient
 import centaur.test.metadata.WorkflowMetadata
+import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.Workflow
+import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{Failed, SubmittedWorkflow, TerminalStatus, WorkflowStatus}
 import spray.json.JsString
 
@@ -66,6 +68,33 @@ object Operations {
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: Try[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
+    }
+  }
+
+  def submitInvalidWorkflow(workflow: Workflow): Test[SubmitResponse] = {
+    new Test[SubmitResponse] {
+      override def run: Try[SubmitResponse] = {
+        Try {
+          CentaurCromwellClient.submit(workflow) match {
+
+            case Success(submittedWorkflow) =>
+              throw new RuntimeException(
+                s"Expected a failure but got a successfully submitted workflow with id ${submittedWorkflow.id}")
+
+            case Failure(unsuccessfulRequestException: UnsuccessfulRequestException) =>
+              val httpResponse = unsuccessfulRequestException.httpResponse
+              val statusCode = httpResponse.status.intValue()
+              val message = httpResponse.entity match {
+                case akka.http.scaladsl.model.HttpEntity.Strict(_, data) => data.utf8String
+                case _ =>
+                  throw new RuntimeException(s"Expected a strict http response entity but got ${httpResponse.entity}")
+              }
+              SubmitResponse(statusCode, message)
+
+            case Failure(unexpected) => throw unexpected
+          }
+        }
+      }
     }
   }
 
@@ -246,6 +275,30 @@ object Operations {
 
   def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Hit")
   def validateNoCacheMisses(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Miss")
+
+  def validateSubmitFailure(workflow: Workflow,
+                            expectedSubmitResponse: SubmitResponse,
+                            actualSubmitResponse: SubmitResponse): Test[Unit] = {
+    new Test[Unit] {
+      override def run: Try[Unit] = {
+        Try {
+          if (expectedSubmitResponse == actualSubmitResponse) {
+            ()
+          } else {
+            throw new RuntimeException(
+              s"""|
+                  |Expected
+                  |$expectedSubmitResponse
+                  |
+                  |but got:
+                  |$actualSubmitResponse
+                  |""".stripMargin
+            )
+          }
+        }
+      }
+    }
+  }
 
   /**
     * Clean up temporary zip files created for Imports testing.

@@ -16,6 +16,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case RunFailingTwiceExpectingNoCallCachingTest => "Fail the first run and NOT call cache the second run of"
     case CromwellRestartWithRecover => "survive a Cromwell restart and recover jobs"
     case CromwellRestartWithoutRecover => "survive a Cromwell restart"
+    case SubmitFailureTest => "fail to submit"
   }
 }
 
@@ -28,6 +29,7 @@ object CentaurTestFormat {
   case object RunFailingTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunFailingTwiceExpectingNoCallCaching")
   case object CromwellRestartWithRecover extends CentaurTestFormat("CromwellRestartWithRecover")
   case object CromwellRestartWithoutRecover extends CentaurTestFormat("CromwellRestartWithoutRecover")
+  case object SubmitFailureTest extends CentaurTestFormat("SubmitFailure")
 
   def fromConfig(conf: Config): ErrorOr[CentaurTestFormat] = {
     conf.get[String]("testFormat") match {
@@ -44,7 +46,8 @@ object CentaurTestFormat {
       RunTwiceExpectingNoCallCachingTest,
       RunFailingTwiceExpectingNoCallCachingTest,
       CromwellRestartWithRecover,
-      CromwellRestartWithoutRecover)
+      CromwellRestartWithoutRecover,
+      SubmitFailureTest)
     formats collectFirst {
       case format if format.name.equalsIgnoreCase(testFormat) => Valid(format)
     } getOrElse invalidNel(s"No such test format: $testFormat")

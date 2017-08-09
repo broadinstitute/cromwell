@@ -1,12 +1,13 @@
 package centaur.test.formulas
 
-import cats.syntax.functor._
 import cats.syntax.flatMap._
-import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
+import cats.syntax.functor._
 import centaur.test.Operations._
-import centaur.test.Test
 import centaur.test.Test.testMonad
+import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.Workflow
+import centaur.test.{Operations, Test}
+import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
 import cromwell.api.model.{Failed, SubmittedWorkflow, Succeeded, TerminalStatus}
 
 /**
@@ -83,4 +84,11 @@ object TestFormulas {
   
   def cromwellRestartWithRecover(workflowDefinition: Workflow): Test[Unit] = cromwellRestart(workflowDefinition, testRecover = true)
   def cromwellRestartWithoutRecover(workflowDefinition: Workflow): Test[Unit] = cromwellRestart(workflowDefinition, testRecover = false)
+
+  def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitResponse): Test[Unit] = {
+    for {
+      actualSubmitResponse <- Operations.submitInvalidWorkflow(workflow)
+      _ <- validateSubmitFailure(workflow, expectedSubmitResponse, actualSubmitResponse)
+    } yield ()
+  }
 }

@@ -16,5 +16,5 @@ object Implicits {
   implicit val scatterMethodEncoder = Encoder.enumEncoder(ScatterMethod)
   implicit val linkMergeMethodEncoder = Encoder.enumEncoder(LinkMergeMethod)
 
-  implicit def enumerationEncoder[V <: Enumeration#Value]: Encoder[V] = (value: V) => Json.fromString(value.toString)
+  implicit def enumerationEncoder[V <: Enumeration#Value]: Encoder[V] = Encoder.instance((value: V) => Json.fromString(value.toString))
 }

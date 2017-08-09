@@ -2,10 +2,11 @@ package wdltool
 
 import java.nio.file.Paths
 
+import cats.data.Validated.{Invalid, Valid}
 import wdl4s.wdl.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wdl4s.wdl._
 import spray.json._
-import wdltool.graph.{GraphPrint, WomGraphPrint}
+import wdltool.graph.{GraphPrint, WomGraph}
 
 import scala.util.{Failure, Success}
 
@@ -97,15 +98,10 @@ object Main extends App {
 
       val (mainFile, auxFiles) = (args.head, args.tail)
 
-      val workflowDigraph = WomGraphPrint.generateWorkflowDigraph(mainFile, auxFiles)
-
-      val result = s"""|digraph ${workflowDigraph.workflowName} {
-                       |  compound=true;
-                       |  ${workflowDigraph.digraph.links.mkString(System.lineSeparator + "  ")}
-                       |  ${workflowDigraph.digraph.nodes.mkString(System.lineSeparator + "  ")}
-                       |}
-                       |"""
-      SuccessfulTermination(result.stripMargin)
+      WomGraph.fromFiles(mainFile, auxFiles) match {
+        case Valid(womGraph) => SuccessfulTermination(womGraph.digraphDot)
+        case Invalid(errors) => UnsuccessfulTermination("Unable to construct wom graph:" + errors.toList.mkString("\n", "\n", "\n"))
+      }
     }
   }
 

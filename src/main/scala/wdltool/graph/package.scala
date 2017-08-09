@@ -23,8 +23,11 @@ package object graph {
         s"${gin.womType.toWdlString} ${gin.name}"
       case gon: GraphOutputNode =>
         s"${gon.womType.toWdlString} ${gon.name}"
+      case expr: ExpressionNode =>
+        val inputNames = expr.instantiatedExpression.expression.inputs.mkString(", ")
+        s"${expr.womType.toWdlString} ${expr.name} = f($inputNames)"
       case other =>
-        throw new Exception(s"Can't name $other")
+        throw new Exception(s"womgraph can't find a graphName for GraphNodes of type: ${other.getClass.getSimpleName}")
     })
 
     def graphId: String = dotSafe("NODE" + graphNode.hashCode().toString)

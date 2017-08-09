@@ -1,7 +1,7 @@
 package cromwell.backend.impl.jes
 
 import cromwell.core.ExecutionEvent
-
+import _root_.io.grpc.Status
 import scala.util.Try
 
 sealed trait RunStatus {
@@ -28,7 +28,7 @@ object RunStatus {
   sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
     val errorMessage: Option[String]
     lazy val prettyPrintedError: String = errorMessage map { e => s" Message: $e" } getOrElse ""
-    val errorCode: Int
+    val errorCode: Status
 
     /**
       * If one exists, the JES error code (not the google RPC) (extracted from the error message)
@@ -44,14 +44,14 @@ object RunStatus {
   }
 
   object UnsuccessfulRunStatus {
-    def apply(errorCode: Int,
+    def apply(errorCode: Status,
               errorMessage: Option[String],
               eventList: Seq[ExecutionEvent],
               machineType: Option[String],
               zone: Option[String],
               instanceName: Option[String]): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
-      if (errorCode == JesAsyncBackendJobExecutionActor.GoogleAbortedRpc && jesCode.contains(JesAsyncBackendJobExecutionActor.JesPreemption)) {
+      if (errorCode == Status.ABORTED && jesCode.contains(JesAsyncBackendJobExecutionActor.JesPreemption)) {
         Preempted(errorCode, jesCode, errorMessage, eventList, machineType, zone, instanceName)
       } else {
         Failed(errorCode, jesCode, errorMessage, eventList, machineType, zone, instanceName)
@@ -59,7 +59,7 @@ object RunStatus {
     }
   }
 
-  final case class Failed(errorCode: Int,
+  final case class Failed(errorCode: Status,
                           jesCode: Option[Int],
                           errorMessage: Option[String],
                           eventList: Seq[ExecutionEvent],
@@ -69,7 +69,7 @@ object RunStatus {
     override def toString = "Failed"
   }
 
-  final case class Preempted(errorCode: Int,
+  final case class Preempted(errorCode: Status,
                              jesCode: Option[Int],
                              errorMessage: Option[String],
                              eventList: Seq[ExecutionEvent],

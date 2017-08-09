@@ -28,6 +28,8 @@ import wdl4s.wdl._
 import wdl4s.wdl.expression.PureStandardLibraryFunctions
 import wdl4s.wdl.values._
 
+import _root_.io.grpc.Status
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.Future
@@ -51,15 +53,12 @@ object JesAsyncBackendJobExecutionActor {
 
   val maxUnexpectedRetries = 2
 
-  val GoogleCancelledRpc = 1
-  val GoogleNotFoundRpc = 5
-  val GoogleAbortedRpc = 10 // Note "Aborted" here is not the same as our "abort"
   val JesFailedToDelocalize = 5
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
 
-  def StandardException(errorCode: Int, message: String, jobTag: String) = {
-    new Exception(s"Task $jobTag failed. JES error code $errorCode. $message")
+  def StandardException(errorCode: Status, message: String, jobTag: String) = {
+    new Exception(s"Task $jobTag failed. JES error code ${errorCode.getCode.value}. $message")
   }
 }
 
@@ -393,9 +392,9 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                               handle: StandardAsyncPendingExecutionHandle,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (GoogleCancelledRpc, None) => Future.successful(AbortedExecutionHandle)
-        case (GoogleNotFoundRpc, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(jobPaths.stderr))))
-        case (GoogleAbortedRpc, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+        case (Status.CANCELLED, None) => Future.successful(AbortedExecutionHandle)
+        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(jobPaths.stderr))))
+        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
         case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(runStatus.errorCode, runStatus.prettyPrintedError, jobTag), returnCode))
       }
     }
@@ -416,7 +415,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     makeKvRequest(updateRequests).map(_ => ())
   }
 
-  private def handleUnexpectedTermination(errorCode: Int, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
 
     val msg = s"Retrying. $errorMessage"
 
@@ -440,7 +439,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
     import lenthall.numeric.IntegerUtil._
 
-    val errorCode: Int = runStatus.errorCode
+    val errorCode: Status = runStatus.errorCode
     val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
       case Valid(PreviousRetryReasons(p, ur)) =>

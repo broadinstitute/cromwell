@@ -81,6 +81,7 @@ object Dependencies {
   )
 
   private val googleCloudDependencies = List(
+    "io.grpc" % "grpc-core" % "1.5.0",
     "com.google.apis" % "google-api-services-genomics" % ("v1alpha2-rev64-" + googleGenomicsServicesApiV),
     "com.google.cloud" % "google-cloud-nio" % "0.20.1-alpha"
       exclude("com.google.api.grpc", "grpc-google-common-protos")

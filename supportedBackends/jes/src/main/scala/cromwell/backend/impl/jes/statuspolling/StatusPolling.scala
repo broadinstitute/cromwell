@@ -13,6 +13,7 @@ import cromwell.backend.impl.jes.RunStatus._
 import cromwell.backend.impl.jes.{Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.core.ExecutionEvent
+import io.grpc.Status
 
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
@@ -72,7 +73,9 @@ private[statuspolling] object StatusPolling {
 
         // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
         Option(op.getError) match {
-          case Some(error) => UnsuccessfulRunStatus(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+          case Some(error) =>
+            val errorCode = Status.fromCodeValue(error.getCode)
+            UnsuccessfulRunStatus(errorCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
           case None => Success(eventList, machineType, zone, instanceName)
         }
       } else if (op.hasStarted) {

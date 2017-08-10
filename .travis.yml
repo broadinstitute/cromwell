@@ -22,7 +22,7 @@ before_install:
   - sudo rm -f /etc/boto.cfg
 env:
   global:
-    - CENTAUR_BRANCH=cromwell-2525
+    - CENTAUR_BRANCH=develop
     - INTEGRATION_TESTS_DIR=src/main/resources/integrationTestCases
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked

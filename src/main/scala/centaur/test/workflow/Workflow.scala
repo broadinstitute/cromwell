@@ -9,6 +9,7 @@ import centaur.test.metadata.WorkflowMetadata
 import com.typesafe.config.{Config, ConfigFactory}
 import configs.Result
 import configs.syntax._
+import cromwell.api.CromwellClient
 import cromwell.api.model.WorkflowSingleSubmission
 
 import scala.util.{Failure, Success, Try}
@@ -23,10 +24,9 @@ final case class Workflow private(testName: String,
     workflowType = data.workflowType,
     workflowTypeVersion = data.workflowTypeVersion,
     inputsJson = data.inputs,
-    options = data.options,
+    options = CromwellClient.replaceJson(data.options, "refresh_token", refreshToken),
     customLabels = Option(data.labels),
-    zippedImports = data.zippedImports,
-    refreshToken = refreshToken)
+    zippedImports = data.zippedImports)
 }
 
 object Workflow {

@@ -3,16 +3,20 @@ package centaur.test.standard
 import java.nio.file.Path
 
 import cats.data.Validated._
-import cats.Apply
+import cats.implicits._
 import centaur.test._
 import centaur.test.formulas.TestFormulas
 import centaur.test.standard.CentaurTestFormat._
+import centaur.test.submit.SubmitResponse
 import centaur.test.workflow.{AllBackendsRequired, AnyBackendRequired, OnlyBackendsAllowed, Workflow}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.util.{Failure, Success, Try}
 
-case class CentaurTestCase(workflow: Workflow, testFormat: CentaurTestFormat, testOptions: TestOptions) {
+case class CentaurTestCase(workflow: Workflow,
+                           testFormat: CentaurTestFormat,
+                           testOptions: TestOptions,
+                           submitResponseOption: Option[SubmitResponse]) {
   def testFunction: Test[Unit] = this.testFormat match {
     case WorkflowSuccessTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
@@ -21,6 +25,7 @@ case class CentaurTestCase(workflow: Workflow, testFormat: CentaurTestFormat, te
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)
     case CromwellRestartWithRecover => TestFormulas.cromwellRestartWithRecover(workflow)
     case CromwellRestartWithoutRecover => TestFormulas.cromwellRestartWithoutRecover(workflow)
+    case SubmitFailureTest => TestFormulas.submitInvalidWorkflow(workflow, submitResponseOption.get)
   }
 
   def isIgnored(supportedBackends: List[String]): Boolean = {
@@ -37,7 +42,11 @@ case class CentaurTestCase(workflow: Workflow, testFormat: CentaurTestFormat, te
 object CentaurTestCase {
   def fromPath(path: Path): ErrorOr[CentaurTestCase] = {
     Try(ConfigFactory.parseFile(path.toFile)) match {
-      case Success(c) => CentaurTestCase.fromConfig(c, path.getParent)
+      case Success(c) =>
+        CentaurTestCase.fromConfig(c, path.getParent) match {
+          case Valid(testCase) => validateTestCase(testCase)
+          case invalid: Invalid[_] => invalid
+        }
       case Failure(f) => invalidNel(s"Invalid test config: $path (${f.getMessage})")
     }
   }
@@ -46,6 +55,23 @@ object CentaurTestCase {
     val workflow = Workflow.fromConfig(conf, configPath)
     val format = CentaurTestFormat.fromConfig(conf)
     val options = TestOptions.fromConfig(conf)
-    Apply[ErrorOr].map3(workflow, format, options)((w, f, o) => CentaurTestCase(w, f, o))
+    val submit = SubmitResponse.fromConfig(conf)
+    workflow |@| format |@| options |@| submit map {
+      CentaurTestCase(_, _, _, _)
+    }
+  }
+
+  private def validateTestCase(testCase: CentaurTestCase): ErrorOr[CentaurTestCase] = {
+    testCase.testFormat match {
+      case SubmitFailureTest => validateSubmitFailure(testCase.workflow, testCase.submitResponseOption).map(_ => testCase)
+      case _ => Valid(testCase)
+    }
+  }
+
+  private def validateSubmitFailure(workflow: Workflow, submitResponseOption: Option[SubmitResponse]): ErrorOr[Unit] = {
+    submitResponseOption match {
+      case None => invalidNel("No submit stanza included in test config")
+      case Some(submitResponse) => Valid(())
+    }
   }
 }

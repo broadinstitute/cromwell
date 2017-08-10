@@ -1,0 +1,15 @@
+name: invalid_inputs_json
+testFormat: submitfailure
+
+files {
+  wdl: invalid_inputs_json/invalid_inputs_json.wdl
+  inputs: invalid_inputs_json/invalid_inputs_json.inputs
+}
+
+submit {
+  statusCode: 400
+  message: """{
+  "status": "fail",
+  "message": "Error(s): Unexpected end-of-input at input index 63 (line 3, position 1), expected '}':\n\n^\n"
+}"""
+}

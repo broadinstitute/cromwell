@@ -25,14 +25,16 @@ object GcsPathBuilder {
 
   val JsonFactory = JacksonFactory.getDefaultInstance
   val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
-  // Provides some level of validation of GCS bucket names
-  // This is meant to alert the user early if they mistyped a gcs path in their workflow / inputs and not to validate
-  // exact bucket syntax, which is done by GCS.
-  // See https://cloud.google.com/storage/docs/naming for full spec
+  /* 
+    * Provides some level of validation of GCS bucket names
+    * This is meant to alert the user early if they mistyped a gcs path in their workflow / inputs and not to validate
+    * exact bucket syntax, which is done by GCS.
+    * See https://cloud.google.com/storage/docs/naming for full spec
+  */
   val GcsBucketPattern =
     """
       (?x)                                      # Turn on comments and whitespace insensitivity
-      gs://
+      ^gs://
       (                                         # Begin capturing group for gcs bucket name
         [a-z0-9][a-z0-9-_\\.]+[a-z0-9]          # Regex for bucket name - soft validation, see comment above
       )                                         # End capturing group for gcs bucket name
@@ -54,9 +56,9 @@ object GcsPathBuilder {
   final case class InvalidFullGcsPath(pathString: String) extends InvalidGcsPath {
     override def errorMessage = {
       s"""
-      |The path '$pathString' does not seem to be a valid GCS path.
-      |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
-      |https://cloud.google.com/storage/docs/naming.
+         |The path '$pathString' does not seem to be a valid GCS path.
+         |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
+         |https://cloud.google.com/storage/docs/naming.
       """.stripMargin.replaceAll("\n", " ").trim
     }
   }
@@ -79,7 +81,7 @@ object GcsPathBuilder {
       val uri = URI.create(UrlEscapers.urlFragmentEscaper().escape(string))
       if (uri.getScheme == null) PossiblyValidRelativeGcsPath
       else if (uri.getScheme.equalsIgnoreCase(CloudStorageFileSystem.URI_SCHEME)) {
-        if (uri.getHost == null) { 
+        if (uri.getHost == null) {
           softBucketParsing(string) map { ValidFullGcsPath(_, uri.getPath) } getOrElse InvalidFullGcsPath(string)
         } else ValidFullGcsPath(uri.getHost, uri.getPath)
       } else InvalidScheme(string)
@@ -104,7 +106,7 @@ object GcsPathBuilder {
       )
     }
   }
-  
+
   def fromCredentials(credentials: Credentials,
                       applicationName: String,
                       retrySettings: Option[RetrySettings],
@@ -182,7 +184,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
 
   override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage)
 
-  override def pathAsString: String = java.net.URLDecoder.decode(nioPath.toUri.toString, "UTF-8")
+  override def pathAsString: String = {
+    val host = cloudStoragePath.bucket().stripSuffix("/")
+    val path = cloudStoragePath.toString.stripPrefix("/")
+    s"${CloudStorageFileSystem.URI_SCHEME}://$host/$path"
+  }
 
   override def pathWithoutScheme: String = {
     val gcsPath = cloudStoragePath

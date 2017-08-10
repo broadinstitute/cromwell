@@ -1,6 +1,5 @@
 package cromwell.core.path
 
-import java.net.URI
 import java.nio.file.WatchEvent.{Kind, Modifier}
 import java.nio.file.{LinkOption, WatchKey, WatchService}
 
@@ -36,7 +35,10 @@ trait NioPathMethods {
 
   final def getNameCount: Int = nioPathPrivate.getNameCount
 
-  final def toUri: URI = nioPathPrivate.toUri
+  /* This method cannot be used safely because it could fail for valid GcsPaths that are not valid URIs
+    * See https://github.com/GoogleCloudPlatform/google-cloud-java/issues/1343
+   */
+  //final def toUri: URI = nioPathPrivate.toUri
 
   final def compareTo(other: Path): Int = nioPathPrivate.compareTo(other.nioPathPrivate)
 

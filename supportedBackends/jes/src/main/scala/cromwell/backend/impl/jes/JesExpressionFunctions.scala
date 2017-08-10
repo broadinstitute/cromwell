@@ -9,7 +9,7 @@ class JesExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
 
   override def preMapping(str: String) = {
     GcsPathBuilder.validateGcsPath(str) match {
-      case ValidFullGcsPath => str
+      case _: ValidFullGcsPath => str
       case PossiblyValidRelativeGcsPath => callContext.root.resolve(str.stripPrefix("/")).pathAsString
       case invalid: InvalidGcsPath => throw new IllegalArgumentException(invalid.errorMessage)
     }

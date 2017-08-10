@@ -17,5 +17,6 @@ workflow size_wf {
   call size_task { input: sz = size(file) }
 
   output {
+    String out = read_string(size_task.out)
   }
 }

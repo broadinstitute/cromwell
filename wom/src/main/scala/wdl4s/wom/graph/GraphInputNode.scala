@@ -1,7 +1,7 @@
 package wdl4s.wom.graph
 
 import wdl4s.wdl.types.{WdlOptionalType, WdlType}
-import wdl4s.wom.expression.Expression
+import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.GraphNodePort.GraphNodeOutputPort
 
 sealed trait GraphInputNode extends GraphNode {
@@ -15,4 +15,4 @@ sealed trait GraphInputNode extends GraphNode {
 
 final case class RequiredGraphInputNode(name: String, womType: WdlType) extends GraphInputNode
 final case class OptionalGraphInputNode(name: String, womType: WdlOptionalType) extends GraphInputNode
-final case class OptionalGraphInputNodeWithDefault(name: String, womType: WdlType, default: Expression) extends GraphInputNode
+final case class OptionalGraphInputNodeWithDefault(name: String, womType: WdlType, default: WomExpression) extends GraphInputNode

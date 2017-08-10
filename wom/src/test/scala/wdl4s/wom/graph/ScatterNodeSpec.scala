@@ -7,7 +7,7 @@ import wdl4s.wdl.RuntimeAttributes
 import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
 import wdl4s.wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
 import wdl4s.wom.callable.TaskDefinition
-import wdl4s.wom.expression.PlaceholderExpression
+import wdl4s.wom.expression.PlaceholderWomExpression
 import wdl4s.wom.graph.CallNode.CallWithInputs
 import wdl4s.wom.graph.ScatterNode.ScatterNodeWithInputs
 
@@ -19,7 +19,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     runtimeAttributes = new RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,
-    outputs = Set(OutputDefinition("out", WdlStringType, PlaceholderExpression(WdlStringType))),
+    outputs = Set(OutputDefinition("out", WdlStringType, PlaceholderWomExpression(WdlStringType))),
     inputs = Set(RequiredInputDefinition("i", WdlIntegerType)),
     declarations = List.empty
   )
@@ -60,7 +60,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
     val workflowGraphValidation = for {
       foo_scatterOutput <- scatterNode.outputByName("foo.out")
-      z_workflowOutput = GraphOutputNode("z", WdlArrayType(WdlStringType), foo_scatterOutput)
+      z_workflowOutput = PortBasedGraphOutputNode("z", WdlArrayType(WdlStringType), foo_scatterOutput)
       graph <- Graph.validateAndConstruct(Set(scatterNode, xs_inputNode, z_workflowOutput))
     } yield graph
 
@@ -76,12 +76,12 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
 
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("xs"))
-    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.name } should be(Set("z"))
+    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("z"))
     workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set.empty)
     (workflowGraph.nodes collect { case sn: ScatterNode => sn }).size should be(1)
 
     // The output links back to the scatter:
-    val finalOutput = (workflowGraph.nodes collect { case gon: GraphOutputNode => gon }).head
+    val finalOutput = (workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon }).head
     finalOutput.upstream should be(Set(scatterNode))
 
     // The scatter output port is called foo.out:

@@ -3,7 +3,7 @@ package wdl4s.wdl.wom
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph.{CallNode, GraphInputNode, GraphOutputNode}
+import wdl4s.wom.graph.{CallNode, GraphInputNode, PortBasedGraphOutputNode}
 
 class WdlNamespaceWomSpec extends FlatSpec with Matchers {
   
@@ -61,7 +61,7 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     }
     
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("cgrep.pattern"))
-    workflowGraph.nodes collect { case gon: GraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
+    workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
     workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set("wc", "cgrep", "ps"))
     
     val ps = workflowGraph.nodes.collectFirst({ case ps: CallNode if ps.name == "ps" => ps }).get

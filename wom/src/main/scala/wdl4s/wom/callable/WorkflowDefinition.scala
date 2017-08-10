@@ -3,14 +3,14 @@ package wdl4s.wom.callable
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wom.graph.Graph
 import cats.syntax.validated._
-import wdl4s.wom.expression.Expression
+import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.GraphNode._
 
 final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,
                                     meta: Map[String, String],
                                     parameterMeta: Map[String, String],
-                                    declarations: List[(String, Expression)]) extends Callable {
+                                    declarations: List[(String, WomExpression)]) extends Callable {
 
   override lazy val toString = s"[Workflow $name]"
   override val graph: ErrorOr[Graph] = innerGraph.validNel

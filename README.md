@@ -56,9 +56,9 @@ $ sbt "run-main wdl4s.examples.ex1"
 
 The main entry point into the parser is the `WdlNamespace` object. A [WDL](https://github.com/broadinstitute/wdl) file is considered a namespace, and other namespaces can be included by using the `import` statement (but only with an `as` clause).
 
-the [WdlNamespace](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.WdlNamespace$) object has a few `load…()` functions for turning WDL source into `WdlNamespace` objects.
+the [WdlNamespace](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.wdl.WdlNamespace$) object has a few `load…()` functions for turning WDL source into `WdlNamespace` objects.
 
-If the workflow being loaded contains a `workflow` definition, then the `load…()` functions will return a [WdlNamespaceWithWorkflow](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.WdlNamespaceWithWorkflow) and otherwise they will return a [WdlNamespaceWithoutWorkflow](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.WdlNamespaceWithoutWorkflow).
+If the workflow being loaded contains a `workflow` definition, then the `load…()` functions will return a [WdlNamespaceWithWorkflow](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.wdl.WdlNamespaceWithWorkflow) and otherwise they will return a [WdlNamespaceWithoutWorkflow](http://broadinstitute.github.io/wdl4s/latest/#wdl4s.wdl.WdlNamespaceWithoutWorkflow).
 
 Example `src/main/scala/wdl4s/examples/ex1.scala`
 

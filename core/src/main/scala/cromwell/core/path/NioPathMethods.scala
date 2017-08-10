@@ -1,6 +1,5 @@
 package cromwell.core.path
 
-import java.net.URI
 import java.nio.file.WatchEvent.{Kind, Modifier}
 import java.nio.file.{LinkOption, WatchKey, WatchService}
 

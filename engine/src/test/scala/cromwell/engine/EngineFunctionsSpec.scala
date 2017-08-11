@@ -15,7 +15,6 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
   trait WdlStandardLibraryImpl extends WdlStandardLibraryFunctions with ReadLikeFunctions with WriteFunctions with PureStandardLibraryFunctionsLike {
     private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
 
-    override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = super[WriteFunctions].writeTempFile(path, prefix, suffix, content)
     override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stdout")
     override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = fail("stderr")
   }

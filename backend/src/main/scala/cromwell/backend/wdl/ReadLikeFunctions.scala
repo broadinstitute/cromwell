@@ -9,7 +9,7 @@ import wdl4s.wdl.values._
 
 import scala.util.{Failure, Success, Try}
 
-trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions =>
+trait ReadLikeFunctions extends PathFactory with WdlStandardLibraryFunctions {
 
   val fileSizeLimitationConfig =  FileSizeLimitationConfig.fileSizeLimitationConfig
   import fileSizeLimitationConfig._
@@ -24,7 +24,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WdlValue]]): Try[String] = {
     for {
       singleArgument <- extractSingleArgument(functionName, params)
-      string = fileContentsToString(singleArgument.valueString)
+      string = readFile(singleArgument.valueString)
     } yield string
   }
 

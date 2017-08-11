@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import cromwell.backend._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
+import cromwell.engine.workflow.lifecycle.execution.{OutputStore, WorkflowExecutionActorData}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import org.specs2.mock.Mockito
 import wdl4s.wdl._
@@ -43,7 +43,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
       backpressureWaitTimeInput = backpressureTimeout,
       dockerNoResponseTimeoutInput = noResponseTimeout,
       inputsAndAttributes = inputsAndAttributes,
-      executionData = executionData,
+      workflowDescriptor = workflowDescriptor,
       jobKey = jobKey,
       workflowDockerLookupActor = workflowDockerLookupActor.ref,
       serviceRegistryActor = serviceRegistryProbe.ref,
@@ -57,12 +57,12 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                    backpressureWaitTimeInput: FiniteDuration,
                                                    dockerNoResponseTimeoutInput: FiniteDuration,
                                                    inputsAndAttributes: Try[(Map[Declaration, WdlValue], Map[wdl4s.wdl.LocallyQualifiedName, WdlValue])],
-                                                   executionData: WorkflowExecutionActorData,
+                                                   workflowDescriptor: EngineWorkflowDescriptor,
                                                    jobKey: BackendJobDescriptorKey,
                                                    workflowDockerLookupActor: ActorRef,
                                                    serviceRegistryActor: ActorRef,
                                                    ioActor: ActorRef,
-                                                   scopedKeyMaker: ScopedKeyMaker) extends JobPreparationActor(executionData = executionData,
+                                                   scopedKeyMaker: ScopedKeyMaker) extends JobPreparationActor(workflowDescriptor = workflowDescriptor,
                                                                                                   jobKey = jobKey,
                                                                                                   factory = null,
                                                                                                   workflowDockerLookupActor = workflowDockerLookupActor,
@@ -79,7 +79,7 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
   override private[preparation] lazy val hasDockerDefinition = true
 
   override def scopedKey(key: String) = scopedKeyMaker.apply(key)
-  override def evaluateInputsAndAttributes = inputsAndAttributes
+  override def evaluateInputsAndAttributes(outputStore: OutputStore) = inputsAndAttributes
 
   override private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,
                                                       initializationData: Option[BackendInitializationData],

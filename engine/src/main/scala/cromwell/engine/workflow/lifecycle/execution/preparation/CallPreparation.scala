@@ -14,7 +14,7 @@ import scala.util.{Failure, Try}
 
 object CallPreparation {
   sealed trait CallPreparationActorCommands
-  case object Start extends CallPreparationActorCommands
+  case class Start(outputStore: OutputStore) extends CallPreparationActorCommands
 
   trait CallPreparationActorResponse
 

@@ -3,10 +3,10 @@ package cromwell.backend.io
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
 import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
+import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.wdl.values._
 
-trait GlobFunctions extends PureStandardLibraryFunctionsLike {
+trait GlobFunctions extends WdlStandardLibraryFunctions {
 
   def callContext: CallContext
 

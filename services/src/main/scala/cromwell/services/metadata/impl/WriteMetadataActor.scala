@@ -13,21 +13,20 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
-class WriteMetadataActor(batchSize: Int, override val dbFlushRate: FiniteDuration)
+class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
   MetadataDatabaseAccess with SingletonServicesStore with BatchingDbWriterActor {
   import WriteMetadataActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
-
-  log.info("WriteMetadataActor configured to write to the database with batch size {} and flush rate {}.", batchSize, dbFlushRate)
+  override val writeActorName = "WriteMetadataActor"
 
   startWith(WaitingToWrite, NoData)
 
   when(WaitingToWrite) {
     case Event(PutMetadataAction(events), curData) =>
       curData.addData(events) match {
-        case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
+        case newData: HasData[_] if newData.length > dbBatchSize => goto(WritingToDb) using newData
         case newData => stay using newData
       }
     case Event(ScheduledFlushToDb, curData) =>
@@ -41,7 +40,7 @@ class WriteMetadataActor(batchSize: Int, override val dbFlushRate: FiniteDuratio
       stay()
     case Event(e: PutMetadataActionAndRespond, curData) =>
       curData.addData(e) match {
-        case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
+        case newData: HasData[_] if newData.length > dbBatchSize => goto(WritingToDb) using newData
         case newData => stay using newData
       }
   }
@@ -89,7 +88,7 @@ class WriteMetadataActor(batchSize: Int, override val dbFlushRate: FiniteDuratio
 }
 
 object WriteMetadataActor {
-  def props(batchSize: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(batchSize, flushRate)).withDispatcher(ServiceDispatcher)
+  def props(dbBatchSize: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(dbBatchSize, flushRate)).withDispatcher(ServiceDispatcher)
 
   sealed trait WriteMetadataActorMessage
   case object CheckPendingWrites extends WriteMetadataActorMessage with MetadataServiceAction

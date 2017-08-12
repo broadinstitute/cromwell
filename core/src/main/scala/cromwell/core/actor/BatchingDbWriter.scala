@@ -69,9 +69,13 @@ trait BatchingDbWriterActor { this: FSM[BatchingDbWriterState, BatchingDbWriterD
   
   def isShuttingDown: Boolean = shuttingDown
   def dbFlushRate: FiniteDuration
+  def dbBatchSize: Int
+  def writeActorName: String
+
   var periodicFlush: Option[Cancellable] = None
 
   override def preStart(): Unit = {
+    log.info("{} configured to write to the database with batch size {} and flush rate {}.", writeActorName, dbBatchSize, dbFlushRate)
     periodicFlush = Option(context.system.scheduler.schedule(0.seconds, dbFlushRate, self, ScheduledFlushToDb)(context.dispatcher))
   }
 

@@ -19,6 +19,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
   implicit val ec: ExecutionContext = context.dispatcher
   
   override val dbFlushRate = CallCacheWriteActor.dbFlushRate
+  log.info("CallCacheWriteActor configured to write to the database with batch size {} and flush rate {}.", dbBatchSize, dbFlushRate)
 
   startWith(WaitingToWrite, NoData)
 

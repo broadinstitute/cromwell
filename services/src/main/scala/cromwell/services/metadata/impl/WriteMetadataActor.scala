@@ -20,6 +20,8 @@ class WriteMetadataActor(batchSize: Int, override val dbFlushRate: FiniteDuratio
 
   implicit val ec: ExecutionContext = context.dispatcher
 
+  log.info("WriteMetadataActor configured to write to the database with batch size {} and flush rate {}.", batchSize, dbFlushRate)
+
   startWith(WaitingToWrite, NoData)
 
   when(WaitingToWrite) {

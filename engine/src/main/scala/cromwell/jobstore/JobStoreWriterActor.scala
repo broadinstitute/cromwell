@@ -16,6 +16,8 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, override val dbF
 
   implicit val ec = context.dispatcher
 
+  log.info(s"JobStoreWriterActor configured to write to the database with batch size {} and flush rate {}.", dbBatchSize, dbFlushRate)
+
   startWith(WaitingToWrite, NoData)
 
   when(WaitingToWrite) {

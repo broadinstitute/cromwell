@@ -23,7 +23,7 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually wi
   var actor: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, DelayingWriteMetadataActor] = _
 
   before {
-    actor = TestFSMRef(new DelayingWriteMetadataActor())
+    actor = TestFSMRef(new DelayingWriteMetadataActor(), "DelayingWriteMetadataActor")
   }
 
   "WriteMetadataActor" should {

@@ -16,8 +16,6 @@ case class JobStoreWriterActor(jsd: JobStore, override val dbBatchSize: Int, ove
 
   implicit val ec = context.dispatcher
 
-  override val writeActorName = "JobStoreWriterActor"
-
   startWith(WaitingToWrite, NoData)
 
   when(WaitingToWrite) {

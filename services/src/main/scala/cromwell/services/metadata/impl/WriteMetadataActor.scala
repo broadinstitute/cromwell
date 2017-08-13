@@ -19,7 +19,6 @@ class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate
   import WriteMetadataActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
-  override val writeActorName = "WriteMetadataActor"
 
   startWith(WaitingToWrite, NoData)
 

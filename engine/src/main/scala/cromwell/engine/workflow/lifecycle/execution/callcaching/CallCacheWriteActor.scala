@@ -20,7 +20,6 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
   
   override val dbFlushRate = CallCacheWriteActor.dbFlushRate
   override val dbBatchSize = CallCacheWriteActor.dbBatchSize
-  override val writeActorName = "CallCacheWriteActor"
 
   startWith(WaitingToWrite, NoData)
 

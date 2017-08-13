@@ -1,6 +1,7 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
+import java.util.UUID
 
 import akka.testkit.TestFSMRef
 import cats.data.NonEmptyVector
@@ -23,7 +24,7 @@ class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually wi
   var actor: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, DelayingWriteMetadataActor] = _
 
   before {
-    actor = TestFSMRef(new DelayingWriteMetadataActor(), "DelayingWriteMetadataActor")
+    actor = TestFSMRef(new DelayingWriteMetadataActor(), "DelayingWriteMetadataActor-" + UUID.randomUUID())
   }
 
   "WriteMetadataActor" should {

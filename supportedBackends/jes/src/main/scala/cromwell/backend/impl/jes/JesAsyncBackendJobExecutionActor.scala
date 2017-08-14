@@ -230,6 +230,20 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
   }
 
+  lazy val jesMonitoringParamName: String = JesJobPaths.JesMonitoringKey
+  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringLogFilename)
+  lazy val localMonitoringScriptPath: Path =  DefaultPathBuilder.get(jesCallPaths.jesMonitoringScriptFilename)
+
+  lazy val monitoringScript: Option[JesInput] = {
+    jesCallPaths.workflowPaths.monitoringScriptPath map { path =>
+      JesFileInput(s"$jesMonitoringParamName-in", path.pathAsString, localMonitoringScriptPath, workingDisk)
+    }
+  }
+
+  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$jesMonitoringParamName-out",
+    jesCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
+  }
+
   override lazy val commandDirectory: Path = JesWorkingDisk.MountPoint
 
   private val DockerMonitoringLogPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringLogFilename)

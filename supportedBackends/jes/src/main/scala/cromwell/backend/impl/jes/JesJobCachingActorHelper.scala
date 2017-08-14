@@ -5,7 +5,7 @@ import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogging
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 import scala.language.postfixOps
@@ -32,24 +32,10 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val jesStderrFile: Path = jesCallPaths.stderr
   lazy val jesLogFilename: String = jesCallPaths.jesLogFilename
 
-  lazy val jesMonitoringParamName: String = JesJobPaths.JesMonitoringKey
-  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringLogFilename)
-  lazy val localMonitoringScriptPath: Path =  DefaultPathBuilder.get(jesCallPaths.jesMonitoringScriptFilename)
-
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean
 
   lazy val jesAttributes: JesAttributes = jesConfiguration.jesAttributes
-
-  lazy val monitoringScript: Option[JesInput] = {
-    jesCallPaths.workflowPaths.monitoringScriptPath map { path =>
-      JesFileInput(s"$jesMonitoringParamName-in", path.pathAsString, localMonitoringScriptPath, workingDisk)
-    }
-  }
-
-  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$jesMonitoringParamName-out",
-    jesCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
-  }
 
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor

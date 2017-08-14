@@ -43,7 +43,7 @@ object MetadataComponent {
     case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this.metadataComponentJsonWriter) })
     case MetadataObject(values) => JsObject(values.mapValues(_.toJson(this.metadataComponentJsonWriter)))
     case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
-    case MetadataEmptyComponenet => JsObject.empty
+    case MetadataEmptyComponent => JsObject.empty
     case MetadataNullComponent => JsNull
     case MetadataJsonComponent(jsValue) => jsValue
   }
@@ -67,7 +67,7 @@ object MetadataComponent {
         val objectName = chunk.substring(0, bracketIndex)
 
         // Empty value means empty list
-        if (innerValue == MetadataEmptyComponenet) MetadataObject(Map(objectName -> MetadataList.empty))
+        if (innerValue == MetadataEmptyComponent) MetadataObject(Map(objectName -> MetadataList.empty))
         else {
           // Brackets: "[0][1]"
           val brackets = chunk.substring(bracketIndex)
@@ -92,7 +92,7 @@ object MetadataComponent {
   }
 
   private def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
-    lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponenet
+    lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
     lazy val originalKeyAndPrimitive = (event.key.key, primitive)
 
     val keyAndPrimitive: (String, MetadataComponent) = if (event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)) {
@@ -121,7 +121,7 @@ object MetadataComponent {
 }
 
 sealed trait MetadataComponent
-case object MetadataEmptyComponenet extends MetadataComponent
+case object MetadataEmptyComponent extends MetadataComponent
 case object MetadataNullComponent extends MetadataComponent
 
 // Metadata Object  

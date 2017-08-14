@@ -88,7 +88,7 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
   private lazy val cmdInput =
-    JesFileInput(ExecParamName, jesCallPaths.script.pathAsString, DefaultPathBuilder.get(jesCallPaths.scriptFilename), workingDisk)
+    JesFileInput(JesJobPaths.JesExecParamName, jesCallPaths.script.pathAsString, DefaultPathBuilder.get(jesCallPaths.scriptFilename), workingDisk)
   private lazy val jesCommandLine = s"/bin/bash ${cmdInput.containerPath}"
   private lazy val rcJesOutput = JesFileOutput(returnCodeFilename, returnCodeGcsPath.pathAsString, DefaultPathBuilder.get(returnCodeFilename), workingDisk)
 
@@ -229,13 +229,30 @@ class JesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
   }
 
+  lazy val jesMonitoringParamName: String = JesJobPaths.JesMonitoringKey
+  lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(jesCallPaths.jesMonitoringLogFilename)
+  lazy val localMonitoringScriptPath: Path =  DefaultPathBuilder.get(jesCallPaths.jesMonitoringScriptFilename)
+
+  lazy val monitoringScript: Option[JesInput] = {
+    jesCallPaths.workflowPaths.monitoringScriptPath map { path =>
+      JesFileInput(s"$jesMonitoringParamName-in", path.pathAsString, localMonitoringScriptPath, workingDisk)
+    }
+  }
+
+  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$jesMonitoringParamName-out",
+    jesCallPaths.jesMonitoringLogPath.pathAsString, localMonitoringLogPath, workingDisk)
+  }
+
   override lazy val commandDirectory: Path = JesWorkingDisk.MountPoint
+
+  private val DockerMonitoringLogPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringLogFilename)
+  private val DockerMonitoringScriptPath: Path = JesWorkingDisk.MountPoint.resolve(jesCallPaths.jesMonitoringScriptFilename)
 
   override def commandScriptPreamble: String = {
     if (monitoringOutput.isDefined) {
-      s"""|touch $JesMonitoringLogFile
-          |chmod u+x $JesMonitoringScript
-          |$JesMonitoringScript > $JesMonitoringLogFile &""".stripMargin
+      s"""|touch $DockerMonitoringLogPath
+          |chmod u+x $DockerMonitoringScriptPath
+          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin
     } else ""
   }
 

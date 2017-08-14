@@ -154,7 +154,7 @@ case class WorkflowStep(
       }
 
     val haveWeSeenThisStep = knownNodes.flatMap{_ match {
-      case TaskCallNode(name, _, _) => Set(name)
+      case TaskCallNode(name, _, _, _) => Set(name)
       case _ => Set.empty[String]
     }}.contains(id)
 
@@ -166,7 +166,8 @@ case class WorkflowStep(
 
       val td = taskDefinition(typeMap, cwlMap)
 
-      CallNode.callWithInputs(id, td, workflowInputs ++ workflowOutputsMap._1).nodes ++ workflowOutputsMap._2
+      // TODO: Fixme!
+      CallNode.callWithInputs(id, td, workflowInputs ++ workflowOutputsMap._1, Set.empty).getOrElse(???).nodes ++ workflowOutputsMap._2
     }
   }
 }

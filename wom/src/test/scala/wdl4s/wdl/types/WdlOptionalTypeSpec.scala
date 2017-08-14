@@ -2,14 +2,14 @@ package wdl4s.wdl.types
 
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.values.{WdlFile, WdlInteger, WdlOptionalValue, WdlString}
+import wdl4s.wdl.values.{WdlArray, WdlFile, WdlInteger, WdlMap, WdlOptionalValue, WdlString}
 
 import scala.util.{Failure, Success}
 
 class WdlOptionalTypeSpec extends FlatSpec with Matchers {
 
   import TableDrivenPropertyChecks._
-  
+
   behavior of "WdlOptionalType"
 
   val innerCoercionDefinedFromTable = Table(
@@ -70,6 +70,38 @@ class WdlOptionalTypeSpec extends FlatSpec with Matchers {
         case Failure(t) => fail("Unexpected coercion failure: " + t)
       }
     }
+  }
+
+  it should "coerce JsNull to empty value" in {
+    import spray.json._
+
+    // Literal null
+    WdlOptionalType(WdlIntegerType).coerceRawValue(JsNull) shouldBe Success(WdlOptionalValue.none(WdlIntegerType))
+    // Null in array
+    val jsArray = "[1, 2, null, 4]".parseJson
+    val arrayType = WdlArrayType(WdlOptionalType(WdlIntegerType))
+    arrayType.coerceRawValue(jsArray) shouldBe
+      Success(WdlArray(arrayType,
+        List(WdlOptionalValue(WdlInteger(1)), WdlOptionalValue(WdlInteger(2)), WdlOptionalValue.none(WdlIntegerType), WdlOptionalValue(WdlInteger(4)))
+      ))
+    // Null in object
+    val jsObject =
+      """
+        |{
+        |  "one": 1,
+        |  "two": null,
+        |  "three": 3
+        |}
+      """.stripMargin.parseJson
+    val mapType = WdlMapType(WdlStringType, WdlOptionalType(WdlIntegerType))
+    mapType.coerceRawValue(jsObject) shouldBe
+      Success(WdlMap(mapType,
+        Map(
+          WdlString("one") -> WdlOptionalValue(WdlInteger(1)),
+          WdlString("two") -> WdlOptionalValue.none(WdlIntegerType),
+          WdlString("three") ->WdlOptionalValue(WdlInteger(3))
+        )
+      ))
   }
 
 }

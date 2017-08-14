@@ -49,6 +49,7 @@ object Dependencies {
     // http://logback.qos.ch/dependencies.html
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "ch.qos.logback" % "logback-access" % "1.2.3",
+    "com.getsentry.raven" % "raven-logback" % "8.0.3",
     "org.codehaus.janino" % "janino" % "3.0.7"
   )
 

@@ -223,7 +223,7 @@ case class WdlTask(name: String,
 
   private def buildWomDeclarations: List[(String, WomExpression)] = declarations.toList collect {
     case d if d.expression.nonEmpty =>
-      d.unqualifiedName -> PlaceholderWomExpression(d.wdlType)
+      d.unqualifiedName -> PlaceholderWomExpression(Set.empty, d.wdlType)
   }
 
   private def buildWomInputs: Set[Callable.InputDefinition] = declarations collect {
@@ -232,6 +232,6 @@ case class WdlTask(name: String,
     case d if d.expression.isEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
       OptionalInputDefinition(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType])
     case d if d.expression.nonEmpty && d.wdlType.isInstanceOf[WdlOptionalType] =>
-      OptionalInputDefinitionWithDefault(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType], PlaceholderWomExpression(d.wdlType))
+      OptionalInputDefinitionWithDefault(d.unqualifiedName, d.wdlType.asInstanceOf[WdlOptionalType], PlaceholderWomExpression(Set.empty, d.wdlType))
   } toSet
 }

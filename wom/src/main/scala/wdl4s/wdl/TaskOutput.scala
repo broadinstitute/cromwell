@@ -14,7 +14,7 @@ object TaskOutput {
     TaskOutput(name, wdlType, expression, ast, parent)
   }
   
-  def buildWomOutputDefinition(taskOutput: TaskOutput) = OutputDefinition(taskOutput.unqualifiedName, taskOutput.wdlType, PlaceholderWomExpression(taskOutput.wdlType))
+  def buildWomOutputDefinition(taskOutput: TaskOutput) = OutputDefinition(taskOutput.unqualifiedName, taskOutput.wdlType, PlaceholderWomExpression(Set.empty, taskOutput.wdlType))
 }
 
 final case class TaskOutput(unqualifiedName: String, wdlType: WdlType, requiredExpression: WdlExpression, ast: Ast, override val parent: Option[Scope]) extends Output {

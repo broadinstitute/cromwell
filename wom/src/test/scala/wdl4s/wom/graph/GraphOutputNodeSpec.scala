@@ -2,8 +2,7 @@ package wdl4s.wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.types.{WdlIntegerType, WdlType}
-import wdl4s.wdl.values.WdlValue
+import wdl4s.wdl.types.WdlIntegerType
 import wdl4s.wom.expression._
 
 class GraphOutputNodeSpec extends FlatSpec with Matchers {
@@ -19,11 +18,7 @@ class GraphOutputNodeSpec extends FlatSpec with Matchers {
     val jOutput = PortBasedGraphOutputNode("j_out", WdlIntegerType, jInputNode.singleOutputPort)
 
     // Declare an expression that needs both an "i" and a "j":
-    val ijExpression = new WomExpression {
-      override def inputs: Set[NamedExpressionInput] = Set(NamedExpressionInput("i", WdlIntegerType), NamedExpressionInput("j", WdlIntegerType))
-      override def evaluate(variableValues: ExpressionInputs, ioFunctionSet: IoFunctionSet): WdlValue = ???
-      override def womType: WdlType = WdlIntegerType
-    }
+    val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
     // Declare the expression output using both i and j:
     val xOutputValidation = ExpressionBasedGraphOutputNode.linkWithInputs("x_out", ijExpression, Map(

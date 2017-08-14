@@ -19,7 +19,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     runtimeAttributes = new RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,
-    outputs = Set(OutputDefinition("out", WdlStringType, PlaceholderWomExpression(WdlStringType))),
+    outputs = Set(OutputDefinition("out", WdlStringType, PlaceholderWomExpression(Set.empty, WdlStringType))),
     inputs = Set(RequiredInputDefinition("i", WdlIntegerType)),
     declarations = List.empty
   )

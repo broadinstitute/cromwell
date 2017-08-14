@@ -21,6 +21,26 @@ retired at the same time.
 * Cromwell now attempts to gracefully shutdown when running in server mode and receiving a `SIGINT` (`Ctrl-C`) or `SIGTERM` (`kill`) signal. This includes waiting for all pending Database writes before exiting.
 A detailed explanation and information about how to configure this feature can be found in the [Cromwell Wiki](https://github.com/broadinstitute/cromwell/wiki/DevZone#graceful-server-shutdown).
 
+### WDL
+
+* Cromwell now accepts `null` JSON values in the input file and coerces them as an empty WDL value. WDL variables must be declared optional in order to link them with a `null` JSON value.
+
+input.json
+```json
+{
+    "null_input_values.maybeString": null,
+    "null_input_values.arrayOfMaybeInts": [1, 2, null, 4]
+}
+```
+
+workflow.wdl
+```
+workflow null_input_values {
+    String? maybeString
+    Array[Int?] arrayOfMaybeInts
+}
+```
+
 ## 28
 
 ### Bug Fixes

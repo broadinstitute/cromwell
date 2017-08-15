@@ -26,6 +26,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [SIGINT abort handler](#sigint-abort-handler)
 * [Security](#security)
 * [Backends](#backends)
+  * [Backend Job Limits](#backend-job-limits)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
     * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
@@ -679,6 +680,21 @@ backend {
     }
   ]
 }
+```
+
+## Backend Job Limits
+
+You can limit the number of concurrent jobs for a backend by specifying the following option in the backend's config
+stanza:
+
+```
+backend {
+  ...
+  providers {
+    BackendName {
+      actor-factory = ...
+      config {
+        concurrent-job-limit = 5
 ```
 
 ## Backend Filesystems

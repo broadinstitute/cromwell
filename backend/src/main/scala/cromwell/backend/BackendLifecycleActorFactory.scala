@@ -8,9 +8,27 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
 import wdl4s.wdl.WdlTaskCall
 import wdl4s.wdl.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
-
+import net.ceedubs.ficus.Ficus._
 
 trait BackendLifecycleActorFactory {
+
+  /**
+    * Name of the backend.
+    *
+    * This is the first parameter passed into each factory during creation.
+    *
+    * @return The configuration-defined name for this instance of the backend.
+    */
+  def name: String
+
+  /**
+    * Config values for the backend, and a pointer to the global config.
+    *
+    * This is the second parameter passed into each factory during creation.
+    *
+    * @return The backend configuration.
+    */
+  def configurationDescriptor: BackendConfigurationDescriptor
 
   /* ****************************** */
   /*     Workflow Initialization    */
@@ -32,7 +50,10 @@ trait BackendLifecycleActorFactory {
                              ioActor: ActorRef,
                              backendSingletonActor: Option[ActorRef]): Props
 
-  def jobExecutionTokenType: JobExecutionTokenType = JobExecutionTokenType("Default", None)
+  lazy val jobExecutionTokenType: JobExecutionTokenType = {
+    val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
+    JobExecutionTokenType(name, concurrentJobLimit)
+  }
 
   /* ****************************** */
   /*      Workflow Finalization     */

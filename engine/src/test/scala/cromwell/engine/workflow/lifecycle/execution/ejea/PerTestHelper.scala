@@ -78,6 +78,10 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
   def buildFactory() = new BackendLifecycleActorFactory {
 
+    override val name = "PerTestHelper"
+
+    override val configurationDescriptor = TestConfig.emptyBackendConfigDescriptor
+
     override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                         initializationData: Option[BackendInitializationData],
                                         serviceRegistryActor: ActorRef,

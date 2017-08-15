@@ -9,7 +9,6 @@ import akka.stream.ActorMaterializer
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
-import cromwell.backend._
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
@@ -35,8 +34,6 @@ import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 import spray.json._
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
 
@@ -44,29 +41,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.matching.Regex
-
-case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
-  extends BackendLifecycleActorFactory {
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                ioActor: ActorRef,
-                                                calls: Set[WdlTaskCall],
-                                                serviceRegistryActor: ActorRef,
-                                                restarting: Boolean): Option[Props] = None
-
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef,
-                                      ioActor: ActorRef,
-                                      backendSingletonActor: Option[ActorRef]): Props = {
-    throw new NotImplementedError("this is not implemented")
-  }
-
-  override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-    NoFunctions
-  }
-}
 
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
 case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")

@@ -36,6 +36,7 @@ object JesAttributes {
   val GenomicsApiDefaultQps = 1000
 
   private val jesKeys = Set(
+    "concurrent-job-limit",
     "project",
     "root",
     "maximum-polling-interval",

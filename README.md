@@ -1868,7 +1868,7 @@ runtime {
 }
 ```
 
-Defaults to "false".
+Defaults to 0.
 
 # Logging
 

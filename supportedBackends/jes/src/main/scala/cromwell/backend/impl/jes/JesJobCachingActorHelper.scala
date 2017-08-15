@@ -13,12 +13,6 @@ import scala.language.postfixOps
 trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
 
-  val ExecParamName = "exec"
-  val MonitoringParamName = "monitoring"
-
-  val JesMonitoringScript: Path = JesWorkingDisk.MountPoint.resolve("monitoring.sh")
-  val JesMonitoringLogFile: Path = JesWorkingDisk.MountPoint.resolve("monitoring.log")
-
   lazy val initializationData: JesBackendInitializationData = {
     backendInitializationDataAs[JesBackendInitializationData]
   }
@@ -37,21 +31,11 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val jesStdoutFile: Path = jesCallPaths.stdout
   lazy val jesStderrFile: Path = jesCallPaths.stderr
   lazy val jesLogFilename: String = jesCallPaths.jesLogFilename
-  lazy val defaultMonitoringOutputPath: Path = callRootPath.resolve(JesMonitoringLogFile)
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean
 
   lazy val jesAttributes: JesAttributes = jesConfiguration.jesAttributes
-  lazy val monitoringScript: Option[JesInput] = {
-    jesCallPaths.workflowPaths.monitoringPath map { path =>
-      JesFileInput(s"$MonitoringParamName-in", path.pathAsString,
-        JesWorkingDisk.MountPoint.resolve(JesMonitoringScript), workingDisk)
-    }
-  }
-  lazy val monitoringOutput: Option[JesFileOutput] = monitoringScript map { _ => JesFileOutput(s"$MonitoringParamName-out",
-    defaultMonitoringOutputPath.pathAsString, JesMonitoringLogFile, workingDisk)
-  }
 
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor

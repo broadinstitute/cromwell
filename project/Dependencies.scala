@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   lazy val lenthallV = "0.25"
-  lazy val wdl4sV = "0.14-7c693a3-SNAP"
+  lazy val wdl4sV = "0.15-5c445df-SNAP"
 
   lazy val akkaV = "2.5.3"
   lazy val akkaHttpV = "10.0.9"
@@ -49,6 +49,7 @@ object Dependencies {
     // http://logback.qos.ch/dependencies.html
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "ch.qos.logback" % "logback-access" % "1.2.3",
+    "com.getsentry.raven" % "raven-logback" % "8.0.3",
     "org.codehaus.janino" % "janino" % "3.0.7"
   )
 

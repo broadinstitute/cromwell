@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.core.callcaching.CallCachingOff
-import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{CheckingCacheEntryExistence, CheckingJobStore, NoData, PreparingJob}
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
 
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
@@ -15,8 +15,8 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       createCheckingCacheEntryExistenceEjea()
       
       ejea ! HasCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
-      helper.jobPreparationProbe.expectMsg(awaitTimeout, "expecting CallPreparation Start", CallPreparation.Start)
-      ejea.stateName should be(PreparingJob)
+      helper.replyToProbe.expectMsg(RequestOutputStore)
+      ejea.stateName should be(WaitingForOutputStore)
       
       ejea.underlyingActor.effectiveCallCachingMode shouldBe CallCachingOff
     }
@@ -25,18 +25,16 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       createCheckingCacheEntryExistenceEjea()
 
       ejea ! NoCallCacheEntry(CallCacheEntryForCall(helper.workflowId, helper.jobDescriptorKey))
-
-      helper.jobPreparationProbe.expectMsg(awaitTimeout, "expecting CallPreparation Start", CallPreparation.Start)
-      ejea.stateName should be(PreparingJob)
+      helper.replyToProbe.expectMsg(RequestOutputStore)
+      ejea.stateName should be(WaitingForOutputStore)
     }
 
     "prepare job if cache entry existence lookup fails" in {
       createCheckingCacheEntryExistenceEjea()
 
       ejea ! CacheResultLookupFailure(new Exception("[TEST] Failed to lookup cache entry existence"))
-
-      helper.jobPreparationProbe.expectMsg(awaitTimeout, "expecting CallPreparation Start", CallPreparation.Start)
-      ejea.stateName should be(PreparingJob)
+      helper.replyToProbe.expectMsg(RequestOutputStore)
+      ejea.stateName should be(WaitingForOutputStore)
     }
   }
 

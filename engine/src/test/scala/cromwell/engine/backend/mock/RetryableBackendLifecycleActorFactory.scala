@@ -5,7 +5,8 @@ import cromwell.backend._
 import wdl4s.wdl.WdlTaskCall
 import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 
-class RetryableBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
+class RetryableBackendLifecycleActorFactory(val name: String,
+                                            val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,

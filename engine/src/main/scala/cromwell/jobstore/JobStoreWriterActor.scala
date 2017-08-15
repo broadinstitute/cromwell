@@ -12,7 +12,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 
-case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, override val dbFlushRate: FiniteDuration) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with BatchingDbWriterActor {
+case class JobStoreWriterActor(jsd: JobStore, override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with BatchingDbWriterActor {
 
   implicit val ec = context.dispatcher
 

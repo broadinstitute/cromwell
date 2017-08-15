@@ -26,6 +26,7 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [SIGINT abort handler](#sigint-abort-handler)
 * [Security](#security)
 * [Backends](#backends)
+  * [Backend Job Limits](#backend-job-limits)
   * [Backend Filesystems](#backend-filesystems)
     * [Shared Local Filesystem](#shared-local-filesystem)
     * [Google Cloud Storage Filesystem](#google-cloud-storage-filesystem)
@@ -679,6 +680,21 @@ backend {
     }
   ]
 }
+```
+
+## Backend Job Limits
+
+You can limit the number of concurrent jobs for a backend by specifying the following option in the backend's config
+stanza:
+
+```
+backend {
+  ...
+  providers {
+    BackendName {
+      actor-factory = ...
+      config {
+        concurrent-job-limit = 5
 ```
 
 ## Backend Filesystems
@@ -1852,7 +1868,7 @@ runtime {
 }
 ```
 
-Defaults to "false".
+Defaults to 0.
 
 # Logging
 
@@ -1872,6 +1888,8 @@ workflow-options {
 ```
 
 The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `final_workflow_log_dir`.
+
+Cromwell supports [Sentry](https://docs.sentry.io), a service that can be used to monitor exceptions reported in an application's logs. To make use of this add `-Dsentry.dsn=DSN_URL` to your Java command line with your DSN URL.
 
 # Workflow Options
 

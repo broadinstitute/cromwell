@@ -77,11 +77,20 @@
     </else>
   </if>
 
+  <!-- Configure the Sentry appender, overriding the logging threshold to the WARN level -->
+  <appender name="Sentry" class="com.getsentry.raven.logback.SentryAppender">
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>WARN</level>
+    </filter>
+  </appender>
+
   <root level="${LOG_LEVEL}">
     <appender-ref ref="STANDARD_APPENDER" />
     <appender-ref ref="PRETTY_APPENDER" />
     <appender-ref ref="FILEROLLER_APPENDER" />
+    <appender-ref ref="Sentry" />
   </root>
+
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>
   <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>

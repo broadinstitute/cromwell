@@ -79,6 +79,9 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   when(WorkflowExecutionInProgressState) {
+    case Event(RequestOutputStore, data) => 
+      sender() ! data.outputStore
+      stay()
     case Event(CheckRunnable, data) => handleCheckRunnable(data)
 
     case Event(JobStarting(jobKey), stateData) =>
@@ -472,7 +475,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
             val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
             val backendSingleton = backendSingletonCollection.backendSingletonActors(backendName)
             val ejeaProps = EngineJobExecutionActor.props(
-              self, jobKey, data, factory, initializationData.get(backendName), restarting,
+              self, jobKey, workflowDescriptor, factory, initializationData.get(backendName), restarting,
               serviceRegistryActor = serviceRegistryActor,
               ioActor = ioActor,
               jobStoreActor = jobStoreActor,
@@ -496,7 +499,10 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   
   private def processRunnableSubWorkflow(key: SubWorkflowKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
     val sweaRef = context.actorOf(
-      SubWorkflowExecutionActor.props(key, data, backendFactories,
+      SubWorkflowExecutionActor.props(key,
+        data.workflowDescriptor,
+        data.expressionLanguageFunctions,
+        backendFactories,
         ioActor = ioActor,
         serviceRegistryActor = serviceRegistryActor,
         jobStoreActor = jobStoreActor,
@@ -607,6 +613,8 @@ object WorkflowExecutionActor {
   sealed trait WorkflowExecutionActorCommand
 
   case object ExecuteWorkflowCommand extends WorkflowExecutionActorCommand
+
+  case object RequestOutputStore extends WorkflowExecutionActorCommand
 
   /**
     * Responses

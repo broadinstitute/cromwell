@@ -8,7 +8,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.{SaveCallCacheHashes, _}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -19,6 +19,7 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
   implicit val ec: ExecutionContext = context.dispatcher
   
   override val dbFlushRate = CallCacheWriteActor.dbFlushRate
+  override val dbBatchSize = CallCacheWriteActor.dbBatchSize
 
   startWith(WaitingToWrite, NoData)
 

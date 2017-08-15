@@ -12,6 +12,7 @@ import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
+import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
@@ -124,7 +125,7 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
         handler.onFailure(error, null)
     }}
   }
-  override def addStatusPollToBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
+  override def addStatusPollToBatch(httpRequest: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
   override def interpretOperationStatus(operation: Operation): RunStatus = {
     val (status, newQueue) = operationStatusResponses.dequeue
     operationStatusResponses = newQueue

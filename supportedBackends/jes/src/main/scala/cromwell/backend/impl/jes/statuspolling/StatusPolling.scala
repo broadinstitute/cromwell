@@ -3,21 +3,21 @@ package cromwell.backend.impl.jes.statuspolling
 import java.time.OffsetDateTime
 import java.util.{ArrayList => JArrayList}
 
-import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
-import com.google.api.client.googleapis.json.GoogleJsonError
-import com.google.api.client.http.HttpHeaders
+import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonErrorContainer}
+import com.google.api.client.http.{HttpHeaders, HttpRequest}
+import com.google.api.client.util.{ArrayMap => GArrayMap}
 import com.google.api.services.genomics.model.Operation
+import cromwell.backend.impl.jes.RunStatus
 import cromwell.backend.impl.jes.RunStatus._
-import cromwell.backend.impl.jes.{Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
 
-import scala.language.postfixOps
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
+import scala.language.postfixOps
 import scala.util.{Failure, Try, Success => TrySuccess}
 
 private[statuspolling] trait StatusPolling { this: JesPollingActor =>
@@ -39,15 +39,21 @@ private[statuspolling] trait StatusPolling { this: JesPollingActor =>
   def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
-    addStatusPollToBatch(pollingRequest.run, batch, resultHandler)
+    addStatusPollToBatch(pollingRequest.httpRequest, batch, resultHandler)
     completionPromise.future
   }
 
   // Done so that the specs can override this behavior
   def interpretOperationStatus(op: Operation) = StatusPolling.interpretOperationStatus(op)
 
-  def addStatusPollToBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]) =
-    run.getOperationCommand.queue(batch, resultHandler)
+  def addStatusPollToBatch(request: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = {
+    /*
+      * Manually enqueue the request instead of doing it through the RunPipelineRequest
+      * as it would unnecessarily rebuild the request (which we already have)
+    */
+    batch.queue(request, classOf[Operation], classOf[GoogleJsonErrorContainer], resultHandler)
+    ()
+  }
 }
 
 private[statuspolling] object StatusPolling {

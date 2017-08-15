@@ -30,7 +30,7 @@ object GraphPrint {
   private def listAllGraphNodes(scope: Scope): NodesAndLinks = {
 
     val callsAndDeclarations: Set[WdlGraphNode] = (scope.children collect {
-      case w: WdlGraphNode if isCallOrDeclaration(w) => w
+      case w: WdlGraphNode if isCallOrCallBasedDeclaration(w) => w
     }).toSet
 
     val subGraphs: Set[WdlGraphNode] = (scope.children collect {
@@ -39,7 +39,7 @@ object GraphPrint {
     }).toSet
 
     def upstreamLinks(wdlGraphNode: WdlGraphNode, graphNodeName: String, suffix: String = ""): Set[String] = wdlGraphNode.upstream collect {
-      case upstream: WdlGraphNode if isCallOrDeclaration(upstream) =>
+      case upstream: WdlGraphNode if isCallOrCallBasedDeclaration(upstream) =>
         val upstreamName = graphName(upstream)
         s""""$upstreamName" -> "$graphNodeName" $suffix"""
     }
@@ -47,13 +47,11 @@ object GraphPrint {
     val thisLevelNodesAndLinks: NodesAndLinks = callsAndDeclarations foldMap { graphNode =>
       val name = graphName(graphNode)
       val initialSet: Set[String] = graphNode match {
-        case w: WdlGraphNode if isCallOrDeclaration(w) => Set(s""""$name"""")
+        case w: WdlGraphNode if isCallOrCallBasedDeclaration(w) => Set(s""""$name"""")
         case _ => Set.empty
       }
 
-      val fromStart = if (graphNode.upstream.isEmpty) Set(s""""start" -> "$name"""") else Set.empty
-
-      NodesAndLinks(initialSet, upstreamLinks(graphNode, name) ++ fromStart)
+      NodesAndLinks(initialSet, upstreamLinks(graphNode, name))
     }
 
     val subGraphNodesAndLinks: NodesAndLinks = subGraphs foldMap { wdlGraphNode =>
@@ -73,20 +71,23 @@ object GraphPrint {
     thisLevelNodesAndLinks |+| subGraphNodesAndLinks
   }
 
-  private def isCallOrDeclaration(w: WdlGraphNode): Boolean = w.isInstanceOf[WdlCall] || w.isInstanceOf[Declaration]
+  private def isCallOrCallBasedDeclaration(w: WdlGraphNode): Boolean = w match {
+    case _: WdlCall => true
+    case w: Declaration if w.upstream.exists(isCallOrCallBasedDeclaration) => true
+    case _ => false
+  }
 
   private def dotSafe(s: String) = s.replaceAllLiterally("\"", "\\\"")
 
   private def graphName(g: WdlGraphNode): String = dotSafe(g match {
     case d: Declaration =>
-      val exprString = d.expression.map(e => " = " + e.toWdlString).getOrElse("")
-      s"${d.wdlType.toWdlString} ${d.unqualifiedName}$exprString"
+      s"${d.wdlType.toWdlString} ${d.unqualifiedName}"
     case c: WdlCall =>
       s"call ${c.unqualifiedName}"
     case i: If =>
       s"if (${i.condition.toWdlString})"
     case s: Scatter =>
-      s"scatter (${s.item} in ${s.collection.toWdlString})"
+      s"scatter (${s.collection.toWdlString})"
     case c: CallOutput =>
       val exprString = c.expression.map(e => " = " + e.toWdlString).getOrElse("")
       s"output { ${c.fullyQualifiedName}$exprString }"

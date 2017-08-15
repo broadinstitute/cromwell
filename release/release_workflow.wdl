@@ -40,7 +40,7 @@ task do_release {
        # Generate new scaladoc
        sbt 'set scalacOptions in (Compile, doc) := List("-skip-packages", "better")' doc
        git checkout gh-pages
-       for subproj in cwl wdl wom; do
+       for subproj in cwl wom; do
          mkdir -p ${releaseV}/$subproj
          mv $subproj/target/scala-2.12/api ${releaseV}/$subproj
        done

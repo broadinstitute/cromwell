@@ -24,6 +24,9 @@ A detailed explanation and information about how to configure this feature can b
 * Empty optional WDL values are now rendered as the `null` JSON value instead of the JSON string `"null"` in the metadata and output endpoints.
 No migration of previous workflows will be performed. Workflows run on Cromwell 28 and prior will still render empty values as `"null"`.
 
+* You can now limit the number of concurrent jobs for any backend. Previously this was only possible in some backend
+implementations. Please see the [README](https://github.com/broadinstitute/cromwell#backend-job-limits) for details.
+
 ### WDL
 
 * Cromwell now accepts `null` JSON values in the input file and coerces them as an empty WDL value. WDL variables must be declared optional in order to be supplied with a `null` JSON value.

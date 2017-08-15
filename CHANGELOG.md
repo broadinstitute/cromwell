@@ -21,12 +21,12 @@ retired at the same time.
 * Cromwell now attempts to gracefully shutdown when running in server mode and receiving a `SIGINT` (`Ctrl-C`) or `SIGTERM` (`kill`) signal. This includes waiting for all pending Database writes before exiting.
 A detailed explanation and information about how to configure this feature can be found in the [Cromwell Wiki](https://github.com/broadinstitute/cromwell/wiki/DevZone#graceful-server-shutdown).
 
-* Empty optional wdl values are now rendered as the `null` JSON value instead of the JSON string `"null"` in the metadata and output endpoints.
-No migration of previous workflow will be performed. Workflows run on Cromwell 28 and prior will still render empty values as `"null"`.
+* Empty optional WDL values are now rendered as the `null` JSON value instead of the JSON string `"null"` in the metadata and output endpoints.
+No migration of previous workflows will be performed. Workflows run on Cromwell 28 and prior will still render empty values as `"null"`.
 
 ### WDL
 
-* Cromwell now accepts `null` JSON values in the input file and coerces them as an empty WDL value. WDL variables must be declared optional in order to link them with a `null` JSON value.
+* Cromwell now accepts `null` JSON values in the input file and coerces them as an empty WDL value. WDL variables must be declared optional in order to be supplied with a `null` JSON value.
 
 input.json
 ```json

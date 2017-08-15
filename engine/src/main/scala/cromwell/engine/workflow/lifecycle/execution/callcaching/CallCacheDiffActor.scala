@@ -212,7 +212,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     def makeFinalValue(value: Option[Option[MetadataValue]]) = value match {
       case Some(Some(metadataValue)) => MetadataPrimitive(metadataValue)
       case Some(None) => PlaceholderMissingHashValue
-      case None => MetadataNull
+      case None => MetadataNullComponent
     }
 
     MetadataObject(

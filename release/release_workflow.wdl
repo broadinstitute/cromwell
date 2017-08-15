@@ -41,8 +41,12 @@ task do_release {
        sbt 'set scalacOptions in (Compile, doc) := List("-skip-packages", "better")' doc
        git checkout gh-pages
        for subproj in cwl wdl wom; do
-         mkdir -p ${releaseV}/$subproj
-         mv $subproj/target/scala-2.12/api ${releaseV}/$subproj
+         API_SRC_DIR=$subproj/target/scala-2.12/api
+         API_DST_DIR=${releaseV}/$subproj
+         if [ -d $API_SRC_DIR ]; then
+           mkdir -p $API_DST_DIR
+           mv $API_SRC_DIR $API_DST_DIR
+         fi
        done
        git add ${releaseV}
        

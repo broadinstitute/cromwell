@@ -34,12 +34,13 @@ private[statuspolling] trait RunCreation { this: JesPollingActor =>
     completionPromise.future
   }
 
-  private def addRunCreationToBatch(request: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]) = {
+  private def addRunCreationToBatch(request: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = {
     /*
       * Manually enqueue the request instead of doing it through the RunPipelineRequest
       * as it would unnecessarily rebuild the request (which we already have)
      */
     batch.queue(request, classOf[Operation], classOf[GoogleJsonErrorContainer], resultHandler)
+    ()
   }
 
   private def getJob(operation: Operation) = StandardAsyncJob(operation.getName)

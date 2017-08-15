@@ -22,7 +22,7 @@ import scala.util.{Failure, Try, Success => TrySuccess}
 
 private[statuspolling] trait StatusPolling { this: JesPollingActor =>
 
-  private def statusPollResultHandler(originalRequest: JesStatusPollQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
+  private [statuspolling] def statusPollResultHandler(originalRequest: JesStatusPollQuery, completionPromise: Promise[Try[Unit]]) = new JsonBatchCallback[Operation] {
     override def onSuccess(operation: Operation, responseHeaders: HttpHeaders): Unit = {
       originalRequest.requester ! interpretOperationStatus(operation)
       completionPromise.trySuccess(TrySuccess(()))
@@ -36,7 +36,7 @@ private[statuspolling] trait StatusPolling { this: JesPollingActor =>
     }
   }
 
-  def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+  private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
     val completionPromise = Promise[Try[Unit]]()
     val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
     addStatusPollToBatch(pollingRequest.httpRequest, batch, resultHandler)

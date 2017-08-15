@@ -1,13 +1,7 @@
 package cromwell.backend.impl.jes.statuspolling
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{TestActorRef, TestProbe}
-import cromwell.core.{ExecutionEvent, TestKitSuite}
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.concurrent.Eventually
-
-import scala.concurrent.duration._
-import akka.testkit._
+import akka.testkit.{TestActorRef, TestProbe, _}
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
@@ -15,15 +9,21 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiException, JesApiQueryFailed, JesStatusPollQuery, RequestJesPollingWork}
 import cromwell.backend.impl.jes.statuspolling.TestJesPollingActor.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
+import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
+import cromwell.core.{ExecutionEvent, TestKitSuite}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import io.grpc.Status
+import org.scalatest.concurrent.Eventually
+import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
+import scala.concurrent.duration._
+import scala.concurrent.{Future, Promise}
+import scala.util.Try
 
 class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
 
@@ -125,6 +125,14 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
         handler.onFailure(error, null)
     }}
   }
+
+  override private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+    val completionPromise = Promise[Try[Unit]]()
+    val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
+    addStatusPollToBatch(null, batch, resultHandler)
+    completionPromise.future
+  }
+  
   override def addStatusPollToBatch(httpRequest: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
   override def interpretOperationStatus(operation: Operation): RunStatus = {
     val (status, newQueue) = operationStatusResponses.dequeue

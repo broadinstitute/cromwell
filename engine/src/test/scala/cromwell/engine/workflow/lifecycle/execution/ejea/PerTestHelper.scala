@@ -10,16 +10,16 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching._
 import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
-import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
 import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlExpressionMock}
 import cromwell.util.AkkaTestUtil._
 import org.specs2.mock.Mockito
+import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl._
 import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
 
 import scala.util.Success
@@ -133,7 +133,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       jobPreparationProbe = jobPreparationProbe,
       replyTo = replyToProbe.ref,
       jobDescriptorKey = jobDescriptorKey,
-      executionData = WorkflowExecutionActorData.empty(descriptor),
+      workflowDescriptor = descriptor,
       factory = factory,
       initializationData = None,
       restarting = restarting,
@@ -157,7 +157,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              jobPreparationProbe: TestProbe,
                              replyTo: ActorRef,
                              jobDescriptorKey: BackendJobDescriptorKey,
-                             executionData: WorkflowExecutionActorData,
+                             workflowDescriptor: EngineWorkflowDescriptor,
                              factory: BackendLifecycleActorFactory,
                              initializationData: Option[BackendInitializationData],
                              restarting: Boolean,
@@ -169,7 +169,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              dockerHashActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
                              backendName: String,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
+                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, workflowDescriptor, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
   implicit val system = context.system
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))

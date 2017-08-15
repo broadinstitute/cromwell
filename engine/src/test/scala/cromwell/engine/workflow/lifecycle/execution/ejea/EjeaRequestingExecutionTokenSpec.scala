@@ -1,7 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation
+import cromwell.engine.workflow.lifecycle.execution.JobStarting
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed}
 import cromwell.jobstore.JobStoreActor.QueryJobCompletion
 import org.scalatest.concurrent.Eventually
@@ -41,13 +42,13 @@ class EjeaRequestingExecutionTokenSpec extends EngineJobExecutionActorSpec with 
       }
 
 
-      s"bypass the Job Store and start preparing the job for running or call caching ($mode)" in {
+      s"bypass the Job Store and request output store to start preparing the job for running or call caching ($mode)" in {
         ejea = helper.buildEJEA(restarting = false)
         ejea ! JobExecutionTokenDispensed(helper.executionToken)
 
-        helper.jobPreparationProbe.expectMsg(max = awaitTimeout, hint = "Awaiting job preparation", CallPreparation.Start)
-        helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
-        ejea.stateName should be(PreparingJob)
+        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting JobStarting message", JobStarting(helper.jobDescriptorKey))
+        helper.replyToProbe.expectMsg(max = awaitTimeout, hint = "Awaiting RequestOutputStore message", RequestOutputStore)
+        ejea.stateName should be(WaitingForOutputStore)
       }
     }
   }

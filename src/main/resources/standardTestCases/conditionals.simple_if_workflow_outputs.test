@@ -9,5 +9,5 @@ files {
 metadata {
   workflowName: simple_if
   "outputs.simple_if.rmt": "done"
-  "outputs.simple_if.rmf": "null"
+  "outputs.simple_if.rmf": null
 }

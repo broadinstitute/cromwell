@@ -14,5 +14,5 @@ metadata {
   "outputs.subworkflows_in_ifs.tjs.0": "1"
   "outputs.subworkflows_in_ifs.tjs.1": "2"
   "outputs.subworkflows_in_ifs.tjs.2": "3"
-  "outputs.subworkflows_in_ifs.fjs": "null"
+  "outputs.subworkflows_in_ifs.fjs": null
 }

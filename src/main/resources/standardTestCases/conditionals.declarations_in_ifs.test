@@ -9,7 +9,7 @@ files {
 metadata {
   workflowName: declarations_in_ifs
   "outputs.declarations_in_ifs.singles.0": "5"
-  "outputs.declarations_in_ifs.singles.1": "null"
+  "outputs.declarations_in_ifs.singles.1": null
   "outputs.declarations_in_ifs.doubles.0": "10"
-  "outputs.declarations_in_ifs.doubles.1": "null"
+  "outputs.declarations_in_ifs.doubles.1": null
 }

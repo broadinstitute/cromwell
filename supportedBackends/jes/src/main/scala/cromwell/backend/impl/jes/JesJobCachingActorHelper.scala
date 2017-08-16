@@ -67,9 +67,16 @@ trait JesJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value } toMap
 
   override protected def nonStandardMetadata: Map[String, Any] = {
+    val googleProject = initializationData
+      .workflowPaths
+      .workflowDescriptor
+      .workflowOptions
+      .get(JesMetadataKeys.GoogleProject)
+      .getOrElse(jesAttributes.project) 
+
     Map(
-      JesMetadataKeys.GoogleProject -> jesAttributes.project,
-      JesMetadataKeys.ExecutionBucket -> jesAttributes.executionBucket,
+      JesMetadataKeys.GoogleProject -> googleProject,
+      JesMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
       JesMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,
       "preemptible" -> preemptible
     ) ++ backendLabelEvents ++ originalLabelEvents

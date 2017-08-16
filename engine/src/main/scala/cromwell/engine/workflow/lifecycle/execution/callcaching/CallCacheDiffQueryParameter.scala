@@ -1,9 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.{NonEmptyList, Validated}
+import cats.data.Validated._
 import cats.implicits._
 import cromwell.core.WorkflowId
-import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 
 import scala.util.{Failure, Success, Try}
@@ -31,12 +32,9 @@ object CallCacheDiffQueryParameter {
       }
     }
     
-    def validateWorkflowId(parameter: String) = for {
+    def validateWorkflowId(parameter: String): ErrorOr[WorkflowId] = for {
       workflowIdString <- extractAttribute(parameter)
-      workflowId <- Try(WorkflowId.fromString(workflowIdString.trim)) match {
-        case Success(id) => id.validNel
-        case Failure(f) => f.getMessage.invalidNel
-      }
+      workflowId <- fromTry(Try(WorkflowId.fromString(workflowIdString.trim))).toValidatedNel
     } yield workflowId
     
     val workflowAValidation = validateWorkflowId("workflowA")

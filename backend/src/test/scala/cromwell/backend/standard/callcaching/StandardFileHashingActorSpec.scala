@@ -75,7 +75,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
     standardFileHashingActorRef ! request
 
     ioActorProbe.expectMsgPF(1.seconds) {
-      case (request: SingleFileHashRequest, _: IoHashCommand) if request.file.value == "/expected/failure/path" =>
+      case (request: FileHashContext, _: IoHashCommand) if request.file == "/expected/failure/path" =>
       case unexpected => fail(s"received unexpected message $unexpected")
     }
 

@@ -4,7 +4,7 @@ import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val wdl4sVersion = "0.15"
+  val wdl4sVersion = "0.16"
 
   // Adapted from SbtGit.versionWithGit
   def wdl4sVersionWithGit: Seq[Setting[_]] =

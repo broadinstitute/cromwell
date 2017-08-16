@@ -49,7 +49,9 @@ object TaskCall {
 
 object CallNode {
 
-  final case class CallWithInputs(call: CallNode, inputs: Set[GraphInputNode])
+  final case class CallWithInputs(call: CallNode, inputs: Set[GraphInputNode]) {
+    def nodes: Set[GraphNode] = Set(call) ++ inputs
+  }
 
   /**
     * Create a CallNode for a Callable (task or workflow).

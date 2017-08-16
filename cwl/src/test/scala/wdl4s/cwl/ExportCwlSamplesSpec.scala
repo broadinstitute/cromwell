@@ -2,20 +2,23 @@ package wdl4s.cwl
 
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
+import shapeless.syntax.singleton._
 import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
+import wdl4s.cwl.WorkflowStepInput.InputSource
 
 class ExportCwlSamplesSpec extends FlatSpec with Matchers {
 
-  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
+  def assertCorrectJson(cwl: CwlFile, expectedYaml: String) = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
 
   it should "encode sample CWL command line tool" in {
     val tool =
       CommandLineTool(
+        `class` = "CommandLineTool".narrow,
         inputs =  Array(CommandInputParameter(
           id = "message",
           inputBinding = Option(CommandLineBinding(
             position = Option(1)
-          )),
+          ))
         )),
         baseCommand = Option(Coproduct[BaseCommand]("echo"))
       )
@@ -36,15 +39,13 @@ baseCommand: echo
     val workflow = Workflow(
       inputs = Array(
           InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](CwlType.File))),
-          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](CwlType.String))),
+          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](CwlType.String)))
         ),
-      outputs = (
-        Array(
-           WorkflowOutputParameter(
-            id = "classout",
-            `type` = Option(Coproduct[MyriadOutputType](CwlType.File)),
-            outputSource = Option(Coproduct[WorkflowOutputParameter#OutputSource]("compile/classfile"))
-          )
+      outputs = Array(
+        WorkflowOutputParameter(
+          id = "classout",
+          `type` = Option(Coproduct[MyriadOutputType](CwlType.File)),
+          outputSource = Option(Coproduct[WorkflowOutputParameter#OutputSource]("compile/classfile"))
         )
       ),
       steps =
@@ -54,8 +55,8 @@ baseCommand: echo
             run = Coproduct[WorkflowStep.Run]("tar-param.cwl"),
             in =
               Array(
-                WorkflowStepInput(id = "tarfile", source = Option(Coproduct[WorkflowStepInputSource]("inp"))),
-                WorkflowStepInput(id = "extractfile", source =  Option(Coproduct[WorkflowStepInputSource]("ex")))
+                WorkflowStepInput(id = "tarfile", source = Option(Coproduct[InputSource]("inp"))),
+                WorkflowStepInput(id = "extractfile", source =  Option(Coproduct[InputSource]("ex")))
               ),
             out = Coproduct[WorkflowStep.Outputs](Array("example_out"))
           ),
@@ -63,7 +64,7 @@ baseCommand: echo
             id = "compile",
             run = Coproduct[WorkflowStep.Run]("arguments.cwl"),
             in = Array(
-                 WorkflowStepInput(id = "src", source = Option(Coproduct[WorkflowStepInputSource]("untar/example_out")))
+                 WorkflowStepInput(id = "src", source = Option(Coproduct[InputSource]("untar/example_out")))
               ),
             out = Coproduct[WorkflowStep.Outputs](Array("classfile"))
           )
@@ -104,6 +105,7 @@ steps:
 
   it should "encode sample CWL env" in {
     val tool = CommandLineTool(
+      `class` = "CommandLineTool".narrow,
       baseCommand = Option(Coproduct[BaseCommand]("env")),
       requirements = Option(Array(Coproduct[Requirement](EnvVarRequirement(
         envDef = Array(EnvironmentDef("HELLO", Coproduct[StringOrExpression]("$(inputs.message)")))

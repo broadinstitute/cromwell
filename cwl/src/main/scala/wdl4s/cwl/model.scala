@@ -6,13 +6,18 @@ import shapeless.syntax.singleton._
 import wdl4s.cwl.CommandLineTool.StringOrExpression
 import wdl4s.cwl.CommandOutputBinding.Glob
 import wdl4s.cwl.LinkMergeMethod.LinkMergeMethod
+import wdl4s.cwl.WorkflowStepInput.InputSource
 
 case class WorkflowStepInput(
   id: String,
-  source: Option[String :+: Array[String] :+: CNil] = None,
+  source: Option[InputSource] = None,
   linkMerge: Option[LinkMergeMethod] = None,
   default: Option[CwlAny] = None,
   valueFrom: Option[ECMAScriptExpression :+: String :+: CNil] = None)
+
+object WorkflowStepInput {
+  type InputSource = String :+: Array[String] :+: CNil
+}
 
 case class InputParameter(
                            id: String,

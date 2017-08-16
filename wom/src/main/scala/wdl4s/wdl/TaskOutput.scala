@@ -13,7 +13,7 @@ object TaskOutput {
     val expression = WdlExpression(ast.getAttribute("expression"))
     TaskOutput(name, wdlType, expression, ast, parent)
   }
-  
+
   def buildWomOutputDefinition(taskOutput: TaskOutput) = OutputDefinition(taskOutput.unqualifiedName, taskOutput.wdlType, PlaceholderWomExpression(Set.empty, taskOutput.wdlType))
 }
 

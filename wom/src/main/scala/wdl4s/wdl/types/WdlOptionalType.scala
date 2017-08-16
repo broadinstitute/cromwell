@@ -1,5 +1,4 @@
 package wdl4s.wdl.types
-import spray.json.JsNull
 import wdl4s.wdl.values.{WdlOptionalValue, WdlValue}
 
 import scala.util.Try
@@ -21,9 +20,6 @@ case class WdlOptionalType(memberType: WdlType) extends WdlType {
     // Coercing inner values:
     case WdlOptionalValue(otherMemberType, Some(value)) if memberType.isCoerceableFrom(otherMemberType) => WdlOptionalValue(memberType, Option(memberType.coerceRawValue(value).get))
     case WdlOptionalValue(otherMemberType, None) if memberType.isCoerceableFrom(otherMemberType) => WdlOptionalValue(memberType, None)
-      
-    // Javascript null coerces to empty value
-    case JsNull => WdlOptionalValue(memberType, None)
   }
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {

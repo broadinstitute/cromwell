@@ -1,8 +1,11 @@
 package wdl4s
 
-import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string._
+import eu.timepit.refined._
+import wdl4s.cwl.CwlType.CwlType
+import wdl4s.cwl.CwlType._
+import wdl4s.wdl.types._
 
 /**
  * This package is intended to parse all CWL files.
@@ -44,6 +47,19 @@ import eu.timepit.refined.string._
  */
 package object cwl extends TypeAliases {
 
+  def cwlTypeToWdlType : CwlType => WdlType = {
+    case Null => WdlNothingType
+    case Boolean => WdlBooleanType
+    case Int => WdlIntegerType
+    case Long => WdlIntegerType
+    case Float => WdlFloatType
+    case Double => WdlFloatType
+    case String => WdlStringType
+    case CwlType.File => WdlFileType
+    case CwlType.Directory => ???
+  }
+
+
   /**
     *
     * These are supposed to be valid ECMAScript Expressions.
@@ -51,6 +67,6 @@ package object cwl extends TypeAliases {
     */
   type ECMAScriptExpression = String Refined MatchesRegex[W.`"$([^)]*)"`.T]
 
-  type Yaml = String
+  type WdlTypeMap = Map[String, WdlType]
 
 }

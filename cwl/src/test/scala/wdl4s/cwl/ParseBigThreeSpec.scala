@@ -21,7 +21,7 @@ inputs:
 outputs: []
 """
 
-  decodeCwl(firstTool).isRight shouldBe true
+  decodeCwl(firstTool).isValid shouldBe true
   }
 
   it should "parse first workflow" in {
@@ -38,14 +38,14 @@ outputs:
   outputSource: compile/classfile
   id: classout
 steps:
-- run: arguments.cwl
+- run: cwl/src/test/resources/arguments.cwl
   in:
   - source: untar/example_out
     id: compile/src
   out:
   - compile/classfile
   id: compile
-- run: tar-param.cwl
+- run: cwl/src/test/resources/tar-param.cwl
   in:
   - source: ex
     id: extractfile
@@ -56,7 +56,7 @@ steps:
   id: untar
 """
     decodeCwl(firstWorkflow)
-      .isRight should be (true)
+      .isValid should be (true)
   }
 
   it should "parse env cwl" in {
@@ -77,8 +77,6 @@ id: file:///Users/danb/common-workflow-language/v1.0/examples/env.cwl
 name: file:///Users/danb/common-workflow-language/v1.0/examples/env.cwl
 """
 
-    val output = decodeCwl(envCwl)
-    println(s"output was $output")
-    output.isRight should be (true)
+    decodeCwl(envCwl).isValid should be (true)
   }
 }

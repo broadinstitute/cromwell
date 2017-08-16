@@ -237,9 +237,13 @@ workflow release_cromwell {
     
   Pair[String, String] lenthallAsDependency = ("lenthallV", waitForLenthall.publishedVersion) 
   Pair[String, String] wdl4sAsDependency = ("wdl4sV", waitForWdl4s.publishedVersion)
+
+  #This exists to gate the release of wdltool on the output of wdl4s CWL release.
+  #However, the wdl4s dependency is already updated via the wdl4sAsDependency pair above.
+  Pair[String, String] wdl4sCwlAsDependency = ("neverMatch", waitForWdl4sCwl.publishedVersion)
   
   Array[Pair[String, String]] wdl4sDependencies = [lenthallAsDependency]
-  Array[Pair[String, String]] wdltoolDependencies = [wdl4sAsDependency]
+  Array[Pair[String, String]] wdltoolDependencies = [wdl4sAsDependency, wdl4sCwlAsDependency]
   Array[Pair[String, String]] cromwellDependencies = [lenthallAsDependency, wdl4sAsDependency]
   
   # Regex to find the line setting the current version
@@ -324,6 +328,8 @@ workflow release_cromwell {
   
   call wait_for_published_artifact as waitForLenthall { input: repo = "lenthall_2.12", version = release_lenthall.version }
   call wait_for_published_artifact as waitForWdl4s { input: repo = "wdl4s-wdl_2.12", version = release_wdl4s.version }
+
+  call wait_for_published_artifact as waitForWdl4sCwl { input: repo = "wdl4s-cwl_2.12", version = release_wdl4s.version }
   
   # Generates commands to update wdl4s dependencies
   scatter(wdl4sDependency in wdl4sDependencies) {

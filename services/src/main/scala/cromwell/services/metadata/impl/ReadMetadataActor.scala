@@ -27,7 +27,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
-    case query: WorkflowQuery[_] => queryWorkflowsAndRespond(query.uri, query.parameters)
+    case query: WorkflowQuery => queryWorkflowsAndRespond(query.parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
   }
 
@@ -50,7 +50,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     }
   }
 
-  private def queryWorkflowsAndRespond[A](uri: A, rawParameters: Seq[(String, String)]): Unit = {
+  private def queryWorkflowsAndRespond(rawParameters: Seq[(String, String)]): Unit = {
     def queryWorkflows: Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
       for {
       // Future/Try to wrap the exception that might be thrown from WorkflowQueryParameters.apply.
@@ -62,7 +62,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     val sndr = sender()
 
     queryWorkflows onComplete {
-      case Success((response, metadata)) => sndr ! WorkflowQuerySuccess(uri, response, metadata)
+      case Success((response, metadata)) => sndr ! WorkflowQuerySuccess(response, metadata)
       case Failure(t) => sndr ! WorkflowQueryFailure(t)
     }
   }

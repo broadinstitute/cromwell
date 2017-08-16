@@ -25,17 +25,16 @@ object Settings {
     https://github.com/sbt/sbt-assembly/issues/69
     https://github.com/scala/pickling/issues/10
 
-    Other fancy flags from
+    Other fancy flags from https://tpolecat.github.io/2017/04/25/scalac-flags.html.
 
-    http://blog.threatstack.com/useful-scalac-options-for-better-scala-development-part-1
+    The following isn't used (yet), and in general is an exercise in pain for 2.12 with Cromwell.
+    It'd certainly be nice to have, but params causes a world of hurt. Interested parties are encouraged
+    to take a stab at it.
 
-    and
-
-    https://tpolecat.github.io/2014/04/11/scalac-flags.html
-
+    "-Ywarn-unused:params"              // Warn if a value parameter is unused.
   */
   val compilerSettings = List(
-    "-Xlint",
+    "-explaintypes",
     "-feature",
     "-Xmax-classfile-name", "200",
     "-target:jvm-1.8",
@@ -43,13 +42,37 @@ object Settings {
     "-unchecked",
     "-deprecation",
     "-Xfuture",
+    "-Xlint:adapted-args",
+    "-Xlint:by-name-right-associative",
+    "-Xlint:constant",
+    "-Xlint:delayedinit-select",
+    "-Xlint:doc-detached",
+    "-Xlint:inaccessible",
+    "-Xlint:infer-any",
+    "-Xlint:missing-interpolator",
+    "-Xlint:nullary-override",
+    "-Xlint:nullary-unit",
+    "-Xlint:option-implicit",
+    "-Xlint:package-object-classes",
+    "-Xlint:poly-implicit-overload",
+    "-Xlint:private-shadow",
+    "-Xlint:stars-align",
+    "-Xlint:type-parameter-shadow",
+    "-Xlint:unsound-match",
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
-    "-Ywarn-unused",
-    "-Ywarn-unused-import",
-    "-Xfatal-warnings"
+    "-Ywarn-inaccessible",
+    "-Ywarn-unused:implicits",
+    "-Ywarn-unused:privates",
+    "-Ywarn-unused:locals",
+    "-Ywarn-unused:patvars"
+  )
+
+  val consoleHostileSettings = List(
+    "-Ywarn-unused:imports", // warns about every unused import on every command.
+    "-Xfatal-warnings"       // makes those warnings fatal.
   )
 
   val docSettings = List(
@@ -100,14 +123,15 @@ object Settings {
     )
   )
 
-  val ScalaVersion = "2.11.8"
+  val ScalaVersion = "2.12.3"
   val commonSettings = ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     dockerSettings ++ cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
-    scalacOptions ++= compilerSettings,
+    scalacOptions ++= (compilerSettings ++ consoleHostileSettings),
     scalacOptions in (Compile, doc) ++= docSettings,
+    scalacOptions in (Compile, console) := compilerSettings,
     parallelExecution := false
   )
 
@@ -139,11 +163,11 @@ object Settings {
     name := "cromwell-api-client",
     libraryDependencies ++= cromwellApiClientDependencies,
     organization := "org.broadinstitute",
-    scalaVersion := "2.12.1",
+    scalaVersion := ScalaVersion,
+    scalacOptions ++= (compilerSettings ++ consoleHostileSettings),
+    scalacOptions in (Compile, doc) ++= docSettings,
+    scalacOptions in (Compile, console) := compilerSettings,
     resolvers ++= commonResolvers
-    // scalacOptions ++= compilerSettings,
-    // scalacOptions in (Compile, doc) ++= docSettings,
-    // parallelExecution := false
   ) ++ ReleasePlugin.projectSettings ++ testSettings ++ assemblySettings ++
     cromwellVersionWithGit ++ publishingSettings
 

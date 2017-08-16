@@ -16,7 +16,7 @@ class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobExecutionTo
 
   def receive = {
     case JobExecutionTokenDispensed(dispensedToken) => token = Option(dispensedToken)
-    case JobExecutionTokenDenied(positionInQueue) => rejections += 1
+    case JobExecutionTokenDenied(_) => rejections += 1
     case AkkaTestUtil.ThrowException => throw new RuntimeException("Test exception (don't be scared by the stack trace, it's deliberate!)")
     case AkkaTestUtil.InternalStop => context.stop(self)
   }

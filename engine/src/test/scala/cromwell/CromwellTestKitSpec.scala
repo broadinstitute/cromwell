@@ -9,7 +9,6 @@ import akka.stream.ActorMaterializer
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.CromwellTestKitSpec._
-import cromwell.backend._
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
@@ -25,49 +24,23 @@ import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowSt
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.ServiceRegistryActor
-import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
-import cromwell.webservice.PerRequest.RequestComplete
 import cromwell.webservice.metadata.MetadataBuilderActor
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import org.scalactic.Equality
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import spray.http.StatusCode
 import spray.json._
-import wdl4s.TaskCall
-import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
-import wdl4s.types._
-import wdl4s.values._
+import wdl4s.wdl.types._
+import wdl4s.wdl.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.matching.Regex
-
-case class TestBackendLifecycleActorFactory(configurationDescriptor: BackendConfigurationDescriptor)
-  extends BackendLifecycleActorFactory {
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                                ioActor: ActorRef,
-                                                calls: Set[TaskCall],
-                                                serviceRegistryActor: ActorRef): Option[Props] = None
-
-  override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
-                                      initializationData: Option[BackendInitializationData],
-                                      serviceRegistryActor: ActorRef,
-                                      ioActor: ActorRef,
-                                      backendSingletonActor: Option[ActorRef]): Props = {
-    throw new NotImplementedError("this is not implemented")
-  }
-
-  override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
-                                           jobKey: BackendJobDescriptorKey,
-                                           initializationData: Option[BackendInitializationData]): WdlStandardLibraryFunctions = {
-    NoFunctions
-  }
-}
 
 case class OutputNotFoundException(outputFqn: String, actualOutputs: String) extends RuntimeException(s"Expected output $outputFqn was not found in: '$actualOutputs'")
 case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")
@@ -277,11 +250,10 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor {
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false) {
     override val serverMode = true
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
-    override val abortJobsOnTerminate = false
     def submitWorkflow(sources: WorkflowSourceFilesWithoutImports): WorkflowId = {
       val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
       val result = Await.result(workflowStoreActor.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId
@@ -362,7 +334,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
       workflowSource = sampleWdl.workflowSource(runtime),
       workflowType = Option("WDL"),
       workflowTypeVersion = None,
-      inputsJson = sampleWdl.wdlJson,
+      inputsJson = sampleWdl.workflowJson,
       workflowOptionsJson = workflowOptions,
       labelsJson = customLabels)
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
@@ -408,22 +380,6 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     workflowId
   }
 
-  def getWorkflowMetadata(workflowId: WorkflowId, serviceRegistryActor: ActorRef, key: Option[String] = None)(implicit ec: ExecutionContext): JsObject = {
-    // MetadataBuilderActor sends its response to context.parent, so we can't just use an ask to talk to it here
-    val message = GetMetadataQueryAction(MetadataQuery(workflowId, None, key, None, None, expandSubWorkflows = false))
-    val parentProbe = TestProbe()
-
-    TestActorRef(MetadataBuilderActor.props(serviceRegistryActor), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}") ! message
-    val metadata = parentProbe.expectMsgPF(TimeoutDuration) {
-      // Because of type erasure the scala compiler can't check that the RequestComplete generic type will be (StatusCode, JsObject), which would generate a warning
-      // As long as Metadata sends back a JsObject this is safe
-      case response: RequestComplete[(StatusCode, JsObject)] @unchecked => response.response._2
-    }
-
-    system.stop(parentProbe.ref)
-    metadata
-  }
-
   /**
     * Verifies that a state is correct. // TODO: There must be a better way...?
     */
@@ -441,7 +397,16 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   }
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WdlValue] = {
-    getWorkflowMetadata(id, serviceRegistryActor, None).getFields(WorkflowMetadataKeys.Outputs).toList match {
+    val mba = system.actorOf(MetadataBuilderActor.props(serviceRegistryActor))
+    val response = mba.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
+      case BuiltMetadataResponse(r) => r
+      case FailedMetadataResponse(e) => throw e
+    }
+    val jsObject = Await.result(response, TimeoutDuration)
+
+    system.stop(mba)
+
+    jsObject.getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))
       case _ => Map.empty
     }
@@ -502,7 +467,7 @@ object EmptyCallCacheWriteActor {
 
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case request @ DockerHashRequest(image, _) => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
+    case request: DockerHashRequest => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
   }
 }
 

@@ -4,38 +4,67 @@ import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cromwell.core.Dispatcher._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with WorkflowMetadataHelper {
+final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with WorkflowMetadataHelper with MonitoringCompanionHelper {
   implicit val ec: ExecutionContext = context.dispatcher
 
-  override def receive = {
+  val workflowStoreReceive: Receive = {
     case cmd: SubmitWorkflow =>
+      addWork()
       val sndr = sender()
-      storeWorkflowSources(NonEmptyList.of(cmd.source)) foreach { ids =>
-        val id = ids.head
-        registerSubmissionWithMetadataService(id, cmd.source)
-        sndr ! WorkflowSubmittedToStore(id)
-        log.info("Workflow {} submitted.", id)
+
+      val futureId = for {
+        ids <- storeWorkflowSources(NonEmptyList.of(cmd.source))
+        id = ids.head
+        _ <- registerSubmissionWithMetadataService(id, cmd.source)
+      } yield id
+
+      futureId onComplete {
+        case Success(id) =>
+          log.info("Workflow {} submitted.", id)
+          sndr ! WorkflowSubmittedToStore(id)
+          removeWork()
+        case Failure(throwable) =>
+          log.error("Workflow {} submit failed.", throwable)
+          sndr ! WorkflowSubmitFailed(throwable)
+          removeWork()
       }
+
     case cmd: BatchSubmitWorkflows =>
+      addWork()
       val sndr = sender()
-      storeWorkflowSources(cmd.sources) foreach { ids =>
-        val assignedSources = ids.toList.zip(cmd.sources.toList)
-        assignedSources foreach { case (id, sourceFiles) => registerSubmissionWithMetadataService(id, sourceFiles) }
-        sndr ! WorkflowsBatchSubmittedToStore(ids)
-        log.info("Workflows {} submitted.", ids.toList.mkString(", "))
+
+      val futureIds = for {
+        ids <- storeWorkflowSources(cmd.sources)
+        _ <- (ids.toList zip cmd.sources.toList) traverse (registerSubmissionWithMetadataService _).tupled
+      } yield ids
+
+      futureIds onComplete {
+        case Success(ids) =>
+          log.info("Workflows {} submitted.", ids.toList.mkString(", "))
+          sndr ! WorkflowsBatchSubmittedToStore(ids)
+          removeWork()
+        case Failure(throwable) =>
+          log.error("Workflow {} submit failed.", throwable)
+          sndr ! WorkflowSubmitFailed(throwable)
+          removeWork()
       }
   }
+  
+  override def receive = workflowStoreReceive.orElse(monitoringReceive)
 
   private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFilesCollection]): Future[NonEmptyList[WorkflowId]] = {
     for {
@@ -74,8 +103,10 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerSubmissionWithMetadataService(id: WorkflowId, originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
-    processSource(_.clearEncryptedValues)(originalSourceFiles) foreach { sourceFiles =>
+  private def registerSubmissionWithMetadataService(
+      id: WorkflowId,
+      originalSourceFiles: WorkflowSourceFilesCollection): Future[Unit] = {
+    processSource(_.clearEncryptedValues)(originalSourceFiles) map { sourceFiles =>
       val submissionEvents: List[MetadataEvent] = List(
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
@@ -95,6 +126,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
       )
 
       serviceRegistryActor ! PutMetadataAction(submissionEvents ++ workflowTypeAndVersionEvents.flatten)
+      ()
     }
   }
 }
@@ -107,5 +139,6 @@ object WorkflowStoreSubmitActor {
   sealed trait WorkflowStoreSubmitActorResponse
   final case class WorkflowSubmittedToStore(workflowId: WorkflowId) extends WorkflowStoreSubmitActorResponse
   final case class WorkflowsBatchSubmittedToStore(workflowIds: NonEmptyList[WorkflowId]) extends WorkflowStoreSubmitActorResponse
-}
 
+  final case class WorkflowSubmitFailed(throwable: Throwable) extends WorkflowStoreSubmitActorResponse
+}

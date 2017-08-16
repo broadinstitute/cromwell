@@ -12,7 +12,7 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wdl4s.TaskCall
+import wdl4s.wdl.WdlTaskCall
 
 import scala.concurrent.duration._
 
@@ -64,7 +64,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
       |""".stripMargin
 
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCall],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[WdlTaskCall],
                           conf: BackendConfigurationDescriptor) = {
     val params = TesInitializationActorParams(workflowDescriptor, calls, new TesConfiguration(conf), emptyActor)
     val props = Props(new TesInitializationActor(params))

@@ -72,8 +72,29 @@ while getopts ":hi" option; do
         esac
 done
 
-# Unpack our credentials and such
-tar xvf jesConf.tar
+# TURN OFF LOGGING WHILE WE TALK TO DOCKER/VAULT
+set +x
+
+# Login to docker to access the dsde-toolbox
+docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+
+# Login to vault to access secrets
+docker run --rm \
+    -v $HOME:/root:rw \
+    broadinstitute/dsde-toolbox \
+    vault auth "$JES_TOKEN" < /dev/null > /dev/null && echo vault auth success
+
+set -x
+
+# Render secrets
+docker run --rm \
+    -v $HOME:/root:rw \
+    -v $PWD/src/bin/travis/resources:/working \
+    -v $PWD:/output \
+    -e ENVIRONMENT=not_used \
+    -e INPUT_PATH=/working \
+    -e OUT_PATH=/output \
+    broadinstitute/dsde-toolbox render-templates.sh
 
 # Do a bunch of crap to enable gsutil. It's possible this is overkill but it doesn't take long anyways
 sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1397BC53640DB551
@@ -88,7 +109,13 @@ pyenv global 2.7.10
 sudo -H pip install --upgrade pip
 sudo -H pip install pyopenssl ndg-httpsclient pyasn1 --upgrade
 export CLOUDSDK_PYTHON_SITEPACKAGES=1
-gcloud auth activate-service-account --key-file=broad-dsde-cromwell-dev-d71ad10e17f4.json "$CROMWELL_SERVICE_ACCOUNT"
+
+# Use sed to redact the service account from the stderr
+gcloud -q \
+    auth \
+    activate-service-account \
+    --key-file=cromwell-service-account.json 2>&1 | \
+    sed 's/[A-Za-z0-9._-]*@[A-Za-z0-9._-]*/REDACTED/g'
 
 echo "RUNNING TRAVIS CENTAUR"
 sbt assembly
@@ -108,9 +135,15 @@ fi
 
 # Upload the built Cromwell jar to GCS so we can use it in our centaur test. Set an exit trap to clean it up on failure
 JAR_GCS_PATH=gs://cloud-cromwell-dev/travis-centaur/${CROMWELL_JAR}
-gsutil cp target/scala-2.11/cromwell-*.jar "${JAR_GCS_PATH}"
+gsutil cp target/scala-2.12/cromwell-*.jar "${JAR_GCS_PATH}"
 
-java -Dconfig.file=./jes.conf -jar target/scala-2.11/cromwell-*.jar run src/bin/travis/resources/centaur.wdl src/bin/travis/resources/centaur.inputs | tee log.txt
+java \
+    -Dconfig.file=./jes_centaur.conf \
+    -jar target/scala-2.12/cromwell-*.jar \
+    run \
+    src/bin/travis/resources/centaur.wdl \
+    --inputs src/bin/travis/resources/centaur.inputs | \
+    tee log.txt
 EXIT_CODE="${PIPESTATUS[0]}"
 
 # The perl code below is to remove our lovely color highlighting

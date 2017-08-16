@@ -2,8 +2,8 @@ package cromwell
 
 import akka.testkit._
 import cromwell.core.Tags.DockerTest
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlInteger, WdlString}
+import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlIntegerType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlFile, WdlInteger, WdlString}
 import cromwell.util.SampleWdl
 
 class ScatterWorkflowSpec extends CromwellTestKitWordSpec {

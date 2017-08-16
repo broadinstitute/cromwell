@@ -146,8 +146,9 @@ object WorkflowStoreEngineActor {
   sealed trait WorkflowStoreEngineActorResponse
   case object NoNewWorkflowsToStart extends WorkflowStoreEngineActorResponse
   final case class NewWorkflowsToStart(workflows: NonEmptyList[WorkflowToStart]) extends WorkflowStoreEngineActorResponse
-  final case class WorkflowAborted(workflowId: WorkflowId) extends WorkflowStoreEngineActorResponse
-  final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreEngineActorResponse
+  sealed abstract class WorkflowStoreEngineAbortResponse extends WorkflowStoreEngineActorResponse
+  final case class WorkflowAborted(workflowId: WorkflowId) extends WorkflowStoreEngineAbortResponse
+  final case class WorkflowAbortFailed(workflowId: WorkflowId, reason: Throwable) extends WorkflowStoreEngineAbortResponse
 
 
   final case class WorkflowStoreActorCommandWithSender(command: WorkflowStoreActorEngineCommand, sender: ActorRef)

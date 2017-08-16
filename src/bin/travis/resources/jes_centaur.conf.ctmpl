@@ -1,0 +1,71 @@
+{{with $refreshToken := vault (printf "secret/dsde/cromwell/common/refresh-token")}}
+
+include "application.conf"
+
+backend {
+  default = "Jes"
+  enabled = ["Jes", "Jes-Refresh"]
+  providers {
+    Local.config.filesystems.gcs.auth = "service_account"
+    Jes {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      config {
+        project = "broad-dsde-cromwell-dev"
+        root = "gs://cloud-cromwell-dev/cromwell_execution/travis"
+        maximum-polling-interval = 600
+        genomics {
+          auth = "service_account"
+          endpoint-url = "https://genomics.googleapis.com/"
+        }
+        filesystems {
+          gcs.auth = "service_account"
+        }
+      }
+    }
+    Jes-Refresh {
+      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+      config {
+        project = "broad-dsde-cromwell-dev"
+        root = "gs://centaur-refresh-private/cromwell_execution/travis"
+        maximum-polling-interval = 600
+        genomics {
+          auth = "service_account"
+          endpoint-url = "https://genomics.googleapis.com/"
+        }
+        filesystems {
+          gcs.auth = "refresh_token"
+        }
+      }
+    }
+  }
+}
+
+google {
+  application-name = "cromwell"
+  auths = [
+    {
+      name = "service_account"
+      scheme = "service_account"
+      json-file = "cromwell-service-account.json"
+    }
+    {
+      name = "refresh_token"
+      scheme = "refresh_token"
+      client-id = "{{$refreshToken.Data.client_id}}"
+      client-secret = "{{$refreshToken.Data.client_secret}}"
+    }
+  ]
+}
+
+call-caching {
+  enabled = true
+  lookup-docker-hash = false
+}
+
+engine {
+  filesystems {
+    gcs.auth = "service_account"
+  }
+}
+
+{{end}}

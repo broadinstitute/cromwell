@@ -190,6 +190,11 @@ class WorkflowActor(val workflowId: WorkflowId,
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
 
+  private val restarting = startMode match {
+    case StartNewWorkflow => false
+    case RestartExistingWorkflow => true
+  }
+
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, startMode), s"WorkflowDockerLookupActor-$workflowId")
 
@@ -206,29 +211,24 @@ class WorkflowActor(val workflowId: WorkflowId,
       pushWorkflowStart(workflowId)
       actor ! MaterializeWorkflowDescriptorCommand(workflowSourceFilesCollection, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
-    case Event(AbortWorkflowCommand, stateData) => goto(WorkflowAbortedState)
+    case Event(AbortWorkflowCommand, _) => goto(WorkflowAbortedState)
   }
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor),
+      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor, restarting),
         name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
     case Event(MaterializeWorkflowDescriptorFailureResponse(reason: Throwable), data) =>
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(MaterializingWorkflowDescriptorState, Option(List(reason))))
-    case Event(AbortWorkflowCommand, stateData) =>
+    case Event(AbortWorkflowCommand, _) =>
       // No lifecycle sub-actors exist yet, so no indirection via WorkflowAbortingState is necessary:
       goto(WorkflowAbortedState)
   }
 
   when(InitializingWorkflowState) {
     case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
-      val restarting = startMode match {
-        case StartNewWorkflow => false
-        case RestartExistingWorkflow => true
-      }
-
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
         ioActor = ioActor,
@@ -274,7 +274,7 @@ class WorkflowActor(val workflowId: WorkflowId,
   }
 
   when(WorkflowAbortingState) {
-    case Event(x: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
+    case Event(_: EngineLifecycleStateCompleteResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, Map.empty, failures = None)
     case _ => stay()
   }

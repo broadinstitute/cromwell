@@ -5,7 +5,7 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.ExecutionStore.{FqnIndex, RunnableScopes}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _, _}
-import wdl4s._
+import wdl4s.wdl._
 
 
 object ExecutionStore {
@@ -15,11 +15,11 @@ object ExecutionStore {
 
   def empty = ExecutionStore(Map.empty[JobKey, ExecutionStatus], hasNewRunnables = false)
 
-  def apply(workflow: Workflow, workflowCoercedInputs: WorkflowCoercedInputs) = {
+  def apply(workflow: WdlWorkflow, workflowCoercedInputs: WorkflowCoercedInputs) = {
     // Only add direct children to the store, the rest is dynamically created when necessary
     val keys = workflow.children map {
-      case call: TaskCall => Option(BackendJobDescriptorKey(call, None, 1))
-      case call: WorkflowCall => Option(SubWorkflowKey(call, None, 1))
+      case call: WdlTaskCall => Option(BackendJobDescriptorKey(call, None, 1))
+      case call: WdlWorkflowCall => Option(SubWorkflowKey(call, None, 1))
       case scatter: Scatter => Option(ScatterKey(scatter))
       case conditional: If => Option(ConditionalKey(conditional, None))
       case declaration: Declaration => Option(DeclarationKey(declaration, None, workflowCoercedInputs))
@@ -65,7 +65,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   def hasActiveJob: Boolean = {
     def upstreamFailed(scope: Scope): Boolean = scope match {
-      case node: GraphNode => node.upstreamAncestry exists hasFailedScope
+      case node: WdlGraphNode => node.upstreamAncestry exists hasFailedScope
     }
 
     keysWithStatus(QueuedInCromwell).nonEmpty ||
@@ -82,14 +82,14 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
     }
   }
 
-  private def hasFailedScope(s: GraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
+  private def hasFailedScope(s: WdlGraphNode): Boolean = keysWithStatus(Failed).exists(_.scope == s)
 
   def hasFailedJob: Boolean = keysWithStatus(Failed).nonEmpty
 
   override def toString = store.map { case (j, s) => s"$j -> $s" } mkString System.lineSeparator()
 
   def add(values: Map[JobKey, ExecutionStatus]) = {
-    this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminal))
+    this.copy(statusStore = statusStore ++ values, hasNewRunnables = hasNewRunnables || values.values.exists(_.isTerminalOrRetryable))
   }
 
   /**
@@ -111,7 +111,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def emulateShardEntries(key: CollectorKey): Set[FqnIndex] = {
     (0 until key.scatterWidth).toSet map { i: Int => key.scope match {
-      case c: Call => c.fullyQualifiedName -> Option(i)
+      case c: WdlCall => c.fullyQualifiedName -> Option(i)
       case d: Declaration => d.fullyQualifiedName -> Option(i)
       case _ => throw new RuntimeException("Don't collect that.")
     }}
@@ -119,7 +119,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
 
   private def arePrerequisitesDone(key: JobKey): Boolean = {
     lazy val upstreamAreDone = key.scope.upstream forall {
-      case n @ (_: Call | _: Scatter | _: Declaration) => upstreamIsDone(key, n)
+      case n @ (_: WdlCall | _: Scatter | _: Declaration) => upstreamIsDone(key, n)
       case _ => true
     }
 
@@ -142,7 +142,7 @@ final case class ExecutionStore(private val statusStore: Map[JobKey, ExecutionSt
         * NOTE: this algorithm was designed for ONE-LEVEL of scattering and probably does not
         * work as-is for nested scatter blocks
         */
-      case Some(ancestor: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
+      case Some(_: Scatter) => doneKeys.contains(prerequisiteScope.fullyQualifiedName -> entry.index)
 
       /*
         * Otherwise, simply refer to the collector entry.  This means that 'entry' depends

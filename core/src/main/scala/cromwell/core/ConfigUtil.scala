@@ -7,7 +7,7 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigException, ConfigValue}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.reflect.{ClassTag, classTag}
 
 object ConfigUtil {
@@ -15,7 +15,7 @@ object ConfigUtil {
   val validationLogger = LoggerFactory.getLogger("ConfigurationValidation")
 
   implicit class EnhancedConfig(val config: Config) extends AnyVal {
-    def keys = config.entrySet().toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
+    def keys = config.entrySet().asScala.toSet map { v: java.util.Map.Entry[String, ConfigValue] => v.getKey }
 
     /**
      * For keys that are in the configuration but not in the reference keySet, log a warning.
@@ -37,14 +37,14 @@ object ConfigUtil {
     def validateString(key: String): ValidatedNel[String, String] = try {
       config.getString(key).validNel
     } catch {
-      case e: ConfigException.Missing => s"Could not find key: $key".invalidNel
+      case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
     }
 
     def validateConfig(key: String): ValidatedNel[String, Config] = try {
       config.getConfig(key).validNel
     } catch {
-      case e: ConfigException.Missing => s"Could not find key: $key".invalidNel
-      case e: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
+      case _: ConfigException.Missing => s"Could not find key: $key".invalidNel
+      case _: ConfigException.WrongType => s"key $key cannot be parsed to a Config".invalidNel
     }
 
   }

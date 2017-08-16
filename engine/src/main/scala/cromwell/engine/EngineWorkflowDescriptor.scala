@@ -4,11 +4,11 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
-import wdl4s._
+import wdl4s.wdl._
 
 case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
                                     backendDescriptor: BackendWorkflowDescriptor,
-                                    backendAssignments: Map[TaskCall, String],
+                                    backendAssignments: Map[WdlTaskCall, String],
                                     failureMode: WorkflowFailureMode,
                                     pathBuilders: List[PathBuilder],
                                     callCachingMode: CallCachingMode,

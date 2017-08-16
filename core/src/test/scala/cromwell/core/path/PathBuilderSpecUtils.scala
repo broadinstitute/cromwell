@@ -15,10 +15,6 @@ case class GoodPath(description: String,
                     root: String,
                     name: String,
                     getFileName: String,
-                    toUriHost: String,
-                    toUriPath: String,
-                    toUriStartsWith: String,
-                    toUriEndsWith: String,
                     getNameCount: Int,
                     isAbsolute: Boolean,
                     isDirectory: Boolean)
@@ -85,16 +81,6 @@ trait PathBuilderSpecUtils {
     it should "match expected getFileName" in
       withClue(s"for path ${goodPath.path}${if (goodPath.normalize) " (normalized)" else ""}:") {
         Option(path.getFileName).map(_.pathAsString).orNull should be(goodPath.getFileName)
-      }
-
-    it should "match expected start of toUri" in
-      withClue(s"for path ${goodPath.path}${if (goodPath.normalize) " (normalized)" else ""}:") {
-        path.toUri.toString should startWith(goodPath.toUriStartsWith)
-      }
-
-    it should "match expected end of toUri" in
-      withClue(s"for path ${goodPath.path}${if (goodPath.normalize) " (normalized)" else ""}:") {
-        path.toUri.toString should endWith(goodPath.toUriEndsWith)
       }
 
     it should "match expected getNameCount" in

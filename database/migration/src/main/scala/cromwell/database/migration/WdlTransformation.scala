@@ -6,7 +6,7 @@ import java.util.zip.GZIPInputStream
 
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.io.IOUtils
-import wdl4s.types.{WdlPrimitiveType, WdlType}
+import wdl4s.wdl.types.{WdlPrimitiveType, WdlType}
 
 import scala.util.Try
 
@@ -18,7 +18,7 @@ private [migration] object WdlTransformation {
       case None => null
     }
   } recover {
-    case e: IOException => value
+    case _: IOException => value
   }
 
   def coerceStringToWdl(wdlString: String, wdlType: WdlType) = wdlType match {

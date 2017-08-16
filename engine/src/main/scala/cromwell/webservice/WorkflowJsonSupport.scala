@@ -10,7 +10,9 @@ import MetadataService._
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import WdlValueJsonFormatter._
 import better.files.File
-import spray.json._
+import cromwell.webservice.CromwellApiService.BackendResponse
+import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
+import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -19,6 +21,8 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowOutputResponseProtocol = jsonFormat2(WorkflowOutputResponse)
   implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
   implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
+  implicit val BackendResponseFormat = jsonFormat2(BackendResponse)
+  implicit val BuiltStatusResponseFormat = jsonFormat1(BuiltMetadataResponse)
   implicit val callAttempt = jsonFormat2(CallAttempt)
   implicit val workflowSourceData = jsonFormat6(WorkflowSourceFilesWithoutImports)
 

@@ -19,6 +19,7 @@ import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiExcepti
 import cromwell.backend.impl.jes.statuspolling.TestJesPollingActor.{CallbackFailure, CallbackSuccess, JesBatchCallbackResponse}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import io.grpc.Status
 import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
@@ -64,7 +65,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
     jpActor.underlyingActor.callbackResponses :+= CallbackFailure
 
     val successStatus = RunStatus.Success(Seq.empty[ExecutionEvent], None, None, None)
-    val failureStatus = RunStatus.Failed(-1, Option.empty[String], Seq.empty[ExecutionEvent], None, None, None)
+    val failureStatus = RunStatus.UnsuccessfulRunStatus(Status.UNIMPLEMENTED, Option.empty[String], Seq.empty[ExecutionEvent], None, None, None)
     jpActor.underlyingActor.operationStatusResponses :+= successStatus
     jpActor.underlyingActor.operationStatusResponses :+= failureStatus
 

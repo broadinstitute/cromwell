@@ -12,7 +12,9 @@ import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
+import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
@@ -28,14 +30,14 @@ import cromwell.jobstore._
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
-import wdl4s.TaskOutput
+import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
-                              executionData: WorkflowExecutionActorData,
+                              workflowDescriptor: EngineWorkflowDescriptor,
                               factory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
                               restarting: Boolean,
@@ -50,8 +52,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging with CallMetadataHelper {
 
-  override val workflowIdForLogging = executionData.workflowDescriptor.id
-  override val workflowIdForCallMetadata = executionData.workflowDescriptor.id
+  override val workflowIdForLogging = workflowDescriptor.id
+  override val workflowIdForCallMetadata = workflowDescriptor.id
 
   override val supervisorStrategy = OneForOneStrategy() {
     // If an actor fails to initialize, send the exception to self before stopping it so we can fail the job properly
@@ -111,7 +113,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         jobStoreActor ! QueryJobCompletion(jobStoreKey, jobDescriptorKey.call.task.outputs)
         goto(CheckingJobStore)
       } else {
-        prepareJob()
+        requestOutputStore()
       }
     case Event(JobExecutionTokenDenied(positionInQueue), NoData) =>
       log.debug("Token denied so cannot start yet. Currently position {} in the queue", positionInQueue)
@@ -150,13 +152,23 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(HasCallCacheEntry(_), NoData) =>
       // Disable call caching
       effectiveCallCachingMode = CallCachingOff
-      prepareJob()
+      requestOutputStore()
     // No cache entry for this job - keep going
     case Event(NoCallCacheEntry(_), NoData) =>
-      prepareJob()
+      requestOutputStore()
     case Event(CacheResultLookupFailure(reason), NoData) =>
       log.error(reason, "{}: Failure checking for cache entry existence: {}. Attempting to resume job anyway.", jobTag, reason.getMessage)
-      prepareJob()
+      requestOutputStore()
+  }
+
+  /*
+  * ! Hot Potato Warning !
+  * We ask explicitly for the output store so we can use it on the fly and more importantly not store it as a
+  * variable in this actor, which would prevent it from being garbage collected for the duration of the
+  * job and would lead to memory leaks.
+  */
+  when(WaitingForOutputStore) {
+    case Event(outputStore: OutputStore, NoData) => prepareJob(outputStore)
   }
 
   // When PreparingJob, the FSM always has NoData
@@ -284,6 +296,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
       eventList ++= response.executionEvents
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
+
+    // Non-success:
     case Event(response: BackendJobExecutionResponse, data: ResponsePendingData) =>
       saveJobCompletionToJobStore(data.withResponse(response))
   }
@@ -328,7 +342,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       writeToMetadata(hashMap)
     case _ =>
   }
-
 
   private def handleReadFromCacheOn(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, updatedData: ResponsePendingData) = {
     jobDescriptor.maybeCallCachingEligible match {
@@ -405,14 +418,19 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   def createJobPreparationActor(jobPrepProps: Props, name: String): ActorRef = context.actorOf(jobPrepProps, name)
-  def prepareJob() = {
+  def prepareJob(outputStore: OutputStore) = {
     writeCallCachingModeToMetadata()
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
-    val jobPrepProps = JobPreparationActor.props(executionData, jobDescriptorKey, factory, workflowDockerLookupActor = workflowDockerLookupActor,
+    val jobPrepProps = JobPreparationActor.props(workflowDescriptor, jobDescriptorKey, factory, workflowDockerLookupActor = workflowDockerLookupActor,
       initializationData, serviceRegistryActor = serviceRegistryActor, ioActor = ioActor, backendSingletonActor = backendSingletonActor)
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
-    jobPreparationActor ! CallPreparation.Start
+    jobPreparationActor ! CallPreparation.Start(outputStore)
     goto(PreparingJob)
+  }
+  
+  def requestOutputStore() = {
+    replyTo ! RequestOutputStore
+    goto(WaitingForOutputStore)
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible): Try[ActorRef] = {
@@ -570,7 +588,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case AbortedResponse(_: BackendJobDescriptorKey) =>
         log.debug("{}: Won't save aborted job response to JobStore", jobTag)
         forwardAndStop(updatedData.response)
-      case JobFailedNonRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) =>
+      case JobFailedNonRetryableResponse(jobKey, throwable: Throwable, returnCode: Option[Int]) =>
         publishHashesToMetadata(updatedData.hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
@@ -614,6 +632,7 @@ object EngineJobExecutionActor {
   case object CheckingCallCache extends EngineJobExecutionActorState
   case object FetchingCachedOutputsFromDatabase extends EngineJobExecutionActorState
   case object BackendIsCopyingCachedOutputs extends EngineJobExecutionActorState
+  case object WaitingForOutputStore extends EngineJobExecutionActorState
   case object PreparingJob extends EngineJobExecutionActorState
   case object RunningJob extends EngineJobExecutionActorState
   case object UpdatingCallCache extends EngineJobExecutionActorState
@@ -629,7 +648,7 @@ object EngineJobExecutionActor {
 
   def props(replyTo: ActorRef,
             jobDescriptorKey: BackendJobDescriptorKey,
-            executionData: WorkflowExecutionActorData,
+            workflowDescriptor: EngineWorkflowDescriptor,
             factory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData],
             restarting: Boolean,
@@ -646,7 +665,7 @@ object EngineJobExecutionActor {
     Props(new EngineJobExecutionActor(
       replyTo = replyTo,
       jobDescriptorKey = jobDescriptorKey,
-      executionData = executionData,
+      workflowDescriptor = workflowDescriptor,
       factory = factory,
       initializationData = initializationData,
       restarting = restarting,

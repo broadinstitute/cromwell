@@ -214,11 +214,11 @@ trait BetterFileMethods {
     betterFile.bufferedReader(codec)
 
   final def newBufferedWriter(implicit codec: Codec, openOptions: OpenOptions = OpenOptions.default): BufferedWriter =
-    betterFile.newBufferedWriter(codec)
+    betterFile.newBufferedWriter(codec, openOptions)
 
   final def bufferedWriter(implicit codec: Codec,
                            openOptions: OpenOptions = OpenOptions.default): ManagedResource[BufferedWriter] =
-    betterFile.bufferedWriter(codec)
+    betterFile.bufferedWriter(codec, openOptions)
 
   final def newFileReader: FileReader = betterFile.newFileReader
 

@@ -8,6 +8,8 @@ import scala.concurrent.duration.FiniteDuration
 trait IoClientHelper extends RobustClientHelper { this: Actor with ActorLogging with IoCommandBuilder =>
   def ioActor: ActorRef
 
+  lazy val defaultIoTimeout = RobustClientHelper.DefaultRequestLostTimeout
+
   private [core] def ioResponseReceive: Receive = {
     case ack: IoAck[_] if hasTimeout(ack.command) =>
       cancelTimeout(ack.command)
@@ -20,14 +22,14 @@ trait IoClientHelper extends RobustClientHelper { this: Actor with ActorLogging 
   def ioReceive = robustReceive orElse ioResponseReceive
   
   def sendIoCommand(ioCommand: IoCommand[_]) = {
-    sendIoCommandWithCustomTimeout(ioCommand, RobustClientHelper.DefaultRequestLostTimeout)
+    sendIoCommandWithCustomTimeout(ioCommand, defaultIoTimeout)
   }
 
   def sendIoCommandWithCustomTimeout(ioCommand: IoCommand[_], timeout: FiniteDuration) = {
     robustSend(ioCommand, ioActor, timeout)
   }
 
-  def sendIoCommandWithContext[T](ioCommand: IoCommand[_], context: T, timeout: FiniteDuration = RobustClientHelper.DefaultRequestLostTimeout) = {
+  def sendIoCommandWithContext[T](ioCommand: IoCommand[_], context: T, timeout: FiniteDuration = defaultIoTimeout) = {
     robustSend(context -> ioCommand, ioActor, timeout)
   }
 }

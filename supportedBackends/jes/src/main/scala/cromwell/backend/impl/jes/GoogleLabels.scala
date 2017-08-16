@@ -14,8 +14,8 @@ object GoogleLabels {
 
     Label.validateLabelRegex(mainText, GoogleLabelsRegexPattern.r) match {
       case Valid(labelText) => labelText
-      case invalid if mainText.equals("") && emptyAllowed => mainText
-      case invalid =>
+      case invalid @ _ if mainText.equals("") && emptyAllowed => mainText
+      case invalid @ _ =>
         def appendSafe(current: String, nextChar: Char): String = {
           nextChar match {
             case c if c.isLetterOrDigit || c == '-' => current + c.toLower

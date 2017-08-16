@@ -2,7 +2,7 @@ package cromwell.jobstore
 
 import cromwell.core.WorkflowId
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
-import wdl4s.TaskOutput
+import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
 

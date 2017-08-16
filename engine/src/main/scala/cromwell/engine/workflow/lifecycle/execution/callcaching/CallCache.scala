@@ -41,8 +41,7 @@ class CallCache(database: CallCachingSqlDatabase) {
   }
 
   private def buildCallCachingJoin(callCachingEntry: CallCachingEntry, callCacheHashes: CallCacheHashes,
-                                   result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path])
-                                  (implicit ec: ExecutionContext): CallCachingJoin = {
+                                   result: Iterable[WdlValueSimpleton], jobDetritus: Map[String, Path]): CallCachingJoin = {
 
     val hashesToInsert: Iterable[CallCachingHashEntry] = {
       callCacheHashes.hashes map { hash => CallCachingHashEntry(hash.hashKey.key, hash.hashValue.value) }

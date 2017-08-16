@@ -10,9 +10,10 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.RunStatus._
-import cromwell.backend.impl.jes.{JesAsyncBackendJobExecutionActor, Run, RunStatus}
+import cromwell.backend.impl.jes.{Run, RunStatus}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager._
 import cromwell.core.ExecutionEvent
+import io.grpc.Status
 
 import scala.language.postfixOps
 import scala.collection.JavaConverters._
@@ -70,13 +71,12 @@ private[statuspolling] object StatusPolling {
         lazy val instanceName = computeEngineOption.flatMap(_.get("instanceName"))
         lazy val zone = computeEngineOption.flatMap(_.get("zone"))
 
-        // If there's an error, generate a Failed status. Otherwise, we were successful!
+        // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
         Option(op.getError) match {
-          case None => Success(eventList, machineType, zone, instanceName)
-          case Some(error) if error.getCode == JesAsyncBackendJobExecutionActor.JesPreemption =>
-            Preempted(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
           case Some(error) =>
-            Failed(error.getCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+            val errorCode = Status.fromCodeValue(error.getCode)
+            UnsuccessfulRunStatus(errorCode, Option(error.getMessage), eventList, machineType, zone, instanceName)
+          case None => Success(eventList, machineType, zone, instanceName)
         }
       } else if (op.hasStarted) {
         Running

@@ -6,7 +6,7 @@ import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFact
 import cromwell.core._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.logging.JobLogging
-import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
@@ -16,10 +16,11 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPrepa
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
-import wdl4s.EvaluatedTaskInputs
+import wdl4s.wdl.EvaluatedTaskInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
-                                data: WorkflowExecutionActorData,
+                                parentWorkflow: EngineWorkflowDescriptor,
+                                expressionLanguageFunctions: WdlFunctions,
                                 factories: Map[String, BackendLifecycleActorFactory],
                                 ioActor: ActorRef,
                                 override val serviceRegistryActor: ActorRef,
@@ -35,7 +36,6 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
-  private val parentWorkflow = data.workflowDescriptor
   override val workflowId = parentWorkflow.id
   override val workflowIdForCallMetadata = parentWorkflow.id
   override def jobTag: String = key.tag
@@ -50,18 +50,35 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
         goto(SubWorkflowCheckingStoreState)
       } else {
-        prepareSubWorkflow(createSubWorkflowId())
+        requestOutputStore(createSubWorkflowId())
       }
   }
 
   when(SubWorkflowCheckingStoreState) {
     case Event(SubWorkflowFound(entry), _) =>
-      prepareSubWorkflow(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
+      requestOutputStore(WorkflowId.fromString(entry.subWorkflowExecutionUuid))
     case Event(_: SubWorkflowNotFound, _) =>
-      prepareSubWorkflow(createSubWorkflowId())
+      requestOutputStore(createSubWorkflowId())
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command, starting sub workflow with fresh ID.")
-      prepareSubWorkflow(createSubWorkflowId())
+      requestOutputStore(createSubWorkflowId())
+  }
+
+  /*
+    * ! Hot Potato Warning !
+    * We ask explicitly for the output store so we can use it on the fly and more importantly not store it as a
+    * variable in this actor, which would prevent it from being garbage collected for the duration of the
+    * subworkflow and would lead to memory leaks.
+    */
+  when(WaitingForOutputStore) {
+    case Event(outputStore: OutputStore, SubWorkflowExecutionActorData(Some(subWorkflowId))) =>
+      prepareSubWorkflow(subWorkflowId, outputStore)
+    case Event(_: OutputStore, _) =>
+      context.parent ! SubWorkflowFailedResponse(key, Map.empty, new IllegalStateException(
+        "This is a programmer error, we're ready to prepare the job and should have" +
+          " a SubWorkflowId to use by now but somehow haven't. Failing the workflow."))
+      context stop self
+      stay()
   }
 
   when(SubWorkflowPreparingState) {
@@ -90,7 +107,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   when(SubWorkflowAbortedState) { FSM.NullFunction }
 
   whenUnhandled {
-    case Event(SubWorkflowStoreRegisterSuccess(command), _) =>
+    case Event(SubWorkflowStoreRegisterSuccess(_), _) =>
       // Nothing to do here
       stay()
     case Event(SubWorkflowStoreFailure(command, reason), _) =>
@@ -99,12 +116,12 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   onTransition {
-    case (fromState, toState) =>
+    case (_, toState) =>
       stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) }
   }
 
   onTransition {
-    case (fromState, subWorkflowTerminalState: SubWorkflowTerminalState) =>
+    case (_, _: SubWorkflowTerminalState) =>
       stateData.subWorkflowId match {
         case Some(id) =>
           pushWorkflowEnd(id)
@@ -115,7 +132,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   onTransition {
-    case fromState -> toState => eventList :+= ExecutionEvent(toState.toString)
+    case _ -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
 
   private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) = {
@@ -128,17 +145,22 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     goto(SubWorkflowRunningState)
   }
 
-  private def prepareSubWorkflow(subWorkflowId: WorkflowId) = {
-    createSubWorkflowPreparationActor(subWorkflowId) ! Start
+  private def prepareSubWorkflow(subWorkflowId: WorkflowId, outputStore: OutputStore) = {
+    createSubWorkflowPreparationActor(subWorkflowId) ! Start(outputStore)
     context.parent ! JobStarting(key)
     pushCurrentStateToMetadataService(subWorkflowId, WorkflowRunning)
     pushWorkflowStart(subWorkflowId)
     goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorData(Option(subWorkflowId))
   }
 
+  private def requestOutputStore(workflowId: WorkflowId) = {
+    context.parent ! RequestOutputStore
+    goto(WaitingForOutputStore) using SubWorkflowExecutionActorData(Option(workflowId))
+  }
+
   def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {
     context.actorOf(
-      SubWorkflowPreparationActor.props(data, key, subWorkflowId),
+      SubWorkflowPreparationActor.props(parentWorkflow, expressionLanguageFunctions, key, subWorkflowId),
       s"$subWorkflowId-SubWorkflowPreparationActor-${key.tag}"
     )
   }
@@ -146,19 +168,19 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   def createSubWorkflowActor(subWorkflowEngineDescriptor: EngineWorkflowDescriptor) = {
     context.actorOf(
       WorkflowExecutionActor.props(
-      subWorkflowEngineDescriptor,
-      ioActor = ioActor,
-      serviceRegistryActor = serviceRegistryActor,
-      jobStoreActor = jobStoreActor,
-      subWorkflowStoreActor = subWorkflowStoreActor,
-      callCacheReadActor = callCacheReadActor,
-      callCacheWriteActor = callCacheWriteActor,
-      workflowDockerLookupActor = workflowDockerLookupActor,
-      jobTokenDispenserActor = jobTokenDispenserActor,
-      backendSingletonCollection,
-      initializationData,
-      restarting
-    ),
+        subWorkflowEngineDescriptor,
+        ioActor = ioActor,
+        serviceRegistryActor = serviceRegistryActor,
+        jobStoreActor = jobStoreActor,
+        subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor,
+        callCacheWriteActor = callCacheWriteActor,
+        workflowDockerLookupActor = workflowDockerLookupActor,
+        jobTokenDispenserActor = jobTokenDispenserActor,
+        backendSingletonCollection,
+        initializationData,
+        restarting
+      ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
   }
@@ -166,7 +188,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: EvaluatedTaskInputs) = {
     val subWorkflowId = subWorkflowDescriptor.id
     val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.scope.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
-    
+
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.callable.unqualifiedName)),
@@ -183,7 +205,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     }
 
     val workflowRootEvents = buildWorkflowRootMetadataEvents(subWorkflowDescriptor)
-    
+
     serviceRegistryActor ! PutMetadataAction(events ++ inputEvents ++ workflowRootEvents)
   }
 
@@ -200,7 +222,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         MetadataEvent(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.WorkflowRoot}[$backend]"), MetadataValue(wfRoot.toAbsolutePath))
     }
   }
-  
+
   private def createSubWorkflowId() = {
     val subWorkflowId = WorkflowId.randomId()
     // Register ID to the sub workflow store
@@ -214,7 +236,7 @@ object SubWorkflowExecutionActor {
     def workflowState: WorkflowState
   }
   sealed trait SubWorkflowTerminalState extends SubWorkflowExecutionActorState
-  
+
   case object SubWorkflowPendingState extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowRunning
   }
@@ -227,10 +249,13 @@ object SubWorkflowExecutionActor {
   case object SubWorkflowRunningState extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowRunning
   }
+  case object WaitingForOutputStore extends SubWorkflowExecutionActorState {
+    override val workflowState = WorkflowRunning
+  }
   case object SubWorkflowAbortingState extends SubWorkflowExecutionActorState {
     override val workflowState = WorkflowAborting
   }
-  
+
   case object SubWorkflowSucceededState extends SubWorkflowTerminalState {
     override val workflowState = WorkflowSucceeded
   }
@@ -250,7 +275,8 @@ object SubWorkflowExecutionActor {
   case object Execute
 
   def props(key: SubWorkflowKey,
-            data: WorkflowExecutionActorData,
+            parentWorkflow: EngineWorkflowDescriptor,
+            expressionLanguageFunctions: WdlFunctions,
             factories: Map[String, BackendLifecycleActorFactory],
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
@@ -265,7 +291,8 @@ object SubWorkflowExecutionActor {
             restarting: Boolean) = {
     Props(new SubWorkflowExecutionActor(
       key,
-      data,
+      parentWorkflow,
+      expressionLanguageFunctions,
       factories,
       ioActor = ioActor,
       serviceRegistryActor = serviceRegistryActor,

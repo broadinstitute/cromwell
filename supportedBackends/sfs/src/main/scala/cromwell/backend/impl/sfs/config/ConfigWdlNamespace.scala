@@ -3,7 +3,7 @@ package cromwell.backend.impl.sfs.config
 import com.typesafe.config.Config
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import net.ceedubs.ficus.Ficus._
-import wdl4s._
+import wdl4s.wdl._
 
 import scala.util.{Failure, Success}
 
@@ -61,7 +61,7 @@ class ConfigWdlNamespace(backendConfig: Config) {
 }
 
 object ConfigWdlNamespace {
-  private def makeWdlSource(taskName: String, command: String, declarations: String): WdlSource = {
+  private def makeWdlSource(taskName: String, command: String, declarations: String): WorkflowSource = {
     s"""
        |task $taskName {
        |$declarations
@@ -72,7 +72,7 @@ object ConfigWdlNamespace {
        |""".stripMargin
   }
 
-  private def makeTask(taskName: String, command: String, declarations: String): Task = {
+  private def makeTask(taskName: String, command: String, declarations: String): WdlTask = {
     val workflowSource = makeWdlSource(taskName, command, declarations)
     val wdlNamespace = WdlNamespace.loadUsingSource(workflowSource, None, None).get
     wdlNamespace.findTask(taskName).getOrElse(throw new RuntimeException(s"Couldn't find task $taskName"))

@@ -10,7 +10,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.impl.jes.JesAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.impl.jes.RunStatus.Failed
+import cromwell.backend.impl.jes.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.jes.io.{DiskType, JesWorkingDisk}
 import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.DoPoll
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
@@ -24,14 +24,15 @@ import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.util.SampleWdl
+import _root_.io.grpc.Status
 import org.scalatest._
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
-import wdl4s._
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
+import wdl4s.wdl._
+import wdl4s.wdl.types.{WdlArrayType, WdlFileType, WdlMapType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlFile, WdlMap, WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -176,9 +177,9 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     system.actorOf(Props(new ExecuteOrRecoverActor), "ExecuteOrRecoverActor-" + UUID.randomUUID)
   }
 
-  private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Int, innerErrorCode: Int, expectPreemptible: Boolean): BackendJobExecutionResponse = {
+  private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorCode: Int, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
-    val runStatus = Failed(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val runStatus = UnsuccessfulRunStatus(errorCode, Option(s"$innerErrorCode: I seen some things man"), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val statusPoller = TestProbe()
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -215,29 +216,29 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val expectations = Table(
       ("previous_preemptions", "previous_unexpectedRetries", "preemptible", "errorCode", "innerErrorCode", "shouldRunAsPreemptible", "shouldRetry"),
       // No preemptible attempts allowed, but standard failures should be retried.
-      (0, 0, 0, 10, 13, false, true), // This is the new "unexpected failure" mode, which is now retried
-      (0, 1, 0, 10, 13, false, true),
-      (0, 2, 0, 10, 13, false, false), // The third unexpected failure is a real failure.
-      (0, 0, 0, 10, 14, false, false), // Usually means "preempted', but this wasn't a preemptible VM, so this should just be a failure.
-      (0, 0, 0, 10, 15, false, false),
-      (0, 0, 0, 11, 13, false, false),
-      (0, 0, 0, 11, 14, false, false),
+      (0, 0, 0, Status.ABORTED, 13, false, true), // This is the new "unexpected failure" mode, which is now retried
+      (0, 1, 0, Status.ABORTED, 13, false, true),
+      (0, 2, 0, Status.ABORTED, 13, false, false), // The third unexpected failure is a real failure.
+      (0, 0, 0, Status.ABORTED, 14, false, false), // Usually means "preempted', but this wasn't a preemptible VM, so this should just be a failure.
+      (0, 0, 0, Status.ABORTED, 15, false, false),
+      (0, 0, 0, Status.OUT_OF_RANGE, 13, false, false),
+      (0, 0, 0, Status.OUT_OF_RANGE, 14, false, false),
       // 1 preemptible attempt allowed, but not all failures represent preemptions.
-      (0, 0, 1, 10, 13, true, true),
-      (0, 1, 1, 10, 13, true, true),
-      (0, 2, 1, 10, 13, true, false),
-      (0, 0, 1, 10, 14, true, true),
-      (0, 0, 1, 10, 15, true, false),
-      (0, 0, 1, 11, 13, true, false),
-      (0, 0, 1, 11, 14, true, false),
+      (0, 0, 1, Status.ABORTED, 13, true, true),
+      (0, 1, 1, Status.ABORTED, 13, true, true),
+      (0, 2, 1, Status.ABORTED, 13, true, false),
+      (0, 0, 1, Status.ABORTED, 14, true, true),
+      (0, 0, 1, Status.ABORTED, 15, true, false),
+      (0, 0, 1, Status.OUT_OF_RANGE, 13, true, false),
+      (0, 0, 1, Status.OUT_OF_RANGE, 14, true, false),
       // 1 preemptible attempt allowed, but since we're now on the second preemption attempt only 13s should be retryable.
-      (1, 0, 1, 10, 13, false, true),
-      (1, 1, 1, 10, 13, false, true),
-      (1, 2, 1, 10, 13, false, false),
-      (1, 0, 1, 10, 14, false, false),
-      (1, 0, 1, 10, 15, false, false),
-      (1, 0, 1, 11, 13, false, false),
-      (1, 0, 1, 11, 14, false, false)
+      (1, 0, 1, Status.ABORTED, 13, false, true),
+      (1, 1, 1, Status.ABORTED, 13, false, true),
+      (1, 2, 1, Status.ABORTED, 13, false, false),
+      (1, 0, 1, Status.ABORTED, 14, false, false),
+      (1, 0, 1, Status.ABORTED, 15, false, false),
+      (1, 0, 1, Status.OUT_OF_RANGE, 13, false, false),
+      (1, 0, 1, Status.OUT_OF_RANGE, 14, false, false)
     )
 
     expectations foreach { case (previousPreemptions, previousUnexpectedRetries, preemptible, errorCode, innerErrorCode, shouldBePreemptible, shouldRetry) =>
@@ -260,7 +261,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
@@ -274,7 +275,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -289,7 +290,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    val failedStatus = Failed(10, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
@@ -304,20 +305,19 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new JesPendingExecutionHandle(null, runId, None, None)
 
-    def checkFailedResult(errorCode: Int, errorMessage: Option[String]): ExecutionHandle = {
-      val failed =
-        Failed(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
+    def checkFailedResult(errorCode: Status, errorMessage: Option[String]): ExecutionHandle = {
+      val failed = UnsuccessfulRunStatus(errorCode, errorMessage, Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"))
       Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 
-    checkFailedResult(10, Option("15: Other type of error."))
+    checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(11, Option("14: Wrong errorCode.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(10, Option("Weird error message.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(10, Option("UnparsableInt: Even weirder error message."))
+    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(Status.ABORTED, Option("Weird error message.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(10, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(1, Option("Operation canceled at")) shouldBe AbortedExecutionHandle
+    checkFailedResult(Status.ABORTED, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(Status.CANCELLED, Option("Operation canceled at")) shouldBe AbortedExecutionHandle
 
     actorRef.stop()
   }
@@ -444,7 +444,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName(callName).get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnMapToDeclarationMap(inputs), NoDocker, Map.empty)
@@ -622,7 +622,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     testActorRef.underlyingActor.monitoringScript shouldBe
-      Some(JesFileInput("monitoring-in", "gs://path/to/script", DefaultPathBuilder.get("/cromwell_root/monitoring.sh"), workingDisk))
+      Some(JesFileInput("monitoring-in", "gs://path/to/script", DefaultPathBuilder.get("monitoring.sh"), workingDisk))
   }
 
   it should "not create a JesFileInput for the monitoring script, when not specified" in {
@@ -656,7 +656,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName("hello").get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -688,7 +688,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
       Labels.empty
     )
 
-    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[TaskCall]
+    val call = workflowDescriptor.workflow.findCallByName("B").get.asInstanceOf[WdlTaskCall]
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
@@ -733,7 +733,7 @@ class JesAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackend
     descriptorWithMax2AndKey2.preemptible shouldBe true
   }
 
-  private def makeRuntimeAttributes(job: TaskCall) = {
+  private def makeRuntimeAttributes(job: WdlTaskCall) = {
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.task.runtimeAttributes, TestableJesExpressionFunctions, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
       runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.get)

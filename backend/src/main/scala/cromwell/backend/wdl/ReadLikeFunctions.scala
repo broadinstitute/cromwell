@@ -2,10 +2,10 @@ package cromwell.backend.wdl
 
 import cromwell.backend.MemorySize
 import cromwell.core.path.PathFactory
-import wdl4s.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
 import wdl4s.parser.MemoryUnit
-import wdl4s.types.{WdlArrayType, WdlFileType, WdlObjectType, WdlStringType}
-import wdl4s.values._
+import wdl4s.wdl.types._
+import wdl4s.wdl.values._
 
 import scala.util.{Failure, Success, Try}
 
@@ -54,7 +54,7 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
       fileSize <- fileSize(fileName)
       _ = if (fileSize > limit) {
         val errorMsg = s"Use of $fileName failed because the file was too big ($fileSize bytes when only files of up to $limit bytes are permissible"
-        throw new FileSizeTooBig(errorMsg)
+        throw FileSizeTooBig(errorMsg)
       }
     } yield ()
 
@@ -119,14 +119,39 @@ trait ReadLikeFunctions extends PathFactory { this: WdlStandardLibraryFunctions 
   override def read_boolean(params: Seq[Try[WdlValue]]): Try[WdlBoolean] =
     read_string(params) map { s => WdlBoolean(java.lang.Boolean.parseBoolean(s.value.trim.toLowerCase)) }
 
+  protected def size(file: WdlValue): Try[Double] = Try(buildPath(file.valueString).size.toDouble)
+
+  /**
+    * Gets the size of a file.
+    *
+    * @param params First parameter must be a File or File? or coerceable to one. The second is an optional string containing the size unit (eg "MB", "GiB")
+    */
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = {
+    // Inner function: get the memory unit from the second (optional) parameter
     def toUnit(wdlValue: Try[WdlValue]) = wdlValue flatMap { unit => Try(MemoryUnit.fromSuffix(unit.valueString)) }
 
+    // Inner function: is this a file type, or an optional containing a file type?
+    def isOptionalOfFileType(wdlType: WdlType): Boolean = wdlType match {
+      case f if WdlFileType.isCoerceableFrom(f) => true
+      case WdlOptionalType(inner) => isOptionalOfFileType(inner)
+      case _ => false
+    }
+
+    // Inner function: Get the file size, allowing for unpacking of optionals
+    def optionalSafeFileSize(value: WdlValue): Try[Double] = value match {
+      case f if f.isInstanceOf[WdlFile] || WdlFileType.isCoerceableFrom(f.wdlType) => size(f)
+      case WdlOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
+      case WdlOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0d)
+      case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.wdlType.toWdlString}."))
+    }
+
+    // Inner function: get the file size and convert into the requested memory unit
     def fileSize(wdlValue: Try[WdlValue], convertTo: Try[MemoryUnit] = Success(MemoryUnit.Bytes)) = {
       for {
         value <- wdlValue
         unit <- convertTo
-      } yield MemorySize(buildPath(value.valueString).size.toDouble, MemoryUnit.Bytes).to(unit).amount
+        fileSize <- optionalSafeFileSize(value)
+      } yield MemorySize(fileSize, MemoryUnit.Bytes).to(unit).amount
     }
 
     params match {

@@ -1,6 +1,5 @@
 package cromwell.backend.impl.jes
 
-import akka.actor.ActorSystem
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
@@ -8,10 +7,11 @@ import cromwell.services.metadata.CallMetadataKeys
 
 object JesJobPaths {
   val JesLogPathKey = "jesLog"
-  val GcsExecPathKey = "gcsExec"
+  val JesMonitoringKey = "monitoring"
+  val JesExecParamName = "exec"
 }
 
-case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey)(implicit actorSystem: ActorSystem) extends JobPaths {
+final case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
   val jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
@@ -21,11 +21,16 @@ case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: Bac
   override val returnCodeFilename: String = s"$jesLogBasename-rc.txt"
   override val stdoutFilename: String = s"$jesLogBasename-stdout.log"
   override val stderrFilename: String = s"$jesLogBasename-stderr.log"
-  override val scriptFilename: String = "exec.sh"
+  override val scriptFilename: String = s"${JesJobPaths.JesExecParamName}.sh"
 
   val jesLogFilename: String = s"$jesLogBasename.log"
   lazy val jesLogPath: Path = callExecutionRoot.resolve(jesLogFilename)
-  
+
+  val jesMonitoringLogFilename: String = s"${JesJobPaths.JesMonitoringKey}.log"
+  lazy val jesMonitoringLogPath: Path = callExecutionRoot.resolve(jesMonitoringLogFilename)
+
+  val jesMonitoringScriptFilename: String = s"${JesJobPaths.JesMonitoringKey}.sh"
+
   /*
   TODO: Move various monitoring files path generation here.
 
@@ -39,7 +44,8 @@ case class JesJobPaths(override val workflowPaths: JesWorkflowPaths, jobKey: Bac
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath
   ) ++ (
-    workflowPaths.monitoringPath map { p => Map(JesMetadataKeys.MonitoringLog -> p) } getOrElse Map.empty  
+    workflowPaths.monitoringScriptPath map { p => Map(JesMetadataKeys.MonitoringScript -> p,
+                                                      JesMetadataKeys.MonitoringLog -> jesMonitoringLogPath) } getOrElse Map.empty
   )
 
   override lazy val customDetritusPaths: Map[String, Path] = Map(

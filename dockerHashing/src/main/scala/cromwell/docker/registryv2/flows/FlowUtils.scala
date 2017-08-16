@@ -17,8 +17,8 @@ object FlowUtils {
     import GraphDSL.Implicits._
 
     val partition = builder.add(Partition[(Try[T], U)](2, {
-      case (Success(v), _) => 0
-      case (Failure(f), _) => 1
+      case (Success(_), _) => 0
+      case (Failure(_), _) => 1
     }))
 
     val successOut: PortOps[(T, U)] = partition.out(0) collect {

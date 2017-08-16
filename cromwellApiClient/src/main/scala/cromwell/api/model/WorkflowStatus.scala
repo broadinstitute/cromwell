@@ -1,5 +1,7 @@
 package cromwell.api.model
 
+import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+
 // ********* !!!!!!!!!! ********
 //
 // WARNING! This is a Cromwell API class. If you aren't changing the API client, you probably
@@ -36,4 +38,14 @@ object WorkflowStatus {
   }
 
   def apply(workflowStatus: CromwellStatus): WorkflowStatus = apply(workflowStatus.status)
+}
+
+object WorkflowStatusJsonFormatter extends DefaultJsonProtocol {
+  implicit object WorkflowStatusJsonFormat extends RootJsonFormat[WorkflowStatus] {
+    def write(status: WorkflowStatus) = new JsString(status.toString)
+    def read(value: JsValue) = value match {
+      case JsString(string) => WorkflowStatus(string)
+      case other => throw new UnsupportedOperationException(s"Cannot deserialize $other into a WorkflowStatus")
+    }
+  }
 }

@@ -6,7 +6,7 @@ import cromwell.backend.MemorySize
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import lenthall.validation.ErrorOr.ErrorOr
-import wdl4s.values.{WdlString, WdlValue}
+import wdl4s.wdl.values.{WdlString, WdlValue}
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,

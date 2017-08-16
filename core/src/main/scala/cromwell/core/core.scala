@@ -2,7 +2,7 @@ package cromwell.core
 
 import cromwell.core.path.Path
 import lenthall.exception.ThrowableAggregation
-import wdl4s.values.WdlValue
+import wdl4s.wdl.values.WdlValue
 
 
 case class CallContext(root: Path, stdout: String, stderr: String)

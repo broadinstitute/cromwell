@@ -5,25 +5,23 @@ import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
+import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.{SaveCallCacheHashes, _}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] {
+case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with BatchingDbWriterActor {
 
   implicit val ec: ExecutionContext = context.dispatcher
+  
+  override val dbFlushRate = CallCacheWriteActor.dbFlushRate
+  override val dbBatchSize = CallCacheWriteActor.dbBatchSize
 
   startWith(WaitingToWrite, NoData)
-
-  override def preStart(): Unit = {
-    context.system.scheduler.schedule(0.seconds, dbFlushRate, self, ScheduledFlushToDb)
-    super.preStart()
-  }
 
   when(WaitingToWrite) {
     case Event(command: SaveCallCacheHashes, curData) =>
@@ -31,13 +29,13 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
         case newData: HasData[_] if newData.length >= dbBatchSize => goto(WritingToDb) using newData
         case newData => stay() using newData
       }
-    case Event(ScheduledFlushToDb, curData) =>
+    case Event(ScheduledFlushToDb, _) =>
       log.debug("Initiating periodic call cache flush to DB")
       goto(WritingToDb)
   }
 
   when(WritingToDb) {
-    case Event(ScheduledFlushToDb, curData) => stay
+    case Event(ScheduledFlushToDb, _) => stay
     case Event(command: SaveCallCacheHashes, curData) => stay using curData.addData(CommandAndReplyTo(command, sender))
     case Event(FlushBatchToDb, NoData) =>
       log.debug("Attempted call cache hash set flush to DB but had nothing to write")
@@ -56,13 +54,9 @@ case class CallCacheWriteActor(callCache: CallCache) extends LoggingFSM[Batching
         }
       }
       stay using NoData
-    case Event(DbWriteComplete, curData) =>
+    case Event(DbWriteComplete, _) =>
       log.debug("Flush of cache data complete")
       goto(WaitingToWrite)
-  }
-
-  onTransition {
-    case WaitingToWrite -> WritingToDb => self ! FlushBatchToDb
   }
 }
 

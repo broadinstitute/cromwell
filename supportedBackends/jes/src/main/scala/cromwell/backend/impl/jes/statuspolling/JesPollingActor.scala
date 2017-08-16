@@ -14,7 +14,7 @@ import eu.timepit.refined.numeric._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
@@ -91,7 +91,7 @@ class JesPollingActor(val pollingManager: ActorRef, val qps: Int Refined Positiv
     ()
   }
 
-  private[statuspolling] def mkErrorString(e: GoogleJsonError) = e.getErrors.toList.mkString(", ")
+  private[statuspolling] def mkErrorString(e: GoogleJsonError) = e.getErrors.asScala.toList.mkString(", ")
 }
 
 object JesPollingActor {

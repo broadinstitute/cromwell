@@ -8,8 +8,8 @@ import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import wdl4s._
-import wdl4s.values.WdlValue
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
 import scala.util.Random
 

@@ -2,21 +2,23 @@ package cromwell.backend.impl.tes
 
 import java.nio.file.FileAlreadyExistsException
 
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import spray.client.pipelining._
-import spray.http.HttpRequest
-import spray.httpx.SprayJsonSupport._
-import spray.httpx.unmarshalling._
-import wdl4s.expression.NoFunctions
-import wdl4s.values.WdlFile
+import wdl4s.wdl.expression.NoFunctions
+import wdl4s.wdl.values.WdlFile
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
+import akka.stream.ActorMaterializer
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -42,6 +44,8 @@ object TesAsyncBackendJobExecutionActor {
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with TesJobCachingActorHelper {
+  implicit val actorSystem = context.system
+  implicit val materializer = ActorMaterializer()
 
   override type StandardAsyncRunInfo = Any
 
@@ -65,8 +69,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
 
   override lazy val jobTag: String = jobDescriptor.key.tag
-
-  private def pipeline[T: FromResponseUnmarshaller]: HttpRequest => Future[T] = sendReceive ~> unmarshal[T]
 
   // Utility for converting a WdlValue so that the path is localized to the
   // container's filesystem.
@@ -113,22 +115,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
   }
 
-  override def executeAsync()(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
+  override def executeAsync(): Future[ExecutionHandle] = {
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
     val taskMessage = createTaskMessage()
 
-    val submitTask = pipeline[CreateTaskResponse]
-      .apply(Post(tesEndpoint, taskMessage))
-
-    submitTask.map {
-      response =>
-        val jobID = response.id
-        PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobID), None, previousStatus = None)
-    }
+    for {
+      entity <- Marshal(taskMessage).to[RequestEntity]
+      ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity))
+    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
   }
 
-  override def recoverAsync(jobId: StandardAsyncJob)(implicit ec: ExecutionContext) = executeAsync()
+  override def recoverAsync(jobId: StandardAsyncJob) = executeAsync()
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
@@ -142,19 +140,16 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         returnCodeTmp.delete(true)
     }
 
-    val abortRequest = pipeline[CancelTaskResponse]
-      .apply(Post(s"$tesEndpoint/${job.jobId}:cancel"))
-    abortRequest onComplete {
+    makeRequest[CancelTaskResponse](HttpRequest(method = HttpMethods.POST, uri = s"$tesEndpoint/${job.jobId}:cancel")) onComplete {
       case Success(_) => jobLogger.info("{} Aborted {}", tag: Any, job.jobId)
       case Failure(ex) => jobLogger.warn("{} Failed to abort {}: {}", tag, job.jobId, ex.getMessage)
     }
+
     ()
   }
 
-  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle)(implicit ec: ExecutionContext): Future[TesRunStatus] = {
-    val pollTask = pipeline[MinimalTaskView].apply(Get(s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL"))
-
-    pollTask.map {
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+    makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
         val state = response.state
         state match {
@@ -204,5 +199,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           s"${absPath.pathAsString}")
       case _ => WdlFile(absPath.pathAsString)
     }
+  }
+
+  private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
+    for {
+      response <- Http().singleRequest(request)
+      data <- Unmarshal(response.entity).to[A]
+    } yield data
   }
 }

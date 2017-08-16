@@ -2,8 +2,8 @@ package cromwell.jobstore
 
 import akka.actor.{LoggingFSM, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
+import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
 
@@ -12,16 +12,11 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 
-case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: FiniteDuration) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] {
+case class JobStoreWriterActor(jsd: JobStore, override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration) extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with BatchingDbWriterActor {
 
   implicit val ec = context.dispatcher
 
   startWith(WaitingToWrite, NoData)
-
-  override def preStart(): Unit = {
-    context.system.scheduler.schedule(0.seconds, flushRate, self, ScheduledFlushToDb)
-    super.preStart()
-  }
 
   when(WaitingToWrite) {
     case Event(command: JobStoreWriterCommand, curData) =>
@@ -35,7 +30,7 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
   }
 
   when(WritingToDb) {
-    case Event(ScheduledFlushToDb, curData) => stay
+    case Event(ScheduledFlushToDb, _) => stay
     case Event(command: JobStoreWriterCommand, curData) => stay using curData.addData(CommandAndReplyTo(command, sender))
     case Event(FlushBatchToDb, NoData) =>
       log.debug("Attempted job store flush to DB but had nothing to write")
@@ -62,13 +57,9 @@ case class JobStoreWriterActor(jsd: JobStore, dbBatchSize: Int, flushRate: Finit
         }
       }
       stay using NoData
-    case Event(DbWriteComplete, curData) =>
+    case Event(DbWriteComplete, _) =>
       log.debug("Flush of job store commands complete")
       goto(WaitingToWrite)
-  }
-
-  onTransition {
-    case WaitingToWrite -> WritingToDb => self ! FlushBatchToDb
   }
 }
 

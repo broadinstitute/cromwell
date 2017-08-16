@@ -6,12 +6,13 @@ import cromwell.core.{LocallyQualifiedName, TestKitSuite}
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
+import cromwell.engine.workflow.lifecycle.execution.OutputStore
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
-import wdl4s.Declaration
-import wdl4s.values.{WdlString, WdlValue}
+import wdl4s.wdl.Declaration
+import wdl4s.wdl.values.{WdlString, WdlValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -35,7 +36,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val failure = Failure(exception)
     val expectedResponse = CallPreparationFailed(helper.jobKey, exception)
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, failure, List.empty), self)
-    actor ! Start
+    actor ! Start(OutputStore.empty)
     expectMsg(expectedResponse)
     helper.workflowDockerLookupActor.expectNoMsg(100 millis)
   }
@@ -44,7 +45,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val attributes = Map.empty[LocallyQualifiedName, WdlValue]
     val inputsAndAttributes = Success((inputs, attributes))
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
-    actor ! Start
+    actor ! Start(OutputStore.empty)
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.maybeCallCachingEligible.dockerHash shouldBe None
@@ -59,7 +60,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     )
     val inputsAndAttributes = Success((inputs, attributes))
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
-    actor ! Start
+    actor ! Start(OutputStore.empty)
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
@@ -68,7 +69,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     helper.workflowDockerLookupActor.expectNoMsg(1 second)
   }
 
-  it should "lookup any requested key/value prefetches before (not) performing a docker hash lookup" in {
+  it should "lookup any requested key/value prefetches after (not) performing a docker hash lookup" in {
     val dockerValue = "ubuntu:latest"
     val attributes = Map (
       "docker" -> WdlString(dockerValue)
@@ -82,7 +83,10 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val prefetchedValues = Map(prefetchedKey1 -> prefetchedVal1, prefetchedKey2 -> prefetchedVal2)
     var keysToPrefetch = List(prefetchedKey1, prefetchedKey2)
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey1, prefetchedKey2)), self)
-    actor ! Start
+    actor ! Start(OutputStore.empty)
+
+    val req = helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
+    helper.workflowDockerLookupActor.reply(DockerHashSuccessResponse(hashResult, req))
 
     def respondFromKv() = {
       helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
@@ -95,8 +99,6 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     helper.workflowDockerLookupActor.expectNoMsg(max = 100 milliseconds)
     respondFromKv()
 
-    val req = helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
-    helper.workflowDockerLookupActor.reply(DockerHashSuccessResponse(hashResult, req))
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey1 -> prefetchedVal1, prefetchedKey2 -> prefetchedVal2))
@@ -112,7 +114,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val inputsAndAttributes = Success((inputs, attributes))
     val finalValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
-    actor ! Start
+    actor ! Start(OutputStore.empty)
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
     helper.workflowDockerLookupActor.reply(DockerHashSuccessResponse(hashResult, mock[DockerHashRequest]))
     expectMsgPF(5 seconds) {
@@ -130,7 +132,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     )
     val inputsAndAttributes = Success((inputs, attributes))
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
-    actor ! Start
+    actor ! Start(OutputStore.empty)
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
     helper.workflowDockerLookupActor.reply(WorkflowDockerLookupFailure(new Exception("Failed to get docker hash - part of test flow"), request))
     expectMsgPF(5 seconds) {

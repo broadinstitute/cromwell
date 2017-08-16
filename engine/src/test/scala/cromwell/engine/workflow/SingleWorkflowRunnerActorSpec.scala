@@ -49,7 +49,7 @@ object SingleWorkflowRunnerActorSpec {
 
   class TestSingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                       metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
-    extends SingleWorkflowRunnerActor(source, metadataOutputPath) {
+    extends SingleWorkflowRunnerActor(source, metadataOutputPath, false, false) {
     override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
   }
 }
@@ -78,7 +78,6 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec wit
       dockerHashActor = dockerHashActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection = BackendSingletonCollection(Map.empty),
-      abortJobsOnTerminate = false,
       serverMode = false)
     system.actorOf(Props(new WorkflowManagerActor(params)), "WorkflowManagerActor")
   }

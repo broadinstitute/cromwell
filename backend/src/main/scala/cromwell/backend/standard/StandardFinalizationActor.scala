@@ -6,14 +6,14 @@ import cromwell.backend.io.WorkflowPaths
 import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.path.{Path, PathCopier}
-import wdl4s.TaskCall
+import wdl4s.wdl.WdlTaskCall
 
 import scala.concurrent.Future
 
 trait StandardFinalizationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
 
-  def calls: Set[TaskCall]
+  def calls: Set[WdlTaskCall]
 
   def jobExecutionMap: JobExecutionMap
 
@@ -27,7 +27,7 @@ trait StandardFinalizationActorParams {
 case class DefaultStandardFinalizationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
-  calls: Set[TaskCall],
+  calls: Set[WdlTaskCall],
   jobExecutionMap: JobExecutionMap,
   workflowOutputs: CallOutputs,
   initializationDataOption: Option[BackendInitializationData],
@@ -45,7 +45,7 @@ class StandardFinalizationActor(val standardParams: StandardFinalizationActorPar
   extends BackendWorkflowFinalizationActor {
 
   override lazy val workflowDescriptor: BackendWorkflowDescriptor = standardParams.workflowDescriptor
-  override lazy val calls: Set[TaskCall] = standardParams.calls
+  override lazy val calls: Set[WdlTaskCall] = standardParams.calls
   lazy val initializationDataOption: Option[BackendInitializationData] = standardParams.initializationDataOption
   lazy val jobExecutionMap: JobExecutionMap = standardParams.jobExecutionMap
   lazy val workflowOutputs: CallOutputs = standardParams.workflowOutputs

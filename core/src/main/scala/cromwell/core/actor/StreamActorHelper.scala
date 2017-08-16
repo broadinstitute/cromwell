@@ -7,6 +7,7 @@ import akka.stream.QueueOfferResult.{Dropped, Enqueued, QueueClosed}
 import akka.stream.scaladsl.{Sink, Source, SourceQueueWithComplete}
 import cromwell.core.actor.StreamActorHelper.{ActorRestartException, StreamCompleted, StreamFailed}
 import cromwell.core.actor.StreamIntegration._
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -46,10 +47,8 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
 
   override def preStart(): Unit = {
     stream.watchCompletion() onComplete {
-      case Success(_) =>
-        self ! StreamCompleted
-      case Failure(failure) =>
-        self ! StreamFailed(failure)
+      case Success(_) => self ! StreamCompleted
+      case Failure(failure) => self ! StreamFailed(failure)
     }
   }
 
@@ -71,17 +70,17 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   }
 
   private def streamReceive: Receive = {
-    case EnqueueResponse(Enqueued, commandContext: T @unchecked) => // Good !
+    case ShutdownCommand => stream.complete()
+    case EnqueueResponse(Enqueued, _: T @unchecked) => // Good !
     case EnqueueResponse(Dropped, commandContext) => backpressure(commandContext)
       
       // In any of the cases below, the stream is in a failed state, which will be caught by the watchCompletion hook and the
       // actor will be restarted
     case EnqueueResponse(QueueClosed, commandContext) => backpressure(commandContext)
-    case EnqueueResponse(QueueOfferResult.Failure(failure), commandContext) => backpressure(commandContext)
-    case FailedToEnqueue(throwable, commandContext) => backpressure(commandContext)
+    case EnqueueResponse(QueueOfferResult.Failure(_), commandContext) => backpressure(commandContext)
+    case FailedToEnqueue(_, commandContext) => backpressure(commandContext)
       
-      // Those 2 cases should never happen, as long as the strategy is Resume, but in case it does...
-    case StreamCompleted => restart(new IllegalStateException("Stream was completed unexpectedly"))
+    case StreamCompleted => context stop self
     case StreamFailed(failure) => restart(failure)
   }
 

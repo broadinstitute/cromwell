@@ -3,25 +3,27 @@ package cromwell.subworkflowstore
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex._
-import cromwell.core.{JobKey, WorkflowId}
+import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with ActorLogging {
+class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with ActorLogging with MonitoringCompanionHelper {
   
   implicit val ec: ExecutionContext = context.dispatcher
 
-  override def receive = {
+  val subWorkflowStoreReceive: Receive = {
     case register: RegisterSubWorkflow => registerSubWorkflow(sender(), register)
     case query: QuerySubWorkflow => querySubWorkflow(sender(), query)
     case complete: WorkflowComplete => workflowComplete(sender(), complete)
-    case unknown => log.error(s"SubWorkflowStoreActor received unknown message: $unknown")
   }
   
+  override def receive = subWorkflowStoreReceive.orElse(monitoringReceive)
+  
   private def registerSubWorkflow(replyTo: ActorRef, command: RegisterSubWorkflow) = {
+    addWork()
     database.addSubWorkflowStoreEntry(
       command.rootWorkflowExecutionUuid.toString,
       command.parentWorkflowExecutionUuid.toString,
@@ -30,8 +32,12 @@ class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with Actor
       command.jobKey.attempt,
       command.subWorkflowExecutionUuid.toString
     ) onComplete { 
-      case Success(_) => replyTo ! SubWorkflowStoreRegisterSuccess(command) 
-      case Failure(ex) => replyTo ! SubWorkflowStoreFailure(command, ex)
+      case Success(_) =>
+        replyTo ! SubWorkflowStoreRegisterSuccess(command) 
+        removeWork()
+      case Failure(ex) =>
+        replyTo ! SubWorkflowStoreFailure(command, ex)
+        removeWork()
     }
   }
 
@@ -45,9 +51,12 @@ class SubWorkflowStoreActor(database: SubWorkflowStore) extends Actor with Actor
   }
 
   private def workflowComplete(replyTo: ActorRef, command: WorkflowComplete) = {
+    addWork()
     database.removeSubWorkflowStoreEntries(command.workflowExecutionUuid.toString) onComplete {
-      case Success(_) => // No-op
-      case Failure(ex) => replyTo ! SubWorkflowStoreFailure(command, ex)
+      case Success(_) => removeWork()
+      case Failure(ex) => 
+        replyTo ! SubWorkflowStoreFailure(command, ex)
+        removeWork()
     }
   }
   

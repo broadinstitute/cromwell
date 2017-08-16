@@ -118,7 +118,8 @@ trait BatchedTaskChange extends MigrationTaskChange {
         resultBatch.close()
 
         val progress = Math.min((page + 1) * 100 / pageCount, 100)
-        logger.info(s"[$migrationName] $progress%")
+        val progressMessage = s"[$migrationName] $progress%"
+        logger.info(progressMessage)
     }
 
     if (batchMigrationCounter != 0) {

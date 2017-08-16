@@ -1,5 +1,56 @@
 # Cromwell Change Log
 
+## 29 Release Notes
+
+### Breaking Changes
+
+* **Command line**  
+In preparation for supporting CWL scripts (yes, you read that right!), we have extensively revised the Command Line in Cromwell 29. For more details about the usage changes please see the [README](https://github.com/broadinstitute/cromwell#command-line-usage). And stay tuned to the [WDL/Cromwell blog](https://software.broadinstitute.org/wdl/blog) over the next couple of months for more news about CWL.
+
+* **Request timeouts**   
+Cromwell now returns more specific `503 Service Unavailable` error codes on request timeouts, rather than the more generic `500 Internal Server Error`. The response for a request timeout will now be plain text, rather than a JSON format.
+
+* **Metadata endpoint**  
+The response from the metadata endpoint can be quite large depending on your workflow. You can now opt-in to have Cromwell gzip your metadata file, in order to reduce file size, by sending the `Accept-Encoding: gzip` header. The default behavior now does not gzip encode responses.
+
+* **Engine endpoints**  
+Previously the engine endpoints were available under `/api/engine` but now the endpoints are under `/engine` so they don't require authentication. Workflow endpoints are still available under `/api/workflows`. We also deprecated the setting `api.routeUnwrapped` as a part of this internal consistency effort.
+
+* **Call caching diff**  
+We updated the response format of the [callcaching/diff](https://github.com/broadinstitute/cromwell#get-apiworkflowsversioncallcachingdiff) endpoint.
+
+### Other changes
+
+* **Cromwell server**  
+When running in server mode, Cromwell now attempts to gracefully shutdown after receiving a `SIGINT` (`Ctrl-C`) or `SIGTERM` (`kill`) signal. This means that Cromwell waits for all pending database writes before exiting, as long as you include `application.conf` at the top of your config file. You can find detailed information about how to configure this feature in the [Cromwell Wiki](https://github.com/broadinstitute/cromwell/wiki/DevZone#graceful-server-shutdown).
+
+* **Concurrent jobs**  
+You can now limit the number of concurrent jobs for any backend. Previously this was only possible in some backend implementations. Please see the [README](https://github.com/broadinstitute/cromwell#backend-job-limits) for details.
+
+### WDL
+
+* **Optional WDL variables**  
+Empty optional WDL values are now rendered as the `null` JSON value instead of the JSON string `"null"` in the metadata and output endpoints. You do not need to migrate previous workflows. Workflows run on Cromwell 28 and prior will still render empty values as `"null"`.
+
+* **Empty WDL variables**  
+Cromwell now accepts `null` JSON values in the input file and coerces them as an empty WDL value. WDL variables must be declared optional in order to be supplied with a `null` JSON value.
+
+input.json
+```json
+{
+    "null_input_values.maybeString": null,
+    "null_input_values.arrayOfMaybeInts": [1, 2, null, 4]
+}
+```
+
+workflow.wdl
+```
+workflow null_input_values {
+    String? maybeString
+    Array[Int?] arrayOfMaybeInts
+}
+```
+
 ## 28
 
 ### Bug Fixes
@@ -613,4 +664,3 @@ multiple input files.
 
 * The `/query` endpoint now supports querying by `id`, and submitting
 parameters as a HTTP POST.
-

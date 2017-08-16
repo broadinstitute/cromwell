@@ -6,8 +6,8 @@ import cromwell.core.WorkflowOptions
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import spray.json._
-import wdl4s.types.{WdlArrayType, WdlIntegerType, WdlStringType}
-import wdl4s.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
+import wdl4s.wdl.types.{WdlArrayType, WdlIntegerType, WdlStringType}
+import wdl4s.wdl.values.{WdlArray, WdlBoolean, WdlInteger, WdlString, WdlValue}
 
 class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 

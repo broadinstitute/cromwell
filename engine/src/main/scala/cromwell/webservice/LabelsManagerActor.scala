@@ -6,9 +6,6 @@ import cromwell.core.{Dispatcher, WorkflowId, WorkflowMetadataKeys}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
-import cromwell.webservice.PerRequest.RequestComplete
-import spray.http.StatusCodes
-import spray.httpx.SprayJsonSupport._
 import spray.json.{DefaultJsonProtocol, JsObject, JsString}
 
 import scala.language.postfixOps
@@ -37,12 +34,16 @@ object LabelsManagerActor {
   }
 
   def metadataEventsToLabels(events: Iterable[MetadataEvent]): Map[String, String] = {
-    events map { case MetadataEvent(MetadataKey(_, _, key), Some(MetadataValue(value, _)), _) => key.split("\\:").last -> value } toMap
+    events collect { case MetadataEvent(MetadataKey(_, _, key), Some(MetadataValue(value, _)), _) => key.split("\\:").last -> value } toMap
   }
 
   def labelsToMetadataEvents(labels: Labels, workflowId: WorkflowId): Iterable[MetadataEvent] = {
     labels.value map { l => MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:${l.key}"), MetadataValue(l.value)) }
   }
+
+  sealed abstract class LabelsManagerActorResponse
+  final case class BuiltLabelsManagerResponse(response: JsObject) extends LabelsManagerActorResponse
+  final case class FailedLabelsManagerResponse(reason: Throwable) extends LabelsManagerActorResponse
 }
 
 class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with ActorLogging with DefaultJsonProtocol {
@@ -50,18 +51,18 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
   implicit val ec = context.dispatcher
 
   private var wfId: Option[WorkflowId] = None
-
-  import WorkflowJsonSupport._
+  private var target: ActorRef = ActorRef.noSender
 
   def receive = {
     case LabelsAddition(data) =>
       wfId = Option(data.workflowId)
+      target = sender()
       serviceRegistryActor ! PutMetadataActionAndRespond(labelsToMetadataEvents(data.labels, data.workflowId), self)
     case MetadataWriteSuccess(events) =>
-      val response = processLabelsResponse(wfId.get, metadataEventsToLabels(events))
-      context.parent ! RequestComplete((StatusCodes.OK, response))
-    case MetadataWriteFailure(failure, events) =>
-      val response = APIResponse.fail(new RuntimeException(s"Unable to update labels for ${wfId.get} due to ${failure.getMessage}"))
-      context.parent ! RequestComplete((StatusCodes.InternalServerError, response))
+      target ! BuiltLabelsManagerResponse(processLabelsResponse(wfId.get, metadataEventsToLabels(events)))
+      context stop self
+    case MetadataWriteFailure(failure, events @ _) =>
+      target ! FailedLabelsManagerResponse(new RuntimeException(s"Unable to update labels for ${wfId.get} due to ${failure.getMessage}"))
+      context stop self
   }
 }

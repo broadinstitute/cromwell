@@ -42,7 +42,7 @@ mysql -u root -e "GRANT ALL PRIVILEGES ON cromwell_test . * TO 'travis'@'localho
 WORKDIR=$(pwd)
 
 sbt assembly
-CROMWELL_JAR=$(find "$(pwd)/target/scala-2.11" -name "cromwell-*.jar")
+CROMWELL_JAR=$(find "$(pwd)/target/scala-2.12" -name "cromwell-*.jar")
 TES_CENTAUR_CONF="$(pwd)/src/bin/travis/resources/tes_centaur.conf"
 git clone https://github.com/broadinstitute/centaur.git
 cd centaur
@@ -58,7 +58,7 @@ mkdir go-lib
 export GOPATH=$WORKDIR/go-lib
 go get github.com/ohsu-comp-bio/funnel
 cd $GOPATH/src/github.com/ohsu-comp-bio/funnel
-git checkout 04c5e03
+git checkout c4d9134
 make
 cd $WORKDIR
 mkdir logs
@@ -83,4 +83,5 @@ centaur/test_cromwell.sh \
 -e non_root_specified_user \
 -e write_lines_files \
 -e lots_of_inputs \
--e call_cache_capoeira_local
+-e call_cache_capoeira_local \
+-e non_root_default_user

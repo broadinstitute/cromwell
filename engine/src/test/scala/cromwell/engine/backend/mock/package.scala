@@ -1,9 +1,9 @@
 package cromwell.engine.backend
 
 import cromwell.core.JobOutput
-import wdl4s.TaskOutput
-import wdl4s.types._
-import wdl4s.values._
+import wdl4s.wdl.TaskOutput
+import wdl4s.wdl.types._
+import wdl4s.wdl.values._
 
 package object mock {
 

@@ -10,17 +10,17 @@ import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.callcaching._
 import cromwell.core.{CallOutputs, JobExecutionToken, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
-import cromwell.engine.workflow.lifecycle.execution.{EngineJobExecutionActor, WorkflowExecutionActorData}
 import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlExpressionMock}
 import cromwell.util.AkkaTestUtil._
 import org.specs2.mock.Mockito
-import wdl4s._
-import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.types.{WdlIntegerType, WdlStringType}
+import wdl4s.wdl._
+import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
+import wdl4s.wdl.types.{WdlIntegerType, WdlStringType}
 
 import scala.util.Success
 
@@ -42,14 +42,14 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     outputs = Seq(("outString", WdlStringType, mockStringExpression("hello")))
   )
 
-  val workflow = new Workflow(
+  val workflow = new WdlWorkflow(
     unqualifiedName = workflowName,
     workflowOutputWildcards = Seq.empty,
     wdlSyntaxErrorFormatter = mock[WdlSyntaxErrorFormatter],
     meta = Map.empty,
     parameterMeta = Map.empty,
     ast = mock[Ast])
-  val call: TaskCall = TaskCall(None, task, Map.empty, mock[Ast])
+  val call: WdlTaskCall = WdlTaskCall(None, task, Map.empty, mock[Ast])
   call.parent_=(workflow)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
@@ -77,6 +77,10 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val ejhaProbe = TestProbe()
 
   def buildFactory() = new BackendLifecycleActorFactory {
+
+    override val name = "PerTestHelper"
+
+    override val configurationDescriptor = TestConfig.emptyBackendConfigDescriptor
 
     override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                         initializationData: Option[BackendInitializationData],
@@ -106,14 +110,15 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     // These two factory methods should never be called from EJEA or any of its descendants:
     override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCall],
+                                                calls: Set[WdlTaskCall],
                                                 jobExecutionMap: JobExecutionMap,
                                                 workflowOutputs: CallOutputs,
                                                 initializationData: Option[BackendInitializationData]): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
     override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                   ioActor: ActorRef,
-                                                  calls: Set[TaskCall],
-                                                  serviceRegistryActor: ActorRef): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
+                                                  calls: Set[WdlTaskCall],
+                                                  serviceRegistryActor: ActorRef,
+                                                  restarting: Boolean): Option[Props] = throw new UnsupportedOperationException("Unexpected finalization actor creation!")
   }
 
   def buildEJEA(restarting: Boolean = true,
@@ -128,7 +133,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       jobPreparationProbe = jobPreparationProbe,
       replyTo = replyToProbe.ref,
       jobDescriptorKey = jobDescriptorKey,
-      executionData = WorkflowExecutionActorData.empty(descriptor),
+      workflowDescriptor = descriptor,
       factory = factory,
       initializationData = None,
       restarting = restarting,
@@ -152,7 +157,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              jobPreparationProbe: TestProbe,
                              replyTo: ActorRef,
                              jobDescriptorKey: BackendJobDescriptorKey,
-                             executionData: WorkflowExecutionActorData,
+                             workflowDescriptor: EngineWorkflowDescriptor,
                              factory: BackendLifecycleActorFactory,
                              initializationData: Option[BackendInitializationData],
                              restarting: Boolean,
@@ -164,7 +169,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              dockerHashActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
                              backendName: String,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, executionData, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
+                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, workflowDescriptor, factory, initializationData, restarting, serviceRegistryActor, ioActor, jobStoreActor, callCacheReadActor, callCacheWriteActor, dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode) {
 
   implicit val system = context.system
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, taskOutputs))

@@ -6,11 +6,29 @@ import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
-import wdl4s.TaskCall
-import wdl4s.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
-
+import wdl4s.wdl.WdlTaskCall
+import wdl4s.wdl.expression.{PureStandardLibraryFunctions, WdlStandardLibraryFunctions}
+import net.ceedubs.ficus.Ficus._
 
 trait BackendLifecycleActorFactory {
+
+  /**
+    * Name of the backend.
+    *
+    * This is the first parameter passed into each factory during creation.
+    *
+    * @return The configuration-defined name for this instance of the backend.
+    */
+  def name: String
+
+  /**
+    * Config values for the backend, and a pointer to the global config.
+    *
+    * This is the second parameter passed into each factory during creation.
+    *
+    * @return The backend configuration.
+    */
+  def configurationDescriptor: BackendConfigurationDescriptor
 
   /* ****************************** */
   /*     Workflow Initialization    */
@@ -18,8 +36,9 @@ trait BackendLifecycleActorFactory {
 
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        ioActor: ActorRef,
-                                       calls: Set[TaskCall],
-                                       serviceRegistryActor: ActorRef): Option[Props] = None
+                                       calls: Set[WdlTaskCall],
+                                       serviceRegistryActor: ActorRef,
+                                       restarting: Boolean): Option[Props] = None
 
   /* ****************************** */
   /*          Job Execution         */
@@ -31,7 +50,10 @@ trait BackendLifecycleActorFactory {
                              ioActor: ActorRef,
                              backendSingletonActor: Option[ActorRef]): Props
 
-  def jobExecutionTokenType: JobExecutionTokenType = JobExecutionTokenType("Default", None)
+  lazy val jobExecutionTokenType: JobExecutionTokenType = {
+    val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
+    JobExecutionTokenType(name, concurrentJobLimit)
+  }
 
   /* ****************************** */
   /*      Workflow Finalization     */
@@ -39,7 +61,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      ioActor: ActorRef,
-                                     calls: Set[TaskCall],
+                                     calls: Set[WdlTaskCall],
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None

@@ -2,15 +2,17 @@ package cromwell.engine.backend.mock
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend._
-import wdl4s.TaskCall
-import wdl4s.expression.{NoFunctions, WdlStandardLibraryFunctions}
+import wdl4s.wdl.WdlTaskCall
+import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 
-class RetryableBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
+class RetryableBackendLifecycleActorFactory(val name: String,
+                                            val configurationDescriptor: BackendConfigurationDescriptor)
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCall],
-                                                serviceRegistryActor: ActorRef): Option[Props] = None
+                                                calls: Set[WdlTaskCall],
+                                                serviceRegistryActor: ActorRef,
+                                                restarting: Boolean): Option[Props] = None
 
   override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                       initializationData: Option[BackendInitializationData],

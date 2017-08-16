@@ -1,7 +1,7 @@
 package cromwell.backend.wdl
 
 import lenthall.util.TryUtil
-import wdl4s.values.{WdlArray, WdlFile, WdlMap, WdlOptionalValue, WdlPair, WdlValue}
+import wdl4s.wdl.values._
 
 import scala.util.{Success, Try}
 

@@ -34,7 +34,7 @@ class RetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matche
                        isFatal: Throwable => Boolean = Retry.throwableToFalse): Future[Int] = {
 
     withRetry(
-      f = work.doIt,
+      f = () => work.doIt(),
       maxRetries = Option(retries),
       isTransient = isTransient,
       isFatal = isFatal

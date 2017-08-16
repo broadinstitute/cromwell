@@ -5,24 +5,20 @@ import cromwell.backend.BackendJobBreadCrumb
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWorkflowKey
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start, _}
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
-import wdl4s._
-import wdl4s.values.WdlValue
+import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
+import wdl4s.wdl._
+import wdl4s.wdl.values.WdlValue
 
-class SubWorkflowPreparationActor(executionData: WorkflowExecutionActorData,
-                                   callKey: SubWorkflowKey,
-                                   subWorkflowId: WorkflowId) extends Actor with WorkflowLogging {
-  
-  private val workflowDescriptor = executionData.workflowDescriptor
-  lazy val outputStore = executionData.outputStore
-  lazy val expressionLanguageFunctions = executionData.expressionLanguageFunctions
+class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
+                                  expressionLanguageFunctions: WdlFunctions,
+                                  callKey: SubWorkflowKey,
+                                  subWorkflowId: WorkflowId) extends Actor with WorkflowLogging {
 
   lazy val workflowIdForLogging = workflowDescriptor.id
-  
+
   def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse = {
     val oldBackendDescriptor = workflowDescriptor.backendDescriptor
 
@@ -37,7 +33,7 @@ class SubWorkflowPreparationActor(executionData: WorkflowExecutionActorData,
   }
 
   override def receive = {
-    case Start =>
+    case Start(outputStore) =>
       val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, outputStore)
       val response = evaluatedInputs map { prepareExecutionActor }
       context.parent ! (response recover { case f => CallPreparationFailed(callKey, f) }).get
@@ -50,11 +46,12 @@ class SubWorkflowPreparationActor(executionData: WorkflowExecutionActorData,
 object SubWorkflowPreparationActor {
   case class SubWorkflowPreparationSucceeded(workflowDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) extends CallPreparationActorResponse
 
-  def props(executionData: WorkflowExecutionActorData,
+  def props(workflowDescriptor: EngineWorkflowDescriptor,
+            expressionLanguageFunctions: WdlFunctions,
             key: SubWorkflowKey,
             subWorkflowId: WorkflowId) = {
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new SubWorkflowPreparationActor(executionData, key, subWorkflowId)).withDispatcher(EngineDispatcher)
+    Props(new SubWorkflowPreparationActor(workflowDescriptor, expressionLanguageFunctions, key, subWorkflowId)).withDispatcher(EngineDispatcher)
   }
 }

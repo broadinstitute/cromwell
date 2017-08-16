@@ -11,9 +11,6 @@ task do_release {
    # Commands that will update previously released/published dependencies in this repo
    Array[String] dependencyCommands = []
    
-   # When true, nothing will be pushed to github, allows for some level of testing
-   Boolean dryRun = false
-   
    # Can be swapped out to try this on a fork
    String organization
     
@@ -22,20 +19,15 @@ task do_release {
      set -x 
      
      # Clone repo and checkout develop
-     git clone https://github.com/${organization}/${repo}.git
+     git clone git@github.com:${organization}/${repo}.git
      cd ${repo}
      git checkout develop
      git pull --rebase
 
      # Expect the version number on develop to be the version TO BE RELEASED
-     echo "Releasing ${organization}/${repo} ${releaseV}${true=" - This a dry run, push commands won't be executed" false = "" dryRun}"
-     
+
      echo "Updating dependencies"
      ${sep='\n' dependencyCommands}
-     
-     # Make sure tests pass
-     sbt update
-     JAVA_OPTS=-XX:MaxMetaspaceSize=512m sbt test
      
      git add .
      # If there is nothing to commit, git commit will return 1 which will fail the script.
@@ -48,7 +40,14 @@ task do_release {
        # Generate new scaladoc
        sbt 'set scalacOptions in (Compile, doc) := List("-skip-packages", "better")' doc
        git checkout gh-pages
-       mv target/scala-2.11/api ${releaseV}
+       for subproj in cwl wdl wom; do
+         API_SRC_DIR=$subproj/target/scala-2.12/api
+         API_DST_DIR=${releaseV}/$subproj
+         if [ -d $API_SRC_DIR ]; then
+           mkdir -p $API_DST_DIR
+           mv $API_SRC_DIR $API_DST_DIR
+         fi
+       done
        git add ${releaseV}
        
        # Update latest pointer
@@ -57,7 +56,7 @@ task do_release {
        git add latest
        
        git diff-index --quiet HEAD || git commit -m "Update Scaladoc"
-       git push ${true="--dry-run" false="" dryRun} origin gh-pages
+       git push origin gh-pages
        
        # Update badges on README
        git checkout develop
@@ -68,13 +67,27 @@ task do_release {
        git add version.png
        
        git diff-index --quiet HEAD || git commit -m "Update README badges"
-       git push ${true="--dry-run" false="" dryRun} origin develop
+       git push origin develop
      fi
      
      # Merge develop into master
      git checkout master
      git pull --rebase
-     git merge develop
+     git merge develop --no-edit
+     
+     # Make sure tests pass
+     sbt update
+     JAVA_OPTS=-XX:MaxMetaspaceSize=1024m sbt test
+     
+     # Tag the release
+     git tag ${releaseV}
+     
+     # Push master and push the tags
+     git push origin master
+     git push --tags
+     
+     # Create and push the hotfix branch
+     git checkout -b ${releaseV}_hotfix
      
      # Pin centaur for cromwell
      if [ ${repo} == "cromwell" ]; then
@@ -84,15 +97,6 @@ task do_release {
         git commit -m "Pin release to centaur branch"
      fi 
      
-     # Tag the release
-     git tag ${releaseV}
-     
-     # Push master and push the tags
-     git push ${true="--dry-run" false="" dryRun} origin master
-     git push ${true="--dry-run" false="" dryRun} --tags
-     
-     # Create and push the hotfix branch
-     git checkout -b ${releaseV}_hotfix
      git push origin ${releaseV}_hotfix
      
      # Assemble jar for cromwell
@@ -105,7 +109,7 @@ task do_release {
      ${updateVersionCommand}
      git add .
      git diff-index --quiet HEAD || git commit -m "Update ${repo} version from ${releaseV} to ${nextV}"
-     git push ${true="--dry-run" false="" dryRun} origin develop
+     git push origin develop
      
      pwd > executionDir.txt
    }
@@ -116,7 +120,7 @@ task do_release {
    }
 }
 
-task wait_for_artifactory {
+task wait_for_published_artifact {
     String repo
     String version
     
@@ -128,7 +132,7 @@ task wait_for_artifactory {
         elapsedTime=0
         checkIfPresent
         
-        # Allow 1 hour for the file to appear in artifactory
+        # Allow 1 hour for the file to appear as a published artifact
         while [ $? -ne 0 ] && [ $elapsedTime -lt 3600 ]; do
             sleep 10;
             let "elapsedTime+=10"
@@ -245,7 +249,10 @@ workflow release_cromwell {
   
   String cromwellTemplate = "sed -i '' \"s/cromwellVersion[[:space:]]=.*/cromwellVersion = \\\"<<VERSION>>\\\"/g\" project/Version.scala"
   String cromwellRegexPrefix = "cromwellVersion[[:space:]]=[[:space:]]"
-  
+
+  String wdl4sTemplate = "sed -i '' \"s/wdl4sVersion[[:space:]]=.*/wdl4sVersion = \\\"<<VERSION>>\\\"/g\" project/Version.scala"
+  String wdl4sRegexPrefix = "wdl4sVersion[[:space:]]=[[:space:]]"
+
   # Prepare releases by finding out the current version, next version, and update version command
   call versionPrep as lenthallPrep { input: 
     organization = organization,
@@ -258,9 +265,9 @@ workflow release_cromwell {
   call versionPrep as wdl4sPrep { input: 
     organization = organization,
     repo = "wdl4s",
-    file = "build.sbt",
-    regexPrefix = dependencyRegexPrefix,
-    updateCommandTemplate = dependencyTemplate
+    file = "project/Version.scala",
+    regexPrefix = wdl4sRegexPrefix,
+    updateCommandTemplate = wdl4sTemplate
   }
   
   call versionPrep as wdltoolPrep { input: 
@@ -298,7 +305,7 @@ workflow release_cromwell {
        }
        
   call do_release as release_wdltool { input:
-         organization = organization, 
+        organization = organization,
         repo = "wdltool", 
         releaseV = wdltoolPrep.version,
         nextV = wdltoolPrep.nextVersion,
@@ -315,8 +322,8 @@ workflow release_cromwell {
         dependencyCommands = cromwellDependencyCommands.updateCommand
        }
   
-  call wait_for_artifactory as waitForLenthall { input: repo = "lenthall_2.11", version = release_lenthall.version }
-  call wait_for_artifactory as waitForWdl4s { input: repo = "wdl4s_2.11", version = release_wdl4s.version }
+  call wait_for_published_artifact as waitForLenthall { input: repo = "lenthall_2.12", version = release_lenthall.version }
+  call wait_for_published_artifact as waitForWdl4s { input: repo = "wdl4s-wdl_2.12", version = release_wdl4s.version }
   
   # Generates commands to update wdl4s dependencies
   scatter(wdl4sDependency in wdl4sDependencies) {
@@ -354,7 +361,7 @@ workflow release_cromwell {
     }
   }
   
-  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.11/cromwell-" + cromwellPrep.version + ".jar"
+  File cromwellJar = release_cromwell.executionDir + "/target/scala-2.12/cromwell-" + cromwellPrep.version + ".jar"
   # Version that was just released
   Int cromwellVersionAsInt = cromwellPrep.version
   # Previous version

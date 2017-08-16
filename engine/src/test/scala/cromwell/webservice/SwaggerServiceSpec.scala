@@ -1,5 +1,7 @@
 package cromwell.webservice
 
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.swagger.models.properties.RefProperty
 import io.swagger.parser.SwaggerParser
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -8,8 +10,6 @@ import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.MappingNode
 import org.yaml.snakeyaml.{Yaml => SnakeYaml}
-import spray.http._
-import spray.testkit.ScalatestRouteTest
 
 import scala.collection.JavaConverters._
 

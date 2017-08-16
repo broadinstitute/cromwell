@@ -1,7 +1,7 @@
 package cromwell.core
 
-import wdl4s.Call
+import wdl4s.wdl.WdlCall
 
 trait CallKey extends JobKey {
-  def scope: Call
+  def scope: WdlCall
 }

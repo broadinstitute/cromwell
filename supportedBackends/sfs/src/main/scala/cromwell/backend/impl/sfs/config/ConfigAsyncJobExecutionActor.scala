@@ -5,9 +5,9 @@ import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
-import wdl4s._
-import wdl4s.expression.NoFunctions
-import wdl4s.values.WdlString
+import wdl4s.wdl._
+import wdl4s.wdl.expression.NoFunctions
+import wdl4s.wdl.values.WdlString
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script

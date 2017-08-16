@@ -1,75 +1,66 @@
 package cromwell.server
 
-import java.util.concurrent.TimeoutException
-
-import akka.actor.{ActorContext, ActorSystem, Props}
+import akka.actor.{ActorContext, ActorLogging, Props}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import com.typesafe.config.Config
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.{APIResponse, CromwellApiService, SwaggerService}
-import cromwell.webservice.SprayCanHttpService._
-import cromwell.webservice.WrappedRoute._
-import net.ceedubs.ficus.Ficus._
-import spray.http._
-import spray.json._
-import spray.routing.Route
+import cromwell.webservice.{CromwellApiService, SwaggerService}
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer {
+  def run(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(cromwellSystem: CromwellSystem): Future[Any] = {
+    implicit val actorSystem = cromwellSystem.actorSystem
+    implicit val materializer = cromwellSystem.materializer
+    actorSystem.actorOf(CromwellServerActor.props(cromwellSystem, gracefulShutdown, abortJobsOnTerminate), "cromwell-service")
+    actorSystem.whenTerminated
+  }
+}
 
-  def run(cromwellSystem: CromwellSystem): Future[Any] = {
-    implicit val executionContext = scala.concurrent.ExecutionContext.Implicits.global
+class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(override implicit val materializer: ActorMaterializer)
+  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate)
+    with CromwellApiService
+    with SwaggerService
+    with ActorLogging {
+  implicit val actorSystem = context.system
+  override implicit val ec = context.dispatcher
+  override def actorRefFactory: ActorContext = context
 
-    val actorSystem: ActorSystem = cromwellSystem.actorSystem
-    implicit val materializer: ActorMaterializer = cromwellSystem.materializer
+  override val serverMode = true
 
-    val service = actorSystem.actorOf(CromwellServerActor.props(cromwellSystem.conf), "cromwell-service")
-    val webserviceConf = cromwellSystem.conf.getConfig("webservice")
+  val webserviceConf = cromwellSystem.conf.getConfig("webservice")
+  val interface = webserviceConf.getString("interface")
+  val port = webserviceConf.getInt("port")
 
-    val interface = webserviceConf.getString("interface")
-    val port = webserviceConf.getInt("port")
-    val timeout = webserviceConf.as[FiniteDuration]("binding-timeout")
-    val futureBind = service.bind(interface, port)(implicitly, timeout, actorSystem, implicitly)
-    futureBind andThen {
-      case Success(_) =>
-        actorSystem.log.info("Cromwell service started...")
-        Await.result(actorSystem.whenTerminated, Duration.Inf)
-      case Failure(throwable) =>
-        /*
+  /**
+    * /api routes have special meaning to devops' proxy servers. NOTE: the oauth mentioned on the /api endpoints in
+    * cromwell.yaml is broken unless the swagger index.html is patched. Copy/paste the code from rawls or cromiam if
+    * actual cromwell+swagger+oauth+/api support is needed.
+    */
+  val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes))
+  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
+  val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
+
+  val serverBinding = Http().bindAndHandle(allRoutes, interface, port)
+
+  CromwellShutdown.registerUnbindTask(actorSystem, serverBinding)
+
+  serverBinding onComplete {
+    case Success(_) => actorSystem.log.info("Cromwell service started...")
+    case Failure(e) =>
+      /*
         TODO:
         If/when CromwellServer behaves like a better async citizen, we may be less paranoid about our async log messages
         not appearing due to the actor system shutdown. For now, synchronously print to the stderr so that the user has
         some idea of why the server failed to start up.
-         */
-        Console.err.println(s"Binding failed interface $interface port $port")
-        throwable.printStackTrace(Console.err)
-        cromwellSystem.shutdownActorSystem()
-    }
-  }
-}
-
-class CromwellServerActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor with CromwellApiService with SwaggerService {
-  implicit def executionContext: ExecutionContextExecutor = actorRefFactory.dispatcher
-
-  override val serverMode = true
-  override val abortJobsOnTerminate = false
-
-  override def actorRefFactory: ActorContext = context
-  override def receive: PartialFunction[Any, Unit] = handleTimeouts orElse runRoute(possibleRoutes)
-
-  val routeUnwrapped: Boolean = config.as[Option[Boolean]]("api.routeUnwrapped").getOrElse(false)
-  val possibleRoutes: Route = workflowRoutes.wrapped("api", routeUnwrapped) ~ swaggerUiResourceRoute
-  val timeoutError: String = APIResponse.error(new TimeoutException(
-    "The server was not able to produce a timely response to your request.")).toJson.prettyPrint
-
-  def handleTimeouts: Receive = {
-    case Timedout(_: HttpRequest) =>
-      sender() ! HttpResponse(StatusCodes.InternalServerError, HttpEntity(ContentType(MediaTypes.`application/json`), timeoutError))
+      */
+      Console.err.println(s"Binding failed interface $interface port $port")
+      e.printStackTrace(Console.err)
+      cromwellSystem.shutdownActorSystem()
   }
 
   /*
@@ -80,7 +71,7 @@ class CromwellServerActor(config: Config)(implicit materializer: ActorMaterializ
 }
 
 object CromwellServerActor {
-  def props(config: Config)(implicit materializer: ActorMaterializer): Props = {
-    Props(new CromwellServerActor(config)).withDispatcher(EngineDispatcher)
+  def props(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer): Props = {
+    Props(new CromwellServerActor(cromwellSystem, gracefulShutdown, abortJobsOnTerminate)).withDispatcher(EngineDispatcher)
   }
 }

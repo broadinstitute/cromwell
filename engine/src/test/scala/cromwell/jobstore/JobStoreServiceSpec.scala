@@ -9,9 +9,9 @@ import cromwell.services.SingletonServicesStore
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
-import wdl4s.types.WdlStringType
-import wdl4s.values.WdlString
-import wdl4s._
+import wdl4s.wdl.types.WdlStringType
+import wdl4s.wdl.values.WdlString
+import wdl4s.wdl._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -29,9 +29,9 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 
       val workflowId = WorkflowId.randomId()
-      val successCall = mock[TaskCall]
+      val successCall = mock[WdlTaskCall]
       successCall.fullyQualifiedName returns "foo.bar"
-      val mockTask = mock[Task]
+      val mockTask = mock[WdlTask]
       mockTask.outputs returns Seq(TaskOutput("baz", WdlStringType, EmptyExpression, mock[Ast], Option(mockTask)))
       successCall.task returns mockTask
 
@@ -50,7 +50,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
         case JobComplete(JobResultSuccess(Some(0), os)) if os == outputs =>
       }
 
-      val failureCall = mock[TaskCall]
+      val failureCall = mock[WdlTaskCall]
       failureCall.fullyQualifiedName returns "baz.qux"
       val failureKey = BackendJobDescriptorKey(failureCall, None, 1).toJobStoreKey(workflowId)
 

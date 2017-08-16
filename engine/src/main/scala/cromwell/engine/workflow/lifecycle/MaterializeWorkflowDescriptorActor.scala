@@ -29,9 +29,9 @@ import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import wdl4s._
-import wdl4s.expression.NoFunctions
-import wdl4s.values.{WdlSingleFile, WdlString, WdlValue}
+import wdl4s.wdl._
+import wdl4s.wdl.expression.NoFunctions
+import wdl4s.wdl.values.{WdlSingleFile, WdlString, WdlValue}
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -255,7 +255,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       namespace: WdlNamespaceWithWorkflow,
                                       rawInputs: Map[String, JsValue],
-                                      backendAssignments: Map[TaskCall, String],
+                                      backendAssignments: Map[WdlTaskCall, String],
                                       workflowOptions: WorkflowOptions,
                                       labels: Labels,
                                       failureMode: WorkflowFailureMode,
@@ -300,7 +300,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     serviceRegistryActor ! PutMetadataAction(inputEvents)
   }
 
-  private def validateBackendAssignments(calls: Set[TaskCall], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[TaskCall, String]] = {
+  private def validateBackendAssignments(calls: Set[WdlTaskCall], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[WdlTaskCall, String]] = {
     val callToBackendMap = Try {
       calls map { call =>
         val backendPriorities = Seq(
@@ -329,7 +329,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   /**
     * Map a call to a backend name depending on the runtime attribute key
     */
-  private def assignBackendUsingRuntimeAttrs(call: TaskCall): Option[String] = {
+  private def assignBackendUsingRuntimeAttrs(call: WdlTaskCall): Option[String] = {
     val runtimeAttributesMap = call.task.runtimeAttributes.attrs
     runtimeAttributesMap.get(RuntimeBackendKey) map { wdlExpr => evaluateBackendNameExpression(call.fullyQualifiedName, wdlExpr) }
   }
@@ -438,7 +438,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       }
   }
 
-  private def validateRawInputs(json: WdlJson): ErrorOr[Map[String, JsValue]] = {
+  private def validateRawInputs(json: WorkflowJson): ErrorOr[Map[String, JsValue]] = {
     Try(json.parseJson) match {
       case Success(JsObject(inputs)) => inputs.validNel
       case Failure(reason: Throwable) => s"Workflow contains invalid inputs JSON: ${reason.getMessage}".invalidNel
@@ -446,7 +446,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateLabels(json: WdlJson): ErrorOr[Labels] = {
+  private def validateLabels(json: WorkflowJson): ErrorOr[Labels] = {
 
     def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
       val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
@@ -483,7 +483,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def validateWorkflowOptions(workflowOptions: WdlJson): ErrorOr[WorkflowOptions] = {
+  private def validateWorkflowOptions(workflowOptions: WorkflowJson): ErrorOr[WorkflowOptions] = {
     WorkflowOptions.fromJsonString(workflowOptions) match {
       case Success(opts) => opts.validNel
       case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".invalidNel

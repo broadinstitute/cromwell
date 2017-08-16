@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import org.slf4j.{Logger, LoggerFactory}
-import wdl4s.values.{WdlBoolean, WdlFloat, WdlInteger, WdlOptionalValue, WdlValue}
+import wdl4s.wdl.values._
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
@@ -41,6 +41,11 @@ case object MetadataString extends MetadataType { override val typeName = "strin
 case object MetadataInt extends MetadataType { override val typeName = "int" }
 case object MetadataNumber extends MetadataType { override val typeName = "number" }
 case object MetadataBoolean extends MetadataType { override val typeName = "boolean" }
+/* TODO Might be better to have MetadataNull be a value instead of a type ?
+  * We'd need to reorganize MetadataValue, maybe like spray does and have explicit case classes types
+  * instead of one generic MetadataValue(value, type)
+*/
+case object MetadataNull extends MetadataType { override val typeName = "null" }
 
 object MetadataValue {
   def apply(value: Any): MetadataValue = {
@@ -49,6 +54,7 @@ object MetadataValue {
       case WdlFloat(f) => new MetadataValue(f.toString, MetadataNumber)
       case WdlBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
       case WdlOptionalValue(_, Some(o)) => apply(o)
+      case WdlOptionalValue(_, None) => new MetadataValue("", MetadataNull)
       case value: WdlValue => new MetadataValue(value.valueString, MetadataString)
       case _: Int | Long => new MetadataValue(value.toString, MetadataInt)
       case _: Double | Float => new MetadataValue(value.toString, MetadataNumber)
@@ -66,6 +72,7 @@ object MetadataType {
     case MetadataInt.typeName => MetadataInt
     case MetadataNumber.typeName => MetadataNumber
     case MetadataBoolean.typeName => MetadataBoolean
+    case MetadataNull.typeName => MetadataNull
     case _ =>
       log.warn(s"Unknown Metadata type $s. Falling back to MetadataString type")
       MetadataString

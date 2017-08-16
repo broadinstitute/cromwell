@@ -2,8 +2,8 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.core.actor.BatchingDbWriter
 import cromwell.core.actor.BatchingDbWriter._
+import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
 import cromwell.services.SingletonServicesStore
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
@@ -13,25 +13,19 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
-class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
+class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
-  MetadataDatabaseAccess with SingletonServicesStore {
+  MetadataDatabaseAccess with SingletonServicesStore with BatchingDbWriterActor {
   import WriteMetadataActor._
 
   implicit val ec: ExecutionContext = context.dispatcher
-
-  override def preStart(): Unit = {
-    context.system.scheduler.schedule(0.seconds, flushRate, self, ScheduledFlushToDb)
-    super.preStart()
-  }
-
 
   startWith(WaitingToWrite, NoData)
 
   when(WaitingToWrite) {
     case Event(PutMetadataAction(events), curData) =>
       curData.addData(events) match {
-        case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
+        case newData: HasData[_] if newData.length > dbBatchSize => goto(WritingToDb) using newData
         case newData => stay using newData
       }
     case Event(ScheduledFlushToDb, curData) =>
@@ -43,9 +37,9 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(CheckPendingWrites, _: HasData[_]) =>
       sender() ! HasPendingWrites
       stay()
-    case Event(e @ PutMetadataActionAndRespond(events, replyTo), curData) =>
+    case Event(e: PutMetadataActionAndRespond, curData) =>
       curData.addData(e) match {
-        case newData: HasData[_] if newData.length > batchSize => goto(WritingToDb) using newData
+        case newData: HasData[_] if newData.length > dbBatchSize => goto(WritingToDb) using newData
         case newData => stay using newData
       }
   }
@@ -63,7 +57,7 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
       log.debug("Flushing {} metadata events to the DB", e.length)
       // blech
       //Partitioning the current data into put events that require a response and those that don't
-      val empty = (List.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
+      val empty = (Vector.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
       val (putWithoutResponse, putWithResponse) = e.toVector.foldLeft(empty)({
         case ((putEvents, putAndRespondEvents), events) =>
           events match {
@@ -90,14 +84,10 @@ class WriteMetadataActor(batchSize: Int, flushRate: FiniteDuration)
     case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
       stay using curData.addData(PutMetadataActionAndRespond(events, replyTo))
   }
-
-  onTransition {
-    case WaitingToWrite -> WritingToDb => self ! FlushBatchToDb
-  }
 }
 
 object WriteMetadataActor {
-  def props(batchSize: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(batchSize, flushRate)).withDispatcher(ServiceDispatcher)
+  def props(dbBatchSize: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(dbBatchSize, flushRate)).withDispatcher(ServiceDispatcher)
 
   sealed trait WriteMetadataActorMessage
   case object CheckPendingWrites extends WriteMetadataActorMessage with MetadataServiceAction

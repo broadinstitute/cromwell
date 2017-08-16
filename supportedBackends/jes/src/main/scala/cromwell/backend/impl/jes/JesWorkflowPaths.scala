@@ -53,7 +53,7 @@ case class JesWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
     authBucket.resolve(s"${workflowDescriptor.rootWorkflowId}_auth.json")
   }
 
-  val monitoringPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript).toOption map { path =>
+  val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript).toOption map { path =>
     // Fail here if the path exists but can't be built
     getPath(path).get
   }

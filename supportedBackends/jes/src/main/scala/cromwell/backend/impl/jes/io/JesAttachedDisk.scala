@@ -7,7 +7,7 @@ import com.google.api.services.genomics.model.Disk
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import lenthall.exception.MessageAggregation
 import lenthall.validation.ErrorOr._
-import wdl4s.values._
+import wdl4s.wdl.values._
 
 import scala.util.Try
 import scala.util.matching.Regex

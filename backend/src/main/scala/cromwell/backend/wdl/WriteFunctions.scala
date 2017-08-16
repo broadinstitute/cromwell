@@ -1,10 +1,10 @@
 package cromwell.backend.wdl
 
 import cromwell.core.path.Path
-import wdl4s.TsvSerializable
-import wdl4s.expression.WdlStandardLibraryFunctions
-import wdl4s.types._
-import wdl4s.values._
+import wdl4s.wdl.TsvSerializable
+import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.types._
+import wdl4s.wdl.values._
 
 import scala.util.{Failure, Try}
 

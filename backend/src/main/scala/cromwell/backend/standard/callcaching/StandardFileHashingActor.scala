@@ -40,6 +40,8 @@ case class DefaultStandardFileHashingActorParams
   override val configurationDescriptor: BackendConfigurationDescriptor
 ) extends StandardFileHashingActorParams
 
+case class FileHashContext(hashKey: HashKey, file: String)
+
 class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) with DefaultIoCommandBuilder
 
 object StandardFileHashingActor {
@@ -72,12 +74,12 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       }
 
     // Hash Success
-    case (fileHashRequest: SingleFileHashRequest, IoSuccess(_, result: String)) =>
+    case (fileHashRequest: FileHashContext, IoSuccess(_, result: String)) =>
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
     // Hash Failure
-    case (fileHashRequest: SingleFileHashRequest, IoFailure(_, failure: Throwable)) =>
-      context.parent ! HashingFailedMessage(fileHashRequest.file.value, failure)
+    case (fileHashRequest: FileHashContext, IoFailure(_, failure: Throwable)) =>
+      context.parent ! HashingFailedMessage(fileHashRequest.file, failure)
 
     case other =>
       log.warning(s"Async File hashing actor received unexpected message: $other")
@@ -91,7 +93,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     }
 
     ioHashCommandTry match {
-      case Success(ioHashCommand) => sendIoCommandWithContext(ioHashCommand, fileRequest)
+      case Success(ioHashCommand) => sendIoCommandWithContext(ioHashCommand, FileHashContext(fileRequest.hashKey, fileRequest.file.value))
       case Failure(failure) => replyTo ! HashingFailedMessage(fileAsString, failure)
     }
   }

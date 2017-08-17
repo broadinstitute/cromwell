@@ -11,26 +11,48 @@ import wdl4s.wdl.{TsvSerializable, WdlExpressionException}
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
-  def fileContentsToString(path: String): String = readFile(path)
   def readFile(path: String): String
-  def writeTempFile(path: String, prefix: String, suffix: String, content: String): String
+  // NB breaking change, though should be easily unbroken
+  def writeFile(path: String, content: String): Try[WdlFile]
+
   def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile]
+
   def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile]
+
   def glob(path: String, pattern: String): Seq[String]
-  def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile]
-  def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile]
+
   def size(params: Seq[Try[WdlValue]]): Try[WdlFloat]
+
+  private def writeContent(baseName: String, content: String): Try[WdlFile] = writeFile(s"${baseName}_${content.md5Sum}.tmp", content)
+
+  private def writeToTsv[A <: WdlValue with TsvSerializable](functionName: String, params: Seq[Try[WdlValue]], defaultIfOptionalEmpty: A): Try[WdlFile] = {
+    val wdlClass = defaultIfOptionalEmpty.getClass
+    def castOrDefault(wdlValue: WdlValue): A = wdlValue match {
+      case WdlOptionalValue(_, None) => defaultIfOptionalEmpty
+      case WdlOptionalValue(_, Some(v)) => wdlClass.cast(v)
+      case _ => wdlClass.cast(wdlValue)
+    }
+
+    for {
+      singleArgument <- extractSingleArgument(functionName, params)
+      downcast <- Try(castOrDefault(singleArgument))
+      tsvSerialized <- downcast.tsvSerialize
+      file <- writeContent(functionName, tsvSerialized)
+    } yield file
+  }
 
   def read_objects(params: Seq[Try[WdlValue]]): Try[WdlArray] = extractObjects("read_objects", params) map { WdlArray(WdlArrayType(WdlObjectType), _) }
   def read_string(params: Seq[Try[WdlValue]]): Try[WdlString] = readContentsFromSingleFileParameter("read_string", params).map(s => WdlString(s.trim))
-  def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue]
+  def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError(s"read_json() not implemented yet"))
   def read_int(params: Seq[Try[WdlValue]]): Try[WdlInteger] = read_string(params) map { s => WdlInteger(s.value.trim.toInt) }
   def read_float(params: Seq[Try[WdlValue]]): Try[WdlFloat] = read_string(params) map { s => WdlFloat(s.value.trim.toDouble) }
 
-  def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
-  def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlMap])
-  def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlObject])
-  def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv(params, classOf[WdlArray])
+  def write_lines(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_lines", params, WdlArray(WdlArrayType(WdlStringType), List.empty[WdlValue]))
+  def write_map(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_map", params, WdlMap(WdlMapType(WdlStringType, WdlStringType), Map.empty[WdlValue, WdlValue]))
+  def write_object(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_object", params, WdlObject(Map.empty[String, WdlValue]))
+  def write_objects(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_objects", params, WdlArray(WdlArrayType(WdlObjectType), List.empty[WdlObject]))
+  def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = writeToTsv("write_tsv", params, WdlArray(WdlArrayType(WdlStringType), List.empty[WdlValue]))
+  def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_json() not implemented yet"))
 
   def read_lines(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     for {
@@ -263,7 +285,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
   private def readContentsFromSingleFileParameter(functionName: String, params: Seq[Try[WdlValue]]): Try[String] = {
     for {
       singleArgument <- extractSingleArgument(functionName, params)
-      string = fileContentsToString(singleArgument.valueString)
+      string = readFile(singleArgument.valueString)
     } yield string
   }
 
@@ -271,19 +293,6 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
     contents <- readContentsFromSingleFileParameter(functionName, params)
     wdlObjects <- WdlObject.fromTsv(contents)
   } yield wdlObjects
-
-  private def writeContent(baseName: String, content: String): Try[WdlFile] = {
-    Try(WdlFile(writeTempFile(tempFilePath, s"$baseName.", ".tmp", content)))
-  }
-
-  private def writeToTsv(params: Seq[Try[WdlValue]], wdlClass: Class[_ <: WdlValue with TsvSerializable]) = {
-    for {
-      singleArgument <- extractSingleArgument("writeToTsv", params)
-      downcast <- Try(wdlClass.cast(singleArgument))
-      tsvSerialized <- downcast.tsvSerialize
-      file <- writeContent(wdlClass.getSimpleName.toLowerCase, tsvSerialized)
-    } yield file
-  }
 }
 
 object WdlStandardLibraryFunctions {
@@ -316,13 +325,13 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
   def className = this.getClass.getCanonicalName
 
   override def readFile(path: String): String = throw new NotImplementedError(s"readFile not available in $className.")
+  override def writeFile(path: String, content: String): Try[WdlFile] = throw new NotImplementedError(s"writeFile not available in $className.")
   override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError(s"read_json not available in $className."))
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_json not available in $className."))
   override def size(params: Seq[Try[WdlValue]]): Try[WdlFloat] = Failure(new NotImplementedError(s"size not available in $className."))
   override def write_tsv(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"write_tsv not available in $className."))
   override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"stdout not available in $className."))
   override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError(s"writeTempFile not available in $className.")
   override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
 }
 
@@ -418,7 +427,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WdlType] {
 case object NoFunctions extends WdlStandardLibraryFunctions {
   override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError()
   override def readFile(path: String): String = throw new NotImplementedError()
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError()
+  override def writeFile(path: String, content: String): Try[WdlFile] = throw new NotImplementedError()
   override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
   override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = Failure(new NotImplementedError())

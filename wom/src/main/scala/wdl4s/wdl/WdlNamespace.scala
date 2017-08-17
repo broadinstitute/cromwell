@@ -415,10 +415,10 @@ object WdlNamespace {
   /**
     * Determine the list of references in this expression to values which were never declared
     */
-  def referencesToAbsentValues(container: Scope, expression: WdlExpression): Iterable[Terminal] =
+  private def referencesToAbsentValues(container: Scope, expression: WdlExpression): Iterable[Terminal] =
     expression.variableReferences collect { case variable if container.resolveVariable(variable.terminal.sourceString).isEmpty => variable.terminal }
 
-  def validateDeclaration(declaration: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
+  private def validateDeclaration(declaration: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
     val invalidVariableReferences = for {
       expr <- declaration.expression.toSeq
       variable <- referencesToAbsentValues(declaration, expr)
@@ -432,7 +432,7 @@ object WdlNamespace {
     invalidVariableReferences ++ typeMismatches
   }
 
-  def lookupType(from: Scope)(n: String): WdlType = {
+  private def lookupType(from: Scope)(n: String): WdlType = {
     val resolved = from.resolveVariable(n)
     resolved match {
       case Some(d: DeclarationInterface) => d.relativeWdlType(from)
@@ -446,7 +446,7 @@ object WdlNamespace {
     }
   }
   
-  def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
+  private def typeCheckDeclaration(decl: DeclarationInterface, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Option[SyntaxError] = {
     decl.expression flatMap { expr =>
       expr.evaluateType(lookupType(decl), new WdlStandardLibraryFunctionsType, Option(decl)) match {
         case Success(wdlType) =>

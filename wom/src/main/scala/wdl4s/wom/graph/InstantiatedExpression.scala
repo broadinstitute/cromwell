@@ -30,7 +30,7 @@ object InstantiatedExpression {
       val upstreamPort = inputMapping(input)
       Valid((input, ConnectedInputPort(input, upstreamPort.womType, upstreamPort, graphNodeSetter.get)))
     } else {
-      s"Expression cannot be connected without the input $input.".invalidNel
+      s"Expression cannot be connected without the input $input (provided: ${inputMapping.toString})".invalidNel
     }
 
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap

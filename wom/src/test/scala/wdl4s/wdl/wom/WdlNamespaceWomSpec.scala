@@ -53,9 +53,10 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(threeStep, None, None).get.asInstanceOf[WdlNamespaceWithWorkflow]
-    val wom3Step = namespace.womExecutable
+    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    val wom3Step = namespace.womExecutable.flatMap(_.graph)
     
-    val workflowGraph = wom3Step.graph match {
+    val workflowGraph = wom3Step match {
       case Valid(g) => g
       case Invalid(errors) => fail(s"Unable to build wom version of 3step from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
     }

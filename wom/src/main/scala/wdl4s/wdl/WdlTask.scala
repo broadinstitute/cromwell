@@ -2,6 +2,7 @@ package wdl4s.wdl
 
 import java.util.regex.Pattern
 
+import cats.data.Validated.Valid
 import lenthall.util.TryUtil
 import wdl4s.parser.WdlParser._
 import wdl4s.wdl.AstTools._
@@ -12,7 +13,7 @@ import wdl4s.wdl.util.StringUtil
 import wdl4s.wdl.values.{WdlFile, WdlValue}
 import wdl4s.wom.callable.Callable.{OptionalInputDefinition, OptionalInputDefinitionWithDefault, RequiredInputDefinition}
 import wdl4s.wom.callable.{Callable, TaskDefinition}
-import wdl4s.wom.expression.{WomExpression, PlaceholderWomExpression}
+import wdl4s.wom.expression.{PlaceholderWomExpression, WomExpression}
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -68,7 +69,7 @@ case class WdlTask(name: String,
                    parameterMeta: Map[String, String],
                    ast: Ast) extends WdlCallable {
   
-  override lazy val womDefinition = buildWomTaskDefinition
+  override lazy val womDefinition = Valid(buildWomTaskDefinition)
 
   override val unqualifiedName: LocallyQualifiedName = name
 

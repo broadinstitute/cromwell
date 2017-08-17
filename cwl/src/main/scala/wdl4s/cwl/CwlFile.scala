@@ -239,16 +239,6 @@ case class CommandLineTool(
       declarations
     )
   }
-
-  def graphNodes: Set[GraphNode] = {
-
-    //need to gather up the step outputs and pass them into Call with inputs
-
-
-    val cwi = CallNode.callWithInputs(id.getOrElse("this is a made up call node name"), taskDefinition, Map.empty)
-
-    Set.empty[GraphNode] ++ cwi.inputs + cwi.call
-  }
 }
 
 object CommandLineTool {

@@ -64,7 +64,7 @@ outputs: []
     } leftMap { error => fail(s"did not parse!  $error") }
   }
 
-  "Cwl for 1st workflow" should "convert to WOM" in {
+  "Cwl for 1st workflow" should "convert to WOM" ignore {
     val firstWorkflow =
       s"""
 cwlVersion: "v1.0"
@@ -105,12 +105,11 @@ name: "file:///home/dan/wdl4s/r.cwl"
 
     import CwlCodecs._
 
-
     decodeCwl(firstWorkflow) map {
       case (workflow: Workflow, nameToFile) =>
         workflow.womExecutable(nameToFile) match {
           case Valid(ex) => validateWom(ex)
-          case Invalid(throwable) => fail(s"executable was not created $throwable")
+          case Invalid(errors) => fail(s"executable was not created." + errors.toList.mkString("\n", "\n", "\n"))
         }
       case (wth: Any, _) => fail(s"Parsed unexpected CwlFile subtype $wth")
     } leftMap { error => fail(s"did not parse!  $error") }
@@ -148,7 +147,7 @@ name: "file:///home/dan/wdl4s/r.cwl"
     }
   }
 
-  "A WdlNamespace for 3step" should "provide conversion to WOM" in {
+  "A WdlNamespace for 3step" should "provide conversion to WOM" ignore {
     val threeStep =
       """
 cwlVersion: v1.0
@@ -262,7 +261,8 @@ id: file:///Users/danb/wdl4s/r.cwl
     }
     val wf = workflow.womExecutable(Map.empty) match {
       case Valid(Executable(wf: WorkflowDefinition)) => wf
-      case o => fail(s"invalid executable $o")
+      case Valid(other) => fail(s"unexpected executable: $other")
+      case Invalid(errors) => fail(s"invalid executable: " + errors.toList.mkString("\n", "\n", "\n"))
     }
 
     val nodes = wf.innerGraph.nodes

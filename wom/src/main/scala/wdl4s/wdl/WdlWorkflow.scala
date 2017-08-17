@@ -1,10 +1,12 @@
 package wdl4s.wdl
 
-import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.cartesian._
+import cats.syntax.traverse._
+import cats.instances.list._
 import lenthall.util.TryUtil
+import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.parser.WdlParser._
 import wdl4s.wdl.AstTools._
-import wdl4s.wdl.exception.ValidationException
 import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.types.WdlType
 import wdl4s.wdl.values.WdlValue
@@ -49,24 +51,29 @@ object WdlWorkflow {
     new WdlWorkflow(name, workflowOutputsWildcards, wdlSyntaxErrorFormatter, meta, parameterMeta, ast)
   }
 
-  def buildWomGraph(wdlWorkflow: WdlWorkflow): Graph = {
-    val graphNodes = wdlWorkflow.calls.foldLeft(Set.empty[GraphNode])({
-      case (currentNodes, call) => currentNodes ++ call.womGraphInputNodes + call.womCallNode
-    })
-
-    Graph.validateAndConstruct(graphNodes) match {
-      case Valid(wg) => wg.withDefaultOutputs
-      case Invalid(errors) => throw ValidationException("Unable to validate graph", errors.map(new Exception(_)).toList)
+  def buildWomGraph(wdlWorkflow: WdlWorkflow): ErrorOr[Graph] = {
+    val graphNodesValidation = wdlWorkflow.calls.toList.traverse[ErrorOr, Set[GraphNode]] { call =>
+        (call.womGraphInputNodes |@| call.womCallNode) map { (womGraphInputsNodes, womCallNode) =>
+          womGraphInputsNodes.toSet[GraphNode] + womCallNode
+        }
     }
+
+    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    for {
+      graphNodeSets <- graphNodesValidation
+      graphNodes = graphNodeSets.flatten.toSet
+      g <- Graph.validateAndConstruct(graphNodes)
+      withOutputs = g.withDefaultOutputs
+    } yield withOutputs
   }
 
   /**
     * Convert this WdlWorkflow into a wom.components.Workflow
     */
-  def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): WorkflowDefinition = {
+  def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = buildWomGraph(wdlWorkflow) map { wg =>
     WorkflowDefinition(
       wdlWorkflow.unqualifiedName,
-      buildWomGraph(wdlWorkflow),
+      wg,
       wdlWorkflow.meta,
       wdlWorkflow.parameterMeta,
       List.empty)
@@ -83,7 +90,7 @@ case class WdlWorkflow(unqualifiedName: String,
   /**
     * Convert this WdlWorkflow into a wom.components.Workflow
     */
-  override lazy val womDefinition: WorkflowDefinition = WdlWorkflow.womWorkflowDefinition(this)
+  override lazy val womDefinition: ErrorOr[WorkflowDefinition] = WdlWorkflow.womWorkflowDefinition(this)
 
   /**
    * FQNs for all inputs to this workflow and their associated types and possible postfix quantifiers.

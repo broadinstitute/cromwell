@@ -1,6 +1,11 @@
 package wdl4s.wom.graph
 
-import cats.implicits._
+import cats.syntax.validated._
+import cats.syntax.cartesian._
+import cats.instances.list._
+import cats.syntax.functor._
+import cats.syntax.traverse._
+
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wom.graph.GraphNodePort.InputPort
 
@@ -25,14 +30,24 @@ object Graph {
     * Assuming it validates, construct the Graph case class.
     */
   def validateAndConstruct(nodes: Set[GraphNode]): ErrorOr[Graph] = {
-    def goodLink(port: InputPort): ErrorOr[Unit] = {
-      val upstreamOutputPort = port.upstream
 
-      if (nodes.contains(upstreamOutputPort.graphNode)) {
-        ().validNel
-      } else {
-        s"The input link ${port.name} is linked to a node outside the graph set (${upstreamOutputPort.name})".invalidNel
-      }
+    def boolToErrorOr(bool: Boolean, msg: => String): ErrorOr[Unit] = if (bool) ().validNel else msg.invalidNel
+
+    def upstreamNodeInGraph(port: InputPort): ErrorOr[Unit] = {
+      val upstreamOutputPort = port.upstream
+      boolToErrorOr(nodes.exists(_ eq upstreamOutputPort.graphNode), s"The input link ${port.name} is linked to a node outside the graph set (${upstreamOutputPort.name})")
+    }
+
+    def portProperlyEmbedded(port: GraphNodePort, portFinder: GraphNode => Set[_ <: GraphNodePort]): ErrorOr[Unit] = {
+      boolToErrorOr(portFinder(port.graphNode).exists(_ eq port), s"The port ${port.name} thinks it belongs to a Node (${port.graphNode}), but that Node doesn't think it owns it.")
+    }
+
+    def goodLink(port: InputPort): ErrorOr[Unit] = {
+      val upstreamNodeValidation = upstreamNodeInGraph(port)
+      val inputPortEmbeddedValidation = portProperlyEmbedded(port, _.inputPorts)
+      val upstreamPortEmbeddedValidation = portProperlyEmbedded(port.upstream, _.outputPorts)
+
+      (upstreamNodeValidation |@| inputPortEmbeddedValidation |@| upstreamPortEmbeddedValidation).tupled.void
     }
 
     def validateNode(node: GraphNode): ErrorOr[Unit] = {

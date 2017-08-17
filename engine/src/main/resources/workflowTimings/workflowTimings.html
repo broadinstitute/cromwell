@@ -177,9 +177,10 @@
 
         function toggleSubWorkflowRows(dt, selectedRow) {
             function filterFunction(cell, row, column, table) {
-                var ancestry = table.getRowProperty(row, "ancestry");
+                var ancestries = table.getRowProperty(row, "ancestry");
+                var ancestryFqn = ancestries.join("/");
                 // Display the row if it's not a sub workflow or if its parent is in the list of workflows to expand.
-                return (ancestry.length == 0 || (expandedParentWorkflows.indexOf(ancestry[ancestry.length - 1]) != -1));
+                return (ancestries.length == 0 || (expandedParentWorkflows.indexOf(ancestryFqn) != -1));
             }
     
             var filter = {
@@ -189,13 +190,19 @@
             };
             
             var parentWorkflow;
-            if (selectedRow) parentWorkflow = chartView.getValue(selectedRow, 0);
+            parentWorkflow = chartView.getValue(selectedRow, 0);
 
             var indexOfParentWorkflow = expandedParentWorkflows.indexOf(parentWorkflow);
 
             if (indexOfParentWorkflow != -1) {
-                // Remove the parent workflow from the list if it's in it
-                expandedParentWorkflows.splice(indexOfParentWorkflow, 1);
+                // Remove the parent workflow and its children from the list
+                expandedParentWorkflows = expandedParentWorkflows.filter(function (el, i, array) {
+                    // we keep the element if 
+                    // it is not the parent we want to remove 
+                    i != indexOfParentWorkflow 
+                    // or if it doesn't start with the parent (if it does it's a subworkflow of this parent)
+                    || !el.startsWith(parentWorkflow)
+                })
             } else if (parentWorkflow && parentWorkflowNames.indexOf(parentWorkflow) != -1) {
                 // Add it if it's not
                 expandedParentWorkflows.push(parentWorkflow);

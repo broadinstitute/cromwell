@@ -197,11 +197,7 @@
             if (indexOfParentWorkflow != -1) {
                 // Remove the parent workflow and its children from the list
                 expandedParentWorkflows = expandedParentWorkflows.filter(function (el, i, array) {
-                    // we keep the element if 
-                    // it is not the parent we want to remove 
-                    i != indexOfParentWorkflow 
-                    // or if it doesn't start with the parent (if it does it's a subworkflow of this parent)
-                    || !el.startsWith(parentWorkflow)
+                    return !el.startsWith(parentWorkflow)
                 })
             } else if (parentWorkflow && parentWorkflowNames.indexOf(parentWorkflow) != -1) {
                 // Add it if it's not

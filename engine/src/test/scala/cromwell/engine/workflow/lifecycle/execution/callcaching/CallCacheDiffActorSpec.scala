@@ -23,8 +23,8 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
   val metadataJobKeyA = Option(MetadataJobKey(callFqnA, Option(1), 1))
   val metadataJobKeyB = Option(MetadataJobKey(callFqnB, None, 1))
   
-  val callA = CallCacheDiffQueryCall(workflowIdA.toString, callFqnA, Option(1))
-  val callB = CallCacheDiffQueryCall(workflowIdB.toString, callFqnB, None)
+  val callA = CallCacheDiffQueryCall(workflowIdA, callFqnA, Option(1))
+  val callB = CallCacheDiffQueryCall(workflowIdB, callFqnB, None)
 
   val queryA = MetadataQuery(
     workflowIdA,

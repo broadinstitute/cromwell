@@ -2,6 +2,8 @@ package lenthall.validation
 
 import java.net.URL
 
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import ch.qos.logback.classic.Level
 import com.typesafe.config.ConfigFactory
@@ -12,6 +14,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.slf4j.LoggerFactory
 
 import scala.compat.Platform.EOL
+import scala.util.{Failure, Success}
 
 class ValidationSpec extends FlatSpec with Matchers {
 
@@ -57,6 +60,14 @@ class ValidationSpec extends FlatSpec with Matchers {
   it should "fail to validate an invalid value" in {
     val result = validate(throw new RuntimeException("fail"))
     result should be("fail".invalidNel)
+  }
+
+  it should "convert a Try to an ErrorOr" in {
+    val success = Success("yeah")
+    val failure = Failure(new Exception(":("))
+    import lenthall.validation.Validation._
+    success.toErrorOr shouldBe Valid("yeah")
+    failure.toErrorOr shouldBe Invalid(NonEmptyList.of(":("))
   }
 
 }

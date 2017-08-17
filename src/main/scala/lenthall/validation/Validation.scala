@@ -2,6 +2,7 @@ package lenthall.validation
 
 import java.net.{URI, URL}
 
+import cats.data.Validated._
 import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
@@ -22,5 +23,11 @@ object Validation {
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
     case Failure(f) => f.getMessage.invalidNel
+  }
+
+  implicit class TryValidation[A](val t: Try[A]) extends AnyVal {
+    def toErrorOr: ErrorOr[A] = {
+      fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
+    }
   }
 }

@@ -52,7 +52,8 @@ task do_release {
        
        # Update latest pointer
        git rm --ignore-unmatch latest
-       ln -s ${releaseV} latest
+
+       ln -s ${releaseV}/wom/api latest
        git add latest
        
        git diff-index --quiet HEAD || git commit -m "Update Scaladoc"

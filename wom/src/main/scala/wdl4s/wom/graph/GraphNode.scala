@@ -9,6 +9,8 @@ import wdl4s.wom.callable.Callable.{OptionalInputDefinition, OptionalInputDefini
 
 trait GraphNode {
 
+  def name: String
+
   /**
     * Inputs that must be available before this graph node can be run.
     */

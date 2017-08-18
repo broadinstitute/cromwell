@@ -5,7 +5,7 @@ import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 
-case class ExpressionNode private(name: String, instantiatedExpression: InstantiatedExpression) extends GraphNode {
+final case class ExpressionNode private(override val name: String, instantiatedExpression: InstantiatedExpression) extends GraphNode {
 
   val womType = instantiatedExpression.womReturnType
   val singleExpressionOutputPort = GraphNodeOutputPort(name, womType, this)

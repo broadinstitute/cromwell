@@ -1,6 +1,11 @@
 package wdl4s.wdl
 
+import cats.syntax.option._
+import cats.syntax.validated._
+import lenthall.validation.ErrorOr.ErrorOr
+import wdl4s.parser.WdlParser.Terminal
 import wdl4s.wdl.AstTools.{EnhancedAstNode, VariableReference}
+import wdl4s.wom.graph.GraphNodePort
 
 sealed trait WdlGraphNode extends Scope {
 
@@ -39,6 +44,24 @@ object WdlGraphNode {
     val setWithUpstream = currentSet ++ graphNode.upstream
     val updatesNeeded = graphNode.upstream -- currentSet
     updatesNeeded.foldLeft(setWithUpstream)(calculateUpstreamAncestry)
+  }
+
+  private[wdl] def outputPortFromNode(node: WdlGraphNode, terminal: Option[Terminal]): ErrorOr[GraphNodePort.OutputPort] = {
+
+    def findNamedOutputPort(name: String, graphOutputPorts: Set[GraphNodePort.OutputPort], terminalName: String): ErrorOr[GraphNodePort.OutputPort] = {
+      graphOutputPorts.find(_.name == name).toValidNel(s"Cannot find an output port $name in $terminalName")
+    }
+
+    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+    (node, terminal) match {
+      case (wdlCall: WdlCall, Some(subTerminal)) =>
+        for {
+          graphOutputPorts <- wdlCall.womGraphOutputPorts
+          namedPort <- findNamedOutputPort(subTerminal.sourceString, graphOutputPorts, "call " + wdlCall.unqualifiedName)
+        } yield namedPort
+      case (declaration: Declaration, None) => declaration.womExpressionNode.map(_.singleOutputPort)
+      case _ => s"Unsupported node $node and terminal $terminal".invalidNel
+    }
   }
 }
 

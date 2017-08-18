@@ -6,7 +6,6 @@ import wdl4s.wom.expression.WomExpression
 import wdl4s.wom.graph.GraphNodePort.{ConnectedInputPort, OutputPort}
 
 sealed trait GraphOutputNode extends GraphNode {
-  def name: String
   def womType: WdlType
 
   final override val outputPorts: Set[GraphNodePort.OutputPort] = Set.empty
@@ -15,7 +14,7 @@ sealed trait GraphOutputNode extends GraphNode {
 /**
   * Exposes an existing output port as a graph output.
   */
-final case class PortBasedGraphOutputNode(name: String, womType: WdlType, source: OutputPort) extends GraphOutputNode {
+final case class PortBasedGraphOutputNode(override val name: String, womType: WdlType, source: OutputPort) extends GraphOutputNode {
   override val inputPorts: Set[GraphNodePort.InputPort] = Set(ConnectedInputPort(name, womType, source, _ => this))
 }
 
@@ -24,7 +23,7 @@ final case class PortBasedGraphOutputNode(name: String, womType: WdlType, source
   *
   * NB: Construct this via ExpressionBasedGraphOutputNode.linkWithInputs(...)
   */
-final case class ExpressionBasedGraphOutputNode private(name: String, instantiatedExpression: InstantiatedExpression) extends GraphOutputNode {
+final case class ExpressionBasedGraphOutputNode private(override val name: String, instantiatedExpression: InstantiatedExpression) extends GraphOutputNode {
   override val womType = instantiatedExpression.womReturnType
   override val inputPorts = instantiatedExpression.inputPorts
 }

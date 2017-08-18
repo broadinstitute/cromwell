@@ -694,7 +694,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  override protected implicit def ec: ExecutionContextExecutor = context.dispatcher
+  override protected implicit lazy val ec: ExecutionContextExecutor = context.dispatcher
 }
 
 /**

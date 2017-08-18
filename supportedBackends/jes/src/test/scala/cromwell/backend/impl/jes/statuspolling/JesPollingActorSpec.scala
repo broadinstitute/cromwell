@@ -12,6 +12,7 @@ import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
+import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model.Operation
 import cromwell.backend.impl.jes.{JesConfiguration, Run, RunStatus}
@@ -22,6 +23,8 @@ import eu.timepit.refined.numeric.Positive
 import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
+import scala.concurrent.{Future, Promise}
+import scala.util.Try
 
 class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
 
@@ -123,7 +126,15 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
         handler.onFailure(error, null)
     }}
   }
-  override def addStatusPollToBatch(run: Run, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
+
+  override private [statuspolling] def enqueueStatusPollInBatch(pollingRequest: JesStatusPollQuery, batch: BatchRequest): Future[Try[Unit]] = {
+    val completionPromise = Promise[Try[Unit]]()
+    val resultHandler = statusPollResultHandler(pollingRequest, completionPromise)
+    addStatusPollToBatch(null, batch, resultHandler)
+    completionPromise.future
+  }
+  
+  override def addStatusPollToBatch(httpRequest: HttpRequest, batch: BatchRequest, resultHandler: JsonBatchCallback[Operation]): Unit = resultHandlers :+= resultHandler
   override def interpretOperationStatus(operation: Operation): RunStatus = {
     val (status, newQueue) = operationStatusResponses.dequeue
     operationStatusResponses = newQueue

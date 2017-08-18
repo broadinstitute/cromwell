@@ -2,13 +2,17 @@ package wdl4s.wdl
 
 import wdl4s.wdl.types.WdlType
 import wdl4s.parser.WdlParser._
+import wdl4s.wdl.AstTools.InterpolatedTerminal
 
 import scala.collection.JavaConverters._
 
 case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) extends SyntaxErrorFormatter {
 
   private def pointToSource(t: Terminal): String = s"${line(t)}\n${" " * (t.getColumn - 1)}^"
-  private def line(t:Terminal): String = terminalMap(t).split("\n")(t.getLine - 1)
+  private def line(t:Terminal): String = t match {
+    case interpolated: InterpolatedTerminal => terminalMap(interpolated.rootTerminal).split("\n")(interpolated.getLine - 1)
+    case classicTerminal => terminalMap(classicTerminal).split("\n")(classicTerminal.getLine - 1)
+  }
 
   def unexpectedEof(method: String, expected: java.util.List[TerminalIdentifier], nt_rules: java.util.List[String]): String = "ERROR: Unexpected end of file"
 

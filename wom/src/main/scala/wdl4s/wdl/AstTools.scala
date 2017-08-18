@@ -3,10 +3,10 @@ package wdl4s.wdl
 import java.nio.file.Path
 
 import better.files._
-import wdl4s.wdl.WdlExpression.AstForExpressions
-import wdl4s.wdl.WdlExpression.AstNodeForExpressions
 import wdl4s.parser.WdlParser
 import wdl4s.parser.WdlParser._
+import wdl4s.wdl.WdlExpression.{AstForExpressions, AstNodeForExpressions}
+import wdl4s.wdl.expression.ValueEvaluator.InterpolationTagPattern
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
 
@@ -14,6 +14,20 @@ import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
 object AstTools {
+
+  class InterpolatedTerminal(val rootTerminal: Terminal, innerTerminal: Terminal, columnOffset: Int) extends Terminal(
+    innerTerminal.getId,
+    innerTerminal.getTerminalStr,
+    innerTerminal.getSourceString,
+    innerTerminal.getResource,
+    // We want the line of the rootTerminal because innerTerminal is created purely from the expression string
+    // So its first line will be line 0, which is very unlikely to be line 0 in the WDL file
+    rootTerminal.getLine,
+    // Column offset tells us the position of innerTerminal in the rootTerminal string
+    // Therefore rootTerminal.getColumn + columnOffset gives us the column position for innerTerminal in the file (+1 to be on the $)
+    rootTerminal.getColumn + columnOffset + 1
+  )
+
   implicit class EnhancedAstNode(val astNode: AstNode) extends AnyVal {
     def findAsts(name: String): Seq[Ast] = AstTools.findAsts(astNode, name)
     def findAstsWithTrail(name: String, trail: Seq[AstNode] = Seq.empty): Map[Ast, Seq[AstNode]] = {
@@ -26,11 +40,56 @@ object AstTools {
         case _ => Map.empty[Ast, Seq[AstNode]]
       }
     }
-    def findTerminalsWithTrail(terminalType: String, trail: Seq[AstNode] = Seq.empty): Map[Terminal, Seq[AstNode]] = {
+
+    private def findTerminalsInInterpolatedString(t: Terminal,
+                                                  terminalType: String,
+                                                  trail: Seq[AstNode],
+                                                  parentTerminal: Option[Terminal],
+                                                  columnOffset: Int) = {
+      /*
+        * Find all interpolations in the string terminal.
+        * e.g: String a = "hello ${you}"
+        * We'll create an expression from "you" and remember the position in the string 
+        * "hello ${you}" at which we found "${you}".
+       */
+      val interpolatedExpressionAstNodesAndTheirMatchPosition = InterpolationTagPattern
+        .findAllMatchIn(t.getSourceString)
+        .foldLeft(List.empty[(AstNode, Int)])((nodes, exprValue) => {
+          // This is the interpolated expression e.g ${my_var}
+          val v = exprValue.group(0)
+          // Create an expression from the content and remember the position of the match in the overall terminal string
+          // so we can point to it in the error message if needed
+          (WdlExpression.fromString(v.substring(2, v.length - 1)).ast, exprValue.start) +: nodes
+        })
+
+      interpolatedExpressionAstNodesAndTheirMatchPosition match {
+        // If there's no interpolated expression and the parent terminal is of the right type,
+        // create an interpolated terminal and we're done
+        case Nil if t.getTerminalStr == terminalType =>
+          val finalTerminal = parentTerminal map { parent => new InterpolatedTerminal(parent, t, columnOffset) } getOrElse t
+          Map(finalTerminal -> trail)
+        // No interpolated terminal and the parent terminal is not of the right type, we're done
+        case Nil => Map.empty[Terminal, Seq[AstNode]]
+        // We found some interpolated terminals, recursively find their inner terminals and propagate the root terminal.
+        // Also propagate the accumulated columnOffset. The regex index match will start
+        // over at 0 in the next round of matching so we need to keep track of the offset as we recurse
+        case expressions => expressions.flatMap({
+          case (innerNode, offset) => innerNode.findTerminalsWithTrail(terminalType, trail :+ t, Option(parentTerminal.getOrElse(t)), columnOffset + offset)
+        }).toMap
+      }
+    }
+
+    def findTerminalsWithTrail(terminalType: String,
+                               trail: Seq[AstNode] = Seq.empty,
+                               parentTerminal: Option[Terminal] = None,
+                               columnOffset: Int = 0): Map[Terminal, Seq[AstNode]] = {
       astNode match {
         case a: Ast => a.getAttributes.values.asScala flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
         case a: AstList => a.asScala.toVector flatMap { _.findTerminalsWithTrail(terminalType, trail :+ a) } toMap
-        case t: Terminal if t.getTerminalStr == terminalType => Map(t -> trail)
+        case t: Terminal if t.getTerminalStr == terminalType =>
+          val finalTerminal = parentTerminal map { parent => new InterpolatedTerminal(parent, t, columnOffset) } getOrElse t
+          Map(finalTerminal -> trail)
+        case t: Terminal => findTerminalsInInterpolatedString(t, terminalType, trail, parentTerminal, columnOffset)
         case _ => Map.empty[Terminal, Seq[AstNode]]
       }
     }
@@ -237,12 +296,12 @@ object AstTools {
       * If this is a simple MemberAccess (both sides are terminals),
       * find the rhs corresponding to "terminal" in the trail.
       * e.g
-      * 
+      *
       * if terminal is "a" and the trail contains a MemberAccess(lhs: Terminal("a"), rhs: Terminal("b")),
       * this will return Some(Terminal("b"))
       */
     lazy val terminalSubIdentifier: Option[Terminal] = trail.collectFirst {
-      case a: Ast if a.isMemberAccess 
+      case a: Ast if a.isMemberAccess
         && a.getAttribute("lhs") == terminal
         && a.getAttribute("rhs").isTerminal => a.getAttribute("rhs").asInstanceOf[Terminal]
     }
@@ -265,35 +324,35 @@ object AstTools {
       }
     }
 
-   /* terminal is the "lefter" lhs
-    * trail is how we arrived to identifier from the original ast
-    * e.g #1 (in "pseudo ast code"):
-    * 
-    * If MemberAccess is "a.b"
-    * terminal will be Terminal("a")
-    * trail will be Seq(
-    *   MemberAccess(
-    *     lhs: Terminal("a"),
-    *     rhs: Terminal("b")
-    *   )  
-    * )
-    * 
-    * e.g #2:
-    * If MemberAccess is "a.b.c"
-    * terminal will be Terminal("a")
-    * trail will be Seq(
-    *   MemberAccess(
-    *     lhs: MemberAccess(lhs: Terminal("a"), rhs: Terminal("b")),
-    *     rhs: Terminal("c")
-    *   ),
-    *   MemberAccess(
-    *     lhs: Terminal("a"),
-    *     rhs: Terminal("b")
-    *   )
-    * )
-    * 
-    * There also might be other types of nodes in trail than MemberAccess depending the expression.
-    */
+    /* terminal is the "lefter" lhs
+     * trail is how we arrived to identifier from the original ast
+     * e.g #1 (in "pseudo ast code"):
+     * 
+     * If MemberAccess is "a.b"
+     * terminal will be Terminal("a")
+     * trail will be Seq(
+     *   MemberAccess(
+     *     lhs: Terminal("a"),
+     *     rhs: Terminal("b")
+     *   )  
+     * )
+     * 
+     * e.g #2:
+     * If MemberAccess is "a.b.c"
+     * terminal will be Terminal("a")
+     * trail will be Seq(
+     *   MemberAccess(
+     *     lhs: MemberAccess(lhs: Terminal("a"), rhs: Terminal("b")),
+     *     rhs: Terminal("c")
+     *   ),
+     *   MemberAccess(
+     *     lhs: Terminal("a"),
+     *     rhs: Terminal("b")
+     *   )
+     * )
+     * 
+     * There also might be other types of nodes in trail than MemberAccess depending the expression.
+     */
     expr.findTerminalsWithTrail("identifier").collect({
       case (terminal, trail) if !isMemberAccessRhs(terminal, trail) && !isFunctionName(terminal, trail) => VariableReference(terminal, trail)
     })

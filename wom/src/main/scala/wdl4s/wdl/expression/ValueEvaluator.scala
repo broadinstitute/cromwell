@@ -1,15 +1,18 @@
 package wdl4s.wdl.expression
 
 import lenthall.util.TryUtil
+import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
 import wdl4s.wdl.AstTools.EnhancedAstNode
 import wdl4s.wdl.WdlExpression._
 import wdl4s.wdl.types._
 import wdl4s.wdl.values.{WdlValue, _}
-import wdl4s.wdl._
-import wdl4s.parser.WdlParser.{Ast, AstNode, Terminal}
-import wdl4s.wdl.TernaryIf
+import wdl4s.wdl.{TernaryIf, _}
 
 import scala.util.{Failure, Success, Try}
+
+object ValueEvaluator {
+  val InterpolationTagPattern = "\\$\\{\\s*([^\\}]*)\\s*\\}".r
+}
 
 case class ValueEvaluator(override val lookup: String => WdlValue, override val functions: WdlFunctions[WdlValue]) extends Evaluator {
   override type T = WdlValue

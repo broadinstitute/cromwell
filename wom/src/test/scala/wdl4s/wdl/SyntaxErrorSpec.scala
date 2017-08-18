@@ -945,6 +945,29 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
       """.stripMargin
   }
 
+  case object UnknownVariableInDeclaration extends ErrorWdl {
+    val testString = "detect when an unknown variable is referenced in a declaration"
+    val wdl =
+      """task foo {
+        |  # Shouldn't validate, no 't' defined:
+        |  String s = "I like to drink ${t}"
+        |  command {
+        |    echo ${s}
+        |  }
+        |  output {
+        |    String out = read_string(stdout())
+        |  }
+        |}
+      """.stripMargin
+
+    val errors =
+      """|ERROR: Missing value: Couldn't find value with name 't' in task 'foo' (line 3):
+         |
+         |  String s = "I like to drink ${t}"
+         |                              ^
+      """.stripMargin
+  }
+
   val syntaxErrorWdlTable = Table(
     "errorWdl",
     CallReferencesBadInput,
@@ -982,7 +1005,8 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
     MultipleVariableDeclarationsInScope8,
     MultipleVariableDeclarationsInScope9,
     OldStyleWorkflowOutputReferenceNonExistingCall,
-    NewStyleWorkflowOutputReferenceNonExistingCall
+    NewStyleWorkflowOutputReferenceNonExistingCall,
+    UnknownVariableInDeclaration
   )
 
   forAll(syntaxErrorWdlTable) { (errorWdl) =>

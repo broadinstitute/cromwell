@@ -26,9 +26,6 @@ object Testing {
   lazy val UseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", DbmsTestTag)
   lazy val DontUseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", DbmsTestTag)
 
-  lazy val PostMVPTag = "PostMVP"
-  lazy val DontUsePostMVPTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", PostMVPTag)
-
   lazy val TestReportArgs = Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
 
   /*
@@ -37,7 +34,7 @@ object Testing {
   Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
  */
   lazy val defaultExcludeTests = Seq(DontUseDockerTaggedTests, DontUseCromwellIntegrationTaggedTests,
-    DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests)
+    DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests)
 
   val testSettings = List(
     // `test` (or `assembly`) - Run all tests, except docker and integration and DBMS
@@ -51,7 +48,7 @@ object Testing {
     // `integration:test` - Run only integration tests
     testOptions in CromwellIntegrationTest := (testOptions in AllTests).value ++ Seq(UseCromwellIntegrationTaggedTests, UseGcsIntegrationTaggedTests),
     // `nointegration:test` - Run all tests, except integration
-    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests, DontUsePostMVPTaggedTests),
+    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests),
     // `dbms:test` - Run database management tests.
     testOptions in DbmsTest := (testOptions in AllTests).value ++ Seq(UseDbmsTaggedTests),
     // Add scalameter as a test framework in the CromwellBenchmarkTest scope

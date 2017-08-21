@@ -93,59 +93,6 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       system.stop(materializeWfActor)
     }
 
-    "assign default runtime attributes" ignore {
-      val wdl =
-        """
-          |task a {
-          | command {}
-          | runtime { docker: "specified:docker" }
-          |}
-          |task b { command {} }
-          |workflow foo {
-          | call a
-          | call b
-          |}
-        """.stripMargin
-
-      val defaultDocker =
-        """
-          |{
-          |  "default_runtime_attributes": {
-          |    "docker": "default:docker"
-          |  }
-          |}
-        """.stripMargin
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false))
-      val sources = WorkflowSourceFilesWithoutImports(
-        workflowSource = wdl,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = "{}",
-        workflowOptionsJson = defaultDocker,
-        labelsJson = validCustomLabelsFile)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
-
-      within(Timeout) {
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorSuccessResponse(wfDesc) =>
-            wfDesc.namespace.tasks foreach {
-              case task if task.name.equals("a") =>
-                task.runtimeAttributes.attrs.size shouldBe 1
-                task.runtimeAttributes.attrs.head._2 shouldBe "\"specified:docker\""
-              case task if task.name.equals("b") =>
-                task.runtimeAttributes.attrs.size shouldBe 1
-                task.runtimeAttributes.attrs.head._2 shouldBe "\"default:docker\""
-              case task => fail(s"Unexpected task: ${task.name}")
-            }
-          case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"This materialization should not have failed (reason: $reason)")
-          case unknown =>
-            fail(s"Unexpected materialization response: $unknown")
-        }
-      }
-
-      system.stop(materializeWfActor)
-    }
-
     "assign backends based on runtime attributes" in {
       val wdl =
         """

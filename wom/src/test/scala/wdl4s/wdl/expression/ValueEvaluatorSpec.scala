@@ -57,7 +57,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
 
     override def readFile(path: String): String = throw new NotImplementedError()
 
-    override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedError()
+    override def writeFile(path: String, content: String): Try[WdlFile] = Failure(new NotImplementedError())
 
     override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Failure(new NotImplementedError())
 

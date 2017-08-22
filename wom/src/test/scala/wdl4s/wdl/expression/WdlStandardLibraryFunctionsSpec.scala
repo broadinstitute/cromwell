@@ -52,6 +52,7 @@ case object TestableFunctions extends WdlStandardLibraryFunctions {
   // No need to test the ones that are overridden anyway:
   // TODO: Can replace with "OnlyPureFunctions when that branch merges..."
   override def readFile(path: String): String = throw new NotImplementedException("")
+  override def writeFile(path: String, content: String): Try[WdlFile] = throw new NotImplementedException("")
   override def range(params: Seq[Try[WdlValue]]): Try[WdlArray] = throw new NotImplementedException("")
   override def read_json(params: Seq[Try[WdlValue]]): Try[WdlValue] = throw new NotImplementedException("")
   override def write_json(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedException("")
@@ -63,7 +64,6 @@ case object TestableFunctions extends WdlStandardLibraryFunctions {
   override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedException("")
   override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedException("")
   override def stderr(params: Seq[Try[WdlValue]]): Try[WdlFile] = throw new NotImplementedException("")
-  override def writeTempFile(path: String, prefix: String, suffix: String, content: String): String = throw new NotImplementedException("")
 }
 
 case object TestableFunctionTypes extends WdlStandardLibraryFunctionsType

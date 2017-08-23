@@ -4,7 +4,6 @@ import cats.data.Validated.Valid
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wdl4s.wdl.AstTools.EnhancedAstNode
-import wdl4s.wdl.Declaration.DeclarationNode
 import wdl4s.wdl.types.{WdlArrayType, WdlOptionalType, WdlType}
 import wdl4s.wom.graph._
 
@@ -110,14 +109,14 @@ object Declaration {
     )
   }
 
-  def buildWomNode(decl: Declaration): ErrorOr[DeclarationNode] = {
+  def buildWomNode(decl: Declaration, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[DeclarationNode] = {
 
     val inputName = decl.unqualifiedName
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, None)
       for {
-        uninstantiatedExpression <- WdlWomExpression.graphNodeInputExpression(inputName, womExpression, decl)
+        uninstantiatedExpression <- WdlWomExpression.findInputsforExpression(inputName, womExpression, localLookup, outerLookup)
         expressionNode <- ExpressionNode.linkWithInputs(inputName, womExpression, uninstantiatedExpression.inputMapping)
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
@@ -135,6 +134,4 @@ case class Declaration(wdlType: WdlType,
                        unqualifiedName: String,
                        expression: Option[WdlExpression],
                        override val parent: Option[Scope],
-                       ast: Ast) extends DeclarationInterface {
-  private[wdl] lazy val womExpressionNode: ErrorOr[DeclarationNode] = Declaration.buildWomNode(this)
-}
+                       ast: Ast) extends DeclarationInterface

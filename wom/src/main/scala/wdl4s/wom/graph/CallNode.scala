@@ -53,7 +53,7 @@ object TaskCall {
 
 object CallNode {
 
-  final case class CallWithInputs(call: CallNode, inputs: Set[GraphInputNode]) {
+  final case class CallNodeAndNewInputs(call: CallNode, inputs: Set[GraphInputNode]) {
     def nodes: Set[GraphNode] = Set(call) ++ inputs
   }
 
@@ -73,7 +73,7 @@ object CallNode {
     * If an input is not supplied, it gets created as a GraphInputNode.
     *
     */
-  def callWithInputs(name: String, callable: Callable, portInputs: Map[String, OutputPort], expressionInputs: Set[GraphNodeInputExpression]): ErrorOr[CallWithInputs] = {
+  def callWithInputs(name: String, callable: Callable, portInputs: Map[String, OutputPort], expressionInputs: Set[GraphNodeInputExpression]): ErrorOr[CallNodeAndNewInputs] = {
 
     val graphNodeSetter = new GraphNode.GraphNodeSetter()
 
@@ -92,7 +92,7 @@ object CallNode {
       val callNode = CallNode(name, callable, linkedInputPorts, instantiatedExpressionInputs)
 
       graphNodeSetter._graphNode = callNode
-      CallWithInputs(callNode, graphInputNodes)
+      CallNodeAndNewInputs(callNode, graphInputNodes)
     }
   }
 }

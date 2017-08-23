@@ -1,9 +1,5 @@
 package wdl4s.wdl
 
-import cats.syntax.apply._
-import Declaration.DeclarationNode
-import cats.syntax.traverse._
-import cats.instances.list._
 import lenthall.util.TryUtil
 import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.parser.WdlParser._
@@ -12,7 +8,6 @@ import wdl4s.wdl.expression.WdlFunctions
 import wdl4s.wdl.types.WdlType
 import wdl4s.wdl.values.WdlValue
 import wdl4s.wom.callable.WorkflowDefinition
-import wdl4s.wom.graph.{Graph, GraphNode}
 
 import scala.language.postfixOps
 import scala.util.Try
@@ -52,29 +47,10 @@ object WdlWorkflow {
     new WdlWorkflow(name, workflowOutputsWildcards, wdlSyntaxErrorFormatter, meta, parameterMeta, ast)
   }
 
-  def buildWomGraph(wdlWorkflow: WdlWorkflow): ErrorOr[Graph] = {
-    val callNodesValidation = wdlWorkflow.calls.toList.traverse[ErrorOr, Set[GraphNode]] { call =>
-        (call.womGraphInputNodes, call.womCallNode).mapN { (womGraphInputsNodes, womCallNode) =>
-          womGraphInputsNodes.toSet[GraphNode] + womCallNode
-        }
-    }
-
-    val declarationsValidation: ErrorOr[List[DeclarationNode]] = wdlWorkflow.declarations.toList.traverse[ErrorOr, DeclarationNode] { decl => decl.womExpressionNode }
-
-    val callsAndDeclarationValidation = (callNodesValidation, declarationsValidation) mapN { (callNodes, declarationNodes) => callNodes.flatten.toSet ++ declarationNodes.map(_.toGraphNode) }
-
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
-    for {
-      graphNodes <- callsAndDeclarationValidation
-      g <- Graph.validateAndConstruct(graphNodes)
-      withOutputs = g.withDefaultOutputs
-    } yield withOutputs
-  }
-
   /**
     * Convert this WdlWorkflow into a wom.components.Workflow
     */
-  def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = buildWomGraph(wdlWorkflow) map { wg =>
+  def womWorkflowDefinition(wdlWorkflow: WdlWorkflow): ErrorOr[WorkflowDefinition] = WdlGraphNode.buildWomGraph(wdlWorkflow, Set.empty, Map.empty) map { wg =>
     WorkflowDefinition(
       wdlWorkflow.unqualifiedName,
       wg,

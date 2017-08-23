@@ -47,17 +47,11 @@ sealed trait WdlArrayType extends WdlType {
 
   override def isCoerceableFrom(otherType: WdlType): Boolean = otherType match {
     case WdlArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WdlNothingType
-    case mapType: WdlMapType => matchesMapType(mapType)
+    case mapType: WdlMapType => isCoerceableFrom(mapType.equivalentArrayType)
     case _ => false
   }
 
   def asNonEmptyArrayType = WdlNonEmptyArrayType(memberType)
-
-  private def matchesMapType(wdlMapType: WdlMapType) = (this, wdlMapType) match {
-    case (WdlArrayType(WdlPairType(leftType, rightType)), WdlMapType(keyType, valueType)) => leftType.isCoerceableFrom(keyType) && rightType.isCoerceableFrom(valueType)
-    case _ => false
-  }
-
 }
 
 case class WdlMaybeEmptyArrayType(memberType: WdlType) extends WdlArrayType {
@@ -82,6 +76,7 @@ object WdlArrayType {
   def unapply(wdlType: WdlType): Option[WdlType] = {
     wdlType match {
       case arrayType: WdlArrayType => Option(arrayType.memberType)
+      case mapType: WdlMapType => Option(mapType.equivalentArrayType.memberType)
       case _ => None
     }
   }

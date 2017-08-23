@@ -1,9 +1,10 @@
 package wdl4s.wdl.wom
 
+import lenthall.collections.EnhancedCollections._
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl4s.wom.graph.{CallNode, GraphInputNode, PortBasedGraphOutputNode}
+import wdl4s.wom.graph.{CallNode, GraphInputNode, PortBasedGraphOutputNode, TaskCallNode}
 
 class WdlNamespaceWomSpec extends FlatSpec with Matchers {
   
@@ -63,13 +64,17 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     
     workflowGraph.nodes collect { case gin: GraphInputNode => gin.name } should be(Set("cgrep.pattern"))
     workflowGraph.nodes collect { case gon: PortBasedGraphOutputNode => gon.name } should be(Set("wc.count", "cgrep.count", "ps.procs"))
-    workflowGraph.nodes collect { case cn: CallNode => cn.name } should be(Set("wc", "cgrep", "ps"))
     
-    val ps = workflowGraph.nodes.collectFirst({ case ps: CallNode if ps.name == "ps" => ps }).get
-    val cgrep = workflowGraph.nodes.collectFirst({ case cgrep: CallNode if cgrep.name == "cgrep" => cgrep }).get
+    val ps: TaskCallNode = workflowGraph.nodes.collectFirst({ case ps: TaskCallNode if ps.name == "ps" => ps }).get
+    val cgrep: TaskCallNode = workflowGraph.nodes.collectFirst({ case cgrep: TaskCallNode if cgrep.name == "cgrep" => cgrep }).get
     val cgrepPatternInput = workflowGraph.nodes.collectFirst({ case cgrepInput: GraphInputNode if cgrepInput.name == "cgrep.pattern" => cgrepInput }).get
-    val wc = workflowGraph.nodes.collectFirst({ case wc: CallNode if wc.name == "wc" => wc }).get
-    
+    val wc: TaskCallNode = workflowGraph.nodes.collectFirst({ case wc: TaskCallNode if wc.name == "wc" => wc }).get
+
+    workflowGraph.nodes.filterByType[CallNode] should be(Set(ps, cgrep, wc))
+    ps.inputPorts.map(_.name) should be(Set.empty)
+    cgrep.inputPorts.map(_.name) should be(Set("pattern", "ps.procs"))
+    wc.inputPorts.map(_.name) should be(Set("ps.procs"))
+
     ps.upstream shouldBe empty
     cgrep.upstream shouldBe Set(ps, cgrepPatternInput)
     wc.upstream shouldBe Set(ps)

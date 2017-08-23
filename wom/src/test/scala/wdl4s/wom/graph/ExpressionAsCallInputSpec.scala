@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.types.WdlIntegerType
 import wdl4s.wom.callable.TaskDefinitionSpec
 import wdl4s.wom.expression._
-import wdl4s.wom.graph.CallNode.CallWithInputs
+import wdl4s.wom.graph.CallNode.CallNodeAndNewInputs
 
 class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
 
@@ -33,7 +33,7 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     // Declare an expression that needs both an "i" and a "j":
     val ijExpression = PlaceholderWomExpression(Set("i", "j"), WdlIntegerType)
 
-    def validateCallResult(callWithInputs: CallWithInputs) = {
+    def validateCallResult(callWithInputs: CallNodeAndNewInputs) = {
       callWithInputs.inputs should be(Set.empty)
       callWithInputs.call.upstream should be(Set(iInputNode, jInputNode))
     }

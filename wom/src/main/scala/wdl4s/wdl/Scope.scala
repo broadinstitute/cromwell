@@ -1,5 +1,6 @@
 package wdl4s.wdl
 
+import lenthall.collections.EnhancedCollections._
 import wdl4s.parser.WdlParser.Ast
 import wdl4s.wdl.exception.{ScatterIndexNotFound, VariableLookupException, VariableNotFoundException}
 import wdl4s.wdl.expression.WdlFunctions
@@ -33,6 +34,9 @@ trait Scope {
       this._children = children
     } else throw new UnsupportedOperationException("children is write-once")
   }
+
+  lazy val childGraphNodes: Set[WdlGraphNode] = children.toSet.filterByType[WdlGraphNode]
+  lazy val childGraphNodesSorted: List[WdlGraphNode] = childGraphNodes.toList.sortWith((first, second) => first.isUpstreamFrom(second))
 
   /**
     * Containing namespace

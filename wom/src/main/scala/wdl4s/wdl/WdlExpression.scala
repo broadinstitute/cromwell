@@ -1,9 +1,9 @@
 package wdl4s.wdl
 
+import cats.data.Validated.Valid
 import cats.instances.list._
-import cats.syntax.option._
 import cats.syntax.traverse._
-
+import cats.syntax.validated._
 import lenthall.validation.ErrorOr.ErrorOr
 import lenthall.validation.Validation._
 import wdl4s.parser.WdlParser
@@ -15,7 +15,7 @@ import wdl4s.wdl.formatter.{NullSyntaxHighlighter, SyntaxHighlighter}
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
 import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
-import wdl4s.wom.graph.{GraphNodeInputExpression, GraphNodePort}
+import wdl4s.wom.graph.{GraphNodeInputExpression, GraphNodePort, OuterGraphInputNode}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -230,15 +230,22 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Option[Sco
 }
 
 object WdlWomExpression {
-  def graphNodeInputExpression(name: String, expression: WdlWomExpression, expressionOwner: WdlGraphNode): ErrorOr[GraphNodeInputExpression] = {
-    import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
+
+  /**
+    * Links up inputs to an expression ready for it to be instantiated.
+    *
+    * If the input is found in an outer scope, we also make a new input node in the inner graph to represent it.
+    */
+  def findInputsforExpression(name: String, expression: WdlWomExpression, innerLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort]): ErrorOr[GraphNodeInputExpression] = {
 
     def resolveVariable(v: AstTools.VariableReference): ErrorOr[(String, GraphNodePort.OutputPort)] = {
       val name = v.fullVariableReferenceString
-      for {
-        node <- expressionOwner.resolveVariable(v.terminal.sourceString).toValidNel(s"Failed to resolve variable $name")
-        outputPort <- WdlGraphNode.outputPortFromNode(node, v.terminalSubIdentifier)
-      } yield name -> outputPort
+      (innerLookup.get(name), outerLookup.get(name)) match {
+        case (Some(port), None) => Valid(name -> port)
+        case (None, Some(port)) => Valid(name -> OuterGraphInputNode(name, port).singleOutputPort)
+        case (None, None) => s"No input $name found evaluating inputs for expression ${expression.wdlExpression.toWdlString}".invalidNel
+        case (Some(innerPort), Some(outerPort)) => s"Two inputs called '$name' found evaluating inputs for expression ${expression.wdlExpression.toWdlString}: on ${innerPort.graphNode.name} and ${outerPort.graphNode.name}".invalidNel
+      }
     }
 
     for {

@@ -19,4 +19,6 @@ case class WdlMapType(keyType: WdlType, valueType: WdlType) extends WdlType {
     case WdlObjectType => keyType.isCoerceableFrom(WdlStringType) && valueType.isCoerceableFrom(WdlStringType)
     case _ => false
   }
+
+  def equivalentArrayType: WdlArrayType = WdlArrayType(WdlPairType(keyType, valueType))
 }

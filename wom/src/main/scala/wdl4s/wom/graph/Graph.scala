@@ -17,7 +17,8 @@ final case class Graph private(nodes: Set[GraphNode]) {
   // an explicit outputs block.  I'd remove this but the WDL/WOM test relies on it.
   def withDefaultOutputs: Graph = {
     val defaultOutputs: Set[GraphNode] = (nodes collect {
-      case callNode: CallNode => callNode.outputPorts.map(op => PortBasedGraphOutputNode(s"${callNode.name}.${op.name}", op.womType, op))
+      case node: CallNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${node.name}.${op.name}", op.womType, op))
+      case node: ScatterNode => node.outputPorts.map(op => PortBasedGraphOutputNode(s"${op.name}", op.womType, op))
     }).flatten
     Graph(nodes.union(defaultOutputs))
   }

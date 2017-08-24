@@ -1,8 +1,12 @@
 package wdl4s.wdl
 
+import cats.data.Validated.Valid
+import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl4s.parser.WdlParser.{Ast, AstNode}
 import wdl4s.wdl.AstTools.EnhancedAstNode
+import wdl4s.wdl.Declaration.DeclarationNode
 import wdl4s.wdl.types.{WdlArrayType, WdlOptionalType, WdlType}
+import wdl4s.wom.graph._
 
 object DeclarationInterface {
   /**
@@ -80,6 +84,19 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
 
 object Declaration {
 
+  sealed trait DeclarationNode {
+    def toGraphNode = this match {
+      case InputDeclarationNode(graphInputNode) => graphInputNode
+      case IntermediateValueDeclarationNode(expressionNode) => expressionNode
+    }
+    def singleOutputPort = this match {
+      case InputDeclarationNode(graphInputNode) => graphInputNode.singleOutputPort
+      case IntermediateValueDeclarationNode(expressionNode) => expressionNode.singleExpressionOutputPort
+    }
+  }
+  final case class InputDeclarationNode(graphInputNode: GraphInputNode) extends DeclarationNode
+  final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends DeclarationNode
+
   def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration = {
     Declaration(
       ast.getAttribute("type").wdlType(wdlSyntaxErrorFormatter),
@@ -92,10 +109,32 @@ object Declaration {
       ast
     )
   }
+
+  def buildWomNode(decl: Declaration): ErrorOr[DeclarationNode] = {
+
+    val inputName = decl.unqualifiedName
+
+    def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
+      val womExpression = WdlWomExpression(wdlExpression, None)
+      for {
+        uninstantiatedExpression <- WdlWomExpression.graphNodeInputExpression(inputName, womExpression, decl)
+        expressionNode <- ExpressionNode.linkWithInputs(inputName, womExpression, uninstantiatedExpression.inputMapping)
+      } yield IntermediateValueDeclarationNode(expressionNode)
+    }
+
+    decl match {
+      case Declaration(opt: WdlOptionalType, _, None, _, _) => Valid(InputDeclarationNode(OptionalGraphInputNode(inputName, opt)))
+      case Declaration(_, _, None, _, _) => Valid(InputDeclarationNode(RequiredGraphInputNode(inputName, decl.wdlType)))
+      case Declaration(_, _, Some(expr), _, _) if expr.variableReferences.isEmpty => Valid(InputDeclarationNode(OptionalGraphInputNodeWithDefault(inputName, decl.wdlType, WdlWomExpression(expr, None))))
+      case Declaration(_, _, Some(expr), _, _) => declarationAsExpressionNode(expr)
+    }
+  }
 }
 
 case class Declaration(wdlType: WdlType,
                        unqualifiedName: String,
                        expression: Option[WdlExpression],
                        override val parent: Option[Scope],
-                       ast: Ast) extends DeclarationInterface
+                       ast: Ast) extends DeclarationInterface {
+  private[wdl] lazy val womExpressionNode: ErrorOr[DeclarationNode] = Declaration.buildWomNode(this)
+}

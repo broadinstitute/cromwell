@@ -21,6 +21,8 @@ final case class ScatterNode private(graph: Graph,
                                      otherInputPorts: Set[InputPort],
                                      outputMapping: Set[ScatterGathererPort]) extends GraphNode {
 
+  override val name: String = "ScatterNode"
+
   def innerGraphInputs: Set[GraphInputNode] = graph.nodes.collect { case gin: GraphInputNode => gin }
 
   // NB if you find yourself calling .filter on this set of inputPorts, you probably just wanted to access either

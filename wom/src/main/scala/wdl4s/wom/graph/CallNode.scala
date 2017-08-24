@@ -10,7 +10,6 @@ import wdl4s.wom.graph.GraphNode.LinkedInputPort
 import wdl4s.wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
 
 sealed abstract class CallNode extends GraphNode {
-  def name: String
   def callable: Callable
   def callType: String
 
@@ -20,14 +19,14 @@ sealed abstract class CallNode extends GraphNode {
   override final val inputPorts = portBasedInputs ++ expressionBasedInputs.values.flatMap(_.inputPorts)
 }
 
-final case class TaskCallNode private(name: String, callable: TaskDefinition, portBasedInputs: Set[GraphNodePort.InputPort], expressionBasedInputs: Map[String, InstantiatedExpression]) extends CallNode {
+final case class TaskCallNode private(override val name: String, callable: TaskDefinition, portBasedInputs: Set[GraphNodePort.InputPort], expressionBasedInputs: Map[String, InstantiatedExpression]) extends CallNode {
   val callType: String = "task"
   override val outputPorts: Set[GraphNodePort.OutputPort] = {
     callable.outputs.map(o => GraphNodeOutputPort(o.name, o.womType, this))
   }
 }
 
-final case class WorkflowCallNode private(name: String, callable: WorkflowDefinition, portBasedInputs: Set[GraphNodePort.InputPort], expressionBasedInputs: Map[String, InstantiatedExpression]) extends CallNode {
+final case class WorkflowCallNode private(override val name: String, callable: WorkflowDefinition, portBasedInputs: Set[GraphNodePort.InputPort], expressionBasedInputs: Map[String, InstantiatedExpression]) extends CallNode {
   val callType: String = "workflow"
   override val outputPorts: Set[GraphNodePort.OutputPort] = {
     callable.innerGraph.nodes.collect { case gon: GraphOutputNode => GraphNodeOutputPort(gon.name, gon.womType, this) }

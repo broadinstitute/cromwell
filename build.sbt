@@ -39,7 +39,7 @@ libraryDependencies ++= Seq(
   Explicitly excluding the two problematic artifacts instead of including the three (or four?).
   https://github.com/typelevel/cats/tree/v0.7.2#getting-started
    */
-  "org.typelevel" %% "cats" % "0.9.0" % Provided
+  "org.typelevel" %% "cats-core" % "1.0.0-MF" % Provided
     exclude("org.typelevel", "cats-laws_2.11")
     exclude("org.typelevel", "cats-kernel-laws_2.11"),
   "ch.qos.logback" % "logback-classic" % "1.2.1" % Provided,

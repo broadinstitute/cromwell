@@ -11,7 +11,7 @@ import cromwell.database.sql.tables._
 import scala.concurrent.{ExecutionContext, Future}
 
 trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
-  this: SlickDatabase =>
+  this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
 

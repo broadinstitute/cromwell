@@ -576,6 +576,28 @@ database {
 
 By default batch inserts will be processed in blocks of 2000. To modify this value add the field `insert-batch-size` to the `database` stanza.
 
+Cromwell stores metadata about each job and workflow intended for end users. This metadata includes paths to job
+results, start and end times, etc. The metadata grows at a significantly faster rate than the rest of the internal
+engine data. To use a separate database for metadata, under the `database` config section, configure a sub-path for
+`metadata` with custom settings.
+
+```hocon
+database {
+  # Store metadata in a file on disk that can grow much larger than RAM limits.
+  metadata {
+    profile = "slick.jdbc.HsqldbProfile$"
+    db {
+      driver = "org.hsqldb.jdbcDriver"
+      url = "jdbc:hsqldb:file:metadata-db-file-path;shutdown=false;hsqldb.tx=mvcc"
+      connectionTimeout = 3000
+    }
+  }
+}
+```
+
+If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database`
+configuration. This feature should be considered experimental and likely to change in the future.
+
 ## SIGINT abort handler
 
 For backends that support aborting task invocations, Cromwell can be configured to automatically try to abort all currently running calls (and set their status to `Aborted`) when a SIGINT is sent to the Cromwell process.  To turn this feature on, set the configuration option

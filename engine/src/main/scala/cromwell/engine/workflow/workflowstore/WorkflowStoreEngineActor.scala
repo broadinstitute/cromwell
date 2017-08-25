@@ -4,7 +4,6 @@ import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
-import cromwell.database.sql.SqlDatabase
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -15,7 +14,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase)
+final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -139,8 +138,8 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, database: SqlDatabase) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, database)).withDispatcher(EngineDispatcher)
+  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef) = {
+    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

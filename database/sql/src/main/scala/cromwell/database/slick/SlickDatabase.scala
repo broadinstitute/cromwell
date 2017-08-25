@@ -46,25 +46,18 @@ object SlickDatabase {
 
 /**
   * Data Access implementation using Slick.
-  *
-  * NOTE: the uses of .head below will cause an exception to be thrown
-  * if the list is empty.  In every use case as of the writing of this comment,
-  * those exceptions would have been wrapped in a failed Future and returned.
   */
-class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlDatabase
-  with MetadataSlickDatabase
-  with WorkflowStoreSlickDatabase
-  with JobKeyValueSlickDatabase
-  with JobStoreSlickDatabase
-  with CallCachingSlickDatabase
-  with SummaryStatusSlickDatabase
-  with SubWorkflowStoreSlickDatabase
-  with DockerHashStoreSlickDatabase {
+abstract class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlDatabase {
 
   override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
-  private val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
+  protected val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
 
-  val dataAccess = new DataAccessComponent(slickConfig.profile)
+  /*
+  Not a def because we need to have a "stable identifier" for the imports below.
+  Must be overridden as a lazy val, or "early definitions", to avoid getting nulls on init.
+  http://docs.scala-lang.org/tutorials/FAQ/initialization-order.html
+   */
+  val dataAccess: DataAccessComponent
 
   // Allows creation of a Database, plus implicits for running transactions
   import dataAccess.driver.api._

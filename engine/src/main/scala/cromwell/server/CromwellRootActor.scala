@@ -27,7 +27,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, Call
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
-import cromwell.services.{ServiceRegistryActor, SingletonServicesStore}
+import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
 import cromwell.util.GracefulShutdownHelper
 import net.ceedubs.ficus.Ficus._
@@ -63,13 +63,14 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
   lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
-  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
-  lazy val workflowStoreActor = context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor, SingletonServicesStore.databaseInterface), "WorkflowStoreActor")
+  lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
+  lazy val workflowStoreActor =
+    context.actorOf(WorkflowStoreActor.props(workflowStore, serviceRegistryActor), "WorkflowStoreActor")
 
-  lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
+  lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
   lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore), "JobStoreActor")
 
-  lazy val subWorkflowStore = new SqlSubWorkflowStore(SingletonServicesStore.databaseInterface)
+  lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
   // Io Actor
@@ -83,7 +84,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
     "WorkflowLogCopyRouter")
 
-  lazy val callCache: CallCache = new CallCache(SingletonServicesStore.databaseInterface)
+  lazy val callCache: CallCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
 
   lazy val numberOfCacheReadWorkers = config.getConfig("system").as[Option[Int]]("number-of-cache-read-workers").getOrElse(DefaultNumberOfCacheReadWorkers)
   lazy val callCacheReadActor = context.actorOf(RoundRobinPool(numberOfCacheReadWorkers)

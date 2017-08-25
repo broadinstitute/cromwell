@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.actor.BatchingDbWriter._
 import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
-import cromwell.services.SingletonServicesStore
+import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
 
@@ -15,7 +15,7 @@ import scala.util.{Failure, Success}
 
 class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration)
   extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
-  MetadataDatabaseAccess with SingletonServicesStore with BatchingDbWriterActor {
+  MetadataDatabaseAccess with MetadataServicesStore with BatchingDbWriterActor {
   import WriteMetadataActor._
 
   implicit val ec: ExecutionContext = context.dispatcher

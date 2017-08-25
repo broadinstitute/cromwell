@@ -11,7 +11,6 @@ import cromwell.CromwellTestKitSpec._
 import cromwell._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{SimpleIoActor, WorkflowSourceFilesCollection}
-import cromwell.database.sql.SqlDatabase
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
@@ -55,7 +54,8 @@ object SingleWorkflowRunnerActorSpec {
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with Mockito {
-  private val workflowStore = system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, mock[SqlDatabase]))
+  private val workflowStore =
+    system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor))
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val ioActor = system.actorOf(SimpleIoActor.props)
   private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)

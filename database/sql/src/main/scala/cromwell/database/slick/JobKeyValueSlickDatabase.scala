@@ -6,7 +6,7 @@ import cromwell.database.sql.tables.JobKeyValueEntry
 import scala.concurrent.{ExecutionContext, Future}
 
 trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
-  this: SlickDatabase =>
+  this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
 

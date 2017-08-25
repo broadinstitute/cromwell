@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowId
-import cromwell.services.SingletonServicesStore
+import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
@@ -31,7 +31,7 @@ object MetadataServiceActor {
 }
 
 case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config)
-  extends Actor with ActorLogging with MetadataDatabaseAccess with SingletonServicesStore with GracefulShutdownHelper {
+  extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore with GracefulShutdownHelper {
   
   private val decider: Decider = {
     case _: ActorInitializationException => Escalate

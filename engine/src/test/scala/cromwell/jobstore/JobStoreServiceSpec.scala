@@ -5,13 +5,13 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.{JobOutput, WorkflowId}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
-import cromwell.services.SingletonServicesStore
+import cromwell.services.EngineServicesStore
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl4s.parser.WdlParser.Ast
+import wdl4s.wdl._
 import wdl4s.wdl.types.WdlStringType
 import wdl4s.wdl.values.WdlString
-import wdl4s.wdl._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -25,7 +25,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
 
   "JobStoreService" should {
     "work" in {
-      lazy val jobStore: JobStore = new SqlJobStore(SingletonServicesStore.databaseInterface)
+      lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
       val jobStoreService = system.actorOf(JobStoreActor.props(jobStore))
 
       val workflowId = WorkflowId.randomId()

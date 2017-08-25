@@ -10,7 +10,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.migration.liquibase.LiquibaseUtils
-import cromwell.database.slick.SlickDatabase
+import cromwell.database.slick.{MetadataSlickDatabase, EngineSlickDatabase, SlickDatabase}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
@@ -52,7 +52,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           |""".stripMargin)
     import ServicesStore.EnhancedSqlDatabase
     for {
-      database <- new SlickDatabase(databaseConfig).initialized.autoClosed
+      database <- new EngineSlickDatabase(databaseConfig)
+        .initialized(EngineServicesStore.EngineLiquibaseSettings).autoClosed
     } {
       val futures = 1 to 20 map { _ =>
         val workflowUuid = WorkflowId.randomId().toString
@@ -73,17 +74,21 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     }
   }
 
-  "Slick" should behave like testSchemaManager("slick")
+  "Singleton Slick" should behave like testSchemaManager("singleton", "slick")
 
-  "Liquibase" should behave like testSchemaManager("liquibase")
+  "Singleton Liquibase" should behave like testSchemaManager("singleton", "liquibase")
 
-  def testSchemaManager(schemaManager: String): Unit = {
+  "Metadata Slick" should behave like testSchemaManager("metadata", "slick")
+
+  "Metadata Liquibase" should behave like testSchemaManager("metadata", "liquibase")
+
+  def testSchemaManager(databaseType: String, schemaManager: String): Unit = {
     val otherSchemaManager = if (schemaManager == "slick") "liquibase" else "slick"
 
     it should s"have the same schema as $otherSchemaManager" in {
       for {
-        actualDatabase <- databaseForSchemaManager(schemaManager).autoClosed
-        expectedDatabase <- databaseForSchemaManager(otherSchemaManager).autoClosed
+        actualDatabase <- databaseForSchemaManager(databaseType, schemaManager).autoClosed
+        expectedDatabase <- databaseForSchemaManager(databaseType, otherSchemaManager).autoClosed
       } {
         compare(
           actualDatabase.dataAccess.driver, actualDatabase.database,
@@ -97,6 +102,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
            */
           val diffFilters = StandardTypeFilters
           val filteredDiffResult = diffResult
+            .filterChangeLogs
             .filterLiquibaseObjects
             .filterChangedObjects(diffFilters)
 
@@ -127,14 +133,14 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       var schemaMetadata: SchemaMetadata = null
 
       for {
-        slickDatabase <- databaseForSchemaManager(schemaManager).autoClosed
+        slickDatabase <- databaseForSchemaManager(databaseType, schemaManager).autoClosed
       } {
         import slickDatabase.dataAccess.driver.api._
         val schemaMetadataFuture =
           for {
             tables <- slickDatabase.database.run(MTable.getTables(Option("PUBLIC"), Option("PUBLIC"), None, None))
             workingTables = tables
-              .filterNot(_.name.name.startsWith("DATABASECHANGELOG"))
+              .filterNot(_.name.name.contains("DATABASECHANGELOG"))
               // NOTE: MetadataEntry column names are perma-busted due to the large size of the table.
               .filterNot(_.name.name == "METADATA_ENTRY")
             columns <- slickDatabase.database.run(DBIO.sequence(workingTables.map(_.getColumns)))
@@ -230,7 +236,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     import ServicesStore.EnhancedSqlDatabase
 
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new SlickDatabase(databaseConfig).initialized
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
+      .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
     lazy val getProduct = {
       import dataAccess.dataAccess.driver.api._
@@ -445,7 +452,7 @@ object ServicesStoreSpec {
     }
   }
 
-  private def databaseForSchemaManager(schemaManager: String): SlickDatabase = {
+  private def databaseForSchemaManager(databaseType: String, schemaManager: String): SlickDatabase = {
     val databaseConfig = ConfigFactory.parseString(
       s"""
          |db.url = "jdbc:hsqldb:mem:$${uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
@@ -454,10 +461,14 @@ object ServicesStoreSpec {
          |profile = "slick.jdbc.HsqldbProfile$$"
          |liquibase.updateSchema = false
          |""".stripMargin)
-    val database = new SlickDatabase(databaseConfig)
+    val (database, settings) = databaseType match {
+      case "singleton" =>
+        (new EngineSlickDatabase(databaseConfig), EngineServicesStore.EngineLiquibaseSettings)
+      case "metadata" => (new MetadataSlickDatabase(databaseConfig), MetadataServicesStore.MetadataLiquibaseSettings)
+    }
     schemaManager match {
       case "liquibase" =>
-        database withConnection LiquibaseUtils.updateSchema
+        database withConnection LiquibaseUtils.updateSchema(settings)
       case "slick" =>
         SlickDatabase.createSchema(database)
     }

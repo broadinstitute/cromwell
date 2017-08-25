@@ -3,7 +3,6 @@ package cromwell.services.keyvalue.impl
 import akka.actor.Props
 import com.typesafe.config.Config
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.SingletonServicesStore
 import cromwell.services.keyvalue.KeyValueServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -14,7 +13,7 @@ object SqlKeyValueServiceActor {
 }
 
 final case class SqlKeyValueServiceActor(serviceConfig: Config, globalConfig: Config)
-  extends KeyValueServiceActor with BackendKeyValueDatabaseAccess with SingletonServicesStore {
+  extends KeyValueServiceActor with BackendKeyValueDatabaseAccess {
   override implicit val ec = context.dispatcher
   private implicit val system = context.system
 

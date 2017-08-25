@@ -4,7 +4,7 @@ package cromwell.services.metadata.impl
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.SingletonServicesStore
+import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
 import scala.util.{Failure, Success}
@@ -33,7 +33,8 @@ object MetadataSummaryRefreshActor {
 }
 
 class MetadataSummaryRefreshActor()
-  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type] with MetadataDatabaseAccess with SingletonServicesStore {
+  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type]
+    with MetadataDatabaseAccess with MetadataServicesStore {
 
   val config = ConfigFactory.load
   implicit val ec = context.dispatcher

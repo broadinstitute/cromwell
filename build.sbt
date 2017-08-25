@@ -8,7 +8,8 @@ organization := "org.broadinstitute"
 
 scalaVersion := "2.12.1"
 
-val wdl4sV = "0.16-3eab30f-SNAP"
+val catsV = "1.0.0-MF"
+val wdl4sV = "0.16-87308d0-SNAP"
 
 lazy val versionSettings = Seq(
   // Upcoming release, or current if we're on the master branch
@@ -35,18 +36,20 @@ resolvers ++= Seq(
   "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
 )
 
-lazy val catsDependencies = List(
-  "org.typelevel" %% "cats" % "0.9.0",
+val catsDependencies = List(
+  "org.typelevel" %% "cats-core" % catsV,
   "org.typelevel" %% "kittens" % "1.0.0-M10",
-  "com.github.benhutchison" %% "mouse" % "0.9"
+  "com.github.benhutchison" %% "mouse" % "0.10-MF"
 ) map (_
   /*
   Exclude test framework cats-laws and its transitive dependency scalacheck.
   If sbt detects scalacheck, it tries to run it.
   Explicitly excluding the two problematic artifacts instead of including the three (or four?).
   https://github.com/typelevel/cats/tree/v0.7.2#getting-started
-  Re "_2.12", see also: https://github.com/sbt/sbt/issues/1518
+  Re "_2.11" and "_2.12", see also: https://github.com/sbt/sbt/issues/1518
    */
+  exclude("org.typelevel", "cats-laws_2.11")
+  exclude("org.typelevel", "cats-kernel-laws_2.11")
   exclude("org.typelevel", "cats-laws_2.12")
   exclude("org.typelevel", "cats-kernel-laws_2.12")
   )

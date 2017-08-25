@@ -39,28 +39,28 @@ class ExpressionNodeSpec extends WomDotGraphTest {
       |subgraph cluster_0 {
       |style=filled;
       |fillcolor=lightskyblue1;
-      |"PORT0" [shape=hexagon label="i"];
       |"NODE6" [shape=plaintext label="Int i"]
+      |"PORT0" [shape=hexagon label="i"];
       |}
       |subgraph cluster_1 {
       |style=filled;
       |fillcolor=lightskyblue1;
-      |"PORT2" [shape=hexagon label="j"];
       |"NODE7" [shape=plaintext label="Int j"]
+      |"PORT2" [shape=hexagon label="j"];
       |}
       |subgraph cluster_2 {
       |style=filled;
       |fillcolor=white;
+      |"NODE8" [shape=plaintext label="Int x = f(i, j)"]
       |"PORT4" [shape=hexagon label="x"];
       |"PORT1" [shape=oval label="i"];
       |"PORT3" [shape=oval label="j"];
-      |"NODE8" [shape=plaintext label="Int x = f(i, j)"]
       |}
       |subgraph cluster_3 {
       |style=filled;
       |fillcolor=palegreen;
-      |"PORT5" [shape=oval label="x_out"];
       |"NODE9" [shape=plaintext label="Int x_out"]
+      |"PORT5" [shape=oval label="x_out"];
       |}
       |}
       |""".stripMargin

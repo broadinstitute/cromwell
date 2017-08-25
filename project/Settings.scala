@@ -40,7 +40,7 @@ object Settings {
     "-target:jvm-1.8",
     "-encoding", "UTF-8",
     "-unchecked",
-    "-deprecation",
+    //"-deprecation", //Relaxed until Cats is updated to 1.0.0-MF
     "-Xfuture",
     "-Xlint:adapted-args",
     "-Xlint:by-name-right-associative",

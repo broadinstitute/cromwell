@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
-  this: SlickDatabase =>
+  this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
 

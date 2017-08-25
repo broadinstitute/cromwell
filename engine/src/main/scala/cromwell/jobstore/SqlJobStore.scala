@@ -3,14 +3,13 @@ package cromwell.jobstore
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
-
 import cromwell.Simpletons._
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._
 import cromwell.core.simpleton.WdlValueBuilder
 import cromwell.core.simpleton.WdlValueSimpleton._
+import cromwell.database.sql.EngineSqlDatabase
 import cromwell.database.sql.SqlConverters._
-import cromwell.database.sql.SqlDatabase
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
@@ -19,7 +18,7 @@ import wdl4s.wdl.TaskOutput
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class SqlJobStore(sqlDatabase: SqlDatabase) extends JobStore {
+class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
   val log = LoggerFactory.getLogger(classOf[SqlJobStore])
 
   override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit] = {

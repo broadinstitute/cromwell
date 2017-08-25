@@ -5,7 +5,7 @@ import cromwell.database.sql.tables.SummaryStatusEntry
 import scala.concurrent.ExecutionContext
 
 trait SummaryStatusSlickDatabase {
-  this: SlickDatabase =>
+  this: MetadataSlickDatabase =>
 
   import dataAccess.driver.api._
 

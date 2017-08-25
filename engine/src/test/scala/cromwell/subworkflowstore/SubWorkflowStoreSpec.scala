@@ -1,23 +1,21 @@
 package cromwell.subworkflowstore
 
-import cromwell.CromwellTestKitWordSpec
-import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
-import cromwell.services.SingletonServicesStore
-import cromwell.subworkflowstore.SubWorkflowStoreActor._
-import org.scalatest.Matchers
-import org.specs2.mock.Mockito
-import wdl4s.wdl.{WdlTaskCall, WdlExpression}
-import cromwell.core.ExecutionIndex._
-
-import scala.concurrent.duration._
-import SubWorkflowStoreSpec._
 import akka.testkit.TestProbe
-import cromwell.database.sql.SqlDatabase
+import cromwell.CromwellTestKitWordSpec
+import cromwell.core.ExecutionIndex._
+import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowStoreActor}
+import cromwell.services.EngineServicesStore
+import cromwell.subworkflowstore.SubWorkflowStoreActor._
+import cromwell.subworkflowstore.SubWorkflowStoreSpec._
+import org.scalatest.Matchers
+import org.specs2.mock.Mockito
+import wdl4s.wdl.{WdlExpression, WdlTaskCall}
 
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object SubWorkflowStoreSpec {
@@ -28,11 +26,11 @@ object SubWorkflowStoreSpec {
 class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
   "SubWorkflowStore" should {
     "work" in {
-      lazy val subWorkflowStore = new SqlSubWorkflowStore(SingletonServicesStore.databaseInterface)
+      lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
-      lazy val workflowStore = SqlWorkflowStore(SingletonServicesStore.databaseInterface)
-      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref, mock[SqlDatabase]))
+      lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
+      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref))
 
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()

@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 trait DockerHashStoreSlickDatabase extends DockerHashStoreSqlDatabase {
-  this: SlickDatabase =>
+  this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
 

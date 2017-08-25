@@ -27,7 +27,7 @@ import cromwell.engine.workflow.lifecycle.execution.preparation.{CallPreparation
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDenied, JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
-import cromwell.services.SingletonServicesStore
+import cromwell.services.EngineServicesStore
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
 import wdl4s.wdl.TaskOutput
@@ -460,7 +460,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   def makeFetchCachedResultsActor(callCachingEntryId: CallCachingEntryId, taskOutputs: Seq[TaskOutput]): Unit = {
-    context.actorOf(FetchCachedResultsActor.props(callCachingEntryId, self, new CallCache(SingletonServicesStore.databaseInterface)))
+    context.actorOf(FetchCachedResultsActor.props(callCachingEntryId, self,
+      new CallCache(EngineServicesStore.engineDatabaseInterface)))
     ()
   }
 
@@ -564,7 +565,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   protected def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = {
-    val callCache = new CallCache(SingletonServicesStore.databaseInterface)
+    val callCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
     context.actorOf(CallCacheInvalidateActor.props(callCache, cacheId), s"CallCacheInvalidateActor${cacheId.id}-$tag")
     ()
   }

@@ -5,15 +5,15 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.database.slick.SlickDatabase
+import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
 import cromwell.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashSuccessResponse}
 import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
 import cromwell.engine.workflow.WorkflowActor.{RestartExistingWorkflow, StartMode, StartNewWorkflow}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
 import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
+import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore._
-import cromwell.services.SingletonServicesStore
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
 
@@ -230,21 +230,21 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     numReads should equal(1)
   }
 
-  def dbWithWrite(writeFn: => Future[Unit]): SlickDatabase = {
+  def dbWithWrite(writeFn: => Future[Unit]): EngineSlickDatabase = {
     databaseInterface(write = _ => writeFn)
   }
 
-  def dbWithQuery(queryFn: => Future[Seq[DockerHashStoreEntry]]): SlickDatabase = {
+  def dbWithQuery(queryFn: => Future[Seq[DockerHashStoreEntry]]): EngineSlickDatabase = {
     databaseInterface(query = _ => queryFn)
   }
 
   def databaseInterface(query: String => Future[Seq[DockerHashStoreEntry]] = abjectFailure,
-                        write: DockerHashStoreEntry => Future[Unit] = abjectFailure): SlickDatabase = {
-    new SlickDatabase(DatabaseConfig) {
+                        write: DockerHashStoreEntry => Future[Unit] = abjectFailure): EngineSlickDatabase = {
+    new EngineSlickDatabase(DatabaseConfig) {
       override def queryDockerHashStoreEntries(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[DockerHashStoreEntry]] = query(workflowExecutionUuid)
 
       override def addDockerHashStoreEntry(dockerHashStoreEntry: DockerHashStoreEntry)(implicit ec: ExecutionContext): Future[Unit] = write(dockerHashStoreEntry)
-    }.initialized
+    }.initialized(EngineServicesStore.EngineLiquibaseSettings)
   }
 }
 
@@ -270,5 +270,9 @@ object WorkflowDockerLookupActorSpec {
   def abjectFailure[A, B]: A => Future[B] = _ => Future.failed(new RuntimeException("Should not be called!"))
 
   class TestWorkflowDockerLookupActor(workflowId: WorkflowId, dockerHashingActor: ActorRef, startMode: StartMode, override val backpressureTimeout: FiniteDuration)
-    extends WorkflowDockerLookupActor(workflowId, dockerHashingActor, startMode, SingletonServicesStore.databaseInterface)
+    extends WorkflowDockerLookupActor(
+      workflowId,
+      dockerHashingActor,
+      startMode,
+      EngineServicesStore.engineDatabaseInterface)
 }

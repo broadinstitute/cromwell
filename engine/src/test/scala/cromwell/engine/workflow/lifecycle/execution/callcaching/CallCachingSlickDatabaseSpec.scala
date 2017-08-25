@@ -4,10 +4,11 @@ import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
-import cromwell.database.slick.SlickDatabase
+import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.{CallCachingAggregationEntry, CallCachingEntry, CallCachingHashEntry}
-import cromwell.services.ServicesStore
+import cromwell.services.EngineServicesStore
+import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -25,10 +26,9 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
   "SlickDatabase (mysql)" should behave like testWith("database-test-mysql")
 
   def testWith(configPath: String): Unit = {
-    import ServicesStore.EnhancedSqlDatabase
-
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new SlickDatabase(databaseConfig).initialized
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
+      .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
     val callCachingEntryA = CallCachingEntry(
       WorkflowId.randomId().toString,

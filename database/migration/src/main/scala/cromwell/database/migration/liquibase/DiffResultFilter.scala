@@ -3,7 +3,7 @@ package cromwell.database.migration.liquibase
 import liquibase.database.Database
 import liquibase.diff.{DiffResult, Difference, ObjectDifferences}
 import liquibase.structure.DatabaseObject
-import liquibase.structure.core.DataType
+import liquibase.structure.core._
 
 import scala.collection.JavaConverters._
 
@@ -143,6 +143,23 @@ object DiffResultFilter {
   }
 
   /**
+    * Returns true if the object is a change log object.
+    *
+    * @param database The source database.
+    * @param databaseObject The database object.
+    * @return True if the object is a change log object.
+    */
+  def isChangeLog(database: Database, databaseObject: DatabaseObject): Boolean = {
+    databaseObject match {
+      case table: Table => table.getName.contains("DATABASECHANGELOG")
+      case column: Column => isChangeLog(database, column.getRelation)
+      case index: Index => isChangeLog(database, index.getTable)
+      case key: PrimaryKey => isChangeLog(database, key.getTable)
+      case _ => false
+    }
+  }
+
+  /**
     * Returns true if the object is liquibase database object.
     *
     * @param database The source database.
@@ -185,6 +202,13 @@ object DiffResultFilter {
     * @param diffResult The origin diff result.
     */
   implicit class EnhancedDiffResult(val diffResult: DiffResult) extends AnyVal {
+    /**
+      * Filters changelogs.
+      *
+      * @return The diff result without changelogs.
+      */
+    def filterChangeLogs = filter(diffResult, Seq.empty, isChangeLog)
+
     /**
       * Filters liquibase objects from a diff result.
       *

@@ -1214,10 +1214,11 @@ backend {
 }
 ```
 
-If the backend supports docker, another optional configuration key `backend.providers.<backend>.config.submit-docker` may be specified. When the WDL contains a docker runtime attribute, this command will be provided the two additional variables:
+If the backend supports docker, another optional configuration key `backend.providers.<backend>.config.submit-docker` may be specified. When the WDL contains a docker runtime attribute, this command will be provided three additional variables:
 
 * `docker` - The docker image name.
 * `docker_cwd` - The path where `cwd` should be mounted within the docker container.
+* `docker_cid` - The host path to which the [container ID file](https://docs.docker.com/engine/reference/run/#pid-equivalent) should be written.
 
 ```
 backend {

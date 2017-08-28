@@ -57,6 +57,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   val SIGTERM = 143
   val SIGINT = 130
+  val SIGKILL = 137
 
   /** The type of the run info when a job is started. */
   type StandardAsyncRunInfo
@@ -213,7 +214,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * If the `command` errors for some reason, put a "-1" into the rc file.
     */
   def redirectOutputs(command: String): String = {
-    s"$command > ${jobPaths.stdout} 2> ${jobPaths.stderr} < /dev/null || echo -1 > ${jobPaths.returnCode}"
+    // > 128 is the cutoff for signal-induced process deaths such as might be observed with abort.
+    // http://www.tldp.org/LDP/abs/html/exitcodes.html
+    s"""$command > ${jobPaths.stdout} 2> ${jobPaths.stderr} < /dev/null || { rc=$$?; if [ "$$rc" -gt "128" ]; then echo $$rc; else echo -1; fi } > ${jobPaths.returnCode}"""
   }
 
   /** A tag that may be used for logging. */
@@ -362,7 +365,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param returnCode The return code.
     * @return True if the return code is for an abort.
     */
-  def isAbort(returnCode: Int): Boolean = returnCode == SIGINT || returnCode == SIGTERM
+  def isAbort(returnCode: Int): Boolean = returnCode == SIGINT || returnCode == SIGTERM || returnCode == SIGKILL
 
   /**
     * Custom behavior to run after an abort signal is processed.

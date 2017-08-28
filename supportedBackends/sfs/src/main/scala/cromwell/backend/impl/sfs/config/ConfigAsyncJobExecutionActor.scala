@@ -7,7 +7,7 @@ import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
 import wdl4s.wdl._
 import wdl4s.wdl.expression.NoFunctions
-import wdl4s.wdl.values.WdlString
+import wdl4s.wdl.values.{WdlString, WdlValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -69,6 +69,8 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     )
   }
 
+  private [config] def dockerCidInputValue: WdlString = WdlString(jobPaths.callExecutionRoot.resolve(jobPaths.dockerCid).pathAsString)
+
   /**
     * The inputs that are not specified by the config, that will be passed into a command for either submit or
     * submit-docker.
@@ -77,6 +79,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     if (isDockerRun) {
       Map(
         DockerCwdInput -> WdlString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        DockerCidInput -> dockerCidInputValue,
         StdoutInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stdout).pathAsString),
         StderrInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.stderr).pathAsString),
         ScriptInput -> WdlString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString)
@@ -111,6 +114,20 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
 
   // `runtimeAttributeInputs` has already adjusted for the case of a `JobDescriptor` with `DockerWithHash`.
   override lazy val dockerImageUsed: Option[String] = runtimeAttributeInputs.get(DockerValidation.instance.key).map(_.valueString)
+
+  /**
+    * Generates a command for a job id, using a config task.
+    *
+    * @param job    The job id.
+    * @param suffix The suffix for the scripts.
+    * @param task   The config task that defines the command.
+    * @return A runnable command.
+    */
+  protected def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String, extraInputs: Map[String, WdlValue] = Map.empty): SharedFileSystemCommand = {
+    val script = jobPaths.script.plusExt(suffix)
+    writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)) ++ extraInputs)
+    SharedFileSystemCommand("/bin/bash", script)
+  }
 }
 
 /**
@@ -119,7 +136,13 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   * @param standardParams Params for running a shared file system job.
   */
 class BackgroundConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends ConfigAsyncJobExecutionActor with BackgroundAsyncJobExecutionActor
+  extends ConfigAsyncJobExecutionActor with BackgroundAsyncJobExecutionActor {
+
+  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
+    if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
+    else super[BackgroundAsyncJobExecutionActor].killArgs(job)
+  }
+}
 
 /**
   * Submits a job and returns relatively quickly. The job-id-regex is then used to read the job id for status or killing
@@ -167,19 +190,5 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     */
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     jobScriptArgs(job, "kill", KillTask)
-  }
-
-  /**
-    * Generates a command for a job id, using a config task.
-    *
-    * @param job    The job id.
-    * @param suffix The suffix for the scripts.
-    * @param task   The config task that defines the command.
-    * @return A runnable command.
-    */
-  private def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String): SharedFileSystemCommand = {
-    val script = jobPaths.script.plusExt(suffix)
-    writeTaskScript(script, task, Map(JobIdInput -> WdlString(job.jobId)))
-    SharedFileSystemCommand("/bin/bash", script)
   }
 }

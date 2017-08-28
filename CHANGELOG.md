@@ -13,6 +13,9 @@ should be manually replicated from one database instance to another using the to
 database types. Cromwell will not move any existing data automatically. This feature should be considered experimental
 and likely to change in the future.
 
+* **Bugfixes**
+Abort of Dockerized tasks on the Local backend should now work as expected as `docker kill` is used to kill the Docker container.
+
 ## 29 Release Notes
 
 ### Breaking Changes

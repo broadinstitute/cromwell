@@ -13,6 +13,7 @@ object JobPaths {
   val StdErrPathKey = "stderr"
   val ReturnCodePathKey = "returnCode"
   val CallRootPathKey = "callRootPath"
+  val DockerCidPathKey = "dockerCidPath"
 
   def callPathBuilder(root: Path, jobKey: JobKey) = {
     val callName = jobKey.scope.unqualifiedName
@@ -32,6 +33,7 @@ trait JobPaths {
   def stdoutFilename: String = "stdout"
   def stderrFilename: String = "stderr"
   def scriptFilename: String = "script"
+  def dockerCidFilename: String = "docker_cid"
   
   def jobKey: JobKey
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
@@ -39,6 +41,7 @@ trait JobPaths {
   lazy val stdout = callExecutionRoot.resolve(stdoutFilename)
   lazy val stderr = callExecutionRoot.resolve(stderrFilename)
   lazy val script = callExecutionRoot.resolve(scriptFilename)
+  lazy val dockerCid = callExecutionRoot.resolve(dockerCidFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
 
   private lazy val commonMetadataPaths: Map[String, Path] = Map(

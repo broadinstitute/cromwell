@@ -41,38 +41,34 @@ object PartialWorkflowSources {
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean,
                       version: Int): Try[Seq[WorkflowSourceFilesCollection]] = {
-    val partialSources = Try(formData.foldLeft(PartialWorkflowSources.empty) { (partialSources: PartialWorkflowSources, kv: (String, ByteString)) =>
-      val (name, data) = kv
+    val partialSources: Try[PartialWorkflowSources] = Try {
+      formData.foldLeft(PartialWorkflowSources.empty) {
+        (partialSources: PartialWorkflowSources, kv: (String, ByteString)) =>
+          val (name, data) = kv
 
-      if (name == "wdlSource" && version == 1) {
-        val warning = deprecationWarning(out = "wdlSource", in = "workflowSource")
-        val warnings = warning +: partialSources.warnings
-        partialSources.copy(workflowSource = Option(data.utf8String), warnings = warnings)
-      } else if (name == "workflowSource") {
-        partialSources.copy(workflowSource = Option(data.utf8String))
-      } else if (name == "workflowType") {
-        partialSources.copy(workflowType = Option(data.utf8String))
-      } else if (name == "workflowTypeVersion") {
-        partialSources.copy(workflowTypeVersion = Option(data.utf8String))
-      } else if (name == "workflowInputs") {
-        partialSources.copy(workflowInputs = workflowInputs(data.utf8String))
-      } else if (name.startsWith("workflowInputs_")) {
-        val index = name.stripPrefix("workflowInputs_").toInt
-        partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.utf8String))
-      } else if (name == "workflowOptions") {
-        partialSources.copy(workflowOptions = Option(data.utf8String))
-      } else if (name == "wdlDependencies" && version == 1) {
-        val warning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
-        val warnings = warning +: partialSources.warnings
-        partialSources.copy(zippedImports = Option(data.toArray), warnings = warnings)
-      } else if (name == "workflowDependencies") {
-        partialSources.copy(zippedImports = Option(data.toArray))
-      } else if (name == "customLabels") {
-        partialSources.copy(customLabels = Option(data.utf8String))
-      } else {
-        throw new IllegalArgumentException(s"Unexpected body part name: $name")
+          (name, version) match {
+            case ("wdlSource", 1) =>
+              val warning = deprecationWarning(out = "wdlSource", in = "workflowSource")
+              val warnings = warning +: partialSources.warnings
+              partialSources.copy(workflowSource = Option(data.utf8String), warnings = warnings)
+            case ("workflowSource", _) => partialSources.copy(workflowSource = Option(data.utf8String))
+            case ("workflowType", _) => partialSources.copy(workflowType = Option(data.utf8String))
+            case ("workflowTypeVersion", _) => partialSources.copy(workflowTypeVersion = Option(data.utf8String))
+            case ("workflowInputs", _) => partialSources.copy(workflowInputs = workflowInputs(data.utf8String))
+            case (_, _) if name.startsWith("workflowInputs_") =>
+              val index = name.stripPrefix("workflowInputs_").toInt
+              partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.utf8String))
+            case ("workflowOptions", _) => partialSources.copy(workflowOptions = Option(data.utf8String))
+            case ("wdlDependencies", 1) =>
+              val warning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
+              val warnings = warning +: partialSources.warnings
+              partialSources.copy(zippedImports = Option(data.toArray), warnings = warnings)
+            case ("workflowDependencies", _) => partialSources.copy(zippedImports = Option(data.toArray))
+            case ("customLabels", _) => partialSources.copy(customLabels = Option(data.utf8String))
+            case _ => throw new IllegalArgumentException(s"Unexpected body part name: $name")
+          }
       }
-    })
+    }
 
     partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs, version).errorOrToTry
   }
@@ -109,7 +105,7 @@ object PartialWorkflowSources {
     def validateWorkflowType(partialSource: PartialWorkflowSources, version: Int): ErrorOr[Option[WorkflowType]] = {
       (partialSource.workflowType, version) match {
         case (Some(src), _) => Option(src).validNel
-        case (None, 1) => None.validNel
+        case (None, 1) => Option("WDL").validNel
         case (None, _) => s"Workflow type is mandatory for v$version".invalidNel
       }
     }

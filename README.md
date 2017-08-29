@@ -2590,7 +2590,7 @@ This endpoint accepts a POST request with a `multipart/form-data` encoded body. 
 * `workflowSource` - *Required* Contains the workflow source file to submit for execution.
 * `workflowType` - *Required* The type of the `workflowSource`, for example "WDL".
    Required starting with api version "v2".
-* `workflowTypeVersion` - *Required* The version of the `workflowType`, for example "1".
+* `workflowTypeVersion` - *Required* The version of the `workflowType`, for example "draft-2".
    Required starting with api version "v2".
 * `workflowInputs` - *Optional* JSON file containing the inputs.  For WDL workflows a skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.

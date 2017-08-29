@@ -1,30 +1,33 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import akka.http.scaladsl.coding.{Decoder, Gzip}
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowAbortFailed
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.{Assertion, AsyncFlatSpec, Matchers}
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
+class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers
+  with TableDrivenPropertyChecks {
   import CromwellApiServiceSpec._
 
   val akkaHttpService = new MockApiService()
@@ -32,7 +35,9 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
 
   implicit def default = RouteTestTimeout(5.seconds)
 
-  "REST ENGINE /stats endpoint" should "return 200 for stats" in {
+  behavior of "REST ENGINE /stats endpoint"
+
+  it should "return 200 for stats" in {
     Get(s"/engine/$version/stats") ~>
       akkaHttpService.engineRoutes ~>
       check {
@@ -45,7 +50,15 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       }
   }
 
-  "REST ENGINE /version endpoint" should "return 200 for version" in {
+  it should "reject a v2 request" in {
+    Get(s"/engine/v2/stats") ~>
+      Route.seal(akkaHttpService.engineRoutes) ~>
+      checkNotFound()
+  }
+
+  behavior of "REST ENGINE /version endpoint"
+
+  it should "return 200 for version" in {
     Get(s"/engine/$version/version") ~>
       akkaHttpService.engineRoutes ~>
       check {
@@ -54,6 +67,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         val cromwellVersion = resp.fields("cromwell").asInstanceOf[JsString].value
         cromwellVersion should fullyMatch regex """\d+-([0-9a-f]){7}(-SNAP)?"""
       }
+  }
+
+  it should "reject a v2 request" in {
+    Get(s"/engine/v2/version") ~>
+      Route.seal(akkaHttpService.engineRoutes) ~>
+      checkNotFound()
   }
 
     behavior of "REST API /status endpoint"
@@ -69,7 +88,15 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
-    it should "return 404 for get of unknown workflow" in {
+  it should "reject a v2 request" in {
+    val workflowId = CromwellApiServiceSpec.ExistingWorkflowId
+
+    Get(s"/workflows/v2/$workflowId/status") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  it should "return 404 for get of unknown workflow" in {
       val workflowId = CromwellApiServiceSpec.UnrecognizedWorkflowId
       Get(s"/workflows/$version/$workflowId/status") ~>
         akkaHttpService.workflowRoutes ~>
@@ -146,6 +173,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
       }
     }
+
     it should "return 200 for abort of a known workflow id" in {
       Post(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/abort") ~>
         akkaHttpService.workflowRoutes ~>
@@ -160,8 +188,14 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "reject a v2 request" in {
+    Post(s"/workflows/v2/${CromwellApiServiceSpec.ExistingWorkflowId}/abort") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
     behavior of "REST API submission endpoint"
-    it should "return 201 for a successful workflow submission " in {
+  it should "return 201 for a successful v1 workflow submission" in {
       val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
       val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString()))
       val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity()
@@ -178,8 +212,119 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.Created) {
             status
           }
+          headers should be(Seq.empty)
         }
     }
+
+  it should "return 201 with warnings for a successful v1 workflow submission still using wdlSource" in {
+    val workflowSource = Multipart.FormData.BodyPart("wdlSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val formData = Multipart.FormData(workflowSource).toEntity()
+    Post(s"/workflows/v1", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.Created)
+        responseAs[String].parseJson.prettyPrint should be(
+          s"""|{
+              |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}
+              |""".stripMargin.trim
+        )
+        headers.size should be(1)
+        val warningHeader = header("Warning")
+        warningHeader shouldNot be(empty)
+        warningHeader.get.value should fullyMatch regex
+          """299 cromwell/\d+-([0-9a-f]){7}(-SNAP)? """ +
+            "\"The 'wdlSource' parameter name has been deprecated in favor of 'workflowSource'. " +
+            "Support for 'wdlSource' will be removed from future versions of Cromwell. " +
+            "Please switch to using 'workflowSource' in future submissions.\""
+      }
+  }
+
+  it should "return 201 for a successful v2 workflow submission" in {
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString()))
+    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity("WDL"))
+    val workflowTypeVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity("1"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, workflowType, workflowTypeVersion).toEntity
+    Post(s"/workflows/v2", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.Created)
+        responseAs[String].parseJson.prettyPrint should be(
+          s"""|{
+              |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}
+              |""".stripMargin.trim
+        )
+      }
+  }
+
+  it should "return 400 for a v2 workflow submission missing workflow type" in {
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString))
+    val workflowTypeVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity("1"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, workflowTypeVersion).toEntity
+    Post(s"/workflows/v2", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.BadRequest)
+        responseAs[String].parseJson.prettyPrint should be(
+          """|{
+             |  "status": "fail",
+             |  "message": "Error(s): Workflow type is mandatory for v2"
+             |}
+             |""".stripMargin.trim
+        )
+      }
+  }
+
+  it should "return 400 for a v2 workflow submission missing workflow type version" in {
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString))
+    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity("WDL"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, workflowType).toEntity
+    Post(s"/workflows/v2", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.BadRequest)
+        responseAs[String].parseJson.prettyPrint should be(
+          """|{
+             |  "status": "fail",
+             |  "message": "Error(s): Workflow type version is mandatory for v2"
+             |}
+             |""".stripMargin.trim
+        )
+      }
+  }
+
+  it should "return 400 for a v2 workflow submission missing both workflow type and type version" in {
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString))
+    val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity
+    Post(s"/workflows/v2", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.BadRequest)
+        responseAs[String].parseJson.prettyPrint should be(
+          """|{
+             |  "status": "fail",
+             |  "message": "Error(s): Workflow type is mandatory for v2,Workflow type version is mandatory for v2"
+             |}
+             |""".stripMargin.trim
+        )
+      }
+  }
 
     it should "return 400 for an unrecognized form data request parameter " in {
       val formData = Multipart.FormData(Multipart.FormData.BodyPart("incorrectParameter", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))).toEntity()
@@ -239,8 +384,19 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "reject a v3 request" in {
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString))
+    val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity
+    Post(s"/workflows/v3", formData) ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
     behavior of "REST API batch submission endpoint"
-    it should "return 200 for a successful workflow submission " in {
+  it should "return 200 for a successful v1 workflow submission" in {
       val inputs = HelloWorld.rawInputs.toJson
       val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
       val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, s"[$inputs, $inputs]"))
@@ -265,6 +421,33 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "return 200 for a successful v2 workflow submission" in {
+    val inputs = HelloWorld.rawInputs.toJson
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, s"[$inputs, $inputs]"))
+    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity("WDL"))
+    val workflowTypeVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity("1"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, workflowType, workflowTypeVersion).toEntity
+
+    Post(s"/workflows/v2/batch", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.Created)
+        responseAs[String].parseJson.prettyPrint should be(
+          s"""|[{
+              |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}, {
+              |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}]
+              |""".stripMargin.trim
+        )
+      }
+  }
+
     it should "return 400 for an submission with no inputs" in {
       val formData = Multipart.FormData(Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))).toEntity()
 
@@ -283,6 +466,84 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
         }
     }
+
+  it should "return 400 for a v2 batch workflow submission missing workflow type" in {
+    val inputs = HelloWorld.rawInputs.toJson
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, s"[$inputs, $inputs]"))
+    val workflowTypeVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity("1"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, workflowTypeVersion).toEntity
+    Post(s"/workflows/v2/batch", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.BadRequest)
+        responseAs[String].parseJson.prettyPrint should be(
+          """|{
+             |  "status": "fail",
+             |  "message": "Error(s): Workflow type is mandatory for v2"
+             |}
+             |""".stripMargin.trim
+        )
+      }
+  }
+
+  it should "return 400 for a v2 batch workflow submission missing workflow type version" in {
+    val inputs = HelloWorld.rawInputs.toJson
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, s"[$inputs, $inputs]"))
+    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity("WDL"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs, workflowType).toEntity
+    Post(s"/workflows/v2/batch", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.BadRequest)
+        responseAs[String].parseJson.prettyPrint should be(
+          """|{
+             |  "status": "fail",
+             |  "message": "Error(s): Workflow type version is mandatory for v2"
+             |}
+             |""".stripMargin.trim
+        )
+      }
+  }
+
+  it should "return 400 for a v2 batch workflow submission missing both workflow type and type version" in {
+    val inputs = HelloWorld.rawInputs.toJson
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, s"[$inputs, $inputs]"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity
+    Post(s"/workflows/v2/batch", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.BadRequest)
+        responseAs[String].parseJson.prettyPrint should be(
+          """|{
+             |  "status": "fail",
+             |  "message": "Error(s): Workflow type is mandatory for v2,Workflow type version is mandatory for v2"
+             |}
+             |""".stripMargin.trim
+        )
+      }
+  }
+
+  it should "reject a v3 request" in {
+    val inputs = HelloWorld.rawInputs.toJson
+    val workflowSource = Multipart.FormData.BodyPart("workflowSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs",
+      HttpEntity(MediaTypes.`application/json`, s"[$inputs, $inputs]"))
+    val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity
+
+    Post(s"/workflows/v3/batch", formData) ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
 
     behavior of "REST API /outputs endpoint"
     it should "return 200 with GET of outputs on successful execution of workflow" in {
@@ -314,6 +575,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "reject a v2 request" in {
+    Get(s"/workflows/v2/${CromwellApiServiceSpec.ExistingWorkflowId}/outputs") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
     behavior of "REST API /logs endpoint"
     it should "return 200 with paths to stdout/stderr/backend log" in {
       Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/logs") ~>
@@ -339,9 +606,23 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
-    behavior of "REST API /metadata endpoint"
+  it should "reject a v2 request" in {
+    Get(s"/workflows/v2/${CromwellApiServiceSpec.ExistingWorkflowId}/logs") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      check {
+        status should be(StatusCodes.NotFound)
+        responseAs[String] should be("The requested resource could not be found.")
+      }
+  }
+
+  forAll(Table("version", "v1", "v2")) {
+    metadataVersion =>
+      behavior of s"REST API /metadata endpoint $metadataVersion"
+
+      val metadataPath = s"/workflows/$metadataVersion/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata"
+    
     it should "return with full metadata from the metadata route" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
+      Get(s"$metadataPath") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           status should be(StatusCodes.OK)
@@ -354,7 +635,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     it should "return with gzip encoding when requested" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
+      Get(s"$metadataPath").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
         akkaHttpService.workflowRoutes ~>
         check {
           response.headers.find(_.name == "Content-Encoding").get.value should be("gzip")
@@ -362,7 +643,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     it should "not return with gzip encoding when not requested" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
+      Get(s"$metadataPath") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           response.headers.find(_.name == "Content-Encoding") shouldBe None
@@ -370,7 +651,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     it should "return with included metadata from the metadata route" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&includeKey=testKey2a") ~>
+      Get(s"$metadataPath?includeKey=testKey1&includeKey=testKey2a") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           status should be(StatusCodes.OK)
@@ -384,7 +665,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     it should "return with excluded metadata from the metadata route" in {
-     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?excludeKey=testKey2b&excludeKey=testKey3") ~>
+      Get(s"$metadataPath?excludeKey=testKey2b&excludeKey=testKey3") ~>
        akkaHttpService.workflowRoutes ~>
         check {
           status should be(StatusCodes.OK)
@@ -398,7 +679,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
     }
 
     it should "return an error when included and excluded metadata requested from the metadata route" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey2") ~>
+      Get(s"$metadataPath?includeKey=testKey1&excludeKey=testKey2") ~>
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(StatusCodes.BadRequest) {
@@ -416,6 +697,47 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
         }
     }
+  }
+
+  behavior of s"REST API /metadata endpoint v3"
+
+  val metadataPathV3 = s"/workflows/v3/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata"
+
+  it should "return with full metadata from the metadata route" in {
+    Get(s"$metadataPathV3") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  it should "return with gzip encoding when requested" in {
+    Get(s"$metadataPathV3").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  it should "not return with gzip encoding when not requested" in {
+    Get(s"$metadataPathV3") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  it should "return with included metadata from the metadata route" in {
+    Get(s"$metadataPathV3?includeKey=testKey1&includeKey=testKey2a") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  it should "return with excluded metadata from the metadata route" in {
+    Get(s"$metadataPathV3?excludeKey=testKey2b&excludeKey=testKey3") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  it should "return an error when included and excluded metadata requested from the metadata route" in {
+    Get(s"$metadataPathV3?includeKey=testKey1&excludeKey=testKey2") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
 
     behavior of "REST API /timing endpoint"
     it should "return 200 with an HTML document for the timings route" in {
@@ -428,6 +750,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
         }
     }
+
+  it should "reject a v2 request" in {
+    Get(s"/workflows/v2/${CromwellApiServiceSpec.ExistingWorkflowId}/timing") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
 
     behavior of "REST API /query GET endpoint"
     it should "return good results for a good query" in {
@@ -442,6 +770,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "reject a v2 request" in {
+    Get(s"/workflows/v2/query?status=Succeeded&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
     behavior of "REST API /query POST endpoint"
     it should "return good results for a good query map body" in {
       Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
@@ -455,6 +789,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
         }
     }
+
+  it should "reject a v2 request" in {
+    Post(s"/workflows/v2/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
 
     behavior of "REST API /labels PATCH endpoint"
     it should "return successful status response when assigning valid labels to an existing workflow ID" in {
@@ -488,6 +828,28 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           actualResult shouldBe expectedResults
         }
     }
+
+  it should "reject a v2 request" in {
+    val validLabelsJson =
+      """|{
+         |  "label-key-1":"label-value-1",
+         |  "label-key-2":"label-value-2"
+         |}
+         |""".stripMargin
+
+    val workflowId = CromwellApiServiceSpec.ExistingWorkflowId
+
+    Patch(s"/workflows/v2/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      Route.seal(akkaHttpService.workflowRoutes) ~>
+      checkNotFound()
+  }
+
+  private def checkNotFound(): (RouteTestResult) => Future[Assertion] = {
+    check {
+      status should be(StatusCodes.NotFound)
+      responseAs[String] should be("The requested resource could not be found.")
+    }
+  }
 }
 
 object CromwellApiServiceSpec {
@@ -517,7 +879,8 @@ object CromwellApiServiceSpec {
         MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)))
     }
 
-    def metadataQuery(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None, false)
+    def metadataQuery(workflowId: WorkflowId) =
+      MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
     def logsEvents(id: WorkflowId) = {
       val stdout = MetadataEvent(MetadataKey(id, Some(MetadataJobKey("mycall", None, 1)), CallMetadataKeys.Stdout), MetadataValue("stdout.txt", MetadataString))
@@ -560,7 +923,7 @@ object CromwellApiServiceSpec {
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId })
         sender ! response
-      case AbortWorkflow(id, manager @ _) =>
+      case AbortWorkflow(id, _) =>
         val message = id match {
           case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
           case AbortedWorkflowId =>

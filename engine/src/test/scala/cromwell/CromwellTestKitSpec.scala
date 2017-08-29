@@ -336,7 +336,8 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
       workflowTypeVersion = None,
       inputsJson = sampleWdl.workflowJson,
       workflowOptionsJson = workflowOptions,
-      labelsJson = customLabels)
+      labelsJson = customLabels,
+      warnings = Vector.empty)
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
     eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)

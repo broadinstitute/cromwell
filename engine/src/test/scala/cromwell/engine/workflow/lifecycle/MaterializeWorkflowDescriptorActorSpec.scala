@@ -64,7 +64,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -122,7 +123,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = "{}",
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
       within(Timeout) {
@@ -163,7 +165,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = "{}",
-        labelsJson = "{}")
+        labelsJson = "{}",
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
 
       within(Timeout) {
@@ -188,7 +191,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -218,7 +222,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -249,7 +254,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badWdlSources, minimumConf)
 
       within(Timeout) {
@@ -274,7 +280,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = unstructuredFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -298,7 +305,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = unstructuredFile)
+        labelsJson = unstructuredFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -324,7 +332,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = badCustomLabelsFile)
+        labelsJson = badCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -354,7 +363,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = unstructuredFile,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -379,7 +389,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = noInputsJson,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf)
 
       within(Timeout) {
@@ -411,7 +422,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {
@@ -446,7 +458,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowTypeVersion = None,
         inputsJson = jsonInput,
         workflowOptionsJson = validOptionsFile,
-        labelsJson = validCustomLabelsFile)
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
 
       within(Timeout) {

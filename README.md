@@ -2588,6 +2588,10 @@ All web server requests include an API version in the url. The current version i
 This endpoint accepts a POST request with a `multipart/form-data` encoded body.  The form fields that may be included are:
 
 * `workflowSource` - *Required* Contains the workflow source file to submit for execution.
+* `workflowType` - *Required* The type of the `workflowSource`, for example "WDL".
+   Required starting with api version "v2".
+* `workflowTypeVersion` - *Required* The version of the `workflowType`, for example "1".
+   Required starting with api version "v2".
 * `workflowInputs` - *Optional* JSON file containing the inputs.  For WDL workflows a skeleton file can be generated from [wdltool](https://github.com/broadinstitute/wdltool) using the "inputs" subcommand.
 * `workflowInputs_n` - *Optional* Where `n` is an integer. JSON file containing the 'n'th set of auxiliary inputs.
 * `workflowOptions` - *Optional* JSON file containing options for this workflow execution.  See the [run](#run) CLI sub-command for some more information about this.

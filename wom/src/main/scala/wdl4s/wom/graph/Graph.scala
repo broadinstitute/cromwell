@@ -1,7 +1,7 @@
 package wdl4s.wom.graph
 
 import cats.syntax.validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.instances.list._
 import cats.syntax.functor._
 import cats.syntax.traverse._
@@ -47,7 +47,7 @@ object Graph {
       val inputPortEmbeddedValidation = portProperlyEmbedded(port, _.inputPorts)
       val upstreamPortEmbeddedValidation = portProperlyEmbedded(port.upstream, _.outputPorts)
 
-      (upstreamNodeValidation |@| inputPortEmbeddedValidation |@| upstreamPortEmbeddedValidation).tupled.void
+      (upstreamNodeValidation, inputPortEmbeddedValidation, upstreamPortEmbeddedValidation).tupled.void
     }
 
     def validateNode(node: GraphNode): ErrorOr[Unit] = {

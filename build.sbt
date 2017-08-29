@@ -1,5 +1,9 @@
 import Settings._
 
+resolvers += Resolver.sonatypeRepo("releases")
+
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
+
 lazy val wom = (project in file("wom"))
   .settings(womSettings: _*)
 

@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  val catsV = "0.9.0"
+  val catsV = "1.0.0-MF"
 
   val sprayJsonV = "1.3.2"
   val circeVersion = "0.8.0"
@@ -10,8 +10,8 @@ object Dependencies {
   // Internal collections of dependencies
 
   private val catsDependencies = List(
-    "org.typelevel" %% "cats" % catsV,
-    "com.github.benhutchison" %% "mouse" % "0.9"
+    "org.typelevel" %% "cats-core" % catsV,
+    "com.github.benhutchison" %% "mouse" % "0.10-MF"
   ) map (_
     /*
     Exclude test framework cats-laws and its transitive dependency scalacheck.
@@ -50,8 +50,13 @@ object Dependencies {
   val cwlDependencies = List(
     "io.circe" %% "circe-yaml" % "0.6.1",
     "eu.timepit" %% "refined"            % "0.8.2",
-    "com.lihaoyi" %% "ammonite-ops" % "1.0.0-RC7" % "test",
-    "org.pegdown" % "pegdown" % "1.6.0" % Test
+    "com.lihaoyi" %% "ammonite-ops" % "1.0.1",
+    "org.typelevel" %% "cats-effect" % "0.4",
+    "org.pegdown" % "pegdown" % "1.6.0" % Test,
+    "org.scalactic" %% "scalactic" % "3.0.1",
+    "org.scalatest" %% "scalatest" % "3.0.2" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.13.4" % "test"
+
   ) ++ circeDependencies ++ womDependencies
 
   private val slf4jBindingDependencies = List(

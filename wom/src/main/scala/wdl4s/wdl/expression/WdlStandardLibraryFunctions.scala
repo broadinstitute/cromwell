@@ -1,7 +1,7 @@
 package wdl4s.wdl.expression
 
 import cats.instances.try_._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import lenthall.exception.AggregatedException
 import wdl4s.wdl.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
 import wdl4s.wdl.types._
@@ -174,7 +174,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WdlValue] {
 
   def prefix(params: Seq[Try[WdlValue]]): Try[WdlArray] = {
     def extractTwoArguments: Try[(WdlValue, WdlValue)] = params.size match {
-      case 2 => (params.head |@| params.tail.head) map { (_, _) }
+      case 2 => (params.head, params.tail.head).tupled
       case n => Failure(new UnsupportedOperationException(s"prefix() expects two parameters but got $n"))
     }
 

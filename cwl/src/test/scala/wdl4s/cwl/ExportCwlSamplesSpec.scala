@@ -7,8 +7,7 @@ import wdl4s.cwl.CommandLineTool.{BaseCommand, StringOrExpression}
 import wdl4s.cwl.WorkflowStepInput.InputSource
 
 class ExportCwlSamplesSpec extends FlatSpec with Matchers {
-
-  def assertCorrectJson(cwl: CwlFile, expectedYaml: String) = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
+  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = CwlCodecs.cwlToYaml(cwl) shouldBe expectedYaml
 
   it should "encode sample CWL command line tool" in {
     val tool =
@@ -32,7 +31,7 @@ class: CommandLineTool
 cwlVersion: v1.0
 baseCommand: echo
 """
-    assertCorrectJson(tool, expectedToolJsonString)
+    assertCorrectJson(tool.asCwl, expectedToolJsonString)
   }
 
   it should "encode sample CWL workflow" in {
@@ -100,7 +99,7 @@ steps:
   - classfile
   run: arguments.cwl
 """.stripMargin
-    assertCorrectJson(workflow, expectedWorkflowJsonString)
+    assertCorrectJson(workflow.asCwl, expectedWorkflowJsonString)
   }
 
   it should "encode sample CWL env" in {
@@ -128,7 +127,7 @@ requirements:
 cwlVersion: v1.0
 baseCommand: env
 """.stripMargin
-    assertCorrectJson(tool, expectedToolJsonString)
+    assertCorrectJson(tool.asCwl, expectedToolJsonString)
   }
 
 }

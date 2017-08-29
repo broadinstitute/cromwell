@@ -6,6 +6,7 @@ import eu.timepit.refined._
 import wdl4s.cwl.CwlType.CwlType
 import wdl4s.cwl.CwlType._
 import wdl4s.wdl.types._
+import shapeless._
 
 /**
  * This package is intended to parse all CWL files.
@@ -46,6 +47,8 @@ import wdl4s.wdl.types._
  * @see <a href="https://github.com/milessabin/shapeless">Shapeless</a>
  */
 package object cwl extends TypeAliases {
+
+  type Cwl = Workflow :+: CommandLineTool :+: CNil
 
   def cwlTypeToWdlType : CwlType => WdlType = {
     case Null => WdlNothingType

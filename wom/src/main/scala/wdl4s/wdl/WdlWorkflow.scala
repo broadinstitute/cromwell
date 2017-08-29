@@ -1,7 +1,7 @@
 package wdl4s.wdl
 
-import wdl4s.wdl.Declaration._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
+import Declaration.DeclarationNode
 import cats.syntax.traverse._
 import cats.instances.list._
 import lenthall.util.TryUtil
@@ -54,14 +54,14 @@ object WdlWorkflow {
 
   def buildWomGraph(wdlWorkflow: WdlWorkflow): ErrorOr[Graph] = {
     val callNodesValidation = wdlWorkflow.calls.toList.traverse[ErrorOr, Set[GraphNode]] { call =>
-        (call.womGraphInputNodes |@| call.womCallNode) map { (womGraphInputsNodes, womCallNode) =>
+        (call.womGraphInputNodes, call.womCallNode).mapN { (womGraphInputsNodes, womCallNode) =>
           womGraphInputsNodes.toSet[GraphNode] + womCallNode
         }
     }
 
     val declarationsValidation: ErrorOr[List[DeclarationNode]] = wdlWorkflow.declarations.toList.traverse[ErrorOr, DeclarationNode] { decl => decl.womExpressionNode }
 
-    val callsAndDeclarationValidation = callNodesValidation |@| declarationsValidation map { (callNodes, declarationNodes) => callNodes.flatten.toSet ++ declarationNodes.map(_.toGraphNode) }
+    val callsAndDeclarationValidation = (callNodesValidation, declarationsValidation) mapN { (callNodes, declarationNodes) => callNodes.flatten.toSet ++ declarationNodes.map(_.toGraphNode) }
 
     import lenthall.validation.ErrorOr.ShortCircuitingFlatMap
     for {

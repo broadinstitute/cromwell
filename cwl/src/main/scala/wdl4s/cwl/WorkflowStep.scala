@@ -1,6 +1,6 @@
 package wdl4s.cwl
 
-import shapeless.{:+:, CNil}
+import shapeless._
 import wdl4s.cwl.ScatterMethod._
 import wdl4s.cwl.WorkflowStep.{Outputs, Run}
 import wdl4s.wdl.command.CommandPart
@@ -29,7 +29,9 @@ case class WorkflowStep(
                          scatter: Option[String :+: Array[String] :+: CNil] = None,
                          scatterMethod: Option[ScatterMethod] = None) {
 
-  def typedOutputs(cwlMap: Map[String, CwlFile]): WdlTypeMap = run.fold(RunOutputsToTypeMap).apply(cwlMap)
+  def typedOutputs: WdlTypeMap = run.fold(RunOutputsToTypeMap)
+
+  def fileName: Option[String] = run.select[String]
 
   def taskDefinitionInputs(typeMap: WdlTypeMap): Set[_ <: Callable.InputDefinition] =
     in.map { workflowStepInput =>
@@ -50,19 +52,17 @@ case class WorkflowStep(
     }.toSet
 
 
-  def taskDefinitionOutputs(cwlMap: Map[String, CwlFile]): Set[Callable.OutputDefinition] = {
-
-    val runnableIdToTypeMap: WdlTypeMap = run.fold(RunOutputsToTypeMap).apply(cwlMap)
+  def taskDefinitionOutputs: Set[Callable.OutputDefinition] = {
 
     //this map will only match on the "id" field of the fully qualified name
-    val idMap = runnableIdToTypeMap map {
+    val idMap = typedOutputs map {
       case (id, tpe) => RunOutputId(id).outputId -> tpe
     }
 
     out.fold(WorkflowOutputsToOutputDefinition).apply(idMap)
   }
 
-  def taskDefinition(typeMap: WdlTypeMap, cwlMap: Map[String, CwlFile]): TaskDefinition = {
+  def taskDefinition(typeMap: WdlTypeMap): TaskDefinition = {
 
     val id = this.id
 
@@ -87,7 +87,7 @@ case class WorkflowStep(
       runtimeAttributes,
       meta,
       parameterMeta,
-      taskDefinitionOutputs(cwlMap),
+      taskDefinitionOutputs,
       taskDefinitionInputs(typeMap),
       declarations
     )
@@ -96,12 +96,10 @@ case class WorkflowStep(
   /**
     * In order to produce a map to lookup workflow
     * @param typeMap
-    * @param cwlMap
     * @param workflow
     * @return
     */
   def callWithInputs(typeMap: WdlTypeMap,
-                     cwlMap: Map[String, CwlFile],
                      workflow: Workflow,
                      knownNodes: Set[GraphNode],
                      workflowInputs: Map[String, GraphNodeOutputPort]): Set[GraphNode] = {
@@ -137,7 +135,7 @@ case class WorkflowStep(
                     lookup == stepId
                   }.get
 
-                val upstreamNodesForFoundStep:Set[GraphNode] = step.callWithInputs(typeMap, cwlMap, workflow, knownNodes,workflowInputs)
+                val upstreamNodesForFoundStep:Set[GraphNode] = step.callWithInputs(typeMap, workflow, knownNodes,workflowInputs)
 
                 findThisInputInSet(upstreamNodesForFoundStep).map(upstreamNodesForFoundStep -> _)
               }
@@ -164,7 +162,7 @@ case class WorkflowStep(
       val workflowOutputsMap: (Map[String, OutputPort], Set[GraphNode]) =
         in.foldLeft((Map.empty[String, OutputPort], knownNodes)) (foldInputs)
 
-      val td = taskDefinition(typeMap, cwlMap)
+      val td = taskDefinition(typeMap)
 
       // TODO: Fixme!
       CallNode.callWithInputs(id, td, workflowInputs ++ workflowOutputsMap._1, Set.empty).getOrElse(???).nodes ++ workflowOutputsMap._2
@@ -178,6 +176,8 @@ case class WorkflowStep(
 case class WorkflowStepOutput(id: String)
 
 object WorkflowStep {
+
+  val emptyOutputs: Outputs = Coproduct[Outputs](Array.empty[String])
 
   type Run =
     String :+:

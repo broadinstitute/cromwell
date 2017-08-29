@@ -1,7 +1,7 @@
 package wdl4s.wdl
 
 import cats.instances.list._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.traverse._
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl4s.parser.WdlParser.{Ast, SyntaxError, Terminal}
@@ -60,7 +60,7 @@ object WdlCall {
     }
 
     for {
-      combined <- (graphNodeInputExpressionValidation |@| wdlCall.callable.womDefinition).tupled
+      combined <- (graphNodeInputExpressionValidation, wdlCall.callable.womDefinition).tupled
       (inputToOutputPort, callable) = combined
       callWithInputs <- CallNode.callWithInputs(wdlCall.alias.getOrElse(wdlCall.callable.unqualifiedName), callable, Map.empty, inputToOutputPort.toSet)
     } yield callWithInputs

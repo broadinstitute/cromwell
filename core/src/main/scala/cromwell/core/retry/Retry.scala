@@ -27,7 +27,8 @@ object Retry {
                    maxRetries: Option[Int] = Option(10),
                    backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D),
                    isTransient: Throwable => Boolean = throwableToFalse,
-                   isFatal: Throwable => Boolean = throwableToFalse)
+                   isFatal: Throwable => Boolean = throwableToFalse,
+                   onRetry: Throwable => Unit = noopOnRetry)
                    (implicit actorSystem: ActorSystem): Future[A] = {
     // In the future we might want EC passed in separately but at the moment it caused more issues than it solved to do so
     implicit val ec: ExecutionContext = actorSystem.dispatcher
@@ -39,7 +40,8 @@ object Retry {
         val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
         
         if (retriesLeft.forall(_ > 0)) {
-          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal))
+          onRetry(throwable)
+          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal, onRetry = onRetry))
         } else {
           Future.failed(new CromwellFatalException(throwable))
         }
@@ -47,5 +49,6 @@ object Retry {
   }
 
   def throwableToFalse(t: Throwable) = false
+  def noopOnRetry(t: Throwable) = {}
 }
 

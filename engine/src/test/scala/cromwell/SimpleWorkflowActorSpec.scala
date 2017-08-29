@@ -29,7 +29,8 @@ object SimpleWorkflowActorSpec {
 }
 
 class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
-
+  val serviceRegistry = TestProbe().ref
+  
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
                                  workflowId: WorkflowId,
@@ -55,7 +56,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
-        jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props),
+        jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry)),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true),
       supervisor = supervisor.ref,

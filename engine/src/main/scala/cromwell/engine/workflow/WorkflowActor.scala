@@ -11,6 +11,7 @@ import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.path.{PathBuilder, PathFactory}
 import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
+import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.lifecycle.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -22,6 +23,7 @@ import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Failure
 
 object WorkflowActor {
@@ -185,7 +187,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     jobTokenDispenserActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean)
-  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper {
+  extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
+  with WorkflowInstrumentation {
 
   implicit val ec = context.dispatcher
   override val workflowIdForLogging = workflowId
@@ -194,6 +197,8 @@ class WorkflowActor(val workflowId: WorkflowId,
     case StartNewWorkflow => false
     case RestartExistingWorkflow => true
   }
+  
+  private val startTime = System.currentTimeMillis()
 
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, startMode), s"WorkflowDockerLookupActor-$workflowId")
@@ -298,6 +303,8 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   onTransition {
     case (oldState, terminalState: WorkflowActorTerminalState) =>
+      // Increment counter on final transition
+      setWorkflowTimePerState(terminalState.workflowState, (System.currentTimeMillis() - startTime).millis)
       workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
       pushWorkflowEnd(workflowId)
       subWorkflowStoreActor ! WorkflowComplete(workflowId)

@@ -9,6 +9,8 @@ import scala.concurrent.{ExecutionContext, Future}
 trait WorkflowStore {
 
   def initialize(implicit ec: ExecutionContext): Future[Unit]
+  
+  def stats(implicit ec: ExecutionContext): Future[Map[String, Int]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)

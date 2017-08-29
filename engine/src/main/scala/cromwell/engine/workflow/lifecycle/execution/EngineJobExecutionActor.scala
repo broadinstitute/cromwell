@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor._
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, _}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
@@ -13,6 +13,7 @@ import cromwell.core.logging.WorkflowLogging
 import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.lifecycle.execution.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestOutputStore
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
@@ -32,6 +33,7 @@ import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataJobKey, MetadataKey}
 import wdl4s.wdl.TaskOutput
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
@@ -50,11 +52,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               jobTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               backendName: String,
-                              callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with WorkflowLogging with CallMetadataHelper {
+                              callCachingMode: CallCachingMode) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] 
+  with WorkflowLogging with CallMetadataHelper with JobInstrumentation {
 
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
 
+  val jobStartTime = System.currentTimeMillis()
+  
   override val supervisorStrategy = OneForOneStrategy() {
     // If an actor fails to initialize, send the exception to self before stopping it so we can fail the job properly
     case e: ActorInitializationException =>
@@ -381,20 +386,27 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     executionToken foreach { jobTokenDispenserActor ! JobExecutionTokenReturn(_) }
   }
 
-  private def forwardAndStop(response: Any): State = {
+  private def forwardAndStop(response: BackendJobExecutionResponse): State = {
     replyTo forward response
     returnExecutionToken()
+    instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     context stop self
     stay()
   }
 
-  private def respondAndStop(response: Any): State = {
+  private def respondAndStop(response: BackendJobExecutionResponse): State = {
     replyTo ! response
     returnExecutionToken()
+    instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     context stop self
     stay()
+  }
+  
+  // Note: StatsD will automatically add a counter value so ne need to separately increment a counter.
+  private def instrumentJobComplete(response: BackendJobExecutionResponse) = {
+    setJobTimePerState(response, (System.currentTimeMillis() - jobStartTime).millis)
   }
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {

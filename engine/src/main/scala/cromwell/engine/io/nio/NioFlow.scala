@@ -5,27 +5,35 @@ import akka.stream.scaladsl.Flow
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.Retry
-import cromwell.engine.io.IoActor
 import cromwell.engine.io.IoActor.{DefaultCommandContext, IoResult}
+import cromwell.engine.io.{IoActor, IoCommandContext}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Codec
 
+object NioFlow {
+  def NooPOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
+}
+
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
   */
-class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
+class NioFlow(parallelism: Int,
+              scheduler: Scheduler,
+              onRetry: IoCommandContext[_] => Throwable => Unit = NioFlow.NooPOnRetry,
+              nbAttempts: Int = IoActor.MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val processCommand: DefaultCommandContext[_] => Future[IoResult] = commandContext => {
     val operationResult = Retry.withRetry(
       () => handleSingleCommand(commandContext.request),
       maxRetries = Option(nbAttempts),
       backoff = IoCommand.defaultBackoff,
       isTransient = IoActor.isTransient,
-      isFatal = IoActor.isFatal
+      isFatal = IoActor.isFatal,
+      onRetry = onRetry(commandContext)
     )
-    
+
     operationResult map { (_, commandContext) } recoverWith {
       case failure => Future.successful(commandContext.fail(failure))
     }
@@ -43,9 +51,9 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
       case _ => Future.failed(new NotImplementedError("Method not implemented"))
     }
   }
-  
+
   val flow = Flow[DefaultCommandContext[_]].mapAsyncUnordered[IoResult](parallelism)(processCommand)
-  
+
   private def copy(copy: IoCopyCommand) = Future {
     createDirectoriesForSFSPath(copy.destination)
     copy.source.copyTo(copy.destination, copy.overwrite)
@@ -57,7 +65,7 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
     write.file.write(write.content)(write.openOptions, Codec.UTF8)
     ()
   }
-  
+
   private def delete(delete: IoDeleteCommand) = Future {
     delete.file.delete(delete.swallowIOExceptions)
     ()
@@ -66,7 +74,7 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
   private def readAsString(read: IoContentAsStringCommand) = Future {
     read.file.contentAsString
   }
-  
+
   private def size(size: IoSizeCommand) = Future {
     size.file.size
   }
@@ -85,7 +93,7 @@ class NioFlow(parallelism: Int, scheduler: Scheduler, nbAttempts: Int = IoActor.
   private def touch(touch: IoTouchCommand) = Future {
     touch.file.touch()
   }
-  
+
   private def createDirectoriesForSFSPath(path: Path) = path match {
     case _: DefaultPath => path.parent.createPermissionedDirectories()
     case _ =>

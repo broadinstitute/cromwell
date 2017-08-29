@@ -2,9 +2,9 @@ package cromwell.core.actor
 
 import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
-import akka.stream.{ActorAttributes, ActorMaterializer, QueueOfferResult, Supervision}
-import akka.stream.QueueOfferResult.{Dropped, Enqueued, QueueClosed}
+import akka.stream.QueueOfferResult.Enqueued
 import akka.stream.scaladsl.{Sink, Source, SourceQueueWithComplete}
+import akka.stream.{ActorAttributes, ActorMaterializer, Supervision}
 import cromwell.core.actor.StreamActorHelper.{ActorRestartException, StreamCompleted, StreamFailed}
 import cromwell.core.actor.StreamIntegration._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -67,17 +67,19 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   private def backpressure(commandContext: StreamContext) = {
     val originalRequest = commandContext.clientContext map { _ -> commandContext.request } getOrElse commandContext.request
     commandContext.replyTo ! BackPressure(originalRequest)
+    onBackpressure()
   }
+
+  /**
+    * Allows extending traits to add behavior when a request is backpressured
+    */
+  protected def onBackpressure(): Unit = {}
 
   private def streamReceive: Receive = {
     case ShutdownCommand => stream.complete()
     case EnqueueResponse(Enqueued, _: T @unchecked) => // Good !
-    case EnqueueResponse(Dropped, commandContext) => backpressure(commandContext)
-      
-      // In any of the cases below, the stream is in a failed state, which will be caught by the watchCompletion hook and the
-      // actor will be restarted
-    case EnqueueResponse(QueueClosed, commandContext) => backpressure(commandContext)
-    case EnqueueResponse(QueueOfferResult.Failure(_), commandContext) => backpressure(commandContext)
+
+    case EnqueueResponse(_, commandContext) => backpressure(commandContext)
     case FailedToEnqueue(_, commandContext) => backpressure(commandContext)
       
     case StreamCompleted => context stop self

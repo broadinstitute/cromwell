@@ -25,6 +25,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
             Future.successful(())
           }
   }
+  
+  override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = sqlDatabase.stats
 
   override def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
     sqlDatabase.removeWorkflowStoreEntry(id.toString).map(_ > 0) // i.e. did anything get deleted

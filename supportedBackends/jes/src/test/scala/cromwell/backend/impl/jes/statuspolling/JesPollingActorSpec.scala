@@ -96,7 +96,8 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
 
   before {
     managerProbe = TestProbe()
-    jpActor = TestActorRef(TestJesPollingActor.props(managerProbe.ref, jesConfiguration), managerProbe.ref)
+    val registryProbe = TestProbe()
+    jpActor = TestActorRef(TestJesPollingActor.props(managerProbe.ref, jesConfiguration, registryProbe.ref), managerProbe.ref)
   }
 }
 
@@ -105,7 +106,7 @@ class JesPollingActorSpec extends TestKitSuite("JesPollingActor") with FlatSpecL
   * - Mocks out the methods which actually call out to JES, and allows the callbacks to be triggered in a testable way
   * - Also waits a **lot** less time before polls!
   */
-class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends JesPollingActor(manager, qps) with Mockito {
+class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef) extends JesPollingActor(manager, qps, registryProbe) with Mockito {
 
   override lazy val batchInterval = 10.milliseconds
 
@@ -143,7 +144,7 @@ class TestJesPollingActor(manager: ActorRef, qps: Int Refined Positive) extends 
 }
 
 object TestJesPollingActor {
-  def props(manager: ActorRef, jesConfiguration: JesConfiguration) = Props(new TestJesPollingActor(manager, jesConfiguration.qps))
+  def props(manager: ActorRef, jesConfiguration: JesConfiguration, registryProbe: ActorRef) = Props(new TestJesPollingActor(manager, jesConfiguration.qps, registryProbe))
 
   sealed trait JesBatchCallbackResponse
   case object CallbackSuccess extends JesBatchCallbackResponse

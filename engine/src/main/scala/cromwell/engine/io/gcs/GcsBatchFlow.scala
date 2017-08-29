@@ -7,9 +7,9 @@ import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
-import cromwell.engine.io.IoActor
 import cromwell.engine.io.IoActor.IoResult
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
+import cromwell.engine.io.{IoActor, IoCommandContext}
 import cromwell.filesystems.gcs.{GcsPathBuilder, GoogleConfiguration}
 
 import scala.concurrent.duration._
@@ -26,7 +26,7 @@ object GcsBatchFlow {
   case class BatchFailedException(failure: Throwable) extends IOException(failure)
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler)(implicit ec: ExecutionContext) {
+class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit)(implicit ec: ExecutionContext) {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -134,9 +134,11 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler)(implicit ec: ExecutionC
     // If the failure is retryable - recover with a GcsBatchRetry so it can be retried in the next batch
     case failure if IoActor.isRetryable(failure) =>
       context.retryIn match {
-        case Some(waitTime) if IoActor.isTransient(failure) => 
+        case Some(waitTime) if IoActor.isTransient(failure) =>
+          onRetry(context)(failure)
           akka.pattern.after(waitTime, scheduler)(Future.successful(GcsBatchRetry(context.nextTransient, failure)))
-        case Some(waitTime) => 
+        case Some(waitTime) =>
+          onRetry(context)(failure)
           akka.pattern.after(waitTime, scheduler)(Future.successful(GcsBatchRetry(context.next, failure)))
         case None => fail(context, failure)
       }

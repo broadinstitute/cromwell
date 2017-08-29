@@ -13,18 +13,20 @@ import cromwell.backend.impl.jes.statuspolling.JesApiQueryManager.{JesApiExcepti
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
 import scala.annotation.tailrec
-import scala.concurrent.duration._
 import scala.collection.immutable.Queue
+import scala.concurrent.duration._
 
 /**
   * Holds a set of JES API requests until a JesQueryActor pulls the work.
   */
-class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with ActorLogging with StopAndLogSupervisor {
+class JesApiQueryManager(val qps: Int Refined Positive, override val serviceRegistryActor: ActorRef) extends Actor 
+  with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler {
 
   private implicit val ec = context.dispatcher
   private val maxRetries = 10
@@ -63,11 +65,13 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
       "and localize the files yourself."
   ))
 
+  scheduleInstrumentation { updateQueueSize(workQueue.size) }
+
   // workQueue is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var workQueue: Queue[JesApiQuery] = Queue.empty
   private var workInProgress: Map[ActorRef, JesPollingWorkBatch] = Map.empty
 
-  private def statusPollerProps = JesPollingActor.props(self, qps)
+  private def statusPollerProps = JesPollingActor.props(self, qps, serviceRegistryActor)
 
   // statusPoller is protected for the unit tests, not intended to be generally overridden
   protected[statuspolling] var statusPoller: ActorRef = _
@@ -103,8 +107,9 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
     val nextRequest = failure.query.withFailedAttempt
     val delay = nextRequest.backoff.backoffMillis.millis
     context.system.scheduler.scheduleOnce(delay, self, nextRequest)
-    ()
+    failedQuery(failure)
   } else {
+    retriedQuery(failure)
     failure.query.requester ! failure
   }
 
@@ -195,7 +200,7 @@ class JesApiQueryManager(val qps: Int Refined Positive) extends Actor with Actor
 
 object JesApiQueryManager {
 
-  def props(qps: Int Refined Positive): Props = Props(new JesApiQueryManager(qps)).withDispatcher(BackendDispatcher)
+  def props(qps: Int Refined Positive, serviceRegistryActor: ActorRef): Props = Props(new JesApiQueryManager(qps, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 
   sealed trait JesApiQueryManagerRequest
 
@@ -251,7 +256,7 @@ object JesApiQueryManager {
     override def getMessage: String = e.getMessage
   }
 
-  final class JesApiException(e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
+  final class JesApiException(val e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
     override def getMessage: String = "Unable to complete JES Api Request"
   }
 }

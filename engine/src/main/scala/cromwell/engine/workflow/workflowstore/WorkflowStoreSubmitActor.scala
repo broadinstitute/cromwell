@@ -9,6 +9,7 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cromwell.core.Dispatcher._
 import cromwell.core._
+import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.lifecycle.execution.WorkflowMetadataHelper
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
@@ -18,7 +19,8 @@ import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with WorkflowMetadataHelper with MonitoringCompanionHelper {
+final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryActor: ActorRef) extends Actor 
+  with ActorLogging with WorkflowMetadataHelper with MonitoringCompanionHelper with WorkflowInstrumentation {
   implicit val ec: ExecutionContext = context.dispatcher
 
   val workflowStoreReceive: Receive = {
@@ -29,7 +31,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
       val futureId = for {
         ids <- storeWorkflowSources(NonEmptyList.of(cmd.source))
         id = ids.head
-        _ <- registerSubmissionWithMetadataService(id, cmd.source)
+        _ <- registerSubmission(id, cmd.source)
       } yield id
 
       futureId onComplete {
@@ -49,7 +51,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
       val futureIds = for {
         ids <- storeWorkflowSources(cmd.sources)
-        _ <- (ids.toList zip cmd.sources.toList) traverse (registerSubmissionWithMetadataService _).tupled
+        _ <- (ids.toList zip cmd.sources.toList) traverse (registerSubmission _).tupled
       } yield ids
 
       futureIds onComplete {
@@ -103,9 +105,12 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
   /**
     * Takes the workflow id and sends it over to the metadata service w/ default empty values for inputs/outputs
     */
-  private def registerSubmissionWithMetadataService(
+  private def registerSubmission(
       id: WorkflowId,
       originalSourceFiles: WorkflowSourceFilesCollection): Future[Unit] = {
+    // Increment the workflow submitted count
+    incrementWorkflowState(WorkflowSubmitted)
+
     processSource(_.clearEncryptedValues)(originalSourceFiles) map { sourceFiles =>
       val submissionEvents: List[MetadataEvent] = List(
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),

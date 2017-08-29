@@ -27,10 +27,11 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
   implicit val DefaultPatienceConfig = PatienceConfig(TestExecutionTimeout)
   val AwaitAlmostNothing = 30.milliseconds.dilated
   val BatchSize = 5
+  val registryProbe = TestProbe().ref
 
   it should "queue up and dispense status poll requests, in order" in {
     val statusPoller = TestProbe(name = "StatusPoller")
-    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(100, statusPoller.ref))
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(100, registryProbe, statusPoller.ref))
 
     var statusRequesters = ((0 until BatchSize * 2) map { i => i -> TestProbe(name = s"StatusRequester_$i") }).toMap
 
@@ -72,7 +73,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
 
   it should "reject create requests above maxBatchSize" in {
     val statusPoller = TestProbe(name = "StatusPoller")
-    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(15 * 1024 * 1024, statusPoller.ref))
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(15 * 1024 * 1024, registryProbe, statusPoller.ref))
 
     val statusRequester = TestProbe()
     
@@ -87,7 +88,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
   it should "respect the maxBatchSize when beheading the queue" in {
     val statusPoller = TestProbe(name = "StatusPoller")
     // maxBatchSize is 14MB, which mean we can take 2 queries of 5MB but not 3
-    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(5 * 1024 * 1024, statusPoller.ref))
+    val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(5 * 1024 * 1024, registryProbe, statusPoller.ref))
 
     val statusRequester = TestProbe()
 
@@ -119,7 +120,7 @@ class JesApiQueryManagerSpec extends TestKitSuite("JesApiQueryManagerSpec") with
     it should s"catch polling actors if they $name, recreate them and add work back to the queue" in {
       val statusPoller1 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
       val statusPoller2 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
-      val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(100, statusPoller1, statusPoller2), s"TestJesApiQueryManager-${Random.nextInt()}")
+      val jaqmActor: TestActorRef[TestJesApiQueryManager] = TestActorRef(TestJesApiQueryManager.props(100, registryProbe, statusPoller1, statusPoller2), s"TestJesApiQueryManager-${Random.nextInt()}")
 
       val emptyActor = system.actorOf(Props.empty)
 
@@ -151,7 +152,7 @@ object JesApiQueryManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps) {
+class TestJesApiQueryManager(qps: Int Refined Positive, createRequestSize: Long, registry: ActorRef, statusPollerProbes: ActorRef*) extends JesApiQueryManager(qps, registry) {
   var testProbes: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
@@ -195,5 +196,5 @@ object TestJesApiQueryManager {
   import cromwell.backend.impl.jes.JesTestConfig.JesBackendConfigurationDescriptor
   val jesConfiguration = new JesConfiguration(JesBackendConfigurationDescriptor)
 
-  def props(createRequestSize: Long, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, createRequestSize, statusPollers: _*))
+  def props(createRequestSize: Long, registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestJesApiQueryManager(jesConfiguration.qps, createRequestSize, registryProbe, statusPollers: _*))
 }

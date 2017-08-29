@@ -48,4 +48,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     val action = dataAccess.workflowStoreEntriesForWorkflowExecutionUuid(workflowExecutionUuid).delete
     runTransaction(action)
   }
+  
+  override def stats(implicit ec: ExecutionContext): Future[Map[String, Int]] = {
+    val action = dataAccess.workflowStoreStats.result
+    runTransaction(action) map { _.toMap }
+  }
 }

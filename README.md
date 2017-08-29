@@ -68,6 +68,9 @@ A [Workflow Management System](https://en.wikipedia.org/wiki/Workflow_management
   * [memory](#memory)
   * [preemptible](#preemptible)
 * [Logging](#logging)
+* [Instrumentation](#instrumentation)
+  * [StatsD](#statsd)
+    * [Metrics](#metrics)
 * [Workflow Options](#workflow-options)
 * [Labels](#labels)
   * [Custom Labels File](#custom-labels-file)
@@ -1913,6 +1916,36 @@ workflow-options {
 The usual case of generating the temporary per workflow logs is to copy them to a remote directory, while deleting the local copy to preserve local disk space. To specify the remote directory to copy the logs to use the separate [workflow option](#workflow-options) `final_workflow_log_dir`.
 
 Cromwell supports [Sentry](https://docs.sentry.io), a service that can be used to monitor exceptions reported in an application's logs. To make use of this add `-Dsentry.dsn=DSN_URL` to your Java command line with your DSN URL.
+
+# Instrumentation
+
+## StatsD
+
+Cromwell collects metrics while it's running and send them to an internal service. By default this service ignores those metrics, but it can be configured to forward them to a [StatsD](https://github.com/etsy/statsd) server.
+To do so, simply add this snippet to your configuration file:
+
+```hocon
+services.Instrumentation.class = "cromwell.services.instrumentation.impl.akka.AkkaInstrumentationServiceActor"
+```
+Make sure to configure your StatsD service:
+
+```hocon
+services.Instrumentation.config.statsd {
+    hostname = "localhost" // Replace with your host
+    port = 8125 // Replace with your port
+    namespace = ""
+    flush-rate = 1 second
+  }
+```
+
+### Metrics
+
+The current StatsD implementation uses metrics-statsd to report instrumentation values.
+metrics-statsd scala reports all metrics as Gauge type as far as StatsD is concerned.
+Which means all the metric will be under the gauge section. We might add /remove metrics in the future depending on need and usage.
+However here the current high level categories:
+
+`backend`, `http`, `job`, `workflow`, `io`
 
 # Workflow Options
 

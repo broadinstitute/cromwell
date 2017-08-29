@@ -87,7 +87,7 @@ trait BackendLifecycleActorFactory {
   /*              Misc.             */
   /* ****************************** */
 
-  def backendSingletonActorProps: Option[Props] = None
+  def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = None
 
   def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                   jobKey: BackendJobDescriptorKey,

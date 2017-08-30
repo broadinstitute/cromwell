@@ -6,6 +6,8 @@ import akka.http.scaladsl.Http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
 import akka.http.scaladsl.model.{HttpEntity, _}
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.HttpCredentials
 import akka.http.scaladsl.model.headers.HttpEncodings
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
@@ -19,7 +21,10 @@ import cromwell.api.CromwellClient._
 
 import scala.util.{Failure, Success, Try}
 
-class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentials: Option[HttpCredentials]=None)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+
+  lazy val authHeader = credentials.map { Authorization(_) }
+  lazy val commonHeaders = authHeader.toList
 
   lazy val engineEndpoint = s"$cromwellUrl/engine/$apiVersion"
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
@@ -86,7 +91,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String)(implicit acto
   def backends(implicit ec: ExecutionContext): Future[CromwellBackends] = simpleRequest[CromwellBackends](backendsEndpoint)
   def version(implicit ec: ExecutionContext): Future[CromwellVersion] = simpleRequest[CromwellVersion](versionEndpoint)
 
-  private [api] def executeRequest(request: HttpRequest) = Http().singleRequest(request)
+  private [api] def executeRequest(request: HttpRequest) = Http().singleRequest(request.withHeaders(commonHeaders))
 
   /**
     *

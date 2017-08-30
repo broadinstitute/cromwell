@@ -20,53 +20,57 @@ final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource],
                                         workflowInputsAux: Map[Int, WorkflowJson],
                                         workflowOptions: Option[WorkflowOptionsJson],
                                         customLabels: Option[WorkflowJson],
-                                        zippedImports: Option[Array[Byte]])
+                                        zippedImports: Option[Array[Byte]],
+                                        warnings: Seq[String])
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
 
   def empty = PartialWorkflowSources(
     workflowSource = None,
-    // TODO do not hardcode, especially not out here at the boundary layer good gravy
-    workflowType = Option("WDL"),
+    workflowType = None,
     workflowTypeVersion = None,
     workflowInputs = Vector.empty,
     workflowInputsAux = Map.empty,
     workflowOptions = None,
     customLabels = None,
-    zippedImports = None
+    zippedImports = None,
+    warnings = Vector.empty
   )
 
-  def fromSubmitRoute(formData: Map[String, ByteString], allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-    val partialSources = Try(formData.foldLeft(PartialWorkflowSources.empty) { (partialSources: PartialWorkflowSources, kv: (String, ByteString)) =>
-      val name = kv._1
-      val data = kv._2
+  def fromSubmitRoute(formData: Map[String, ByteString],
+                      allowNoInputs: Boolean,
+                      version: Int): Try[Seq[WorkflowSourceFilesCollection]] = {
+    val partialSources: Try[PartialWorkflowSources] = Try {
+      formData.foldLeft(PartialWorkflowSources.empty) {
+        (partialSources: PartialWorkflowSources, kv: (String, ByteString)) =>
+          val (name, data) = kv
 
-      if (name == "wdlSource" || name == "workflowSource") {
-        if (name == "wdlSource") deprecationWarning(out = "wdlSource", in = "workflowSource")
-        partialSources.copy(workflowSource = Option(data.utf8String))
-      } else if (name == "workflowType") {
-        partialSources.copy(workflowType = Option(data.utf8String))
-      } else if (name == "workflowTypeVersion") {
-        partialSources.copy(workflowTypeVersion = Option(data.utf8String))
-      } else if (name == "workflowInputs") {
-        partialSources.copy(workflowInputs = workflowInputs(data.utf8String))
-      } else if (name.startsWith("workflowInputs_")) {
-        val index = name.stripPrefix("workflowInputs_").toInt
-        partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.utf8String))
-      } else if (name == "workflowOptions") {
-        partialSources.copy(workflowOptions = Option(data.utf8String))
-      } else if (name == "wdlDependencies" || name == "workflowDependencies") {
-        if (name == "wdlDependencies") deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
-        partialSources.copy(zippedImports = Option(data.toArray))
-      } else if (name == "customLabels") {
-        partialSources.copy(customLabels = Option(data.utf8String))
-      } else {
-        throw new IllegalArgumentException(s"Unexpected body part name: $name")
+          (name, version) match {
+            case ("wdlSource", 1) =>
+              val warning = deprecationWarning(out = "wdlSource", in = "workflowSource")
+              val warnings = warning +: partialSources.warnings
+              partialSources.copy(workflowSource = Option(data.utf8String), warnings = warnings)
+            case ("workflowSource", _) => partialSources.copy(workflowSource = Option(data.utf8String))
+            case ("workflowType", _) => partialSources.copy(workflowType = Option(data.utf8String))
+            case ("workflowTypeVersion", _) => partialSources.copy(workflowTypeVersion = Option(data.utf8String))
+            case ("workflowInputs", _) => partialSources.copy(workflowInputs = workflowInputs(data.utf8String))
+            case (_, _) if name.startsWith("workflowInputs_") =>
+              val index = name.stripPrefix("workflowInputs_").toInt
+              partialSources.copy(workflowInputsAux = partialSources.workflowInputsAux + (index -> data.utf8String))
+            case ("workflowOptions", _) => partialSources.copy(workflowOptions = Option(data.utf8String))
+            case ("wdlDependencies", 1) =>
+              val warning = deprecationWarning(out = "wdlDependencies", in = "workflowDependencies")
+              val warnings = warning +: partialSources.warnings
+              partialSources.copy(zippedImports = Option(data.toArray), warnings = warnings)
+            case ("workflowDependencies", _) => partialSources.copy(zippedImports = Option(data.toArray))
+            case ("customLabels", _) => partialSources.copy(customLabels = Option(data.utf8String))
+            case _ => throw new IllegalArgumentException(s"Unexpected body part name: $name")
+          }
       }
-    })
+    }
 
-    partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs).errorOrToTry
+    partialSourcesToSourceCollections(partialSources.tryToErrorOr, allowNoInputs, version).errorOrToTry
   }
 
   private def workflowInputs(data: String): Vector[WorkflowJson] = {
@@ -78,7 +82,9 @@ object PartialWorkflowSources {
     }
   }
 
-  private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources], allowNoInputs: Boolean): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
+  private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources],
+                                                allowNoInputs: Boolean,
+                                                version: Int): ErrorOr[Seq[WorkflowSourceFilesCollection]] = {
     def validateInputs(pws: PartialWorkflowSources): ErrorOr[Seq[WorkflowJson]] =
       (pws.workflowInputs.isEmpty, allowNoInputs) match {
         case (true, true) => Vector("{}").validNel
@@ -96,23 +102,46 @@ object PartialWorkflowSources {
       case _ => s"Incomplete workflow submission: $partialSource".invalidNel
     }
 
+    def validateWorkflowType(partialSource: PartialWorkflowSources, version: Int): ErrorOr[Option[WorkflowType]] = {
+      (partialSource.workflowType, version) match {
+        case (Some(src), _) => Option(src).validNel
+        case (None, 1) => Option("WDL").validNel
+        case (None, _) => s"Workflow type is mandatory for v$version".invalidNel
+      }
+    }
+
+    def validateWorkflowTypeVersion(partialSource: PartialWorkflowSources,
+                                    version: Int): ErrorOr[Option[WorkflowTypeVersion]] = {
+      (partialSource.workflowTypeVersion, version) match {
+        case (Some(src), _) => Option(src).validNel
+        case (None, 1) => None.validNel
+        case (None, _) => s"Workflow type version is mandatory for v$version".invalidNel
+      }
+    }
+
     partialSources match {
       case Valid(partialSource) =>
-        (validateWorkflowSource(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions)) map {
-          case (wfSource, wfInputs, wfOptions) =>
+        (validateWorkflowSource(partialSource) |@|
+          validateInputs(partialSource) |@|
+          validateOptions(partialSource.workflowOptions) |@|
+          validateWorkflowType(partialSource, version) |@|
+          validateWorkflowTypeVersion(partialSource, version)) map {
+          case (wfSource, wfInputs, wfOptions, workflowType, workflowTypeVersion) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = wfSource,
-              workflowType = partialSource.workflowType,
-              workflowTypeVersion = partialSource.workflowTypeVersion,
+              workflowType = workflowType,
+              workflowTypeVersion = workflowTypeVersion,
               inputsJson = inputsJson,
               workflowOptionsJson = wfOptions.asPrettyJson,
               labelsJson = partialSource.customLabels.getOrElse("{}"),
-              importsFile = partialSource.zippedImports))        }
+              importsFile = partialSource.zippedImports,
+              warnings = partialSource.warnings))
+        }
       case Invalid(err) => err.invalid
     }
   }
 
-  private def deprecationWarning(out: String, in: String): Unit = {
+  private def deprecationWarning(out: String, in: String): String = {
     val warning =
       s"""
          |The '$out' parameter name has been deprecated in favor of '$in'.
@@ -120,6 +149,7 @@ object PartialWorkflowSources {
          |Please switch to using '$in' in future submissions.
          """.stripMargin
     log.warn(warning)
+    warning
   }
 
   def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {

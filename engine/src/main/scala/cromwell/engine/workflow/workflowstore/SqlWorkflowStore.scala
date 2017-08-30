@@ -61,7 +61,8 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       inputsJson = workflowStoreEntry.workflowInputs.toRawString,
       workflowOptionsJson = workflowStoreEntry.workflowOptions.toRawString,
       labelsJson = workflowStoreEntry.customLabels.toRawString,
-      importsFile = workflowStoreEntry.importsZip.toBytesOption
+      importsFile = workflowStoreEntry.importsZip.toBytesOption,
+      warnings = Vector.empty
     )
     WorkflowToStart(
       WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),

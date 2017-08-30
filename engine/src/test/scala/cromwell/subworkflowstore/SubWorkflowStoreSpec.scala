@@ -50,7 +50,9 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
         workflowTypeVersion = None,
         inputsJson = "{}",
         workflowOptionsJson = "{}",
-        labelsJson = "{}"))
+        labelsJson = "{}",
+        warnings = Vector.empty)
+      )
       val rootWorkflowId = expectMsgType[WorkflowSubmittedToStore](10 seconds).workflowId
 
       // Query for non existing sub workflow

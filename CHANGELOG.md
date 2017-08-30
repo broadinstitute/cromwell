@@ -2,6 +2,13 @@
 
 ## 30 Release Notes
 
+### Breaking Changes
+
+* All endpoints now require valid version numbers.
+
+* `POST /api/workflows/v2` now requires a `workflowType` and a `workflowTypeVersion`. These are optional for the `v1`
+api. See the [README](https://github.com/broadinstitute/cromwell#post-apiworkflowsversion) for more information.
+
 ### Other changes
 
 * **Database**  

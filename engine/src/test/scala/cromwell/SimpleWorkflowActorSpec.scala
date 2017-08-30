@@ -40,7 +40,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       workflowTypeVersion = None,
       inputsJson = rawInputsOverride,
       workflowOptionsJson = "{}",
-      labelsJson = "{}"
+      labelsJson = "{}",
+      warnings = Vector.empty
     )
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")

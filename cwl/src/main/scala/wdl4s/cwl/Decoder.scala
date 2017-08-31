@@ -8,6 +8,7 @@ import cats.syntax.either._
 import cats.Applicative
 import better.files.{File => BFile}
 import lenthall.validation.ErrorOr._
+import lenthall.legacy.TwoElevenSupport._
 
 import scala.util.Try
 
@@ -29,7 +30,7 @@ object CwlDecoder {
 
     val cwlToolResult =
       Try(%%("cwltool", "--quiet", "--print-pre", path.toString)).
-        toEither.
+        tacticalToEither.
         leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
     EitherT { IO { cwlToolResult flatMap resultToEither } }

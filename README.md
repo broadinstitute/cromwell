@@ -1921,7 +1921,7 @@ Cromwell supports [Sentry](https://docs.sentry.io), a service that can be used t
 
 ## StatsD
 
-Cromwell collects metrics while it's running and send them to an internal service. By default this service ignores those metrics, but it can be configured to forward them to a [StatsD](https://github.com/etsy/statsd) server.
+Cromwell collects metrics while it's running and sends them to an internal service. By default this service ignores those metrics, but it can be configured to forward them to a [StatsD](https://github.com/etsy/statsd) server.
 To do so, simply add this snippet to your configuration file:
 
 ```hocon
@@ -1933,7 +1933,7 @@ Make sure to configure your StatsD service:
 services.Instrumentation.config.statsd {
     hostname = "localhost" // Replace with your host
     port = 8125 // Replace with your port
-    namespace = ""
+    prefix = ""
     flush-rate = 1 second
   }
 ```
@@ -1941,11 +1941,11 @@ services.Instrumentation.config.statsd {
 ### Metrics
 
 The current StatsD implementation uses metrics-statsd to report instrumentation values.
-metrics-statsd scala reports all metrics as Gauge type as far as StatsD is concerned.
-Which means all the metric will be under the gauge section. We might add /remove metrics in the future depending on need and usage.
+metrics-statsd reports all metrics with a gauge type.
+This means all the metric will be under the gauge section. We might add /remove metrics in the future depending on need and usage.
 However here the current high level categories:
 
-`backend`, `http`, `job`, `workflow`, `io`
+`backend`, `rest-api`, `job`, `workflow`, `io`
 
 # Workflow Options
 

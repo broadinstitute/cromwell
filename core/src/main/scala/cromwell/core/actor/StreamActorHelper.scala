@@ -67,13 +67,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   private def backpressure(commandContext: StreamContext) = {
     val originalRequest = commandContext.clientContext map { _ -> commandContext.request } getOrElse commandContext.request
     commandContext.replyTo ! BackPressure(originalRequest)
-    onBackpressure()
   }
-
-  /**
-    * Allows extending traits to add behavior when a request is backpressured
-    */
-  protected def onBackpressure(): Unit = {}
 
   private def streamReceive: Receive = {
     case ShutdownCommand => stream.complete()

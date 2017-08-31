@@ -7,6 +7,4 @@ object InstrumentationKeys {
   val AbortedKey = NonEmptyList.of("aborted")
   val FailureKey = NonEmptyList.of("failure")
   val RetryKey = NonEmptyList.of("retry")
-  val CountKey = NonEmptyList.of("count")
-  val TimingKey = NonEmptyList.of("timing")
 }

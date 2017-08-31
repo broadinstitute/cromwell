@@ -119,6 +119,11 @@ object Dependencies {
 
   val databaseSqlDependencies = baseDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
+  val statsDDependencies = List(
+    "nl.grons" %% "metrics-scala" % "3.5.6",
+    "com.readytalk" % "metrics3-statsd" % "4.2.0"
+  )
+
   val coreDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % "3.6.0",
     "org.broadinstitute" %% "wdl4s-wdl" % wdl4sV,
@@ -132,10 +137,8 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % "0.7.0",
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV,
     "com.chuusai" %% "shapeless" % "2.3.2",
-    "com.github.scopt" %% "scopt" % "3.6.0",
-    "org.broadinstitute" %% "akka-statsd-core" % "2.1.6-SNAPSHOT",
-    "org.broadinstitute.dsde.workbench" %% "workbench-metrics" % "0.2-61b7be2"
-  ) ++ baseDependencies ++ googleApiClientDependencies ++
+    "com.github.scopt" %% "scopt" % "3.6.0"
+  ) ++ baseDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
 

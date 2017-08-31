@@ -17,23 +17,33 @@ trait CommonMonitoredSubsystems {
     * order to ensure that subsequent attempts aren't showing a false positive
     */
   private def checkDockerhub(): Future[SubsystemStatus] = {
-    Future {
+    println("DOCKER")
+ //   Future {
       // Using a tiny docker image the user is very unlikely to be actively using
+      println("YO")
       val alpine = DockerCliKey("alpine", "latest") // FIXME: make a clone of alpine in our dockerhub and use that
+      println("HO")
 
-      val res = for {
-        p <- DockerCliClient.pull(alpine)
-        r <- DockerCliClient.rmi(alpine)
-      } yield r
+    val res = DockerCliClient.pull(alpine) flatMap { _ => DockerCliClient.rmi(alpine) }
 
-      res.get
-    } map { _ => OkStatus }
+//      val res = for {
+//        p <- DockerCliClient.pull(alpine)
+//        r <- DockerCliClient.rmi(alpine)
+//      } yield r
+
+      println("FOO: " + res)
+
+//      res.get
+ //   } map { _ => OkStatus }
+
+    Future.fromTry(res) map { _ => OkStatus }
   }
 
   /**
     * Demonstrates connectivity to the engine database by periodically making a small query
     */
   private def checkEngineDb(): Future[SubsystemStatus] = {
+    println("DB")
     EngineServicesStore.engineDatabaseInterface.queryDockerHashStoreEntries("DOESNOTEXIST") map { _ => OkStatus }
   }
 }

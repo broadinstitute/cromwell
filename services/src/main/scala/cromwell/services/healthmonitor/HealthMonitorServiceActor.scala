@@ -35,7 +35,7 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
     * Contains each subsystem status along with a timestamp of when the entry was made so we know when the status
     * goes stale. Initialized with unknown status.
     */
-  private var data: Map[MonitoredSubsystem, CachedSubsystemStatus] = {
+  private var statusCache: Map[MonitoredSubsystem, CachedSubsystemStatus] = {
     val now = System.currentTimeMillis
     subsystems.map((_, CachedSubsystemStatus(UnknownStatus, now))).toMap
   }
@@ -61,14 +61,14 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
   }
 
   private def store(subsystem: MonitoredSubsystem, status: SubsystemStatus): Unit = {
-    data = data + ((subsystem, CachedSubsystemStatus(status, System.currentTimeMillis)))
-    logger.debug(s"New health monitor state: $data")
+    statusCache = statusCache + (subsystem -> CachedSubsystemStatus(status, System.currentTimeMillis))
+    logger.debug(s"New health monitor state: $statusCache")
   }
 
   private def getCurrentStatus: StatusCheckResponse = {
     val now = System.currentTimeMillis()
     // Convert any expired statuses to unknown
-    val processed = data map {
+    val processed = statusCache map {
       case (s, c) if now - c.created > staleThreshold.toMillis => s.name -> UnknownStatus
       case (s, c) => s.name -> c.status
     }
@@ -91,7 +91,7 @@ object HealthMonitorServiceActor {
   val UnknownStatus = SubsystemStatus(false, Option(List("Unknown status")))
   def failedStatus(message: String) = SubsystemStatus(false, Option(List(message)))
 
-  final case class MonitoredSubsystem(name: String, check: Unit => Future[SubsystemStatus])
+  final case class MonitoredSubsystem(name: String, check: () => Future[SubsystemStatus])
   final case class SubsystemStatus(ok: Boolean, messages: Option[List[String]])
   final case class CachedSubsystemStatus(status: SubsystemStatus, created: Long) // created is time in millis when status was captured
 

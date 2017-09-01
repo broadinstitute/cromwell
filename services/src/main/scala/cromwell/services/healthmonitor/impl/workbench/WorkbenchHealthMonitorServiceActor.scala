@@ -22,7 +22,7 @@ import scala.concurrent.Future
 class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config)
   extends HealthMonitorServiceActor
     with CommonMonitoredSubsystems {
-  implicit val as = context.system
+  implicit val actorSystem = context.system
 
   override lazy val subsystems: List[MonitoredSubsystem] = List(DockerHub, EngineDb, Papi, Gcs)
 

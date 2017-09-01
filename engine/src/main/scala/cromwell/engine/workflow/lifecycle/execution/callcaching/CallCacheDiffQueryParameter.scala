@@ -1,7 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.Validated._
-import cats.implicits._
+import cats.syntax.apply._
+import cats.syntax.validated._
 import cromwell.core.WorkflowId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import lenthall.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
@@ -41,15 +42,18 @@ object CallCacheDiffQueryParameter {
     val workflowAValidation = validateWorkflowId("workflowA")
     val workflowBValidation = validateWorkflowId("workflowB")
 
-    val callAValidation = extractAttribute("callA").map(_.trim)
-    val callBValidation = extractAttribute("callB").map(_.trim)
+    val callAValidation: ErrorOr[String] = extractAttribute("callA").map(_.trim)
+    val callBValidation: ErrorOr[String] = extractAttribute("callB").map(_.trim)
 
-    val indexAValidation = extractIndex("indexA")
-    val indexBValidation = extractIndex("indexB")
+    val indexAValidation: ErrorOr[Option[Int]] = extractIndex("indexA")
+    val indexBValidation: ErrorOr[Option[Int]] = extractIndex("indexB")
 
-    (workflowAValidation |@| callAValidation |@| indexAValidation |@|
-      workflowBValidation |@| callBValidation |@| indexBValidation) map {
-      case ((workflowA, callA, indexA, workflowB, callB, indexB)) =>
+    (workflowAValidation,
+      callAValidation,
+      indexAValidation,
+      workflowBValidation,
+      callBValidation,
+      indexBValidation) mapN { (workflowA, callA, indexA, workflowB, callB, indexB) =>
         CallCacheDiffQueryParameter(
           CallCacheDiffQueryCall(workflowA, callA, indexA),
           CallCacheDiffQueryCall(workflowB, callB, indexB)

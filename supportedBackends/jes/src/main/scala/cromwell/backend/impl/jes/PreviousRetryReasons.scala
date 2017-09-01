@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import lenthall.validation.ErrorOr.ErrorOr
 import cats.syntax.validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 
 import scala.util.{Failure, Success, Try}
 import JesBackendLifecycleActorFactory.preemptionCountKey
@@ -16,7 +16,7 @@ object PreviousRetryReasons {
     val validatedPreemptionCount = validatedKvResponse(prefetchedKvEntries.get(preemptionCountKey), preemptionCountKey)
     val validatedUnexpectedRetryCount = validatedKvResponse(prefetchedKvEntries.get(unexpectedRetryCountKey), unexpectedRetryCountKey)
 
-    validatedPreemptionCount |@| validatedUnexpectedRetryCount map { case (p, uf) => PreviousRetryReasons(p, uf) }
+    (validatedPreemptionCount, validatedUnexpectedRetryCount) mapN { PreviousRetryReasons.apply }
   }
 
   def apply(knownPreemptedCount: Int, knownUnexpectedRetryCount: Int, attempt: Int): PreviousRetryReasons = {

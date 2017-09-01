@@ -2,7 +2,7 @@ package cromwell
 
 import akka.pattern.GracefulStopSupport
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import cromwell.CommandLineParser._
@@ -136,7 +136,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val labelsJson = readJson("Workflow labels", args.workflowLabels)
 
     val sourceFileCollection = args.imports match {
-      case Some(p) => (workflowSource |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
+      case Some(p) => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
           workflowType = Option("WDL"),
@@ -146,7 +146,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           labelsJson = l,
           importsZip = p.loadBytes)
       }
-      case None => (workflowSource |@| inputsJson |@| optionsJson |@| labelsJson) map { (w, i, o, l) =>
+      case None => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
           workflowType = Option("WDL"),

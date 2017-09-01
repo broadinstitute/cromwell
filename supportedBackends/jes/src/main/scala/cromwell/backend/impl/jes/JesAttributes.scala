@@ -3,7 +3,7 @@ package cromwell.backend.impl.jes
 import java.net.{URI, URL}
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import cromwell.backend.impl.jes.authentication.JesAuths
@@ -89,10 +89,9 @@ object JesAttributes {
     } }
 
 
-    (project |@| executionBucket |@| endpointUrl |@| genomicsAuthName |@| genomicsRestrictMetadataAccess |@| gcsFilesystemAuthName |@|
-      qpsValidation |@| duplicationStrategy).tupled flatMap {
+    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy).tupled flatMap {
       case (p, b, u, genomicsName, restrictMetadata, gcsName, qps, cachingStrategy) =>
-      (googleConfig.auth(genomicsName) |@| googleConfig.auth(gcsName)) map { case (genomicsAuth, gcsAuth) =>
+      (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN { case (genomicsAuth, gcsAuth) =>
         JesAttributes(p, computeServiceAccount, JesAuths(genomicsAuth, gcsAuth), restrictMetadata, b, u, maxPollingInterval, qps, cachingStrategy)
       }
     } match {

@@ -2,7 +2,7 @@ package cromwell.backend.impl.jes
 
 import cats.syntax.validated._
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import com.typesafe.config.Config
 import cromwell.backend.MemorySize
 import cromwell.backend.impl.jes.io.{JesAttachedDisk, JesWorkingDisk}
@@ -158,9 +158,9 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[JesAttachedDisk]]
   }
 
   private def sequenceNels(nels: Seq[ErrorOr[JesAttachedDisk]]): ErrorOr[Seq[JesAttachedDisk]] = {
-    val emptyDiskNel = Vector.empty[JesAttachedDisk].validNel[String]
+    val emptyDiskNel: ErrorOr[Vector[JesAttachedDisk]] = Vector.empty[JesAttachedDisk].validNel
     val disksNel: ErrorOr[Vector[JesAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
-      (acc, v) => (acc |@| v) map { (a, v) => a :+ v }
+      (acc, v) => (acc, v) mapN { (a, v) => a :+ v }
     }
     disksNel
   }

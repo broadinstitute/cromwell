@@ -4,7 +4,7 @@ import java.io.IOException
 
 import cats.data.Validated._
 import cats.instances.list._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -118,7 +118,7 @@ object GoogleConfiguration {
       }
     }
 
-    (appName |@| errorOrAuthList) map { (_, _) } flatMap { case (name, list) =>
+    (appName, errorOrAuthList).tupled flatMap { case (name, list) =>
       uniqueAuthNames(list) map { _ =>
         GoogleConfiguration(name, list map { a => a.name -> a } toMap)
       }
@@ -127,7 +127,7 @@ object GoogleConfiguration {
       case Invalid(f) =>
         val errorMessages = f.toList.mkString(", ")
         log.error(errorMessages)
-        throw new GoogleConfigurationException(f.toList)
+        throw GoogleConfigurationException(f.toList)
     }
   }
 }

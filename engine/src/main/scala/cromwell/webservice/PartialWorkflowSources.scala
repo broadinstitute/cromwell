@@ -5,7 +5,7 @@ import cromwell.core.{WorkflowOptions, WorkflowOptionsJson, WorkflowSourceFilesC
 import wdl4s.wdl.{WorkflowJson, WorkflowSource}
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import lenthall.validation.ErrorOr.ErrorOr
 import cromwell.core._
 import org.slf4j.LoggerFactory
@@ -98,7 +98,7 @@ object PartialWorkflowSources {
 
     partialSources match {
       case Valid(partialSource) =>
-        (validateWorkflowSource(partialSource) |@| validateInputs(partialSource) |@| validateOptions(partialSource.workflowOptions)) map {
+        (validateWorkflowSource(partialSource), validateInputs(partialSource), validateOptions(partialSource.workflowOptions)) mapN {
           case (wfSource, wfInputs, wfOptions) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = wfSource,

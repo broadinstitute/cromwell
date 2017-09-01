@@ -2,7 +2,7 @@ package cromwell.core.labels
 
 import lenthall.validation.ErrorOr.ErrorOr
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 
 import scala.util.matching.Regex
@@ -35,7 +35,7 @@ object Label {
     val validatedKey = validateLabelKey(key)
     val validatedValue = validateLabelValue(value)
 
-    (validatedKey |@| validatedValue) map { case (k, v) => new Label(k, v) {} }
+    (validatedKey, validatedValue) mapN Label.apply
   }
 
   def apply(key: String, value: String) = {

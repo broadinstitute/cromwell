@@ -6,7 +6,7 @@ import cats.data.NonEmptyList
 import cats.data.Validated._
 import cats.instances.list._
 import cats.instances.vector._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
@@ -98,7 +98,7 @@ object MaterializeWorkflowDescriptorActor {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
-      (readFromCache |@| writeToCache) map {
+      (readFromCache, writeToCache) mapN {
         case (false, false) => CallCachingOff
         case (true, false) => CallCachingActivity(ReadCache, callCachingOptions)
         case (false, true) => CallCachingActivity(WriteCache, callCachingOptions)
@@ -205,7 +205,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val namespaceValidation = validateNamespace(sourceFiles)
     val labelsValidation = validateLabels(sourceFiles.labelsJson)
 
-    (namespaceValidation |@| labelsValidation).tupled flatMap { case (namespace, labels) =>
+    (namespaceValidation, labelsValidation).tupled flatMap { case (namespace, labels) =>
       pushWfNameMetadataService(namespace.workflow.unqualifiedName)
       publishLabelsToMetadata(id, namespace.workflow.unqualifiedName, labels)
       buildWorkflowDescriptor(id, sourceFiles, namespace, workflowOptions, labels, conf, pathBuilders)
@@ -246,7 +246,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val backendAssignmentsValidation = validateBackendAssignments(namespace.taskCalls, workflowOptions, defaultBackendName)
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
 
-    (rawInputsValidation |@| failureModeValidation |@| backendAssignmentsValidation |@| callCachingModeValidation).tupled flatMap {
+    (rawInputsValidation, failureModeValidation, backendAssignmentsValidation, callCachingModeValidation).tupled flatMap {
       case (rawInputs, failureMode, backendAssignments, callCachingMode) =>
         buildWorkflowDescriptor(id, namespace, rawInputs, backendAssignments, workflowOptions, labels, failureMode, pathBuilders, callCachingMode)
     }

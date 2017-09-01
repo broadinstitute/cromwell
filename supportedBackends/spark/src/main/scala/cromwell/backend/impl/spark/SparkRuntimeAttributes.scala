@@ -1,7 +1,7 @@
 package cromwell.backend.impl.spark
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import cromwell.backend.MemorySize
 import cromwell.backend.validation.RuntimeAttributesDefault._
@@ -12,7 +12,6 @@ import lenthall.validation.ErrorOr._
 import lenthall.exception.MessageAggregation
 import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType, WdlType}
 import wdl4s.wdl.values.{WdlBoolean, WdlInteger, WdlString, WdlValue}
-
 
 object SparkRuntimeAttributes {
   private val FailOnStderrDefaultValue = false
@@ -51,9 +50,7 @@ object SparkRuntimeAttributes {
     val numberOfExecutors = validateNumberOfExecutors(withDefaultValues.get(NumberOfExecutorsKey), None.validNel)
     val appMainCLass = validateAppEntryPoint(withDefaultValues(AppMainClassKey))
 
-    (executorCores |@| executorMemory |@| numberOfExecutors |@| appMainCLass |@| failOnStderr) map {
-      new SparkRuntimeAttributes(_, _, _, _, _)
-    } match {
+    (executorCores, executorMemory, numberOfExecutors, appMainCLass, failOnStderr) mapN { SparkRuntimeAttributes.apply } match {
       case Valid(x) => x
       case Invalid(nel) => throw new RuntimeException with MessageAggregation {
         override def exceptionContext: String = "Runtime attribute validation failed"

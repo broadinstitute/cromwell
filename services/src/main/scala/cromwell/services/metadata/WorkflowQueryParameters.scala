@@ -3,7 +3,7 @@ package cromwell.services.metadata
 import java.time.OffsetDateTime
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import cromwell.core.WorkflowId
 import cromwell.core.labels.Label
@@ -55,32 +55,36 @@ object WorkflowQueryParameters {
    */
   private [metadata] def runValidation(rawParameters: Seq[(String, String)]): ErrorOr[WorkflowQueryParameters] = {
 
-    val onlyRecognizedKeys = validateOnlyRecognizedKeys(rawParameters)
+    val onlyRecognizedKeysValidation = validateOnlyRecognizedKeys(rawParameters)
 
     val valuesByCanonicalCapitalization: Map[String, Seq[(String, String)]] =
       rawParameters groupBy { case (key, _) => key.toLowerCase.capitalize }
 
-    val Seq(startDate, endDate) = Seq(StartDate, EndDate) map { _.validate(valuesByCanonicalCapitalization) }
-
-    val Seq(statuses, names, ids) = Seq(Status, Name, WorkflowQueryKey.Id) map {
-      _.validate(valuesByCanonicalCapitalization)
-    }
-
-    val Seq(labels) = Seq(WorkflowQueryKey.LabelKeyValue) map { _.validate(valuesByCanonicalCapitalization) }
-
-    val Seq(page, pageSize) = Seq(Page, PageSize) map { _.validate(valuesByCanonicalCapitalization) }
+    val startDateValidation = StartDate.validate(valuesByCanonicalCapitalization)
+    val endDateValidation = EndDate.validate(valuesByCanonicalCapitalization)
+    val statusesValidation: ErrorOr[Set[String]] = Status.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val namesValidation: ErrorOr[Set[String]] = Name.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val workflowIdsValidation: ErrorOr[Set[WorkflowId]] = WorkflowQueryKey.Id.validate(valuesByCanonicalCapitalization).map(ids => (ids map WorkflowId.fromString).toSet)
+    val labelsValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val pageValidation = Page.validate(valuesByCanonicalCapitalization)
+    val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
-    val startBeforeEnd = (startDate, endDate) match {
+    val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
       case (Valid(s), Valid(e)) => validateStartBeforeEnd(s, e)
       case _ => ().validNel[String]
     }
 
-    (onlyRecognizedKeys |@| startBeforeEnd |@| statuses |@| names |@| ids |@| labels |@| startDate |@| endDate |@| page |@| pageSize) map {
-      case (_, _, status, name, uuid, label, start, end, _page, _pageSize) =>
-        val workflowId = uuid map WorkflowId.fromString
-        WorkflowQueryParameters(status.toSet, name.toSet, workflowId.toSet, label.toSet, start, end, _page, _pageSize)
-    }
+    (onlyRecognizedKeysValidation,
+      startBeforeEndValidation,
+      statusesValidation,
+      namesValidation,
+      workflowIdsValidation,
+      labelsValidation,
+      startDateValidation,
+      endDateValidation,
+      pageValidation,
+      pageSizeValidation) mapN { (_, _, statuses, names, ids, labels, startDate, endDate, page, pageSize) => WorkflowQueryParameters(statuses, names, ids, labels, startDate, endDate, page, pageSize) }
   }
 
   def apply(rawParameters: Seq[(String, String)]): WorkflowQueryParameters = {

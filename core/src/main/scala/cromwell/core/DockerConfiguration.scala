@@ -4,8 +4,9 @@ import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration.FiniteDuration
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import lenthall.exception.AggregatedMessageException
+import lenthall.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
 import lenthall.validation.Validation._
 
@@ -17,13 +18,13 @@ object DockerConfiguration {
     val gcrApiQueriesPer100Seconds = validate { dockerHashLookupConfig.as[Int]("gcr-api-queries-per-100-seconds") }
     val cacheEntryTtl = validate { dockerHashLookupConfig.as[FiniteDuration]("cache-entry-ttl") }
     val cacheSize = validate { dockerHashLookupConfig.as[Long]("cache-size") }
-    val method = validate { dockerHashLookupConfig.as[String]("method") } map {
+    val method: ErrorOr[DockerHashLookupMethod] = validate { dockerHashLookupConfig.as[String]("method") } map {
       case "local" => DockerLocalLookup
       case "remote" => DockerRemoteLookup
       case other => throw new IllegalArgumentException(s"Unrecognized docker hash lookup method: $other")
     }
 
-    val dockerConfiguration = (gcrApiQueriesPer100Seconds |@| cacheEntryTtl |@| cacheSize |@| method) map  DockerConfiguration.apply
+    val dockerConfiguration = (gcrApiQueriesPer100Seconds, cacheEntryTtl, cacheSize, method) mapN  DockerConfiguration.apply
     
     dockerConfiguration match {
       case Valid(conf) => conf

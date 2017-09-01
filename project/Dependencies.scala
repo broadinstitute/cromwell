@@ -1,18 +1,18 @@
 import sbt._
 
 object Dependencies {
-  lazy val lenthallV = "0.27"
-  lazy val wdl4sV = "0.16-8e70bee-SNAP"
+  lazy val lenthallV = "0.28-9440cc0-SNAP"
+  lazy val wdl4sV = "0.16-71dc141-SNAP"
 
-  lazy val akkaV = "2.5.3"
-  lazy val akkaHttpV = "10.0.9"
+  lazy val akkaV = "2.5.4"
+  lazy val akkaHttpV = "10.0.10"
 
   lazy val slickV = "3.2.0"
 
   lazy val googleClientApiV = "1.22.0"
   lazy val googleGenomicsServicesApiV = "1.22.0"
   lazy val betterFilesV = "2.17.1"
-  lazy val catsV = "0.9.0"
+  lazy val catsV = "1.0.0-MF"
   lazy val fs2V = "0.9.7"
 
   lazy val pegdownV = "1.6.0"
@@ -23,7 +23,7 @@ object Dependencies {
   private val fs2Test = "co.fs2" %% "fs2-io" % fs2V % "test"
 
   private val catsDependencies = List(
-    "org.typelevel" %% "cats" % catsV,
+    "org.typelevel" %% "cats-core" % catsV,
     "com.github.benhutchison" %% "mouse" % "0.9"
   ) map (_
     /*
@@ -33,6 +33,8 @@ object Dependencies {
     https://github.com/typelevel/cats/tree/v0.7.2#getting-started
     Re "_2.12", see also: https://github.com/sbt/sbt/issues/1518
      */
+    exclude("org.typelevel", "cats-laws_2.11")
+    exclude("org.typelevel", "cats-kernel-laws_2.11")
     exclude("org.typelevel", "cats-laws_2.12")
     exclude("org.typelevel", "cats-kernel-laws_2.12")
     )

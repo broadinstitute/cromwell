@@ -5,6 +5,7 @@ import java.util.concurrent.TimeoutException
 import akka.actor.Scheduler
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition}
 import akka.stream.FlowShape
+import cromwell.core.docker.{DockerCliClient, DockerCliKey}
 import cromwell.docker.DockerHashActor._
 import cromwell.docker.{DockerFlow, DockerHashActor, DockerHashResult, DockerImageIdentifierWithoutHash}
 

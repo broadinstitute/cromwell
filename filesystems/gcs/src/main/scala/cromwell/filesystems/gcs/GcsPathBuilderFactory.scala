@@ -1,39 +1,20 @@
 package cromwell.filesystems.gcs
 
 import akka.actor.ActorSystem
-import com.google.api.client.googleapis.media.MediaHttpUploader
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
-import com.typesafe.config.ConfigFactory
+import cromwell.cloudSupport.gcp.auth.GoogleAuthMode
+import cromwell.cloudSupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
-import cromwell.filesystems.gcs.auth.GoogleAuthMode
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.ExecutionContext
 
-object GcsPathBuilderFactory {
-
-  private[this] lazy val UploadBufferBytes = {
-    ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
-  }
-
-  val DefaultCloudStorageConfiguration = {
-    CloudStorageConfiguration.builder()
-      .blockSize(UploadBufferBytes)
-      .permitEmptyPathComponents(true)
-      .stripPrefixSlash(true)
-      .usePseudoDirectories(true)
-      .build()
-  }
-}
-
-case class GcsPathBuilderFactory(authMode: GoogleAuthMode,
-                                 applicationName: String,
-                                 retrySettings: Option[RetrySettings] = None,
-                                 cloudStorageConfiguration: CloudStorageConfiguration = GcsPathBuilderFactory.DefaultCloudStorageConfiguration)
-
+final case class GcsPathBuilderFactory(authMode: GoogleAuthMode,
+                                       applicationName: String,
+                                       retrySettings: Option[RetrySettings] = None,
+                                       cloudStorageConfiguration: CloudStorageConfiguration = GcsStorage.DefaultCloudStorageConfiguration)
   extends PathBuilderFactory {
 
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {

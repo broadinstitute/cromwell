@@ -8,8 +8,9 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardInitializationActor, StandardInitializationActorParams}
 import cromwell.backend.wfs.WorkflowPathBuilder
+import cromwell.cloudSupport.gcp.GoogleConfiguration
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
+import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
 

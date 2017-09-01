@@ -1,10 +1,10 @@
-package cromwell.filesystems.gcs.auth
+package cromwell.cloudSupport.gcp.auth
 
 import java.io.FileNotFoundException
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
-import better.files._
+import better.files.File
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
@@ -13,10 +13,10 @@ import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
+import cromwell.cloudSupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
+import GoogleAuthMode.checkReadable
 import cromwell.core.WorkflowOptions
 import cromwell.core.retry.Retry
-import cromwell.filesystems.gcs.auth.GoogleAuthMode._
-import cromwell.filesystems.gcs.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._

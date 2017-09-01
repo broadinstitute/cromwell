@@ -4,7 +4,7 @@ object Dependencies {
   lazy val lenthallV = "0.27"
   lazy val wdl4sV = "0.16-8e70bee-SNAP"
 
-  lazy val akkaV = "2.5.3"
+  lazy val akkaV = "2.5.4"
   lazy val akkaHttpV = "10.0.9"
 
   lazy val slickV = "3.2.0"

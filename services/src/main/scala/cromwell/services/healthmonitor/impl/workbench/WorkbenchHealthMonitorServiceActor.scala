@@ -7,6 +7,7 @@ import com.typesafe.config.Config
 import cromwell.cloudSupport.gcp.GoogleConfiguration
 import cromwell.cloudSupport.gcp.gcs.GcsStorage
 import cromwell.cloudSupport.gcp.genomics.GenomicsFactory
+import cromwell.core.WorkflowOptions
 import cromwell.services.healthmonitor.HealthMonitorServiceActor
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cromwell.services.healthmonitor.impl.CommonMonitoredSubsystems
@@ -40,7 +41,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     val rootExecutionBucket = papiConfig.as[String]("root").replace("gs://", "")
 
     val cred = googleConfig.auth(gcsAuthName) match {
-      case Valid(a) => a.credential
+      case Valid(a) => a.credential(WorkflowOptions.empty)
       case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
     }
 
@@ -61,7 +62,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     }
 
     val genomicsFactory = GenomicsFactory(googleConfig.applicationName, papiAuthMode, endpointUrl)
-    val genomicsInterface = papiAuthMode.credential() map genomicsFactory.fromCredentials
+    val genomicsInterface = papiAuthMode.credential(WorkflowOptions.empty) map genomicsFactory.fromCredentials
 
     genomicsInterface map { gi =>
       gi.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute()

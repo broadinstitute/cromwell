@@ -88,10 +88,10 @@ object HealthMonitorServiceActor {
   private case object CheckTickKey
 
   val OkStatus = SubsystemStatus(true, None)
-  val UnknownStatus = SubsystemStatus(false, Some(List("Unknown status")))
-  def failedStatus(message: String) = SubsystemStatus(false, Some(List(message)))
+  val UnknownStatus = SubsystemStatus(false, Option(List("Unknown status")))
+  def failedStatus(message: String) = SubsystemStatus(false, Option(List(message)))
 
-  final case class MonitoredSubsystem(name: String, check: () => Future[SubsystemStatus])
+  final case class MonitoredSubsystem(name: String, check: Unit => Future[SubsystemStatus])
   final case class SubsystemStatus(ok: Boolean, messages: Option[List[String]])
   final case class CachedSubsystemStatus(status: SubsystemStatus, created: Long) // created is time in millis when status was captured
 

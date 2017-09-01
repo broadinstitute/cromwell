@@ -75,8 +75,6 @@ sealed trait GoogleAuthMode {
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
   def credential(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials]
 
-  def credential()(implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = credential(WorkflowOptions.empty)
-
   def requiresAuthFile: Boolean = false
 
   protected def validateCredential(credential: Credentials) = {

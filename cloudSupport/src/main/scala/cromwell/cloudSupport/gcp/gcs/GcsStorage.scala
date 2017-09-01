@@ -51,7 +51,7 @@ object GcsStorage {
       .setCredentials(credentials)
 
     retrySettings foreach storageOptionsBuilder.setRetrySettings
-    project map storageOptionsBuilder.setProjectId
+    project foreach storageOptionsBuilder.setProjectId
 
     storageOptionsBuilder.build()
   }

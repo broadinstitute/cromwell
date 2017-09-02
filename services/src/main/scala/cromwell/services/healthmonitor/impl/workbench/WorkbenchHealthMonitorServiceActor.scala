@@ -13,6 +13,9 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsy
 import cromwell.services.healthmonitor.impl.CommonMonitoredSubsystems
 import net.ceedubs.ficus.Ficus._
 
+import cats.instances.future._
+import cats.syntax.functor._
+
 import scala.concurrent.Future
 
 /**
@@ -46,7 +49,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     }
 
     val storage = cred map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c) }
-    storage map { _.buckets.get(rootExecutionBucket).execute() } map { _ => OkStatus }
+    storage map { _.buckets.get(rootExecutionBucket).execute() } as OkStatus
   }
 
   /**
@@ -64,8 +67,6 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     val genomicsFactory = GenomicsFactory(googleConfig.applicationName, papiAuthMode, endpointUrl)
     val genomicsInterface = papiAuthMode.credential(WorkflowOptions.empty) map genomicsFactory.fromCredentials
 
-    genomicsInterface map { gi =>
-      gi.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute()
-    } map { _ => OkStatus }
+    genomicsInterface map { _.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute() } as OkStatus
   }
 }

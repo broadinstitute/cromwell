@@ -17,11 +17,9 @@ object GcsStorage {
   val JsonFactory = JacksonFactory.getDefaultInstance
   val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
 
-  private[this] lazy val UploadBufferBytes = {
-    ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
-  }
-
   val DefaultCloudStorageConfiguration = {
+    val UploadBufferBytes = ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
+    
     CloudStorageConfiguration.builder()
       .blockSize(UploadBufferBytes)
       .permitEmptyPathComponents(true)

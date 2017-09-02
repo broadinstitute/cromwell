@@ -4,6 +4,9 @@ import cromwell.core.docker.{DockerCliClient, DockerCliKey}
 import cromwell.services.EngineServicesStore
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 
+import cats.instances.future._
+import cats.syntax.functor._
+
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -30,7 +33,7 @@ trait CommonMonitoredSubsystems {
       } yield r
 
       res.get
-    } map { _ => OkStatus }
+    } as OkStatus
 
   }
 
@@ -38,6 +41,6 @@ trait CommonMonitoredSubsystems {
     * Demonstrates connectivity to the engine database by periodically making a small query
     */
   private def checkEngineDb(): Future[SubsystemStatus] = {
-    EngineServicesStore.engineDatabaseInterface.queryDockerHashStoreEntries("DOESNOTEXIST") map { _ => OkStatus }
+    EngineServicesStore.engineDatabaseInterface.queryDockerHashStoreEntries("DOESNOTEXIST") as OkStatus
   }
 }

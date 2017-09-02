@@ -15,7 +15,6 @@ import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.logging.LoggingTest._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.auth.SimpleClientSecrets
 import cromwell.util.{EncryptionSpec, SampleWdl}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito

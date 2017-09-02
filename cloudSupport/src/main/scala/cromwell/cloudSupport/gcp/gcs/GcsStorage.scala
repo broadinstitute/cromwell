@@ -19,7 +19,7 @@ object GcsStorage {
 
   val DefaultCloudStorageConfiguration = {
     val UploadBufferBytes = ConfigFactory.load().as[Option[Int]]("google.upload-buffer-bytes").getOrElse(MediaHttpUploader.MINIMUM_CHUNK_SIZE)
-    
+
     CloudStorageConfiguration.builder()
       .blockSize(UploadBufferBytes)
       .permitEmptyPathComponents(true)

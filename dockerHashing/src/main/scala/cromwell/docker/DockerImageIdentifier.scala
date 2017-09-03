@@ -42,14 +42,14 @@ object DockerImageIdentifier {
           :                                     # Tag separator. ':' is followed by a tag
        
           (                                     # Begin capturing group for reference 
-            [A-Za-z0-9]+(?:[.:_-][A-Za-z0-9]+)* # Reference
+            [A-Za-z0-9]+(?:[-.:_A-Za-z0-9]+)*   # Reference
           )                                     # End capturing group for reference  
        )?
        (?:   
           @                                     # Tag separator '@' is followed by a digest
              
           (                                     # Begin capturing group for reference 
-            [A-Za-z0-9]+(?:[.:_-][A-Za-z0-9]+)* # Reference
+            [A-Za-z0-9]+(?:[-.:_A-Za-z0-9]+)*   # Reference
           )                                     # End capturing group for reference  
        )?
        """.trim.r

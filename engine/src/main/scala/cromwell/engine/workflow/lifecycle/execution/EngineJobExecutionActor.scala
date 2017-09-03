@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, _}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, BackendJobDescriptorKey, BackendLifecycleActorFactory}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex

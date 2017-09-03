@@ -27,7 +27,7 @@ trait HttpInstrumentation extends CromwellInstrumentation {
     // Name of the method (e.g: GET)
     httpRequest.method.value,
     // Status code of the Response (e.g: 200)
-    httpResponse.status.intValue().toString
+    httpResponse.status.intValue.toString
   )
 
   private def sendTimingApi(statsDPath: InstrumentationPath, timing: FiniteDuration) = {
@@ -39,7 +39,8 @@ trait HttpInstrumentation extends CromwellInstrumentation {
     mapResponse { response =>
       /*
         * Send a metric corresponding to the request response time.
-        * Note: StatsD will automatically add a counter value so ne need to separately increment a counter.
+        * Note: The current StatsD implementation always pairs a timing metric with a counter metric
+        * So no need to explicitly send one
        */
       sendTimingApi(makeRequestPath(request, response), (System.currentTimeMillis - timeStamp).millis)
       response

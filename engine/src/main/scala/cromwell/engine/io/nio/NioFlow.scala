@@ -14,7 +14,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Codec
 
 object NioFlow {
-  def NooPOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
+  def NoopOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
 }
 
 /**
@@ -22,7 +22,7 @@ object NioFlow {
   */
 class NioFlow(parallelism: Int,
               scheduler: Scheduler,
-              onRetry: IoCommandContext[_] => Throwable => Unit = NioFlow.NooPOnRetry,
+              onRetry: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
               nbAttempts: Int = IoActor.MaxAttemptsNumber)(implicit ec: ExecutionContext, actorSystem: ActorSystem) {
   private val processCommand: DefaultCommandContext[_] => Future[IoResult] = commandContext => {
     val operationResult = Retry.withRetry(

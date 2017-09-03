@@ -1,7 +1,7 @@
 package cromwell.services.instrumentation.impl.statsd
 
 import cats.data.Validated._
-import cats.syntax.cartesian._
+import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import lenthall.exception.MessageAggregation
@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 case class StatsDConfig(hostname: String, port: Int, prefix: Option[String], flushRate: FiniteDuration)
 
 object StatsDConfig {
-  def apply(serviceConfig: Config) = {
+  def apply(serviceConfig: Config): StatsDConfig = {
     val statsDConfig = serviceConfig.getConfig("statsd")
 
     val hostname: ErrorOr[String] = validate[String] { statsDConfig.as[String]("hostname") }
@@ -22,11 +22,13 @@ object StatsDConfig {
     val prefix: ErrorOr[Option[String]] = statsDConfig.as[Option[String]]("prefix").validNel
     val flushRate: ErrorOr[FiniteDuration] = statsDConfig.as[FiniteDuration]("flush-rate").validNel
 
-    (hostname |@| port |@| prefix |@| flushRate).tupled match {
-      case Valid((h, p, n, f)) => new StatsDConfig(h, p, n, f)
-      case Invalid(message) => throw new IllegalArgumentException with MessageAggregation {
+    (hostname, port, prefix, flushRate) mapN { (h, p, n, f) => 
+      new StatsDConfig(h, p, n, f)
+    } match {
+      case Valid(config) => config
+      case Invalid(errors) => throw new IllegalArgumentException with MessageAggregation {
         override val exceptionContext = "StatsD config is invalid"
-        override val errorMessages = message.toList
+        override val errorMessages = errors.toList
       }
     }
   }

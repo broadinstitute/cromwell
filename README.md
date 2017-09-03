@@ -1931,11 +1931,18 @@ Make sure to configure your StatsD service:
 
 ```hocon
 services.Instrumentation.config.statsd {
-    hostname = "localhost" // Replace with your host
-    port = 8125 // Replace with your port
-    prefix = ""
-    flush-rate = 1 second
+    hostname = "localhost" # Replace with your host
+    port = 8125 # Replace with your port
+    # prefix = "my_prefix" # All metrics will be prefixed by this value if present.
+    flush-rate = 1 second # Rate at which metrics are sent to the StatsD server
   }
+```
+
+There is also an additional configuration value that can be set: 
+
+```hocon
+# Rate at which Cromwell updates its gauge values (number of workflows running, queued, etc...)
+system.instrumentation-rate = 5 seconds
 ```
 
 ### Metrics

@@ -21,8 +21,6 @@ object CromwellInstrumentation {
   
   implicit def stringToNel(str: String): NonEmptyList[String] = NonEmptyList.of(str)
   
-  val CromwellBaseBucket = CromwellBucket("cromwell")
-  
   implicit class EnhancedStatsDPath(val path: InstrumentationPath) extends AnyVal {
     def withStatusCodeFailure(code: Option[Int]) = code
       .map(c => path.concat(NonEmptyList.of(c.toString)))

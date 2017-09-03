@@ -16,6 +16,9 @@ and likely to change in the future.
 * **Bugfixes**
 Abort of Dockerized tasks on the Local backend should now work as expected as `docker kill` is used to kill the Docker container.
 
+* **StatsD**
+Added initial support for StatsD instrumentation. See the [README](https://github.com/broadinstitute/cromwell#statsd) for details on how to use it.
+
 ## 29 Release Notes
 
 ### Breaking Changes

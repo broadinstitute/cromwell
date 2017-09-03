@@ -11,14 +11,14 @@ import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPathBuilderFactory, GoogleConfiguration}
 import lenthall.exception.MessageAggregation
 import net.ceedubs.ficus.Ficus._
-import wdl4s.wdl.WdlTaskCall
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 
 case class TesInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
-  calls: Set[WdlTaskCall],
+  calls: Set[TaskCallNode],
   tesConfiguration: TesConfiguration,
   serviceRegistryActor: ActorRef
 ) extends StandardInitializationActorParams {

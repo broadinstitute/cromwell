@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._

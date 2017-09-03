@@ -9,10 +9,10 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
-import lenthall.util.TryUtil
 import wdl4s.parser.MemoryUnit
 
 import scala.concurrent.{Future, Promise}
@@ -61,15 +61,14 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
 
-  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
+//  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
   private val runtimeAttributes = {
-    val evaluateAttrs = call.task.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
-    // Fail the call if runtime attributes can't be evaluated
-    val runtimeMap = TryUtil.sequenceMap(evaluateAttrs, "Runtime attributes evaluation").get
-    SparkRuntimeAttributes(runtimeMap, jobDescriptor.workflowDescriptor.workflowOptions)
+    // TODO WOM: Fix
+    val evaluateAttrs = call.callable.runtimeAttributes.attrs//ask.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
+    SparkRuntimeAttributes(evaluateAttrs, jobDescriptor.workflowDescriptor.workflowOptions)
   }
 
   /**

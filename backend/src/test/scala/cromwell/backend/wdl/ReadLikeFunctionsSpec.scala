@@ -1,11 +1,9 @@
 package cromwell.backend.wdl
 
-import cromwell.core.path.PathBuilder
-import org.apache.commons.lang3.NotImplementedException
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.wdl.expression.PureStandardLibraryFunctionsLike
 import wdl4s.wdl.types.{WdlFileType, WdlIntegerType, WdlOptionalType}
-import wdl4s.wdl.values.{WdlFloat, WdlInteger, WdlOptionalValue, WdlSingleFile, WdlString, WdlValue}
+import wdl4s.wdl.values.{WdlFloat, WdlInteger, WdlOptionalValue, WdlSingleFile, WdlString}
 
 import scala.util.{Failure, Success, Try}
 
@@ -91,9 +89,5 @@ class ReadLikeFunctionsSpec extends FlatSpec with Matchers {
   }
 }
 
-
-class TestReadLikeFunctions(sizeResult: Try[Double]) extends PureStandardLibraryFunctionsLike with ReadLikeFunctions {
-  override protected def size(file: WdlValue): Try[Double] = sizeResult
-  override def pathBuilders: List[PathBuilder] = throw new NotImplementedException("Didn't expect ReadLikefunctionsSpec to need pathBuilders")
-}
-
+// TODO WOM: Fix
+class TestReadLikeFunctions(sizeResult: Try[Double]) extends PureStandardLibraryFunctionsLike

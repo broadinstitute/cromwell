@@ -6,7 +6,8 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{JobKey, WorkflowId}
 import org.mockito.Mockito._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.{WdlCall, WdlWorkflow}
+import wdl4s.wdl.WdlCall
+import wdl4s.wom.callable.WorkflowDefinition
 
 class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
@@ -29,16 +30,16 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     when(backendConfig.getString(any[String])).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
     
     val rootWd = mock[BackendWorkflowDescriptor]
-    val rootWorkflow = mock[WdlWorkflow]
+    val rootWorkflow = mock[WorkflowDefinition]
     val rootWorkflowId = WorkflowId.randomId()
-    rootWorkflow.unqualifiedName returns "rootWorkflow"
+    rootWorkflow.name returns "rootWorkflow"
     rootWd.workflow returns rootWorkflow
     rootWd.id returns rootWorkflowId
 
     val subWd = mock[BackendWorkflowDescriptor]
-    val subWorkflow = mock[WdlWorkflow]
+    val subWorkflow = mock[WorkflowDefinition]
     val subWorkflowId = WorkflowId.randomId()
-    subWorkflow.unqualifiedName returns "subWorkflow"
+    subWorkflow.name returns "subWorkflow"
     subWd.workflow returns subWorkflow
     subWd.id returns subWorkflowId
     
@@ -48,7 +49,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     call2.unqualifiedName returns "call2"
     
     val jobKey = new JobKey {
-      override def scope = call1
+      override def scope = null//call1
       override def tag: String = "tag1"
       override def index: Option[Int] = Option(1)
       override def attempt: Int = 2

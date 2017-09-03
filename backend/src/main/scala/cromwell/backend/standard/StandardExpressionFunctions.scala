@@ -22,11 +22,11 @@ case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: L
 class StandardExpressionFunctions(val standardParams: StandardExpressionFunctionsParams)
   extends GlobFunctions with ReadLikeFunctions with WriteFunctions {
 
-  override lazy val pathBuilders: List[PathBuilder] = standardParams.pathBuilders
+  override val pathBuilders: List[PathBuilder] = standardParams.pathBuilders
 
-  override lazy val callContext: CallContext = standardParams.callContext
+  val callContext: CallContext = standardParams.callContext
 
-  override lazy val writeDirectory: Path = callContext.root
+  val writeDirectory: Path = callContext.root
 
   override def stdout(params: Seq[Try[WdlValue]]): Try[WdlFile] = Success(WdlFile(callContext.stdout))
 

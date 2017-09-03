@@ -3,6 +3,7 @@ package cromwell.backend.io
 import cromwell.core.path.Path
 import cromwell.core.{CallContext, JobKey}
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.core.CromwellGraphNode._
 
 object JobPaths {
   val CallPrefix = "call"

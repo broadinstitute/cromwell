@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import akka.actor.ActorRef
 import cromwell.backend._
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.OutputStore.{OutputCallKey, OutputEntry}

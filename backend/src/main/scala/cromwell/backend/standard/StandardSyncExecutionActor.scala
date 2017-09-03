@@ -8,6 +8,7 @@ import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, Recover}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobExecutionActor}
 import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.core.CromwellGraphNode._
 
 import scala.concurrent.{Future, Promise}
 

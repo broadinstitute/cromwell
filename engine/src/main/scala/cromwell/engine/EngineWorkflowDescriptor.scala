@@ -4,11 +4,13 @@ import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
-import wdl4s.wdl._
+import wdl4s.wom.callable.WorkflowDefinition
+import wdl4s.wom.graph.TaskCallNode
 
-case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
+// TODO WOM: rename namespace to workflow
+case class EngineWorkflowDescriptor(namespace: WorkflowDefinition,
                                     backendDescriptor: BackendWorkflowDescriptor,
-                                    backendAssignments: Map[WdlTaskCall, String],
+                                    backendAssignments: Map[TaskCallNode, String],
                                     failureMode: WorkflowFailureMode,
                                     pathBuilders: List[PathBuilder],
                                     callCachingMode: CallCachingMode,
@@ -23,7 +25,7 @@ case class EngineWorkflowDescriptor(namespace: WdlNamespaceWithWorkflow,
   
   lazy val id = backendDescriptor.id
   lazy val workflow = backendDescriptor.workflow
-  lazy val name = workflow.unqualifiedName
+  lazy val name = workflow.name
   lazy val knownValues = backendDescriptor.knownValues
   
   def getWorkflowOption(key: WorkflowOption) = backendDescriptor.getWorkflowOption(key)

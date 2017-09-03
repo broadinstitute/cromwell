@@ -13,6 +13,8 @@ import wdl4s.wdl._
 import wdl4s.wdl.expression.PureStandardLibraryFunctions
 import wdl4s.wdl.types._
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.callable.TaskDefinition
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -38,7 +40,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   def serviceRegistryActor: ActorRef
 
-  def calls: Set[WdlTaskCall]
+  def calls: Set[TaskCallNode]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow
@@ -125,7 +127,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
           defaultRuntimeAttributes.get(name)
         }
 
-        def badRuntimeAttrsForTask(task: WdlTask) = {
+        def badRuntimeAttrsForTask(task: TaskDefinition) = {
           runtimeAttributeValidators map { case (attributeName, validator) =>
             val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
             attributeName -> ((value, validator(value)))
@@ -134,7 +136,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
           }
         }
 
-        calls map { _.task } flatMap badRuntimeAttrsForTask match {
+        calls map { _.callable } flatMap badRuntimeAttrsForTask match {
           case errors if errors.isEmpty => Future.successful(())
           case errors => Future.failed(RuntimeAttributeValidationFailures(errors.toList))
         }

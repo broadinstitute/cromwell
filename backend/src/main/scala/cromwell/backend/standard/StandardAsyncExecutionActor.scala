@@ -11,6 +11,7 @@ import cromwell.backend.async.{AbortedExecutionHandle, AsyncBackendJobExecutionA
 import cromwell.backend.validation._
 import cromwell.backend.wdl.{Command, OutputEvaluator, WdlFileMapper}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, BackendJobLifecycleActor}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent}

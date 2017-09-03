@@ -3,9 +3,10 @@ package cromwell.backend
 import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WdlValueJsonFormatter
 import lenthall.util.TryUtil
-import wdl4s.wdl.{WdlExpressionException, _}
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import wdl4s.wdl.expression.NoFunctions
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wdl.{WdlExpressionException, _}
+import wdl4s.wom.expression.IoFunctionSet
 
 import scala.util.{Success, Try}
 
@@ -19,12 +20,12 @@ case class RuntimeAttributeDefinition(name: String, factoryDefault: Option[WdlVa
 object RuntimeAttributeDefinition {
 
   def evaluateRuntimeAttributes(unevaluated: RuntimeAttributes,
-                                wdlFunctions: WdlStandardLibraryFunctions,
-                                evaluatedInputs: Map[Declaration, WdlValue]): Try[Map[String, WdlValue]] = {
-    val tryInputs = evaluatedInputs map { case (x, y) => x.unqualifiedName -> Success(y) }
+                                wdlFunctions: IoFunctionSet,
+                                evaluatedInputs: Map[String, WdlValue]): Try[Map[String, WdlValue]] = {
+    val tryInputs = evaluatedInputs map { case (x, y) => x -> Success(y) }
     val mapBasedLookup = buildMapBasedLookup(tryInputs) _
     val mapOfTries = unevaluated.attrs mapValues {
-      expr => expr.evaluate(mapBasedLookup, wdlFunctions)
+      expr => expr.evaluate(mapBasedLookup, NoFunctions)
     }
     TryUtil.sequenceMap(mapOfTries)
   }

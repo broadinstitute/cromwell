@@ -6,15 +6,14 @@ import cromwell.backend.impl.jes.JesBackendInitializationData
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.core.CallOutputs
-import cromwell.core.io.{IoCommand, IoTouchCommand}
+import cromwell.core.io.IoCommand
 import cromwell.core.path.Path
-import cromwell.core.simpleton.{WdlValueBuilder, WdlValueSimpleton}
+import cromwell.core.simpleton.WdlValueSimpleton
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import lenthall.util.TryUtil
-import wdl4s.wdl.values.WdlFile
 
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.Success
 
 class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) with GcsBatchCommandBuilder {
   
@@ -25,13 +24,15 @@ class JesBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
   override def processSimpletons(wdlValueSimpletons: Seq[WdlValueSimpleton], sourceCallRootPath: Path) = cachingStrategy match {
     case CopyCachedOutputs => super.processSimpletons(wdlValueSimpletons, sourceCallRootPath)
     case UseOriginalCachedOutputs =>
-      val touchCommands: Seq[Try[IoTouchCommand]] = wdlValueSimpletons collect {
-        case WdlValueSimpleton(_, wdlFile: WdlFile) => getPath(wdlFile.value) map touchCommand
-      }
+//      val touchCommands: Seq[Try[IoTouchCommand]] = wdlValueSimpletons collect {
+//        case WdlValueSimpleton(_, wdlFile: WdlFile) => getPath(wdlFile.value) map touchCommand
+//      }
       
-      TryUtil.sequence(touchCommands) map {
-        WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, wdlValueSimpletons) -> _.toSet
-      }
+//      TryUtil.sequence(touchCommands) map {
+//        WdlValueBuilder.toJobOutputs(jobDescriptor.call.task.outputs, wdlValueSimpletons) -> _.toSet
+//      }
+      // TODO WOM: Fix
+      Success((Map.empty, Set.empty))
   }
   
   override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = cachingStrategy match {

@@ -4,7 +4,8 @@ import better.files._
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.{JobKey, WorkflowId}
 import org.scalatest.{FlatSpec, Matchers}
-import wdl4s.wdl.{WdlCall, WdlWorkflow}
+import wdl4s.wom.callable.WorkflowDefinition
+import wdl4s.wom.graph.TaskCallNode
 
 class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
@@ -20,23 +21,23 @@ class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
 
   "WorkflowPaths" should "provide correct paths for a sub workflow" in {
     val rootWd = mock[BackendWorkflowDescriptor]
-    val rootWorkflow = mock[WdlWorkflow]
+    val rootWorkflow = mock[WorkflowDefinition]
     val rootWorkflowId = WorkflowId.randomId()
-    rootWorkflow.unqualifiedName returns "rootWorkflow"
+    rootWorkflow.name returns "rootWorkflow"
     rootWd.workflow returns rootWorkflow
     rootWd.id returns rootWorkflowId
 
     val subWd = mock[BackendWorkflowDescriptor]
-    val subWorkflow = mock[WdlWorkflow]
+    val subWorkflow = mock[WorkflowDefinition]
     val subWorkflowId = WorkflowId.randomId()
-    subWorkflow.unqualifiedName returns "subWorkflow"
+    subWorkflow.name returns "subWorkflow"
     subWd.workflow returns subWorkflow
     subWd.id returns subWorkflowId
     
-    val call1 = mock[WdlCall]
-    call1.unqualifiedName returns "call1"
-    val call2 = mock[WdlCall]
-    call2.unqualifiedName returns "call2"
+    val call1 = mock[TaskCallNode]
+    call1.name returns "call1"
+    val call2 = mock[TaskCallNode]
+    call2.name returns "call2"
     
     val jobKey = new JobKey {
       override def scope = call1

@@ -50,11 +50,11 @@ object StatsDInstrumentationServiceActor {
 class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config) extends Actor with DefaultInstrumented {
   val statsDConfig = StatsDConfig(serviceConfig)
 
-  override lazy val metricBaseName = MetricName(statsDConfig.prefix.getOrElse(""))
+  override lazy val metricBaseName = MetricName("cromwell")
 
   StatsDReporter
     .forRegistry(metricRegistry)
-    .prefixedWith(metricBaseName.name)
+    .prefixedWith(statsDConfig.prefix.orNull)
     .convertRatesTo(TimeUnit.SECONDS)
     .convertDurationsTo(TimeUnit.MILLISECONDS)
     .build(CromwellStatsD(statsDConfig.hostname, statsDConfig.port))
@@ -113,11 +113,6 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     * Adds a new timing value for this bucket
     */
   private def updateTiming(bucket: CromwellBucket, value: FiniteDuration) = {
-    /*
-      * We wouldn't need to separately increment the bucket if we were using statsD timer but because 
-      * metric-scala sends everything as a gauge we need to if we want to count them
-     */
     metrics.timer(bucket.toStatsDString(TimingInsert)).update(value)
-    increment(bucket)
   }
 }

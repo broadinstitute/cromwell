@@ -20,7 +20,7 @@ object StatsDConfig {
     val hostname: ErrorOr[String] = validate[String] { statsDConfig.as[String]("hostname") }
     val port: ErrorOr[Int] = validate[Int] { statsDConfig.as[Int]("port") }
     val prefix: ErrorOr[Option[String]] = statsDConfig.as[Option[String]]("prefix").validNel
-    val flushRate: ErrorOr[FiniteDuration] = statsDConfig.as[FiniteDuration]("flush-rate").validNel
+    val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration] { statsDConfig.as[FiniteDuration]("flush-rate") }
 
     (hostname, port, prefix, flushRate) mapN { (h, p, n, f) => 
       new StatsDConfig(h, p, n, f)

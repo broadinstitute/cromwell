@@ -2,20 +2,19 @@ package cromwell.backend.io
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import wdl4s.wdl.WdlTaskCall
-import wdl4s.wdl.expression.{NoFunctions, WdlStandardLibraryFunctions}
 import wdl4s.wdl.values._
+import wdl4s.wom.expression.IoFunctionSet
+import wdl4s.wom.graph.TaskCallNode
 
-trait GlobFunctions extends WdlStandardLibraryFunctions {
+trait GlobFunctions extends IoFunctionSet {
 
   def callContext: CallContext
 
-  def findGlobOutputs(call: WdlTaskCall, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
-    val globOutputs = call.task.findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions) collect {
-      case glob: WdlGlobFile => glob
-    }
+  def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): Set[WdlGlobFile] = {
+    // TODO WOM: How to get all the WdlGlobFile ?
+    val globOutputs = Set.empty[WdlGlobFile]
 
-    globOutputs.distinct.toSet
+    globOutputs
   }
 
   def globDirectory(glob: String): String = globName(glob) + "/"
@@ -29,7 +28,7 @@ trait GlobFunctions extends WdlStandardLibraryFunctions {
     * @param glob The glob. This is the same "pattern" passed to glob() below.
     * @return The path.
     */
-  override def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).pathAsString
+  def globPath(glob: String): String = callContext.root.resolve(globDirectory(glob)).pathAsString
 
   /**
     * Returns a list of path from the glob.

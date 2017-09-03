@@ -8,16 +8,19 @@ import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wdl4s.wdl._
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.callable.WorkflowDefinition
+import wdl4s.wom.graph.TaskCallNode
+import cromwell.core.CromwellGraphNode._
 
 import scala.util.Try
 
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: WdlTaskCall, index: Option[Int], attempt: Int) extends CallKey {
+case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attempt: Int) extends CallKey {
   def scope = call
   private val indexString = index map { _.toString } getOrElse "NA"
-  val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
+  val tag = s"${call.name}:$indexString:$attempt"
   def mkTag(workflowId: WorkflowId) = s"$workflowId:$this"
 }
 
@@ -27,17 +30,19 @@ case class BackendJobDescriptorKey(call: WdlTaskCall, index: Option[Int], attemp
 case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 key: BackendJobDescriptorKey,
                                 runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
-                                inputDeclarations: EvaluatedTaskInputs,
+                                inputDeclarations: Map[String, WdlValue],
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
-  val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => declaration.fullyQualifiedName -> value }
+  val fullyQualifiedInputs = inputDeclarations map { case (declaration, value) => 
+    key.call.fullyQualifiedName + "." + declaration -> value 
+  }
   val call = key.call
   override val toString = s"${key.mkTag(workflowDescriptor.id)}"
 }
 
 object BackendWorkflowDescriptor {
   def apply(id: WorkflowId,
-            workflow: WdlWorkflow,
+            workflow: WorkflowDefinition,
             knownValues: Map[FullyQualifiedName, WdlValue],
             workflowOptions: WorkflowOptions,
             customLabels: Labels) = {
@@ -49,7 +54,7 @@ object BackendWorkflowDescriptor {
   * For passing to a BackendActor construction time
   */
 case class BackendWorkflowDescriptor(id: WorkflowId,
-                                     workflow: WdlWorkflow,
+                                     workflow: WorkflowDefinition,
                                      knownValues: Map[FullyQualifiedName, WdlValue],
                                      workflowOptions: WorkflowOptions,
                                      customLabels: Labels,
@@ -58,7 +63,7 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
   val rootWorkflow = breadCrumbs.headOption.map(_.workflow).getOrElse(workflow)
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)
   
-  override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflow.unqualifiedName}]"
+  override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${workflow.name}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption
 }
 

@@ -13,8 +13,8 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core._
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
+import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
@@ -32,6 +32,7 @@ import spray.json._
 import wdl4s.wdl._
 import wdl4s.wdl.expression.NoFunctions
 import wdl4s.wdl.values.{WdlSingleFile, WdlString, WdlValue}
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -282,8 +283,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ = pushWfInputsToMetadataService(coercedValidatedFileInputs)
       evaluatedWorkflowsDeclarations <- validateDeclarations(namespace, workflowOptions, coercedValidatedFileInputs, pathBuilders)
       declarationsAndInputs <- checkTypes(evaluatedWorkflowsDeclarations ++ coercedValidatedFileInputs)
-      backendDescriptor = BackendWorkflowDescriptor(id, namespace.workflow, declarationsAndInputs, workflowOptions, labels)
-    } yield EngineWorkflowDescriptor(namespace, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
+      womDefinition <- namespace.workflow.womDefinition
+      backendDescriptor = BackendWorkflowDescriptor(id, womDefinition, declarationsAndInputs, workflowOptions, labels)
+      // TODO WOM: Clean up this mess
+      womBackendAssignments <- backendAssignments
+        .toList
+        .traverse[ErrorOr, (TaskCallNode, String)]({ case (task, backend) => task.womCallNode map { node => node.asInstanceOf[TaskCallNode] -> backend } })
+        .map(_.toMap)  
+    } yield EngineWorkflowDescriptor(womDefinition, backendDescriptor, womBackendAssignments, failureMode, pathBuilders, callCachingMode)
   }
 
   private def pushWfInputsToMetadataService(workflowInputs: WorkflowCoercedInputs): Unit = {

@@ -5,11 +5,11 @@ import cromwell.backend.impl.spark.SparkInitializationActor._
 import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.validation.RuntimeAttributesKeys._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
-import cromwell.core.WorkflowOptions
 import cromwell.core.Dispatcher.BackendDispatcher
-import wdl4s.wdl.WdlTaskCall
+import cromwell.core.WorkflowOptions
 import wdl4s.wdl.types.{WdlBooleanType, WdlIntegerType, WdlStringType}
 import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.graph.TaskCallNode
 
 import scala.concurrent.Future
 import scala.util.Try
@@ -19,14 +19,14 @@ object SparkInitializationActor {
     SparkRuntimeAttributes.NumberOfExecutorsKey, SparkRuntimeAttributes.AppMainClassKey)
 
   def props(workflowDescriptor: BackendWorkflowDescriptor,
-            calls: Set[WdlTaskCall],
+            calls: Set[TaskCallNode],
             configurationDescriptor: BackendConfigurationDescriptor,
             serviceRegistryActor: ActorRef): Props =
     Props(new SparkInitializationActor(workflowDescriptor, calls, configurationDescriptor, serviceRegistryActor)).withDispatcher(BackendDispatcher)
 }
 
 class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowDescriptor,
-                               override val calls: Set[WdlTaskCall],
+                               override val calls: Set[TaskCallNode],
                                override val configurationDescriptor: BackendConfigurationDescriptor,
                                override val serviceRegistryActor: ActorRef) extends BackendWorkflowInitializationActor {
 
@@ -55,7 +55,7 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
   override def validate(): Future[Unit] = {
     Future {
       calls foreach { call =>
-        val notSupportedAttributes = call.task.runtimeAttributes.attrs filterKeys { !SupportedKeys.contains(_) }
+        val notSupportedAttributes = call.callable.runtimeAttributes.attrs filterKeys { !SupportedKeys.contains(_) }
         if (notSupportedAttributes.nonEmpty) {
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
           log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by SparkBackend. Unsupported attributes will not be part of jobs executions.")

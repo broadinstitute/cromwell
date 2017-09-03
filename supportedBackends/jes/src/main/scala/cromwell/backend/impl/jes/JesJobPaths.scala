@@ -4,6 +4,7 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.core.CromwellGraphNode._
 
 object JesJobPaths {
   val JesLogPathKey = "jesLog"

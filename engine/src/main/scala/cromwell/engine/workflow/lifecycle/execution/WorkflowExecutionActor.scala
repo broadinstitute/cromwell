@@ -5,6 +5,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.BackendJobExecutionActor.{AbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.{AllBackendInitializationData, BackendJobDescriptorKey, JobExecutionMap}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionIndex._
 import cromwell.core.ExecutionStatus._
@@ -20,11 +21,10 @@ import cromwell.webservice.EngineStatsActor
 import lenthall.exception.ThrowableAggregation
 import lenthall.util.TryUtil
 import org.apache.commons.lang3.StringUtils
-import wdl4s.wdl.WdlExpression.ScopedLookupFunction
 import wdl4s.wdl._
-import wdl4s.wdl.expression.WdlFunctions
-import wdl4s.wdl.values.WdlArray.WdlArrayLike
-import wdl4s.wdl.values.{WdlBoolean, WdlOptionalValue, WdlString, WdlValue}
+import wdl4s.wdl.values.{WdlOptionalValue, WdlString, WdlValue}
+import wdl4s.wom.expression.{IoFunctionSet, WomExpression}
+import wdl4s.wom.graph.{ExpressionNode, GraphNode, ScatterNode, TaskCallNode}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -113,7 +113,7 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(BypassedCallResults(callOutputs), stateData) =>
       handleCallBypassed(callOutputs, stateData)
     case Event(BypassedDeclaration(declKey), stateData) =>
-      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.scope.wdlType), stateData)
+      handleDeclarationEvaluationSuccessful(declKey, WdlOptionalValue.none(declKey.scope.womType), stateData)
 
     // Failure
     // Initialization
@@ -270,33 +270,33 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     case class ResponseAndFinalState(response: WorkflowExecutionActorResponse,
                                      finalState: WorkflowExecutionActorTerminalState)
 
-    val responseAndState = workflowDescriptor.workflow.evaluateOutputs(
-      workflowDescriptor.knownValues,
-      data.expressionLanguageFunctions,
-      data.outputStore.fetchNodeOutputEntries
-    ) map { workflowOutputs =>
+    // TODO WOM: workflow outputs ? Just dump the outputStore for now...
        // For logging and metadata
-       val workflowScopeOutputs = workflowOutputs map {
-         case (output, value) => output.locallyQualifiedName(workflowDescriptor.workflow) -> value
+       val unscopedOutputs: Map[String, WdlValue] = data.outputStore.store flatMap {
+         case (outputCallKey, values) => values map { value =>
+           s"${outputCallKey.call.unqualifiedName}.${value.name}" -> value.wdlValue.get
+         }
        }
+    
+       val workflowScopeOutputs: Map[String, WdlValue] = unscopedOutputs map {
+         case (key, value) => s"${workflowDescriptor.workflow.name}.$key" -> value
+       }
+    
        workflowLogger.info(
-         s"""Workflow ${workflowDescriptor.workflow.unqualifiedName} complete. Final Outputs:
+         s"""Workflow ${workflowDescriptor.workflow.name} complete. Final Outputs:
              |${workflowScopeOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
        )
        pushWorkflowOutputMetadata(workflowScopeOutputs)
 
        // For cromwell internal storage of outputs
-       val unqualifiedWorkflowOutputs = workflowOutputs map {
+       val unqualifiedWorkflowOutputs = unscopedOutputs map {
          // JobOutput is poorly named here - a WorkflowOutput type would be better
-         case (output, value) => output.unqualifiedName -> JobOutput(value)
+         case (output, value) => output -> JobOutput(value)
        }
-      ResponseAndFinalState(
+      val responseAndState = ResponseAndFinalState(
         WorkflowExecutionSucceededResponse(data.jobExecutionMap, unqualifiedWorkflowOutputs),
         WorkflowExecutionSuccessfulState)
-    } recover {
-       case ex =>
-         ResponseAndFinalState(WorkflowExecutionFailedResponse(data.jobExecutionMap, ex), WorkflowExecutionFailedState)
-    } get
+    
     
     context.parent ! responseAndState.response
     goto(responseAndState.finalState) using data
@@ -417,11 +417,12 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def isInBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData) = {
-    val result = jobKey.scope.ancestry.exists {
-      case i: If => data.executionStore.isBypassedConditional(jobKey, i)
-      case _ => false
-    }
-    result
+//    val result = jobKey.scope.ancestry.exists {
+//      case i: If => data.executionStore.isBypassedConditional(jobKey, i)
+//      case _ => false
+//    }
+//    result
+    false
   }
 
   def processBypassedScope(jobKey: JobKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
@@ -429,11 +430,14 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
     Success(WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.Running)))
   }
 
-  def bypassedScopeResults(jobKey: JobKey): BypassedScopeResults = jobKey match {
-    case callKey: CallKey => BypassedCallResults(
-      Map(callKey -> (callKey.scope.outputs map { callOutput => callOutput.unqualifiedName -> JobOutput(WdlOptionalValue.none(callOutput.wdlType)) } toMap)))
-    case declKey: DeclarationKey => BypassedDeclaration(declKey)
-    case _ => throw new RuntimeException("Only calls and declarations might generate results when Bypassed")
+  def bypassedScopeResults(jobKey: JobKey): BypassedScopeResults = {
+//    jobKey match {
+//      case callKey: CallKey => BypassedCallResults(
+//        Map(callKey -> (callKey.scope.outputs map { callOutput => callOutput.unqualifiedName -> JobOutput(WdlOptionalValue.none(callOutput.wdlType)) } toMap)))
+//      case declKey: DeclarationKey => BypassedDeclaration(declKey)
+//      case _ => throw new RuntimeException("Only calls and declarations might generate results when Bypassed")
+//    }
+    throw new RuntimeException("Only calls and declarations might generate results when Bypassed")
   }
 
   def processRunnableStaticDeclaration(declaration: StaticDeclarationKey) = {
@@ -442,24 +446,25 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
   
   def processRunnableDynamicDeclaration(declaration: DynamicDeclarationKey, data: WorkflowExecutionActorData) = {
-    val scatterMap = declaration.index flatMap { i =>
-      // Will need update for nested scatters
-      declaration.scope.ancestry collectFirst { case s: Scatter => Map(s -> i) }
-    } getOrElse Map.empty[Scatter, Int]
+//    val scatterMap = declaration.index flatMap { i =>
+//      // Will need update for nested scatters
+//      declaration.scope.upstreamAncestry collectFirst { case s: Scatter => Map(s -> i) }
+//    } getOrElse Map.empty[Scatter, Int]
+//
+//    val lookup = declaration.scope.lookupFunction(
+//      workflowDescriptor.knownValues,
+//      data.expressionLanguageFunctions,
+//      data.outputStore.fetchNodeOutputEntries,
+//      scatterMap
+//    )
+//
+//    declaration.evaluate(lookup, data.expressionLanguageFunctions) match {
+//      case Success(result) => self ! DeclarationEvaluationSucceededResponse(declaration, result)
+//      case Failure(ex) => self ! DeclarationEvaluationFailedResponse(declaration, ex)
+//    }
 
-    val lookup = declaration.scope.lookupFunction(
-      workflowDescriptor.knownValues,
-      data.expressionLanguageFunctions,
-      data.outputStore.fetchNodeOutputEntries,
-      scatterMap
-    )
-
-    declaration.evaluate(lookup, data.expressionLanguageFunctions) match {
-      case Success(result) => self ! DeclarationEvaluationSucceededResponse(declaration, result)
-      case Failure(ex) => self ! DeclarationEvaluationFailedResponse(declaration, ex)
-    }
-
-    Success(WorkflowExecutionDiff(Map(declaration -> ExecutionStatus.Running)))
+//    Success(WorkflowExecutionDiff(Map(declaration -> ExecutionStatus.Running)))
+    Failure(new Exception("BOOM"))
   }
 
   private def processRunnableJob(jobKey: BackendJobDescriptorKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
@@ -523,45 +528,47 @@ case class WorkflowExecutionActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def processRunnableConditional(conditionalKey: ConditionalKey, data: WorkflowExecutionActorData): Try[WorkflowExecutionDiff] = {
-    val scatterMap = conditionalKey.index flatMap { i =>
-      // Will need update for nested scatters
-      conditionalKey.scope.ancestry collectFirst { case s: Scatter => Map(s -> i) }
-    } getOrElse Map.empty[Scatter, Int]
-
-    val lookup = conditionalKey.scope.lookupFunction(
-      workflowDescriptor.knownValues,
-      data.expressionLanguageFunctions,
-      data.outputStore.fetchNodeOutputEntries,
-      scatterMap
-    )
-
-    conditionalKey.scope.condition.evaluate(lookup, data.expressionLanguageFunctions) map {
-      case b: WdlBoolean =>
-        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
-        val result = WorkflowExecutionDiff(conditionalKey.populate(workflowDescriptor.knownValues) + (conditionalKey -> conditionalStatus))
-        result
-      case v: WdlValue => throw new RuntimeException(
-        s"'if' condition must evaluate to a boolean but instead got ${v.wdlType.toWdlString}")
-    }
+//    val scatterMap = conditionalKey.index flatMap { i =>
+//      // Will need update for nested scatters
+//      conditionalKey.scope.ancestry collectFirst { case s: Scatter => Map(s -> i) }
+//    } getOrElse Map.empty[Scatter, Int]
+//
+//    val lookup = conditionalKey.scope.lookupFunction(
+//      workflowDescriptor.knownValues,
+//      data.expressionLanguageFunctions,
+//      data.outputStore.fetchNodeOutputEntries,
+//      scatterMap
+//    )
+//
+//    conditionalKey.scope.condition.evaluate(lookup, data.expressionLanguageFunctions) map {
+//      case b: WdlBoolean =>
+//        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
+//        val result = WorkflowExecutionDiff(conditionalKey.populate(workflowDescriptor.knownValues) + (conditionalKey -> conditionalStatus))
+//        result
+//      case v: WdlValue => throw new RuntimeException(
+//        s"'if' condition must evaluate to a boolean but instead got ${v.wdlType.toWdlString}")
+//    }
+    Failure(new Exception("BOOM"))
   }
 
   private def processRunnableScatter(scatterKey: ScatterKey, data: WorkflowExecutionActorData, bypassed: Boolean): Try[WorkflowExecutionDiff] = {
-    val lookup = scatterKey.scope.lookupFunction(
-      workflowDescriptor.knownValues,
-      data.expressionLanguageFunctions,
-      data.outputStore.fetchNodeOutputEntries
-    )
-
-    if (bypassed) {
-      Success(WorkflowExecutionDiff(scatterKey.populate(0, Map.empty) + (scatterKey -> ExecutionStatus.Bypassed)))
-    } else {
-      scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
-        case WdlArrayLike(a) =>
-          WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.knownValues) + (scatterKey -> ExecutionStatus.Done))
-        case v: WdlValue => throw new RuntimeException(
-          s"Scatter collection must evaluate to an array but instead got ${v.wdlType.toWdlString}")
-      }
-    }
+//    val lookup = scatterKey.scope.lookupFunction(
+//      workflowDescriptor.knownValues,
+//      data.expressionLanguageFunctions,
+//      data.outputStore.fetchNodeOutputEntries
+//    )
+//
+//    if (bypassed) {
+//      Success(WorkflowExecutionDiff(scatterKey.populate(0, Map.empty) + (scatterKey -> ExecutionStatus.Bypassed)))
+//    } else {
+//      scatterKey.scope.collection.evaluate(lookup, data.expressionLanguageFunctions) map {
+//        case WdlArrayLike(a) =>
+//          WorkflowExecutionDiff(scatterKey.populate(a.value.size, workflowDescriptor.knownValues) + (scatterKey -> ExecutionStatus.Done))
+//        case v: WdlValue => throw new RuntimeException(
+//          s"Scatter collection must evaluate to an array but instead got ${v.wdlType.toWdlString}")
+//      }
+//    }
+    Failure(new Exception("BOOM"))
   }
 
   private def processRunnableCollector(collector: CollectorKey, data: WorkflowExecutionActorData, isInBypassed: Boolean): Try[WorkflowExecutionDiff] = {
@@ -666,7 +673,7 @@ object WorkflowExecutionActor {
   /**
     * Internal ADTs
     */
-  case class ScatterKey(scatter: Scatter) extends JobKey {
+  case class ScatterKey(scatter: ScatterNode) extends JobKey {
     override val scope = scatter
     override val index = None
     // When scatters are nested, this might become Some(_)
@@ -680,7 +687,7 @@ object WorkflowExecutionActor {
       * @return ExecutionStore of scattered children.
       */
     def populate(count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Map[JobKey, ExecutionStatus.Value] = {
-      val keys = this.scope.children flatMap {
+      val keys = this.scope.graph.nodes flatMap {
         explode(_, count, workflowCoercedInputs)
       }
       keys map {
@@ -688,20 +695,20 @@ object WorkflowExecutionActor {
       } toMap
     }
 
-    private def explode(scope: Scope, count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Seq[JobKey] = {
-      def makeCollectors(scope: Scope): Seq[CollectorKey] = scope match {
-        case call: WdlCall => List(CollectorKey(call, scatter, count))
-        case decl: Declaration => List(CollectorKey(decl, scatter, count))
-        case i: If => i.children.flatMap(makeCollectors)
+    private def explode(scope: GraphNode, count: Int, workflowCoercedInputs: WorkflowCoercedInputs): Seq[JobKey] = {
+      def makeCollectors(scope: GraphNode): Seq[CollectorKey] = scope match {
+        case call: TaskCallNode => List(CollectorKey(call, scatter, count))
+        case decl: ExpressionNode => List(CollectorKey(decl, scatter, count))
+//        case i: If => i.children.flatMap(makeCollectors)
       }
 
       (scope match {
-        case call: WdlTaskCall => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
-        case call: WdlWorkflowCall => (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
-        case declaration: Declaration => (0 until count) map { i => DeclarationKey(declaration, Option(i), workflowCoercedInputs) }
-        case conditional: If => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
-        case _: Scatter =>
-          throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
+        case call: TaskCallNode => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
+//        case call: WdlWorkflowCall => (0 until count) map { i => SubWorkflowKey(call, Option(i), 1) }
+//        case declaration: ExpressionNode => (0 until count) map { i => DeclarationKey(declaration, Option(i), workflowCoercedInputs) }
+//        case conditional: If => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
+//        case _: Scatter =>
+//          throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
         case e =>
           throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
       }) ++ makeCollectors(scope)
@@ -709,7 +716,7 @@ object WorkflowExecutionActor {
   }
 
   // Represents a scatter collection for a call in the execution store
-  case class CollectorKey(scope: Scope with WdlGraphNode, scatter: Scatter, scatterWidth: Int) extends JobKey {
+  case class CollectorKey(scope: GraphNode, scatter: ScatterNode, scatterWidth: Int) extends JobKey {
     override val index = None
     override val attempt = 1
     override val tag = s"Collector-${scope.unqualifiedName}"
@@ -730,53 +737,52 @@ object WorkflowExecutionActor {
       * @return ExecutionStore of scattered children.
       */
     def populate(workflowCoercedInputs: WorkflowCoercedInputs): Map[JobKey, ExecutionStatus.Value] = {
-      scope.children map {
-        keyify(_, workflowCoercedInputs) -> ExecutionStatus.NotStarted
-      } toMap
+//      scope.children map {
+//        keyify(_, workflowCoercedInputs) -> ExecutionStatus.NotStarted
+//      } toMap
+      Map.empty
     }
 
-    /**
-      * Make a JobKey for all of the contained scopes.
-      */
-    private def keyify(scope: Scope, workflowCoercedInputs: WorkflowCoercedInputs): JobKey = {
-      scope match {
-        case call: WdlTaskCall => BackendJobDescriptorKey(call, index, 1)
-        case call: WdlWorkflowCall => SubWorkflowKey(call, index, 1)
-        case declaration: Declaration => DeclarationKey(declaration, index, workflowCoercedInputs)
-        case i: If => ConditionalKey(i, index)
-        case scatter: Scatter if index.isEmpty => ScatterKey(scatter)
-        case _: Scatter =>
-          throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
-        case e =>
-          throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported in an If block.")
-      }
-    }
+//    /**
+//      * Make a JobKey for all of the contained scopes.
+//      */
+//    private def keyify(scope: GraphNode, workflowCoercedInputs: WorkflowCoercedInputs): JobKey = {
+//      scope match {
+//        case call: TaskCallNode => BackendJobDescriptorKey(call, index, 1)
+//        case call: WdlWorkflowCall => SubWorkflowKey(call, index, 1)
+//        case declaration: Declaration => DeclarationKey(declaration, index, workflowCoercedInputs)
+//        case i: If => ConditionalKey(i, index)
+//        case scatter: Scatter if index.isEmpty => ScatterKey(scatter)
+//        case _: Scatter =>
+//          throw new UnsupportedOperationException("Nested Scatters are not supported (yet) ... but you might try a sub workflow to achieve the same effect!")
+//        case e =>
+//          throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported in an If block.")
+//      }
+//    }
   }
 
   object DeclarationKey {
-    def apply(declaration: Declaration, index: ExecutionIndex, inputs: WorkflowCoercedInputs): DeclarationKey = {
+    def apply(declaration: ExpressionNode, index: ExecutionIndex, inputs: WorkflowCoercedInputs): DeclarationKey = {
       inputs.find(_._1 == declaration.fullyQualifiedName) match {
         case Some((_, value)) => StaticDeclarationKey(declaration, index, value)
-        case None => declaration.expression map { expression =>
-          DynamicDeclarationKey(declaration, index, expression)
-        } getOrElse {
-          throw new RuntimeException(s"Found a declaration ${declaration.fullyQualifiedName} without expression and without input value. This should have been a validation error.")
-        }
+        case None => DynamicDeclarationKey(declaration, index, declaration.instantiatedExpression.expression)
       }
     }
   }
     
   sealed trait DeclarationKey extends JobKey {
-    override val scope: Declaration
+    override val scope: ExpressionNode
     override val attempt = 1
     override val tag = s"Declaration-${scope.unqualifiedName}:${index.fromIndex}:$attempt"
   }
   
-  case class StaticDeclarationKey(scope: Declaration, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
+  case class StaticDeclarationKey(scope: ExpressionNode, index: ExecutionIndex, value: WdlValue) extends DeclarationKey
   
-  case class DynamicDeclarationKey(scope: Declaration, index: ExecutionIndex, requiredExpression: WdlExpression) extends DeclarationKey {
-    def evaluate(lookup: ScopedLookupFunction, wdlFunctions: WdlFunctions[WdlValue]) = {
-      requiredExpression.evaluate(lookup, wdlFunctions) flatMap scope.wdlType.coerceRawValue
+  case class DynamicDeclarationKey(scope: ExpressionNode, index: ExecutionIndex, requiredExpression: WomExpression) extends DeclarationKey {
+    import lenthall.validation.ErrorOr._
+    import lenthall.validation.Validation._
+    def evaluate(lookup: Map[String, WdlValue], wdlFunctions: IoFunctionSet) = {
+      requiredExpression.evaluateValue(lookup, wdlFunctions) flatMap { evaluated => scope.womType.coerceRawValue(evaluated).toErrorOr }
     }
   }
 

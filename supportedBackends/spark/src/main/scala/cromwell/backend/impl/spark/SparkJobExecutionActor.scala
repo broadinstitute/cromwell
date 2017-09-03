@@ -9,6 +9,7 @@ import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.wdl.Command
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendJobExecutionActor}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}

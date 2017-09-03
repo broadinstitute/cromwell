@@ -86,7 +86,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private[preparation] lazy val kvStoreKeysToPrefetch = factory.requestedKeyValueStoreKeys
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
-  private[preparation] def lookupKeyValueEntries(inputs: Map[Declaration, WdlValue],
+  private[preparation] def lookupKeyValueEntries(inputs: Map[String, WdlValue],
                                                  attributes: Map[LocallyQualifiedName, WdlValue],
                                                  maybeCallCachingEligible: MaybeCallCachingEligible) = {
     val keysToLookup: Seq[ScopedKey] = kvStoreKeysToPrefetch map scopedKey
@@ -101,7 +101,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     } yield (evaluatedInputs, runtimeAttributes)
   }
 
-  private def fetchDockerHashesIfNecessary(inputs: Map[Declaration, WdlValue], attributes: Map[LocallyQualifiedName, WdlValue]) = {
+  private def fetchDockerHashesIfNecessary(inputs: Map[String, WdlValue], attributes: Map[LocallyQualifiedName, WdlValue]) = {
     def sendDockerRequest(dockerImageId: DockerImageIdentifierWithoutHash) = {
       val dockerHashRequest = DockerHashRequest(dockerImageId, dockerHashCredentials)
       val newData = JobPreparationDockerLookupData(dockerHashRequest, inputs, attributes)
@@ -136,7 +136,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   /**
     * Either look up KVs or build the JobDescriptor with empty KV map and respond.
     */
-  private def lookupKvsOrBuildDescriptorAndStop(inputs: Map[Declaration, WdlValue],
+  private def lookupKvsOrBuildDescriptorAndStop(inputs: Map[String, WdlValue],
                                                 attributes: Map[LocallyQualifiedName, WdlValue],
                                                 maybeCallCachingEligible: MaybeCallCachingEligible) = {
     if (kvStoreKeysToPrefetch.nonEmpty) lookupKeyValueEntries(inputs, attributes, maybeCallCachingEligible)
@@ -169,7 +169,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                              ioActor: ActorRef,
                                              backendSingletonActor: Option[ActorRef]) = factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor)
 
-  private[preparation] def prepareBackendDescriptor(inputEvaluation: Map[Declaration, WdlValue],
+  private[preparation] def prepareBackendDescriptor(inputEvaluation: Map[String, WdlValue],
                                                     runtimeAttributes: Map[LocallyQualifiedName, WdlValue],
                                                     maybeCallCachingEligible: MaybeCallCachingEligible,
                                                     prefetchedJobStoreEntries: Map[String, KvResponse]): BackendJobPreparationSucceeded = {
@@ -177,12 +177,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
   }
 
-  private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[Declaration, WdlValue]): Try[Map[LocallyQualifiedName, WdlValue]] = {
+  private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[String, WdlValue]): Try[Map[LocallyQualifiedName, WdlValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
     val curriedAddDefaultsToAttributes = addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
 
     for {
-      unevaluatedRuntimeAttributes <- Try(jobKey.call.task.runtimeAttributes)
+      unevaluatedRuntimeAttributes <- Try(jobKey.call.callable.runtimeAttributes)
       evaluatedRuntimeAttributes <- evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation)
     } yield curriedAddDefaultsToAttributes(evaluatedRuntimeAttributes)
   }
@@ -194,10 +194,10 @@ object JobPreparationActor {
   case object JobPreparationActorNoData extends JobPreparationActorData
   private final case class JobPreparationKeyLookupData(keyLookups: PartialKeyValueLookups,
                                                        maybeCallCachingEligible: MaybeCallCachingEligible,
-                                                       inputs: Map[Declaration, WdlValue],
+                                                       inputs: Map[String, WdlValue],
                                                        attributes: Map[LocallyQualifiedName, WdlValue]) extends JobPreparationActorData
   private final case class JobPreparationDockerLookupData(dockerHashRequest: DockerHashRequest,
-                                                          inputs: Map[Declaration, WdlValue],
+                                                          inputs: Map[String, WdlValue],
                                                           attributes: Map[LocallyQualifiedName, WdlValue]) extends JobPreparationActorData
 
   sealed trait JobPreparationActorState

@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.backend.standard._
-import wdl4s.wdl.WdlTaskCall
+import wdl4s.wom.graph.TaskCallNode
 
 case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
@@ -17,7 +17,7 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
 
   val tesConfiguration = new TesConfiguration(configurationDescriptor)
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[WdlTaskCall],
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
                                                  serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {
     TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
   }

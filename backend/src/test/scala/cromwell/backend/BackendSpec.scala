@@ -12,7 +12,6 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
 import wdl4s.wdl._
-import wdl4s.wdl.expression.NoFunctions
 import wdl4s.wdl.values.WdlValue
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito {
@@ -29,7 +28,7 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                               runtime: String = "") = {
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
+      null, //WdlNamespaceWithWorkflow.load(workflowSource.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver]).get.workflow, // Get ok, this is a test!
       inputs,
       options,
       Labels.empty
@@ -50,24 +49,26 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           inputs: Map[String, WdlValue],
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
-    val call = workflowDescriptor.workflow.taskCalls.head
-    val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions).get // .get is ok because this is a test
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
-    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+//    val call = workflowDescriptor.workflow.taskCalls.head
+//    val jobKey = BackendJobDescriptorKey(call, None, 1)
+//    val inputDeclarations = call.evaluateTaskInputs(inputs, NoFunctions).get // .get is ok because this is a test
+//    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
+//    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
+//    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+    null
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WorkflowSource,
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdl)
-    val call = workflowDescriptor.workflow.taskCalls.head
-    val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
-    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+//    val workflowDescriptor = buildWorkflowDescriptor(wdl)
+//    val call = workflowDescriptor.workflow.taskCalls.head
+//    val jobKey = BackendJobDescriptorKey(call, None, 1)
+//    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
+//    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
+//    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
+//    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+    null
   }
 
   def jobDescriptorFromSingleCallWorkflow(wdl: WorkflowSource,
@@ -75,13 +76,14 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
                                           attempt: Int,
                                           options: WorkflowOptions,
                                           runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition]): BackendJobDescriptor = {
-    val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
-    val call = workflowDescriptor.workflow.taskCalls.head
-    val jobKey = BackendJobDescriptorKey(call, None, attempt)
-    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
-    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
-    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+//    val workflowDescriptor = buildWorkflowDescriptor(wdl, runtime = runtime)
+//    val call = workflowDescriptor.workflow.taskCalls.head
+//    val jobKey = BackendJobDescriptorKey(call, None, attempt)
+//    val inputDeclarations = fqnMapToDeclarationMap(workflowDescriptor.knownValues)
+//    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(call.task.runtimeAttributes, NoFunctions, inputDeclarations).get // .get is OK here because this is a test
+//    val runtimeAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, options)(evaluatedAttributes)
+//    BackendJobDescriptor(workflowDescriptor, jobKey, runtimeAttributes, inputDeclarations, NoDocker, Map.empty)
+    null
   }
 
   def assertResponse(executionResponse: BackendJobExecutionResponse, expectedResponse: BackendJobExecutionResponse) = {
@@ -117,8 +119,9 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito {
   }
 
   def firstJobDescriptorKey(workflowDescriptor: BackendWorkflowDescriptor): BackendJobDescriptorKey = {
-    val call = workflowDescriptor.workflow.taskCalls.head
-    BackendJobDescriptorKey(call, None, 1)
+//    val call = workflowDescriptor.workflow.taskCalls.head
+//    BackendJobDescriptorKey(call, None, 1)
+    null
   }
 
   def firstJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,

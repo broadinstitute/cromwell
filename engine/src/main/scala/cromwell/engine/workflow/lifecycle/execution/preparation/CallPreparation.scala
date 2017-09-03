@@ -1,16 +1,18 @@
 package cromwell.engine.workflow.lifecycle.execution.preparation
 
 import akka.actor.Props
+import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.BackendJobDescriptor
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.{CallKey, JobKey}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.OutputStore
-import wdl4s.wdl.exception.VariableLookupException
-import wdl4s.wdl.expression.WdlStandardLibraryFunctions
+import lenthall.validation.ErrorOr.ErrorOr
 import wdl4s.wdl.values.WdlValue
-import wdl4s.wdl.{Declaration, Scatter}
+import wdl4s.wom.expression.IoFunctionSet
 
-import scala.util.{Failure, Try}
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object CallPreparation {
   sealed trait CallPreparationActorCommands
@@ -25,21 +27,35 @@ object CallPreparation {
 
   def resolveAndEvaluateInputs(callKey: CallKey,
                                workflowDescriptor: EngineWorkflowDescriptor,
-                               expressionLanguageFunctions: WdlStandardLibraryFunctions,
-                               outputStore: OutputStore): Try[Map[Declaration, WdlValue]] = {
+                               expressionLanguageFunctions: IoFunctionSet,
+                               outputStore: OutputStore): Try[Map[String, WdlValue]] = {
+    import cats.instances.list._
+    import cats.syntax.traverse._
     val call = callKey.scope
-    val scatterMap = callKey.index flatMap { i =>
-      // Will need update for nested scatters
-      call.ancestry collectFirst { case s: Scatter => Map(s -> i) }
-    } getOrElse Map.empty[Scatter, Int]
+    val womOutputStore = outputStore.toWomOutputStore
 
-    call.evaluateTaskInputs(
-      workflowDescriptor.backendDescriptor.knownValues,
-      expressionLanguageFunctions,
-      outputStore.fetchNodeOutputEntries,
-      scatterMap
-    ) recoverWith {
-      case t: Throwable => Failure[Map[Declaration, WdlValue]](new VariableLookupException(s"Couldn't resolve all inputs for ${callKey.scope.fullyQualifiedName} at index ${callKey.index}.", List(t)))
+    val inputMappingsFromPreviousCalls: Map[String, WdlValue] = call.inputPorts.map { inputPort =>
+      val outputPort = inputPort.upstream
+      // TODO WOM: scatters ?
+      outputPort.unqualifiedName -> womOutputStore.get(outputPort).getOrElse(throw new IllegalStateException(s"Can't find output value for $outputPort"))
+    } toMap
+    
+    // Note to self: maybe what we want is all portBasedInputs + expressionBasedInput
+    // Expression based we have already, we could add portBasedInputs by finding the corresponding value of their upstream output port
+    // We still have a Map[String, WdlValue] though because expressionBasedInput only gives us Strings
+    // Note to self 2: looks like all inputs is actually call.callable.inputs
+    // Should we map those to either expressionBasedInputs or portBased, and if no match error ? (which I think couldn't happen since wom validated that already?)
+    // Should the final type be Map[InputDefinition, WdlValue] ? Will need to coerce to the InputDefinition declared type too.
+    // We might lose the ability to get an FQN for the inputs then. Does it matter ?
+    
+    val allInputMappings = inputMappingsFromPreviousCalls ++ workflowDescriptor.backendDescriptor.knownValues
+    val evaluated: Map[String, ErrorOr[WdlValue]] = call.expressionBasedInputs map {
+      case (name, expr) => name -> expr.expression.evaluateValue(allInputMappings, expressionLanguageFunctions)
+    }
+
+    evaluated.toList.traverse[ErrorOr, (String, WdlValue)]({case (a, b) => b.map(c => (a,c))}).map(_.toMap) match {
+      case Valid(res) => Success(res)
+      case Invalid(f) => Failure(new Exception(f.toList.mkString(", ")))
     }
   }
 }

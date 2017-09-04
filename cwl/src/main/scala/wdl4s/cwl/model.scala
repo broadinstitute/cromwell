@@ -202,12 +202,14 @@ case class Dirent(
 
 
 case class EnvVarRequirement(
-                              `class`: EnvVarRequirement.`class`.type = EnvVarRequirement.`class`,
+                              `class`: EnvVarRequirement.ClassType = EnvVarRequirement.`class`,
                               envDef: Array[EnvironmentDef]
                             )
 
 object EnvVarRequirement {
-  val `class` : Witness.`"EnvVarRequirement"`.T = "EnvVarRequirement".narrow
+  type ClassType = Witness.`"EnvVarRequirement"`.T
+
+  val `class`: ClassType = "EnvVarRequirement".asInstanceOf[ClassType]
 }
 
 case class EnvironmentDef(envName: String, envValue: StringOrExpression) {

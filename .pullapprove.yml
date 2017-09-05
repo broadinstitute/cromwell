@@ -1,10 +1,19 @@
-approve_by_comment: true
-approve_regex: ':\+1:'
-reset_on_push: false
-author_approval: ignored
-reviewers:
+# enabling version 2 turns github reviews on by default
+version: 2
+group_defaults:
+  approve_by_comment:
+    enabled: true
+    approve_regex: ':\+1:'
+  reset_on_push:
+    enabled: false
+groups:
+  reviewers:
     required: 2
-    members:
+    github_reviews:
+      enabled: true
+    author_approval:
+      ignored: true
+    users:
         - Horneth
         - cjllanwarne
         - geoffjentry
@@ -14,3 +23,4 @@ reviewers:
         - kshakir
         - mcovarr
         - ruchim
+        - danbills

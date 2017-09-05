@@ -21,9 +21,9 @@ object EnhancedCollections {
       * val xs: Set[Object]
       * val strings: Set[String] = xs.filterByType[String]
       */
-    def filterByType[T <: T2](implicit tag: ClassTag[T], bf: CanBuildFrom[Repr, T, That]): That = traversable.collect {
-      case t: T => t
-    }
+    def filterByType[T <: T2](implicit tag: ClassTag[T], bf: CanBuildFrom[Repr, T, That]): That = traversable.collect { case t: T => t }
+
+    def firstByType[T <: T2](implicit tag: ClassTag[T]): Option[T] = traversable collectFirst { case t: T => t }
   }
 }
 

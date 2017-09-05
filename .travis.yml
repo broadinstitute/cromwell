@@ -2,12 +2,12 @@ sudo: false
 install: pip install cwltool
 language: scala
 scala:
-  - 2.11.7
+  - 2.12.3
 jdk:
   - oraclejdk8
-script: sbt clean coverage test
+script: sbt clean +coverage +test
 after_success:
-  - sbt coverageReport coveralls
+  - sbt coverageReport coverageAggregate coveralls
   - src/bin/after_success.sh
 deploy:
   provider: script

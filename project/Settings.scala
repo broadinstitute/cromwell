@@ -98,7 +98,7 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) := (baseSettings ++ warningSettings),
-    crossScalaVersions := List("2.11.8", "2.12.3")
+    crossScalaVersions := List("2.11.11", "2.12.3")
   )
 
   val womSettings = List(

@@ -1,12 +1,10 @@
 package wdl4s.cwl
 
-import shapeless.syntax.singleton._
 import cats.syntax.foldable._
 import cats.syntax.traverse._
 import cats.instances.list._
 import cats.syntax.option._
 import CwlType._
-import shapeless.syntax.singleton._
 import shapeless._
 import CwlVersion._
 import cats.data.Validated._
@@ -21,7 +19,7 @@ import wdl4s.wom.graph._
 
 case class Workflow(
                      cwlVersion: Option[CwlVersion] = Option(CwlVersion.Version1),
-                     `class`: Workflow.`class`.type = Workflow.`class`,
+                     `class`: Workflow.ClassType = Workflow.`class`,
                      inputs: Array[InputParameter] = Array.empty,
                      outputs: Array[WorkflowOutputParameter] = Array.empty,
                      steps: Array[WorkflowStep]) {
@@ -112,6 +110,7 @@ case class Workflow(
 }
 object Workflow {
 
-  val `class`: Witness.`"Workflow"`.T = "Workflow".narrow
-}
+  type ClassType = Witness.`"Workflow"`.T
 
+  val `class`: ClassType = "Workflow".asInstanceOf[ClassType]
+}

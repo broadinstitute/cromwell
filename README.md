@@ -35,7 +35,7 @@ To use in your Maven project add the following dependency
 ```xml
 <dependency>
     <groupId>org.broadinstitute</groupId>
-    <artifactId>wdl4s_2.11</artifactId>
+    <artifactId>wdl4s_2.12</artifactId>
     <version>${version}</version>
 </dependency>
 ```
@@ -335,4 +335,3 @@ AstTools.findAsts(ast, "Task") foreach {ast =>
   println(s"Task name: ${ast.getAttribute("name").sourceString}")
 }
 ```
-

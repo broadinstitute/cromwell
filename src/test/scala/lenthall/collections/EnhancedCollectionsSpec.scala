@@ -19,4 +19,9 @@ class EnhancedCollectionsSpec extends FlatSpec with Matchers {
 
     intSet should be(Set(3))
   }
+
+  it should "find the first Int in a List" in {
+    val objectSet = List("hello", 3, None, 4, "world")
+    objectSet.firstByType[Int] should be(Some(3))
+  }
 }

@@ -24,7 +24,8 @@ trait SampleWdl extends TestFileUtil {
       workflowOptionsJson = workflowOptions,
       labelsJson = labels,
       workflowType = workflowType,
-      workflowTypeVersion = workflowTypeVersion)
+      workflowTypeVersion = workflowTypeVersion,
+      warnings = Vector.empty)
   }
 
   val rawInputs: WorkflowRawInputs

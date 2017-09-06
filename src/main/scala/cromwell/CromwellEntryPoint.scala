@@ -17,7 +17,7 @@ import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -139,21 +139,23 @@ object CromwellEntryPoint extends GracefulStopSupport {
       case Some(p) => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
-          workflowType = Option("WDL"),
-          workflowTypeVersion = None,
+          workflowType = args.workflowType,
+          workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
           workflowOptionsJson = o,
           labelsJson = l,
-          importsZip = p.loadBytes)
+          importsZip = p.loadBytes,
+          warnings = Vector.empty)
       }
       case None => (workflowSource, inputsJson, optionsJson, labelsJson) mapN { (w, i, o, l) =>
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
-          workflowType = Option("WDL"),
-          workflowTypeVersion = None,
+          workflowType = args.workflowType,
+          workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
           workflowOptionsJson = o,
-          labelsJson = l
+          labelsJson = l,
+          warnings = Vector.empty
         )
       }
     }

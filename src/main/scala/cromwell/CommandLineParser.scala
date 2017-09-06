@@ -1,6 +1,7 @@
 package cromwell
 
 import com.typesafe.config.ConfigFactory
+import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import scopt.OptionParser
 
@@ -14,8 +15,8 @@ object CommandLineParser extends App {
                                   workflowSource: Option[Path] = None,
                                   workflowInputs: Option[Path] = None,
                                   workflowOptions: Option[Path] = None,
-                                  workflowType: Option[String] = Option("WDL"),
-                                  workflowTypeVersion: Option[String] = Option("v2.0-draft"),
+                                  workflowType: Option[String] = WorkflowOptions.defaultWorkflowType,
+                                  workflowTypeVersion: Option[String] = WorkflowOptions.defaultWorkflowTypeVersion,
                                   workflowLabels: Option[Path] = None,
                                   imports: Option[Path] = None,
                                   metadataOutput: Option[Path] = None

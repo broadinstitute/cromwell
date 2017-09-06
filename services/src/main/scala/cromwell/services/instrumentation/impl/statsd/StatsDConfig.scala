@@ -22,14 +22,11 @@ object StatsDConfig {
     val prefix: ErrorOr[Option[String]] = statsDConfig.as[Option[String]]("prefix").validNel
     val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration] { statsDConfig.as[FiniteDuration]("flush-rate") }
 
-    (hostname, port, prefix, flushRate) mapN { (h, p, n, f) => 
+    (hostname, port, prefix, flushRate).mapN({ (h, p, n, f) => 
       new StatsDConfig(h, p, n, f)
-    } match {
-      case Valid(config) => config
-      case Invalid(errors) => throw new IllegalArgumentException with MessageAggregation {
-        override val exceptionContext = "StatsD config is invalid"
-        override val errorMessages = errors.toList
-      }
-    }
+    }).valueOr(errors => throw new IllegalArgumentException with MessageAggregation {
+      override val exceptionContext = "StatsD config is invalid"
+      override val errorMessages = errors.toList
+    })
   }
 }

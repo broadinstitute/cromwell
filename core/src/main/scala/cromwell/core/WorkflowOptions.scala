@@ -3,6 +3,7 @@ package cromwell.core
 import com.typesafe.config.ConfigFactory
 import lenthall.util.TryUtil
 import spray.json._
+import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -131,6 +132,10 @@ object WorkflowOptions {
   }
 
   val empty = WorkflowOptions.fromMap(Map.empty).get
+
+  lazy val defaultWorkflowType: Option[String] = Option(WorkflowOptionsConf.getString("default.workflow-type"))
+  lazy val defaultWorkflowTypeVersion: Option[String] =
+    WorkflowOptionsConf.as[Option[String]]("default.workflow-type-version")
 }
 
 case class WorkflowOptions(jsObject: JsObject) {

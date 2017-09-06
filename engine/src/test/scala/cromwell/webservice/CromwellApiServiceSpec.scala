@@ -1,25 +1,25 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
 import akka.http.scaladsl.coding.{Decoder, Gzip}
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import spray.json.DefaultJsonProtocol._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
+import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted, WorkflowSucceeded}
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflow, BatchSubmitWorkflows, SubmitWorkflow}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowAbortFailed
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{AsyncFlatSpec, Matchers}
+import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 import scala.concurrent.duration._
@@ -146,6 +146,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
       }
     }
+
     it should "return 200 for abort of a known workflow id" in {
       Post(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/abort") ~>
         akkaHttpService.workflowRoutes ~>
@@ -178,8 +179,35 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.Created) {
             status
           }
+          headers should be(Seq.empty)
         }
     }
+
+  it should "return 201 with warnings for a successful v1 workflow submission still using wdlSource" in {
+    val workflowSource = Multipart.FormData.BodyPart("wdlSource",
+      HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
+    val formData = Multipart.FormData(workflowSource).toEntity()
+    Post(s"/workflows/v1", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        status should be(StatusCodes.Created)
+        responseAs[String].parseJson.prettyPrint should be(
+          s"""|{
+              |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+              |  "status": "Submitted"
+              |}
+              |""".stripMargin.trim
+        )
+        headers.size should be(1)
+        val warningHeader = header("Warning")
+        warningHeader shouldNot be(empty)
+        warningHeader.get.value should fullyMatch regex
+          """299 cromwell/\d+-([0-9a-f]){7}(-SNAP)? """ +
+            "\"The 'wdlSource' parameter name has been deprecated in favor of 'workflowSource'. " +
+            "Support for 'wdlSource' will be removed from future versions of Cromwell. " +
+            "Please switch to using 'workflowSource' in future submissions.\""
+      }
+  }
 
     it should "return 400 for an unrecognized form data request parameter " in {
       val formData = Multipart.FormData(Multipart.FormData.BodyPart("incorrectParameter", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))).toEntity()
@@ -517,7 +545,8 @@ object CromwellApiServiceSpec {
         MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)))
     }
 
-    def metadataQuery(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None, false)
+    def metadataQuery(workflowId: WorkflowId) =
+      MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
     def logsEvents(id: WorkflowId) = {
       val stdout = MetadataEvent(MetadataKey(id, Some(MetadataJobKey("mycall", None, 1)), CallMetadataKeys.Stdout), MetadataValue("stdout.txt", MetadataString))
@@ -560,7 +589,7 @@ object CromwellApiServiceSpec {
       case BatchSubmitWorkflows(sources) =>
         val response = WorkflowsBatchSubmittedToStore(sources map { _ => ExistingWorkflowId })
         sender ! response
-      case AbortWorkflow(id, manager @ _) =>
+      case AbortWorkflow(id, _) =>
         val message = id match {
           case ExistingWorkflowId => WorkflowStoreEngineActor.WorkflowAborted(id)
           case AbortedWorkflowId =>

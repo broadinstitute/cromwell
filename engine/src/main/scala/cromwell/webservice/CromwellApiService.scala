@@ -3,41 +3,40 @@ package cromwell.webservice
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorRefFactory}
-import akka.http.scaladsl.server.Directives._
-
-import scala.concurrent.{ExecutionContext, Future}
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.Multipart.BodyPart
-import akka.stream.ActorMaterializer
-import cromwell.engine.backend.BackendConfiguration
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowSubmitted}
-import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
-import akka.pattern.{AskTimeoutException, ask}
-import akka.util.{ByteString, Timeout}
-import net.ceedubs.ficus.Ficus._
-import cromwell.engine.workflow.WorkflowManagerActor
-import cromwell.services.metadata.MetadataService._
-import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
-import WorkflowJsonSupport._
+import akka.http.scaladsl.marshalling.{ToEntityMarshaller, ToResponseMarshallable}
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.pattern.{AskTimeoutException, ask}
+import akka.stream.ActorMaterializer
+import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
+import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.labels.Labels
+import cromwell.core.{WorkflowAborted, WorkflowId, WorkflowSubmitted}
+import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
+import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.WorkflowStoreEngineAbortResponse
+import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
+import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
 import lenthall.exception.AggregatedMessageException
-import spray.json.JsObject
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 trait CromwellApiService extends HttpInstrumentation {
@@ -54,33 +53,33 @@ trait CromwellApiService extends HttpInstrumentation {
   // Derive timeouts (implicit and not) from akka http's request timeout since there's no point in being higher than that
   implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
-  
+
   val engineRoutes = concat(
-    path("engine" / Segment / "stats") { version =>
+    path("engine" / Segment / "stats") { _ =>
       get {
         onComplete(workflowManagerActor.ask(WorkflowManagerActor.EngineStatsCommand).mapTo[EngineStatsActor.EngineStats]) {
-          case Success(stats) => complete(stats)
+          case Success(stats) => complete(ToResponseMarshallable(stats))
           case Failure(_) => new RuntimeException("Unable to gather engine stats").failRequest(StatusCodes.InternalServerError)
         }
       }
     },
 
-    path("engine" / Segment / "version") { version =>
+    path("engine" / Segment / "version") { _ =>
       get { complete(versionResponse) }
     }
   )
 
   val workflowRoutes =
-    path("workflows" / Segment / "backends") { version =>
-      get { instrumentRequest { complete(backendResponse) } }
+    path("workflows" / Segment / "backends") { _ =>
+      get { instrumentRequest { complete(ToResponseMarshallable(backendResponse)) } }
     } ~
-    path("workflows" / Segment / Segment / "status") { (version, possibleWorkflowId) =>
+    path("workflows" / Segment / Segment / "status") { (_, possibleWorkflowId) =>
       get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) } }
     } ~
-    path("workflows" / Segment / Segment / "outputs") { (version, possibleWorkflowId) =>
+    path("workflows" / Segment / Segment / "outputs") { (_, possibleWorkflowId) =>
       get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w)) } }
     } ~
-    path("workflows" / Segment / Segment / "logs") { (version, possibleWorkflowId) =>
+    path("workflows" / Segment / Segment / "logs") { (_, possibleWorkflowId) =>
       get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLogs(w)) } }
     } ~
     path("workflows" / Segment / "query") { _ =>
@@ -104,7 +103,7 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     } ~
     encodeResponse {
-      path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
+      path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
         instrumentRequest {
           parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
             val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
@@ -121,7 +120,7 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     } ~
-    path("workflows" / Segment / "callcaching" / "diff") { version =>
+    path("workflows" / Segment / "callcaching" / "diff") { _ =>
       parameterSeq { parameters =>
         get {
           instrumentRequest {
@@ -143,7 +142,7 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     } ~
-    path("workflows" / Segment / Segment / "timing") { (version, possibleWorkflowId) =>
+    path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
       instrumentRequest {
         onComplete(validateWorkflowId(possibleWorkflowId)) {
           case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
@@ -151,7 +150,7 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     } ~
-    path("workflows" / Segment / Segment / "abort") { (version, possibleWorkflowId) =>
+    path("workflows" / Segment / Segment / "abort") { (_, possibleWorkflowId) =>
       post {
         instrumentRequest {
           val response = validateWorkflowId(possibleWorkflowId) flatMap { w =>
@@ -159,7 +158,8 @@ trait CromwellApiService extends HttpInstrumentation {
           }
 
           onComplete(response) {
-            case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) => complete(WorkflowAbortResponse(id.toString, WorkflowAborted.toString))
+            case Success(WorkflowStoreEngineActor.WorkflowAborted(id)) =>
+            complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
             case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: IllegalStateException)) => e.errorRequest(StatusCodes.Forbidden)
             case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e: WorkflowNotFoundException)) => e.errorRequest(StatusCodes.NotFound)
             case Success(WorkflowStoreEngineActor.WorkflowAbortFailed(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
@@ -171,7 +171,7 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     } ~
-    path("workflows" / Segment / Segment / "labels") { (version, possibleWorkflowId) =>
+    path("workflows" / Segment / Segment / "labels") { (_, possibleWorkflowId) =>
       entity(as[Map[String, String]]) { parameterMap =>
         patch {
           instrumentRequest {
@@ -195,20 +195,20 @@ trait CromwellApiService extends HttpInstrumentation {
         }
       }
     } ~
-  path("workflows" / Segment) { version =>
+  path("workflows" / Segment) { _ =>
       post {
         instrumentRequest {
           entity(as[Multipart.FormData]) { formData =>
-            submitRequest(formData, true)
+            submitRequest(formData, isSingleSubmission = true)
           }
         }
       }
     } ~
-  path("workflows" / Segment / "batch") { version =>
+  path("workflows" / Segment / "batch") { _ =>
     post {
       instrumentRequest {
         entity(as[Multipart.FormData]) { formData =>
-          submitRequest(formData, false)
+          submitRequest(formData, isSingleSubmission = false)
         }
       }
     }
@@ -216,28 +216,28 @@ trait CromwellApiService extends HttpInstrumentation {
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
     val allParts: Future[Map[String, ByteString]] = formData.parts.mapAsync[(String, ByteString)](1) {
-      case b: BodyPart => b.toStrict(duration).map(strict => b.name -> strict.entity.data)
+      bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
     def toResponse(workflowId: WorkflowId): WorkflowSubmitResponse = {
       WorkflowSubmitResponse(workflowId.toString, WorkflowSubmitted.toString)
     }
 
-    def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand): Route = {
+    def askSubmit(command: WorkflowStoreActor.WorkflowStoreActorSubmitCommand, warnings: Seq[String]): Route = {
       // NOTE: Do not blindly coppy the akka-http -to- ask-actor pattern below without knowing the pros and cons.
       onComplete(workflowStoreActor.ask(command).mapTo[WorkflowStoreSubmitActor.WorkflowStoreSubmitActorResponse]) {
         case Success(w) =>
           w match {
             case WorkflowStoreSubmitActor.WorkflowSubmittedToStore(workflowId) =>
-              complete((StatusCodes.Created, toResponse(workflowId)))
+              completeResponse(StatusCodes.Created, toResponse(workflowId), warnings)
             case WorkflowStoreSubmitActor.WorkflowsBatchSubmittedToStore(workflowIds) =>
-              complete((StatusCodes.Created, workflowIds.toList map toResponse))
+              completeResponse(StatusCodes.Created, workflowIds.toList map toResponse, warnings)
             case WorkflowStoreSubmitActor.WorkflowSubmitFailed(throwable) =>
-              throwable.failRequest(StatusCodes.BadRequest)
+              throwable.failRequest(StatusCodes.BadRequest, warnings)
           }
         case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
         case Failure(e) =>
-          e.failRequest(StatusCodes.InternalServerError)
+          e.failRequest(StatusCodes.InternalServerError, warnings)
       }
     }
 
@@ -245,13 +245,18 @@ trait CromwellApiService extends HttpInstrumentation {
       case Success(data) =>
         PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
-            askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head))
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings)
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
-          case Success(_) if isSingleSubmission =>
+          case Success(workflowSourceFiles) if isSingleSubmission =>
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
             val e = new IllegalArgumentException("To submit more than one workflow at a time, use the batch endpoint.")
-            e.failRequest(StatusCodes.BadRequest)
+            e.failRequest(StatusCodes.BadRequest, warnings)
           case Success(workflowSourceFiles) =>
-            askSubmit(WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)))
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            askSubmit(
+              WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)),
+              warnings)
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
@@ -291,7 +296,7 @@ trait CromwellApiService extends HttpInstrumentation {
       case Success(w: WorkflowQuerySuccess) =>
         val headers = WorkflowQueryPagination.generateLinkHeaders(uri, w.meta)
         respondWithHeaders(headers) {
-          complete(w.response)
+          complete(ToResponseMarshallable(w.response))
         }
       case Success(w: WorkflowQueryFailure) => w.reason.failRequest(StatusCodes.BadRequest)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
@@ -304,8 +309,31 @@ object CromwellApiService {
   import spray.json._
 
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
-    def failRequest(statusCode: StatusCode): Route = complete((statusCode, APIResponse.fail(e).toJson.prettyPrint))
-    def errorRequest(statusCode: StatusCode): Route = complete((statusCode, APIResponse.error(e).toJson.prettyPrint))
+    def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
+      completeResponse(statusCode, APIResponse.fail(e).toJson.prettyPrint, warnings)
+    }
+    def errorRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
+      completeResponse(statusCode, APIResponse.error(e).toJson.prettyPrint, warnings)
+    }
+  }
+
+  def completeResponse[A](statusCode: StatusCode, value: A, warnings: Seq[String])
+                         (implicit mt: ToEntityMarshaller[A]): Route = {
+    val warningHeaders = warnings.toIndexedSeq map { warning =>
+      /*
+      Need a quoted string.
+      https://stackoverflow.com/questions/7886782
+
+      Using a poor version of ~~#!
+      https://github.com/akka/akka-http/blob/v10.0.9/akka-http-core/src/main/scala/akka/http/impl/util/Rendering.scala#L206
+       */
+      val quotedString = "\"" + warning.replaceAll("\"","\\\\\"").replaceAll("[\\r\\n]+", " ").trim + "\""
+
+      // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.46
+      RawHeader("Warning", s"299 cromwell/$cromwellVersion $quotedString")
+    }
+
+    complete((statusCode, warningHeaders, value))
   }
 
   final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)
@@ -313,7 +341,8 @@ object CromwellApiService {
   final case class UnrecognizedWorkflowException(message: String) extends Exception(message)
   final case class InvalidWorkflowException(message: String) extends Exception(message)
 
+  val cromwellVersion = ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell")
   val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
-  val versionResponse = JsObject(Map("cromwell" -> ConfigFactory.load("cromwell-version.conf").getConfig("version").getString("cromwell").toJson))
+  val versionResponse = JsObject(Map("cromwell" -> cromwellVersion.toJson))
   val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)
 }

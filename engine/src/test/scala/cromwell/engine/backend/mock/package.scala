@@ -1,15 +1,15 @@
 package cromwell.engine.backend
 
 import cromwell.core.JobOutput
-import wdl4s.wdl.TaskOutput
 import wdl4s.wdl.types._
 import wdl4s.wdl.values._
+import wdl4s.wom.callable.Callable.OutputDefinition
 
 package object mock {
 
   // This is used by stubbed backends that are to be used in tests to prepare dummy outputs for job
-  def taskOutputToJobOutput(taskOutput: TaskOutput) =
-    taskOutput.unqualifiedName -> JobOutput(sampleValue(taskOutput.wdlType))
+  def taskOutputToJobOutput(taskOutput: OutputDefinition) =
+    taskOutput.name -> JobOutput(sampleValue(taskOutput.womType))
 
   private def sampleValue(wdlType: WdlType): WdlValue = wdlType match {
     case WdlIntegerType => WdlInteger(3)

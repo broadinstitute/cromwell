@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
-import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
+import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.validation.ContinueOnReturnCodeValidation
 import cromwell.core.{WorkflowMetadataKeys, WorkflowOptions}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -121,19 +121,21 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
   private def validateRuntimeAttributes: Future[Unit] = {
 
     coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) match {
-      case Success(defaultRuntimeAttributes) =>
+      case Success(_) =>
 
-        def defaultRuntimeAttribute(name: String): Option[WdlValue] = {
-          defaultRuntimeAttributes.get(name)
-        }
+//        def defaultRuntimeAttribute(name: String): Option[WdlValue] = {
+//          defaultRuntimeAttributes.get(name)
+//        }
 
         def badRuntimeAttrsForTask(task: TaskDefinition) = {
-          runtimeAttributeValidators map { case (attributeName, validator) =>
-            val value = task.runtimeAttributes.attrs.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
-            attributeName -> ((value, validator(value)))
-          } collect {
-            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
-          }
+          // TODO WOM: fixme
+//          runtimeAttributeValidators map { case (attributeName, validator) =>
+//            val value = task.runtimeAttributes.attributes.get(attributeName) orElse defaultRuntimeAttribute(attributeName)
+//            attributeName -> ((value, validator(value)))
+//          } collect {
+//            case (name, (value, false)) => RuntimeAttributeValidationFailure(task.name, name, value)
+//          }
+          Seq.empty
         }
 
         calls map { _.callable } flatMap badRuntimeAttrsForTask match {

@@ -6,8 +6,9 @@ import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.CollectorKey
 import cromwell.util.SampleWdl
 import org.scalameter.api._
-import wdl4s.wdl.{WdlTaskCall, WdlNamespaceWithWorkflow}
 import org.scalameter.picklers.Implicits._
+import wdl4s.wdl.WdlNamespaceWithWorkflow
+import wdl4s.wom.graph.{ScatterNode, TaskCallNode}
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)
@@ -24,11 +25,11 @@ object ExecutionStoreBenchmark extends Bench[Double] {
   lazy val persistor = Persistor.None
   
   val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
-  val prepareCall: WdlTaskCall = wdl.workflow.findCallByName("do_prepare").get.asInstanceOf[WdlTaskCall]
-  val scatterCall: WdlTaskCall = wdl.workflow.findCallByName("do_scatter").get.asInstanceOf[WdlTaskCall]
-  val scatter = wdl.workflow.namespace.scatters.head
+  val prepareCall: TaskCallNode = null// wdl.workflow.findCallByName("do_prepare").get.asInstanceOf[WdlTaskCall]
+  val scatterCall: TaskCallNode = null//wdl.workflow.findCallByName("do_scatter").get.asInstanceOf[WdlTaskCall]
+  val scatter: ScatterNode = null //wdl.workflow.namespace.scatters.head
   
-  def makeKey(call: WdlTaskCall, executionStatus: ExecutionStatus)(index: Int) = {
+  def makeKey(call: TaskCallNode, executionStatus: ExecutionStatus)(index: Int) = {
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
   }
   

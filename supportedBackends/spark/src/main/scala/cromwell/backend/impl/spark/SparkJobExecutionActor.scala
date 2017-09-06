@@ -14,6 +14,7 @@ import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
 import wdl4s.parser.MemoryUnit
+import wdl4s.wdl.values.WdlValue
 
 import scala.concurrent.{Future, Promise}
 import scala.sys.process.ProcessLogger
@@ -58,16 +59,16 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val call = jobDescriptor.key.call
+//  private val call = jobDescriptor.key.call
   private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders)
 
-//  private val lookup = jobDescriptor.fullyQualifiedInputs.apply _
+//  private val lookup = jobDescriptor.fullyQualifiedInputs
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 
   private val runtimeAttributes = {
     // TODO WOM: Fix
-    val evaluateAttrs = call.callable.runtimeAttributes.attrs//ask.runtimeAttributes.attrs mapValues (_.evaluate(lookup, callEngineFunction))
+    val evaluateAttrs = Map.empty[String, WdlValue]//call.callable.runtimeAttributes.attributes mapValues (_.evaluateValue(lookup, callEngineFunction))
     SparkRuntimeAttributes(evaluateAttrs, jobDescriptor.workflowDescriptor.workflowOptions)
   }
 

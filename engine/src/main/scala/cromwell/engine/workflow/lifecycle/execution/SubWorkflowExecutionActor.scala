@@ -3,20 +3,21 @@ package cromwell.engine.workflow.lifecycle.execution
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
-import cromwell.core._
+import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core._
 import cromwell.core.logging.JobLogging
-import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
-import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
+import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
+import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
-import wdl4s.wdl.EvaluatedTaskInputs
+import wdl4s.wom.WomEvaluatedCallInputs
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 parentWorkflow: EngineWorkflowDescriptor,
@@ -135,7 +136,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case _ -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
 
-  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) = {
+  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs) = {
     val subWorkflowActor = createSubWorkflowActor(subWorkflowEngineDescriptor)
 
     subWorkflowActor ! WorkflowExecutionActor.ExecuteWorkflowCommand
@@ -185,13 +186,13 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     )
   }
 
-  private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: EvaluatedTaskInputs) = {
+  private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: WomEvaluatedCallInputs) = {
     val subWorkflowId = subWorkflowDescriptor.id
     val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.scope.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
 
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.callable.unqualifiedName)),
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.scope.callable.name)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id))
     )
 
@@ -200,7 +201,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         List(MetadataEvent.empty(MetadataKey(subWorkflowId, None,WorkflowMetadataKeys.Inputs)))
       case inputs =>
         inputs flatMap { case (inputName, wdlValue) =>
-          wdlValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.unqualifiedName}"), wdlValue)
+          wdlValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.name}"), wdlValue)
         }
     }
 

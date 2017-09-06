@@ -11,8 +11,8 @@ import cromwell.backend.wdl.WdlFileMapper
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import lenthall.util.TryUtil
-import wdl4s.wdl.EvaluatedTaskInputs
 import wdl4s.wdl.values._
+import wdl4s.wom.WomEvaluatedCallInputs
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -154,7 +154,7 @@ trait SharedFileSystem extends PathFactory {
    * Return a possibly altered copy of inputs reflecting any localization of input file paths that might have
    * been performed for this `Backend` implementation.
    */
-  def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: EvaluatedTaskInputs): Try[EvaluatedTaskInputs] = {
+  def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
       inputs mapValues WdlFileMapper.mapWdlFiles(localizeWdlFile(inputsRoot, docker)),
       "Failures during localization"

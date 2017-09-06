@@ -6,6 +6,7 @@ import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
+import cromwell.core.CromwellGraphNode._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}

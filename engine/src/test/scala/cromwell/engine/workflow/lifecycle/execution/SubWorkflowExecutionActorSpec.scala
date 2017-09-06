@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
+import cromwell.core.CromwellGraphNode._
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -44,7 +45,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val parentWorkflowId: WorkflowId = WorkflowId.randomId()
   parentBackendDescriptor.id returns parentWorkflowId
   val parentWorkflowDescriptor = EngineWorkflowDescriptor(
-    mock[WdlNamespaceWithWorkflow],
+//    mock[WdlNamespaceWithWorkflow],
+    null,
     parentBackendDescriptor,
     Map.empty,
     ContinueWhilePossible,
@@ -56,7 +58,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val subWorkflowCall = mock[WdlWorkflowCall]
   subWorkflowCall.fullyQualifiedName returns "foo.bar"
   subWorkflowCall.callable returns subWorkflow
-  val subKey = SubWorkflowKey(subWorkflowCall, None, 1)
+  val subKey: SubWorkflowKey = null//SubWorkflowKey(subWorkflowCall, None, 1)
   
   val awaitTimeout: FiniteDuration = 10 seconds
 
@@ -148,7 +150,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     val subBackendDescriptor = mock[BackendWorkflowDescriptor]
     subBackendDescriptor.id returns subWorkflowId
     val subWorkflowDescriptor = EngineWorkflowDescriptor(
-      mock[WdlNamespaceWithWorkflow],
+//      mock[WdlNamespaceWithWorkflow],
+      null,
       subBackendDescriptor,
       Map.empty,
       ContinueWhilePossible,

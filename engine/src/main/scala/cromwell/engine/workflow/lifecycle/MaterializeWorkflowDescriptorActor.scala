@@ -355,7 +355,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                    options: WorkflowOptions,
                                    coercedInputs: WorkflowCoercedInputs,
                                    pathBuilders: List[PathBuilder]): ErrorOr[WorkflowCoercedInputs] = {
-    namespace.staticDeclarationsRecursive(coercedInputs, new WdlFunctions(pathBuilders)) match {
+    // TODO WOM: fix this
+    namespace.staticDeclarationsRecursive(coercedInputs, NoFunctions) match {
       case Success(d) => d.validNel
       case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".invalidNel
     }

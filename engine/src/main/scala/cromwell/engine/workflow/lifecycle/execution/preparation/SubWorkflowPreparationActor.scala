@@ -9,8 +9,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.SubWo
 import cromwell.engine.workflow.lifecycle.execution.preparation.CallPreparation.{CallPreparationFailed, Start, _}
 import cromwell.engine.workflow.lifecycle.execution.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.{EngineWorkflowDescriptor, WdlFunctions}
-import wdl4s.wdl._
-import wdl4s.wdl.values.WdlValue
+import wdl4s.wom.WomEvaluatedCallInputs
 
 class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                   expressionLanguageFunctions: WdlFunctions,
@@ -19,13 +18,15 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   lazy val workflowIdForLogging = workflowDescriptor.id
 
-  def prepareExecutionActor(inputEvaluation: Map[Declaration, WdlValue]): CallPreparationActorResponse = {
+  def prepareExecutionActor(inputEvaluation: WomEvaluatedCallInputs): CallPreparationActorResponse = {
     val oldBackendDescriptor = workflowDescriptor.backendDescriptor
 
     val newBackendDescriptor = oldBackendDescriptor.copy(
       id = subWorkflowId,
-      workflow = callKey.scope.calledWorkflow,
-      knownValues = workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
+      // TODO WOM: clean up
+      workflow = callKey.scope.callable,
+      // TODO WOM: need FQN for input definitions somehow ? For now don;t worry about subWF
+      knownValues = Map.empty,//workflowDescriptor.knownValues ++ (inputEvaluation map { case (k, v) => k.fullyQualifiedName -> v }),
       breadCrumbs = oldBackendDescriptor.breadCrumbs :+ BackendJobBreadCrumb(workflowDescriptor.workflow, workflowDescriptor.id, callKey)
     )
     val engineDescriptor = workflowDescriptor.copy(backendDescriptor = newBackendDescriptor, parentWorkflow = Option(workflowDescriptor))
@@ -44,7 +45,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 }
 
 object SubWorkflowPreparationActor {
-  case class SubWorkflowPreparationSucceeded(workflowDescriptor: EngineWorkflowDescriptor, inputs: EvaluatedTaskInputs) extends CallPreparationActorResponse
+  case class SubWorkflowPreparationSucceeded(workflowDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs) extends CallPreparationActorResponse
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
             expressionLanguageFunctions: WdlFunctions,

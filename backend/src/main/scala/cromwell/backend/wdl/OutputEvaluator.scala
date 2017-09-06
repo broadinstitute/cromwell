@@ -14,7 +14,7 @@ object OutputEvaluator {
                       ioFunctions: IoFunctionSet,
                       postMapper: WdlValue => Try[WdlValue] = v => Success(v)): Try[Map[LocallyQualifiedName, JobOutput]] = Try {
     val knownValues = jobDescriptor.inputDeclarations map {
-      case (declaration, value) => declaration.fullyQualifiedName -> value
+      case (declaration, value) => declaration.name -> value
     }
     
     jobDescriptor.call.callable.outputs map { output =>

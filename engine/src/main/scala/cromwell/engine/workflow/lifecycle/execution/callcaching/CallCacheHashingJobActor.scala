@@ -120,7 +120,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   private def initializeCCHJA() = {
     import cromwell.core.simpleton.WdlValueSimpleton._
 
-    val unqualifiedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.unqualifiedName -> value }
+    val unqualifiedInputs = jobDescriptor.inputDeclarations map { case (declaration, value) => declaration.name -> value }
 
     val inputSimpletons = unqualifiedInputs.simplify
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {

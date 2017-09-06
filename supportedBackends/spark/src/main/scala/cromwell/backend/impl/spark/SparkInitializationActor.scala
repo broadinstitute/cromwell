@@ -55,7 +55,7 @@ class SparkInitializationActor(override val workflowDescriptor: BackendWorkflowD
   override def validate(): Future[Unit] = {
     Future {
       calls foreach { call =>
-        val notSupportedAttributes = call.callable.runtimeAttributes.attrs filterKeys { !SupportedKeys.contains(_) }
+        val notSupportedAttributes = call.callable.runtimeAttributes.attributes filterKeys { !SupportedKeys.contains(_) }
         if (notSupportedAttributes.nonEmpty) {
           val notSupportedAttrString = notSupportedAttributes.keys mkString ", "
           log.warning(s"Key/s [$notSupportedAttrString] is/are not supported by SparkBackend. Unsupported attributes will not be part of jobs executions.")

@@ -67,7 +67,7 @@ case class Workflow(
     val graphFromSteps =
       steps.
         toList.
-        foldLeft(Set.empty[GraphNode])(
+        foldLeft(Set.empty[GraphNode] ++ graphFromInputs)(
           (nodes, step) => step.callWithInputs(typeMap,  this, nodes, workflowInputs))
 
     val graphFromOutputs: ErrorOr[Set[GraphNode]] =

@@ -53,7 +53,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
     } yield validateWom(wom)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
 
-  "Cwl for 1st workflow" should "convert to WOM" ignore {
+  "Cwl for 1st workflow" should "convert to WOM" in {
     (for {
       wf <- decodeAllCwl(rootPath/"1st-workflow.cwl").
               value.
@@ -96,7 +96,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers {
     }
   }
 
-  "A WdlNamespace for 3step" should "provide conversion to WOM" ignore {
+  "A WdlNamespace for 3step" should "provide conversion to WOM" in {
 
     val wf = decodeAllCwl(rootPath/"three_step.cwl").map {
       _.select[Workflow].get

@@ -103,51 +103,58 @@ case class WorkflowStep(
                      workflow: Workflow,
                      knownNodes: Set[GraphNode],
                      workflowInputs: Map[String, GraphNodeOutputPort]): Set[GraphNode] = {
-
     def foldInputs(mapAndNodes: (Map[String, OutputPort], Set[GraphNode]), workflowStepInput: WorkflowStepInput): (Map[String, OutputPort], Set[GraphNode]) =
       mapAndNodes match {
-        case ((map, upstreamNodes)) =>
+        case ((map, knownNodes)) => //shadowing knownNodes on purpose to avoid accidentally referencing the outer one
 
           val inputSource = workflowStepInput.source.flatMap(_.select[String]).get
 
+          def findThisInputInSet(set: Set[GraphNode]) ={
+
+            val lookupSet: Set[OutputPort] =
+              for {
+                node <- set
+                outputPort <- node.outputPorts
+              } yield outputPort
+
+            lookupSet.find(_.name == inputSource)
+          }
+
+          def lookupUpstreamNodes(nodeId: String):Option[(Set[GraphNode], OutputPort)] = {
+            //TODO: Option get!
+            val step  =
+              workflow.steps.find { step =>
+                val lookup = WorkflowStepId(step.id).stepId
+                lookup == nodeId
+              }.get
+
+            val upstreamNodesForFoundStep:Set[GraphNode] = step.callWithInputs(typeMap, workflow, knownNodes, workflowInputs)
+
+            findThisInputInSet(upstreamNodesForFoundStep).map(upstreamNodesForFoundStep -> _)
+          }
+
           FullyQualifiedName(inputSource) match {
+            case _: WorkflowInputId =>
+
+              val foundInSeenNodes = findThisInputInSet(knownNodes)
+
+              val newNodesAndOutputPort: Option[OutputPort] =
+                foundInSeenNodes
+
+              val outputPort = newNodesAndOutputPort.get
+
+              (map + (inputSource -> outputPort), knownNodes)
             case WorkflowStepOutputIdReference(_, _, stepId) =>
-
-              //generate a node for this output
-              def findThisInputInSet(set: Set[GraphNode]) ={
-
-                val lookupSet: Set[OutputPort] =
-                  for {
-                    node <- set
-                    outputPort <- node.outputPorts
-                  } yield outputPort
-
-                lookupSet.find(_.name == inputSource)
-              }
 
               val foundInSeenNodes: Option[OutputPort] = findThisInputInSet(knownNodes)
 
-              def lookupUpstreamNodes:Option[(Set[GraphNode], OutputPort)] = {
-                //TODO: Option get!
-                val step  =
-                  workflow.steps.find { step =>
-                    val lookup = WorkflowStepId(step.id).stepId
-                    lookup == stepId
-                  }.get
-
-                val upstreamNodesForFoundStep:Set[GraphNode] = step.callWithInputs(typeMap, workflow, knownNodes,workflowInputs)
-
-                findThisInputInSet(upstreamNodesForFoundStep).map(upstreamNodesForFoundStep -> _)
-              }
-
-              val newNodesAndOutputPort: Option[(Set[GraphNode],OutputPort)] = foundInSeenNodes.map(Set.empty[GraphNode] -> _) orElse lookupUpstreamNodes
+              val newNodesAndOutputPort: Option[(Set[GraphNode],OutputPort)] = foundInSeenNodes.map(Set.empty[GraphNode] -> _) orElse lookupUpstreamNodes(stepId)
 
               //TODO: Option . get makes kittens sad
               val (newNodes, outputPort) = newNodesAndOutputPort.get
 
-              (map + (inputSource -> outputPort), upstreamNodes ++ newNodes)
-
-            case _ => (map, upstreamNodes)
+              (map + (inputSource -> outputPort), knownNodes ++ newNodes)
+            case _ => (map, knownNodes) //TODO: This should "fail fast" as Invalid here as it won't pass validation
           }
       }
 
